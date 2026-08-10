@@ -647,7 +647,9 @@ Deux compilateurs cohabitent donc : la 6 vérifie, la 7 émet les types publiés
 
 *Pourquoi une erreur volontaire plutôt qu'un simple lancement :* un outil qui démarre sans rien détecter passerait pour fonctionnel tout en ne servant à rien. Le contrôle vérifie qu'il fait son travail, pas qu'il s'exécute.
 
-Vérifié dans les deux sens avant d'être livré : la sonde répond non avec TypeScript 7, et oui avec la 6. Une sonde qui répondrait toujours non serait indiscernable d'une sonde correcte.
+**Le contrôle positif tourne à chaque exécution**, il n'a pas été fait une fois en local. Le job lance d'abord la même sonde sous TypeScript 6, où l'erreur *doit* être détectée, et **échoue bruyamment si elle ne l'est plus**.
+
+C'est ce qui distingue les deux sens de `ready=false` : « la contrainte tient toujours » et « la sonde ne mesure plus rien » produiraient sinon le même run vert et le même silence. Une sonde qui répondrait toujours non serait indiscernable d'une sonde correcte.
 
 *Ce qui casse si on l'enlève :* le dépôt reste sur TypeScript 6 indéfiniment, sans que personne ne sache que la raison a disparu.
 
