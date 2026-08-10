@@ -17,6 +17,17 @@ Le prompt de délégation doit rester **minimal** :
 
 Le sous-agent produit et poste la revue, puis se termine. Tu ne reprends la main qu'ensuite, pour corriger les points remontés.
 
+## Borne d'effort
+
+**Reste proportionné au diff.** Une revue longue sur un petit diff ne sera pas lue, et c'est le seul mode d'échec qui compte ici.
+
+- Lis le diff, `CLAUDE.md`, et les fichiers que le diff touche. Rien d'autre.
+- **Ne clone pas le dépôt, ne monte pas d'environnement jetable, ne rejoue pas le mécanisme de bout en bout.** Vérifie par l'exécution seulement ce dont le verdict dépend, en une ou deux commandes.
+- Vise trois points maximum, et deux lignes par point.
+- Ne rends compte que de ce que tu signales. Pas de liste de ce que tu as vérifié et trouvé conforme.
+
+Un diff de cinquante lignes mérite quelques minutes, pas une enquête.
+
 ## 1. Lire, ne pas se souvenir
 
 Commence par lire réellement les fichiers :

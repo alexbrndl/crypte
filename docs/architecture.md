@@ -11,7 +11,7 @@ Le dépôt est un monorepo. Il contient trois paquets publiables sous le scope `
 ### Fichiers racine
 
 **`package.json`**
-Paquet privé, jamais publié. Il déclare les espaces de travail (`packages/*`, `apps/*`) et les quatre scripts d'entrée : `check`, `test`, `pack`, `ready`. Il porte aussi `vite-plus` en `devDependencies`, sans quoi les fichiers de configuration ne peuvent pas importer `defineConfig`.
+Paquet privé, jamais publié. Il déclare les espaces de travail (`packages/*`, `apps/*`) et les scripts d'entrée : `check`, `test`, `pack`, `ready`, plus `prepare` qui installe le hook de pré-commit à l'installation des dépendances (section 7). Il porte aussi `vite-plus` en `devDependencies`, sans quoi les fichiers de configuration ne peuvent pas importer `defineConfig`.
 *Sans lui :* aucune commande ne trouve les paquets, le monorepo n'existe pas.
 
 **`pnpm-workspace.yaml`**
@@ -54,6 +54,10 @@ Vérifie qu'une revue a été postée sur la pull request. Il ne produit aucune 
 **`.claude/skills/review/SKILL.md`**
 Le prompt de revue, lancé en local par `/review`.
 *Sans lui :* le contrôle ci-dessus ne peut jamais être satisfait.
+
+**`.vite-hooks/pre-commit`**
+Le hook de pré-commit, versionné, qui lance `vp staged`. Voir la section 7.
+*Sans lui :* le bloc `staged` de `vite.config.ts` n'est jamais appelé, et un fichier mal formaté part en commit.
 
 **`.gitignore`**
 Exclut notamment `dist/` et `.vite/`. Les artefacts de construction ne sont pas versionnés, ils sont reconstruits par `vp pack`.
@@ -401,11 +405,14 @@ Le hook est mesuré, parce qu'un hook lent finit contourné avec `--no-verify`, 
 
 | Cas | Durée |
 |---|---|
-| Un fichier, rien à corriger | 0,3 s |
+| Aucun fichier ne correspond au motif | 0,4 s |
+| Un fichier, rien à corriger | 1,7 s |
 | Plusieurs fichiers, rien à corriger | 1,8 s |
 | `git commit` complet, une correction appliquée | 2,2 s |
 
-Le critère retenu : au-delà de deux secondes environ sur un commit ordinaire, **on retire le hook plutôt que de le subir**. L'intégration continue, elle, ne bouge pas. Les mesures ci-dessus sont à la limite de ce seuil, à surveiller si le dépôt grossit.
+Le coût est presque entièrement fixe : dès qu'un fichier correspond au motif, on paie environ 1,7 s, quel que soit leur nombre. Il vient de la mise de côté de l'état non indexé avant de lancer les vérifications, pas du formatage lui-même.
+
+Le critère retenu : au-delà de deux secondes environ sur un commit ordinaire, **on retire le hook plutôt que de le subir**. L'intégration continue, elle, ne bouge pas. Les mesures ci-dessus sont à la limite de ce seuil, sans marge.
 
 ### Ce que le hook ne couvre pas
 
