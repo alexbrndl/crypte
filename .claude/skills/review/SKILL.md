@@ -9,11 +9,36 @@ Relis le diff de la branche courante contre les contraintes écrites du dépôt,
 
 **Si tu as écrit tout ou partie de cette branche dans la session courante, ne fais pas la revue toi-même.** Délègue-la à un sous-agent, qui part d'un contexte vierge et ne peut donc pas confondre ce qu'il croit avoir fait avec ce que le diff contient.
 
-Le prompt de délégation doit rester **minimal** :
-
-> Applique le skill `review` à la branche courante du dépôt. Ne suppose rien de ce qui a été fait.
-
 **Ne lui résume ni le travail, ni les intentions, ni les décisions.** Un résumé réintroduit exactement le biais que la délégation supprime : le sous-agent vérifierait alors ta version des faits au lieu du diff.
+
+En revanche, **fournis-lui les faits bruts** plutôt que de le laisser les rechercher : la sortie de `git diff origin/main...HEAD`, la liste des fichiers touchés, le numéro de la pull request. Ce n'est pas un résumé, c'est le texte même qu'il irait chercher, et le lui donner évite une demi-douzaine d'allers-retours.
+
+La distinction tient en une phrase : **des faits, jamais d'interprétation.**
+
+### Quel modèle
+
+Le critère est mécanique, pour ne pas être rejugé à chaque revue :
+
+| Le diff touche                                                       | Modèle         |
+| -------------------------------------------------------------------- | -------------- |
+| uniquement de la documentation, de la configuration ou des workflows | petit modèle   |
+| au moins un fichier sous `packages/*/src/**` ou `apps/**`            | modèle courant |
+
+Le code garde donc toujours le modèle courant : le petit modèle ne s'applique jamais là où le raisonnement est le plus exigeant. En cas de doute sur la nature du diff, prends le modèle courant.
+
+### Forme du prompt
+
+```
+Applique le skill review à la branche courante du dépôt.
+Ne suppose rien de ce qui a été fait.
+Pull request numéro N.
+
+Fichiers touchés :
+<sortie de git diff --stat origin/main...HEAD>
+
+Diff :
+<sortie de git diff origin/main...HEAD>
+```
 
 Le sous-agent produit et poste la revue, puis se termine. Tu ne reprends la main qu'ensuite, pour corriger les points remontés.
 
@@ -21,16 +46,21 @@ Le sous-agent produit et poste la revue, puis se termine. Tu ne reprends la main
 
 **Reste proportionné au diff.** Une revue longue sur un petit diff ne sera pas lue, et c'est le seul mode d'échec qui compte ici.
 
-- Lis le diff, `CLAUDE.md`, et les fichiers que le diff touche. Rien d'autre.
+- **N'utilise pas d'outil pour ce que le prompt contient déjà.** Le diff et la liste des fichiers y sont fournis : les récupérer une seconde fois est du gaspillage pur.
+- Lis `CLAUDE.md`, et un fichier touché seulement si le diff seul ne permet pas de trancher. Rien d'autre.
 - **Ne clone pas le dépôt, ne monte pas d'environnement jetable, ne rejoue pas le mécanisme de bout en bout.** Vérifie par l'exécution seulement ce dont le verdict dépend, en une ou deux commandes.
 - Vise trois points maximum, et deux lignes par point.
 - Ne rends compte que de ce que tu signales. Pas de liste de ce que tu as vérifié et trouvé conforme.
+
+Repère chiffré : **une dizaine d'appels d'outils au maximum**, poster la revue et relancer le contrôle compris. Au-delà, tu es en train d'enquêter au lieu de relire.
 
 Un diff de cinquante lignes mérite quelques minutes, pas une enquête.
 
 ## 1. Lire, ne pas se souvenir
 
-Commence par lire réellement les fichiers :
+Le diff est dans le prompt. Lis-le, ne le redemande pas.
+
+S'il en est absent, et seulement dans ce cas :
 
 ```bash
 git fetch origin main

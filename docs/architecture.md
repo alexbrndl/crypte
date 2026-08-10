@@ -321,6 +321,27 @@ Le brouillon d'abord, pour qu'une pull request non relue ne puisse pas être fus
 
 *Ce qui casse si on l'enlève :* la revue est produite par la session qui a écrit le code. Elle valide alors ce qu'elle croit avoir fait, et les écarts entre l'intention et le diff, précisément ce qu'on cherche, deviennent invisibles.
 
+### Ce que reçoit le sous-agent, et sur quel modèle
+
+**Le prompt fournit les faits, jamais l'interprétation.** Le diff complet, la liste des fichiers touchés et le numéro de la pull request sont collés dans le prompt ; le travail effectué, les intentions et les décisions n'y figurent jamais.
+
+La distinction est fine mais tient à peu de chose : fournir le diff n'est pas le résumer. C'est le même texte que le sous-agent irait chercher lui-même, et le lui donner supprime une demi-douzaine d'allers-retours. Résumer le travail, en revanche, lui ferait vérifier la version des faits de l'auteur au lieu du diff.
+
+**Le modèle est choisi mécaniquement**, pour ne pas être rejugé à chaque fois :
+
+| Le diff touche | Modèle |
+| -- | -- |
+| documentation, configuration, workflows uniquement | petit modèle |
+| au moins un fichier sous `packages/*/src/**` ou `apps/**` | modèle courant |
+
+Le code garde toujours le modèle courant. C'est ce qui rend la règle sûre : le petit modèle ne s'applique jamais là où le raisonnement est le plus exigeant.
+
+*Pourquoi :* la revue coûtait 96 000 tokens et douze minutes pour un diff de 58 lignes, puis 62 000 et quatre minutes après l'ajout de la borne d'effort. Le coût ne venait pas des points remontés mais du chemin, le sous-agent redécouvrant le dépôt à chaque fois.
+
+*Ce qui casse si on l'enlève :* rien de visible, et c'est le piège. La revue continue de fonctionner, simplement elle coûte plusieurs fois son prix, et un mécanisme trop cher finit par être contourné.
+
+*Garde-fou :* si une revue sur de la documentation rate un point qu'une relecture humaine attrape, revenir au modèle courant partout. Une revue économique qui ne trouve rien est le pire des deux mondes, puisqu'on croit avoir été relu.
+
 ### Les points sont résolvables, et bloquants
 
 La revue est postée en tant que revue avec des commentaires **ancrés sur des lignes**, et non en commentaire simple : seul un commentaire de revue peut être marqué comme résolu. Chaque point devient une conversation à clore explicitement.
