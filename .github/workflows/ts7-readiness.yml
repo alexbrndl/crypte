@@ -1,0 +1,104 @@
+name: TypeScript 7 readiness
+
+# Le catalogue est épinglé en TypeScript 6 parce que vue-tsc ne fonctionne pas
+# avec la 7. Ce workflow teste cette contrainte une fois par mois et ouvre une
+# issue le jour où elle tombe. Voir docs/architecture.md.
+
+on:
+  schedule:
+    - cron: '0 6 1 * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Monter un projet jetable
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/probe/src"
+          cd "$RUNNER_TEMP/probe"
+
+          cat > package.json <<'JSON'
+          { "name": "probe", "private": true, "type": "module" }
+          JSON
+
+          cat > tsconfig.json <<'JSON'
+          {
+            "compilerOptions": {
+              "noEmit": true,
+              "strict": true,
+              "module": "preserve",
+              "moduleResolution": "bundler",
+              "lib": ["ES2023", "DOM"]
+            },
+            "include": ["src"]
+          }
+          JSON
+
+          # Erreur de type volontaire : le test ne vérifie pas que vue-tsc démarre,
+          # il vérifie qu'il la trouve. Un outil qui se lance sans rien détecter
+          # passerait pour fonctionnel tout en ne servant à rien.
+          cat > src/Probe.vue <<'VUE'
+          <script setup lang="ts">
+          const bad: string = 42
+          </script>
+
+          <template>
+            <p>{{ bad }}</p>
+          </template>
+          VUE
+
+          npm install --no-save --silent vue-tsc typescript@7 vue
+
+      - name: Vérifier si vue-tsc détecte l'erreur sous TypeScript 7
+        id: probe
+        run: |
+          set +e
+          cd "$RUNNER_TEMP/probe"
+          echo "typescript: $(node -p "require('typescript/package.json').version")"
+          echo "vue-tsc:    $(node -p "require('vue-tsc/package.json').version")"
+
+          output=$(./node_modules/.bin/vue-tsc --noEmit 2>&1)
+          echo "$output"
+
+          if echo "$output" | grep -q 'TS2322'; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Ouvrir une issue si la contrainte est levée
+        if: steps.probe.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          title='vue-tsc fonctionne avec TypeScript 7'
+
+          # Sans ce garde, une issue serait ouverte chaque mois une fois la
+          # contrainte levée, jusqu'à ce que quelqu'un désactive le workflow.
+          existing=$(gh issue list --repo "$REPO" --state open --search "$title in:title" \
+            --json number --jq 'length')
+
+          if [ "$existing" -gt 0 ]; then
+            echo "Issue déjà ouverte, rien à faire."
+            exit 0
+          fi
+
+          gh issue create --repo "$REPO" --title "$title" --body \
+          'Le contrôle mensuel a réussi : `vue-tsc` détecte désormais les erreurs de types sous TypeScript 7.
+
+          Le catalogue de `pnpm-workspace.yaml` peut repasser en 7, et la section correspondante de `docs/architecture.md` être supprimée.
+
+          Vérifier au passage que `vp check`, `vp run -r typecheck` et `vp run -r pack` passent toujours, la génération des déclarations utilisant le TypeScript embarqué par Vite+.'

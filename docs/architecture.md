@@ -639,6 +639,18 @@ Deux compilateurs cohabitent donc : la 6 vérifie, la 7 émet les types publiés
 
 *Condition de réouverture :* quand `vue-tsc` fonctionnera avec TypeScript 7, repasser le catalogue en 7 et supprimer cette section.
 
+### Le contrôle qui surveille cette condition
+
+`.github/workflows/ts7-readiness.yml` s'exécute le premier de chaque mois. Il monte un projet jetable avec `vue-tsc` et `typescript@7`, y place un composant Vue contenant une erreur de type volontaire, et **ouvre une issue si l'erreur est détectée**.
+
+*Pourquoi :* une note « à revoir un jour » dans un document ne réveille personne. Ici, le jour où l'amont corrige, une issue arrive sans que quiconque ait eu à suivre les publications de `vue-tsc`.
+
+*Pourquoi une erreur volontaire plutôt qu'un simple lancement :* un outil qui démarre sans rien détecter passerait pour fonctionnel tout en ne servant à rien. Le contrôle vérifie qu'il fait son travail, pas qu'il s'exécute.
+
+Vérifié dans les deux sens avant d'être livré : la sonde répond non avec TypeScript 7, et oui avec la 6. Une sonde qui répondrait toujours non serait indiscernable d'une sonde correcte.
+
+*Ce qui casse si on l'enlève :* le dépôt reste sur TypeScript 6 indéfiniment, sans que personne ne sache que la raison a disparu.
+
 ### La construction doit précéder la vérification
 
 Les paquets exposent leurs types depuis `dist/`. Tant que rien n'est construit, `@crypte/core/protocol` et `@crypte/react` sont introuvables pour le compilateur, et la vérification de types échoue sur des modules pourtant présents.
