@@ -9,7 +9,10 @@ export default defineConfig({
       {
         files: ['packages/core/src/**'],
         rules: {
-          'no-restricted-imports': ['error', { patterns: ['react', 'react-dom', 'react/*'] }],
+          'no-restricted-imports': [
+            'error',
+            { patterns: ['react', 'react/*', 'react-dom', 'react-dom/*'] },
+          ],
         },
       },
     ],

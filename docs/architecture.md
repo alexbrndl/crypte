@@ -74,7 +74,7 @@ Le noyau. Trois entrées indépendantes, chacune produisant son propre bundle et
 
 Chaque entrée exporte aussi une constante marqueur, utilisée par le test d'isolation.
 
-**Aucune des trois n'importe de framework de rendu**, et une règle de lint l'interdit pour `ui` et `protocol`. Voir la section 10.
+**Aucune des trois n'importe de framework de rendu**, et une règle de lint l'interdit sur tout `core/src`. Voir la section 10.
 
 Ce paquet n'a **aucune dépendance d'exécution**. Vue y figure en dépendance de pair optionnelle, en prévision des primitives d'interface.
 
