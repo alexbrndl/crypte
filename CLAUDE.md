@@ -43,7 +43,11 @@ gh pr create --draft --title "…"    # 1. jamais directement ouverte
 gh pr ready <numéro>                 # 6. une fois les points traités
 ```
 
-**Une correction faite après une revue n'a jamais été relue.** Elle est écrite vite, sous l'effet du point remonté, et personne ne la regarde avant la fusion. Si elle touche du code exécutable, relancer une revue sur ces corrections seules. Si elle ne touche que de la documentation, s'en passer.
+**Tout code exécutable ajouté après une revue n'a, par définition, pas été relu.** Corriger un point remonté, mais aussi ajouter une fonctionnalité en cours de route ou répondre à une demande arrivée après coup : dans les trois cas, du code part vers la branche par défaut sans qu'aucun regard ne s'y soit posé.
+
+Relancer une revue sur ces changements seuls. S'en passer s'ils ne touchent que de la documentation ou de la configuration déjà éprouvée par l'intégration continue.
+
+La formulation compte : une première version de cette règle ne parlait que des « corrections », et laissait donc passer un workflow entier ajouté après la troisième revue du lot 1.
 
 Ce n'est pas une précaution théorique : la seconde revue du lot 1 a trouvé que le correctif d'un point de la première laissait passer `react-dom/client`, c'est-à-dire exactement l'import que la règle corrigée existait pour bloquer.
 
