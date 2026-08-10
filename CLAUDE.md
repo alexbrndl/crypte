@@ -38,8 +38,14 @@ _Sinon :_ une rupture de l'outillage, encore en version pré-1.0, se corrige dan
 gh pr create --draft --title "…"    # 1. jamais directement ouverte
 /changeset                           # 2. note de version, ou rien à déclarer
 /review                              # 3. délègue à un sous-agent
-gh pr ready <numéro>                 # 4. seulement une fois les points traités
+                                     # 4. corriger les points remontés
+/review                              # 5. si les corrections touchent du code
+gh pr ready <numéro>                 # 6. une fois les points traités
 ```
+
+**Une correction faite après une revue n'a jamais été relue.** Elle est écrite vite, sous l'effet du point remonté, et personne ne la regarde avant la fusion. Si elle touche du code exécutable, relancer une revue sur ces corrections seules. Si elle ne touche que de la documentation, s'en passer.
+
+Ce n'est pas une précaution théorique : la seconde revue du lot 1 a trouvé que le correctif d'un point de la première laissait passer `react-dom/client`, c'est-à-dire exactement l'import que la règle corrigée existait pour bloquer.
 
 Le brouillon empêche de fusionner par réflexe une pull request non relue. La revue est **déléguée à un sous-agent**, qui part d'un contexte vierge : celui qui vient d'écrire le code ne peut pas relire son propre travail sans se souvenir de ce qu'il voulait faire, et vérifierait ses intentions plutôt que le diff. Le prompt de délégation reste minimal et ne résume jamais le travail effectué.
 

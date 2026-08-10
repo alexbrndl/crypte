@@ -19,7 +19,7 @@ Déclare les mêmes espaces de travail pour pnpm, plus le catalogue de versions 
 *Sans lui :* pnpm ignore le champ `workspaces` du `package.json` et traite le dépôt comme un paquet unique. Les dépendances entre paquets locaux ne se résolvent plus, et les versions divergent paquet par paquet.
 
 **`vite.config.ts`**
-Configuration unique de l'outillage, à la racine. Cinq blocs : `run` (cache des tâches), `lint`, `fmt`, `test`, `staged`. Le bloc `fmt` fixe les conventions d'écriture et exclut `docs/**` et `README.md` du reformatage automatique, pour que les documents de référence ne soient pas réécrits par l'outil.
+Configuration unique de l'outillage, à la racine. Cinq blocs : `run` (cache des tâches), `lint`, `fmt`, `test`, `staged`. Le bloc `lint` active `typeAware` et `typeCheck` : sans eux, **aucune vérification de types ne tourne**, ni en local ni en intégration continue. Le bloc `fmt` fixe les conventions d'écriture et exclut `docs/**` et `README.md` du reformatage automatique, pour que les documents de référence ne soient pas réécrits par l'outil.
 *Sans lui :* chaque commande retombe sur ses valeurs par défaut. Le formatage réécrirait la documentation, et les règles de style ne seraient plus partagées.
 
 **`tsconfig.base.json`**
@@ -593,3 +593,23 @@ Le shell ne charge pas React, et ce n'est pas une intention mais un fait mesurab
 **Les deux côtés vérifient l'origine.** Les messages sont émis vers `window.location.origin` et non `'*'`, et chaque écouteur rejette ce qui ne vient pas de l'origine attendue et de la fenêtre attendue. Shell et preview étant servis par le même serveur, la contrainte ne coûte rien.
 
 *Ce qui casse si on l'enlève :* avec `'*'`, toute page ayant ouvert la preview en iframe reçoit les messages et peut lui en envoyer. Sur un outil de développement qui rend du code arbitraire, c'est une porte ouverte gratuite.
+
+---
+
+## 11. La vérification de types
+
+**Ce que ça fait.** Le bloc `lint` de `vite.config.ts` active `options.typeAware` et `options.typeCheck`. `vp check` vérifie alors les types en plus du formatage et du lint, en local comme en intégration continue.
+
+**Pourquoi.** Sans ces deux options, `vp check` ne fait que formater et linter. Le projet était en TypeScript strict, avec `noUncheckedIndexedAccess` et `verbatimModuleSyntax`, et **rien ne vérifiait quoi que ce soit**. Une ligne aussi grossière que `export const x: string = 42` passait `vp check`, passait `vp pack`, et aurait passé la CI.
+
+**Ce qui casse si on l'enlève.** Le `tsconfig` strict devient décoratif. C'est le mode de défaillance le plus coûteux du projet : un mécanisme qui a l'air d'exister, que personne ne pense à vérifier, et qui ne s'exécute jamais.
+
+### Ce que l'activation a révélé
+
+Quinze erreurs, jusque-là invisibles, dont trois familles :
+
+- **Types DOM absents.** `packages/core` manipule `window`, `MessageEvent` et `HTMLIFrameElement` sans que `lib` ne déclare `DOM`. Corrigé dans les `tsconfig` des paquets concernés, pas à la racine : le CLI n'a pas de DOM.
+- **`vitest` non déclaré.** Les fichiers de test l'importaient sans qu'il soit une dépendance de `packages/core`. Il venait de l'outillage, donc par accident.
+- **Deux instances de Vite.** `apps/shell` résolvait un `vite` différent de celui de ses plugins, ce qui produisait des types `Plugin` incomparables et une erreur de profondeur de comparaison. Résolu en déclarant `vite` dans l'application, et en important son `defineConfig` depuis `vite` plutôt que `vite-plus`, l'application n'utilisant aucun bloc Vite+.
+
+Le coût est négligeable, la vérification complète prend environ trois dixièmes de seconde.

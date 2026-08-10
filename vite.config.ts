@@ -5,6 +5,10 @@ export default defineConfig({
     cache: true,
   },
   lint: {
+    options: {
+      typeAware: true,
+      typeCheck: true,
+    },
     overrides: [
       {
         files: ['packages/core/src/**'],
