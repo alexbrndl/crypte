@@ -61,9 +61,7 @@ Construis un fichier JSON, puis envoie-le :
 {
   "event": "COMMENT",
   "body": "<!-- crypte-review -->\n## Revue\n\n**Verdict : 2 points.**",
-  "comments": [
-    { "path": "packages/cli/src/index.ts", "line": 12, "side": "RIGHT", "body": "…" }
-  ]
+  "comments": [{ "path": "packages/cli/src/index.ts", "line": 12, "side": "RIGHT", "body": "…" }]
 }
 ```
 
