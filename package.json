@@ -8,6 +8,7 @@
   ],
   "type": "module",
   "scripts": {
+    "prepare": "vp config",
     "check": "vp check",
     "test": "vp test",
     "pack": "vp run -r pack",

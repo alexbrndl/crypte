@@ -11,7 +11,7 @@ Le dépôt est un monorepo. Il contient trois paquets publiables sous le scope `
 ### Fichiers racine
 
 **`package.json`**
-Paquet privé, jamais publié. Il déclare les espaces de travail (`packages/*`, `apps/*`) et les quatre scripts d'entrée : `check`, `test`, `pack`, `ready`. Il porte aussi `vite-plus` en `devDependencies`, sans quoi les fichiers de configuration ne peuvent pas importer `defineConfig`.
+Paquet privé, jamais publié. Il déclare les espaces de travail (`packages/*`, `apps/*`) et les scripts d'entrée : `check`, `test`, `pack`, `ready`, plus `prepare` qui installe le hook de pré-commit à l'installation des dépendances (section 7). Il porte aussi `vite-plus` en `devDependencies`, sans quoi les fichiers de configuration ne peuvent pas importer `defineConfig`.
 *Sans lui :* aucune commande ne trouve les paquets, le monorepo n'existe pas.
 
 **`pnpm-workspace.yaml`**
@@ -54,6 +54,10 @@ Vérifie qu'une revue a été postée sur la pull request. Il ne produit aucune 
 **`.claude/skills/review/SKILL.md`**
 Le prompt de revue, lancé en local par `/review`.
 *Sans lui :* le contrôle ci-dessus ne peut jamais être satisfait.
+
+**`.vite-hooks/pre-commit`**
+Le hook de pré-commit, versionné, qui lance `vp staged`. Voir la section 7.
+*Sans lui :* le bloc `staged` de `vite.config.ts` n'est jamais appelé, et un fichier mal formaté part en commit.
 
 **`.gitignore`**
 Exclut notamment `dist/` et `.vite/`. Les artefacts de construction ne sont pas versionnés, ils sont reconstruits par `vp pack`.
@@ -360,3 +364,68 @@ Première ligne du commentaire. Invisible au rendu, cherché tel quel par le wor
 **Non attrapé :** les arbitrages. Publier maintenant ou plus tard, versions synchronisées ou indépendantes, quelle bibliothèque choisir. Aucune revue ne pose ces questions.
 
 Deux limites à garder en tête. Le relecteur est l'auteur, ce qui vaut moins qu'un regard neuf, d'où la consigne de relire le diff plutôt que sa mémoire. Et une revue qui commente à chaque poussée finit survolée : si les commentaires deviennent du remplissage, resserrer le prompt plutôt que laisser courir.
+
+---
+
+## 7. Le hook de pré-commit
+
+### Les trois pièces
+
+**`.vite-hooks/pre-commit`** contient une seule ligne, `vp staged`. Ce fichier est **versionné** : il fait partie du dépôt comme n'importe quel script.
+
+**`vp config`**, déclenché par le script `prepare` du `package.json`, installe le répartiteur sous `.vite-hooks/_` et pointe `core.hooksPath` dessus. Ce répartiteur s'auto-ignore et n'est jamais commité. Comme `prepare` s'exécute à l'installation des dépendances, un clone frais suivi de `vp install` obtient le hook sans aucune étape manuelle.
+
+**Le bloc `staged` de `vite.config.ts`** dit quoi lancer sur quels fichiers. Son motif couvre les extensions que le formateur traite réellement, markdown, YAML et JSON compris.
+
+### Ce que ça fait, pourquoi, ce qui casse
+
+**Ce que ça fait.** Avant chaque commit, les fichiers indexés passent par `vp check --fix`. Un fichier mal formaté est corrigé sur place plutôt que de partir tel quel.
+
+**Pourquoi.** Le bloc `staged` existait depuis le début, mais rien ne l'appelait : la configuration était là, le déclencheur absent. Un fichier markdown mal formaté est parti en commit, l'intégration continue est passée au rouge, et un commit de rattrapage a suivi.
+
+**Ce qui casse si on l'enlève.** Rien qui échappe à l'intégration continue. On perd seulement la correction immédiate, et les allers-retours reviennent.
+
+### Le motif couvre le markdown, et ce n'est pas un détail
+
+Le fichier qui avait cassé était un `.md`, absent du motif d'origine. Un hook installé mais dont le motif ignore l'extension fautive aurait laissé passer exactement le même incident, en donnant l'impression d'être protégé.
+
+Vérification faite avant d'écrire ce motif : le formateur traite bien `.md`, `.yml`, `.json` et `.ts`. Élargir la liste sans cette vérification aurait produit une règle inopérante.
+
+### La barrière est l'intégration continue, pas le hook
+
+**Le hook est un confort, jamais une garantie.** Le répartiteur qu'installe `vp config` n'est pas versionné, et rien ne signale son absence : sur une machine où `prepare` n'a pas tourné, où `VP_GIT_HOOKS=0` est positionné, ou lors d'un commit passé avec `--no-verify`, le hook n'existe tout simplement pas. Le commit part sans le moindre avertissement.
+
+C'est le même mode de défaillance que le test qui passe faute d'artefacts à lire, ou que le contrôle exigé qui n'est jamais rapporté : un mécanisme qui peut être absent sans le dire ne protège rien.
+
+**Donc l'étape `vp check` de l'intégration continue reste la seule garantie, et ne doit jamais être allégée au motif que le hook existe.** Si l'une des deux doit sauter un jour, c'est le hook.
+
+### Vitesse
+
+Le hook est mesuré, parce qu'un hook lent finit contourné avec `--no-verify`, et qu'un hook contourné est pire qu'absent : on croit être protégé.
+
+| Cas | Durée |
+|---|---|
+| Aucun fichier ne correspond au motif | 0,4 s |
+| Un fichier, rien à corriger | 1,7 s |
+| Plusieurs fichiers, rien à corriger | 1,8 s |
+| `git commit` complet, une correction appliquée | 2,2 s |
+
+Le coût est presque entièrement fixe : dès qu'un fichier correspond au motif, on paie environ 1,7 s, quel que soit leur nombre. Il vient de la mise de côté de l'état non indexé avant de lancer les vérifications, pas du formatage lui-même.
+
+Le critère retenu : au-delà de deux secondes environ sur un commit ordinaire, **on retire le hook plutôt que de le subir**. L'intégration continue, elle, ne bouge pas. Les mesures ci-dessus sont à la limite de ce seuil, sans marge.
+
+### Ce que le hook ne couvre pas
+
+`docs/**` et `README.md` sont exclus du formatage, donc le hook ne les vérifie pas non plus, même si leur extension figure dans le motif. C'est cohérent et voulu : ces documents ne sont pas du code. Un markdown mal formaté y passe donc en commit sans être corrigé, et l'intégration continue ne le signalera pas davantage.
+
+Sont couverts : `CLAUDE.md`, `CONTRIBUTING.md`, les sources des paquets, les fichiers de configuration et les workflows.
+
+**La vérification de types du hook est partielle par nature.** Elle ne porte que sur les fichiers indexés, alors que les types sont une propriété du programme entier : modifier un fichier indexé peut casser un fichier non indexé, que le hook ne regarde pas. Il peut donc passer au vert sur des types qui ne compilent pas à l'échelle du projet. La vérification complète est celle de l'intégration continue, qui travaille sur l'ensemble du dépôt.
+
+### Repli si le coût grandit
+
+Écrit ici pour ne pas être réinventé, non implémenté aujourd'hui.
+
+Si le hook devient trop lent, la sortie n'est **pas** de le retirer mais de le déplacer en `pre-push`. Les pull requests sont fusionnées en squash, donc les commits intermédiaires sont écrasés et leur propreté individuelle ne vaut rien : seul ce qui atteint la branche par défaut compte. Un `pre-push` paie une fois par poussée au lieu d'une fois par commit, ce qui compte d'autant plus que le coût est presque entièrement fixe.
+
+Contrepartie à connaître : quand un `pre-push` déclenche une correction, les commits existent déjà. Il faut alors un commit de rattrapage, ou un amend suivi d'une nouvelle poussée. C'est plus salissant qu'une correction appliquée avant que le commit n'existe.

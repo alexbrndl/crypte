@@ -12,6 +12,8 @@ export default defineConfig({
   },
   test: {},
   staged: {
-    '*.{ts,tsx,vue,js,mjs}': 'vp check --fix',
+    // Toutes les extensions que le formateur traite réellement : un .md hors du motif
+    // est passé en commit sans être vérifié, ce qui est la raison d'être de ce bloc.
+    '*.{ts,tsx,js,mjs,cjs,vue,json,md,yml,yaml}': 'vp check --fix',
   },
 })
