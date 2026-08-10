@@ -1,0 +1,9 @@
+packages:
+  - packages/*
+  - apps/*
+
+catalogMode: prefer
+
+catalog:
+  '@types/node': ^24
+  typescript: 7.0.2

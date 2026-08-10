@@ -1,0 +1,26 @@
+{
+  "name": "crypte",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "check": "vp check",
+    "test": "vp test",
+    "pack": "vp run -r pack",
+    "ready": "vp check && vp run -r pack && vp test"
+  },
+  "devDependencies": {
+    "vite-plus": "^0.2.8"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.21.0",
+      "onFail": "download"
+    }
+  }
+}
