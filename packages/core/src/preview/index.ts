@@ -10,9 +10,16 @@ export interface PreviewHandlers {
 // Côté preview du canal. Reçoit les messages du shell et répond, sans rien savoir
 // du framework qui rendra le composant : c'est l'adaptateur qui s'en charge.
 export function createPreviewChannel(handlers: PreviewHandlers): () => void {
-  const reply = (message: PreviewMessage) => window.parent.postMessage(message, '*')
+  // Le shell est servi par le même serveur que la preview. Un '*' exposerait les
+  // messages à toute page ayant ouvert cette preview en iframe, et accepterait
+  // les ordres de n'importe qui.
+  const origin = window.location.origin
+  const reply = (message: PreviewMessage) => window.parent.postMessage(message, origin)
 
   const listener = (event: MessageEvent) => {
+    if (event.origin !== origin) return
+    if (event.source !== window.parent) return
+
     const message = event.data as ShellMessage
     if (message?.type !== 'render') return
 

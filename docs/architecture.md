@@ -565,7 +565,9 @@ Trois paquets, trois rôles :
 
 ### La règle de lint
 
-`vite.config.ts` déclare, via `lint.overrides`, un `no-restricted-imports` sur `packages/core/src/ui/**` et `packages/core/src/protocol/**`, interdisant `react`, `react-dom` et `react/*`.
+`vite.config.ts` déclare, via `lint.overrides`, un `no-restricted-imports` sur `packages/core/src/**`, interdisant `react`, `react-dom` et `react/*`.
+
+La règle couvre **tout le noyau**, `preview` compris. Une première version ne visait que `ui` et `protocol`, alors que `preview` est l'entrée la plus proche du code de montage, donc la plus exposée à un import ajouté par commodité.
 
 *Pourquoi :* la frontière est une propriété qu'on ne voit pas en lisant un fichier. Elle se perd par un import ajouté sans y penser, dans un fichier qui semble anodin, et rien ne le signale avant que le noyau ne soit devenu dépendant d'un framework.
 
@@ -583,3 +585,11 @@ La règle de lint dit ce qui est interdit. Le build montre ce qui est réellemen
 | preview | 186 Ko | 57 |
 
 Le shell ne charge pas React, et ce n'est pas une intention mais un fait mesurable sur les fichiers construits.
+
+### Deux détails du canal qui ont une raison
+
+**Le montage est rendu synchrone.** L'adaptateur enveloppe le rendu React dans `flushSync`. Sans cela, React rend la main avant d'avoir commité : une erreur du composant échapperait au `try/catch` de la preview, le message `error` ne partirait jamais, et `durationMs` mesurerait l'ordonnancement plutôt que le rendu. L'écart est visible, 1,7 ms avant correction contre 6,2 ms après, sur le même composant.
+
+**Les deux côtés vérifient l'origine.** Les messages sont émis vers `window.location.origin` et non `'*'`, et chaque écouteur rejette ce qui ne vient pas de l'origine attendue et de la fenêtre attendue. Shell et preview étant servis par le même serveur, la contrainte ne coûte rien.
+
+*Ce qui casse si on l'enlève :* avec `'*'`, toute page ayant ouvert la preview en iframe reçoit les messages et peut lui en envoyer. Sur un outil de développement qui rend du code arbitraire, c'est une porte ouverte gratuite.

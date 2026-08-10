@@ -7,7 +7,7 @@ export default defineConfig({
   lint: {
     overrides: [
       {
-        files: ['packages/core/src/ui/**', 'packages/core/src/protocol/**'],
+        files: ['packages/core/src/**'],
         rules: {
           'no-restricted-imports': ['error', { patterns: ['react', 'react-dom', 'react/*'] }],
         },
