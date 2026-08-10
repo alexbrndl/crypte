@@ -90,6 +90,6 @@ Un nouveau commit sur la branche relance également le contrôle.
 
 ## Portée de l'exercice
 
-Le relecteur est ici l'auteur, ce qui vaut moins qu'un regard neuf. Deux conséquences : relis le diff plutôt que ta mémoire, et préfère lancer cette revue dans une session distincte de celle qui a écrit le code.
+La délégation de la section 0 supprime le biais de contexte, pas l'angle mort commun : le relecteur reste le même modèle sur le même dépôt. Il voit ce que le diff contredit, pas ce à quoi personne n'a pensé.
 
 Cette revue attrape les écarts par rapport à des règles écrites. Elle n'attrape pas ce qui n'est écrit nulle part.
