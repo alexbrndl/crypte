@@ -360,3 +360,55 @@ Première ligne du commentaire. Invisible au rendu, cherché tel quel par le wor
 **Non attrapé :** les arbitrages. Publier maintenant ou plus tard, versions synchronisées ou indépendantes, quelle bibliothèque choisir. Aucune revue ne pose ces questions.
 
 Deux limites à garder en tête. Le relecteur est l'auteur, ce qui vaut moins qu'un regard neuf, d'où la consigne de relire le diff plutôt que sa mémoire. Et une revue qui commente à chaque poussée finit survolée : si les commentaires deviennent du remplissage, resserrer le prompt plutôt que laisser courir.
+
+---
+
+## 7. Le hook de pré-commit
+
+### Les trois pièces
+
+**`.vite-hooks/pre-commit`** contient une seule ligne, `vp staged`. Ce fichier est **versionné** : il fait partie du dépôt comme n'importe quel script.
+
+**`vp config`**, déclenché par le script `prepare` du `package.json`, installe le répartiteur sous `.vite-hooks/_` et pointe `core.hooksPath` dessus. Ce répartiteur s'auto-ignore et n'est jamais commité. Comme `prepare` s'exécute à l'installation des dépendances, un clone frais suivi de `vp install` obtient le hook sans aucune étape manuelle.
+
+**Le bloc `staged` de `vite.config.ts`** dit quoi lancer sur quels fichiers. Son motif couvre les extensions que le formateur traite réellement, markdown, YAML et JSON compris.
+
+### Ce que ça fait, pourquoi, ce qui casse
+
+**Ce que ça fait.** Avant chaque commit, les fichiers indexés passent par `vp check --fix`. Un fichier mal formaté est corrigé sur place plutôt que de partir tel quel.
+
+**Pourquoi.** Le bloc `staged` existait depuis le début, mais rien ne l'appelait : la configuration était là, le déclencheur absent. Un fichier markdown mal formaté est parti en commit, l'intégration continue est passée au rouge, et un commit de rattrapage a suivi.
+
+**Ce qui casse si on l'enlève.** Rien qui échappe à l'intégration continue. On perd seulement la correction immédiate, et les allers-retours reviennent.
+
+### Le motif couvre le markdown, et ce n'est pas un détail
+
+Le fichier qui avait cassé était un `.md`, absent du motif d'origine. Un hook installé mais dont le motif ignore l'extension fautive aurait laissé passer exactement le même incident, en donnant l'impression d'être protégé.
+
+Vérification faite avant d'écrire ce motif : le formateur traite bien `.md`, `.yml`, `.json` et `.ts`. Élargir la liste sans cette vérification aurait produit une règle inopérante.
+
+### La barrière est l'intégration continue, pas le hook
+
+**Le hook est un confort, jamais une garantie.** Le répartiteur qu'installe `vp config` n'est pas versionné, et rien ne signale son absence : sur une machine où `prepare` n'a pas tourné, où `VP_GIT_HOOKS=0` est positionné, ou lors d'un commit passé avec `--no-verify`, le hook n'existe tout simplement pas. Le commit part sans le moindre avertissement.
+
+C'est le même mode de défaillance que le test qui passe faute d'artefacts à lire, ou que le contrôle exigé qui n'est jamais rapporté : un mécanisme qui peut être absent sans le dire ne protège rien.
+
+**Donc l'étape `vp check` de l'intégration continue reste la seule garantie, et ne doit jamais être allégée au motif que le hook existe.** Si l'une des deux doit sauter un jour, c'est le hook.
+
+### Vitesse
+
+Le hook est mesuré, parce qu'un hook lent finit contourné avec `--no-verify`, et qu'un hook contourné est pire qu'absent : on croit être protégé.
+
+| Cas | Durée |
+|---|---|
+| Un fichier, rien à corriger | 0,3 s |
+| Plusieurs fichiers, rien à corriger | 1,8 s |
+| `git commit` complet, une correction appliquée | 2,2 s |
+
+Le critère retenu : au-delà de deux secondes environ sur un commit ordinaire, **on retire le hook plutôt que de le subir**. L'intégration continue, elle, ne bouge pas. Les mesures ci-dessus sont à la limite de ce seuil, à surveiller si le dépôt grossit.
+
+### Ce que le hook ne couvre pas
+
+`docs/**` et `README.md` sont exclus du formatage, donc le hook ne les vérifie pas non plus, même si leur extension figure dans le motif. C'est cohérent et voulu : ces documents ne sont pas du code. Un markdown mal formaté y passe donc en commit sans être corrigé, et l'intégration continue ne le signalera pas davantage.
+
+Sont couverts : `CLAUDE.md`, `CONTRIBUTING.md`, les sources des paquets, les fichiers de configuration et les workflows.
