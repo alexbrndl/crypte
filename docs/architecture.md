@@ -47,6 +47,14 @@ Les contraintes structurelles et les règles de travail, à destination des agen
 Installation, vérification, conventions de commit et de pull request, pour un contributeur extérieur. Générique et sans référence à un outil de suivi privé.
 *Sans lui :* un contributeur découvre les conventions par le refus de son intégration continue.
 
+**`.github/workflows/require-review.yml`**
+Vérifie qu'une revue a été postée sur la pull request. Il ne produit aucune revue lui-même, voir la section 6.
+*Sans lui :* une pull request peut être fusionnée sans qu'aucune relecture n'ait eu lieu, et rien ne le rappelle.
+
+**`.claude/skills/review/SKILL.md`**
+Le prompt de revue, lancé en local par `/review`.
+*Sans lui :* le contrôle ci-dessus ne peut jamais être satisfait.
+
 **`.gitignore`**
 Exclut notamment `dist/` et `.vite/`. Les artefacts de construction ne sont pas versionnés, ils sont reconstruits par `vp pack`.
 
@@ -284,3 +292,47 @@ Règle à retenir si un autre workflow apparaît : `cancel-in-progress: true` po
 **Pourquoi.** Il n'a pas été écrit à la main : `vp install` l'ajoute lui-même. On le laisse en place volontairement.
 
 **Ce qui casse si on l'enlève.** Rien, jusqu'au prochain `vp install` qui le réécrit à l'identique. Le retirer produit une modification non commitée qui fait échouer le contrôle `git diff --exit-code` de l'intégration continue, pour un fichier que personne n'a modifié.
+
+---
+
+## 6. La revue de pull request
+
+**Le point contre-intuitif, et il se redemandera : la revue n'est pas produite par l'intégration continue.** Elle est produite en local, par l'agent, sous l'abonnement existant. La CI ne fait que vérifier qu'elle a eu lieu.
+
+### Les deux pièces
+
+**Le prompt** vit dans `.claude/skills/review/SKILL.md` et se lance avec `/review` depuis la racine du dépôt. Cet emplacement est la convention de l'outil : un dossier par skill, contenant un `SKILL.md` avec un en-tête `name` et `description`. Versionné dans le dépôt, il suit les branches et s'améliore au fil des lots.
+
+Il relit le diff de la branche contre `origin/main`, le confronte à `CLAUDE.md` et aux contrats de `docs/spec-contrats.md`, puis poste son verdict en commentaire de la pull request.
+
+**Le contrôle** est `.github/workflows/require-review.yml`. Il liste les commentaires et les revues de la pull request, cherche le marqueur, et échoue s'il ne le trouve pas.
+
+### Le marqueur
+
+```
+<!-- crypte-review -->
+```
+
+Première ligne du commentaire. Invisible au rendu, cherché tel quel par le workflow. Le changer d'un côté sans l'autre casse le lien silencieusement : le contrôle échouerait sur des pull requests pourtant relues.
+
+### Ce que ça fait, pourquoi, ce qui casse
+
+**Ce que ça fait.** Un rappel bloquant. On ne peut pas fusionner en ayant oublié de relire.
+
+**Pourquoi ce découpage plutôt qu'une action de revue.** Une action qui appelle une API de modèle demande une clé, facturée à chaque poussée. Ici le coût est couvert par l'abonnement, et le prompt vit dans le dépôt, donc versionné et améliorable. Le compromis assumé : ce n'est pas automatique.
+
+**Ce qui casse si on l'enlève.** Le mécanisme repose entièrement sur la discipline de lancer `/review`. Sans le contrôle, cette discipline tient quelques semaines puis s'efface, et on croit être relu alors qu'on ne l'est plus.
+
+### Deux détails d'implémentation qui ont une raison
+
+**Le workflow n'imprime jamais le corps des commentaires**, seulement leur nombre. Un texte produit par un agent peut contenir des commandes de workflow, `::error::` ou `::add-mask::`, qui manipuleraient la sortie de l'exécution si elles étaient affichées. En ne faisant sortir que des nombres, la question ne se pose pas.
+
+**Le workflow est séparé de `ci.yml`.** L'intégrer aux dépendances de `ci-passed` le rendrait immédiatement bloquant, puisque `ci-passed` est le contrôle exigé par les règles de la branche. Le contrôle de revue est délibérément non bloquant au départ : on juge son utilité sur trois ou quatre lots avant de l'exiger.
+
+### Ce que la revue attrape, et ce qu'elle n'attrape pas
+
+**Attrapé :** les écarts par rapport à des règles écrites. Une dépendance interne embarquée en copie, une décision documentée puis prise à l'envers, un ordre d'étapes qui rend un test inopérant.
+
+**Non attrapé :** les arbitrages. Publier maintenant ou plus tard, versions synchronisées ou indépendantes, quelle bibliothèque choisir. Aucune revue ne pose ces questions.
+
+Deux limites à garder en tête. Le relecteur est l'auteur, ce qui vaut moins qu'un regard neuf, d'où la consigne de relire le diff plutôt que sa mémoire. Et une revue qui commente à chaque poussée finit survolée : si les commentaires deviennent du remplissage, resserrer le prompt plutôt que laisser courir.
