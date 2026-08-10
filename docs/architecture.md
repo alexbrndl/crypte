@@ -657,6 +657,12 @@ L'étape de mesure vérifie aussi que la version installée commence bien par `7
 
 Rien dans le workflow ne peut l'empêcher. Deux atténuations partielles : `workflow_dispatch` permet de le relancer à la main, et un dépôt sur lequel on travaille reste actif. Mais si le projet dort plus de deux mois, **considérer que ce contrôle est éteint** et le relancer manuellement avant de s'y fier.
 
+### Ce qui n'est pas éprouvé
+
+Ce workflow a été relu deux fois et testé en local dans l'ordre exact de ses étapes, mais **il n'a jamais tourné en conditions réelles**. Trois choses restent non vérifiées jusqu'à sa première exécution : le comportement de `gh issue create` avec le jeton du workflow, le garde contre l'ouverture répétée d'issues, et l'installation de la chaîne sur l'image du runner.
+
+C'est un arrêt assumé, pas un oubli. La raison : la vérification par relecture y donne un rendement décroissant, alors qu'une seule exécution réelle tranchera. Et l'enjeu est faible, si le contrôle meurt, le dépôt reste sur TypeScript 6, c'est-à-dire son état actuel et fonctionnel.
+
 *Ce qui casse si on l'enlève :* le dépôt reste sur TypeScript 6 indéfiniment, sans que personne ne sache que la raison a disparu.
 
 ### La construction doit précéder la vérification
