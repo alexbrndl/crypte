@@ -1,0 +1,17 @@
+version: 2
+
+# L'écosystème npm est volontairement absent. Dependabot ne gère pas correctement
+# notre configuration : pnpm 11 n'est pas supporté (dependabot-core#14794) et le
+# protocole catalog produit un lockfile incorrect (#14339, #12244). À reconsidérer
+# quand ces trois points seront clos.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: 'chore'
+    groups:
+      actions:
+        patterns:
+          - '*'
