@@ -22,7 +22,12 @@ jobs:
     # Le flux impose le brouillon avant la revue : contrôler une pull request encore
     # en brouillon, c'est échouer à coup sûr et notifier pour rien. Le type
     # ready_for_review déclenche le contrôle au moment où la réponse peut être oui.
-    if: github.event.pull_request.draft == false
+    #
+    # La pull request de version est ouverte par un robot depuis changeset-release/* :
+    # personne ne peut y lancer /review, l'exiger la bloquerait définitivement.
+    if: >-
+      github.event.pull_request.draft == false &&
+      !startsWith(github.head_ref, 'changeset-release/')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

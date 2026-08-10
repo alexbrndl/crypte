@@ -36,8 +36,9 @@ _Sinon :_ une rupture de l'outillage, encore en version pré-1.0, se corrige dan
 
 ```bash
 gh pr create --draft --title "…"    # 1. jamais directement ouverte
-/review                              # 2. délègue à un sous-agent
-gh pr ready <numéro>                 # 3. seulement une fois les points traités
+/changeset                           # 2. note de version, ou rien à déclarer
+/review                              # 3. délègue à un sous-agent
+gh pr ready <numéro>                 # 4. seulement une fois les points traités
 ```
 
 Le brouillon empêche de fusionner par réflexe une pull request non relue. La revue est **déléguée à un sous-agent**, qui part d'un contexte vierge : celui qui vient d'écrire le code ne peut pas relire son propre travail sans se souvenir de ce qu'il voulait faire, et vérifierait ses intentions plutôt que le diff. Le prompt de délégation reste minimal et ne résume jamais le travail effectué.
