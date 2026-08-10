@@ -50,6 +50,10 @@ Chaque point de revue est ancré sur une ligne, donc résolvable. La fusion rest
 
 **Périmètre.** Ne couvrir que ce qui est démontré par l'usage. Un mécanisme ajouté par précaution crée un usage qu'on ne peut plus reprendre.
 
+**Causes.** Ne jamais attribuer une cause sans l'avoir isolée par une mesure. Une explication cohérente avec les chiffres observés n'est pas une cause démontrée.
+
+C'est la même erreur qu'un test qui passe pour la mauvaise raison : une observation compatible avec l'hypothèse, prise pour une confirmation. Avant d'écrire « c'est à cause de X », change X seul et vérifie que le chiffre bouge. Vérifie aussi que la mesure mesure bien quelque chose : un chronomètre sur un traitement qui n'a rien traité donne un résultat parfaitement stable et parfaitement faux.
+
 ---
 
 ## Règle de documentation

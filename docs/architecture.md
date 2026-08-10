@@ -419,3 +419,13 @@ Le critère retenu : au-delà de deux secondes environ sur un commit ordinaire, 
 `docs/**` et `README.md` sont exclus du formatage, donc le hook ne les vérifie pas non plus, même si leur extension figure dans le motif. C'est cohérent et voulu : ces documents ne sont pas du code. Un markdown mal formaté y passe donc en commit sans être corrigé, et l'intégration continue ne le signalera pas davantage.
 
 Sont couverts : `CLAUDE.md`, `CONTRIBUTING.md`, les sources des paquets, les fichiers de configuration et les workflows.
+
+**La vérification de types du hook est partielle par nature.** Elle ne porte que sur les fichiers indexés, alors que les types sont une propriété du programme entier : modifier un fichier indexé peut casser un fichier non indexé, que le hook ne regarde pas. Il peut donc passer au vert sur des types qui ne compilent pas à l'échelle du projet. La vérification complète est celle de l'intégration continue, qui travaille sur l'ensemble du dépôt.
+
+### Repli si le coût grandit
+
+Écrit ici pour ne pas être réinventé, non implémenté aujourd'hui.
+
+Si le hook devient trop lent, la sortie n'est **pas** de le retirer mais de le déplacer en `pre-push`. Les pull requests sont fusionnées en squash, donc les commits intermédiaires sont écrasés et leur propreté individuelle ne vaut rien : seul ce qui atteint la branche par défaut compte. Un `pre-push` paie une fois par poussée au lieu d'une fois par commit, ce qui compte d'autant plus que le coût est presque entièrement fixe.
+
+Contrepartie à connaître : quand un `pre-push` déclenche une correction, les commits existent déjà. Il faut alors un commit de rattrapage, ou un amend suivi d'une nouvelle poussée. C'est plus salissant qu'une correction appliquée avant que le commit n'existe.
