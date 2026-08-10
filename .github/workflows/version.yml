@@ -1,0 +1,40 @@
+name: Version
+
+# Ce workflow ne publie rien. Il maintient la pull request « Version Packages »
+# qui accumule les changesets. La publication npm viendra séparément.
+# Voir docs/architecture.md.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: voidzero-dev/setup-vp@313600b80b104eadebb9111787d37a2e83e014ca # v1.17.0
+        with:
+          node-version: '24'
+          cache: true
+      - run: vp install
+
+      # Sans `publish`, l'action se limite à ouvrir et tenir à jour la pull request
+      # de version. Ajouter cette entrée publierait sur npm.
+      - uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
+        with:
+          version: vp exec changeset version
+          title: 'chore: version packages'
+          commit: 'chore: version packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

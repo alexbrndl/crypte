@@ -15,6 +15,7 @@
     "ready": "vp check && vp run -r pack && vp test"
   },
   "devDependencies": {
+    "@changesets/cli": "catalog:",
     "vite-plus": "^0.2.8"
   },
   "devEngines": {

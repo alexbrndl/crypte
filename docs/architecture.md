@@ -484,3 +484,58 @@ Ce réglage vit dans les paramètres du dépôt et **n'est pas versionné** : ce
 À ne pas confondre : le format des titres et des commits **ne détermine pas les versions**. Aucun mécanisme de versionnage n'existe encore dans le dépôt, et celui qui sera retenu reposera sur des notes déposées explicitement, pas sur l'historique Git.
 
 La précision compte parce que l'inverse paraît évident, et qu'une version antérieure de `CONTRIBUTING.md` l'affirmait à tort. Un titre soigné sert la lecture de l'historique, rien de plus.
+
+---
+
+## 9. Versionnage
+
+**Aucune publication npm n'existe encore.** Ce qui suit décrit uniquement la mécanique qui calcule les numéros et rédige les changelogs.
+
+### Le principe, contre-intuitif au premier abord
+
+L'outil **ne devine rien**. Il ne lit ni le diff ni les messages de commit. C'est l'auteur d'une pull request qui dépose un fichier dans `.changeset/` déclarant le niveau de version et le texte destiné au changelog.
+
+Le cycle a deux temps :
+
+1. Chaque pull request dépose sa note. **Fusionner une pull request ne change aucun numéro.**
+2. Une pull request « Version Packages », ouverte et tenue à jour automatiquement par `.github/workflows/version.yml`, accumule les notes. La fusionner applique les montées de version et écrit les changelogs.
+
+Cette seconde pull request **ne demande aucune action** : elle se met à jour seule et attend. Le seul geste est de la fusionner quand on veut une nouvelle version. Repère : les quatre pull requests du lot 0 auraient produit une seule montée de version, pas quatre.
+
+### Versions synchronisées
+
+`.changeset/config.json` déclare `"fixed": [["@crypte/*"]]`. Les trois paquets portent donc toujours le même numéro et montent ensemble, **même celui qui n'a pas changé**.
+
+*Pourquoi :* le noyau, le CLI et l'adaptateur partagent un protocole qui peut casser. Même numéro veut dire compatible. Sans cela, il faudrait publier et maintenir des plages de compatibilité entre eux.
+
+*Ce qui casse si on l'enlève :* un utilisateur ne peut plus savoir si telle version du CLI va avec telle version de l'adaptateur, et le protocole devient une source de pannes silencieuses.
+
+Vérifié à l'installation : un changeset ne déclarant que `@crypte/cli` fait bien passer les trois paquets de `0.0.0` à `0.0.1`. Le glob est accepté.
+
+### Convention pendant la phase 0.x
+
+| Nature du changement | Niveau |
+| -- | -- |
+| Rupture d'un contrat ou d'une API publique | `minor` |
+| Tout le reste | `patch` |
+| Stabilisation de l'API, décidée explicitement | `major`, donnera `1.0.0` |
+
+*Pourquoi :* le niveau demandé est appliqué littéralement, `semver.inc('0.1.0', 'major')` retourne `1.0.0`. Rien ne traite les versions inférieures à 1.0.0 différemment, hormis un avertissement en mode interactif.
+
+*Ce qui casse si on l'enlève :* la première rupture du protocole déclare l'API stable par accident, et une version majeure ne se reprend pas.
+
+### Le skill `/changeset`
+
+Dans `.claude/skills/changeset/`, lancé avant `/review`. Il décide d'abord **s'il y a quelque chose à déclarer** : une note ne se dépose que si le diff change ce que reçoit l'utilisateur d'un paquet publié.
+
+*Ce qui casse si on l'enlève :* rien mécaniquement, mais un changelog rempli de « mise à jour de la documentation » ne se lit plus, et le mécanisme perd son seul intérêt.
+
+### Deux points d'intégration
+
+**La pull request de version est exemptée du contrôle de revue.** Elle est ouverte par un robot depuis une branche `changeset-release/*`, où personne ne peut lancer `/review`. Sans cette exemption, elle serait bloquée définitivement le jour où le contrôle deviendra exigé.
+
+L'exemption porte sur le préfixe de branche et non sur une étiquette : le nom de branche est produit par l'outil, donc toujours présent, là où une étiquette dépend d'une pose manuelle.
+
+**Le workflow de version demande des droits d'écriture**, contrairement à l'intégration continue qui est en lecture seule. Ouvrir une pull request l'exige. Le réglage « Allow GitHub Actions to create and approve pull requests » doit par ailleurs être actif dans les paramètres du dépôt, sans quoi l'action échoue à créer la pull request.
+
+**Le format des changelogs générés est compatible avec le formateur**, vérifié à l'installation : `vp check` accepte les fichiers produits sans modification. Aucune exclusion n'a donc été ajoutée.
