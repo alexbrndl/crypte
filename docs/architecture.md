@@ -429,3 +429,21 @@ Sont couverts : `CLAUDE.md`, `CONTRIBUTING.md`, les sources des paquets, les fic
 Si le hook devient trop lent, la sortie n'est **pas** de le retirer mais de le déplacer en `pre-push`. Les pull requests sont fusionnées en squash, donc les commits intermédiaires sont écrasés et leur propreté individuelle ne vaut rien : seul ce qui atteint la branche par défaut compte. Un `pre-push` paie une fois par poussée au lieu d'une fois par commit, ce qui compte d'autant plus que le coût est presque entièrement fixe.
 
 Contrepartie à connaître : quand un `pre-push` déclenche une correction, les commits existent déjà. Il faut alors un commit de rattrapage, ou un amend suivi d'une nouvelle poussée. C'est plus salissant qu'une correction appliquée avant que le commit n'existe.
+
+---
+
+## 8. Titre des pull requests et méthode de fusion
+
+**Ce que ça fait.** Les pull requests ne peuvent être fusionnées qu'en squash, et leur titre suit le format des messages de commit.
+
+**Pourquoi.** En squash, les commits d'une branche sont écrasés en un seul, et **c'est le titre de la pull request qui devient son message**. L'historique de la branche par défaut n'est donc pas fait de messages de commit mais de titres de pull requests. Les autoriser à être approximatifs revient à écrire l'historique du projet au hasard.
+
+Restreindre la méthode de fusion à `squash` dans les règles de la branche par défaut est ce qui rend l'affirmation ci-dessus vraie en permanence. Sans cette restriction, une fusion en commit de fusion conserverait les commits intermédiaires et le titre ne déterminerait plus rien.
+
+**Ce qui casse si on l'enlève.** Rien immédiatement, et c'est le problème : l'historique se dégrade commit par commit, sans qu'aucun contrôle ne le signale, jusqu'à ne plus être lisible pour retrouver quand un comportement est apparu.
+
+### Sans rapport avec les numéros de version
+
+À ne pas confondre : le format des titres et des commits **ne détermine pas les versions**. Changesets lit des fichiers déposés dans `.changeset/`, pas l'historique Git, contrairement à semantic-release.
+
+La précision compte parce que l'inverse paraît évident et qu'une version antérieure de `CONTRIBUTING.md` l'affirmait à tort. Un titre soigné sert la lecture de l'historique, rien de plus.

@@ -44,6 +44,17 @@ Le brouillon empêche de fusionner par réflexe une pull request non relue. La r
 
 Chaque point de revue est ancré sur une ligne, donc résolvable. La fusion reste bloquée tant qu'une conversation est ouverte.
 
+**Titre de pull request : conventional commit, comme un message de commit.** En anglais, à l'impératif, avec le même préfixe (`feat`, `fix`, `chore`, `docs`, `style`, `refactor`, `test`).
+
+Ce n'est pas cosmétique : la fusion se fait en squash, donc **le titre de la pull request devient le message du commit sur `main`**. C'est lui qui reste, pas les messages des commits intermédiaires, qui sont écrasés.
+
+Écris donc le titre pour quelqu'un qui lira `git log` dans un an, sans le contexte de l'issue.
+
+```
+feat: add story discovery          plutôt que   Lot 4
+fix: resolve aliases from jsconfig  plutôt que   correction du bug
+```
+
 **Publication npm.** Jamais sans demande explicite. Un nom de paquet publié ne se reprend plus après 72 heures.
 
 **Placement d'un composant.** Par défaut dans `apps/shell`. On ne le promeut vers `core/ui` que lorsqu'un plugin réel en a besoin, jamais par anticipation : `core/ui` est une API publique qu'on ne peut plus retirer une fois publiée.
