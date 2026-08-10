@@ -321,6 +321,37 @@ Le brouillon d'abord, pour qu'une pull request non relue ne puisse pas être fus
 
 *Ce qui casse si on l'enlève :* la revue est produite par la session qui a écrit le code. Elle valide alors ce qu'elle croit avoir fait, et les écarts entre l'intention et le diff, précisément ce qu'on cherche, deviennent invisibles.
 
+### Ce que reçoit le sous-agent, et sur quel modèle
+
+**Le prompt fournit les faits, jamais l'interprétation.** Le diff complet, la liste des fichiers touchés et le numéro de la pull request sont collés dans le prompt ; le travail effectué, les intentions et les décisions n'y figurent jamais.
+
+La distinction est fine mais tient à peu de chose : fournir le diff n'est pas le résumer. C'est le même texte que le sous-agent irait chercher lui-même, et le lui donner supprime une demi-douzaine d'allers-retours. Résumer le travail, en revanche, lui ferait vérifier la version des faits de l'auteur au lieu du diff.
+
+**Le modèle est choisi mécaniquement**, pour ne pas être rejugé à chaque fois :
+
+| Le diff touche | Modèle |
+| -- | -- |
+| documentation, configuration, workflows uniquement | petit modèle |
+| au moins un fichier sous `packages/*/src/**` ou `apps/**` | modèle courant |
+
+Le code garde toujours le modèle courant. C'est ce qui rend la règle sûre : le petit modèle ne s'applique jamais là où le raisonnement est le plus exigeant.
+
+*Pourquoi :* le coût ne venait pas des points remontés mais du chemin, le sous-agent redécouvrant le dépôt à chaque fois.
+
+| Dispositif | Modèle | Tokens | Durée | Appels d'outils |
+| -- | -- | -- | -- | -- |
+| Aucune borne | courant | 96 k | 12 min | 35 |
+| Borne d'effort | courant | 62 k | 4 min | 17 |
+| Borne, contexte fourni | petit | 43 k | 77 s | 7 |
+
+Comparaison indicative et non toutes choses égales : les diffs relus n'étaient pas identiques. L'ordre de grandeur, lui, est net.
+
+*Un piège rencontré en chemin :* au premier essai sur un petit modèle, la revue a été rendue à l'appelant au lieu d'être publiée, en deux appels d'outils. Le verdict était juste, le contrôle est resté rouge, et les chiffres semblaient excellents parce que le travail n'avait pas été fait. D'où la phrase en tête du skill : une revue non postée est une revue qui n'existe pas. Le nombre d'appels d'outils est un bon indicateur, publier et relancer en coûtent au moins deux à eux seuls.
+
+*Ce qui casse si on l'enlève :* rien de visible, et c'est le piège. La revue continue de fonctionner, simplement elle coûte plusieurs fois son prix, et un mécanisme trop cher finit par être contourné.
+
+*Garde-fou :* si une revue sur de la documentation rate un point qu'une relecture humaine attrape, revenir au modèle courant partout. Une revue économique qui ne trouve rien est le pire des deux mondes, puisqu'on croit avoir été relu.
+
 ### Les points sont résolvables, et bloquants
 
 La revue est postée en tant que revue avec des commentaires **ancrés sur des lignes**, et non en commentaire simple : seul un commentaire de revue peut être marqué comme résolu. Chaque point devient une conversation à clore explicitement.
@@ -348,6 +379,10 @@ Première ligne du commentaire. Invisible au rendu, cherché tel quel par le wor
 **Ce qui casse si on l'enlève.** Le mécanisme repose entièrement sur la discipline de lancer `/review`. Sans le contrôle, cette discipline tient quelques semaines puis s'efface, et on croit être relu alors qu'on ne l'est plus.
 
 ### Deux détails d'implémentation qui ont une raison
+
+**Le contrôle ne s'exécute pas tant que la pull request est en brouillon.** Le flux impose le brouillon avant la revue : contrôler à ce moment-là, c'est échouer à coup sûr, puisque la revue n'existe pas encore. Le workflow envoyait donc une notification d'échec à chaque ouverture, pour une situation parfaitement normale. Le type d'événement `ready_for_review` déclenche le contrôle au moment où la réponse peut être oui.
+
+*Ce qui casse si on l'enlève :* rien de fonctionnel, mais chaque ouverture de pull request produit un échec et sa notification. Un contrôle qui échoue systématiquement finit ignoré, y compris le jour où il a raison.
 
 **Le contrôle doit être relancé après la revue.** Poster un commentaire ne déclenche aucun workflow : `require-review.yml` ne réagit qu'à l'ouverture d'une pull request et aux nouvelles poussées. Après `/review`, il faut donc relancer l'exécution, ou pousser un commit. Le skill se termine sur cette étape, sans quoi le contrôle resterait en échec alors que la revue existe.
 

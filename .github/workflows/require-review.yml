@@ -5,7 +5,7 @@ name: Require review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch: {}
 
 permissions:
@@ -19,6 +19,10 @@ concurrency:
 
 jobs:
   has-review:
+    # Le flux impose le brouillon avant la revue : contrôler une pull request encore
+    # en brouillon, c'est échouer à coup sûr et notifier pour rien. Le type
+    # ready_for_review déclenche le contrôle au moment où la réponse peut être oui.
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
