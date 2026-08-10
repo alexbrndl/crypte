@@ -69,10 +69,12 @@ Le noyau. Trois entrées indépendantes, chacune produisant son propre bundle et
 | Entrée | Contenu aujourd'hui |
 |---|---|
 | `src/protocol/` | La version du protocole et les types des messages échangés entre le shell et la preview |
-| `src/ui/` | Un marqueur seulement |
-| `src/preview/` | Un marqueur seulement |
+| `src/ui/` | `createShellChannel`, le côté shell du canal |
+| `src/preview/` | `createPreviewChannel`, le côté iframe du canal |
 
-`protocol` est le seul à contenir du code utile. Les deux autres n'exportent qu'une constante servant au test d'isolation.
+Chaque entrée exporte aussi une constante marqueur, utilisée par le test d'isolation.
+
+**Aucune des trois n'importe de framework de rendu**, et une règle de lint l'interdit pour `ui` et `protocol`. Voir la section 10.
 
 Ce paquet n'a **aucune dépendance d'exécution**. Vue y figure en dépendance de pair optionnelle, en prévision des primitives d'interface.
 
@@ -98,9 +100,11 @@ React et React DOM y sont déclarés en dépendances de pair, jamais en dépenda
 
 ### `apps/`
 
-**Ce dossier n'existe pas encore.** Il est déclaré dans les espaces de travail, mais aucune application n'y a été créée.
+`apps/shell` est l'application d'interface, **privée et jamais publiée** : sa sortie compilée sera embarquée dans `@crypte/cli`.
 
-Il accueillera `apps/shell`, l'application d'interface, qui n'est pas un paquet publié : sa sortie compilée sera embarquée dans `@crypte/cli`. C'est aujourd'hui la pièce manquante la plus visible, et rien de ce qui est décrit en section 2 ne peut fonctionner sans elle.
+Elle sert deux pages depuis un même serveur Vite : `index.html` monte le shell en Vue, `preview.html` monte la preview en React. Les deux ne communiquent que par le canal.
+
+Elle contient aussi `Badge.tsx`, un composant codé en dur. Il n'y a aucune découverte de fichiers : c'est le seul composant que la preview sait monter.
 
 ### `docs/`
 
@@ -139,7 +143,7 @@ Voici ce qui devrait se passer quand un utilisateur tape `crypte dev`, et où en
 **9. Retour au shell.** La preview répond `rendered`, ou `error` si le rendu a échoué, auquel cas le shell affiche l'erreur sans tomber.
 → *Types définis, mécanisme absent.*
 
-**En résumé :** sur les neuf étapes, une fonctionne, une est partielle, sept n'existent pas. Ce qui est acquis aujourd'hui est la structure qui permet de les écrire sans se contredire.
+**En résumé :** les étapes 1, 7, 8 et 9 fonctionnent, la 2 est partielle, les étapes 3 à 6 n'existent pas. Le canal complet est éprouvé de bout en bout, mais sur un composant codé en dur : rien ne découvre encore de fichier ni ne produit de manifeste.
 
 ---
 
@@ -539,3 +543,43 @@ L'exemption porte sur le préfixe de branche et non sur une étiquette : le nom 
 **Le workflow de version demande des droits d'écriture**, contrairement à l'intégration continue qui est en lecture seule. Ouvrir une pull request l'exige. Le réglage « Allow GitHub Actions to create and approve pull requests » doit par ailleurs être actif dans les paramètres du dépôt, sans quoi l'action échoue à créer la pull request.
 
 **Le format des changelogs générés est compatible avec le formateur**, vérifié à l'installation : `vp check` accepte les fichiers produits sans modification. Aucune exclusion n'a donc été ajoutée.
+
+---
+
+## 10. La frontière entre le shell et la preview
+
+C'est la contrainte que le projet paie le plus cher s'il la perd, et la seule qui ne se rattrape pas à coût raisonnable.
+
+### Comment elle est tenue
+
+**Le shell et la preview ne se parlent que par `postMessage`.** Le shell envoie `render`, la preview répond `rendered` ou `error`. Aucune référence à un composant, à une instance ou à un arbre de rendu ne traverse : uniquement des données sérialisables.
+
+Trois paquets, trois rôles :
+
+| Emplacement | Rôle | Connaît React |
+| -- | -- | -- |
+| `core/protocol` | types des messages | non |
+| `core/ui` | côté shell du canal | non |
+| `core/preview` | côté iframe du canal | non |
+| `packages/react` | monte le composant | oui, c'est son travail |
+
+### La règle de lint
+
+`vite.config.ts` déclare, via `lint.overrides`, un `no-restricted-imports` sur `packages/core/src/ui/**` et `packages/core/src/protocol/**`, interdisant `react`, `react-dom` et `react/*`.
+
+*Pourquoi :* la frontière est une propriété qu'on ne voit pas en lisant un fichier. Elle se perd par un import ajouté sans y penser, dans un fichier qui semble anodin, et rien ne le signale avant que le noyau ne soit devenu dépendant d'un framework.
+
+*Ce qui casse si on l'enlève :* le noyau peut se lier à React sans que personne ne s'en aperçoive, et l'adaptateur Vue devient impossible sans réécrire le noyau. C'est le risque qui a fait passer ce lot en premier.
+
+**La règle est ciblée, pas globale** : `packages/react` importe React librement, c'est sa raison d'être. Vérifié dans les deux sens, un import de React dans `core/ui` échoue, le même import dans `packages/react` passe.
+
+### La preuve par les artefacts
+
+La règle de lint dit ce qui est interdit. Le build montre ce qui est réellement produit :
+
+| Bundle | Poids | Occurrences de `react` |
+| -- | -- | -- |
+| shell | 59 Ko | **0** |
+| preview | 186 Ko | 57 |
+
+Le shell ne charge pas React, et ce n'est pas une intention mais un fait mesurable sur les fichiers construits.
