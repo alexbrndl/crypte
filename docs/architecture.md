@@ -614,6 +614,16 @@ Quinze erreurs, jusque-là invisibles, dont trois familles :
 
 Le coût est négligeable, la vérification complète prend environ trois dixièmes de seconde.
 
+### Ce que la vérification ne couvre pas
+
+**Les composants monofichiers Vue échappent au contrôle des types.** `apps/shell/src/env.d.ts` déclare `*.vue` comme un module opaque, ce qui rend leur contenu invisible au compilateur : une erreur de type dans `App.vue` passe sans être signalée, alors que la même erreur dans un `.ts` ou un `.tsx` est bien remontée.
+
+L'outil prévu pour cela, `vue-tsc`, n'est pas utilisable ici : il charge `typescript/lib/tsc`, un chemin que TypeScript 7 n'expose plus, et échoue au démarrage. La limite tient donc à notre version de TypeScript, volontairement épinglée sur une version pré-stable.
+
+*Conséquence pratique :* toute la logique du shell repose sur la relecture et sur l'exécution, pas sur le compilateur. À rouvrir quand `vue-tsc` supportera TypeScript 7, ou si le shell grossit au point que ce trou coûte plus cher que le contournement.
+
+C'est écrit ici précisément parce que la section précédente pourrait laisser croire l'inverse.
+
 ### La construction doit précéder la vérification
 
 Les paquets exposent leurs types depuis `dist/`. Tant que rien n'est construit, `@crypte/core/protocol` et `@crypte/react` sont introuvables pour le compilateur, et la vérification de types échoue sur des modules pourtant présents.

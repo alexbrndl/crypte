@@ -8,4 +8,5 @@ catalog:
   '@changesets/cli': ^2.31.1
   '@types/node': ^24
   typescript: 7.0.2
+  vite: ^8.2.1
   vitest: ^4.1.10
