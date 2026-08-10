@@ -438,12 +438,14 @@ Contrepartie à connaître : quand un `pre-push` déclenche une correction, les 
 
 **Pourquoi.** En squash, les commits d'une branche sont écrasés en un seul, et **c'est le titre de la pull request qui devient son message**. L'historique de la branche par défaut n'est donc pas fait de messages de commit mais de titres de pull requests. Les autoriser à être approximatifs revient à écrire l'historique du projet au hasard.
 
-Restreindre la méthode de fusion à `squash` dans les règles de la branche par défaut est ce qui rend l'affirmation ci-dessus vraie en permanence. Sans cette restriction, une fusion en commit de fusion conserverait les commits intermédiaires et le titre ne déterminerait plus rien.
+C'est pourquoi le ruleset de la branche par défaut fixe `allowed_merge_methods` à `["squash"]`, seule valeur autorisée depuis cette section. Sans cette restriction, une fusion en commit de fusion conserverait les commits intermédiaires et le titre ne déterminerait plus rien.
+
+Ce réglage vit dans les paramètres du dépôt et **n'est pas versionné** : cette section en est la seule trace écrite. Un retour aux trois méthodes ne se comparerait à rien sans elle.
 
 **Ce qui casse si on l'enlève.** Rien immédiatement, et c'est le problème : l'historique se dégrade commit par commit, sans qu'aucun contrôle ne le signale, jusqu'à ne plus être lisible pour retrouver quand un comportement est apparu.
 
 ### Sans rapport avec les numéros de version
 
-À ne pas confondre : le format des titres et des commits **ne détermine pas les versions**. Changesets lit des fichiers déposés dans `.changeset/`, pas l'historique Git, contrairement à semantic-release.
+À ne pas confondre : le format des titres et des commits **ne détermine pas les versions**. Aucun mécanisme de versionnage n'existe encore dans le dépôt, et celui qui sera retenu reposera sur des notes déposées explicitement, pas sur l'historique Git.
 
-La précision compte parce que l'inverse paraît évident et qu'une version antérieure de `CONTRIBUTING.md` l'affirmait à tort. Un titre soigné sert la lecture de l'historique, rien de plus.
+La précision compte parce que l'inverse paraît évident, et qu'une version antérieure de `CONTRIBUTING.md` l'affirmait à tort. Un titre soigné sert la lecture de l'historique, rien de plus.
