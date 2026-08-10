@@ -32,6 +32,18 @@ _Sinon :_ une rupture de l'outillage, encore en version pré-1.0, se corrige dan
 
 **Commits.** Conventional commits, en anglais, à l'impératif.
 
+**Pull requests : brouillon, revue, puis ouverture.** Dans cet ordre, sans exception.
+
+```bash
+gh pr create --draft --title "…"    # 1. jamais directement ouverte
+/review                              # 2. délègue à un sous-agent
+gh pr ready <numéro>                 # 3. seulement une fois les points traités
+```
+
+Le brouillon empêche de fusionner par réflexe une pull request non relue. La revue est **déléguée à un sous-agent**, qui part d'un contexte vierge : celui qui vient d'écrire le code ne peut pas relire son propre travail sans se souvenir de ce qu'il voulait faire, et vérifierait ses intentions plutôt que le diff. Le prompt de délégation reste minimal et ne résume jamais le travail effectué.
+
+Chaque point de revue est ancré sur une ligne, donc résolvable. La fusion reste bloquée tant qu'une conversation est ouverte.
+
 **Publication npm.** Jamais sans demande explicite. Un nom de paquet publié ne se reprend plus après 72 heures.
 
 **Placement d'un composant.** Par défaut dans `apps/shell`. On ne le promeut vers `core/ui` que lorsqu'un plugin réel en a besoin, jamais par anticipation : `core/ui` est une API publique qu'on ne peut plus retirer une fois publiée.

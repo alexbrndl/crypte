@@ -47,6 +47,14 @@ Les contraintes structurelles et les règles de travail, à destination des agen
 Installation, vérification, conventions de commit et de pull request, pour un contributeur extérieur. Générique et sans référence à un outil de suivi privé.
 *Sans lui :* un contributeur découvre les conventions par le refus de son intégration continue.
 
+**`.github/workflows/require-review.yml`**
+Vérifie qu'une revue a été postée sur la pull request. Il ne produit aucune revue lui-même, voir la section 6.
+*Sans lui :* une pull request peut être fusionnée sans qu'aucune relecture n'ait eu lieu, et rien ne le rappelle.
+
+**`.claude/skills/review/SKILL.md`**
+Le prompt de revue, lancé en local par `/review`.
+*Sans lui :* le contrôle ci-dessus ne peut jamais être satisfait.
+
 **`.gitignore`**
 Exclut notamment `dist/` et `.vite/`. Les artefacts de construction ne sont pas versionnés, ils sont reconstruits par `vp pack`.
 
@@ -284,3 +292,71 @@ Règle à retenir si un autre workflow apparaît : `cancel-in-progress: true` po
 **Pourquoi.** Il n'a pas été écrit à la main : `vp install` l'ajoute lui-même. On le laisse en place volontairement.
 
 **Ce qui casse si on l'enlève.** Rien, jusqu'au prochain `vp install` qui le réécrit à l'identique. Le retirer produit une modification non commitée qui fait échouer le contrôle `git diff --exit-code` de l'intégration continue, pour un fichier que personne n'a modifié.
+
+---
+
+## 6. La revue de pull request
+
+**Le point contre-intuitif, et il se redemandera : la revue n'est pas produite par l'intégration continue.** Elle est produite en local, par l'agent, sous l'abonnement existant. La CI ne fait que vérifier qu'elle a eu lieu.
+
+### Les deux pièces
+
+**Le prompt** vit dans `.claude/skills/review/SKILL.md` et se lance avec `/review` depuis la racine du dépôt. Cet emplacement est la convention de l'outil : un dossier par skill, contenant un `SKILL.md` avec un en-tête `name` et `description`. Versionné dans le dépôt, il suit les branches et s'améliore au fil des lots.
+
+Il relit le diff de la branche contre `origin/main`, le confronte à `CLAUDE.md` et aux contrats de `docs/spec-contrats.md`, puis poste son verdict en commentaire de la pull request.
+
+**Le contrôle** est `.github/workflows/require-review.yml`. Il liste les commentaires et les revues de la pull request, cherche le marqueur, et échoue s'il ne le trouve pas.
+
+### Le flux
+
+```
+gh pr create --draft    →    /review    →    gh pr ready
+```
+
+Le brouillon d'abord, pour qu'une pull request non relue ne puisse pas être fusionnée par réflexe. Puis la revue, **déléguée à un sous-agent** au contexte vierge : celui qui vient d'écrire le code se souvient de ses intentions et vérifierait sa propre version des faits plutôt que le diff. Le prompt de délégation est volontairement minimal et ne résume jamais le travail, sans quoi le biais revient par la porte du prompt.
+
+*Ce qui casse si on l'enlève :* la revue est produite par la session qui a écrit le code. Elle valide alors ce qu'elle croit avoir fait, et les écarts entre l'intention et le diff, précisément ce qu'on cherche, deviennent invisibles.
+
+### Les points sont résolvables, et bloquants
+
+La revue est postée en tant que revue avec des commentaires **ancrés sur des lignes**, et non en commentaire simple : seul un commentaire de revue peut être marqué comme résolu. Chaque point devient une conversation à clore explicitement.
+
+Le ruleset de la branche par défaut active `required_review_thread_resolution`, donc la fusion est refusée tant qu'une conversation reste ouverte.
+
+*Ce qui casse si on l'enlève :* les remarques restent des commentaires qu'on peut faire défiler. Rien ne distingue un point traité d'un point ignoré, et la revue redevient une case cochée.
+
+Conséquence à connaître pour le prompt : un point laissé dans le corps de la revue, sans ancrage sur une ligne, n'est pas résolvable et ne bloque donc rien. D'où la consigne d'ancrer chaque point sur un fichier du diff.
+
+### Le marqueur
+
+```
+<!-- crypte-review -->
+```
+
+Première ligne du commentaire. Invisible au rendu, cherché tel quel par le workflow. Le changer d'un côté sans l'autre casse le lien silencieusement : le contrôle échouerait sur des pull requests pourtant relues.
+
+### Ce que ça fait, pourquoi, ce qui casse
+
+**Ce que ça fait.** Un rappel bloquant. On ne peut pas fusionner en ayant oublié de relire.
+
+**Pourquoi ce découpage plutôt qu'une action de revue.** Une action qui appelle une API de modèle demande une clé, facturée à chaque poussée. Ici le coût est couvert par l'abonnement, et le prompt vit dans le dépôt, donc versionné et améliorable. Le compromis assumé : ce n'est pas automatique.
+
+**Ce qui casse si on l'enlève.** Le mécanisme repose entièrement sur la discipline de lancer `/review`. Sans le contrôle, cette discipline tient quelques semaines puis s'efface, et on croit être relu alors qu'on ne l'est plus.
+
+### Deux détails d'implémentation qui ont une raison
+
+**Le contrôle doit être relancé après la revue.** Poster un commentaire ne déclenche aucun workflow : `require-review.yml` ne réagit qu'à l'ouverture d'une pull request et aux nouvelles poussées. Après `/review`, il faut donc relancer l'exécution, ou pousser un commit. Le skill se termine sur cette étape, sans quoi le contrôle resterait en échec alors que la revue existe.
+
+**Le comptage passe par `jq` en aval plutôt que par `--jq`.** Combiné à `--paginate`, l'option `--jq` de `gh` applique le filtre à chaque page et renvoie une ligne par page, ce qui casse l'addition dès qu'une pull request dépasse trente commentaires : le job échoue alors sur une erreur d'arithmétique, et bloque une pull request pourtant relue. `--slurp` agrège les pages mais n'accepte pas `--jq`, d'où le passage par `jq`.
+
+**Le workflow n'imprime jamais le corps des commentaires**, seulement leur nombre. Un texte produit par un agent peut contenir des commandes de workflow, `::error::` ou `::add-mask::`, qui manipuleraient la sortie de l'exécution si elles étaient affichées. En ne faisant sortir que des nombres, la question ne se pose pas.
+
+**Le workflow est séparé de `ci.yml`.** L'intégrer aux dépendances de `ci-passed` le rendrait immédiatement bloquant, puisque `ci-passed` est le contrôle exigé par les règles de la branche. Le contrôle de revue est délibérément non bloquant au départ : on juge son utilité sur trois ou quatre lots avant de l'exiger.
+
+### Ce que la revue attrape, et ce qu'elle n'attrape pas
+
+**Attrapé :** les écarts par rapport à des règles écrites. Une dépendance interne embarquée en copie, une décision documentée puis prise à l'envers, un ordre d'étapes qui rend un test inopérant.
+
+**Non attrapé :** les arbitrages. Publier maintenant ou plus tard, versions synchronisées ou indépendantes, quelle bibliothèque choisir. Aucune revue ne pose ces questions.
+
+Deux limites à garder en tête. Le relecteur est l'auteur, ce qui vaut moins qu'un regard neuf, d'où la consigne de relire le diff plutôt que sa mémoire. Et une revue qui commente à chaque poussée finit survolée : si les commentaires deviennent du remplissage, resserrer le prompt plutôt que laisser courir.

@@ -1,0 +1,66 @@
+name: Require review
+
+# Ce workflow ne produit aucune revue. Il vérifie seulement qu'une revue existe.
+# La revue est produite en local par le skill /review. Voir docs/architecture.md.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  has-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Seuls des nombres sortent de ces appels, jamais le corps des commentaires :
+      # un texte produit par un agent pourrait contenir des commandes de workflow.
+      - name: Chercher le marqueur de revue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          marker='<!-- crypte-review -->'
+
+          # Sur workflow_dispatch, l'événement ne porte aucun numéro de PR : le retrouver
+          # depuis la branche, sinon le contrôle passerait au vert sans avoir rien lu.
+          if [ -z "$PR" ]; then
+            PR=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open \
+              --json number --jq '.[0].number // empty')
+          fi
+
+          if [ -z "$PR" ]; then
+            echo "::error::Aucune pull request ouverte pour cette branche."
+            exit 1
+          fi
+
+          # --paginate avec --jq applique le filtre page par page et renvoie une ligne
+          # par page, ce qui casse l'addition au-delà de 30 commentaires. --slurp agrège
+          # les pages mais n'accepte pas --jq, d'où le passage par jq en aval.
+          count() {
+            gh api "$1" --paginate --slurp \
+              | jq --arg m "$marker" '[.[][] | select((.body // "") | contains($m))] | length'
+          }
+
+          comments=$(count "repos/$REPO/issues/$PR/comments")
+          reviews=$(count "repos/$REPO/pulls/$PR/reviews")
+
+          total=$((comments + reviews))
+          echo "Revues trouvées : $total"
+
+          if [ "$total" -eq 0 ]; then
+            echo "::error::Aucune revue trouvée. Lancer /review en local avant de fusionner, puis relancer ce contrôle."
+            exit 1
+          fi
