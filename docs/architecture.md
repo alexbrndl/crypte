@@ -336,7 +336,17 @@ La distinction est fine mais tient à peu de chose : fournir le diff n'est pas l
 
 Le code garde toujours le modèle courant. C'est ce qui rend la règle sûre : le petit modèle ne s'applique jamais là où le raisonnement est le plus exigeant.
 
-*Pourquoi :* la revue coûtait 96 000 tokens et douze minutes pour un diff de 58 lignes, puis 62 000 et quatre minutes après l'ajout de la borne d'effort. Le coût ne venait pas des points remontés mais du chemin, le sous-agent redécouvrant le dépôt à chaque fois.
+*Pourquoi :* le coût ne venait pas des points remontés mais du chemin, le sous-agent redécouvrant le dépôt à chaque fois.
+
+| Dispositif | Modèle | Tokens | Durée | Appels d'outils |
+| -- | -- | -- | -- | -- |
+| Aucune borne | courant | 96 k | 12 min | 35 |
+| Borne d'effort | courant | 62 k | 4 min | 17 |
+| Borne, contexte fourni | petit | 43 k | 77 s | 7 |
+
+Comparaison indicative et non toutes choses égales : les diffs relus n'étaient pas identiques. L'ordre de grandeur, lui, est net.
+
+*Un piège rencontré en chemin :* au premier essai sur un petit modèle, la revue a été rendue à l'appelant au lieu d'être publiée, en deux appels d'outils. Le verdict était juste, le contrôle est resté rouge, et les chiffres semblaient excellents parce que le travail n'avait pas été fait. D'où la phrase en tête du skill : une revue non postée est une revue qui n'existe pas. Le nombre d'appels d'outils est un bon indicateur, publier et relancer en coûtent au moins deux à eux seuls.
 
 *Ce qui casse si on l'enlève :* rien de visible, et c'est le piège. La revue continue de fonctionner, simplement elle coûte plusieurs fois son prix, et un mécanisme trop cher finit par être contourné.
 
