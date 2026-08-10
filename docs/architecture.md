@@ -380,6 +380,10 @@ Première ligne du commentaire. Invisible au rendu, cherché tel quel par le wor
 
 ### Deux détails d'implémentation qui ont une raison
 
+**Le contrôle ne s'exécute pas tant que la pull request est en brouillon.** Le flux impose le brouillon avant la revue : contrôler à ce moment-là, c'est échouer à coup sûr, puisque la revue n'existe pas encore. Le workflow envoyait donc une notification d'échec à chaque ouverture, pour une situation parfaitement normale. Le type d'événement `ready_for_review` déclenche le contrôle au moment où la réponse peut être oui.
+
+*Ce qui casse si on l'enlève :* rien de fonctionnel, mais chaque ouverture de pull request produit un échec et sa notification. Un contrôle qui échoue systématiquement finit ignoré, y compris le jour où il a raison.
+
 **Le contrôle doit être relancé après la revue.** Poster un commentaire ne déclenche aucun workflow : `require-review.yml` ne réagit qu'à l'ouverture d'une pull request et aux nouvelles poussées. Après `/review`, il faut donc relancer l'exécution, ou pousser un commit. Le skill se termine sur cette étape, sans quoi le contrôle resterait en échec alors que la revue existe.
 
 **Le comptage passe par `jq` en aval plutôt que par `--jq`.** Combiné à `--paginate`, l'option `--jq` de `gh` applique le filtre à chaque page et renvoie une ligne par page, ce qui casse l'addition dès qu'une pull request dépasse trente commentaires : le job échoue alors sur une erreur d'arithmétique, et bloque une pull request pourtant relue. `--slurp` agrège les pages mais n'accepte pas `--jq`, d'où le passage par `jq`.
