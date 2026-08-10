@@ -31,9 +31,21 @@ Ne contient aucun fichier, seulement des références vers les trois paquets. C'
 *Sans lui :* la vérification de types doit être lancée paquet par paquet.
 
 **`.github/workflows/ci.yml`**
-Vérification sur pull request et sur push vers `main`, en matrice Node 22 et 24. Les deux actions utilisées sont épinglées par empreinte de commit et non par étiquette mobile.
-L'ordre des étapes est significatif : `install`, `check`, `pack`, `test`, `git diff --exit-code`.
+Trois jobs : `check` en matrice Node 22 et 24, `dependency-review` sur les pull requests, et `ci-passed` qui agrège les deux. Toutes les actions sont épinglées par empreinte de commit et non par étiquette mobile.
+L'ordre des étapes de `check` est significatif : `install`, `check`, `pack`, `test`, `git diff --exit-code`.
 *Sans lui :* rien n'est vérifié automatiquement. Et si l'ordre change, voir la section 4 : le test d'isolation devient silencieux.
+
+**`.github/dependabot.yml`**
+Surveille uniquement les actions GitHub, pour que les empreintes épinglées du workflow ne se périment pas en silence.
+*Sans lui :* les actions restent figées sur des versions qui vieillissent sans que personne ne le voie, y compris en cas de correctif de sécurité.
+
+**`CLAUDE.md`**
+Les contraintes structurelles et les règles de travail, à destination des agents. Elles y sont écrites une fois plutôt que répétées à chaque session.
+*Sans lui :* les contraintes vivent dans la mémoire de conversations passées, et se perdent.
+
+**`CONTRIBUTING.md`**
+Installation, vérification, conventions de commit et de pull request, pour un contributeur extérieur. Générique et sans référence à un outil de suivi privé.
+*Sans lui :* un contributeur découvre les conventions par le refus de son intégration continue.
 
 **`.gitignore`**
 Exclut notamment `dist/` et `.vite/`. Les artefacts de construction ne sont pas versionnés, ils sont reconstruits par `vp pack`.
@@ -170,3 +182,105 @@ Vérifie l'étanchéité décrite en section 3, en lisant le bundle construit et
 Cette dernière garantie explique l'ordre des étapes de l'intégration continue : la construction doit précéder les tests. Dans l'ordre inverse, le test lirait des artefacts absents et signalerait une erreur d'exécution au lieu de vérifier quoi que ce soit.
 
 La fraîcheur des artefacts n'est volontairement pas vérifiée par comparaison de dates. Le cache de tâches restaure les fichiers construits avec leurs dates d'origine, ce qui provoquerait des échecs sur un état pourtant correct. Elle repose sur deux mécanismes plus fiables : le cache s'invalide quand les sources changent, et l'intégration continue construit avant de tester.
+
+---
+
+## 5. Décisions encodées dans la configuration
+
+Ces réglages ont l'air anodins et ne le sont pas. Chacun a été mis là pour une raison précise, et chacun est le genre de ligne qu'on supprime en croyant nettoyer.
+
+Le format est le même pour tous : ce que ça fait, pourquoi ça existe, ce qui casse si on l'enlève.
+
+### `ci-passed`, le job agrégateur
+
+**Ce que ça fait.** Un job qui dépend de tous les autres, s'exécute avec `if: always()`, et échoue si l'un d'eux a échoué ou a été annulé. Un job ignoré compte comme un succès, ce qui est voulu : `dependency-review` ne tourne que sur les pull requests.
+
+**Pourquoi.** C'est le seul contrôle exigé par les règles de la branche par défaut. Sans lui, il faut exiger les jobs un par un, `check (22)` et `check (24)`, ce qui grave la composition de la matrice dans un réglage stocké hors du dépôt.
+
+**Ce qui casse si on l'enlève.** Le jour où `engines` remonte à Node 24 et que 22 quitte la matrice, le contrôle `check (22)` n'est plus jamais rapporté. La pull request reste bloquée indéfiniment, en attente d'un contrôle qui ne viendra pas, et sans message expliquant pourquoi. Avec l'agrégateur, la matrice peut changer librement.
+
+La condition utilise `contains(needs.*.result, 'failure')` et non une liste de jobs écrite à la main. Une liste se désynchronise le jour où l'on ajoute un job sans penser à l'y inscrire, et l'agrégat passe au vert en ignorant ce job : le même piège qu'un test qui passe pour la mauvaise raison.
+
+### `concurrency` avec `cancel-in-progress`
+
+**Ce que ça fait.** Deux poussées rapprochées sur la même référence n'exécutent que la dernière, la précédente est annulée.
+
+**Pourquoi.** Vérifier deux fois de suite un état intermédiaire ne renseigne sur rien.
+
+**Ce qui casse si on l'enlève.** Rien de fonctionnel, seulement du temps de calcul et de l'attente.
+
+Règle à retenir si un autre workflow apparaît : `cancel-in-progress: true` pour ce qui vérifie, `false` pour ce qui modifie un état. On n'annule jamais une publication en cours.
+
+### `fail-fast: false` sur la matrice
+
+**Ce que ça fait.** Un échec sur Node 22 n'annule pas le job Node 24.
+
+**Pourquoi.** La matrice existe pour dire si une rupture touche une version ou les deux.
+
+**Ce qui casse si on l'enlève.** La matrice ne renseigne plus. Un échec sur la première version annule la seconde, et on ignore si le problème est spécifique à une version, ce qui est précisément la question posée.
+
+### `permissions: contents: read`
+
+**Ce que ça fait.** Réduit le jeton fourni aux jobs à la lecture du dépôt.
+
+**Pourquoi.** Sans déclaration explicite, le jeton par défaut peut être bien plus large que nécessaire.
+
+**Ce qui casse si on l'enlève.** Rien visiblement, et c'est le problème : une action compromise ou une dépendance malveillante disposerait de droits d'écriture sur un dépôt public.
+
+### `timeout-minutes: 10`
+
+**Ce que ça fait.** Interrompt un job qui dépasse dix minutes.
+
+**Pourquoi.** La chaîne complète prend moins d'une minute. Dix minutes laissent une marge confortable.
+
+**Ce qui casse si on l'enlève.** Un job bloqué, sur une attente réseau par exemple, tourne jusqu'à la limite par défaut de six heures avant d'être tué, en consommant du quota et en retardant le retour.
+
+### `workflow_dispatch`
+
+**Ce que ça fait.** Permet de relancer le workflow à la main depuis l'interface.
+
+**Pourquoi.** Un échec dû à un incident extérieur ne devrait pas exiger un nouveau commit.
+
+**Ce qui casse si on l'enlève.** Débloquer une pull request demande de pousser un commit vide, qui pollue l'historique pour une raison qui n'a rien à voir avec le code.
+
+### `dependency-review` sur les pull requests
+
+**Ce que ça fait.** Refuse une pull request qui introduit une dépendance portant une vulnérabilité connue.
+
+**Pourquoi.** Gratuit sur un dépôt public, et c'est le moment le moins cher pour attraper le problème.
+
+**Ce qui casse si on l'enlève.** Une dépendance vulnérable entre sans que rien ne le signale, et on l'apprend plus tard par une alerte, une fois le code déjà en place.
+
+### Dependabot limité aux actions GitHub
+
+**Ce que ça fait.** Surveille `github-actions`, et rien d'autre.
+
+**Pourquoi.** Les empreintes de commit épinglées dans le workflow ne se périment pas bruyamment : sans surveillance, elles vieillissent en silence.
+
+**Ce qui casse si on l'enlève.** Les actions restent figées, correctifs de sécurité compris.
+
+**Pourquoi npm n'y est pas.** Dependabot ne gère pas correctement cette configuration précise. Trois défauts ouverts dans `dependabot-core` : pnpm 11 n'est pas supporté (#14794), et le protocole `catalog` produit un lockfile incorrect (#14339, #12244). Notre lockfile vient de pnpm 11 et notre catalog épingle TypeScript, donc les trois nous concernent. À reconsidérer quand ils seront clos, pas avant : un lockfile corrompu par une mise à jour automatique coûte plus cher que des dépendances qui vieillissent doucement.
+
+### `exports` désactivé sur `@crypte/cli`
+
+**Ce que ça fait.** La génération automatique du champ `exports` est active sur `core` et `react`, désactivée sur `cli`, où `bin` est écrit à la main.
+
+**Pourquoi.** Avec la génération active, l'outil réécrit aussi `bin` en dérivant son nom de celui du paquet. `@crypte/cli` devenait `{ "cli": ... }`, donc la commande installée s'appelait `cli` et non `crypte`.
+
+**Ce qui casse si on l'enlève.** La commande de l'utilisateur change de nom au prochain `vp pack`, en contradiction avec la section 1.4 de la spécification, et rien ne le signale : le paquet se construit sans erreur.
+
+### TypeScript épinglé sur une version exacte
+
+**Ce que ça fait.** Le catalog déclare `typescript: 7.0.2`, pas une plage.
+
+**Pourquoi.** TypeScript 7 n'a pas encore d'API stable, et l'outil de construction émet un avertissement à chaque génération de types. C'est cette même version qui portera plus tard l'extraction des types de props.
+
+**Ce qui casse si on l'enlève.** Une version corrective change silencieusement le comportement de la génération de types, sur une API annoncée comme expérimentale, et la régression apparaît chez les consommateurs des paquets plutôt qu'ici.
+
+### `devEngines` écrit par l'outillage
+
+**Ce que ça fait.** Le `package.json` racine contient un bloc `devEngines.packageManager` qui épingle le gestionnaire de paquets.
+
+**Pourquoi.** Il n'a pas été écrit à la main : `vp install` l'ajoute lui-même. On le laisse en place volontairement.
+
+**Ce qui casse si on l'enlève.** Rien, jusqu'au prochain `vp install` qui le réécrit à l'identique. Le retirer produit une modification non commitée qui fait échouer le contrôle `git diff --exit-code` de l'intégration continue, pour un fichier que personne n'a modifié.
