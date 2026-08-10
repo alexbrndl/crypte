@@ -47,6 +47,8 @@ gh pr ready <numéro>                 # 6. une fois les points traités
 
 Ce n'est pas une précaution théorique : la seconde revue du lot 1 a trouvé que le correctif d'un point de la première laissait passer `react-dom/client`, c'est-à-dire exactement l'import que la règle corrigée existait pour bloquer.
 
+**Quand s'arrêter.** La boucle se termine dès qu'une revue ne produit plus de correction touchant du code : aucun point, ou uniquement des points de documentation. Sinon on relance, sans limite fixée d'avance, parce que le nombre de tours n'est pas la question. Une correction non relue est une correction non relue, que ce soit la première ou la troisième.
+
 Le brouillon empêche de fusionner par réflexe une pull request non relue. La revue est **déléguée à un sous-agent**, qui part d'un contexte vierge : celui qui vient d'écrire le code ne peut pas relire son propre travail sans se souvenir de ce qu'il voulait faire, et vérifierait ses intentions plutôt que le diff. Le prompt de délégation reste minimal et ne résume jamais le travail effectué.
 
 Chaque point de revue est ancré sur une ligne, donc résolvable. La fusion reste bloquée tant qu'une conversation est ouverte.
