@@ -614,15 +614,30 @@ Quinze erreurs, jusque-là invisibles, dont trois familles :
 
 Le coût est négligeable, la vérification complète prend environ trois dixièmes de seconde.
 
-### Ce que la vérification ne couvre pas
+### Les composants Vue passent par un second compilateur
 
-**Les composants monofichiers Vue échappent au contrôle des types.** `apps/shell/src/env.d.ts` déclare `*.vue` comme un module opaque, ce qui rend leur contenu invisible au compilateur : une erreur de type dans `App.vue` passe sans être signalée, alors que la même erreur dans un `.ts` ou un `.tsx` est bien remontée.
+`vp check` ne lit pas les composants monofichiers : pour lui, un `.vue` est un module opaque, déclaré comme tel dans `apps/shell/src/env.d.ts`. Leur contenu est vérifié par **`vue-tsc`**, branché sur le script `typecheck` de `apps/shell` et lancé en intégration continue juste après `vp check`.
 
-L'outil prévu pour cela, `vue-tsc`, n'est pas utilisable ici : il charge `typescript/lib/tsc`, un chemin que TypeScript 7 n'expose plus, et échoue au démarrage. La limite tient donc à notre version de TypeScript, volontairement épinglée sur une version pré-stable.
+*Pourquoi un outil de plus :* `vue-tsc` vérifie le bloc `script`, mais surtout le **template**, ce qu'aucun autre contrôle ne fait. Une liaison vers une variable inexistante, `{{ statuss }}`, ou un gestionnaire vers une fonction absente, `@click="rendre"`, ne se voit ni au lint, ni au build, ni aux tests. Le composant se rend, silencieusement faux.
 
-*Conséquence pratique :* toute la logique du shell repose sur la relecture et sur l'exécution, pas sur le compilateur. À rouvrir quand `vue-tsc` supportera TypeScript 7, ou si le shell grossit au point que ce trou coûte plus cher que le contournement.
+*Ce qui casse si on l'enlève :* toute la logique du shell repose alors sur la relecture. Le coût croît avec la taille du shell, qui est appelé à devenir la plus grosse surface du projet.
 
-C'est écrit ici précisément parce que la section précédente pourrait laisser croire l'inverse.
+### TypeScript est épinglé en 6.0.3, pas en 7
+
+La 7 est pourtant la version courante publiée. Le problème n'est pas sa stabilité de compilateur mais celle de son **API programmatique**, dont dépendent les outils tiers : `vue-tsc` y charge un chemin que la 7 n'expose plus, et échoue au démarrage.
+
+La 6.0.3 est la dernière lignée écrite en JavaScript, stable et supportée par l'écosystème. Elle vérifie l'ensemble du dépôt, `.vue` compris.
+
+*Réserve connue, et elle ne se contourne pas :* `vp pack` génère les déclarations de types avec **son propre TypeScript 7**, embarqué par Vite+ et hors de notre contrôle.
+
+```
+typescript@7.0.2
+└─┬ @voidzero-dev/vite-plus-core@0.2.8
+```
+
+Deux compilateurs cohabitent donc : la 6 vérifie, la 7 émet les types publiés. Les deux fonctionnent, mais leur comportement n'est pas garanti identique. Quitter cette situation demanderait d'abandonner `vp pack`, ce qui coûterait plus cher que le risque.
+
+*Condition de réouverture :* quand `vue-tsc` fonctionnera avec TypeScript 7, repasser le catalogue en 7 et supprimer cette section.
 
 ### La construction doit précéder la vérification
 

@@ -33,6 +33,9 @@ jobs:
       # d'isolation lisant les bundles construits.
       - run: vp run -r pack
       - run: vp check
+      # vp check ne lit pas les composants monofichiers Vue : leur contenu, template
+      # compris, n'est vérifié que par vue-tsc. Voir docs/architecture.md.
+      - run: vp run -r typecheck
       - run: vp test
       - name: Generated exports are up to date
         run: git diff --exit-code
