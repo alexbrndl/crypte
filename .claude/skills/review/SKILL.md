@@ -5,6 +5,8 @@ description: Relit le diff de la branche courante contre les contraintes écrite
 
 Relis le diff de la branche courante contre les contraintes écrites du dépôt, puis poste ton verdict en revue de la pull request.
 
+**Ce skill n'est pas terminé tant que la revue n'est pas postée sur la pull request.** Répondre son verdict à celui qui t'a délégué ne compte pas : le contrôle `require-review.yml` cherche un marqueur dans les revues de la pull request, pas dans une réponse. Une revue non postée est une revue qui n'existe pas, même si elle est juste. Voir les sections 3 et 4, qui sont obligatoires y compris quand il n'y a rien à signaler.
+
 ## 0. Déléguer si tu as écrit ce code
 
 **Si tu as écrit tout ou partie de cette branche dans la session courante, ne fais pas la revue toi-même.** Délègue-la à un sous-agent, qui part d'un contexte vierge et ne peut donc pas confondre ce qu'il croit avoir fait avec ce que le diff contient.
@@ -82,7 +84,7 @@ Lis ensuite `CLAUDE.md` et, si le diff touche au format de story, au manifeste, 
 
 **Ce qui n'est pas recherché.** Le style, le nommage, le formatage, la structure des fichiers : `vp check` s'en occupe déjà. Les arbitrages non plus, publier maintenant ou plus tard, telle bibliothèque plutôt qu'une autre : ce sont des décisions humaines, pas des écarts.
 
-**Si tu n'as rien trouvé, dis-le en une ligne.** Une revue qui invente des remarques pour se justifier est pire qu'une revue vide : elle apprend à ne plus lire les suivantes.
+**Si tu n'as rien trouvé, dis-le en une ligne, et poste quand même.** Une revue qui invente des remarques pour se justifier est pire qu'une revue vide : elle apprend à ne plus lire les suivantes. Mais une revue vide non postée bloque la pull request.
 
 ## 3. Poster le verdict
 
