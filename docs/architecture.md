@@ -651,6 +651,12 @@ Deux compilateurs cohabitent donc : la 6 vérifie, la 7 émet les types publiés
 
 C'est ce qui distingue les deux sens de `ready=false` : « la contrainte tient toujours » et « la sonde ne mesure plus rien » produiraient sinon le même run vert et le même silence. Une sonde qui répondrait toujours non serait indiscernable d'une sonde correcte.
 
+L'étape de mesure vérifie aussi que la version installée commence bien par `7`. Afficher une version n'est pas la vérifier : `npm install` réconcilie l'arbre laissé par le contrôle positif, et sans cette assertion la mesure pourrait porter sur TypeScript 6 tout en ouvrant une issue annonçant que la 7 fonctionne.
+
+**Une faille demeure, et elle ne se referme pas ici.** GitHub désactive un workflow planifié après soixante jours sans activité dans le dépôt. Un projet en attente d'un correctif amont est précisément dans ce cas : plus de run, donc plus de vert, plus de rouge et plus d'issue. Le contrôle s'éteint sans le dire.
+
+Rien dans le workflow ne peut l'empêcher. Deux atténuations partielles : `workflow_dispatch` permet de le relancer à la main, et un dépôt sur lequel on travaille reste actif. Mais si le projet dort plus de deux mois, **considérer que ce contrôle est éteint** et le relancer manuellement avant de s'y fier.
+
 *Ce qui casse si on l'enlève :* le dépôt reste sur TypeScript 6 indéfiniment, sans que personne ne sache que la raison a disparu.
 
 ### La construction doit précéder la vérification

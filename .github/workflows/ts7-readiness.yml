@@ -92,13 +92,22 @@ jobs:
           # supprimerait vue-tsc, et son absence se lirait comme « pas encore prêt ».
           npm install --no-save --silent vue-tsc@3 typescript@7 vue@3
 
-          node -p "'typescript ' + require('typescript/package.json').version"
-          node -p "'vue-tsc ' + require('vue-tsc/package.json').version"
+          ts=$(node -p "require('typescript/package.json').version")
+          vt=$(node -p "require('vue-tsc/package.json').version")
+          echo "typescript $ts, vue-tsc $vt"
 
           if [ ! -x ./node_modules/.bin/vue-tsc ]; then
             echo "::error::vue-tsc absent après installation : la sonde est cassée, pas la contrainte levée."
             exit 1
           fi
+
+          # Afficher une version n'est pas la vérifier. npm réconcilie l'arbre laissé
+          # par le contrôle positif : sans cette assertion, la mesure pourrait porter
+          # sur TypeScript 6 et ouvrir une issue annonçant que la 7 fonctionne.
+          case "$ts" in
+            7.*) ;;
+            *) echo "::error::La mesure devait porter sur TypeScript 7, elle porte sur $ts."; exit 1 ;;
+          esac
 
           # Seul le code de retour de vue-tsc est toléré, pas celui des commandes
           # qui précèdent : un cd ou un install en échec doit arrêter l'étape, sinon
