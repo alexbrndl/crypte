@@ -32,7 +32,7 @@ Ne contient aucun fichier, seulement des références vers les trois paquets. C'
 
 **`.github/workflows/ci.yml`**
 Trois jobs : `check` en matrice Node 22 et 24, `dependency-review` sur les pull requests, et `ci-passed` qui agrège les deux. Toutes les actions sont épinglées par empreinte de commit et non par étiquette mobile.
-L'ordre des étapes de `check` est significatif : `install`, `check`, `pack`, `test`, `git diff --exit-code`.
+L'ordre des étapes de `check` est significatif : `install`, `pack`, `check`, `test`, `git diff --exit-code`.
 *Sans lui :* rien n'est vérifié automatiquement. Et si l'ordre change, voir la section 4 : le test d'isolation devient silencieux.
 
 **`.github/dependabot.yml`**
@@ -195,7 +195,7 @@ Vérifie l'étanchéité décrite en section 3, en lisant le bundle construit et
 2. Le bundle de `protocol` ne comporte aucun import relatif, donc ne dépend d'aucun morceau partagé. **C'est l'assertion qui garde réellement**, la première ne suffit pas : quand une fuite est introduite, l'outil produit un morceau séparé et un import plutôt que de recopier le code, si bien que le marqueur reste absent du bundle et que la première assertion passe malgré la fuite.
 3. Le test échoue explicitement si les artefacts sont absents, plutôt que de passer au vert sans rien avoir vérifié.
 
-Cette dernière garantie explique l'ordre des étapes de l'intégration continue : la construction doit précéder les tests. Dans l'ordre inverse, le test lirait des artefacts absents et signalerait une erreur d'exécution au lieu de vérifier quoi que ce soit.
+Cette garantie explique en partie l'ordre des étapes de l'intégration continue : la construction doit précéder les tests. Dans l'ordre inverse, le test lirait des artefacts absents et signalerait une erreur d'exécution au lieu de vérifier quoi que ce soit.
 
 La fraîcheur des artefacts n'est volontairement pas vérifiée par comparaison de dates. Le cache de tâches restaure les fichiers construits avec leurs dates d'origine, ce qui provoquerait des échecs sur un état pourtant correct. Elle repose sur deux mécanismes plus fiables : le cache s'invalide quand les sources changent, et l'intégration continue construit avant de tester.
 
@@ -613,3 +613,13 @@ Quinze erreurs, jusque-là invisibles, dont trois familles :
 - **Deux instances de Vite.** `apps/shell` résolvait un `vite` différent de celui de ses plugins, ce qui produisait des types `Plugin` incomparables et une erreur de profondeur de comparaison. Résolu en déclarant `vite` dans l'application, et en important son `defineConfig` depuis `vite` plutôt que `vite-plus`, l'application n'utilisant aucun bloc Vite+.
 
 Le coût est négligeable, la vérification complète prend environ trois dixièmes de seconde.
+
+### La construction doit précéder la vérification
+
+Les paquets exposent leurs types depuis `dist/`. Tant que rien n'est construit, `@crypte/core/protocol` et `@crypte/react` sont introuvables pour le compilateur, et la vérification de types échoue sur des modules pourtant présents.
+
+C'est pourquoi `vp run -r pack` passe **avant** `vp check` dans l'intégration continue, et non après comme initialement. Le piège est sournois : en local, `dist/` existe déjà d'une exécution précédente, donc tout passe. L'échec n'apparaît que sur une machine vierge.
+
+*Ce qui casse si on inverse :* la vérification de types échoue en intégration continue sur cinq modules introuvables, sans que rien ne soit cassé dans le code.
+
+Une autre voie existerait, faire pointer les `exports` vers les sources en développement et vers `dist/` à la publication, via `publishConfig`. Plus souple, mais plus de configuration ; à reconsidérer si l'ordre devient gênant.

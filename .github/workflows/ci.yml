@@ -28,8 +28,11 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: true
       - run: vp install
-      - run: vp check
+      # pack avant check : les paquets exposent leurs types depuis dist/, que la
+      # vérification de types doit pouvoir résoudre. Avant test aussi, le test
+      # d'isolation lisant les bundles construits.
       - run: vp run -r pack
+      - run: vp check
       - run: vp test
       - name: Generated exports are up to date
         run: git diff --exit-code
