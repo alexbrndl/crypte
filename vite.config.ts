@@ -4,7 +4,16 @@ export default defineConfig({
   run: {
     cache: true,
   },
-  lint: {},
+  lint: {
+    overrides: [
+      {
+        files: ['packages/core/src/ui/**', 'packages/core/src/protocol/**'],
+        rules: {
+          'no-restricted-imports': ['error', { patterns: ['react', 'react-dom', 'react/*'] }],
+        },
+      },
+    ],
+  },
   fmt: {
     ignorePatterns: ['dist/**', 'docs/**', 'README.md'],
     singleQuote: true,
