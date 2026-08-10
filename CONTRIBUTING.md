@@ -56,11 +56,13 @@ docs: document the isolation test
 chore: bump actions
 ```
 
-Ce format n'est pas cosmétique : il servira à déduire les versions automatiquement lorsque la publication sera mise en place.
+Ce format sert la lisibilité de l'historique. Il ne détermine pas les numéros de version : ceux-ci viendront de notes déposées explicitement, pas des messages de commit.
 
 ## Branches et pull requests
 
 Une branche par modification, nommée en kebab-case.
+
+**Le titre de la pull request suit le même format que les messages de commit.** Les pull requests sont fusionnées en squash, donc le titre devient le message du commit sur `main`, et les commits intermédiaires disparaissent. C'est le titre qui reste dans l'historique du projet.
 
 Avant d'ouvrir une pull request, vérifiez que `vp check`, `vp run -r pack` et `vp test` passent en local. L'intégration continue rejoue les trois sur Node 22 et 24, et vérifie en plus que les exports générés commités sont à jour.
 
