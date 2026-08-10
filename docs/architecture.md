@@ -307,6 +307,26 @@ Il relit le diff de la branche contre `origin/main`, le confronte à `CLAUDE.md`
 
 **Le contrôle** est `.github/workflows/require-review.yml`. Il liste les commentaires et les revues de la pull request, cherche le marqueur, et échoue s'il ne le trouve pas.
 
+### Le flux
+
+```
+gh pr create --draft    →    /review    →    gh pr ready
+```
+
+Le brouillon d'abord, pour qu'une pull request non relue ne puisse pas être fusionnée par réflexe. Puis la revue, **déléguée à un sous-agent** au contexte vierge : celui qui vient d'écrire le code se souvient de ses intentions et vérifierait sa propre version des faits plutôt que le diff. Le prompt de délégation est volontairement minimal et ne résume jamais le travail, sans quoi le biais revient par la porte du prompt.
+
+*Ce qui casse si on l'enlève :* la revue est produite par la session qui a écrit le code. Elle valide alors ce qu'elle croit avoir fait, et les écarts entre l'intention et le diff, précisément ce qu'on cherche, deviennent invisibles.
+
+### Les points sont résolvables, et bloquants
+
+La revue est postée en tant que revue avec des commentaires **ancrés sur des lignes**, et non en commentaire simple : seul un commentaire de revue peut être marqué comme résolu. Chaque point devient une conversation à clore explicitement.
+
+Le ruleset de la branche par défaut active `required_review_thread_resolution`, donc la fusion est refusée tant qu'une conversation reste ouverte.
+
+*Ce qui casse si on l'enlève :* les remarques restent des commentaires qu'on peut faire défiler. Rien ne distingue un point traité d'un point ignoré, et la revue redevient une case cochée.
+
+Conséquence à connaître pour le prompt : un point laissé dans le corps de la revue, sans ancrage sur une ligne, n'est pas résolvable et ne bloque donc rien. D'où la consigne d'ancrer chaque point sur un fichier du diff.
+
 ### Le marqueur
 
 ```
