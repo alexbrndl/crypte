@@ -325,6 +325,10 @@ Première ligne du commentaire. Invisible au rendu, cherché tel quel par le wor
 
 ### Deux détails d'implémentation qui ont une raison
 
+**Le contrôle doit être relancé après la revue.** Poster un commentaire ne déclenche aucun workflow : `require-review.yml` ne réagit qu'à l'ouverture d'une pull request et aux nouvelles poussées. Après `/review`, il faut donc relancer l'exécution, ou pousser un commit. Le skill se termine sur cette étape, sans quoi le contrôle resterait en échec alors que la revue existe.
+
+**Le comptage passe par `jq` en aval plutôt que par `--jq`.** Combiné à `--paginate`, l'option `--jq` de `gh` applique le filtre à chaque page et renvoie une ligne par page, ce qui casse l'addition dès qu'une pull request dépasse trente commentaires : le job échoue alors sur une erreur d'arithmétique, et bloque une pull request pourtant relue. `--slurp` agrège les pages mais n'accepte pas `--jq`, d'où le passage par `jq`.
+
 **Le workflow n'imprime jamais le corps des commentaires**, seulement leur nombre. Un texte produit par un agent peut contenir des commandes de workflow, `::error::` ou `::add-mask::`, qui manipuleraient la sortie de l'exécution si elles étaient affichées. En ne faisant sortir que des nombres, la question ne se pose pas.
 
 **Le workflow est séparé de `ci.yml`.** L'intégrer aux dépendances de `ci-passed` le rendrait immédiatement bloquant, puisque `ci-passed` est le contrôle exigé par les règles de la branche. Le contrôle de revue est délibérément non bloquant au départ : on juge son utilité sur trois ou quatre lots avant de l'exiger.

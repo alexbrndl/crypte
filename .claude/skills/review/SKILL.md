@@ -56,6 +56,17 @@ gh pr comment <numéro> --body-file <fichier>
 
 Écris le corps dans un fichier temporaire plutôt qu'en ligne : le texte contient du markdown et des retours à la ligne qui passent mal en argument.
 
+## 4. Relancer le contrôle
+
+Poster un commentaire ne déclenche aucun workflow : `require-review.yml` ne réagit qu'à l'ouverture d'une pull request et aux nouvelles poussées. Sans cette dernière étape, le contrôle reste en échec alors que la revue existe.
+
+```bash
+gh run list --branch "$(git branch --show-current)" --workflow "Require review" --limit 1 --json databaseId --jq '.[0].databaseId'
+gh run rerun <id>
+```
+
+Un nouveau commit sur la branche relance également le contrôle.
+
 ## Portée de l'exercice
 
 Le relecteur est ici l'auteur, ce qui vaut moins qu'un regard neuf. Deux conséquences : relis le diff plutôt que ta mémoire, et préfère lancer cette revue dans une session distincte de celle qui a écrit le code.

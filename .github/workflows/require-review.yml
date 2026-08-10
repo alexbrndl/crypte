@@ -46,10 +46,16 @@ jobs:
             exit 1
           fi
 
-          comments=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
-            --jq "[.[] | select(.body | contains(\"$marker\"))] | length")
-          reviews=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
-            --jq "[.[] | select(.body | contains(\"$marker\"))] | length")
+          # --paginate avec --jq applique le filtre page par page et renvoie une ligne
+          # par page, ce qui casse l'addition au-delà de 30 commentaires. --slurp agrège
+          # les pages mais n'accepte pas --jq, d'où le passage par jq en aval.
+          count() {
+            gh api "$1" --paginate --slurp \
+              | jq --arg m "$marker" '[.[][] | select((.body // "") | contains($m))] | length'
+          }
+
+          comments=$(count "repos/$REPO/issues/$PR/comments")
+          reviews=$(count "repos/$REPO/pulls/$PR/reviews")
 
           total=$((comments + reviews))
           echo "Revues trouvées : $total"
