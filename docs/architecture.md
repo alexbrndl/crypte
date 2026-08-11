@@ -504,7 +504,11 @@ Le cycle a deux temps :
 1. Chaque pull request dépose sa note. **Fusionner une pull request ne change aucun numéro.**
 2. Une pull request « Version Packages », ouverte et tenue à jour automatiquement par `.github/workflows/version.yml`, accumule les notes. La fusionner applique les montées de version et écrit les changelogs.
 
-Cette seconde pull request **ne demande aucune action** : elle se met à jour seule et attend. Le seul geste est de la fusionner quand on veut une nouvelle version. Repère : les quatre pull requests du lot 0 auraient produit une seule montée de version, pas quatre.
+Cette seconde pull request **ne demande aucune action** : elle se met à jour seule et attend. Le seul geste est de la fusionner quand on veut une nouvelle version.
+
+**Ses contrôles doivent être approuvés à la main.** GitHub n'exécute pas les workflows déclenchés par son propre jeton, pour éviter les boucles : les vérifications de la pull request de version restent en `action_required`, donc `ci-passed` n'est jamais rapporté et la fusion est bloquée. Approuver depuis l'onglet Actions, ou par `gh api -X POST repos/<dépôt>/actions/runs/<id>/approve`.
+
+*Pourquoi ne pas contourner :* la parade courante est un jeton personnel à la place du jeton du workflow, ce qui ferait ouvrir la pull request en son propre nom. Écarté pour ne pas stocker un secret à longue durée de vie sur un dépôt public, pour une friction d'un geste qui n'arrive qu'au moment de publier. Repère : les quatre pull requests du lot 0 auraient produit une seule montée de version, pas quatre.
 
 ### Versions synchronisées
 
@@ -527,6 +531,14 @@ Vérifié à l'installation : un changeset ne déclarant que `@crypte/cli` fait 
 *Pourquoi :* le niveau demandé est appliqué littéralement, `semver.inc('0.1.0', 'major')` retourne `1.0.0`. Rien ne traite les versions inférieures à 1.0.0 différemment, hormis un avertissement en mode interactif.
 
 *Ce qui casse si on l'enlève :* la première rupture du protocole déclare l'API stable par accident, et une version majeure ne se reprend pas.
+
+### Le générateur de changelog
+
+`.changeset/config.json` utilise `@changesets/changelog-github`, qui remplace l'identifiant de commit brut par un lien vers la pull request, le commit et l'auteur.
+
+*Il exige un jeton GitHub*, y compris pour une génération locale : il interroge l'API pour retrouver la pull request associée à un commit. En intégration continue le workflow le fournit ; à la main, il faut passer `GITHUB_TOKEN`, par exemple avec `GITHUB_TOKEN=$(gh auth token)`.
+
+*Le remerciement à l'auteur est conservé faute de mieux.* L'option `template` permettrait de le retirer, mais elle est marquée expérimentale et n'existe qu'à partir de la version 1.0.0, publiée trop récemment pour passer la politique de fraîcheur des dépendances. Retirer une mention cosmétique ne justifie pas une dépendance fraîche et une API instable. À revoir quand `template` sera stabilisé.
 
 ### Le skill `/changeset`
 
