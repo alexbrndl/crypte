@@ -1,3 +1,5 @@
+import type { PluginMessage } from '../src/protocol/channel'
+
 // Simule des plugins installés, pour éprouver les points d'extension.
 //
 // Une augmentation vaut pour tout le programme compilé, pas pour le fichier qui
@@ -20,11 +22,11 @@ declare module '../src/protocol/story' {
 
 declare module '../src/protocol/channel' {
   interface PluginShellMessages {
-    controls: { type: 'controls:open'; open: boolean }
+    controls: PluginMessage<{ type: 'controls:open'; open: boolean }>
   }
 
   interface PluginPreviewMessages {
-    a11y: { type: 'a11y:report'; violations: string[] }
+    a11y: PluginMessage<{ type: 'a11y:report'; violations: string[] }>
   }
 }
 

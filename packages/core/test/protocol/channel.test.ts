@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import type { PreviewMessage, ShellMessage } from '../../src/protocol/channel'
+import { describe, expect, expectTypeOf, it } from 'vitest'
+import type { PluginMessage, PreviewMessage, ShellMessage } from '../../src/protocol/channel'
 import { PROTOCOL_VERSION } from '../../src/protocol/channel'
 
 // Les messages doivent survivre à un aller-retour JSON : le canal ne transporte
@@ -66,6 +66,31 @@ describe('discrimination par le champ type', () => {
 
     expect(read({ type: 'ready', protocolVersion: 1 })).toBe(1)
     expect(read({ type: 'rendered', id: 'x', durationMs: 0 })).toBeUndefined()
+  })
+})
+
+// Le helper que la spécification recommande à un plugin. Il ne remplace pas le
+// filtre : `skipLibCheck` étant courant, un plugin qui déclare dans un `.d.ts`
+// ne verra pas cette erreur.
+describe('PluginMessage', () => {
+  it('accepte un message dont le type est un littéral', () => {
+    const message = { type: 'controls:open', open: true } satisfies PluginMessage<{
+      type: 'controls:open'
+      open: boolean
+    }>
+    expect(message.open).toBe(true)
+  })
+
+  it('refuse un type non littéral', () => {
+    // @ts-expect-error `string` n'est pas un littéral
+    type Large = PluginMessage<{ type: string; payload: unknown }>
+    expectTypeOf<Large>().toBeObject()
+  })
+
+  it('refuse un message sans champ type', () => {
+    // @ts-expect-error le champ `type` est obligatoire
+    type Sans = PluginMessage<{ payload: unknown }>
+    expectTypeOf<Sans>().toBeObject()
   })
 })
 

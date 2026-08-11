@@ -428,12 +428,14 @@ Le canal ne transporte jamais les props d'une story. Il transporte l'identifiant
 ```ts
 declare module '@crypte/core/protocol' {
   interface PluginShellMessages {
-    controls: { type: 'controls:open'; open: boolean }
+    controls: PluginMessage<{ type: 'controls:open'; open: boolean }>
   }
 }
 ```
 
-Tant qu'aucun plugin n'a rien déclaré, l'union ne s'élargit pas et écrire un message inconnu est une erreur de compilation. Une valeur déclarée sans champ `type` est ignorée plutôt que d'entrer dans l'union, sans quoi elle empêcherait tout `message.type` de compiler chez le consommateur.
+Tant qu'aucun plugin n'a rien déclaré, l'union ne s'élargit pas et écrire un message inconnu est une erreur de compilation.
+
+`PluginMessage` porte la contrainte sur son paramètre, si bien qu'un message mal formé produit une erreur **sur la ligne de sa déclaration**, avec le motif en clair. Deux réserves : un plugin n'est pas obligé de l'employer, et `skipLibCheck`, très répandu, fait ignorer les erreurs d'un fichier `.d.ts`. Le protocole ne s'y fie donc pas et filtre de son côté : une valeur dont le champ `type` manque ou n'est pas un littéral est écartée de l'union plutôt que d'y entrer, sans quoi elle empêcherait tout `message.type` de discriminer quoi que ce soit chez le consommateur.
 
 Une version antérieure prévoyait un message générique `{ type: 'plugin', plugin, payload }`, qui n'exigeait rien de sa charge utile et faisait coexister deux mécanismes d'extension dans le même protocole.
 

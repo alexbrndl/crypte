@@ -36,6 +36,14 @@ describe('normalizeSegment', () => {
     expect(normalizeSegment('禁用状态')).toBe('禁用状态')
   })
 
+  // Les marques cyrilliques et grecques vivent dans la même plage que les
+  // accents latins : « Всё » et « Все » tombaient sur le même identifiant.
+  it('garde les marques des écritures non latines', () => {
+    expect(normalizeSegment('Всё')).not.toBe(normalizeSegment('Все'))
+    expect(normalizeSegment('Мой')).not.toBe(normalizeSegment('Мои'))
+    expect(normalizeSegment('Ελλάδα')).not.toBe(normalizeSegment('Ελλαδα'))
+  })
+
   // Le dakuten distingue deux syllabes : le retirer donnerait « か ».
   it('garde les marques qui portent du sens hors du latin', () => {
     expect(normalizeSegment('が')).toBe('が')

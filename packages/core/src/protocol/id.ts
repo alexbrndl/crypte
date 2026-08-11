@@ -1,7 +1,8 @@
 // La dérivation des identifiants de story, seul code exécuté du protocole.
 
-// « é » devient « e », pas un tiret.
-const DIACRITICS = /[\u0300-\u036f]/g
+// « é » devient « e », pas un tiret. Seulement sur une base latine : les mêmes
+// marques composent « й » et « ё », qui tomberaient sinon sur « и » et « е ».
+const LATIN_DIACRITICS = /([a-z])[\u0300-\u036f]+/gi
 // Toutes les écritures, pas seulement le latin : `a-z0-9` donnait `button--` pour
 // tout nom cyrillique. Les marques restent, sinon « が » devient « か ».
 const NON_ALPHANUMERIC = /[^\p{L}\p{N}\p{M}]+/gu
@@ -11,7 +12,7 @@ export function normalizeSegment(value: string): string {
   return (
     value
       .normalize('NFD')
-      .replace(DIACRITICS, '')
+      .replace(LATIN_DIACRITICS, '$1')
       .toLowerCase()
       .replace(NON_ALPHANUMERIC, '-')
       .replace(EDGE_SEPARATORS, '')

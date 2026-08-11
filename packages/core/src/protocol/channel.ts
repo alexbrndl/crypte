@@ -27,7 +27,15 @@ export type Overrides = Record<string, unknown>
 
 export const PROTOCOL_VERSION = 1
 
-// Vides ici. Un plugin y déclare ses messages par augmentation de module :
-// `declare module '@crypte/core/protocol' { interface PluginShellMessages { x: { type: 'x' } } }`
+// Vides ici. Un plugin y déclare ses messages par augmentation de module, en
+// passant par `PluginMessage` pour être averti à la ligne s'il se trompe :
+// `declare module '@crypte/core/protocol' { interface PluginShellMessages { x: PluginMessage<{ type: 'x' }> } }`
 export interface PluginShellMessages {}
 export interface PluginPreviewMessages {}
+
+// La contrainte porte sur le paramètre, donc l'erreur tombe sur la déclaration
+// plutôt qu'à l'usage. Rien n'oblige un plugin à l'employer : `MessagesOf` reste
+// le filet pour ceux qui déclarent sans.
+type LiteralOnly<K> = string extends K ? 'le champ `type` doit être un littéral' : K
+
+export type PluginMessage<T extends { type: LiteralOnly<T['type']> }> = T

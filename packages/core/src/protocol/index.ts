@@ -29,5 +29,6 @@ export type {
   Overrides,
   PluginShellMessages,
   PluginPreviewMessages,
+  PluginMessage,
 } from './channel'
 export { PROTOCOL_VERSION } from './channel'
