@@ -104,6 +104,8 @@ Et quand l'explication ne passe pas en une ligne, se demander d'abord si le prob
 
 Sauf pour un fichier de réexports, qui n'a pas de type principal : un groupe par module, et un commentaire d'une ligne par groupe. Sans lui, l'ordre des groupes n'est plus lisible et le même module se retrouve cité trois fois.
 
+Dans un groupe, les noms suivent l'ordre de leur fichier source, pas l'alphabet : les deux fichiers se lisent alors en parallèle. Le lint ne trie pas, vérifié. Seule exception forcée, une valeur exportée se déclare dans un bloc séparé des types.
+
 **Tests.** Tout contrat public a un test qui vérifie qu'il accepte ce que la spécification décrit **et qu'il refuse le reste**. La seconde moitié est celle qui compte : un test sans cas négatif passerait à l'identique sur un type qui n'exige rien.
 
 Les tests vivent dans `test/`, jamais à côté de la source. Règle unique, sans jugement à porter au cas par cas.

@@ -2,32 +2,32 @@
 // par module, dans l'ordre du parcours d'une story.
 
 // Ce qu'on peut dire d'une prop
-export type { PluginPropDetails, PropDetails, PropKind, ResolvedPropDetails } from './prop'
+export type { PropDetails, ResolvedPropDetails, PropKind, PluginPropDetails } from './prop'
 
 // Ce qu'on écrit dans un fichier de stories
 export type {
-  PluginStoryOptions,
-  Story,
   StoryDefinition,
-  StoryMeta,
+  Story,
   StoryOptions,
   Wrap,
   WrapEntry,
+  StoryMeta,
+  PluginStoryOptions,
 } from './story'
 
 // Ce que le CLI en produit et que le shell lit
+export type { Manifest, ManifestEntry, StoryEntry, ComponentRef } from './manifest'
 export { MANIFEST_VERSION } from './manifest'
-export type { ComponentRef, Manifest, ManifestEntry, StoryEntry } from './manifest'
 
 // Comment une story est désignée
 export { normalizeSegment, storyId } from './id'
 
 // Comment le shell et la preview se parlent
-export { PROTOCOL_VERSION } from './channel'
 export type {
-  Overrides,
-  PluginPreviewMessages,
-  PluginShellMessages,
-  PreviewMessage,
   ShellMessage,
+  PreviewMessage,
+  Overrides,
+  PluginShellMessages,
+  PluginPreviewMessages,
 } from './channel'
+export { PROTOCOL_VERSION } from './channel'
