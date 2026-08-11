@@ -1,0 +1,11 @@
+---
+'@crypte/core': patch
+---
+
+Complète `@crypte/core/protocol` avec les types du format de story, du manifeste et du canal.
+
+`StoryDefinition`, `Story`, `Wrap`, `EntryMeta` et `ControlOverride` décrivent ce qu'un fichier de stories peut déclarer. `Manifest`, `StoryEntry` et `ArgType` décrivent ce que le CLI produit et ce que le shell consomme.
+
+Ajoute `storyId` et `normalizeSegment`, qui dérivent l'identifiant d'une entrée depuis son chemin et son nom. Cet identifiant sert d'URL et de clé de baseline : il est stable, en minuscules et sans accents.
+
+Le protocole n'a aucune dépendance et ne touche pas au DOM.

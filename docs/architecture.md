@@ -192,8 +192,10 @@ Vérifie que la version du protocole est bien exposée. Le test est trivial et c
 Vérifie l'étanchéité décrite en section 3, en lisant le bundle construit et non les sources. Il porte trois garanties :
 
 1. Le bundle de `protocol` ne contient aucun marqueur provenant de `ui` ou de `preview`.
-2. Le bundle de `protocol` ne comporte aucun import relatif, donc ne dépend d'aucun morceau partagé. **C'est l'assertion qui garde réellement**, la première ne suffit pas : quand une fuite est introduite, l'outil produit un morceau séparé et un import plutôt que de recopier le code, si bien que le marqueur reste absent du bundle et que la première assertion passe malgré la fuite.
-3. Le test échoue explicitement si les artefacts sont absents, plutôt que de passer au vert sans rien avoir vérifié.
+2. Rien de `core/ui` ni de `core/preview` n'apparaît dans la **fermeture** de `protocol`, c'est-à-dire son fichier plus tout ce qu'il atteint par imports relatifs. Suivre la fermeture est indispensable : quand une fuite est introduite, l'outil produit un morceau séparé et un import plutôt que de recopier le code, si bien qu'un test qui ne lirait que le fichier d'entrée passerait malgré la fuite.
+3. Le test échoue explicitement si les artefacts sont absents, plutôt que de passer au vert sans rien avoir vérifié. Un contrôle négatif vérifie en outre que la fermeture de `ui` contient bien son propre marqueur : sans lui, une erreur de chemin ferait lire une chaîne vide et toutes les autres assertions passeraient sur du néant.
+
+**Une version antérieure interdisait tout import relatif dans le bundle.** Ce critère est devenu faux dès que `protocol` a été découpé en plusieurs fichiers sources : l'entrée réexporte alors depuis un chunk qui ne contient que son propre code, ce qui est légitime. Pire, le test sélectionnait son fichier par préfixe et lisait le chunk plutôt que l'entrée, donc ne vérifiait plus rien. Ce qui compte n'est pas la forme des imports mais ce qui est réellement atteignable.
 
 Cette garantie explique en partie l'ordre des étapes de l'intégration continue : la construction doit précéder les tests. Dans l'ordre inverse, le test lirait des artefacts absents et signalerait une erreur d'exécution au lieu de vérifier quoi que ce soit.
 
