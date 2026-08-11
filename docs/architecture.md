@@ -228,15 +228,15 @@ Vérifie que la porte d'entrée du protocole réexporte tout ce que les quatre m
 **`test/isolation.test.ts`**
 Vérifie l'étanchéité décrite en section 3, en lisant le bundle construit et non les sources. Il porte trois garanties :
 
-1. Le bundle de `protocol` ne contient aucun marqueur provenant de `ui` ou de `preview`.
+1. Le bundle de `protocol` ne contient aucun marqueur provenant de `ui` ou de `preview`, et réciproquement les deux côtés du canal n'embarquent rien du reste du protocole. Ce second sens cherche plusieurs symboles et non un seul : la disparition simultanée de tous rendrait le contrôle muet, celle d'un seul le rendrait complaisant.
 2. Rien de `core/ui` ni de `core/preview` n'apparaît dans la **fermeture** de `protocol`, c'est-à-dire son fichier plus tout ce qu'il atteint par imports relatifs. Suivre la fermeture est indispensable : quand une fuite est introduite, l'outil produit un morceau séparé et un import plutôt que de recopier le code, si bien qu'un test qui ne lirait que le fichier d'entrée passerait malgré la fuite.
 3. Le test échoue explicitement si les artefacts sont absents, plutôt que de passer au vert sans rien avoir vérifié. Un contrôle négatif vérifie en outre que la fermeture de `protocol` contient le **corps** d'une de ses fonctions.
 
-Ce contrôle doit **exercer le suivi des imports**, faute de quoi les deux garanties ci-dessus passeraient sur le seul fichier d'entrée. Il cherche donc `PROTOCOL_VERSION`, qui vit dans un chunk et nulle part ailleurs : l'y trouver prouve qu'un second fichier a été lu.
+Ce contrôle doit **exercer le suivi des imports**, faute de quoi les garanties ci-dessus passeraient sur le seul fichier d'entrée. Il s'appuie sur deux fichiers que le test écrit lui-même dans `dist`, l'un important l'autre, et vérifie que la fermeture du premier atteint le second.
 
-Deux versions antérieures ne le faisaient pas. La première cherchait un nom que le fichier d'entrée cite dans son réexport. La seconde cherchait `NFD`, vrai quand l'entrée n'était qu'un talon, faux dès que la répartition des chunks a changé : le corps de `normalizeSegment` s'est retrouvé inline, et le contrôle est redevenu satisfait par l'entrée seule. Mesuré en neutralisant le motif d'import : les six tests restaient verts.
+Trois versions antérieures ancraient ce contrôle sur la forme des artefacts, et toutes trois ont fini par ne rien vérifier. La première cherchait un nom que le fichier d'entrée cite dans son réexport. La deuxième cherchait `NFD`, vrai tant que l'entrée n'était qu'un talon, faux dès que la répartition des chunks a changé et que le corps de `normalizeSegment` s'est retrouvé inline. La troisième cherchait une constante dans un chunk, et rougissait dès qu'un refactoring légitime faisait disparaître ce chunk.
 
-La leçon est que la forme des artefacts n'est pas un point d'appui. Ce qui doit être vérifié est le mécanisme, pas la structure du jour.
+La leçon vaut au-delà de ce fichier : **un test ne s'ancre pas sur la forme d'un artefact produit par un outil.** Elle change sans prévenir, dans les deux sens, et le test devient tour à tour complaisant et cassant. Ce qui doit être éprouvé est le mécanisme, sur une structure que le test contrôle lui-même.
 
 Une cible d'import non résolue fait désormais échouer le test. L'ignorer, comme le faisait une version antérieure pour éviter un faux positif hypothétique, ramenait la fermeture au fichier d'entrée sans rien signaler.
 

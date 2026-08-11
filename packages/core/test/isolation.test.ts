@@ -1,7 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 // L'étanchéité des trois entrées, lue sur les bundles. Voir architecture.md.
 
@@ -47,6 +47,34 @@ function closureOf(entry: string): string {
   return source
 }
 
+// Ce que le canal n'a aucune raison d'atteindre. Plusieurs symboles plutôt qu'un
+// seul : la disparition simultanée de tous rendrait le contrôle muet, celle d'un
+// seul le rendrait complaisant.
+const OUTSIDE_THE_CHANNEL = ['NFD', 'NFC', 'MANIFEST_VERSION']
+
+// Contrôle négatif du suivi lui-même, sur deux fichiers écrits ici. L'ancrer sur
+// la répartition en chunks le faisait rougir au premier refactoring légitime, et
+// se taire quand la répartition rendait l'entrée autosuffisante.
+describe('le suivi des imports', () => {
+  const target = join(dist, 'probe-target.js')
+  const entry = join(dist, 'probe-entry.js')
+
+  beforeAll(() => {
+    writeFileSync(target, 'export const PROBE = "__crypte_probe__"\n')
+    writeFileSync(entry, 'export { PROBE } from "./probe-target.js"\n')
+  })
+
+  afterAll(() => {
+    rmSync(entry, { force: true })
+    rmSync(target, { force: true })
+  })
+
+  it('atteint un fichier que l’entrée ne fait qu’importer', () => {
+    expect(readFileSync(entry, 'utf8')).not.toContain('__crypte_probe__')
+    expect(closureOf('probe-entry')).toContain('__crypte_probe__')
+  })
+})
+
 describe('isolation des entrées de @crypte/core', () => {
   it('protocol ne contient rien de ui ni de preview', () => {
     const protocol = closureOf('protocol')
@@ -60,15 +88,6 @@ describe('isolation des entrées de @crypte/core', () => {
     expect(protocol).not.toContain('createPreviewChannel')
   })
 
-  // Contrôle négatif : il doit exercer le suivi des imports, sinon les assertions
-  // ci-dessus passeraient sur le seul fichier d'entrée. `PROTOCOL_VERSION` vit
-  // dans un chunk, donc l'y trouver prouve qu'un second fichier a été lu.
-  it('la fermeture de protocol atteint ce qui n’est pas dans son fichier', () => {
-    const entryOnly = readFileSync(join(dist, 'protocol.js'), 'utf8')
-    expect(entryOnly).not.toContain('PROTOCOL_VERSION = ')
-    expect(closureOf('protocol')).toContain('PROTOCOL_VERSION = ')
-  })
-
   it('la fermeture de ui contient bien son propre marqueur', () => {
     expect(closureOf('ui')).toContain('__crypte_ui__')
   })
@@ -78,6 +97,9 @@ describe('isolation des entrées de @crypte/core', () => {
   it.each(['ui', 'preview'])('%s n’embarque que ce dont il se sert', (entry) => {
     const closure = closureOf(entry)
     expect(closure).toContain(`__crypte_${entry}__`)
-    expect(closure).not.toContain('NFD')
+
+    for (const symbol of OUTSIDE_THE_CHANNEL) {
+      expect(closure, `${entry} embarque ${symbol}`).not.toContain(symbol)
+    }
   })
 })
