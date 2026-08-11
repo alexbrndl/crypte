@@ -381,7 +381,9 @@ Cette réserve coûte un champ aujourd'hui et évite une migration plus tard.
 
 ### 4.3 Stabilité des identifiants
 
-L'`id` est dérivé du chemin de l'entrée et du nom de la story, normalisés en minuscules sans accents.
+L'`id` est dérivé du chemin de l'entrée et du nom de la story, passés en minuscules, débarrassés de leurs accents latins et de tout ce qui n'est ni lettre ni chiffre.
+
+**Il n'est pas garanti ASCII.** Les écritures non latines sont conservées, faute de quoi deux stories russes ou japonaises distinctes tomberaient sur le même identifiant : `storyId(['Button'], 'Активная')` rend `button--активная`. Qui le place dans une URL doit donc l'encoder, et qui en fait un nom de fichier de baseline doit vérifier que le système de fichiers l'accepte. La forme rendue est recomposée en NFC, pour que deux identifiants identiques à l'œil le soient aussi octet à octet.
 
 **C'est une donnée stable, pas un détail d'implémentation.** Il sert d'URL, de clé de baseline pour `visual-tests`, et de référence pour les commentaires. Renommer une story change son `id` et casse sa baseline : ce comportement est assumé et doit être documenté à l'utilisateur, pas contourné.
 

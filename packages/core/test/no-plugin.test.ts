@@ -19,8 +19,14 @@ function run(args: string[]): { ok: boolean; output: string } {
     })
     return { ok: true, output: stdout }
   } catch (error) {
-    const failure = error as { stdout?: string; stderr?: string }
-    return { ok: false, output: `${failure.stdout ?? ''}${failure.stderr ?? ''}` }
+    const failure = error as { code?: string; message?: string; stdout?: string; stderr?: string }
+
+    // Sans ce cas, un `tsc` introuvable rend une sortie vide et le test accuse
+    // le noyau d'accepter ce qu'il devait refuser.
+    if (failure.code === 'ENOENT') throw new Error(`tsc introuvable : ${tsc}`)
+
+    const output = `${failure.stdout ?? ''}${failure.stderr ?? ''}`
+    return { ok: false, output: output || (failure.message ?? 'échec sans sortie') }
   }
 }
 

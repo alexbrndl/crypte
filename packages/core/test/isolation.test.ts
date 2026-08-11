@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -12,8 +13,8 @@ const dist = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist')
 const RELATIVE_IMPORT = /(?:from|import)\s*\(?\s*['"](\.[^'"]*)['"]/g
 
 // Le fichier d'une entrée, plus tout ce qu'il atteint par imports relatifs.
-function closureOf(entry: string): string {
-  const start = join(dist, `${entry}.js`)
+function closureOf(entry: string, base = dist): string {
+  const start = join(base, `${entry}.js`)
   expect(existsSync(start), `${entry}.js absent : lance \`vp pack\` avant \`vp test\``).toBe(true)
 
   const seen = new Set<string>()
@@ -56,22 +57,24 @@ const OUTSIDE_THE_CHANNEL = ['NFD', 'NFC', 'MANIFEST_VERSION']
 // la répartition en chunks le faisait rougir au premier refactoring légitime, et
 // se taire quand la répartition rendait l'entrée autosuffisante.
 describe('le suivi des imports', () => {
-  const target = join(dist, 'probe-target.js')
-  const entry = join(dist, 'probe-entry.js')
+  // Hors de `dist`, qui est le contenu publié : un run interrompu avant le
+  // nettoyage y laisserait deux modules, qui partiraient dans le paquet npm.
+  let sandbox: string
 
   beforeAll(() => {
-    writeFileSync(target, 'export const PROBE = "__crypte_probe__"\n')
-    writeFileSync(entry, 'export { PROBE } from "./probe-target.js"\n')
+    sandbox = mkdtempSync(join(tmpdir(), 'crypte-isolation-'))
+    writeFileSync(join(sandbox, 'probe-target.js'), 'export const PROBE = "__crypte_probe__"\n')
+    writeFileSync(join(sandbox, 'probe-entry.js'), 'export { PROBE } from "./probe-target.js"\n')
   })
 
   afterAll(() => {
-    rmSync(entry, { force: true })
-    rmSync(target, { force: true })
+    rmSync(sandbox, { recursive: true, force: true })
   })
 
   it('atteint un fichier que l’entrée ne fait qu’importer', () => {
-    expect(readFileSync(entry, 'utf8')).not.toContain('__crypte_probe__')
-    expect(closureOf('probe-entry')).toContain('__crypte_probe__')
+    const entryOnly = readFileSync(join(sandbox, 'probe-entry.js'), 'utf8')
+    expect(entryOnly).not.toContain('__crypte_probe__')
+    expect(closureOf('probe-entry', sandbox)).toContain('__crypte_probe__')
   })
 })
 
@@ -94,12 +97,23 @@ describe('isolation des entrées de @crypte/core', () => {
 
   // L'autre sens : les deux côtés du canal n'ont besoin que de `channel`. Importer
   // la barrière leur faisait embarquer `id.ts` et `manifest.ts` en code mort.
-  it.each(['ui', 'preview'])('%s n’embarque que ce dont il se sert', (entry) => {
-    const closure = closureOf(entry)
-    expect(closure).toContain(`__crypte_${entry}__`)
+  // Sur `preview` seul : `ui` n'importe que des types, effacés à la compilation,
+  // donc son bundle ne peut rien embarquer par cette route et le cas passerait
+  // quoi qu'il arrive. Mesuré en remettant les deux sur la porte d'entrée : un
+  // seul des deux rougit.
+  it('preview n’embarque que ce dont il se sert', () => {
+    const closure = closureOf('preview')
+    expect(closure).toContain('__crypte_preview__')
 
     for (const symbol of OUTSIDE_THE_CHANNEL) {
-      expect(closure, `${entry} embarque ${symbol}`).not.toContain(symbol)
+      expect(closure, `preview embarque ${symbol}`).not.toContain(symbol)
     }
+  })
+
+  // Ce qui est vrai de `ui` et qui se vérifie : il se suffit à lui-même.
+  it('ui ne dépend d’aucun autre fichier', () => {
+    const entryOnly = readFileSync(join(dist, 'ui.js'), 'utf8')
+    expect(entryOnly).toContain('__crypte_ui__')
+    expect(entryOnly).not.toMatch(RELATIVE_IMPORT)
   })
 })
