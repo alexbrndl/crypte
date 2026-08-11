@@ -5,7 +5,10 @@ import { describe, expect, it } from 'vitest'
 
 const dist = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist')
 
-const RELATIVE_IMPORT = /from\s*['"](\.[^'"]*)['"]/g
+// Les trois formes qu'un bundle peut produire : réexport, import d'effet de bord,
+// et import dynamique. N'en couvrir qu'une laisserait une porte de sortie hors de
+// la fermeture, donc hors du contrôle.
+const RELATIVE_IMPORT = /(?:from|import)\s*\(?\s*['"](\.[^'"]*)['"]/g
 
 // Ce que produit le pack pour une entrée : son fichier, plus tout ce qu'il atteint
 // par imports relatifs. Une entrée découpée en plusieurs fichiers sources réexporte

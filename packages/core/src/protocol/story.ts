@@ -1,4 +1,4 @@
-import type { ArgType } from './manifest'
+import type { ArgType, ControlSpec } from './manifest'
 
 // Le noyau ne connaît aucun framework : un composant et une enveloppe restent
 // des valeurs opaques, que l'adaptateur précise en fournissant son propre type.
@@ -25,7 +25,12 @@ export interface Story<P> {
 
 // Une déclaration explicite ne remplace que les champs qu'elle mentionne : tous
 // les autres restent issus de l'inférence.
-export type ControlOverride = Partial<Omit<ArgType, 'name'>>
+//
+// Un override mélange deux natures : des champs de l'argType lui-même, comme
+// `options` ou `description`, et des réglages du control au premier niveau, comme
+// les bornes d'un curseur. La spécification écrit `{ min: 0, max: 500, step: 10 }`
+// sans niveau intermédiaire, un type limité aux champs d'argType le refuserait.
+export type ControlOverride = Partial<Omit<ArgType, 'name'>> & ControlSpec
 
 export interface StoryDefinition<P, C> {
   props?: Partial<P>
