@@ -102,6 +102,8 @@ Et quand l'explication ne passe pas en une ligne, se demander d'abord si le prob
 
 **Ordre d'un fichier.** Le type principal en premier, ses pièces ensuite, le point d'extension en dernier. Les types sont résolus au niveau du module : un type peut en mentionner un autre déclaré plus bas, donc l'ordre ne sert que la lecture.
 
+Sauf pour un fichier de réexports, qui n'a pas de type principal : un groupe par module, et un commentaire d'une ligne par groupe. Sans lui, l'ordre des groupes n'est plus lisible et le même module se retrouve cité trois fois.
+
 **Tests.** Tout contrat public a un test qui vérifie qu'il accepte ce que la spécification décrit **et qu'il refuse le reste**. La seconde moitié est celle qui compte : un test sans cas négatif passerait à l'identique sur un type qui n'exige rien.
 
 Les tests vivent dans `test/`, jamais à côté de la source. Règle unique, sans jugement à porter au cas par cas.

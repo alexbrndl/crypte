@@ -1,19 +1,33 @@
-// Porte d'entrée de @crypte/core/protocol. Ne fait que réexporter, dans l'ordre
-// du parcours : ce qu'on écrit, ce qui en est produit, comment on le désigne,
-// comment il s'affiche, et ce qu'un plugin remplit.
+// Porte d'entrée de @crypte/core/protocol : ne fait que réexporter, un groupe
+// par module, dans l'ordre du parcours d'une story.
 
-export type { PropDetails, PropKind } from './prop'
-export type { Story, StoryDefinition, StoryMeta, StoryOptions, Wrap, WrapEntry } from './story'
+// Ce qu'on peut dire d'une prop
+export type { PluginPropDetails, PropDetails, PropKind, ResolvedPropDetails } from './prop'
 
+// Ce qu'on écrit dans un fichier de stories
+export type {
+  PluginStoryOptions,
+  Story,
+  StoryDefinition,
+  StoryMeta,
+  StoryOptions,
+  Wrap,
+  WrapEntry,
+} from './story'
+
+// Ce que le CLI en produit et que le shell lit
 export { MANIFEST_VERSION } from './manifest'
 export type { ComponentRef, Manifest, ManifestEntry, StoryEntry } from './manifest'
-export type { ResolvedPropDetails } from './prop'
 
+// Comment une story est désignée
 export { normalizeSegment, storyId } from './id'
 
+// Comment le shell et la preview se parlent
 export { PROTOCOL_VERSION } from './channel'
-export type { Overrides, PreviewMessage, ShellMessage } from './channel'
-
-export type { PluginPreviewMessages, PluginShellMessages } from './channel'
-export type { PluginPropDetails } from './prop'
-export type { PluginStoryOptions } from './story'
+export type {
+  Overrides,
+  PluginPreviewMessages,
+  PluginShellMessages,
+  PreviewMessage,
+  ShellMessage,
+} from './channel'
