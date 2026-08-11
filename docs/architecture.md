@@ -183,7 +183,7 @@ L'outillage est en version pré-1.0 et des ruptures sont attendues. La règle ga
 
 ## 4. Les tests
 
-Cinq fichiers, tous dans `packages/core/test`.
+Six fichiers, tous dans `packages/core/test`.
 
 **`test/protocol/id.test.ts`**
 Couvre la dérivation des identifiants : accents, casse, séparateurs, segments vides, et le fait que deux noms ne différant que par un accent tombent sur le même identifiant, ce qui est assumé.
@@ -204,6 +204,15 @@ Remplit les points d'extension `PluginPropDetails` et `PluginStoryOptions` avec 
 
 **`test/protocol/channel.test.ts`**
 Vérifie la forme des messages du canal.
+
+**`test/protocol/index.test.ts`**
+Vérifie que la porte d'entrée du protocole réexporte tout ce que les quatre modules déclarent.
+
+*Pourquoi :* un nom oublié en réorganisant `index.ts` disparaît de l'API publique sans que rien ne bronche. Les consommateurs internes importent depuis les fichiers, pas depuis la porte, donc ni le typage ni la construction ne voient l'absence. C'est arrivé en regroupant les réexports par thème, où `StoryEntry` s'est perdu.
+
+*Sans lui :* un paquet publié perd un type entre deux versions, et le seul à s'en apercevoir est l'utilisateur.
+
+*Il lit du texte, faute d'alternative :* un type n'existe pas à l'exécution, il n'y a donc rien à énumérer dans le module importé. Une première version cherchait chaque nom n'importe où dans le fichier, et le trouvait dans les commentaires de regroupement : elle laissait passer le retrait d'un export cité juste au-dessus. Les noms sont maintenant pris dans les accolades des réexports.
 
 **`test/isolation.test.ts`**
 Vérifie l'étanchéité décrite en section 3, en lisant le bundle construit et non les sources. Il porte trois garanties :
