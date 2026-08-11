@@ -21,6 +21,20 @@ describe('ControlOverride', () => {
     } satisfies ControlOverride
     expect(override.options).toHaveLength(2)
   })
+
+  // Sans ce cas, les deux précédents passeraient à l'identique si le type
+  // acceptait n'importe quelle clé : ils ne prouveraient plus rien.
+  it('refuse une clé inconnue, donc une faute de frappe', () => {
+    // @ts-expect-error `mni` n'est pas un réglage connu
+    const typo = { mni: 0 } satisfies ControlOverride
+    expect(typo).toBeDefined()
+  })
+
+  it('refuse une valeur du mauvais type', () => {
+    // @ts-expect-error `description` est une chaîne
+    const wrong = { description: 42 } satisfies ControlOverride
+    expect(wrong).toBeDefined()
+  })
 })
 
 describe('StoryDefinition', () => {

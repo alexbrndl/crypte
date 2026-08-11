@@ -1,4 +1,4 @@
-import type { ArgType, ControlSpec } from './manifest'
+import type { ArgType } from './manifest'
 
 // Le noyau ne connaît aucun framework : un composant et une enveloppe restent
 // des valeurs opaques, que l'adaptateur précise en fournissant son propre type.
@@ -29,8 +29,17 @@ export interface Story<P> {
 // Un override mélange deux natures : des champs de l'argType lui-même, comme
 // `options` ou `description`, et des réglages du control au premier niveau, comme
 // les bornes d'un curseur. La spécification écrit `{ min: 0, max: 500, step: 10 }`
-// sans niveau intermédiaire, un type limité aux champs d'argType le refuserait.
-export type ControlOverride = Partial<Omit<ArgType, 'name'>> & ControlSpec
+// sans niveau intermédiaire.
+//
+// Les réglages sont énumérés plutôt qu'ouverts : une intersection avec un type
+// indexé accepterait n'importe quelle clé, et `{ mni: 0 }` partirait jusqu'au
+// manifeste au lieu d'échouer ici. La liste s'étendra quand le plugin `controls`
+// existera et démontrera les réglages dont il a besoin.
+export interface ControlOverride extends Partial<Omit<ArgType, 'name'>> {
+  min?: number
+  max?: number
+  step?: number
+}
 
 export interface StoryDefinition<P, C> {
   props?: Partial<P>

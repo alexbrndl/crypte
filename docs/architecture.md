@@ -183,10 +183,18 @@ L'outillage est en version pré-1.0 et des ruptures sont attendues. La règle ga
 
 ## 4. Les tests
 
-Deux fichiers, tous deux dans `packages/core`.
+Quatre fichiers, tous dans `packages/core`.
 
 **`src/protocol/index.test.ts`**
 Vérifie que la version du protocole est bien exposée. Le test est trivial et c'est voulu : il sert à prouver que la chaîne de test fonctionne réellement, plutôt que de laisser la commande passer au vert faute de test à exécuter.
+
+**`src/protocol/id.test.ts`**
+Couvre la dérivation des identifiants : accents, casse, séparateurs, segments vides, et le fait que deux noms ne différant que par un accent tombent sur le même identifiant, ce qui est assumé.
+
+**`src/protocol/story.test.ts`**
+Vérifie que les types du format acceptent ce que la spécification écrit, et **refusent le reste**. Les assertions sont portées par `satisfies` et `@ts-expect-error`, donc évaluées à la compilation ; les `expect` qui suivent n'existent que pour donner un corps au test.
+
+*Pourquoi des cas négatifs :* sans eux, ces tests passeraient à l'identique si le type acceptait n'importe quelle clé. C'est arrivé : une première version élargissait le type par une intersection avec un type indexé, et `{ mni: 0 }` compilait sans broncher.
 
 **`test/isolation.test.ts`**
 Vérifie l'étanchéité décrite en section 3, en lisant le bundle construit et non les sources. Il porte trois garanties :
