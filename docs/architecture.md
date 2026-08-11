@@ -183,18 +183,25 @@ L'outillage est en version pré-1.0 et des ruptures sont attendues. La règle ga
 
 ## 4. Les tests
 
-Quatre fichiers, tous dans `packages/core`.
+Cinq fichiers, tous dans `packages/core/test`.
 
-**`src/protocol/index.test.ts`**
-Vérifie que la version du protocole est bien exposée. Le test est trivial et c'est voulu : il sert à prouver que la chaîne de test fonctionne réellement, plutôt que de laisser la commande passer au vert faute de test à exécuter.
-
-**`src/protocol/id.test.ts`**
+**`test/protocol/id.test.ts`**
 Couvre la dérivation des identifiants : accents, casse, séparateurs, segments vides, et le fait que deux noms ne différant que par un accent tombent sur le même identifiant, ce qui est assumé.
 
-**`src/protocol/story.test.ts`**
-Vérifie que les types du format acceptent ce que la spécification écrit, et **refusent le reste**. Les assertions sont portées par `satisfies` et `@ts-expect-error`, donc évaluées à la compilation ; les `expect` qui suivent n'existent que pour donner un corps au test.
+**`test/protocol/story.test.ts`** et **`test/protocol/manifest.test.ts`**
+Vérifient que les types du format acceptent ce que la spécification écrit, et **refusent le reste**. Les assertions sont portées par `satisfies` et `@ts-expect-error`, donc évaluées à la compilation ; les `expect` qui suivent n'existent que pour donner un corps au test.
 
 *Pourquoi des cas négatifs :* sans eux, ces tests passeraient à l'identique si le type acceptait n'importe quelle clé. C'est arrivé : une première version élargissait le type par une intersection avec un type indexé, et `{ mni: 0 }` compilait sans broncher.
+
+**`test/plugin-simulation.d.ts`**
+Remplit les points d'extension `PluginPropDetails` et `PluginStoryOptions` avec les champs qu'un plugin déclarerait, et joue donc le rôle d'un plugin installé. C'est ce qui permet aux tests de vérifier qu'un champ apporté par un plugin est accepté, et qu'un champ que personne n'a déclaré est refusé.
+
+*Pourquoi un fichier à part :* une augmentation de module vaut pour tout le programme, jamais pour le seul fichier qui la porte. Écrite dans un test, elle contamine silencieusement les autres, qui passeraient alors grâce à une déclaration qu'ils ne mentionnent pas. Le fichier unique rend visible ce que les tests supposent installé.
+
+*Sans lui :* les cas positifs des deux fichiers ci-dessus ne compilent plus, puisque les points d'extension sont vides dans le noyau. L'échec est immédiat et lisible, ce qui est le comportement voulu.
+
+**`test/protocol/channel.test.ts`**
+Vérifie la forme des messages du canal.
 
 **`test/isolation.test.ts`**
 Vérifie l'étanchéité décrite en section 3, en lisant le bundle construit et non les sources. Il porte trois garanties :
