@@ -506,6 +506,10 @@ Le cycle a deux temps :
 
 Cette seconde pull request **ne demande aucune action** : elle se met à jour seule et attend. Le seul geste est de la fusionner quand on veut une nouvelle version. Repère : les quatre pull requests du lot 0 auraient produit une seule montée de version, pas quatre.
 
+**Ses contrôles doivent être approuvés à la main.** GitHub n'exécute pas les workflows déclenchés par son propre jeton, pour éviter les boucles : les vérifications de la pull request de version restent en `action_required`, donc `ci-passed` n'est jamais rapporté et la fusion est bloquée. Approuver depuis l'onglet Actions, ou par `gh api -X POST repos/<dépôt>/actions/runs/<id>/approve`.
+
+*Pourquoi ne pas contourner :* la parade courante est un jeton personnel à la place du jeton du workflow, ce qui ferait ouvrir la pull request en son propre nom. Écarté pour ne pas stocker un secret à longue durée de vie sur un dépôt public, pour une friction d'un geste qui n'arrive qu'au moment de publier.
+
 ### Versions synchronisées
 
 `.changeset/config.json` déclare `"fixed": [["@crypte/*"]]`. Les trois paquets portent donc toujours le même numéro et montent ensemble, **même celui qui n'a pas changé**.
@@ -527,6 +531,18 @@ Vérifié à l'installation : un changeset ne déclarant que `@crypte/cli` fait 
 *Pourquoi :* le niveau demandé est appliqué littéralement, `semver.inc('0.1.0', 'major')` retourne `1.0.0`. Rien ne traite les versions inférieures à 1.0.0 différemment, hormis un avertissement en mode interactif.
 
 *Ce qui casse si on l'enlève :* la première rupture du protocole déclare l'API stable par accident, et une version majeure ne se reprend pas.
+
+### Le générateur de changelog
+
+`.changeset/config.json` utilise `@changesets/changelog-github`, qui remplace l'identifiant de commit brut par un lien vers la pull request, le commit et l'auteur.
+
+*Il exige un jeton GitHub*, y compris pour une génération locale : il interroge l'API pour retrouver la pull request associée à un commit. En intégration continue le workflow le fournit ; à la main, il faut passer `GITHUB_TOKEN`, par exemple avec `GITHUB_TOKEN=$(gh auth token)`.
+
+*Ce qui casse si on l'enlève :* rien ne s'arrête, et c'est ce qui rend l'oubli probable. Les changelogs continuent d'être générés, mais chaque entrée retombe sur un identifiant de commit brut, non cliquable. Le lien entre une ligne de changelog et la discussion qui l'a produite est alors perdu, et il ne se reconstitue pas après coup : personne ne retrouve six mois plus tard quelle pull request correspond à `004c342`.
+
+Comme cette configuration n'est exercée par aucun contrôle, une erreur de syntaxe ou un dépôt mal orthographié ne se verrait qu'à la génération suivante, c'est-à-dire au moment de publier.
+
+*Le remerciement à l'auteur est conservé faute de mieux.* L'option `template` permettrait de le retirer, mais elle est marquée expérimentale et n'existe qu'à partir de la version 1.0.0, publiée trop récemment pour passer la politique de fraîcheur des dépendances. Retirer une mention cosmétique ne justifie pas une dépendance fraîche et une API instable. À revoir quand `template` sera stabilisé, suivi dans `DCJ-187`.
 
 ### Le skill `/changeset`
 
