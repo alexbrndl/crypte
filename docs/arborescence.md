@@ -34,6 +34,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | -- | -- | -- |
 | `src/protocol/index.ts` | réexports du protocole | les trois autres paquets |
 | `src/protocol/story.ts` | forme d'un fichier de stories | les adaptateurs, le CLI |
+| `src/protocol/prop.ts` | ce qu'on peut dire d'une prop | `story.ts`, `manifest.ts` |
 | `src/protocol/manifest.ts` | forme du catalogue | le CLI qui l'écrit, le shell qui le lit |
 | `src/protocol/channel.ts` | messages du canal | `core/ui`, `core/preview` |
 | `src/protocol/id.ts` | dérivation des identifiants | le CLI, le shell |

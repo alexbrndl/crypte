@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type { Manifest, PropDetails, StoryEntry } from '../../src/protocol/manifest'
+import type { Manifest, StoryEntry } from '../../src/protocol/manifest'
+import type { ResolvedPropDetails } from '../../src/protocol/prop'
 
-// L'entrée reproduite dans docs/spec-contrats.md §4.2, qui doit être acceptée
-// telle quelle : c'est le contrat entre le CLI qui l'écrit et le shell qui la lit.
+// L'entrée de docs/spec-contrats.md §4.2, acceptée telle quelle.
 describe('Manifest', () => {
   it("accepte l'exemple de la spécification", () => {
     const manifest = {
@@ -46,13 +46,8 @@ describe('Manifest', () => {
     expect('meta' in entry).toBe(false)
   })
 
-  // Les valeurs `page` et `tokens` sont réservées mais non implémentées : le champ
-  // existe pour éviter une migration, pas pour être utilisé aujourd'hui.
-  //
-  // L'entrée est complète et seul `type` varie. Une version antérieure partait de
-  // `{ type: 'tokens', id: 'x' }' : les sept champs manquants suffisaient à
-  // satisfaire le `@ts-expect-error`, si bien que le test passait sans jamais
-  // vérifier ce qu'il annonçait, et aurait passé de même sur `type: string`.
+  // Entrée complète, seul `type` varie : avec des champs manquants, la directive
+  // serait satisfaite par eux et le test passerait aussi sur `type: string`.
   it("refuse un type d'entrée non implémenté", () => {
     const reserved = {
       // @ts-expect-error seule la valeur `story` est implémentée en v1
@@ -70,7 +65,7 @@ describe('Manifest', () => {
   })
 })
 
-describe('PropDetails', () => {
+describe('ResolvedPropDetails', () => {
   it('accepte les neuf natures de la spécification', () => {
     const kinds = [
       'string',
@@ -84,26 +79,23 @@ describe('PropDetails', () => {
       'unknown',
     ] as const
 
-    const details = kinds.map(
-      (type) => ({ name: 'prop', type, required: false }) satisfies PropDetails,
-    )
+    const details = kinds.map((type) => ({ type, required: false }) satisfies ResolvedPropDetails)
     expect(details).toHaveLength(9)
   })
 
-  // `control` ne vient pas du noyau : il est apporté par la simulation de plugin.
+  // `control` vient de la simulation de plugin, pas du noyau.
   it('accepte un champ apporté par un plugin installé', () => {
     const withPlugin = {
-      name: 'onSelect',
       type: 'function',
       required: true,
       control: false,
-    } satisfies PropDetails
+    } satisfies ResolvedPropDetails
     expect(withPlugin.control).toBe(false)
   })
 
   it('refuse une nature inconnue', () => {
     // @ts-expect-error `date` ne fait pas partie des neuf natures
-    const invalid = { name: 'createdAt', type: 'date', required: false } satisfies PropDetails
+    const invalid = { type: 'date', required: false } satisfies ResolvedPropDetails
     expect(invalid).toBeDefined()
   })
 })

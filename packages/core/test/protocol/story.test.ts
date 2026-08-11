@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import type { PropDetailsInput, StoryDefinition, StoryOptions } from '../../src/protocol/story'
+import type { PropDetails } from '../../src/protocol/prop'
+import type { StoryDefinition, StoryOptions } from '../../src/protocol/story'
 
-// Les points d'extension sont remplis par `test/plugin-simulation.d.ts`, qui joue
-// le rôle des plugins installés. Voir ce fichier pour ce qui est déclaré.
+// Les points d'extension sont remplis par `test/plugin-simulation.d.ts`.
 
 interface DemoProps {
   price: number
   label?: string
 }
 
-// Les assertions sont portées par `satisfies` et `@ts-expect-error`, donc évaluées
-// à la compilation. Les `expect` qui suivent donnent seulement un corps au test.
+// Les assertions sont portées par `satisfies` et `@ts-expect-error` : les `expect`
+// ne servent qu'à donner un corps au test.
 describe('points d’extension', () => {
   it('accepte les réglages apportés par un plugin', () => {
-    const override = { min: 0, max: 500, step: 10 } satisfies PropDetailsInput
+    const override = { min: 0, max: 500, step: 10 } satisfies PropDetails
     expect(override.max).toBe(500)
   })
 
@@ -22,36 +22,34 @@ describe('points d’extension', () => {
     expect(options.responsive).toBe('mobile')
   })
 
-  // Ce cas est celui qui prouve quelque chose : le précédent passait à l'identique
-  // même sans plugin simulé, parce qu'un type sans propriété n'entraîne aucun
-  // contrôle de propriétés excédentaires. Voir l'aiguillage dans `story.ts`.
+  // Le cas positif ci-dessus passerait sans plugin simulé : voir l'aiguillage
+  // dans `story.ts`.
   it('refuse une option qu’aucun plugin n’a déclarée', () => {
     // @ts-expect-error `respnsive` n'est déclaré nulle part
     const typo = { respnsive: 'mobile' } satisfies StoryOptions
     expect(typo).toBeDefined()
   })
 
-  // Sans ce cas, les précédents passeraient à l'identique si le type acceptait
-  // n'importe quelle clé : ils ne prouveraient plus rien.
+  // Sans ce cas, les précédents passeraient sur un type qui n'exige rien.
   it('refuse une clé qu’aucun plugin n’a déclarée', () => {
     // @ts-expect-error `mni` n'est déclaré nulle part
-    const typo = { mni: 0 } satisfies PropDetailsInput
+    const typo = { mni: 0 } satisfies PropDetails
     expect(typo).toBeDefined()
   })
 
   it('refuse une valeur du mauvais type', () => {
     // @ts-expect-error `min` est un nombre
-    const wrong = { min: 'zéro' } satisfies PropDetailsInput
+    const wrong = { min: 'zéro' } satisfies PropDetails
     expect(wrong).toBeDefined()
   })
 })
 
-describe('PropDetailsInput', () => {
+describe('PropDetails', () => {
   it('accepte aussi les champs décrits par le noyau', () => {
     const override = {
       options: ['a', 'b'],
       description: 'Une prop',
-    } satisfies PropDetailsInput
+    } satisfies PropDetails
     expect(override.options).toHaveLength(2)
   })
 })

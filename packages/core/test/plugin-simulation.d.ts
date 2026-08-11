@@ -1,12 +1,9 @@
-// Simule un plugin installé, pour éprouver les points d'extension du protocole.
+// Simule des plugins installés, pour éprouver les points d'extension.
 //
-// Une augmentation de module vaut pour TOUT le programme compilé, pas pour le seul
-// fichier qui la déclare. La regrouper ici évite qu'un test dépende en silence de
-// l'augmentation écrite dans un autre, et rend visible le contexte dans lequel
-// tous les tests s'exécutent : celui d'un projet où `@crypte/controls` et un
-// plugin d'affichage sont installés.
+// Une augmentation vaut pour tout le programme compilé, pas pour le fichier qui
+// la déclare : les regrouper ici rend visible le contexte de tous les tests.
 
-declare module '../src/protocol/manifest' {
+declare module '../src/protocol/prop' {
   interface PluginPropDetails {
     min?: number
     max?: number
@@ -18,6 +15,16 @@ declare module '../src/protocol/manifest' {
 declare module '../src/protocol/story' {
   interface PluginStoryOptions {
     responsive?: 'mobile' | 'desktop'
+  }
+}
+
+declare module '../src/protocol/channel' {
+  interface PluginShellMessages {
+    controls: { type: 'controls:open'; open: boolean }
+  }
+
+  interface PluginPreviewMessages {
+    a11y: { type: 'a11y:report'; violations: string[] }
   }
 }
 

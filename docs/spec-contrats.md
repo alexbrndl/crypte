@@ -2,7 +2,7 @@
 
 > Version 0.5, document de référence. Toute PRD de projet pointe vers ce document plutôt que de redéfinir ces structures.
 >
-> **v0.6 :** le message `ready` annonce `protocolVersion`, et un point d'extension vide n'admet plus n'importe quelle clé. Voir le journal en section 8.
+> **v0.7 :** les types de props vivent dans `prop.ts`, le nom simple va au côté qu'on écrit, et le canal s'étend comme le reste. Voir le journal en section 8.
 
 ---
 
@@ -170,8 +170,8 @@ interface StoryDefinition<C> {
   props?: Partial<PropsOf<C>>
   stories?: Record<string, Partial<PropsOf<C>> | Story<C>>
   wrap?: Wrap
-  details?: Partial<Record<keyof PropsOf<C>, PropDetailsInput>>
-  meta?: EntryMeta
+  details?: Partial<Record<keyof PropsOf<C>, PropDetails>>
+  meta?: StoryMeta
 }
 ```
 
@@ -276,13 +276,19 @@ Le champ s'appelle `details` parce qu'il est **complémentaire** : on n'y écrit
 ```ts
 interface PluginPropDetails {}
 
+// ce qu'on écrit dans `details`
 interface PropDetails extends PluginPropDetails {
-  name: string
-  type: 'string' | 'number' | 'boolean' | 'enum' | 'object' | 'array' | 'function' | 'node' | 'unknown'
-  required: boolean
+  type?: 'string' | 'number' | 'boolean' | 'enum' | 'object' | 'array' | 'function' | 'node' | 'unknown'
+  required?: boolean
   default?: unknown
   description?: string
   options?: unknown[]
+}
+
+// ce que le manifeste porte, une fois l'inférence faite
+interface ResolvedPropDetails extends PropDetails {
+  type: PropKind
+  required: boolean
 }
 ```
 
@@ -507,6 +513,31 @@ Absents volontairement. Certains relèvent des PRD de projet, d'autres attendent
 ---
 
 ## 8. Journal des versions
+
+**v0.7.** Le dossier `protocol` suit trois règles, sans exception.
+
+1. Le nom simple va au côté qu'un humain écrit, le côté produit porte un qualificatif.
+2. Tout point d'extension est une interface vide préfixée `Plugin`, augmentée par module.
+3. Les imports vont dans un seul sens.
+
+| Avant | Après |
+|---|---|
+| `PropDetails` (manifeste), `PropDetailsInput` (écrit) | `PropDetails` (écrit), `ResolvedPropDetails` (manifeste) |
+| les deux dans `manifest.ts` et `story.ts`, qui s'importaient en rond | `prop.ts`, importé par les deux |
+| `EntryMeta` | `StoryMeta` |
+| `{ type: 'plugin', plugin, payload }` | `PluginShellMessages`, `PluginPreviewMessages` |
+| `PropDetails.name` | retiré, `details` est indexé par nom de prop |
+| `Manifest.version: number` | `typeof MANIFEST_VERSION` |
+
+**Le nom.** `PropDetails` désignait ce que le CLI produit, d'où le suffixe `Input` sur ce qu'on écrit, et une dérivation à contresens du flux. Pour savoir ce qu'on pouvait mettre dans `details`, il fallait ouvrir trois fichiers et finir sur une interface vide, d'où l'impression que ces champs venaient tous des plugins. Ils viennent du noyau, sauf quatre.
+
+**Le point d'extension du canal.** Le message `plugin` n'exigeait rien : un plugin y envoyait n'importe quoi. Deux mécanismes d'extension pour le même besoin, dans le même dossier.
+
+**Le champ `name`.** `details` est indexé par nom de prop, donc `name` dupliquait sa clé. C'est pour cette raison qu'on l'ôtait déjà côté écriture.
+
+**Ce qui n'a pas changé, et pourquoi.** `StoryEntry.options` reste ouvert quand `details` est typé. Le motif écrit jusqu'ici était faux : ce n'est pas parce qu'un manifeste peut venir d'un projet aux autres plugins, ce qui vaudrait pour les deux, mais parce que `options` ne contient **que** des réglages de plugins, quand `details` porte `type` et `required`, que le shell lit.
+
+Aucune migration à prévoir, rien n'est publié.
 
 **v0.6.** Deux garanties qui n'étaient pas tenues.
 

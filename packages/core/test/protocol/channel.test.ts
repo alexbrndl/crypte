@@ -3,18 +3,22 @@ import type { PreviewMessage, ShellMessage } from '../../src/protocol/channel'
 import { PROTOCOL_VERSION } from '../../src/protocol/channel'
 
 // Les messages doivent survivre à un aller-retour JSON : le canal ne transporte
-// rien d'autre. Un type qui laisserait passer une fonction ou un nœud DOM
-// romprait la garantie d'agnosticisme du noyau.
+// rien d'autre. Un type laissant passer une fonction romprait l'agnosticisme.
 describe('messages du shell', () => {
-  it('accepte les quatre formes de la spécification', () => {
+  it('accepte les formes de la spécification', () => {
     const messages = [
       { type: 'render', id: 'checkout/ordersummary--par-defaut', overrides: {} },
       { type: 'update-overrides', id: 'badge--par-defaut', overrides: { label: 'Nouveau' } },
       { type: 'set-globals', globals: { theme: 'dark' } },
-      { type: 'plugin', plugin: 'controls', payload: { open: true } },
     ] satisfies ShellMessage[]
 
-    expect(messages).toHaveLength(4)
+    expect(messages).toHaveLength(3)
+  })
+
+  // Déclaré par `test/plugin-simulation.d.ts`, comme le ferait un plugin installé.
+  it('accepte un message déclaré par un plugin', () => {
+    const message = { type: 'controls:open', open: true } satisfies ShellMessage
+    expect(message.open).toBe(true)
   })
 
   it('refuse un type de message inconnu', () => {
@@ -31,15 +35,19 @@ describe('messages du shell', () => {
 })
 
 describe('messages de la preview', () => {
-  it('accepte les quatre formes de la spécification', () => {
+  it('accepte les formes de la spécification', () => {
     const messages = [
       { type: 'ready', protocolVersion: 1 },
       { type: 'rendered', id: 'badge--par-defaut', durationMs: 1.7 },
       { type: 'error', id: 'badge--par-defaut', message: 'boom', stack: 'at …' },
-      { type: 'plugin', plugin: 'a11y', payload: [] },
     ] satisfies PreviewMessage[]
 
-    expect(messages).toHaveLength(4)
+    expect(messages).toHaveLength(3)
+  })
+
+  it('accepte un message déclaré par un plugin', () => {
+    const message = { type: 'a11y:report', violations: [] } satisfies PreviewMessage
+    expect(message.violations).toHaveLength(0)
   })
 
   it('rend la pile facultative sur une erreur', () => {

@@ -90,9 +90,17 @@ C'est la même erreur qu'un test qui passe pour la mauvaise raison : une observa
 
 ## Règles de documentation
 
-**En-tête de module.** Tout fichier exporté par un paquet publié commence par trois à cinq lignes disant ce qu'il contient et qui le consomme. Sans elles, celui qui ouvre `story.ts` ne peut pas savoir s'il regarde ce que l'utilisateur écrit ou ce que le CLI produit.
+**Une ligne, ou rien.** Un en-tête de module tient en une ligne, un commentaire aussi. Deux au maximum, et c'est déjà un signe.
+
+Ce qui ne tient pas en une ligne va dans `docs/architecture.md`, et le commentaire y renvoie d'un mot. Le fichier reste lisible, l'explication reste écrite quelque part.
+
+Écrire **le fait, pas le raisonnement.** Un exemple concret vaut mieux qu'une justification : `« button-- pour tout nom cyrillique »` se comprend, `« la normalisation restreinte à l'alphabet latin provoquait une perte de segments »` ne se comprend pas.
+
+Et quand l'explication ne passe pas en une ligne, se demander d'abord si le problème n'est pas le nom ou le code. Un commentaire long est souvent un mauvais nom qui se rattrape.
 
 `docs/arborescence.md` tient la même information en une ligne par fichier, pour qui cherche où se trouve quoi sans ouvrir les fichiers. Le mettre à jour quand un fichier apparaît ou disparaît.
+
+**Ordre d'un fichier.** Le type principal en premier, ses pièces ensuite, le point d'extension en dernier. Les types sont résolus au niveau du module : un type peut en mentionner un autre déclaré plus bas, donc l'ordre ne sert que la lecture.
 
 **Tests.** Tout contrat public a un test qui vérifie qu'il accepte ce que la spécification décrit **et qu'il refuse le reste**. La seconde moitié est celle qui compte : un test sans cas négatif passerait à l'identique sur un type qui n'exige rien.
 
