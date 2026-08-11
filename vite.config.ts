@@ -4,7 +4,23 @@ export default defineConfig({
   run: {
     cache: true,
   },
-  lint: {},
+  lint: {
+    options: {
+      typeAware: true,
+      typeCheck: true,
+    },
+    overrides: [
+      {
+        files: ['packages/core/src/**'],
+        rules: {
+          'no-restricted-imports': [
+            'error',
+            { patterns: ['react', 'react/*', 'react-dom', 'react-dom/*'] },
+          ],
+        },
+      },
+    ],
+  },
   fmt: {
     ignorePatterns: ['dist/**', 'docs/**', 'README.md'],
     singleQuote: true,

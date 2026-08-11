@@ -19,7 +19,7 @@ Déclare les mêmes espaces de travail pour pnpm, plus le catalogue de versions 
 *Sans lui :* pnpm ignore le champ `workspaces` du `package.json` et traite le dépôt comme un paquet unique. Les dépendances entre paquets locaux ne se résolvent plus, et les versions divergent paquet par paquet.
 
 **`vite.config.ts`**
-Configuration unique de l'outillage, à la racine. Cinq blocs : `run` (cache des tâches), `lint`, `fmt`, `test`, `staged`. Le bloc `fmt` fixe les conventions d'écriture et exclut `docs/**` et `README.md` du reformatage automatique, pour que les documents de référence ne soient pas réécrits par l'outil.
+Configuration unique de l'outillage, à la racine. Cinq blocs : `run` (cache des tâches), `lint`, `fmt`, `test`, `staged`. Le bloc `lint` active `typeAware` et `typeCheck` : sans eux, **aucune vérification de types ne tourne**, ni en local ni en intégration continue. Le bloc `fmt` fixe les conventions d'écriture et exclut `docs/**` et `README.md` du reformatage automatique, pour que les documents de référence ne soient pas réécrits par l'outil.
 *Sans lui :* chaque commande retombe sur ses valeurs par défaut. Le formatage réécrirait la documentation, et les règles de style ne seraient plus partagées.
 
 **`tsconfig.base.json`**
@@ -32,7 +32,7 @@ Ne contient aucun fichier, seulement des références vers les trois paquets. C'
 
 **`.github/workflows/ci.yml`**
 Trois jobs : `check` en matrice Node 22 et 24, `dependency-review` sur les pull requests, et `ci-passed` qui agrège les deux. Toutes les actions sont épinglées par empreinte de commit et non par étiquette mobile.
-L'ordre des étapes de `check` est significatif : `install`, `check`, `pack`, `test`, `git diff --exit-code`.
+L'ordre des étapes de `check` est significatif : `install`, `pack`, `check`, `test`, `git diff --exit-code`.
 *Sans lui :* rien n'est vérifié automatiquement. Et si l'ordre change, voir la section 4 : le test d'isolation devient silencieux.
 
 **`.github/dependabot.yml`**
@@ -69,10 +69,12 @@ Le noyau. Trois entrées indépendantes, chacune produisant son propre bundle et
 | Entrée | Contenu aujourd'hui |
 |---|---|
 | `src/protocol/` | La version du protocole et les types des messages échangés entre le shell et la preview |
-| `src/ui/` | Un marqueur seulement |
-| `src/preview/` | Un marqueur seulement |
+| `src/ui/` | `createShellChannel`, le côté shell du canal |
+| `src/preview/` | `createPreviewChannel`, le côté iframe du canal |
 
-`protocol` est le seul à contenir du code utile. Les deux autres n'exportent qu'une constante servant au test d'isolation.
+Chaque entrée exporte aussi une constante marqueur, utilisée par le test d'isolation.
+
+**Aucune des trois n'importe de framework de rendu**, et une règle de lint l'interdit sur tout `core/src`. Voir la section 10.
 
 Ce paquet n'a **aucune dépendance d'exécution**. Vue y figure en dépendance de pair optionnelle, en prévision des primitives d'interface.
 
@@ -98,9 +100,11 @@ React et React DOM y sont déclarés en dépendances de pair, jamais en dépenda
 
 ### `apps/`
 
-**Ce dossier n'existe pas encore.** Il est déclaré dans les espaces de travail, mais aucune application n'y a été créée.
+`apps/shell` est l'application d'interface, **privée et jamais publiée** : sa sortie compilée sera embarquée dans `@crypte/cli`.
 
-Il accueillera `apps/shell`, l'application d'interface, qui n'est pas un paquet publié : sa sortie compilée sera embarquée dans `@crypte/cli`. C'est aujourd'hui la pièce manquante la plus visible, et rien de ce qui est décrit en section 2 ne peut fonctionner sans elle.
+Elle sert deux pages depuis un même serveur Vite : `index.html` monte le shell en Vue, `preview.html` monte la preview en React. Les deux ne communiquent que par le canal.
+
+Elle contient aussi `Badge.tsx`, un composant codé en dur. Il n'y a aucune découverte de fichiers : c'est le seul composant que la preview sait monter.
 
 ### `docs/`
 
@@ -139,7 +143,7 @@ Voici ce qui devrait se passer quand un utilisateur tape `crypte dev`, et où en
 **9. Retour au shell.** La preview répond `rendered`, ou `error` si le rendu a échoué, auquel cas le shell affiche l'erreur sans tomber.
 → *Types définis, mécanisme absent.*
 
-**En résumé :** sur les neuf étapes, une fonctionne, une est partielle, sept n'existent pas. Ce qui est acquis aujourd'hui est la structure qui permet de les écrire sans se contredire.
+**En résumé :** les étapes 1, 7, 8 et 9 fonctionnent, la 2 est partielle, les étapes 3 à 6 n'existent pas. Le canal complet est éprouvé de bout en bout, mais sur un composant codé en dur : rien ne découvre encore de fichier ni ne produit de manifeste.
 
 ---
 
@@ -191,7 +195,7 @@ Vérifie l'étanchéité décrite en section 3, en lisant le bundle construit et
 2. Le bundle de `protocol` ne comporte aucun import relatif, donc ne dépend d'aucun morceau partagé. **C'est l'assertion qui garde réellement**, la première ne suffit pas : quand une fuite est introduite, l'outil produit un morceau séparé et un import plutôt que de recopier le code, si bien que le marqueur reste absent du bundle et que la première assertion passe malgré la fuite.
 3. Le test échoue explicitement si les artefacts sont absents, plutôt que de passer au vert sans rien avoir vérifié.
 
-Cette dernière garantie explique l'ordre des étapes de l'intégration continue : la construction doit précéder les tests. Dans l'ordre inverse, le test lirait des artefacts absents et signalerait une erreur d'exécution au lieu de vérifier quoi que ce soit.
+Cette garantie explique en partie l'ordre des étapes de l'intégration continue : la construction doit précéder les tests. Dans l'ordre inverse, le test lirait des artefacts absents et signalerait une erreur d'exécution au lieu de vérifier quoi que ce soit.
 
 La fraîcheur des artefacts n'est volontairement pas vérifiée par comparaison de dates. Le cache de tâches restaure les fichiers construits avec leurs dates d'origine, ce qui provoquerait des échecs sur un état pourtant correct. Elle repose sur deux mécanismes plus fiables : le cache s'invalide quand les sources changent, et l'intégration continue construit avant de tester.
 
@@ -539,3 +543,134 @@ L'exemption porte sur le préfixe de branche et non sur une étiquette : le nom 
 **Le workflow de version demande des droits d'écriture**, contrairement à l'intégration continue qui est en lecture seule. Ouvrir une pull request l'exige. Le réglage « Allow GitHub Actions to create and approve pull requests » doit par ailleurs être actif dans les paramètres du dépôt, sans quoi l'action échoue à créer la pull request.
 
 **Le format des changelogs générés est compatible avec le formateur**, vérifié à l'installation : `vp check` accepte les fichiers produits sans modification. Aucune exclusion n'a donc été ajoutée.
+
+---
+
+## 10. La frontière entre le shell et la preview
+
+C'est la contrainte que le projet paie le plus cher s'il la perd, et la seule qui ne se rattrape pas à coût raisonnable.
+
+### Comment elle est tenue
+
+**Le shell et la preview ne se parlent que par `postMessage`.** Le shell envoie `render`, la preview répond `rendered` ou `error`. Aucune référence à un composant, à une instance ou à un arbre de rendu ne traverse : uniquement des données sérialisables.
+
+Trois paquets, trois rôles :
+
+| Emplacement | Rôle | Connaît React |
+| -- | -- | -- |
+| `core/protocol` | types des messages | non |
+| `core/ui` | côté shell du canal | non |
+| `core/preview` | côté iframe du canal | non |
+| `packages/react` | monte le composant | oui, c'est son travail |
+
+### La règle de lint
+
+`vite.config.ts` déclare, via `lint.overrides`, un `no-restricted-imports` sur `packages/core/src/**`, interdisant `react`, `react-dom` et `react/*`.
+
+La règle couvre **tout le noyau**, `preview` compris. Une première version ne visait que `ui` et `protocol`, alors que `preview` est l'entrée la plus proche du code de montage, donc la plus exposée à un import ajouté par commodité.
+
+*Pourquoi :* la frontière est une propriété qu'on ne voit pas en lisant un fichier. Elle se perd par un import ajouté sans y penser, dans un fichier qui semble anodin, et rien ne le signale avant que le noyau ne soit devenu dépendant d'un framework.
+
+*Ce qui casse si on l'enlève :* le noyau peut se lier à React sans que personne ne s'en aperçoive, et l'adaptateur Vue devient impossible sans réécrire le noyau. C'est le risque qui a fait passer ce lot en premier.
+
+**La règle est ciblée, pas globale** : `packages/react` importe React librement, c'est sa raison d'être. Vérifié dans les deux sens, un import de React dans `core/ui` échoue, le même import dans `packages/react` passe.
+
+### La preuve par les artefacts
+
+La règle de lint dit ce qui est interdit. Le build montre ce qui est réellement produit :
+
+| Bundle | Poids | Occurrences de `react` |
+| -- | -- | -- |
+| shell | 59 Ko | **0** |
+| preview | 186 Ko | 57 |
+
+Le shell ne charge pas React, et ce n'est pas une intention mais un fait mesurable sur les fichiers construits.
+
+### Deux détails du canal qui ont une raison
+
+**Le montage est rendu synchrone.** L'adaptateur enveloppe le rendu React dans `flushSync`. Sans cela, React rend la main avant d'avoir commité : une erreur du composant échapperait au `try/catch` de la preview, le message `error` ne partirait jamais, et `durationMs` mesurerait l'ordonnancement plutôt que le rendu. L'écart est visible, 1,7 ms avant correction contre 6,2 ms après, sur le même composant.
+
+**Les deux côtés vérifient l'origine.** Les messages sont émis vers `window.location.origin` et non `'*'`, et chaque écouteur rejette ce qui ne vient pas de l'origine attendue et de la fenêtre attendue. Shell et preview étant servis par le même serveur, la contrainte ne coûte rien.
+
+*Ce qui casse si on l'enlève :* avec `'*'`, toute page ayant ouvert la preview en iframe reçoit les messages et peut lui en envoyer. Sur un outil de développement qui rend du code arbitraire, c'est une porte ouverte gratuite.
+
+---
+
+## 11. La vérification de types
+
+**Ce que ça fait.** Le bloc `lint` de `vite.config.ts` active `options.typeAware` et `options.typeCheck`. `vp check` vérifie alors les types en plus du formatage et du lint, en local comme en intégration continue.
+
+**Pourquoi.** Sans ces deux options, `vp check` ne fait que formater et linter. Le projet était en TypeScript strict, avec `noUncheckedIndexedAccess` et `verbatimModuleSyntax`, et **rien ne vérifiait quoi que ce soit**. Une ligne aussi grossière que `export const x: string = 42` passait `vp check`, passait `vp pack`, et aurait passé la CI.
+
+**Ce qui casse si on l'enlève.** Le `tsconfig` strict devient décoratif. C'est le mode de défaillance le plus coûteux du projet : un mécanisme qui a l'air d'exister, que personne ne pense à vérifier, et qui ne s'exécute jamais.
+
+### Ce que l'activation a révélé
+
+Quinze erreurs, jusque-là invisibles, dont trois familles :
+
+- **Types DOM absents.** `packages/core` manipule `window`, `MessageEvent` et `HTMLIFrameElement` sans que `lib` ne déclare `DOM`. Corrigé dans les `tsconfig` des paquets concernés, pas à la racine : le CLI n'a pas de DOM.
+- **`vitest` non déclaré.** Les fichiers de test l'importaient sans qu'il soit une dépendance de `packages/core`. Il venait de l'outillage, donc par accident.
+- **Deux instances de Vite.** `apps/shell` résolvait un `vite` différent de celui de ses plugins, ce qui produisait des types `Plugin` incomparables et une erreur de profondeur de comparaison. Résolu en déclarant `vite` dans l'application, et en important son `defineConfig` depuis `vite` plutôt que `vite-plus`, l'application n'utilisant aucun bloc Vite+.
+
+Le coût est négligeable, la vérification complète prend environ trois dixièmes de seconde.
+
+### Les composants Vue passent par un second compilateur
+
+`vp check` ne lit pas les composants monofichiers : pour lui, un `.vue` est un module opaque, déclaré comme tel dans `apps/shell/src/env.d.ts`. Leur contenu est vérifié par **`vue-tsc`**, branché sur le script `typecheck` de `apps/shell` et lancé en intégration continue juste après `vp check`.
+
+*Pourquoi un outil de plus :* `vue-tsc` vérifie le bloc `script`, mais surtout le **template**, ce qu'aucun autre contrôle ne fait. Une liaison vers une variable inexistante, `{{ statuss }}`, ou un gestionnaire vers une fonction absente, `@click="rendre"`, ne se voit ni au lint, ni au build, ni aux tests. Le composant se rend, silencieusement faux.
+
+*Ce qui casse si on l'enlève :* toute la logique du shell repose alors sur la relecture. Le coût croît avec la taille du shell, qui est appelé à devenir la plus grosse surface du projet.
+
+### TypeScript est épinglé en 6.0.3, pas en 7
+
+La 7 est pourtant la version courante publiée. Le problème n'est pas sa stabilité de compilateur mais celle de son **API programmatique**, dont dépendent les outils tiers : `vue-tsc` y charge un chemin que la 7 n'expose plus, et échoue au démarrage.
+
+La 6.0.3 est la dernière lignée écrite en JavaScript, stable et supportée par l'écosystème. Elle vérifie l'ensemble du dépôt, `.vue` compris.
+
+*Réserve connue, et elle ne se contourne pas :* `vp pack` génère les déclarations de types avec **son propre TypeScript 7**, embarqué par Vite+ et hors de notre contrôle.
+
+```
+typescript@7.0.2
+└─┬ @voidzero-dev/vite-plus-core@0.2.8
+```
+
+Deux compilateurs cohabitent donc : la 6 vérifie, la 7 émet les types publiés. Les deux fonctionnent, mais leur comportement n'est pas garanti identique. Quitter cette situation demanderait d'abandonner `vp pack`, ce qui coûterait plus cher que le risque.
+
+*Condition de réouverture :* quand `vue-tsc` fonctionnera avec TypeScript 7, repasser le catalogue en 7 et supprimer cette section.
+
+### Le contrôle qui surveille cette condition
+
+`.github/workflows/ts7-readiness.yml` s'exécute le premier de chaque mois. Il monte un projet jetable avec `vue-tsc` et `typescript@7`, y place un composant Vue contenant une erreur de type volontaire, et **ouvre une issue si l'erreur est détectée**.
+
+*Pourquoi :* une note « à revoir un jour » dans un document ne réveille personne. Ici, le jour où l'amont corrige, une issue arrive sans que quiconque ait eu à suivre les publications de `vue-tsc`.
+
+*Pourquoi une erreur volontaire plutôt qu'un simple lancement :* un outil qui démarre sans rien détecter passerait pour fonctionnel tout en ne servant à rien. Le contrôle vérifie qu'il fait son travail, pas qu'il s'exécute.
+
+**Le contrôle positif tourne à chaque exécution**, il n'a pas été fait une fois en local. Le job lance d'abord la même sonde sous TypeScript 6, où l'erreur *doit* être détectée, et **échoue bruyamment si elle ne l'est plus**.
+
+C'est ce qui distingue les deux sens de `ready=false` : « la contrainte tient toujours » et « la sonde ne mesure plus rien » produiraient sinon le même run vert et le même silence. Une sonde qui répondrait toujours non serait indiscernable d'une sonde correcte.
+
+L'étape de mesure vérifie aussi que la version installée commence bien par `7`. Afficher une version n'est pas la vérifier : `npm install` réconcilie l'arbre laissé par le contrôle positif, et sans cette assertion la mesure pourrait porter sur TypeScript 6 tout en ouvrant une issue annonçant que la 7 fonctionne.
+
+**Une faille demeure, et elle ne se referme pas ici.** GitHub désactive un workflow planifié après soixante jours sans activité dans le dépôt. Un projet en attente d'un correctif amont est précisément dans ce cas : plus de run, donc plus de vert, plus de rouge et plus d'issue. Le contrôle s'éteint sans le dire.
+
+Rien dans le workflow ne peut l'empêcher. Deux atténuations partielles : `workflow_dispatch` permet de le relancer à la main, et un dépôt sur lequel on travaille reste actif. Mais si le projet dort plus de deux mois, **considérer que ce contrôle est éteint** et le relancer manuellement avant de s'y fier.
+
+### Ce qui n'est pas éprouvé
+
+Ce workflow a été relu deux fois et testé en local dans l'ordre exact de ses étapes, mais **il n'a jamais tourné en conditions réelles**. Trois choses restent non vérifiées jusqu'à sa première exécution : le comportement de `gh issue create` avec le jeton du workflow, le garde contre l'ouverture répétée d'issues, et l'installation de la chaîne sur l'image du runner.
+
+C'est un arrêt assumé, pas un oubli. La raison : la vérification par relecture y donne un rendement décroissant, alors qu'une seule exécution réelle tranchera. Et l'enjeu est faible, si le contrôle meurt, le dépôt reste sur TypeScript 6, c'est-à-dire son état actuel et fonctionnel.
+
+*Ce qui casse si on l'enlève :* le dépôt reste sur TypeScript 6 indéfiniment, sans que personne ne sache que la raison a disparu.
+
+### La construction doit précéder la vérification
+
+Les paquets exposent leurs types depuis `dist/`. Tant que rien n'est construit, `@crypte/core/protocol` et `@crypte/react` sont introuvables pour le compilateur, et la vérification de types échoue sur des modules pourtant présents.
+
+C'est pourquoi `vp run -r pack` passe **avant** `vp check` dans l'intégration continue, et non après comme initialement. Le piège est sournois : en local, `dist/` existe déjà d'une exécution précédente, donc tout passe. L'échec n'apparaît que sur une machine vierge.
+
+*Ce qui casse si on inverse :* la vérification de types échoue en intégration continue sur cinq modules introuvables, sans que rien ne soit cassé dans le code.
+
+Une autre voie existerait, faire pointer les `exports` vers les sources en développement et vers `dist/` à la publication, via `publishConfig`. Plus souple, mais plus de configuration ; à reconsidérer si l'ordre devient gênant.

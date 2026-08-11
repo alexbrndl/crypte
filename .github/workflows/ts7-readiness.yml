@@ -1,0 +1,148 @@
+name: TypeScript 7 readiness
+
+# Le catalogue est épinglé en TypeScript 6 parce que vue-tsc ne fonctionne pas
+# avec la 7. Ce workflow teste cette contrainte une fois par mois et ouvre une
+# issue le jour où elle tombe. Voir docs/architecture.md.
+
+on:
+  schedule:
+    - cron: '0 6 1 * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Node épinglé : sans lui, la réponse dépendrait de l'image du runner, donc
+      # changerait sans que rien ne l'indique.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+
+      - name: Monter le projet sonde
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/probe/src"
+          cd "$RUNNER_TEMP/probe"
+
+          cat > package.json <<'JSON'
+          { "name": "probe", "private": true, "type": "module" }
+          JSON
+
+          cat > tsconfig.json <<'JSON'
+          {
+            "compilerOptions": {
+              "noEmit": true,
+              "strict": true,
+              "module": "preserve",
+              "moduleResolution": "bundler",
+              "lib": ["ES2023", "DOM"]
+            },
+            "include": ["src"]
+          }
+          JSON
+
+          # Erreur de type volontaire : la sonde ne vérifie pas que vue-tsc démarre,
+          # elle vérifie qu'il la trouve. Un outil qui se lance sans rien détecter
+          # passerait pour fonctionnel tout en ne servant à rien.
+          cat > src/Probe.vue <<'VUE'
+          <script setup lang="ts">
+          const bad: string = 42
+          </script>
+
+          <template>
+            <p>{{ bad }}</p>
+          </template>
+          VUE
+
+      # Contrôle positif, et c'est lui qui rend la sonde digne de confiance.
+      # Sous TypeScript 6, vue-tsc DOIT remonter l'erreur. S'il ne la remonte plus,
+      # le montage a dérivé : l'étape échoue, plutôt que de laisser la sonde
+      # répondre « pas encore prêt » pour de mauvaises raisons, indéfiniment.
+      - name: Contrôle positif, TypeScript 6
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/probe"
+          npm install --no-save --silent vue-tsc@3 typescript@6 vue@3
+
+          output=$(./node_modules/.bin/vue-tsc --noEmit 2>&1) || true
+          echo "$output"
+
+          if ! echo "$output" | grep -q 'TS2322'; then
+            echo "::error::La sonde est cassée : vue-tsc ne détecte plus l'erreur sous TypeScript 6, alors que c'est le cas de référence. Le résultat sous TypeScript 7 n'a donc aucune valeur."
+            exit 1
+          fi
+
+      - name: Mesure, TypeScript 7
+        id: probe
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/probe"
+          # Réinstaller la chaîne entière : npm install --no-save reconstruit l'arbre
+          # depuis package.json, qui ne déclare rien. N'installer que typescript
+          # supprimerait vue-tsc, et son absence se lirait comme « pas encore prêt ».
+          npm install --no-save --silent vue-tsc@3 typescript@7 vue@3
+
+          ts=$(node -p "require('typescript/package.json').version")
+          vt=$(node -p "require('vue-tsc/package.json').version")
+          echo "typescript $ts, vue-tsc $vt"
+
+          if [ ! -x ./node_modules/.bin/vue-tsc ]; then
+            echo "::error::vue-tsc absent après installation : la sonde est cassée, pas la contrainte levée."
+            exit 1
+          fi
+
+          # Afficher une version n'est pas la vérifier. npm réconcilie l'arbre laissé
+          # par le contrôle positif : sans cette assertion, la mesure pourrait porter
+          # sur TypeScript 6 et ouvrir une issue annonçant que la 7 fonctionne.
+          case "$ts" in
+            7.*) ;;
+            *) echo "::error::La mesure devait porter sur TypeScript 7, elle porte sur $ts."; exit 1 ;;
+          esac
+
+          # Seul le code de retour de vue-tsc est toléré, pas celui des commandes
+          # qui précèdent : un cd ou un install en échec doit arrêter l'étape, sinon
+          # « fichier introuvable » se lirait comme « pas encore prêt ».
+          output=$(./node_modules/.bin/vue-tsc --noEmit 2>&1) || true
+          echo "$output"
+
+          if echo "$output" | grep -q 'TS2322'; then
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Ouvrir une issue si la contrainte est levée
+        if: steps.probe.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          title='vue-tsc fonctionne avec TypeScript 7'
+
+          # Sans ce garde, une issue serait ouverte chaque mois une fois la
+          # contrainte levée, jusqu'à ce que quelqu'un désactive le workflow.
+          existing=$(gh issue list --repo "$REPO" --state open --search "$title in:title" \
+            --json number --jq 'length')
+
+          if [ "$existing" -gt 0 ]; then
+            echo "Issue déjà ouverte, rien à faire."
+            exit 0
+          fi
+
+          gh issue create --repo "$REPO" --title "$title" --body \
+          'Le contrôle mensuel a réussi : `vue-tsc` détecte désormais les erreurs de types sous TypeScript 7.
+
+          Le catalogue de `pnpm-workspace.yaml` peut repasser en 7, et la section correspondante de `docs/architecture.md` être supprimée.
+
+          Vérifier au passage que `vp check`, `vp run -r typecheck` et `vp run -r pack` passent toujours, la génération des déclarations utilisant le TypeScript embarqué par Vite+.'

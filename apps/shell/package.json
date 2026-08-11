@@ -1,0 +1,28 @@
+{
+  "name": "@crypte/shell",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "build": "vp build",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@crypte/core": "workspace:*",
+    "@crypte/react": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.1.0",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vue": "^3.5.0",
+    "vue-tsc": "^3.3.9"
+  }
+}
