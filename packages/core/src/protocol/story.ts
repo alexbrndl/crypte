@@ -13,7 +13,7 @@ export interface StoryDefinition<P, C> {
 // Une story nommée, quand la forme courte `{ price: 500 }` ne suffit plus.
 export interface Story<P> {
   props: Partial<P>
-  options: StoryOptions
+  options?: StoryOptions
 }
 
 // L'aiguillage n'admet aucune clé tant que le point d'extension est vide : une

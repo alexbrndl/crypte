@@ -2,7 +2,7 @@
 
 > Version 0.5, document de référence. Toute PRD de projet pointe vers ce document plutôt que de redéfinir ces structures.
 >
-> **v0.7 :** les types de props vivent dans `prop.ts`, le nom simple va au côté qu'on écrit, et le canal s'étend comme le reste. Voir le journal en section 8.
+> **v0.8 :** le canal s'étend comme le reste du protocole, et la version du manifeste reste comparable. Voir le journal en section 8.
 
 ---
 
@@ -163,14 +163,14 @@ export default defineStories(Badge, {
 ```ts
 function defineStories<C>(
   component: C,
-  definition?: StoryDefinition<C>
+  definition?: StoryDefinition<PropsOf<C>, C>
 ): StoryModule<C>
 
-interface StoryDefinition<C> {
-  props?: Partial<PropsOf<C>>
-  stories?: Record<string, Partial<PropsOf<C>> | Story<C>>
-  wrap?: Wrap
-  details?: Partial<Record<keyof PropsOf<C>, PropDetails>>
+interface StoryDefinition<P, C> {
+  props?: Partial<P>
+  stories?: Record<string, Partial<P> | Story<P>>
+  wrap?: Wrap<C>
+  details?: Partial<Record<keyof P, PropDetails>>
   meta?: StoryMeta
 }
 ```
@@ -408,7 +408,7 @@ Le canal ne transporte jamais les props d'une story. Il transporte l'identifiant
 | `render` | `{ id, overrides }` | Monte l'entrée demandée |
 | `update-overrides` | `{ id, overrides }` | Met à jour sans remonter |
 | `set-globals` | `{ theme, direction, … }` | Applique les réglages globaux |
-| `plugin` | `{ plugin, payload }` | Message adressé à un hook de plugin |
+| déclaré par un plugin | la sienne | Voir `PluginShellMessages` ci-dessous |
 
 ### 5.3 Messages de la preview vers le shell
 
@@ -417,13 +417,25 @@ Le canal ne transporte jamais les props d'une story. Il transporte l'identifiant
 | `ready` | `{ protocolVersion }` | La preview est initialisée |
 | `rendered` | `{ id, durationMs }` | Rendu terminé |
 | `error` | `{ id, message, stack }` | Erreur de rendu, affichée sans casser le shell |
-| `plugin` | `{ plugin, payload }` | Remontée depuis un hook de plugin |
+| déclaré par un plugin | la sienne | Voir `PluginPreviewMessages` ci-dessous |
 
 ### 5.4 Règles
 
 - Toute charge utile doit survivre à un aller-retour JSON. Pas de fonction, pas d'instance de classe, pas de nœud DOM.
-- Le canal `plugin` est générique : ajouter un plugin n'ajoute jamais de type de message au protocole.
 - Une erreur de rendu remonte par `error` et ne doit jamais faire tomber le shell.
+- Un plugin déclare ses messages depuis son propre paquet, comme il déclare ses options et ses détails de prop :
+
+```ts
+declare module '@crypte/core/protocol' {
+  interface PluginShellMessages {
+    controls: { type: 'controls:open'; open: boolean }
+  }
+}
+```
+
+Tant qu'aucun plugin n'a rien déclaré, l'union ne s'élargit pas et écrire un message inconnu est une erreur de compilation. Une valeur déclarée sans champ `type` est ignorée plutôt que d'entrer dans l'union, sans quoi elle empêcherait tout `message.type` de compiler chez le consommateur.
+
+Une version antérieure prévoyait un message générique `{ type: 'plugin', plugin, payload }`, qui n'exigeait rien de sa charge utile et faisait coexister deux mécanismes d'extension dans le même protocole.
 
 ---
 
@@ -513,6 +525,19 @@ Absents volontairement. Certains relèvent des PRD de projet, d'autres attendent
 ---
 
 ## 8. Journal des versions
+
+**v0.8.** Deux corrections à la v0.7.
+
+| Avant | Après |
+|---|---|
+| sections 5.2 à 5.4 décrivant le message `plugin` | les points d'extension du canal, comme le reste |
+| `Manifest.version: typeof MANIFEST_VERSION` | `number` |
+
+**La partie normative suivait le code d'une version en retard.** Le journal de la v0.7 actait le remplacement du message `plugin`, mais les tableaux du chapitre 5, qui font foi, le décrivaient encore. Qui implémentait le shell depuis ce chapitre écrivait un message que le protocole ne connaît plus.
+
+**Figer la version du manifeste supprimait ce à quoi elle sert.** Le champ existe pour reconnaître un manifeste écrit par une autre version. Lié au littéral courant, la comparaison `manifest.version !== MANIFEST_VERSION` devenait statiquement toujours fausse, et un manifeste v1 relu après passage à v2 n'était typable qu'au prix d'un cast qui affirme le contraire de son contenu.
+
+Aucune migration à prévoir, rien n'est publié.
 
 **v0.7.** Le dossier `protocol` suit trois règles, sans exception.
 

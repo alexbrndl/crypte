@@ -4,7 +4,9 @@ import type { ResolvedPropDetails } from './prop'
 import type { StoryMeta } from './story'
 
 export interface Manifest {
-  version: typeof MANIFEST_VERSION
+  // Pas `typeof MANIFEST_VERSION` : ce champ sert à détecter un manifeste écrit
+  // par une autre version, comparaison qu'un type figé rendrait impossible.
+  version: number
   entries: ManifestEntry[]
 }
 

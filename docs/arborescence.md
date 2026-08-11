@@ -43,7 +43,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `vite.config.ts` | entrées et options du pack | `vp pack` |
 | `test/protocol/id.test.ts` | cas de normalisation | — |
 | `test/protocol/index.test.ts` | complétude des réexports de la porte d'entrée | — |
-| `test/plugin-simulation.d.ts` | augmentations simulant un plugin installé | tous les tests |
+| `test/plugin-simulation.d.ts` | augmentations simulant un plugin installé | tous les tests sauf `no-plugin/` |
 | `test/protocol/story.test.ts` | points d'extension et format de story | — |
 | `test/protocol/manifest.test.ts` | conformité du catalogue à la spécification | — |
 | `test/protocol/channel.test.ts` | formes des messages | — |

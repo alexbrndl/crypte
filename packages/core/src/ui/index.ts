@@ -1,6 +1,6 @@
 // Côté shell du canal.
 
-import type { PreviewMessage, ShellMessage } from '../protocol/index'
+import type { PreviewMessage, ShellMessage } from '../protocol/channel'
 
 // Marqueur lu par test/isolation.test.ts
 export const UI_MARKER = '__crypte_ui__'

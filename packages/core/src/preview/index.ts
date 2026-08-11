@@ -1,6 +1,6 @@
 // Côté iframe du canal.
 
-import { PROTOCOL_VERSION, type PreviewMessage, type ShellMessage } from '../protocol/index'
+import { PROTOCOL_VERSION, type PreviewMessage, type ShellMessage } from '../protocol/channel'
 
 // Marqueur lu par test/isolation.test.ts
 export const PREVIEW_MARKER = '__crypte_preview__'

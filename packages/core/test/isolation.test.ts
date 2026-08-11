@@ -64,4 +64,12 @@ describe('isolation des entrées de @crypte/core', () => {
   it('la fermeture de ui contient bien son propre marqueur', () => {
     expect(closureOf('ui')).toContain('__crypte_ui__')
   })
+
+  // L'autre sens : les deux côtés du canal n'ont besoin que de `channel`. Importer
+  // la barrière leur faisait embarquer `id.ts` et `manifest.ts` en code mort.
+  it.each(['ui', 'preview'])('%s n’embarque que ce dont il se sert', (entry) => {
+    const closure = closureOf(entry)
+    expect(closure).toContain(`__crypte_${entry}__`)
+    expect(closure).not.toContain('NFD')
+  })
 })
