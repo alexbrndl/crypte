@@ -4,7 +4,7 @@
 // Chaque `@ts-expect-error` doit être consommé : une directive inutilisée est
 // elle-même une erreur, donc la compilation échoue dans les deux sens.
 
-import type { ShellMessage } from '../../src/protocol/channel'
+import type { PreviewMessage, ShellMessage } from '../../src/protocol/channel'
 import type { PropDetails } from '../../src/protocol/prop'
 import type { StoryOptions } from '../../src/protocol/story'
 
@@ -19,6 +19,14 @@ export const quelconque = { nimportequoi: 42 } satisfies StoryOptions
 
 // @ts-expect-error aucun plugin n'a déclaré ce message
 export const message = { type: 'controls:open', open: true } satisfies ShellMessage
+
+// Le message `ready` garde ses champs propres : c'est ce que le filtre de
+// `MessagesOf` protège, en écartant toute valeur dont le `type` n'est pas un
+// littéral. Sans lui, cette ligne ne compilerait plus dès qu'un plugin déclare
+// `{ type: string }`.
+export function versionOf(message: PreviewMessage): number | undefined {
+  return message.type === 'ready' ? message.protocolVersion : undefined
+}
 
 // Ce que le noyau accepte seul.
 export const noyau = { description: 'Une prop', options: ['a'] } satisfies PropDetails

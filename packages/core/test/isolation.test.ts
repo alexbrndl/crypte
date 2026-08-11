@@ -17,6 +17,7 @@ function closureOf(entry: string): string {
   expect(existsSync(start), `${entry}.js absent : lance \`vp pack\` avant \`vp test\``).toBe(true)
 
   const seen = new Set<string>()
+  const missing: string[] = []
   const queue = [start]
   let source = ''
 
@@ -25,18 +26,23 @@ function closureOf(entry: string): string {
     if (seen.has(file)) continue
     seen.add(file)
 
-    // Le motif reconnaît aussi un chemin dans une chaîne du bundle, qui ne
-    // désigne aucun fichier. Seule l'absence de l'entrée doit faire échouer.
-    if (!existsSync(file)) continue
-
     const content = readFileSync(file, 'utf8')
     source += content
 
     for (const match of content.matchAll(RELATIVE_IMPORT)) {
       const target = match[1]
-      if (target) queue.push(join(dirname(file), target))
+      if (!target) continue
+
+      const resolved = join(dirname(file), target)
+      if (existsSync(resolved)) queue.push(resolved)
+      else missing.push(target)
     }
   }
+
+  // Une cible non résolue signifie que le suivi a cessé de fonctionner. L'ignorer
+  // ramènerait la fermeture au fichier d'entrée, et toutes les assertions
+  // passeraient sur lui seul.
+  expect(missing, `${entry} : imports non résolus`).toEqual([])
 
   return source
 }
@@ -54,11 +60,13 @@ describe('isolation des entrées de @crypte/core', () => {
     expect(protocol).not.toContain('createPreviewChannel')
   })
 
-  // Contrôle négatif. Il porte sur `protocol`, seule entrée dont le fichier est un
-  // talon, et cherche une chaîne du corps d'une fonction : le talon cite les noms
-  // qu'il réexporte, donc les chercher reviendrait à s'en contenter.
-  it('la fermeture de protocol contient bien le code de ses fonctions', () => {
-    expect(closureOf('protocol')).toContain('NFD')
+  // Contrôle négatif : il doit exercer le suivi des imports, sinon les assertions
+  // ci-dessus passeraient sur le seul fichier d'entrée. `PROTOCOL_VERSION` vit
+  // dans un chunk, donc l'y trouver prouve qu'un second fichier a été lu.
+  it('la fermeture de protocol atteint ce qui n’est pas dans son fichier', () => {
+    const entryOnly = readFileSync(join(dist, 'protocol.js'), 'utf8')
+    expect(entryOnly).not.toContain('PROTOCOL_VERSION = ')
+    expect(closureOf('protocol')).toContain('PROTOCOL_VERSION = ')
   })
 
   it('la fermeture de ui contient bien son propre marqueur', () => {

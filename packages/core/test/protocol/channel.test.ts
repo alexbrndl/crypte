@@ -56,6 +56,19 @@ describe('messages de la preview', () => {
   })
 })
 
+// Ce que fait le shell sur chaque message reçu. Un plugin déclarant un message
+// dont le `type` n'est pas un littéral élargirait l'union et ferait perdre ses
+// champs à `ready` : le filtre de `MessagesOf` l'écarte, ce cas le vérifie.
+describe('discrimination par le champ type', () => {
+  it('garde les champs propres à chaque message malgré les plugins', () => {
+    const read = (message: PreviewMessage) =>
+      message.type === 'ready' ? message.protocolVersion : undefined
+
+    expect(read({ type: 'ready', protocolVersion: 1 })).toBe(1)
+    expect(read({ type: 'rendered', id: 'x', durationMs: 0 })).toBeUndefined()
+  })
+})
+
 describe('PROTOCOL_VERSION', () => {
   it('est exposée par le protocole', () => {
     expect(PROTOCOL_VERSION).toBe(1)

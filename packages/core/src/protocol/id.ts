@@ -1,7 +1,7 @@
 // La dérivation des identifiants de story, seul code exécuté du protocole.
 
 // « é » devient « e », pas un tiret.
-const DIACRITICS = /[̀-ͯ]/g
+const DIACRITICS = /[\u0300-\u036f]/g
 // Toutes les écritures, pas seulement le latin : `a-z0-9` donnait `button--` pour
 // tout nom cyrillique. Les marques restent, sinon « が » devient « か ».
 const NON_ALPHANUMERIC = /[^\p{L}\p{N}\p{M}]+/gu
@@ -27,5 +27,6 @@ export function storyId(path: readonly string[], name: string): string {
   const suffix = normalizeSegment(name)
 
   if (!prefix) return suffix
+  if (!suffix) return prefix
   return `${prefix}--${suffix}`
 }

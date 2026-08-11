@@ -1,6 +1,6 @@
 # Crypte, spécification des contrats
 
-> Version 0.5, document de référence. Toute PRD de projet pointe vers ce document plutôt que de redéfinir ces structures.
+> Version 0.8, document de référence. Toute PRD de projet pointe vers ce document plutôt que de redéfinir ces structures.
 >
 > **v0.8 :** le canal s'étend comme le reste du protocole, et la version du manifeste reste comparable. Voir le journal en section 8.
 
@@ -407,7 +407,7 @@ Le canal ne transporte jamais les props d'une story. Il transporte l'identifiant
 |---|---|---|
 | `render` | `{ id, overrides }` | Monte l'entrée demandée |
 | `update-overrides` | `{ id, overrides }` | Met à jour sans remonter |
-| `set-globals` | `{ theme, direction, … }` | Applique les réglages globaux |
+| `set-globals` | `{ globals }` | Applique les réglages globaux |
 | déclaré par un plugin | la sienne | Voir `PluginShellMessages` ci-dessous |
 
 ### 5.3 Messages de la preview vers le shell

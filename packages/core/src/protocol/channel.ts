@@ -13,10 +13,13 @@ export type PreviewMessage =
   | { type: 'error'; id: string; message: string; stack?: string }
   | MessagesOf<PluginPreviewMessages>
 
-// Ne retient que ce qui a la forme d'un message. Sans ce filtre, un plugin
-// déclarant `{ x: string }` ferait entrer `string` dans l'union, et plus aucun
-// `message.type` ne compilerait chez le consommateur.
-type MessagesOf<T> = Extract<T[keyof T], { type: string }>
+// Ne retient que ce qui a la forme d'un message, `type` compris comme littéral.
+// Sans ce filtre, un plugin déclarant `{ x: string }` ou `{ type: string }`
+// ferait entrer sa valeur dans l'union, et plus aucun `message.type` ne
+// distinguerait quoi que ce soit chez le consommateur.
+type MessagesOf<T> = {
+  [K in keyof T]: T[K] extends { type: infer Kind } ? (string extends Kind ? never : T[K]) : never
+}[keyof T]
 
 // Le canal ne transporte jamais les props d'une story : la preview importe les
 // modules directement. Il transporte les valeurs éditées dans un panneau.

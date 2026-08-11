@@ -232,9 +232,13 @@ Vérifie l'étanchéité décrite en section 3, en lisant le bundle construit et
 2. Rien de `core/ui` ni de `core/preview` n'apparaît dans la **fermeture** de `protocol`, c'est-à-dire son fichier plus tout ce qu'il atteint par imports relatifs. Suivre la fermeture est indispensable : quand une fuite est introduite, l'outil produit un morceau séparé et un import plutôt que de recopier le code, si bien qu'un test qui ne lirait que le fichier d'entrée passerait malgré la fuite.
 3. Le test échoue explicitement si les artefacts sont absents, plutôt que de passer au vert sans rien avoir vérifié. Un contrôle négatif vérifie en outre que la fermeture de `protocol` contient le **corps** d'une de ses fonctions.
 
-Ce contrôle porte sur `protocol` et non sur `ui`, pour une raison précise. Le pack fait du fichier `protocol.js` un talon de deux cents octets qui réexporte depuis un chunk : les deux garanties ci-dessus reposent donc entièrement sur le suivi des imports. Que celui-ci cesse de résoudre, et elles passeraient toutes deux sur un talon vide. Le faire sur `ui` ne prouverait rien, son fichier étant autonome, marqueur compris.
+Ce contrôle doit **exercer le suivi des imports**, faute de quoi les deux garanties ci-dessus passeraient sur le seul fichier d'entrée. Il cherche donc `PROTOCOL_VERSION`, qui vit dans un chunk et nulle part ailleurs : l'y trouver prouve qu'un second fichier a été lu.
 
-La chaîne cherchée est prise dans le corps de la fonction et non dans son nom : le talon cite les noms qu'il réexporte, si bien qu'une première version de ce contrôle se satisfaisait du talon, exactement ce qu'il existe pour écarter.
+Deux versions antérieures ne le faisaient pas. La première cherchait un nom que le fichier d'entrée cite dans son réexport. La seconde cherchait `NFD`, vrai quand l'entrée n'était qu'un talon, faux dès que la répartition des chunks a changé : le corps de `normalizeSegment` s'est retrouvé inline, et le contrôle est redevenu satisfait par l'entrée seule. Mesuré en neutralisant le motif d'import : les six tests restaient verts.
+
+La leçon est que la forme des artefacts n'est pas un point d'appui. Ce qui doit être vérifié est le mécanisme, pas la structure du jour.
+
+Une cible d'import non résolue fait désormais échouer le test. L'ignorer, comme le faisait une version antérieure pour éviter un faux positif hypothétique, ramenait la fermeture au fichier d'entrée sans rien signaler.
 
 **Une version antérieure interdisait tout import relatif dans le bundle.** Ce critère est devenu faux dès que `protocol` a été découpé en plusieurs fichiers sources : l'entrée réexporte alors depuis un chunk qui ne contient que son propre code, ce qui est légitime. Pire, le test sélectionnait son fichier par préfixe et lisait le chunk plutôt que l'entrée, donc ne vérifiait plus rien. Ce qui compte n'est pas la forme des imports mais ce qui est réellement atteignable.
 

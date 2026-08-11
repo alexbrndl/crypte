@@ -96,6 +96,12 @@ describe('storyId', () => {
     expect(storyId([], '🎉')).toBe('')
   })
 
+  // Un segment de chemin vide est filtré : un nom vide l'est aussi, plutôt que
+  // de laisser traîner `badge--`.
+  it('omet le double tiret quand le nom se normalise en chaîne vide', () => {
+    expect(storyId(['Badge'], '🎉')).toBe('badge')
+  })
+
   it('produit le même identifiant pour la même entrée, appel après appel', () => {
     const first = storyId(['checkout', 'OrderSummary'], 'Avec référence')
     const second = storyId(['checkout', 'OrderSummary'], 'Avec référence')
