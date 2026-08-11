@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -15,13 +15,51 @@ import { describe, expect, it } from 'vitest'
 const here = dirname(fileURLToPath(import.meta.url))
 const protocol = join(here, '..', '..', 'src', 'protocol')
 
-const MODULES = ['channel', 'id', 'manifest', 'story']
-const DECLARATION = /^export (?:declare )?(?:interface|type|function|const|class|enum) (\w+)/gm
+// Lus dans le dossier plutôt qu'énumérés ici : une liste écrite à la main est un
+// second endroit à tenir à jour, et un module qu'on oublierait dans les deux
+// serait invisible, c'est-à-dire exactement la faute que ce test surveille.
+const MODULES = readdirSync(protocol)
+  .filter((file) => file.endsWith('.ts') && file !== 'index.ts')
+  .map((file) => file.replace(/\.ts$/, ''))
+
+// Toutes les formes déclaratives, y compris celles qui n'existent pas encore dans
+// le protocole : sans elles, le premier `export async function` ajouté échapperait
+// au contrôle sans que rien ne le signale.
+const DECLARATION =
+  /^export\s+(?:declare\s+)?(?:abstract\s+)?(?:async\s+)?(?:interface|type|function|const|class|enum|let|var)\s+(\w+)/gm
+
+// Un symbole déclaré plus haut puis exporté par un `export { X }` sans `from`.
+// Le `type` optionnel compte : `export type { X }` est la forme la plus probable
+// dans un fichier qui ne décrit que des types. Et la garde `from` se pose juste
+// après l'accolade, sans espace consommé avant elle : placée après un `\s*`, elle
+// ne filtre rien, puisque le moteur peut n'en consommer aucun et la satisfaire.
+const LOCAL_EXPORT = /^export\s+(?:type\s+)?\{([^}]*)\}(?!\s*from)/gm
+
 const REEXPORT_BLOCK = /export\s+(?:type\s+)?\{([^}]*)\}\s+from/g
+
+// Le nom public d'une entrée de bloc : `Foo as Bar` en expose `Bar`, et le
+// préfixe `type` peut se poser sur l'entrée autant que sur le bloc entier.
+function publicName(entry: string): string | undefined {
+  const cleaned = entry.trim().replace(/^type\s+/, '')
+  if (!cleaned) return undefined
+
+  const parts = cleaned.split(/\s+as\s+/)
+  return (parts[1] ?? parts[0])?.trim()
+}
+
+function namesInBlocks(source: string, pattern: RegExp): string[] {
+  return [...source.matchAll(pattern)].flatMap((match) =>
+    (match[1] as string)
+      .split(',')
+      .map(publicName)
+      .filter((name): name is string => Boolean(name)),
+  )
+}
 
 function declaredIn(module: string): string[] {
   const source = readFileSync(join(protocol, `${module}.ts`), 'utf8')
-  return [...source.matchAll(DECLARATION)].map((match) => match[1] as string)
+  const declarations = [...source.matchAll(DECLARATION)].map((match) => match[1] as string)
+  return [...declarations, ...namesInBlocks(source, LOCAL_EXPORT)]
 }
 
 // Les noms réellement réexportés, pris dans les accolades et non dans le texte du
@@ -30,22 +68,26 @@ function declaredIn(module: string): string[] {
 // export cité juste au-dessus. Un test qui lit du texte doit lire la bonne partie.
 function reexported(): Set<string> {
   const source = readFileSync(join(protocol, 'index.ts'), 'utf8')
-  const names = [...source.matchAll(REEXPORT_BLOCK)].flatMap((match) =>
-    (match[1] as string)
-      .split(',')
-      .map((entry) =>
-        entry
-          .trim()
-          .split(/\s+as\s+/)[0]
-          ?.trim(),
-      )
-      .filter((entry): entry is string => Boolean(entry)),
-  )
-  return new Set(names)
+  return new Set(namesInBlocks(source, REEXPORT_BLOCK))
 }
 
 describe('porte d’entrée du protocole', () => {
   const exposed = reexported()
+
+  // Sans ce cas, un dossier mal résolu rendrait une liste vide et il n'y aurait
+  // plus rien à comparer, sans qu'aucune assertion ne s'en plaigne.
+  it('lit les modules du protocole', () => {
+    expect(MODULES.length).toBeGreaterThan(0)
+    expect(MODULES).toContain('manifest')
+  })
+
+  // `export * from` exposerait des noms sans les nommer, donc hors de portée de
+  // la lecture ci-dessus : le contrôle passerait au vert en ayant cessé de voir
+  // ce qu'il compare. Le refuser vaut mieux que le croire couvert.
+  it('n’emploie pas de réexport global', () => {
+    const source = readFileSync(join(protocol, 'index.ts'), 'utf8')
+    expect(source).not.toMatch(/export\s+\*/)
+  })
 
   it.each(MODULES)('réexporte tout ce que %s déclare', (module) => {
     const names = declaredIn(module)

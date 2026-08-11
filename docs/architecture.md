@@ -72,7 +72,7 @@ Le noyau. Trois entrées indépendantes, chacune produisant son propre bundle et
 | `src/ui/` | `createShellChannel`, le côté shell du canal |
 | `src/preview/` | `createPreviewChannel`, le côté iframe du canal |
 
-Chaque entrée exporte aussi une constante marqueur, utilisée par le test d'isolation.
+`ui` et `preview` exportent chacune une constante marqueur, utilisée par le test d'isolation pour repérer leur code là où il ne devrait pas être.
 
 **Aucune des trois n'importe de framework de rendu**, et une règle de lint l'interdit sur tout `core/src`. Voir la section 10.
 
@@ -183,7 +183,7 @@ L'outillage est en version pré-1.0 et des ruptures sont attendues. La règle ga
 
 ## 4. Les tests
 
-Six fichiers, tous dans `packages/core/test`.
+Sept fichiers, tous dans `packages/core/test`.
 
 **`test/protocol/id.test.ts`**
 Couvre la dérivation des identifiants : accents, casse, séparateurs, segments vides, et le fait que deux noms ne différant que par un accent tombent sur le même identifiant, ce qui est assumé.
@@ -200,7 +200,16 @@ Remplit les points d'extension `PluginPropDetails` et `PluginStoryOptions` avec 
 
 *Sans lui :* les cas positifs des deux fichiers ci-dessus ne compilent plus, puisque les points d'extension sont vides dans le noyau. L'échec est immédiat et lisible, ce qui est le comportement voulu.
 
-*Un piège que ce fichier a révélé :* un test positif sur un point d'extension ne prouve rien à lui seul. Celui de `StoryOptions` passait à l'identique avec ou sans la simulation, parce qu'un type sans propriété n'entraîne aucun contrôle de propriétés excédentaires. C'est le type qui a dû changer, pas le test. Le cas négatif ajouté à côté est celui qui tient la garantie.
+*Un piège que ce fichier a révélé :* un test positif sur un point d'extension ne prouve rien à lui seul. Celui de `StoryOptions` passait à l'identique avec ou sans la simulation, parce qu'un type sans propriété n'entraîne aucun contrôle de propriétés excédentaires. C'est le type qui a dû changer, pas le test.
+
+**`test/no-plugin.test.ts` et `test/no-plugin/`**
+Vérifient ce que le noyau refuse **installé seul**, par une seconde compilation qui n'inclut pas la simulation.
+
+*Pourquoi une compilation à part :* l'augmentation vaut pour tout le programme, donc l'état « aucun plugin » n'existe dans aucun des autres tests. Mesuré : en annulant l'aiguillage de `StoryOptions`, tous les autres tests et `tsc` restaient verts. La garantie de la v0.6 n'était donc surveillée par rien.
+
+*Comment :* les cas sont des `@ts-expect-error` dans `no-plugin/cases.ts`. Une directive inutilisée est elle-même une erreur, donc la compilation échoue aussi bien si le noyau accepte ce qu'il devait refuser que l'inverse.
+
+*Un premier essai passait sans rien compiler :* le `tsconfig` du paquet exclut ce dossier, et l'exclusion se transmettait par héritage. Le programme était vide, et une compilation vide réussit. D'où le cas qui vérifie, avant tous les autres, que le fichier est bien dans le programme et la simulation bien absente.
 
 **`test/protocol/channel.test.ts`**
 Vérifie la forme des messages du canal.
@@ -212,6 +221,8 @@ Vérifie que la porte d'entrée du protocole réexporte tout ce que les quatre m
 
 *Sans lui :* un paquet publié perd un type entre deux versions, et le seul à s'en apercevoir est l'utilisateur.
 
+*Ce qu'il lit :* les modules sont pris dans le dossier et non énumérés à la main, sinon un fichier oublié dans les deux endroits resterait invisible. Les noms déclarés couvrent aussi les formes que le protocole n'emploie pas encore, `export async function` par exemple, et les blocs `export { X }` sans `from`. Côté porte d'entrée, un réexport renommé compte pour son nom public : `StoryEntry as Entry` retire bien `StoryEntry` de l'API. Un `export *` est refusé, puisqu'il exposerait des noms sans les nommer et mettrait la comparaison hors service sans la faire échouer.
+
 *Il lit du texte, faute d'alternative :* un type n'existe pas à l'exécution, il n'y a donc rien à énumérer dans le module importé. Une première version cherchait chaque nom n'importe où dans le fichier, et le trouvait dans les commentaires de regroupement : elle laissait passer le retrait d'un export cité juste au-dessus. Les noms sont maintenant pris dans les accolades des réexports.
 
 **`test/isolation.test.ts`**
@@ -219,7 +230,11 @@ Vérifie l'étanchéité décrite en section 3, en lisant le bundle construit et
 
 1. Le bundle de `protocol` ne contient aucun marqueur provenant de `ui` ou de `preview`.
 2. Rien de `core/ui` ni de `core/preview` n'apparaît dans la **fermeture** de `protocol`, c'est-à-dire son fichier plus tout ce qu'il atteint par imports relatifs. Suivre la fermeture est indispensable : quand une fuite est introduite, l'outil produit un morceau séparé et un import plutôt que de recopier le code, si bien qu'un test qui ne lirait que le fichier d'entrée passerait malgré la fuite.
-3. Le test échoue explicitement si les artefacts sont absents, plutôt que de passer au vert sans rien avoir vérifié. Un contrôle négatif vérifie en outre que la fermeture de `ui` contient bien son propre marqueur : sans lui, une erreur de chemin ferait lire une chaîne vide et toutes les autres assertions passeraient sur du néant.
+3. Le test échoue explicitement si les artefacts sont absents, plutôt que de passer au vert sans rien avoir vérifié. Un contrôle négatif vérifie en outre que la fermeture de `protocol` contient le **corps** d'une de ses fonctions.
+
+Ce contrôle porte sur `protocol` et non sur `ui`, pour une raison précise. Le pack fait du fichier `protocol.js` un talon de deux cents octets qui réexporte depuis un chunk : les deux garanties ci-dessus reposent donc entièrement sur le suivi des imports. Que celui-ci cesse de résoudre, et elles passeraient toutes deux sur un talon vide. Le faire sur `ui` ne prouverait rien, son fichier étant autonome, marqueur compris.
+
+La chaîne cherchée est prise dans le corps de la fonction et non dans son nom : le talon cite les noms qu'il réexporte, si bien qu'une première version de ce contrôle se satisfaisait du talon, exactement ce qu'il existe pour écarter.
 
 **Une version antérieure interdisait tout import relatif dans le bundle.** Ce critère est devenu faux dès que `protocol` a été découpé en plusieurs fichiers sources : l'entrée réexporte alors depuis un chunk qui ne contient que son propre code, ce qui est légitime. Pire, le test sélectionnait son fichier par préfixe et lisait le chunk plutôt que l'entrée, donc ne vérifiait plus rien. Ce qui compte n'est pas la forme des imports mais ce qui est réellement atteignable.
 

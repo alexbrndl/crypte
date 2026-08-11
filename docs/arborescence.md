@@ -46,6 +46,9 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/protocol/story.test.ts` | points d'extension et format de story | — |
 | `test/protocol/manifest.test.ts` | conformité du catalogue à la spécification | — |
 | `test/protocol/channel.test.ts` | formes des messages | — |
+| `test/no-plugin.test.ts` | lance la compilation ci-dessous | — |
+| `test/no-plugin/cases.ts` | ce que le noyau refuse installé seul | — |
+| `test/no-plugin/tsconfig.json` | programme sans la simulation de plugin | `no-plugin.test.ts` |
 | `test/isolation.test.ts` | étanchéité des trois entrées, sur les bundles | — |
 
 ## `packages/cli` — `@crypte/cli`

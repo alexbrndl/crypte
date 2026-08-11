@@ -61,8 +61,23 @@ describe('isolation des entrées de @crypte/core', () => {
     expect(protocol).not.toContain('createPreviewChannel')
   })
 
-  // Contrôle négatif : sans lui, une erreur de chemin ferait lire une chaîne vide,
-  // et les assertions ci-dessus passeraient sur du néant.
+  // Contrôle négatif, et il doit porter sur `protocol` : c'est la seule entrée
+  // dont le fichier ne contient rien. Le pack en fait un talon de deux cents
+  // octets qui réexporte depuis un chunk, si bien que les deux assertions
+  // ci-dessus reposent entièrement sur le suivi des imports. Que celui-ci cesse
+  // de résoudre — extension changée, spécificateur non relatif, import calculé —
+  // et elles passeraient toutes deux sur ce talon vide, sans rien vérifier.
+  //
+  // Le faire sur `ui` ne prouverait rien : son fichier est autonome, marqueur
+  // compris, donc il rend son contenu sans jamais exercer la boucle.
+  // La chaîne cherchée est prise dans le **corps** de `normalizeSegment`, pas
+  // dans son nom : le talon cite les noms qu'il réexporte, donc les chercher
+  // reviendrait à se contenter du talon, précisément ce que ce contrôle existe
+  // pour écarter. Seul le chunk contient l'implémentation.
+  it('la fermeture de protocol contient bien le code de ses fonctions', () => {
+    expect(closureOf('protocol')).toContain('NFD')
+  })
+
   it('la fermeture de ui contient bien son propre marqueur', () => {
     expect(closureOf('ui')).toContain('__crypte_ui__')
   })
