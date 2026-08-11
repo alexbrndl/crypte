@@ -8,18 +8,19 @@ export { normalizeSegment, storyId } from './id'
 
 export { MANIFEST_VERSION } from './manifest'
 export type {
-  ArgType,
-  ArgTypeKind,
   ComponentRef,
-  ControlSpec,
   Manifest,
   ManifestEntry,
+  PluginPropDetails,
+  PropDetails,
+  PropKind,
   StoryEntry,
 } from './manifest'
 
 export type {
-  ControlOverride,
   EntryMeta,
+  PluginStoryOptions,
+  PropDetailsInput,
   Story,
   StoryDefinition,
   StoryOptions,

@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge'
 export default defineStories(Badge, {
   meta: { status: 'stable', owner: 'design-system' },
   props: { children: 'Nouveau' },
-  controls: {
+  details: {
     variant: {
       options: [
         'default', 'secondary', 'destructive', 'outline', 'ghost', 'link',
@@ -97,7 +97,7 @@ export default defineStories(ProgressLoader, {
       "États intermédiaires impossibles à reproduire dans l'application sans intercepter le polling.",
   },
   props: { translations: loaderTranslations, progress: 0, itemLabel: vehicle },
-  controls: { progress: { min: 0, max: 100, step: 1 } },
+  details: { progress: { min: 0, max: 100, step: 1 } },
   stories: {
     'Démarrage': { progress: 0 },
     'Étape 2': { progress: 30 },

@@ -1,12 +1,12 @@
 // Le catalogue produit par le CLI et lu par le shell : une entrée par story, avec
-// son identifiant, sa place dans l'arbre, son composant d'origine et ses argTypes.
-// Ne contient que des données sérialisables.
+// son identifiant, sa place dans l'arbre, son composant d'origine et les détails
+// de ses props. Ne contient que des données sérialisables.
 
 import type { EntryMeta } from './story'
 
 export const MANIFEST_VERSION = 1
 
-export type ArgTypeKind =
+export type PropKind =
   | 'string'
   | 'number'
   | 'boolean'
@@ -17,17 +17,26 @@ export type ArgTypeKind =
   | 'node'
   | 'unknown'
 
-export type ControlSpec = Record<string, unknown>
+// Point d'extension, vide dans le noyau. Un plugin y ajoute ses champs depuis son
+// propre paquet, par augmentation de module :
+//
+//   declare module '@crypte/core/protocol' {
+//     interface PluginPropDetails { min?: number; control?: false }
+//   }
+//
+// Les bornes d'un curseur et le réglage d'un panneau d'édition n'ont aucun sens
+// sans le plugin qui les lit : le noyau n'a pas à les connaître.
+export interface PluginPropDetails {}
 
-export interface ArgType {
+// Ce que le noyau décrit d'une prop, et lui seul : ce qui vaut indépendamment de
+// tout plugin, parce que la documentation existe sans qu'aucun ne soit installé.
+export interface PropDetails extends PluginPropDetails {
   name: string
-  type: ArgTypeKind
+  type: PropKind
   required: boolean
   default?: unknown
   description?: string
   options?: unknown[]
-  // `false` retire la prop du panneau sans la retirer de la documentation.
-  control?: ControlSpec | false
 }
 
 export interface ComponentRef {
@@ -47,7 +56,7 @@ export interface StoryEntry {
   // `StoryOptions` côté écriture, le type reste ouvert ici : un manifeste peut
   // avoir été produit par un projet dont les plugins ne sont pas ceux du lecteur.
   options: Record<string, unknown>
-  argTypes: Record<string, ArgType>
+  details: Record<string, PropDetails>
   source: string
   meta?: EntryMeta
 }

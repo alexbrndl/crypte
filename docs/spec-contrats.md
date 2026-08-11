@@ -1,8 +1,8 @@
 # Crypte, spécification des contrats
 
-> Version 0.3, document de référence. Toute PRD de projet pointe vers ce document plutôt que de redéfinir ces structures.
+> Version 0.5, document de référence. Toute PRD de projet pointe vers ce document plutôt que de redéfinir ces structures.
 >
-> **v0.4 :** nommage des paquets. Le nom nu `crypte` est indisponible sur npm (filtre anti-typosquatting, collision avec `crypto`). Le projet est entièrement scopé sous `@crypte`. Voir le journal en section 8.
+> **v0.5 :** le champ `controls` devient `details`, et tout ce qui relève du plugin sort du noyau. Voir le journal en section 8.
 
 ---
 
@@ -170,7 +170,7 @@ interface StoryDefinition<C> {
   props?: Partial<PropsOf<C>>
   stories?: Record<string, Partial<PropsOf<C>> | Story<C>>
   wrap?: Wrap
-  controls?: Partial<Record<keyof PropsOf<C>, ControlOverride>>
+  details?: Partial<Record<keyof PropsOf<C>, PropDetailsInput>>
   meta?: EntryMeta
 }
 ```
@@ -248,12 +248,12 @@ Le test du format sur cinq composants réels n'a produit aucun cas où cette ré
 
 ---
 
-## 3. argTypes : inférence et fusion
+## 3. Détails des props : inférence et fusion
 
 ### 3.1 Deux sources
 
 1. **Inférence au build.** Le CLI extrait l'interface de props TypeScript et les commentaires JSDoc associés. Sur un composant correctement typé, cela suffit dans la grande majorité des cas.
-2. **Déclaration explicite.** Le champ `controls` du fichier de story.
+2. **Déclaration explicite.** Le champ `details` du fichier de story.
 
 ### 3.2 Règle de fusion
 
@@ -262,30 +262,48 @@ Le test du format sur cinq composants réels n'a produit aucun cas où cette ré
 C'est la règle qui rend la flexibilité indolore. Une fusion par composant obligerait à tout réécrire dès qu'un seul réglage est nécessaire.
 
 ```ts
-controls: {
+details: {
   price: { min: 0, max: 500, step: 10 },
 }
 ```
 
 Ici, `price` conserve son type, sa description JSDoc, son caractère requis et sa valeur par défaut issus de l'inférence. Seules les bornes sont ajoutées.
 
-### 3.3 Structure d'un argType
+Le champ s'appelle `details` parce qu'il est **complémentaire** : on n'y écrit que ce que l'inférence n'a pas su trouver, jamais la description entière d'une prop.
+
+### 3.3 Structure des détails d'une prop
 
 ```ts
-interface ArgType {
+interface PluginPropDetails {}
+
+interface PropDetails extends PluginPropDetails {
   name: string
   type: 'string' | 'number' | 'boolean' | 'enum' | 'object' | 'array' | 'function' | 'node' | 'unknown'
   required: boolean
   default?: unknown
   description?: string
   options?: unknown[]
-  control?: ControlSpec | false
 }
 ```
 
-`control: false` retire la prop du panneau sans la retirer de la documentation.
+**Le noyau ne décrit que ce qui vaut indépendamment de tout plugin :** la nature d'une prop, son caractère requis, sa valeur par défaut, sa description, ses valeurs possibles. Tout cela sert la documentation, qui existe sans qu'aucun plugin ne soit installé.
 
-Quand l'inférence échoue (projet sans `tsconfig`, type trop complexe), le type retombe sur `unknown` et la prop reste documentée sans control interactif. **L'échec d'inférence ne doit jamais empêcher le rendu d'une story.**
+`PluginPropDetails` est un point d'extension vide. Un plugin y ajoute ses propres champs depuis son propre paquet, par augmentation de module, sans qu'aucune ligne du noyau ne change :
+
+```ts
+declare module '@crypte/core/protocol' {
+  interface PluginPropDetails {
+    min?: number
+    max?: number
+    step?: number
+    control?: ControlSpec | false // ControlSpec est défini par le plugin, pas par le noyau
+  }
+}
+```
+
+Les bornes d'un curseur et le réglage `control`, qui retire une prop du panneau d'édition sans la retirer de la documentation, relèvent du plugin `controls`. **Ils n'ont aucun sens sans lui**, et le noyau n'a donc pas à les connaître. Sans le plugin installé, les écrire est une erreur de compilation, ce qui est le comportement voulu : personne ne les lirait.
+
+Quand l'inférence échoue (projet sans `tsconfig`, type trop complexe), le type retombe sur `unknown` et la prop reste documentée. **L'échec d'inférence ne doit jamais empêcher le rendu d'une story.**
 
 ### 3.4 Props HTML en pass-through
 
@@ -299,7 +317,7 @@ Une règle, aucun champ supplémentaire, aucune notion de groupe repliable dans 
 
 Certaines constructions ne sont pas résolubles par analyse syntaxique seule et retombent sur la déclaration explicite.
 
-Le cas le plus fréquent est CVA : `VariantProps<typeof badgeVariants>` est un type dérivé d'un appel de fonction à l'exécution. Le résoudre exigerait un vérificateur de types complet, ce qu'Oxc n'est pas. Les options doivent donc être déclarées dans `controls.options`.
+Le cas le plus fréquent est CVA : `VariantProps<typeof badgeVariants>` est un type dérivé d'un appel de fonction à l'exécution. Le résoudre exigerait un vérificateur de types complet, ce qu'Oxc n'est pas. Les options doivent donc être déclarées dans `details.options`.
 
 Une amélioration possible, à traiter dans la PRD du plugin `docs` et non ici : l'objet passé à `cva()` est un objet littéral présent dans le fichier source, donc analysable statiquement.
 
@@ -313,7 +331,7 @@ Produit par le CLI, consommé par le shell.
 
 **Le manifeste n'est pas la source du rendu.** La preview importe les modules de stories directement, puisqu'ils appartiennent à son propre bundle Vite. Elle dispose donc des vraies props, fonctions et éléments compris, sans que rien ne traverse le canal.
 
-Le manifeste alimente l'interface du shell : arbre de navigation, recherche, table de props, panneau de controls. Il ne contient que des données sérialisables. Une prop non sérialisable n'y figure pas : `argTypes` suffit à en signaler l'existence et le type.
+Le manifeste alimente l'interface du shell : arbre de navigation, recherche, table de props, panneau de controls. Il ne contient que des données sérialisables. Une prop non sérialisable n'y figure pas : `details` suffit à en signaler l'existence et le type.
 
 ### 4.2 Entrées typées
 
@@ -337,7 +355,7 @@ Cette réserve coûte un champ aujourd'hui et évite une migration plus tard.
       },
       "storyFile": "stories/checkout/OrderSummary.ts",
       "options": {},
-      "argTypes": { },
+      "details": { },
       "source": "<OrderSummary reference=\"REF-4821…\" />",
       "meta": { "status": "stable" }
     }
@@ -353,7 +371,7 @@ L'`id` est dérivé du chemin de l'entrée et du nom de la story, normalisés en
 
 ### 4.4 Champs transportés sans interprétation
 
-`meta`, `options` et `argTypes` sont transportés tels quels du fichier de story jusqu'au manifeste. Le noyau ne les interprète pas : ce sont les plugins qui les consomment. Un plugin peut donc ajouter ses propres clés dans `options` sans modification du noyau.
+`meta`, `options` et `details` sont transportés tels quels du fichier de story jusqu'au manifeste. Le noyau ne les interprète pas : ce sont les plugins qui les consomment. Un plugin peut donc ajouter ses propres clés dans `options` sans modification du noyau.
 
 ---
 
@@ -443,7 +461,7 @@ Ce qui exige un contexte de framework (`ThemeProvider`, `QueryClientProvider`) r
 
 Dans `beforeMount`, un plugin peut modifier `ctx.props`. C'est le seul moment où les props sont mutables ; ailleurs, le contexte est en lecture seule.
 
-Cette ouverture existe pour un cas précis et démontré : une prop de type fonction non déclarée par l'auteur de la story. `PricingCard` attend `onSelect`, la story ne le fournit pas, le composant reçoit `undefined` et casse au premier clic. Le plugin `actions` remplit ces props avec des fonctions qui journalisent, dans `beforeMount`, en s'appuyant sur `argTypes` pour savoir lesquelles sont des fonctions.
+Cette ouverture existe pour un cas précis et démontré : une prop de type fonction non déclarée par l'auteur de la story. `PricingCard` attend `onSelect`, la story ne le fournit pas, le composant reçoit `undefined` et casse au premier clic. Le plugin `actions` remplit ces props avec des fonctions qui journalisent, dans `beforeMount`, en s'appuyant sur `details` pour savoir lesquelles sont des fonctions.
 
 Le noyau ne connaît rien de ce mécanisme. Sans le plugin `actions` installé, l'auteur déclare simplement la fonction lui-même.
 
@@ -479,6 +497,26 @@ Absents volontairement. Certains relèvent des PRD de projet, d'autres attendent
 ---
 
 ## 8. Journal des versions
+
+**v0.5.** Le noyau ne connaît plus aucun plugin.
+
+Deux changements, un de nom et un de structure.
+
+| Avant | Après |
+|---|---|
+| champ `controls` d'un fichier de stories | champ `details` |
+| champ `argTypes` du manifeste | champ `details` |
+| `ArgType` | `PropDetails` |
+| `ControlOverride` | `PropDetailsInput` |
+| `ArgType.control`, `ControlSpec` | sortis du noyau, apportés par le plugin |
+
+**Le nom.** `controls` et `argTypes` désignaient la même chose sous deux noms, l'un hérité du plugin qui la consomme, l'autre d'un vocabulaire extérieur. Or ce champ décrit des props, et il le fait **partiellement** : on n'y écrit que ce que l'inférence n'a pas trouvé. `details` dit les deux, et il est le même des deux côtés, à l'écriture comme dans le manifeste.
+
+**La structure.** `control` et les bornes n'ont de sens qu'avec le plugin `controls` installé, et le noyau les déclarait pourtant. Un plugin devait donc modifier le noyau pour ajouter un réglage, ce que la section 4.4 interdit explicitement pour `options`. Ils passent par `PluginPropDetails`, un point d'extension vide que chaque plugin remplit depuis son propre paquet.
+
+Conséquence voulue : sans le plugin, écrire une borne est une erreur de compilation. Personne ne la lirait.
+
+Aucune migration à prévoir, rien n'est publié.
 
 **v0.4.** Nommage des paquets.
 

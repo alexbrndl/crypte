@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ArgType, Manifest, StoryEntry } from '../../src/protocol/manifest'
+import type { Manifest, PropDetails, StoryEntry } from '../../src/protocol/manifest'
 
 // L'entrée reproduite dans docs/spec-contrats.md §4.2, qui doit être acceptée
 // telle quelle : c'est le contrat entre le CLI qui l'écrit et le shell qui la lit.
@@ -20,7 +20,7 @@ describe('Manifest', () => {
           },
           storyFile: 'stories/checkout/OrderSummary.ts',
           options: {},
-          argTypes: {},
+          details: {},
           source: '<OrderSummary reference="REF-4821…" />',
           meta: { status: 'stable' },
         },
@@ -39,7 +39,7 @@ describe('Manifest', () => {
       component: { name: 'Badge', file: 'src/Badge.tsx', export: 'default' },
       storyFile: 'stories/Badge.ts',
       options: {},
-      argTypes: {},
+      details: {},
       source: '<Badge />',
     } satisfies StoryEntry
 
@@ -55,7 +55,7 @@ describe('Manifest', () => {
   })
 })
 
-describe('ArgType', () => {
+describe('PropDetails', () => {
   it('accepte les neuf natures de la spécification', () => {
     const kinds = [
       'string',
@@ -69,25 +69,26 @@ describe('ArgType', () => {
       'unknown',
     ] as const
 
-    const argTypes = kinds.map(
-      (type) => ({ name: 'prop', type, required: false }) satisfies ArgType,
+    const details = kinds.map(
+      (type) => ({ name: 'prop', type, required: false }) satisfies PropDetails,
     )
-    expect(argTypes).toHaveLength(9)
+    expect(details).toHaveLength(9)
   })
 
-  it('accepte control à false, qui retire la prop du panneau sans la masquer', () => {
-    const argType = {
+  // `control` ne vient pas du noyau : il est apporté par la simulation de plugin.
+  it('accepte un champ apporté par un plugin installé', () => {
+    const withPlugin = {
       name: 'onSelect',
       type: 'function',
       required: true,
       control: false,
-    } satisfies ArgType
-    expect(argType.control).toBe(false)
+    } satisfies PropDetails
+    expect(withPlugin.control).toBe(false)
   })
 
   it('refuse une nature inconnue', () => {
     // @ts-expect-error `date` ne fait pas partie des neuf natures
-    const invalid = { name: 'createdAt', type: 'date', required: false } satisfies ArgType
+    const invalid = { name: 'createdAt', type: 'date', required: false } satisfies PropDetails
     expect(invalid).toBeDefined()
   })
 })

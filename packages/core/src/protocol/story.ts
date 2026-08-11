@@ -2,7 +2,7 @@
 // Consommé par les adaptateurs, qui exposent `defineStories`, et par le CLI, qui
 // lit ces déclarations pour produire le manifeste.
 
-import type { ArgType } from './manifest'
+import type { PropDetails } from './manifest'
 
 // Le noyau ne connaît aucun framework : un composant et une enveloppe restent
 // des valeurs opaques, que l'adaptateur précise en fournissant son propre type.
@@ -36,18 +36,18 @@ export interface Story<P> {
   options: StoryOptions
 }
 
-// Second point d'extension, même mécanisme. Les bornes d'un curseur appartiennent
-// au plugin qui les affiche, pas au noyau qui les transporte.
-export interface PluginControlSettings {}
-
-// Une déclaration explicite ne remplace que les champs qu'elle mentionne : tous
-// les autres restent issus de l'inférence.
-export interface ControlOverride extends Partial<Omit<ArgType, 'name'>>, PluginControlSettings {}
+// Ce qu'on écrit dans le champ `details` d'un fichier de stories. Complémentaire
+// par nature : une déclaration explicite ne remplace que les champs qu'elle
+// mentionne, tous les autres restent issus de l'inférence.
+//
+// Les champs apportés par un plugin passent par `PluginPropDetails`, dont
+// `PropDetails` hérite : rien à déclarer de plus ici.
+export type PropDetailsInput = Partial<Omit<PropDetails, 'name'>>
 
 export interface StoryDefinition<P, C> {
   props?: Partial<P>
   stories?: Record<string, Partial<P> | Story<P>>
   wrap?: Wrap<C>
-  controls?: Partial<Record<keyof P, ControlOverride>>
+  details?: Partial<Record<keyof P, PropDetailsInput>>
   meta?: EntryMeta
 }
