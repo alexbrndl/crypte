@@ -25,11 +25,20 @@ export interface EntryMeta {
 //     interface PluginStoryOptions { responsive?: 'mobile' | 'desktop' }
 //   }
 //
-// Le préfixe dit qu'aucun champ ne vient d'ici. Conséquence voulue : sans le
-// plugin installé, l'option est refusée, puisque personne ne la lirait.
+// Le préfixe dit qu'aucun champ ne vient d'ici.
 export interface PluginStoryOptions {}
 
-export type StoryOptions = PluginStoryOptions
+// Sans le plugin installé, l'option doit être refusée, puisque personne ne la
+// lirait. Le point d'extension seul ne suffit pas à l'obtenir : TypeScript ne
+// signale pas les propriétés excédentaires face à un type sans propriété, donc
+// `{ respnsive: 'mobile' }` passerait tant qu'aucun plugin n'a rien déclaré.
+// L'aiguillage ferme ce cas en n'admettant aucune clé tant que le point
+// d'extension est vide, et rend la main au contrôle habituel dès qu'un plugin
+// le remplit. `PropDetailsInput` n'en a pas besoin : il hérite de champs du
+// noyau, donc son type n'est jamais vide.
+export type StoryOptions = [keyof PluginStoryOptions] extends [never]
+  ? Record<string, never>
+  : PluginStoryOptions
 
 export interface Story<P> {
   props: Partial<P>

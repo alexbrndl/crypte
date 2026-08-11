@@ -2,7 +2,7 @@
 
 > Version 0.5, document de référence. Toute PRD de projet pointe vers ce document plutôt que de redéfinir ces structures.
 >
-> **v0.5 :** le champ `controls` devient `details`, et tout ce qui relève du plugin sort du noyau. Voir le journal en section 8.
+> **v0.6 :** le message `ready` annonce `protocolVersion`, et un point d'extension vide n'admet plus n'importe quelle clé. Voir le journal en section 8.
 
 ---
 
@@ -303,6 +303,16 @@ declare module '@crypte/core/protocol' {
 
 Les bornes d'un curseur et le réglage `control`, qui retire une prop du panneau d'édition sans la retirer de la documentation, relèvent du plugin `controls`. **Ils n'ont aucun sens sans lui**, et le noyau n'a donc pas à les connaître. Sans le plugin installé, les écrire est une erreur de compilation, ce qui est le comportement voulu : personne ne les lirait.
 
+**Un point d'extension vide ne suffit pas à obtenir ce refus.** TypeScript ne signale pas les propriétés excédentaires face à un type qui n'a aucune propriété : tant qu'aucun plugin n'a rien déclaré, un objet quelconque satisfait une interface vide. `PropDetails` échappe au problème parce qu'il hérite de champs du noyau, donc n'est jamais vide. `StoryOptions`, qui n'est fait que du point d'extension, doit l'obtenir explicitement :
+
+```ts
+export type StoryOptions = [keyof PluginStoryOptions] extends [never]
+  ? Record<string, never>
+  : PluginStoryOptions
+```
+
+Aucune clé n'est admise tant que le point d'extension est vide, et le contrôle habituel reprend dès qu'un plugin le remplit.
+
 Quand l'inférence échoue (projet sans `tsconfig`, type trop complexe), le type retombe sur `unknown` et la prop reste documentée. **L'échec d'inférence ne doit jamais empêcher le rendu d'une story.**
 
 ### 3.4 Props HTML en pass-through
@@ -398,7 +408,7 @@ Le canal ne transporte jamais les props d'une story. Il transporte l'identifiant
 
 | Message | Charge utile | Effet |
 |---|---|---|
-| `ready` | `{ manifestVersion }` | La preview est initialisée |
+| `ready` | `{ protocolVersion }` | La preview est initialisée |
 | `rendered` | `{ id, durationMs }` | Rendu terminé |
 | `error` | `{ id, message, stack }` | Erreur de rendu, affichée sans casser le shell |
 | `plugin` | `{ plugin, payload }` | Remontée depuis un hook de plugin |
@@ -497,6 +507,19 @@ Absents volontairement. Certains relèvent des PRD de projet, d'autres attendent
 ---
 
 ## 8. Journal des versions
+
+**v0.6.** Deux garanties qui n'étaient pas tenues.
+
+| Avant | Après |
+|---|---|
+| `ready` annonce `manifestVersion` | `ready` annonce `protocolVersion` |
+| `StoryOptions = PluginStoryOptions` | aiguillage qui n'admet aucune clé tant que le point d'extension est vide |
+
+**Le nom du champ du message.** Il transportait déjà la version du protocole du canal, pas celle du manifeste, que la preview ne connaît d'ailleurs pas au moment où elle se déclare prête. Tant que les deux valaient 1, l'écart était invisible ; au premier changement de format du manifeste, le shell aurait affiché une version pour l'autre sans qu'aucun des deux côtés ne détecte l'incompatibilité.
+
+**Le refus des clés inconnues.** La v0.5 annonçait qu'écrire une option sans le plugin qui la lit était une erreur de compilation. Ce n'était vrai que pour `PropDetails`, qui hérite de champs du noyau. Pour `StoryOptions`, fait du seul point d'extension, TypeScript ne contrôlait rien : une interface vide accepte n'importe quel objet. Voir la section 3.3 pour la forme retenue.
+
+Aucune migration à prévoir, rien n'est publié.
 
 **v0.5.** Le noyau ne connaît plus aucun plugin.
 

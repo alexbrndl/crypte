@@ -38,7 +38,7 @@ export function createPreviewChannel(handlers: PreviewHandlers): () => void {
   }
 
   window.addEventListener('message', listener)
-  reply({ type: 'ready', manifestVersion: PROTOCOL_VERSION })
+  reply({ type: 'ready', protocolVersion: PROTOCOL_VERSION })
 
   return () => window.removeEventListener('message', listener)
 }

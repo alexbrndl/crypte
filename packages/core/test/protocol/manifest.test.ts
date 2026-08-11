@@ -48,9 +48,24 @@ describe('Manifest', () => {
 
   // Les valeurs `page` et `tokens` sont réservées mais non implémentées : le champ
   // existe pour éviter une migration, pas pour être utilisé aujourd'hui.
+  //
+  // L'entrée est complète et seul `type` varie. Une version antérieure partait de
+  // `{ type: 'tokens', id: 'x' }' : les sept champs manquants suffisaient à
+  // satisfaire le `@ts-expect-error`, si bien que le test passait sans jamais
+  // vérifier ce qu'il annonçait, et aurait passé de même sur `type: string`.
   it("refuse un type d'entrée non implémenté", () => {
-    // @ts-expect-error seule la valeur `story` est implémentée en v1
-    const reserved = { type: 'tokens', id: 'x' } satisfies StoryEntry
+    const reserved = {
+      // @ts-expect-error seule la valeur `story` est implémentée en v1
+      type: 'tokens',
+      id: 'badge--par-defaut',
+      path: ['Badge'],
+      name: 'Par défaut',
+      component: { name: 'Badge', file: 'src/Badge.tsx', export: 'default' },
+      storyFile: 'stories/Badge.ts',
+      options: {},
+      details: {},
+      source: '<Badge />',
+    } satisfies StoryEntry
     expect(reserved).toBeDefined()
   })
 })

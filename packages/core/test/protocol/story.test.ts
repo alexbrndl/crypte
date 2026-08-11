@@ -22,6 +22,15 @@ describe('points d’extension', () => {
     expect(options.responsive).toBe('mobile')
   })
 
+  // Ce cas est celui qui prouve quelque chose : le précédent passait à l'identique
+  // même sans plugin simulé, parce qu'un type sans propriété n'entraîne aucun
+  // contrôle de propriétés excédentaires. Voir l'aiguillage dans `story.ts`.
+  it('refuse une option qu’aucun plugin n’a déclarée', () => {
+    // @ts-expect-error `respnsive` n'est déclaré nulle part
+    const typo = { respnsive: 'mobile' } satisfies StoryOptions
+    expect(typo).toBeDefined()
+  })
+
   // Sans ce cas, les précédents passeraient à l'identique si le type acceptait
   // n'importe quelle clé : ils ne prouveraient plus rien.
   it('refuse une clé qu’aucun plugin n’a déclarée', () => {

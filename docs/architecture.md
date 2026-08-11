@@ -200,6 +200,8 @@ Remplit les points d'extension `PluginPropDetails` et `PluginStoryOptions` avec 
 
 *Sans lui :* les cas positifs des deux fichiers ci-dessus ne compilent plus, puisque les points d'extension sont vides dans le noyau. L'échec est immédiat et lisible, ce qui est le comportement voulu.
 
+*Un piège que ce fichier a révélé :* un test positif sur un point d'extension ne prouve rien à lui seul. Celui de `StoryOptions` passait à l'identique avec ou sans la simulation, parce qu'un type sans propriété n'entraîne aucun contrôle de propriétés excédentaires. C'est le type qui a dû changer, pas le test. Le cas négatif ajouté à côté est celui qui tient la garantie.
+
 **`test/protocol/channel.test.ts`**
 Vérifie la forme des messages du canal.
 

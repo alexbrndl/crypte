@@ -33,7 +33,7 @@ describe('messages du shell', () => {
 describe('messages de la preview', () => {
   it('accepte les quatre formes de la spécification', () => {
     const messages = [
-      { type: 'ready', manifestVersion: 1 },
+      { type: 'ready', protocolVersion: 1 },
       { type: 'rendered', id: 'badge--par-defaut', durationMs: 1.7 },
       { type: 'error', id: 'badge--par-defaut', message: 'boom', stack: 'at …' },
       { type: 'plugin', plugin: 'a11y', payload: [] },

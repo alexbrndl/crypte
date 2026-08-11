@@ -12,7 +12,7 @@ onMounted(() => {
   channel = createShellChannel(frame.value)
   channel.onMessage((message) => {
     if (message.type === 'ready')
-      status.value = `preview prête, protocole v${message.manifestVersion}`
+      status.value = `preview prête, protocole v${message.protocolVersion}`
     if (message.type === 'rendered')
       status.value = `rendu de ${message.id} en ${message.durationMs.toFixed(1)} ms`
     if (message.type === 'error') status.value = `erreur : ${message.message}`

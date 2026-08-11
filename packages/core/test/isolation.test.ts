@@ -27,6 +27,12 @@ function closureOf(entry: string): string {
     if (seen.has(file)) continue
     seen.add(file)
 
+    // Le motif peut aussi reconnaître un chemin à l'intérieur d'une chaîne du
+    // bundle, qui ne désigne alors aucun fichier. Ignorer ce qui n'existe pas
+    // vaut mieux que mourir sur un ENOENT sans rapport avec l'isolation : la
+    // seule absence qui doit faire échouer le test est celle de l'entrée.
+    if (!existsSync(file)) continue
+
     const content = readFileSync(file, 'utf8')
     source += content
 

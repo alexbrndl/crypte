@@ -17,7 +17,7 @@ export type ShellMessage =
   | { type: 'plugin'; plugin: string; payload: unknown }
 
 export type PreviewMessage =
-  | { type: 'ready'; manifestVersion: number }
+  | { type: 'ready'; protocolVersion: number }
   | { type: 'rendered'; id: string; durationMs: number }
   | { type: 'error'; id: string; message: string; stack?: string }
   | { type: 'plugin'; plugin: string; payload: unknown }
