@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeSegment, storyId } from './id'
+import { normalizeSegment, storyId } from '../../src/protocol/id'
 
 describe('normalizeSegment', () => {
   it('retire les accents sans remplacer la lettre', () => {

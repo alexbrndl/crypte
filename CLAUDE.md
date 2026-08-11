@@ -88,7 +88,17 @@ C'est la même erreur qu'un test qui passe pour la mauvaise raison : une observa
 
 ---
 
-## Règle de documentation
+## Règles de documentation
+
+**En-tête de module.** Tout fichier exporté par un paquet publié commence par trois à cinq lignes disant ce qu'il contient et qui le consomme. Sans elles, celui qui ouvre `story.ts` ne peut pas savoir s'il regarde ce que l'utilisateur écrit ou ce que le CLI produit.
+
+`docs/arborescence.md` tient la même information en une ligne par fichier, pour qui cherche où se trouve quoi sans ouvrir les fichiers. Le mettre à jour quand un fichier apparaît ou disparaît.
+
+**Tests.** Tout contrat public a un test qui vérifie qu'il accepte ce que la spécification décrit **et qu'il refuse le reste**. La seconde moitié est celle qui compte : un test sans cas négatif passerait à l'identique sur un type qui n'exige rien.
+
+Les tests vivent dans `test/`, jamais à côté de la source. Règle unique, sans jugement à porter au cas par cas.
+
+## Pièces mobiles
 
 Toute pull request qui ajoute une **pièce mobile** met à jour `docs/architecture.md`.
 

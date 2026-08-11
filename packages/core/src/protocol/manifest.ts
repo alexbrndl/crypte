@@ -1,4 +1,8 @@
-import type { EntryMeta, StoryOptions } from './story'
+// Le catalogue produit par le CLI et lu par le shell : une entrée par story, avec
+// son identifiant, sa place dans l'arbre, son composant d'origine et ses argTypes.
+// Ne contient que des données sérialisables.
+
+import type { EntryMeta } from './story'
 
 export const MANIFEST_VERSION = 1
 
@@ -39,7 +43,10 @@ export interface StoryEntry {
   name: string
   component: ComponentRef
   storyFile: string
-  options: StoryOptions
+  // Transportées telles quelles, sans interprétation. Contrairement à
+  // `StoryOptions` côté écriture, le type reste ouvert ici : un manifeste peut
+  // avoir été produit par un projet dont les plugins ne sont pas ceux du lecteur.
+  options: Record<string, unknown>
   argTypes: Record<string, ArgType>
   source: string
   meta?: EntryMeta

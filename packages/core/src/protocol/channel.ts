@@ -1,3 +1,7 @@
+// Les messages échangés entre le shell et la preview, dans les deux sens.
+// Consommé par core/ui côté shell et core/preview côté iframe. Rien d'autre ne
+// traverse la frontière.
+
 export const PROTOCOL_VERSION = 1
 
 // Le canal ne transporte jamais les props d'une story : la preview importe les

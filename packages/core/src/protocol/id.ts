@@ -1,3 +1,7 @@
+// La dérivation des identifiants de story, seul code réellement exécuté du
+// protocole. Consommé par le CLI qui écrit le manifeste, et par le shell qui lit
+// l'identifiant depuis l'URL.
+
 // Décompose les caractères accentués puis retire les diacritiques : « é » devient
 // « e » plutôt que d'être remplacé par un tiret.
 const DIACRITICS = /[̀-ͯ]/g
