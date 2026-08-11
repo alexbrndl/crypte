@@ -504,11 +504,11 @@ Le cycle a deux temps :
 1. Chaque pull request dépose sa note. **Fusionner une pull request ne change aucun numéro.**
 2. Une pull request « Version Packages », ouverte et tenue à jour automatiquement par `.github/workflows/version.yml`, accumule les notes. La fusionner applique les montées de version et écrit les changelogs.
 
-Cette seconde pull request **ne demande aucune action** : elle se met à jour seule et attend. Le seul geste est de la fusionner quand on veut une nouvelle version.
+Cette seconde pull request **ne demande aucune action** : elle se met à jour seule et attend. Le seul geste est de la fusionner quand on veut une nouvelle version. Repère : les quatre pull requests du lot 0 auraient produit une seule montée de version, pas quatre.
 
 **Ses contrôles doivent être approuvés à la main.** GitHub n'exécute pas les workflows déclenchés par son propre jeton, pour éviter les boucles : les vérifications de la pull request de version restent en `action_required`, donc `ci-passed` n'est jamais rapporté et la fusion est bloquée. Approuver depuis l'onglet Actions, ou par `gh api -X POST repos/<dépôt>/actions/runs/<id>/approve`.
 
-*Pourquoi ne pas contourner :* la parade courante est un jeton personnel à la place du jeton du workflow, ce qui ferait ouvrir la pull request en son propre nom. Écarté pour ne pas stocker un secret à longue durée de vie sur un dépôt public, pour une friction d'un geste qui n'arrive qu'au moment de publier. Repère : les quatre pull requests du lot 0 auraient produit une seule montée de version, pas quatre.
+*Pourquoi ne pas contourner :* la parade courante est un jeton personnel à la place du jeton du workflow, ce qui ferait ouvrir la pull request en son propre nom. Écarté pour ne pas stocker un secret à longue durée de vie sur un dépôt public, pour une friction d'un geste qui n'arrive qu'au moment de publier.
 
 ### Versions synchronisées
 
