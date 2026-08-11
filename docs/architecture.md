@@ -538,7 +538,11 @@ Vérifié à l'installation : un changeset ne déclarant que `@crypte/cli` fait 
 
 *Il exige un jeton GitHub*, y compris pour une génération locale : il interroge l'API pour retrouver la pull request associée à un commit. En intégration continue le workflow le fournit ; à la main, il faut passer `GITHUB_TOKEN`, par exemple avec `GITHUB_TOKEN=$(gh auth token)`.
 
-*Le remerciement à l'auteur est conservé faute de mieux.* L'option `template` permettrait de le retirer, mais elle est marquée expérimentale et n'existe qu'à partir de la version 1.0.0, publiée trop récemment pour passer la politique de fraîcheur des dépendances. Retirer une mention cosmétique ne justifie pas une dépendance fraîche et une API instable. À revoir quand `template` sera stabilisé.
+*Ce qui casse si on l'enlève :* rien ne s'arrête, et c'est ce qui rend l'oubli probable. Les changelogs continuent d'être générés, mais chaque entrée retombe sur un identifiant de commit brut, non cliquable. Le lien entre une ligne de changelog et la discussion qui l'a produite est alors perdu, et il ne se reconstitue pas après coup : personne ne retrouve six mois plus tard quelle pull request correspond à `004c342`.
+
+Comme cette configuration n'est exercée par aucun contrôle, une erreur de syntaxe ou un dépôt mal orthographié ne se verrait qu'à la génération suivante, c'est-à-dire au moment de publier.
+
+*Le remerciement à l'auteur est conservé faute de mieux.* L'option `template` permettrait de le retirer, mais elle est marquée expérimentale et n'existe qu'à partir de la version 1.0.0, publiée trop récemment pour passer la politique de fraîcheur des dépendances. Retirer une mention cosmétique ne justifie pas une dépendance fraîche et une API instable. À revoir quand `template` sera stabilisé, suivi dans `DCJ-187`.
 
 ### Le skill `/changeset`
 
