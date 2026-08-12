@@ -330,7 +330,9 @@ Quatre tours de revue ont été consacrés à approximer ce repli par des règle
 
 *La correspondance est éprouvée seule.* De l'extérieur, une capture fautive est invisible : le repli renvoie l'import à Vite comme si rien ne s'était passé. Mesuré : sans la comparaison du suffixe, du préfixe, ou l'égalité stricte d'un motif exact, aucun test d'intégration ne rougit.
 
-*Deux limites, mesurées et consignées dans `suivi.md`.* Le pipeline CSS ne consulte aucun plugin, donc un `@import` passant par un chemin déclaré ne résout pas ; y ajouter un alias résout le CSS et casse le repli du JavaScript. Et le résolveur passe après ceux de Vite, donc un chemin qui remplacerait un paquet installé reste sans effet, ce même ordre empêchant un motif fourre-tout de détourner les imports relatifs.
+*Deux limites, mesurées et consignées dans `suivi.md`.* Le pipeline CSS ne consulte aucun plugin, donc un `@import` passant par un chemin déclaré ne résout pas ; y ajouter un alias résout le CSS et casse le repli du JavaScript. Et le résolveur passe après ceux de Vite, donc un chemin qui remplacerait un paquet installé reste sans effet.
+
+*Les chemins ne s'appliquent qu'aux identifiants nus.* TypeScript n'applique jamais `paths` à un import relatif ou absolu, et il faut le refuser explicitement : le résolveur passant après ceux de Vite, seuls les imports relatifs **cassés** lui parviendraient. Mesuré, un `./theme.css` supprimé se trouvait détourné vers `styles/theme.css` au lieu d'échouer, ce qui est le pire mode de panne, un fichier déplacé chargeant un autre module en silence.
 
 *Où les chemins sont lus*, et depuis quel dossier ils se comptent, reste dans `config-paths.ts`. Ce travail-là n'a pas bougé : la borne de remontée, le suivi des références d'un `tsconfig` de style solution, la poursuite jusqu'au fichier qui déclare vraiment des chemins, et la base prise sur le fichier déclarant.
 

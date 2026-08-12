@@ -22,6 +22,12 @@ export async function projectPathsOf(root: string): Promise<ProjectPaths | undef
     try {
       result = await parse(resolve(root, PROBE), { configName, root })
     } catch (cause) {
+      // Un `extends` introuvable arrive tous les jours : `./.nuxt/tsconfig.json`
+      // avant `nuxt prepare`, ou `@tsconfig/node22` dans un clone sans
+      // installation. Les chemins sont un enrichissement, pas une condition de
+      // démarrage : on passe au fichier suivant plutôt que de tout arrêter.
+      if ((cause as { code?: string }).code === 'EXTENDS_RESOLVE') continue
+
       // Un fichier à moitié écrit, ou une virgule en trop : le dire plutôt que
       // de laisser remonter une trace de pile venue d'une bibliothèque.
       throw new ConfigError(`${configName} n'a pas pu être lu : ${(cause as Error).message}`)
@@ -40,17 +46,24 @@ export async function projectPathsOf(root: string): Promise<ProjectPaths | undef
 
 function pathsIn(result: TSConfckParseResult, root: string): ProjectPaths | undefined {
   const own = compilerPaths(result.tsconfig)
-  if (own) return { paths: own, base: baseOf(result, root) }
+  if (own) return { paths: own, base: baseOf(result, root), files: filesOf(result) }
 
   // Un `tsconfig.json` de style « solution » ne déclare que des références, et
   // c'est la forme que `npm create vite` produit : les chemins sont dans le
   // fichier référencé, pas dans celui qu'on vient de lire.
   for (const referenced of result.referenced ?? []) {
     const paths = compilerPaths(referenced.tsconfig)
-    if (paths) return { paths, base: baseOf(referenced, root) }
+    if (paths) return { paths, base: baseOf(referenced, root), files: filesOf(referenced) }
   }
 
   return undefined
+}
+
+// Le fichier lu et toute sa chaîne d'héritage : modifier l'un d'eux change les
+// chemins, donc doit provoquer une relecture au même titre que la configuration.
+function filesOf(result: TSConfckParseResult): string[] {
+  const chain = (result.extended ?? []).map((level) => level.tsconfigFile)
+  return [...new Set([result.tsconfigFile, ...chain].filter(Boolean))]
 }
 
 // `tsconfck` rend `baseUrl` en absolu, mais pas les chemins : hérités par
@@ -81,6 +94,15 @@ function declaringFile(result: TSConfckParseResult): string | undefined {
 function compilerPaths(config: unknown): Record<string, string[]> | undefined {
   const paths = (config as { compilerOptions?: { paths?: unknown } })?.compilerOptions?.paths
   if (!paths || typeof paths !== 'object' || Object.keys(paths).length === 0) return undefined
+
+  // Une chaîne au lieu d'un tableau est une faute de frappe courante, que
+  // TypeScript refuse aussi. Sans ce contrôle, la boucle parcourt les
+  // caractères de la chaîne et cherche un fichier par lettre, sans un mot.
+  for (const [pattern, targets] of Object.entries(paths)) {
+    if (!Array.isArray(targets)) {
+      throw new ConfigError(`Le chemin \`${pattern}\` doit être un tableau de cibles.`)
+    }
+  }
 
   return paths as Record<string, string[]>
 }

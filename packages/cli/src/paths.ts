@@ -1,13 +1,15 @@
 // Les chemins déclarés par le projet, appliqués comme TypeScript les applique.
 // Crypte ne lit jamais le `vite.config` d'un projet : voir la section 1.5.
 
-import { resolve } from 'node:path'
+import { isAbsolute, resolve } from 'node:path'
 import type { Plugin } from 'vite'
 
 export interface ProjectPaths {
   paths: Record<string, string[]>
   // Le dossier depuis lequel les cibles se comptent.
   base: string
+  // Les fichiers lus pour arriver là, à surveiller comme la configuration.
+  files: string[]
 }
 
 // Un plugin plutôt que des `resolve.alias` : un alias réécrit sans condition, là
@@ -29,6 +31,12 @@ export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
   return {
     name: 'crypte:paths',
     async resolveId(source, importer, options) {
+      // TypeScript n'applique jamais `paths` à un chemin relatif ou absolu, et
+      // ce résolveur passant après ceux de Vite, seuls les imports relatifs
+      // **cassés** lui parviendraient : un fichier déplacé chargerait alors un
+      // autre module au lieu d'échouer.
+      if (source.startsWith('.') || isAbsolute(source)) return null
+
       for (const [pattern, targets] of ordered) {
         const captured = capture(pattern, source)
         if (captured === null) continue
@@ -36,7 +44,13 @@ export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
         for (const target of targets) {
           // La résolution est celle de Vite : extensions du projet, `index`,
           // champ `exports`, conditions. Rien n'est réimplémenté ici.
-          const found = await this.resolve(resolve(base, target.replace('*', captured)), importer, {
+          // Un remplaçant en fonction : la forme chaîne interpréterait `$&` et
+          // ses semblables dans la partie capturée, qui vient de l'utilisateur.
+          const candidate = resolve(
+            base,
+            target.replace('*', () => captured),
+          )
+          const found = await this.resolve(candidate, importer, {
             ...options,
             skipSelf: true,
           })

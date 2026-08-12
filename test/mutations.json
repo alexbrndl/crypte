@@ -126,5 +126,13 @@
     "apres": "          if (found) return found\n          return { id: resolve(base, target.replace('*', captured)) }\n        }",
     "trouvee": "revue 3 de la PR #17",
     "attendu": "retient la cible qui existe"
+  },
+  {
+    "garantie": "les chemins ne s'appliquent pas aux imports relatifs",
+    "fichier": "packages/cli/src/paths.ts",
+    "avant": "      if (source.startsWith('.') || isAbsolute(source)) return null",
+    "apres": "      if (false) return null",
+    "trouvee": "revue 6 de la PR #17",
+    "attendu": "ne détourne pas un import relatif cassé"
   }
 ]

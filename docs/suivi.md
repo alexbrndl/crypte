@@ -64,6 +64,18 @@ Un `@import '@/vars.css'` dans le CSS du projet ne résout pas. Le pipeline CSS 
 
 *Origine :* revue 5 de la PR #17.
 
+### Un chemin ne peut pas remplacer un paquet installé
+
+`"paths": { "vue": ["shims/vue.js"] }` reste sans effet quand `vue` est installé : le résolveur passe après ceux de Vite, qui trouvent le paquet d'abord.
+
+*Mesuré :* l'import rend `/node_modules/vue/…`, là où TypeScript rendrait le fichier de remplacement.
+
+*Pourquoi ce n'est pas fait :* ce même ordre est ce qui empêche un motif fourre-tout de détourner les imports que Vite résout déjà. Le corriger demande de distinguer les deux cas, donc de savoir quels identifiants un chemin a le droit d'intercepter.
+
+*Ce que ça coûte :* le remplacement d'un paquet, motif courant pour `react-native-web` ou une variante de build, est ignoré sans un mot.
+
+*Origine :* revue 6 de la PR #17.
+
 ## Observations
 
 ### Le contrôle de la spécification lit moins de formes que celui du barrel

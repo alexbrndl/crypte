@@ -62,6 +62,14 @@ describe('chargement de la configuration', () => {
     expect(project.watch.some((file) => file.endsWith('crypte.config.ts'))).toBe(true)
   })
 
+  // Les chemins viennent d'un autre fichier que la configuration : le modifier
+  // doit provoquer une relecture, donc il appartient à la liste.
+  it('surveille aussi le fichier d’où viennent les chemins', async () => {
+    const project = await loadProject(fixture)
+
+    expect(project.watch.some((file) => file.endsWith('jsconfig.json'))).toBe(true)
+  })
+
   it('rend l’entrée CSS en chemin absolu', async () => {
     const css = cssEntryOf(await loadProject(fixture))
     expect(css).toBe(join(fixture, 'src/styles/app.css'))
@@ -198,6 +206,28 @@ describe('chemins déclarés par le projet', () => {
     expect((await projectPathsOf(join(root, 'app')))?.base).toBe(join(root, 'app'))
   })
 
+  // Une chaîne au lieu d'un tableau : sans contrôle, la boucle parcourt les
+  // caractères et cherche un fichier par lettre, sans un mot.
+  it('refuse une cible qui n’est pas un tableau', async () => {
+    const root = projectOf({
+      'tsconfig.json': '{ "compilerOptions": { "paths": { "@/*": "src/*" } } }',
+    })
+
+    await expect(projectPathsOf(root)).rejects.toThrow(ConfigError)
+    await expect(projectPathsOf(root)).rejects.toThrow(/@\/\*/)
+  })
+
+  // Un `extends` introuvable arrive tous les jours, avant `nuxt prepare` ou dans
+  // un clone sans installation. Les chemins sont un enrichissement.
+  it('passe au fichier suivant quand un extends est introuvable', async () => {
+    const root = projectOf({
+      'tsconfig.json': '{ "extends": "./absent.json" }',
+      'jsconfig.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
+    })
+
+    expect(await pathsOf(root)).toEqual({ '@/*': ['src/*'] })
+  })
+
   it('nomme le fichier quand il est illisible', async () => {
     const root = projectOf({ 'tsconfig.json': '{ "compilerOptions": { paths } }' })
 
@@ -218,10 +248,35 @@ describe('feuilles de style du projet', () => {
       'src/app.css': "@import '@/vars.css';\n.a { color: red }",
       'src/vars.css': ':root { --x: 1 }',
     })
-    const { server, close } = await serverOn(await viteConfigOf(await loadProject(root)))
+    const { server, close } = await serverOn(viteConfigOf(await loadProject(root)))
 
     try {
       await expect(server.transformRequest('/src/app.css')).rejects.toThrow()
+    } finally {
+      await close()
+    }
+  })
+})
+
+// Ce que TypeScript ne fait jamais, et que ce résolveur ne doit pas faire non
+// plus : appliquer les chemins à un import relatif. Comme il passe après les
+// résolveurs de Vite, seuls les imports relatifs **cassés** lui parviennent, et
+// les détourner ferait charger un autre module au lieu d'échouer.
+describe('imports relatifs', () => {
+  it.each([
+    ['un fourre-tout', '{ "*": ["src/*"] }'],
+    ['un suffixe', '{ "*.css": ["src/*.css"] }'],
+  ])('ne détourne pas un import relatif cassé, malgré %s', async (_, paths) => {
+    const root = projectOf({
+      'tsconfig.json': `{ "compilerOptions": { "paths": ${paths} } }`,
+      'crypte.config.ts': 'export default { stories: "s", adapter: {} }',
+      'pages/entry.js': 'import "./manquant.css"',
+      'src/manquant.css': '.a { color: red }',
+    })
+    const { server, close } = await serverOn(viteConfigOf(await loadProject(root)))
+
+    try {
+      await expect(server.transformRequest('/pages/entry.js')).rejects.toThrow()
     } finally {
       await close()
     }
@@ -268,7 +323,7 @@ describe('résolution des chemins', () => {
     // La configuration réelle du CLI, non un serveur monté à la main : une
     // option ajoutée ailleurs, un alias par exemple, doit se voir ici.
     writeFileSync(join(root, 'crypte.config.ts'), 'export default { stories: "s", adapter: {} }')
-    const { server, close } = await serverOn(await viteConfigOf(await loadProject(root)))
+    const { server, close } = await serverOn(viteConfigOf(await loadProject(root)))
 
     return { root, server, close }
   }
@@ -284,6 +339,9 @@ describe('résolution des chemins', () => {
     ['sans extension', '{ "@/*": ["src/*"] }', 'import "@/app"', 'src/app.js'],
     ['vers un index', '{ "@/*": ["src/*"] }', 'import "@/mod"', 'src/mod/index.js'],
     ['seconde cible', '{ "@/*": ["absent/*", "src/*"] }', 'import "@/app.js"', 'src/app.js'],
+    // La partie capturée vient de l'utilisateur : en remplacement de chaîne,
+    // `$&` y désignerait le motif trouvé et produirait un autre chemin.
+    ['une capture contenant $&', '{ "@/*": ["src/*"] }', 'import "@/a$&b.js"', 'src/a$&b.js'],
   ])('résout le motif %s', async (_, paths, source, cible) => {
     const { server, close } = await resolving(paths, {
       'entry.js': source,
@@ -388,7 +446,7 @@ describe('résolution des chemins', () => {
 describe('résolution réelle par un serveur Vite', () => {
   it('résout un alias et un asset depuis un fichier .jsx', async () => {
     const project = await loadProject(fixture)
-    const { server, close } = await serverOn(await viteConfigOf(project))
+    const { server, close } = await serverOn(viteConfigOf(project))
 
     try {
       const result = await server.transformRequest('/entry.jsx')

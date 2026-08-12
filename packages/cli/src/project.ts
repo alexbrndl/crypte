@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path'
 import { loadConfigFromFile, type InlineConfig } from 'vite'
 import { projectPathsOf } from './config-paths'
 import type { CrypteConfig } from './config'
-import { pathsPlugin } from './paths'
+import { pathsPlugin, type ProjectPaths } from './paths'
 import { ConfigError } from './errors'
 
 const CONFIG_FILE = 'crypte.config.ts'
@@ -16,7 +16,11 @@ export { ConfigError }
 export interface Project {
   root: string
   config: CrypteConfig
-  // Les fichiers dont la configuration dépend, pour la relire quand ils changent.
+  // Lus au chargement, pour ne pas relire les mêmes fichiers deux fois.
+  paths: ProjectPaths | undefined
+  // Les fichiers dont la configuration dépend, pour la relire quand ils
+  // changent : `crypte.config.ts` et ce dont il dépend, plus la configuration
+  // TypeScript d'où viennent les chemins.
   watch: string[]
 }
 
@@ -50,7 +54,13 @@ export async function loadProject(input: string): Promise<Project> {
   const config = loaded?.config as unknown as CrypteConfig
   assertUsable(config)
 
-  return { root, config, watch: (loaded?.dependencies ?? []).map((dep) => resolve(root, dep)) }
+  const paths = await projectPathsOf(root)
+  const watch = [
+    ...(loaded?.dependencies ?? []).map((dep) => resolve(root, dep)),
+    ...(paths?.files ?? []),
+  ]
+
+  return { root, config, paths, watch }
 }
 
 // Deux champs seulement sont obligatoires, et l'erreur les nomme : la
@@ -70,10 +80,8 @@ function assertUsable(config: CrypteConfig): void {
 // La configuration Vite du projet, montée depuis la sienne. Rien n'en est
 // deviné : les alias viennent de sa configuration TypeScript, les plugins de ce
 // qu'il déclare, et son `vite.config` n'est jamais lu.
-export async function viteConfigOf(project: Project): Promise<InlineConfig> {
-  const { root, config } = project
-
-  const paths = await projectPathsOf(root)
+export function viteConfigOf(project: Project): InlineConfig {
+  const { root, config, paths } = project
 
   return {
     root,
