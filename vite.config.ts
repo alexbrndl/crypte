@@ -5,6 +5,11 @@ export default defineConfig({
     cache: true,
   },
   lint: {
+    // La fixture du lot 3 imite un projet utilisateur : son `jsconfig.json`
+    // porte des virgules traînantes et un `baseUrl`, que TypeScript 7 refuse.
+    // C'est précisément ce qu'un projet réel contient, et ce que le CLI doit
+    // savoir lire. La vérifier comme du code du dépôt n'aurait aucun sens.
+    ignorePatterns: ['packages/cli/test/fixture/**'],
     options: {
       typeAware: true,
       typeCheck: true,

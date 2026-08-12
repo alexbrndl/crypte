@@ -86,5 +86,21 @@
     "apres": "export type Wrap<C> = C | readonly WrapEntry<C>[] | ((story: unknown) => unknown)",
     "trouvee": "DCJ-189",
     "attendu": "TS2578"
+  },
+  {
+    "garantie": "les alias sont lus depuis la configuration du projet",
+    "fichier": "packages/cli/src/aliases.ts",
+    "avant": "const CONFIG_NAMES = ['tsconfig.json', 'jsconfig.json']",
+    "apres": "const CONFIG_NAMES: string[] = []",
+    "trouvee": "DCJ-167",
+    "attendu": "jsconfig.json commenté"
+  },
+  {
+    "garantie": "la remontée s'arrête à la racine du projet",
+    "fichier": "packages/cli/src/aliases.ts",
+    "avant": "{ configName, root }",
+    "apres": "{ configName }",
+    "trouvee": "DCJ-167",
+    "attendu": "jsconfig.json commenté"
   }
 ]

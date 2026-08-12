@@ -214,6 +214,9 @@ catalogs:
     '@types/node':
       specifier: ^24
       version: 24.13.3
+    tsconfck:
+      specifier: ^3.1.6
+      version: 3.1.6
     typescript:
       specifier: 6.0.3
       version: 6.0.3
@@ -286,6 +289,12 @@ importers:
       '@crypte/core':
         specifier: workspace:*
         version: link:../core
+      tsconfck:
+        specifier: 'catalog:'
+        version: 3.1.6(typescript@6.0.3)
+      vite:
+        specifier: 'catalog:'
+        version: 8.2.1(@types/node@24.13.3)
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -293,6 +302,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.10(@types/node@24.13.3)(@vitest/browser-preview@4.1.10)(vite@8.2.1(@types/node@24.13.3))
 
   packages/core:
     dependencies:
@@ -2047,6 +2059,17 @@ packages:
   tr46@0.0.3:
     resolution: {integrity: sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==}
 
+  tsconfck@3.1.6:
+    resolution: {integrity: sha512-ks6Vjr/jEw0P1gmOVwutM3B7fWxoWBL2KRDb1JfqGVawBmO5UsvmWOQFGHBPl5yxYz4eERr19E6L7NMv+Fej4w==}
+    engines: {node: ^18 || >=20}
+    deprecated: unmaintained
+    hasBin: true
+    peerDependencies:
+      typescript: ^5.0.0
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   typescript@6.0.3:
     resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
     engines: {node: '>=14.17'}
@@ -3663,6 +3686,10 @@ snapshots:
   totalist@3.0.1: {}
 
   tr46@0.0.3: {}
+
+  tsconfck@3.1.6(typescript@6.0.3):
+    optionalDependencies:
+      typescript: 6.0.3
 
   typescript@6.0.3: {}
 
