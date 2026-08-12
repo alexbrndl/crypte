@@ -81,7 +81,7 @@ describe('StoryDefinition', () => {
   })
 })
 
-// Les quatre formes de la section 2.5 de la spécification.
+// Les trois formes de la section 2.5 de la spécification.
 describe('Wrap', () => {
   const Provider = 'Provider'
 
@@ -100,9 +100,19 @@ describe('Wrap', () => {
     expect(wrap).toHaveLength(2)
   })
 
-  it('accepte une fonction', () => {
+  // Le cas qui motive le retrait de la forme fonction : pour React, un composant
+  // est une fonction, donc l'adaptateur ne pourrait pas distinguer les deux.
+  it('refuse une fonction', () => {
+    // @ts-expect-error une enveloppe est un composant, pas une fonction de rendu
     const wrap = ((story: unknown) => story) satisfies Wrap<string>
-    expect(typeof wrap).toBe('function')
+    expect(wrap).toBeDefined()
+  })
+
+  // Ce que la forme fonction servait, et que le tableau fait aussi bien : la
+  // valeur est calculée au chargement du fichier de stories.
+  it('accepte une valeur calculée en props', () => {
+    const wrap = [[Provider, { at: Number('42') }]] satisfies Wrap<string>
+    expect(wrap).toHaveLength(1)
   })
 
   it('refuse des props sans composant', () => {

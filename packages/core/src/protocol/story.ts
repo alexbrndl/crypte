@@ -23,7 +23,9 @@ export type StoryOptions = [keyof PluginStoryOptions] extends [never]
   : PluginStoryOptions
 
 // Le noyau ne connaît aucun framework : un composant reste une valeur opaque.
-export type Wrap<C> = C | readonly WrapEntry<C>[] | ((story: unknown) => unknown)
+// Des composants, et rien d'autre : une fonction d'enveloppe ne se distinguerait
+// pas d'un composant React, qui en est une. Voir la section 2.5 de la spec.
+export type Wrap<C> = C | readonly WrapEntry<C>[]
 
 // Dans la forme tableau, le premier élément est le plus externe.
 export type WrapEntry<C> = C | readonly [C, Record<string, unknown>]

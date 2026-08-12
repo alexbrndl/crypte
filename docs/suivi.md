@@ -41,11 +41,3 @@ Le champ est ajouté au manifeste publié pour qu'un bundler consommateur puisse
 *Conséquence :* le jour où un module du protocole acquiert un effet de bord au chargement, les bundlers des consommateurs le supprimeront sans avertissement.
 
 *Origine :* revue 12 du lot 2.
-
----
-
-## Renvoyé vers le suivi de projet
-
-| Point | Où |
-|---|---|
-| `Wrap` ne distingue pas un composant d'une fonction d'enveloppe | DCJ-189 |
