@@ -91,10 +91,11 @@ En cas d'hésitation entre deux niveaux, prendre le plus bas et dire pourquoi : 
 - **N'utilise pas d'outil pour ce que le prompt contient déjà.** Le diff et la liste des fichiers y sont fournis : les récupérer une seconde fois est du gaspillage pur.
 - Lis `CLAUDE.md`, et un fichier touché seulement si le diff seul ne permet pas de trancher. Rien d'autre.
 - **Ne clone pas le dépôt, ne monte pas d'environnement jetable, ne rejoue pas le mécanisme de bout en bout.** Vérifie par l'exécution seulement ce dont le verdict dépend, en une ou deux commandes.
-- Vise trois points maximum, et deux lignes par point.
+- Sur un **tour de correction**, vise trois points maximum, et deux lignes par point.
+- Sur un **premier tour portant du code neuf**, ne t'arrête pas à trois : rends tout ce qui est bloquant. Un tour qui en garde un pour la fois d'après en coûte un autre, de douze minutes.
 - Ne rends compte que de ce que tu signales. Pas de liste de ce que tu as vérifié et trouvé conforme.
 
-Repère chiffré : **une dizaine d'appels d'outils au maximum**, poster la revue et relancer le contrôle compris. Au-delà, tu es en train d'enquêter au lieu de relire.
+Repère chiffré, **sur un tour de correction** : une dizaine d'appels d'outils au maximum, poster la revue et relancer le contrôle compris. Sur un premier tour portant du code neuf, la borne ne s'applique pas : mieux vaut une revue longue et complète que trois revues courtes. Au-delà, tu es en train d'enquêter au lieu de relire.
 
 Cette borne a été dépassée trois fois de suite, à trente-quatre et quarante-trois appels : un budget qui n'est jamais tenu ne sert à rien. **Sur un tour de correction, elle est ferme.** Ce qui la fait exploser est de refaire à la main ce que `pnpm run mutations` fait déjà, et de monter des projets témoins pour éprouver un mécanisme que le diff seul permet de juger.
 
@@ -122,6 +123,8 @@ Lis ensuite `CLAUDE.md` et, si le diff touche au format de story, au manifeste, 
 **Regarde de trois places.** Le code seul, le code parmi les autres fichiers et dans l'ordre où il s'exécute, et le code depuis l'extérieur, c'est-à-dire ce que le produit promet. Un mécanisme juste en lui-même peut être placé au mauvais endroit d'une chaîne, ou tenir une promesse que la documentation dément.
 
 **Quand un diff pose une table de cas, demande quels axes elle croise.** Une table complète sur un axe et muette sur un autre se présente comme close et ne l'est pas.
+
+**Énumère les entrées avant de chercher.** Pour une fonction, ses paramètres et ce qu'elle lit d'ailleurs ; pour chacun, les classes de valeurs. Les trois points bloquants du lot 3 étaient les trois paramètres d'une même fonction, trouvés à un tour d'intervalle chacun.
 
 **Ce qui est recherché**, dans cet ordre :
 

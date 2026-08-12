@@ -45,6 +45,16 @@ gh pr ready <numéro>                 # 6. une fois les points traités
 
 **Auto-review : avant de lancer une revue, relis-toi.** Pas une liste à cocher, qui devient mécanique et ne voit que ce qu'elle nomme : une lecture de ton propre diff comme s'il venait d'un autre, en partant de ce que tu viens de faire et de ce que tu sais du dépôt.
 
+**L'auto-review découvre, la revue confirme.** C'est l'inverse qui s'est produit sur le lot 3 : neuf tours, trois points bloquants, tous trouvés par la revue et aucun par moi. Une auto-review qui ne fait que vérifier son propre diff laisse tout le travail à celle qui coûte douze minutes.
+
+**Découvrir, c'est explorer l'espace des entrées, pas relire son texte.** Avant de demander une revue sur un composant neuf :
+
+1. Écrire **toutes** les entrées de chaque fonction publique. Ses paramètres, mais aussi ce qu'elle lit du système de fichiers, de la configuration, de l'environnement.
+2. Pour chacune, écrire les **classes de valeurs** possibles. Pas les valeurs auxquelles on pense : les classes, jusqu'aux dégénérées.
+3. Croiser, et éprouver chaque case qui a du sens.
+
+Les trois points bloquants du lot 3 sont les trois paramètres de la même fonction, découverts un par tour. Une table « complète » sur un axe et muette sur deux autres a été présentée comme close.
+
 **Regarder de trois places, pas d'une.** Un défaut invisible depuis l'une saute aux yeux depuis les autres.
 
 - **Le code seul.** Sa logique, ses cas limites, ce qu'il fait d'une entrée qu'on n'attendait pas.

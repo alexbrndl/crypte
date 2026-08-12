@@ -102,6 +102,7 @@ function best(
 // Ce à quoi les chemins s'appliquent : un nom de module, et rien d'autre. Les
 // autres natures appartiennent à Vite, à un plugin, ou au système de fichiers.
 export function isBareSpecifier(id: string): boolean {
+  if (!id) return false
   if (id.startsWith('.') || id.startsWith(VIRTUAL)) return false
   if (isAbsolute(id)) return false
 

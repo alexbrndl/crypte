@@ -384,6 +384,7 @@ describe('natures d’identifiant', () => {
     ['un module virtuel de plugin', 'virtual:mon-module'],
     ['un identifiant virtuel de Rollup', '\0virtuel'],
     ['un fichier par URL', 'file:///tmp/x.js'],
+    ['un identifiant vide', ''],
   ])('laisse passer %s', (_, id) => {
     expect(isBareSpecifier(id)).toBe(false)
   })
@@ -392,6 +393,29 @@ describe('natures d’identifiant', () => {
 // La correspondance d'un motif, éprouvée seule : de l'extérieur, une capture
 // fautive est invisible, puisque le repli renvoie l'import à Vite comme si rien
 // ne s'était passé.
+// Ce que l'exploration des entrées a produit : les cas dégénérés de chaque
+// fonction publique, éprouvés une fois plutôt que découverts un par revue.
+describe('cas dégénérés', () => {
+  it.each([
+    ['une racine inexistante', () => loadProject('/nexiste/pas/du/tout')],
+    ['un fichier vide', () => loadProject(projectWith(''))],
+    ['un export qui n’est pas un objet', () => loadProject(projectWith('export default 42'))],
+    ['un fichier qui lève à l’import', () => loadProject(projectWith('throw new Error("boum")'))],
+  ])('nomme le fichier pour %s', async (_, charger) => {
+    await expect(charger()).rejects.toThrow(ConfigError)
+    await expect(charger()).rejects.toThrow(/crypte\.config\.ts|racine/)
+  })
+
+  it('lit un extends déclaré en tableau', async () => {
+    const root = projectOf({
+      'a.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
+      'tsconfig.json': '{ "extends": ["./a.json"] }',
+    })
+
+    expect((await projectPathsOf(root))?.paths).toEqual({ '@/*': ['src/*'] })
+  })
+})
+
 describe('correspondance d’un motif', () => {
   it.each([
     ['#app', '#app', ''],
@@ -456,6 +480,21 @@ describe('résolution des chemins', () => {
 
     try {
       await expect(server.transformRequest('/entry.js')).resolves.not.toBeNull()
+    } finally {
+      await close()
+    }
+  })
+
+  // Un motif sans aucune cible retient quand même : TypeScript n'essaie pas le
+  // motif suivant non plus, il retombe sur la résolution normale.
+  it('ne se rabat pas quand le motif retenu n’a aucune cible', async () => {
+    const { server, close } = await resolving('{ "@/*": [], "@*": ["src/*"] }', {
+      'entry.js': 'import "@/a.js"',
+      'src/a.js': 'export const x = 1',
+    })
+
+    try {
+      await expect(server.transformRequest('/entry.js')).rejects.toThrow()
     } finally {
       await close()
     }
