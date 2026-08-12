@@ -138,8 +138,8 @@
   {
     "garantie": "un seul motif est retenu, comme chez TypeScript",
     "fichier": "packages/cli/src/paths.ts",
-    "avant": "    if (captured !== null) return { targets, captured }",
-    "apres": "    if (captured === null) return { targets, captured: '' }",
+    "avant": "  for (const [pattern, targets] of ordered) {",
+    "apres": "  for (const [pattern, targets] of [...ordered].reverse()) {",
     "trouvee": "revue 7 de la PR #17",
     "attendu": "ne se rabat pas sur un autre motif"
   }
