@@ -88,10 +88,15 @@ for (const mutation of mutations) {
     // laisserait croire que la garantie tient, alors que son gardien est muet.
     const byTheRightOne = `${tests.output}${check.output}`.includes(mutation.attendu)
 
-    const verdict = !noticed ? 'MANQUÉ' : byTheRightOne ? 'vu   ' : 'AILLEURS'
+    const verdict = !built.ok ? 'CASSÉ' : !noticed ? 'MANQUÉ' : byTheRightOne ? 'vu   ' : 'AILLEURS'
     console.log(`${verdict}  ${mutation.garantie}`)
 
-    if (!noticed) failures.push(`${mutation.garantie} (${mutation.trouvee}) n'est gardée par rien`)
+    // Une construction cassée ne dit rien de la garantie : c'est la mutation qui
+    // est mal écrite. Le dire, plutôt que d'accuser un gardien muet.
+    if (!built.ok)
+      failures.push(`${mutation.garantie} : la mutation casse la construction, corrige-la`)
+    else if (!noticed)
+      failures.push(`${mutation.garantie} (${mutation.trouvee}) n'est gardée par rien`)
     else if (!byTheRightOne)
       failures.push(
         `${mutation.garantie} : vue par autre chose que « ${mutation.attendu} », son gardien est muet`,
