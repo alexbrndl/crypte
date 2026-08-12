@@ -101,7 +101,7 @@
     "avant": "{ configName, root }",
     "apres": "{ configName }",
     "trouvee": "DCJ-167",
-    "attendu": "jsconfig.json commenté"
+    "attendu": "ne rend rien quand le projet n"
   },
   {
     "garantie": "une configuration incomplète est refusée en nommant le champ",
@@ -112,10 +112,10 @@
     "attendu": "en nommant le champ"
   },
   {
-    "garantie": "les quatre écarts entre TypeScript et Vite sont traités",
+    "garantie": "les écarts de spécificité entre TypeScript et Vite sont traités",
     "fichier": "packages/cli/src/aliases.ts",
-    "avant": "      .sort(([a], [b]) => b.length - a.length)",
-    "apres": "      .sort(() => 0)",
+    "avant": "        const exactness = Number(a.endsWith('*')) - Number(b.endsWith('*'))\n        return exactness || b.length - a.length",
+    "apres": "        return 0",
     "trouvee": "revue de la PR #17",
     "attendu": "le motif le plus spécifique en premier"
   }

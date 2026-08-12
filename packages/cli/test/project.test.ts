@@ -188,6 +188,45 @@ describe('alias du projet', () => {
       { find: '@shared', replacement: join(root, 'shared/src') },
     ])
   })
+
+  // Et l'inverse, qui est la forme courante : le projet étend un fichier
+  // lointain, `@tsconfig/node22` par exemple, et déclare ses propres chemins.
+  // Les compter depuis le fichier étendu les enverrait dans `node_modules`.
+  it('compte les chemins déclarés localement depuis le projet', async () => {
+    const root = projectOf({
+      'base.json': '{ "compilerOptions": { "strict": true } }',
+      'app/tsconfig.json':
+        '{ "extends": "../base.json", "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
+    })
+
+    expect(await aliasesOf(join(root, 'app'))).toEqual([
+      { find: '@', replacement: join(root, 'app/src') },
+    ])
+  })
+
+  // Un motif exact désigne un module, pas un préfixe. Nuxt génère exactement
+  // cette paire, `#app` et `#app/*`, et l'ordre décide de ce qui l'emporte.
+  it('distingue un motif exact de son voisin joker', async () => {
+    const root = projectOf({
+      'tsconfig.json':
+        '{ "compilerOptions": { "paths": { "@lib/*": ["vendor/*"], "@lib": ["src/lib/index.ts"] } } }',
+    })
+
+    const alias = await aliasesOf(root)
+    expect(alias[0]?.find).toEqual(/^@lib$/)
+    expect(alias[0]?.replacement).toBe(join(root, 'src/lib/index.ts'))
+    expect(alias[1]?.find).toBe('@lib')
+  })
+
+  // Un joker sans barre oblique est valide côté TypeScript. Garder l'astérisque
+  // dans le `find` rendait l'alias inerte : Vite ne peut jamais le satisfaire.
+  it('accepte un joker collé au préfixe', async () => {
+    const root = projectOf({
+      'tsconfig.json': '{ "compilerOptions": { "paths": { "@*": ["src/*"] } } }',
+    })
+
+    expect(await aliasesOf(root)).toEqual([{ find: '@', replacement: join(root, 'src') }])
+  })
 })
 
 // Le lot existe pour lever ce risque : que la résolution échoue sur un projet

@@ -330,8 +330,12 @@ L'option reproduit le comportement de TypeScript, qui n'applique les `paths` qu'
 | un premier fichier trouvé sans `paths` | le `jsconfig.json` voisin devenait inatteignable |
 | l'ordre des motifs | Vite retient le premier qui correspond, TypeScript le plus long : `@/*` masquait `@/lib/*` |
 | des `paths` hérités par `extends` d'un autre dossier | comptés depuis le fichier qui hérite, pas depuis celui qui déclare |
+| un motif exact voisin d'un joker, `#app` et `#app/*` chez Nuxt | le joker interceptait l'import exact |
+| un joker collé au préfixe, `@*` | l'alias restait inerte, Vite ne pouvant jamais le satisfaire |
 
-Le dernier vient de `tsconfck`, qui rend `baseUrl` en absolu mais laisse `paths` relatif. Le fichier déclarant se lit dans `extended`.
+Le quatrième vient de `tsconfck`, qui rend `baseUrl` en absolu mais laisse `paths` relatif. Le fichier déclarant ne se lit pas dans `extended` : cette liste porte des configurations déjà fusionnées, où chaque niveau a hérité des `paths` du suivant. Il faut relire chaque fichier pour savoir lequel les écrit lui-même, et c'est le premier de la chaîne, non le dernier. Prendre le dernier envoie les alias d'un projet qui étend `@tsconfig/node22` droit dans `node_modules`.
+
+Les motifs exacts deviennent des expressions ancrées et passent devant tous les jokers : ils ne peuvent masquer personne, alors qu'un joker de même préfixe les intercepte.
 
 **La fixture reproduit un projet réel** plutôt qu'un cas d'école : alias `@/`, un `jsconfig.json` commenté sans `tsconfig.json`, des fichiers `.jsx`, un import d'asset. Elle est exclue du lint : son `baseUrl` est refusé par TypeScript 7, et c'est précisément ce qu'un projet existant contient.
 
