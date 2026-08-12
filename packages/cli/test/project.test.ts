@@ -220,12 +220,62 @@ describe('alias du projet', () => {
 
   // Un joker sans barre oblique est valide côté TypeScript. Garder l'astérisque
   // dans le `find` rendait l'alias inerte : Vite ne peut jamais le satisfaire.
-  it('accepte un joker collé au préfixe', async () => {
+  // Un `paths` vide ne clôt pas la recherche : sinon le `jsconfig.json` voisin
+  // reste inatteignable, ce que la poursuite existe pour éviter.
+  it('ignore un paths déclaré mais vide', async () => {
     const root = projectOf({
-      'tsconfig.json': '{ "compilerOptions": { "paths": { "@*": ["src/*"] } } }',
+      'tsconfig.json': '{ "compilerOptions": { "paths": {} } }',
+      'jsconfig.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
     })
 
     expect(await aliasesOf(root)).toEqual([{ find: '@', replacement: join(root, 'src') }])
+  })
+
+  // Le fourre-tout de TypeScript n'a pas d'équivalent : traduit, son `find` vide
+  // correspondrait à tout identifiant, y compris au point d'entrée.
+  it('écarte le motif fourre-tout', async () => {
+    const root = projectOf({
+      'tsconfig.json': '{ "compilerOptions": { "paths": { "*": ["types/*"] } } }',
+    })
+
+    expect(await aliasesOf(root)).toEqual([])
+  })
+
+  it('nomme le fichier quand il est illisible', async () => {
+    const root = projectOf({ 'tsconfig.json': '{ "compilerOptions": { paths } }' })
+
+    await expect(aliasesOf(root)).rejects.toThrow(ConfigError)
+    await expect(aliasesOf(root)).rejects.toThrow(/tsconfig\.json/)
+  })
+})
+
+// Les cas ci-dessus lisent la forme des alias. Ceux-ci vérifient qu'un serveur
+// résout vraiment : le joker collé au préfixe produisait un alias d'apparence
+// juste, et parfaitement inerte, que seule la résolution révèle.
+describe('résolution des formes de motif', () => {
+  it.each([
+    ['@/*', '{ "@/*": ["src/*"] }', 'import "@/Badge.js"'],
+    ['@*', '{ "@*": ["src/*"] }', 'import "@Badge.js"'],
+    ['exact', '{ "@lib": ["src/Badge.js"] }', 'import "@lib"'],
+    ['préfixe nommé', '{ "lib-*": ["src/*"] }', 'import "lib-Badge.js"'],
+  ])('résout le motif %s', async (_, paths, source) => {
+    const root = projectOf({
+      'tsconfig.json': `{ "compilerOptions": { "paths": ${paths} } }`,
+      'src/Badge.js': 'export const Badge = 1',
+      'entry.js': source,
+    })
+
+    const { server, close } = await serverOn({
+      root,
+      configFile: false,
+      resolve: { alias: await aliasesOf(root) },
+    })
+
+    try {
+      await expect(server.transformRequest('/entry.js')).resolves.not.toBeNull()
+    } finally {
+      await close()
+    }
   })
 })
 

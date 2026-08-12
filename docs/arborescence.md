@@ -63,6 +63,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `src/config.ts` | contrat de `crypte.config.ts`, `defineConfig` | le projet utilisateur |
 | `src/project.ts` | chargement de la configuration, config Vite | le futur serveur |
 | `src/aliases.ts` | alias lus depuis `tsconfig` ou `jsconfig` | `project.ts` |
+| `src/errors.ts` | l'erreur montrée à l'utilisateur | `project.ts`, `aliases.ts` |
 | `test/fixture/` | projet imité, aux contraintes réelles | `test/project.test.ts` |
 
 ## `packages/react` — `@crypte/react`

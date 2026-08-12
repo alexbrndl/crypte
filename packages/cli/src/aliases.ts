@@ -6,15 +6,17 @@ import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { parse, toJson, type TSConfckParseResult } from 'tsconfck'
 import type { Alias } from 'vite'
+import { ConfigError } from './errors'
 
 // Les deux noms admis, celui de TypeScript et celui des projets JavaScript.
 // `jsconfig.json` n'est pas une commodité : c'est le seul endroit où un projet
 // sans TypeScript peut déclarer ses alias.
 const CONFIG_NAMES = ['tsconfig.json', 'jsconfig.json']
 
-// Le suffixe joker d'un motif, la barre oblique comprise quand elle est là :
-// `@/*` donne `@`, et `@*` donne `@`.
-const WILDCARD = /\/?\*$/
+// Le joker en fin de motif, précédé d'une barre oblique : `@/*`. C'est la seule
+// forme que Vite sait traiter en chaîne, son comparateur testant `id === find`
+// ou `id.startsWith(find + '/')`.
+const SLASHED_WILDCARD = /\/\*$/
 
 // Nom fictif : `parse` attend un fichier et remonte depuis son dossier.
 const PROBE = '__crypte__'
@@ -29,7 +31,15 @@ export async function aliasesOf(root: string): Promise<Alias[]> {
     // `parse` remonte depuis le dossier du chemin donné, qui n'a pas besoin
     // d'exister. `root` borne la remontée : sans elle, un projet sans
     // configuration hériterait de celle d'un dossier parent quelconque.
-    const result = await parse(resolve(root, PROBE), { configName, root })
+    let result: TSConfckParseResult
+    try {
+      result = await parse(resolve(root, PROBE), { configName, root })
+    } catch (cause) {
+      // Un fichier à moitié écrit, ou une virgule en trop : le dire plutôt que
+      // de laisser remonter une trace de pile venue d'une bibliothèque.
+      throw new ConfigError(`${configName} n'a pas pu être lu : ${(cause as Error).message}`)
+    }
+
     if (!result.tsconfigFile) continue
 
     const found = pathsOf(result, root)
@@ -92,9 +102,13 @@ function rawConfig(file: string): unknown {
   }
 }
 
+// Un `paths` vide ne compte pas : sinon `"paths": {}` dans un `tsconfig.json`
+// rend le `jsconfig.json` voisin inatteignable, ce que la poursuite évite.
 function compilerPaths(config: unknown): Record<string, string[]> | undefined {
   const paths = (config as { compilerOptions?: { paths?: unknown } })?.compilerOptions?.paths
-  return paths && typeof paths === 'object' ? (paths as Record<string, string[]>) : undefined
+  if (!paths || typeof paths !== 'object' || Object.keys(paths).length === 0) return undefined
+
+  return paths as Record<string, string[]>
 }
 
 function aliasesFrom({ paths, base }: Paths): Alias[] {
@@ -116,15 +130,46 @@ function aliasesFrom({ paths, base }: Paths): Alias[] {
         const target = targets[0]
         if (!target) return []
 
-        // Un motif sans joker désigne un module précis, pas un préfixe : le
-        // rendre exact évite que `@lib/x` parte vers `@lib/index.ts/x`.
-        const find = pattern.endsWith('*')
-          ? pattern.replace(WILDCARD, '')
-          : new RegExp(`^${escapeForRegExp(pattern)}$`)
-
-        return [{ find, replacement: resolve(base, target.replace(WILDCARD, '')) }]
+        const entry = aliasFor(pattern, target, base)
+        return entry ? [entry] : []
       })
   )
+}
+
+// Trois formes de motif, trois traductions. Le comparateur en chaîne de Vite ne
+// sait faire qu'un préfixe suivi d'une barre oblique : tout le reste demande une
+// expression, sans quoi l'alias existe mais ne correspond jamais.
+function aliasFor(pattern: string, target: string, base: string): Alias | undefined {
+  // Le fourre-tout de TypeScript, qui n'a pas d'équivalent ici. Traduit, il
+  // donnerait un `find` vide, que Vite fait correspondre à **tout** identifiant :
+  // le point d'entrée lui-même serait réécrit et plus rien ne se résoudrait.
+  // TypeScript ne l'applique qu'aux imports non relatifs, notion que Vite n'a pas.
+  if (pattern === '*') return undefined
+
+  if (SLASHED_WILDCARD.test(pattern)) {
+    return {
+      find: pattern.replace(SLASHED_WILDCARD, ''),
+      replacement: resolve(base, target.replace(SLASHED_WILDCARD, '')),
+    }
+  }
+
+  // Un joker collé au préfixe, `@*` ou `lib-*`. La partie capturée se réinjecte
+  // dans la cible, faute de quoi tous les modules tomberaient sur le même chemin.
+  if (pattern.endsWith('*')) {
+    const prefix = escapeForRegExp(pattern.slice(0, -1))
+    // `resolve` mange la barre oblique finale : la remettre quand la cible en
+    // portait une, sinon `src/*` donne `srcBadge` au lieu de `src/Badge`.
+    const separator = target.endsWith('/*') ? '/' : ''
+
+    return {
+      find: new RegExp(`^${prefix}(.*)$`),
+      replacement: resolve(base, target.replace(/\/?\*$/, '')) + separator + '$1',
+    }
+  }
+
+  // Un motif sans joker désigne un module précis, pas un préfixe : l'ancrer
+  // évite que `@lib/x` parte vers `@lib/index.ts/x`.
+  return { find: new RegExp(`^${escapeForRegExp(pattern)}$`), replacement: resolve(base, target) }
 }
 
 const SPECIAL = /[.*+?^${}()|[\]\\]/g

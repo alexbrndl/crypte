@@ -6,8 +6,11 @@ import { join, resolve } from 'node:path'
 import { loadConfigFromFile, type InlineConfig } from 'vite'
 import { aliasesOf } from './aliases'
 import type { CrypteConfig } from './config'
+import { ConfigError } from './errors'
 
 const CONFIG_FILE = 'crypte.config.ts'
+
+export { ConfigError }
 
 export interface Project {
   root: string
@@ -15,9 +18,6 @@ export interface Project {
   // Les fichiers dont la configuration dépend, pour la relire quand ils changent.
   watch: string[]
 }
-
-// Levée avec un message destiné à l'utilisateur, pas une trace de pile.
-export class ConfigError extends Error {}
 
 export async function loadProject(input: string): Promise<Project> {
   // Normalisé une fois ici : un `crypte dev ./demo` passerait sinon un chemin

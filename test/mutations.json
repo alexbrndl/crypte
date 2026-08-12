@@ -118,5 +118,13 @@
     "apres": "        return 0",
     "trouvee": "revue de la PR #17",
     "attendu": "le motif le plus spécifique en premier"
+  },
+  {
+    "garantie": "chaque forme de motif résout vraiment, pas seulement en apparence",
+    "fichier": "packages/cli/src/aliases.ts",
+    "avant": "    const separator = target.endsWith('/*') ? '/' : ''",
+    "apres": "    const separator = ''",
+    "trouvee": "revue 3 de la PR #17",
+    "attendu": "résout le motif"
   }
 ]

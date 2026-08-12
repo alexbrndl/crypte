@@ -332,10 +332,16 @@ L'option reproduit le comportement de TypeScript, qui n'applique les `paths` qu'
 | des `paths` hérités par `extends` d'un autre dossier | comptés depuis le fichier qui hérite, pas depuis celui qui déclare |
 | un motif exact voisin d'un joker, `#app` et `#app/*` chez Nuxt | le joker interceptait l'import exact |
 | un joker collé au préfixe, `@*` | l'alias restait inerte, Vite ne pouvant jamais le satisfaire |
+| le fourre-tout `"*"` | son `find` vide correspondait à **tout**, point d'entrée compris |
+| un `"paths": {}` déclaré mais vide | il clôturait la recherche et masquait le `jsconfig.json` voisin |
 
 Le quatrième vient de `tsconfck`, qui rend `baseUrl` en absolu mais laisse `paths` relatif. Le fichier déclarant ne se lit pas dans `extended` : cette liste porte des configurations déjà fusionnées, où chaque niveau a hérité des `paths` du suivant. Il faut relire chaque fichier pour savoir lequel les écrit lui-même, et c'est le premier de la chaîne, non le dernier. Prendre le dernier envoie les alias d'un projet qui étend `@tsconfig/node22` droit dans `node_modules`.
 
 Les motifs exacts deviennent des expressions ancrées et passent devant tous les jokers : ils ne peuvent masquer personne, alors qu'un joker de même préfixe les intercepte.
+
+**Le comparateur de Vite ne sait faire qu'un préfixe suivi d'une barre oblique**, `id === find` ou `id.startsWith(find + '/')`. Seul `@/*` s'y traduit en chaîne ; `@*`, `lib-*` et les motifs exacts demandent une expression, faute de quoi l'alias existe et ne correspond jamais.
+
+*Une leçon de méthode, payée deux fois ici :* un test qui lit la **forme** d'un alias ne prouve rien. Celui du joker collé au préfixe vérifiait `{ find: '@', replacement: … }`, exactement ce qu'on attendait, sur un alias que Vite ne pouvait pas satisfaire. Les formes de motif sont désormais éprouvées par un serveur qui résout un import réel.
 
 **La fixture reproduit un projet réel** plutôt qu'un cas d'école : alias `@/`, un `jsconfig.json` commenté sans `tsconfig.json`, des fichiers `.jsx`, un import d'asset. Elle est exclue du lint : son `baseUrl` est refusé par TypeScript 7, et c'est précisément ce qu'un projet existant contient.
 
