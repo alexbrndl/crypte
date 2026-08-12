@@ -479,6 +479,20 @@ Première ligne du commentaire. Invisible au rendu, cherché tel quel par le wor
 
 **Le workflow est séparé de `ci.yml`.** L'intégrer aux dépendances de `ci-passed` le rendrait immédiatement bloquant, puisque `ci-passed` est le contrôle exigé par les règles de la branche. Le contrôle de revue est délibérément non bloquant au départ : on juge son utilité sur trois ou quatre lots avant de l'exiger.
 
+### Le nombre de tours, et ce qui le fait baisser
+
+Le lot 2 a demandé neuf revues et cinquante-trois constats. Quatre mesures en sont tirées, les deux premières dans `CLAUDE.md`, les deux autres dans le skill.
+
+**L'auto-critique avant la revue.** Cinq faiblesses réelles ont été trouvées de cette façon en quelques minutes, dont un faux vert du contrôle de mutation. Elles auraient coûté un ou deux tours. La règle ne fixe pas de liste : une liste ne voit que ce qu'elle nomme, et les défauts changent de forme à chaque lot.
+
+**Le périmètre.** Une décision de conception arrivée en cours de route crée une surface qu'aucune revue n'a vue, donc un tour de plus. Cinq chantiers ont été absorbés par cette pull request.
+
+**La re-revue porte sur le diff incrémental**, pas sur la branche entière. C'est ce qui faisait dix minutes par tour et ramenait les mêmes constats de fond.
+
+**La revue lance `npm run mutations`** au lieu de refaire les mutations à la main, ce qu'elle faisait à chaque tour.
+
+*Ce qui reste incertain :* les deux premières mesures sont de la discipline, et la discipline a échoué à chaque tour de ce lot. Elles n'ont fonctionné que le jour où elles ont été demandées explicitement. Les écrire les rend opposables en revue, pas automatiques.
+
 ### Ce que la revue attrape, et ce qu'elle n'attrape pas
 
 **Attrapé :** les écarts par rapport à des règles écrites. Une dépendance interne embarquée en copie, une décision documentée puis prise à l'envers, un ordre d'étapes qui rend un test inopérant.

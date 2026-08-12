@@ -43,6 +43,24 @@ gh pr create --draft --title "…"    # 1. jamais directement ouverte
 gh pr ready <numéro>                 # 6. une fois les points traités
 ```
 
+**Avant de lancer une revue, relis-toi.** Pas une liste à cocher, qui devient mécanique et ne voit que ce qu'elle nomme : une lecture de ton propre diff comme s'il venait d'un autre, en partant de ce que tu viens de faire et de ce que tu sais du dépôt.
+
+Trois questions ouvrent à peu près tout :
+
+- Qu'ai-je **affirmé** sans l'avoir vérifié ? Un commentaire, un message de commit, une phrase de documentation, une réponse donnée plus haut.
+- Qu'est-ce qui **passerait au vert** si je cassais ce que ça surveille ?
+- Qu'ai-je **changé après** ma dernière vérification ? Un formateur, une correction tardive, une restauration de fichier.
+
+**Un doute se tranche par une commande, pas par la relecture.** C'est la différence entre les cinq faiblesses trouvées de cette façon et les vingt-huit trouvées par la revue : les premières ont été mesurées, les secondes crues.
+
+Et ce qui reste non corrigé se dit, plutôt que d'attendre que la revue le trouve.
+
+**Une décision de conception qui arrive en cours de pull request devient une issue.** Renommer un champ, réorganiser des fichiers, ajouter un mécanisme d'extension : chacune crée une surface qu'aucune revue n'a vue, donc un tour de plus.
+
+Le lot 2 a démarré sur les types du protocole et a absorbé cinq chantiers, d'où neuf revues. `Wrap` en est remonté quatre fois avant d'être sorti du périmètre, et `Manifest.version` a reçu deux avis opposés de deux revues successives, avec deux changements de code à la clé.
+
+Le réflexe : ouvrir l'issue, la lier à la pull request en cours, continuer.
+
 **Tout code exécutable ajouté après une revue n'a, par définition, pas été relu.** Corriger un point remonté, mais aussi ajouter une fonctionnalité en cours de route ou répondre à une demande arrivée après coup : dans les trois cas, du code part vers la branche par défaut sans qu'aucun regard ne s'y soit posé.
 
 Relancer une revue sur ces changements seuls. S'en passer s'ils ne touchent que de la documentation ou de la configuration déjà éprouvée par l'intégration continue.

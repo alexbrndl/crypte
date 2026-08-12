@@ -44,6 +44,20 @@ Diff :
 
 Le sous-agent produit et poste la revue, puis se termine. Tu ne reprends la main qu'ensuite, pour corriger les points remontés.
 
+## Premier tour ou tour de correction
+
+**Premier tour :** le diff complet, `origin/main...HEAD`.
+
+**Tour de correction :** seulement ce qui a bougé depuis la dernière revue, plus la liste des points déjà traités, tous deux fournis dans le prompt. Relire vingt-sept fichiers pour en vérifier trois fait perdre du temps et ramène les mêmes constats de fond à chaque tour.
+
+Ce qui reste hors périmètre d'un tour de correction se signale en une ligne, sans être réexaminé.
+
+## Ce que le dépôt vérifie déjà
+
+`npm run mutations` casse chaque garantie du protocole et vérifie que le bon test s'en aperçoit. **Lance-le plutôt que de refaire ces mutations à la main**, et consacre ton temps à ce qui n'y figure pas.
+
+Le catalogue est dans `test/mutations.json` : une garantie absente de ce fichier est une garantie que personne ne surveille, et c'est en soi un constat.
+
 ## Borne d'effort
 
 **Reste proportionné au diff.** Une revue longue sur un petit diff ne sera pas lue, et c'est le seul mode d'échec qui compte ici.
