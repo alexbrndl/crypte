@@ -14,11 +14,18 @@ export type PreviewMessage =
   | MessagesOf<PluginPreviewMessages>
 
 // Ne retient que ce qui a la forme d'un message, `type` compris comme littéral.
+// `NonNullable` parce qu'un membre optionnel vaut `X | undefined`, qui n'a pas
+// cette forme : sans lui, `controls?: …` disparaît de l'union alors que les
+// autres points d'extension donnent justement l'exemple d'un champ optionnel.
 // Sans ce filtre, un plugin déclarant `{ x: string }` ou `{ type: string }`
 // ferait entrer sa valeur dans l'union, et plus aucun `message.type` ne
 // distinguerait quoi que ce soit chez le consommateur.
 type MessagesOf<T> = {
-  [K in keyof T]: T[K] extends { type: infer Kind } ? (string extends Kind ? never : T[K]) : never
+  [K in keyof T]: NonNullable<T[K]> extends { type: infer Kind }
+    ? string extends Kind
+      ? never
+      : NonNullable<T[K]>
+    : never
 }[keyof T]
 
 // Le canal ne transporte jamais les props d'une story : la preview importe les

@@ -21,6 +21,13 @@ describe('messages du shell', () => {
     expect(message.open).toBe(true)
   })
 
+  // Un membre optionnel vaut `X | undefined` : sans `NonNullable`, le filtre
+  // l'écartait de l'union et ce message disparaissait.
+  it('accepte un message déclaré optionnel par un plugin', () => {
+    const message = { type: 'viewport:set', width: 320 } satisfies ShellMessage
+    expect(message.width).toBe(320)
+  })
+
   it('refuse un type de message inconnu', () => {
     // @ts-expect-error `resize` ne fait pas partie du protocole
     const unknown = { type: 'resize', width: 320 } satisfies ShellMessage

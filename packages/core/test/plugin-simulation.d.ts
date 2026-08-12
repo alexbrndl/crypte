@@ -23,6 +23,8 @@ declare module '../src/protocol/story' {
 declare module '../src/protocol/channel' {
   interface PluginShellMessages {
     controls: PluginMessage<{ type: 'controls:open'; open: boolean }>
+    // Optionnel, comme les autres points d'extension le donnent en exemple.
+    viewport?: PluginMessage<{ type: 'viewport:set'; width: number }>
   }
 
   interface PluginPreviewMessages {

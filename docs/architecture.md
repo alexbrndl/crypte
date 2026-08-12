@@ -255,6 +255,31 @@ Cette garantie explique en partie l'ordre des étapes de l'intégration continue
 
 La fraîcheur des artefacts n'est volontairement pas vérifiée par comparaison de dates. Le cache de tâches restaure les fichiers construits avec leurs dates d'origine, ce qui provoquerait des échecs sur un état pourtant correct. Elle repose sur deux mécanismes plus fiables : le cache s'invalide quand les sources changent, et l'intégration continue construit avant de tester.
 
+**`test/spec.test.ts`**
+Compare la spécification au code, dans les deux sens : aucun nom retiré ne survit dans la partie normative, et tout type exporté y figure.
+
+*Pourquoi :* douze des cinquante-trois constats des revues du lot 2 venaient de là. Un nom renommé qui survit dans le document qui fait foi produit une réimplémentation fausse, et c'est ainsi que le chapitre 5 a décrit pendant deux versions un message que le canal ne connaissait plus.
+
+*Comment :* les renommages sont lus dans les tableaux du journal, qui en est déjà la mémoire. Le journal devient donc son propre contrôle, sans liste à tenir ailleurs. Les noms sont cherchés comme mots entiers et non entre accents graves, parce que c'est dans les blocs de code qu'ils ont surtout traîné.
+
+---
+
+## 4 bis. Le contrôle de mutation
+
+`scripts/mutation-check.mjs` casse chaque garantie du protocole, une par une, et vérifie qu'au moins un test s'en aperçoit. Le catalogue est dans `scripts/mutations.json`, une entrée par constat de revue réel.
+
+**Pourquoi il existe.** Sur les cinquante-trois constats des neuf revues du lot 2, sept portaient sur un test qui passait pour la mauvaise raison, et quatre sur une garantie tenue par le code mais gardée par aucun test. C'est la première cause de défaut du dépôt, très loin devant les bugs de comportement, qui sont deux.
+
+La seule méthode qui ait fonctionné à chaque fois est de casser ce que le test surveille et de le voir rougir. Faite à la main, elle dépend de l'attention de qui écrit, laquelle a failli à chaque tour. Ce script la rend exécutable.
+
+**Ce qu'il a trouvé le jour de son écriture.** Une correction annoncée deux revues plus tôt, `NonNullable` dans le filtre des messages, n'avait jamais été appliquée : le remplacement visait une forme multiligne que le formateur avait condensée, et n'a donc rien remplacé, sans rien signaler.
+
+**Ce qui casse si on l'enlève.** Rien immédiatement, et c'est le problème : les garanties se dégraderaient une par une sans qu'aucun test ne rougisse, exactement comme entre la huitième et la neuvième revue.
+
+**Deux précautions.** Il refuse de tourner sur un arbre non propre, sinon une interruption laisserait des sources mutées sans que git puisse dire lesquelles. Et il reconstruit les artefacts en sortant, le test d'isolation les lisant.
+
+**Ce qu'il ne couvre pas.** Seulement les garanties qu'on a pensé à y mettre. Il empêche un défaut trouvé de revenir, il n'en trouve pas de nouveau.
+
 ---
 
 ## 5. Décisions encodées dans la configuration

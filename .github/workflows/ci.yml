@@ -39,6 +39,12 @@ jobs:
       - run: vp test
       - name: Generated exports are up to date
         run: git diff --exit-code
+      # Casse chaque garantie et vérifie qu'un test s'en aperçoit. Après le
+      # git diff, parce qu'il modifie les sources et les restaure.
+      - name: Guarantees are actually guarded
+        run: node scripts/mutation-check.mjs
+        env:
+          VP_BIN: vp
 
   dependency-review:
     if: github.event_name == 'pull_request'

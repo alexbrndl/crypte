@@ -175,6 +175,8 @@ interface StoryDefinition<P, C> {
 }
 ```
 
+Une entrée de `wrap` sous forme de tableau est un `WrapEntry`, soit un composant seul, soit un couple composant et props.
+
 **`props`** porte ce qui est commun à toutes les stories. Chaque story ne déclare que ce qui diffère. La fusion est superficielle, prop par prop.
 
 Conséquence à connaître : deux props mutuellement exclusives demandent une remise à zéro explicite. Sur `ProgressLoader`, une story qui passe de `itemLabel` à `criteria` doit écrire `itemLabel: null`. C'est le comportement correct d'une fusion superficielle ; le rendre plus intelligent introduirait de la magie.
@@ -351,6 +353,8 @@ Le manifeste alimente l'interface du shell : arbre de navigation, recherche, tab
 
 ### 4.2 Entrées typées
 
+Chaque entrée est un `ManifestEntry`, aujourd'hui toujours un `StoryEntry`, et son champ `component` est un `ComponentRef` qui désigne le fichier et l'export d'origine.
+
 Le manifeste est une liste d'entrées portant chacune un champ `type`. **Une seule valeur est implémentée en v1 : `"story"`.** Les valeurs `"page"` et `"tokens"` sont réservées pour les évolutions design system et ne doivent pas être implémentées maintenant.
 
 Cette réserve coûte un champ aujourd'hui et évite une migration plus tard.
@@ -381,7 +385,7 @@ Cette réserve coûte un champ aujourd'hui et évite une migration plus tard.
 
 ### 4.3 Stabilité des identifiants
 
-L'`id` est dérivé du chemin de l'entrée et du nom de la story, passés en minuscules, débarrassés de leurs accents latins et de tout ce qui n'est ni lettre, ni chiffre, ni marque.
+L'`id` est produit par `storyId`, qui applique `normalizeSegment` au chemin de l'entrée et au nom de la story, passés en minuscules, débarrassés de leurs accents latins et de tout ce qui n'est ni lettre, ni chiffre, ni marque.
 
 **Les marques sont conservées**, et c'est ce qui distingue « Всё » de « Все » : les mêmes signes qui portent un accent latin composent des lettres entières ailleurs. Ne retirer les accents que sur une base latine est donc la règle, pas un détail d'implémentation.
 
@@ -413,13 +417,15 @@ Le shell et la preview ne communiquent que par `postMessage`, avec des messages 
 
 Cette contrainte est la garantie d'agnosticisme du noyau. Toute exception introduite ici annulerait l'architecture entière.
 
+La version du protocole est exposée par la constante `PROTOCOL_VERSION`, que la preview annonce dans son message `ready`. Elle est distincte de `MANIFEST_VERSION` : le format du catalogue et celui des messages évoluent séparément.
+
 Le canal ne transporte jamais les props d'une story. Il transporte l'identifiant de l'entrée à rendre, et les **surcharges** issues des controls. Une surcharge est toujours une valeur primitive éditée dans un panneau, donc toujours sérialisable.
 
 ### 5.2 Messages du shell vers la preview
 
 | Message | Charge utile | Effet |
 |---|---|---|
-| `render` | `{ id, overrides }` | Monte l'entrée demandée |
+| `render` | `{ id, overrides }` | Monte l'entrée demandée, `overrides` étant de type `Overrides` |
 | `update-overrides` | `{ id, overrides }` | Met à jour sans remonter |
 | `set-globals` | `{ globals }` | Applique les réglages globaux |
 | déclaré par un plugin | la sienne | Voir `PluginShellMessages` ci-dessous |

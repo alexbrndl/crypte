@@ -24,6 +24,8 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `.github/workflows/ts7-readiness.yml` | sonde mensuelle sur `vue-tsc` | personne, ouvre une issue |
 | `.github/dependabot.yml` | veille sur les actions GitHub | Dependabot |
 | `.vite-hooks/pre-commit` | lance `vp staged` | Git, avant chaque commit |
+| `scripts/mutation-check.mjs` | casse chaque garantie, attend un test rouge | `npm run mutations`, la CI |
+| `scripts/mutations.json` | catalogue des garanties, une par constat de revue | le script ci-dessus |
 | `.changeset/config.json` | mode fixe, générateur de changelog | Changesets |
 | `.claude/skills/review/SKILL.md` | prompt de revue | `/review` |
 | `.claude/skills/changeset/SKILL.md` | prompt de note de version | `/changeset` |
@@ -51,6 +53,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/no-plugin/cases.ts` | ce que le noyau refuse installé seul | — |
 | `test/no-plugin/tsconfig.json` | programme sans la simulation de plugin | `no-plugin.test.ts` |
 | `test/isolation.test.ts` | étanchéité des trois entrées, sur les bundles | — |
+| `test/spec.test.ts` | écart entre la spécification et le code | — |
 
 ## `packages/cli` — `@crypte/cli`
 
