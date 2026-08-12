@@ -1,0 +1,51 @@
+# Suivi
+
+Ce qu'une revue a vu, qu'on a choisi de ne pas corriger tout de suite, et pourquoi.
+
+Une pull request sort du brouillon quand plus aucun point **bloquant** ne reste. Le reste vient ici plutôt que de retenir le lot : sans cet endroit, la seule issue est de tout corriger, et la boucle de revue ne se ferme jamais.
+
+**Ce fichier est lu par la revue.** Un point qui y figure est arbitré : le re-signaler n'apprend rien à personne. `Wrap` est remonté quatre fois avant qu'on le sorte du périmètre.
+
+Une ligne disparaît quand le point est traité, pas avant. Les niveaux sont définis dans `.claude/skills/review/SKILL.md`.
+
+---
+
+## Important
+
+### Le canal n'a aucun test d'exécution
+
+`createShellChannel` et `createPreviewChannel` ne sont exercés par aucun test. Le filtrage sur `event.origin` et `event.source`, le refus de `'*'` dans `postMessage`, les réponses `ready`, `rendered` et `error` : rien n'est gardé.
+
+*Mesuré :* remplacer `origin` par `'*'` dans `reply` laisse les 76 tests verts, alors que le commentaire juste au-dessus en fait la raison de sûreté du canal.
+
+*Pourquoi ce n'est pas fait ici :* il faut un environnement DOM et deux fenêtres simulées, donc une configuration de test que le dépôt n'a pas encore. C'est un lot en soi.
+
+*Origine :* revue 12 du lot 2.
+
+---
+
+## Observations
+
+### Le contrôle de la spécification lit moins de formes que celui du barrel
+
+`spec.test.ts` reconnaît `export interface|type|const|function`, quand `index.test.ts` couvre aussi `export declare`, `class`, `enum`, `let`, `var`, `async function` et les blocs `export { X }` sans `from`.
+
+*Conséquence :* un type déclaré puis exporté séparément échappe au contrôle, et la partie normative peut l'ignorer en silence.
+
+*Origine :* revue 12 du lot 2.
+
+### `sideEffects: false` n'est ni documenté ni gardé
+
+Le champ est ajouté au manifeste publié pour qu'un bundler consommateur puisse élaguer l'import que rolldown conserve dans `preview`. Il est exact aujourd'hui, les trois entrées ne déclarant que des constantes et des fonctions.
+
+*Conséquence :* le jour où un module du protocole acquiert un effet de bord au chargement, les bundlers des consommateurs le supprimeront sans avertissement.
+
+*Origine :* revue 12 du lot 2.
+
+---
+
+## Renvoyé vers le suivi de projet
+
+| Point | Où |
+|---|---|
+| `Wrap` ne distingue pas un composant d'une fonction d'enveloppe | DCJ-189 |

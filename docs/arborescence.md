@@ -89,4 +89,5 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `architecture.md` | rôle de chaque mécanisme et ce qui casse sans lui | qui modifie le dépôt |
 | `arborescence.md` | ce fichier | qui cherche où se trouve quoi |
 | `plugins.md` | catalogue des plugins et phases | la planification |
+| `suivi.md` | points de revue arbitrés, non corrigés | la revue, qui ne les re-signale plus |
 | `test-format-stories.md` | test du format sur cinq composants réels | historique |

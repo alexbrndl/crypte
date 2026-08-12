@@ -71,7 +71,9 @@ Ce n'est pas une précaution théorique : la seconde revue du lot 1 a trouvé qu
 
 **Quand s'arrêter.** La boucle se termine quand **aucun point bloquant** ne reste, pas quand la revue est vide. Un dépôt vivant produit toujours des points, donc attendre le silence garantit une boucle sans fin : le lot 2 a pris onze tours de cette façon, dont les trois derniers sur des outils ajoutés en cours de route.
 
-Les niveaux sont définis dans le skill `/review`. Ce qui reste, important ou observation, devient une issue de suivi liée à la pull request, et le dire fait partie de la clôture.
+Les niveaux sont définis dans le skill `/review`. Ce qui reste, important ou observation, va dans `docs/suivi.md` **dans le même diff**, avec ce qui a été mesuré et pourquoi ce n'est pas fait ici.
+
+Un fichier plutôt qu'une issue : la trace reste dans le dépôt, elle suit le code, et la revue la lit, donc un point arbitré cesse de revenir à chaque tour.
 
 Corriger un point non bloquant est permis, mais alors sans relancer de tour pour lui seul : il part avec le prochain lot de corrections ou avec l'issue.
 

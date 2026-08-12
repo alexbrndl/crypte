@@ -70,7 +70,9 @@ Sans niveau, tout point se traite comme un empêchement, et la boucle ne se ferm
 
 En cas d'hésitation entre deux niveaux, prendre le plus bas et dire pourquoi : c'est celui qui a un coût, l'autre n'en a pas.
 
-**Le critère d'arrêt de la boucle est là.** La pull request sort du brouillon quand aucun bloquant ne reste, pas quand la revue est vide. Les points restants deviennent une issue de suivi, liée à la pull request.
+**Le critère d'arrêt de la boucle est là.** La pull request sort du brouillon quand aucun bloquant ne reste, pas quand la revue est vide. Les points restants sont consignés dans `docs/suivi.md`, dans le même diff.
+
+**Lis `docs/suivi.md` avant de rédiger.** Ce qui y figure est arbitré : le re-signaler n'apprend rien. Si un point du fichier est devenu bloquant, c'est en revanche un constat à part entière, et il faut dire ce qui a changé.
 
 ## Borne d'effort
 

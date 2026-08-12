@@ -419,6 +419,8 @@ Cette contrainte est la garantie d'agnosticisme du noyau. Toute exception introd
 
 La version du protocole est exposée par la constante `PROTOCOL_VERSION`, que la preview annonce dans son message `ready`. Elle est distincte de `MANIFEST_VERSION` : le format du catalogue et celui des messages évoluent séparément.
 
+**Elle vaut 1, et le lot qui a écrit ce chapitre est cette version 1.** Les changements qu'il décrit ne rompent donc rien : ils construisent le protocole, ils ne le cassent pas. Le compteur s'incrémentera au premier changement rompant *après* publication, quand une preview et un shell de versions différentes pourront réellement se rencontrer.
+
 Le canal ne transporte jamais les props d'une story. Il transporte l'identifiant de l'entrée à rendre, et les **surcharges** issues des controls. Une surcharge est toujours une valeur primitive éditée dans un panneau, donc toujours sérialisable.
 
 Les deux directions portent des types distincts : `ShellMessage` va vers l'iframe, `PreviewMessage` en revient.
