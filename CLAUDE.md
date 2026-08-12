@@ -43,7 +43,7 @@ gh pr create --draft --title "…"    # 1. jamais directement ouverte
 gh pr ready <numéro>                 # 6. une fois les points traités
 ```
 
-**Avant de lancer une revue, relis-toi.** Pas une liste à cocher, qui devient mécanique et ne voit que ce qu'elle nomme : une lecture de ton propre diff comme s'il venait d'un autre, en partant de ce que tu viens de faire et de ce que tu sais du dépôt.
+**Auto-review : avant de lancer une revue, relis-toi.** Pas une liste à cocher, qui devient mécanique et ne voit que ce qu'elle nomme : une lecture de ton propre diff comme s'il venait d'un autre, en partant de ce que tu viens de faire et de ce que tu sais du dépôt.
 
 Trois questions ouvrent à peu près tout :
 
@@ -69,7 +69,11 @@ La formulation compte : une première version de cette règle ne parlait que des
 
 Ce n'est pas une précaution théorique : la seconde revue du lot 1 a trouvé que le correctif d'un point de la première laissait passer `react-dom/client`, c'est-à-dire exactement l'import que la règle corrigée existait pour bloquer.
 
-**Quand s'arrêter.** La boucle se termine dès qu'une revue ne produit plus de correction touchant du code : aucun point, ou uniquement des points de documentation. Sinon on relance, sans limite fixée d'avance, parce que le nombre de tours n'est pas la question.
+**Quand s'arrêter.** La boucle se termine quand **aucun point bloquant** ne reste, pas quand la revue est vide. Un dépôt vivant produit toujours des points, donc attendre le silence garantit une boucle sans fin : le lot 2 a pris onze tours de cette façon, dont les trois derniers sur des outils ajoutés en cours de route.
+
+Les niveaux sont définis dans le skill `/review`. Ce qui reste, important ou observation, devient une issue de suivi liée à la pull request, et le dire fait partie de la clôture.
+
+Corriger un point non bloquant est permis, mais alors sans relancer de tour pour lui seul : il part avec le prochain lot de corrections ou avec l'issue.
 
 **Arrêt explicite.** Certains fichiers ne convergent pas : un workflow planifié ne s'exécute pas avant des semaines, aucun test local ne reproduit son environnement, et son mode d'échec est le silence. Chaque relecture y trouve légitimement quelque chose sans qu'aucune ne puisse conclure.
 

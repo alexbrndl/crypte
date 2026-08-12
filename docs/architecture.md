@@ -489,6 +489,18 @@ Première ligne du commentaire. Invisible au rendu, cherché tel quel par le wor
 
 **Le workflow est séparé de `ci.yml`.** L'intégrer aux dépendances de `ci-passed` le rendrait immédiatement bloquant, puisque `ci-passed` est le contrôle exigé par les règles de la branche. Le contrôle de revue est délibérément non bloquant au départ : on juge son utilité sur trois ou quatre lots avant de l'exiger.
 
+### Le critère d'arrêt de la boucle de revue
+
+Le lot 2 a demandé onze tours. La cause n'est pas le nombre de constats, c'est qu'aucun critère ne disait quand s'arrêter : la règle attendait qu'une revue ne produise plus rien, ce qu'un dépôt vivant ne fait jamais.
+
+**Chaque point porte donc un niveau**, et seul le niveau `bloquant` retient la pull request au brouillon. Un bloquant rompt un contrat, introduit une régression, ou rend vert un contrôle qui ne vérifie plus rien. Le reste devient une issue de suivi.
+
+Mesuré sur le onzième tour : six points, dont deux bloquants seulement. Les quatre autres auraient pu partir en issue, et ce tour aurait été le dernier.
+
+**Deux causes secondaires, mesurées elles aussi.** Les trois derniers tours ne portaient plus sur le protocole, dont le code n'avait pas bougé, mais sur les outils de vérification ajoutés pendant la pull request : chaque outil est une surface neuve qui produit ses propres constats. Et la borne d'effort de la revue, fixée à une dizaine d'appels d'outils, a été dépassée trois fois de suite à trente-quatre et quarante-trois, principalement pour refaire à la main ce que `pnpm run mutations` fait déjà.
+
+Sur les 1907 lignes du lot, 245 sont du code de production, 1193 des tests et des outils, 464 de la documentation.
+
 ### Le nombre de tours, et ce qui le fait baisser
 
 Le lot 2 a demandé neuf revues et cinquante-trois constats. Quatre mesures en sont tirées, les deux premières dans `CLAUDE.md`, les deux autres dans le skill.
