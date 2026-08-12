@@ -324,6 +324,14 @@ describe('résolution des chemins', () => {
       'export { x } from "@/lib/a.js"',
       '/src/',
     ],
+    // Le préfixe d'un motif sans joker est le motif entier. Le compter à un
+    // caractère près le mettrait à égalité avec le joker voisin.
+    [
+      'le motif exact malgré un joker de même longueur',
+      '{ "#ap*": ["vendor/a.js"], "#app": ["src/lib/a.js"] }',
+      'export { x } from "#app"',
+      '/src/',
+    ],
   ])('retient %s', async (_, paths, source, attendu) => {
     const { server, close } = await resolving(paths, {
       'entry.js': source,
