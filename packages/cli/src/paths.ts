@@ -44,14 +44,14 @@ export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
       // module au lieu d'échouer. Mesuré sur un `./theme.css` supprimé.
       if (!isBareSpecifier(source)) return null
 
-      const matched = ordered.find(([pattern]) => capture(pattern, source) !== null)
+      // Un seul motif, le mieux classé qui corresponde. TypeScript essaie ses
+      // substitutions puis retombe sur la résolution Node, jamais sur un autre
+      // motif : passer au suivant ferait résoudre ici ce que l'éditeur déclare
+      // introuvable.
+      const matched = best(ordered, source)
       if (!matched) return null
 
-      // Un seul motif, celui-là. TypeScript essaie ses substitutions puis
-      // retombe sur la résolution Node, jamais sur un autre motif : passer au
-      // suivant ferait résoudre ici ce que l'éditeur déclare introuvable.
-      const [pattern, targets] = matched
-      const captured = capture(pattern, source) as string
+      const { targets, captured } = matched
 
       for (const target of targets) {
         // La résolution est celle de Vite : extensions du projet, `index`,
@@ -75,6 +75,20 @@ export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
       return null
     },
   }
+}
+
+// Le premier motif de la liste ordonnée qui corresponde, avec ce qu'il capture.
+// Rendus ensemble pour n'appeler `capture` qu'une fois par motif.
+function best(
+  ordered: [string, string[]][],
+  source: string,
+): { targets: string[]; captured: string } | undefined {
+  for (const [pattern, targets] of ordered) {
+    const captured = capture(pattern, source)
+    if (captured !== null) return { targets, captured }
+  }
+
+  return undefined
 }
 
 // Ce à quoi les chemins s'appliquent : un nom de module, et rien d'autre. Les
