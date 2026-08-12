@@ -105,23 +105,19 @@ describe('isolation des entrées de @crypte/core', () => {
 
   // L'autre sens : les deux côtés du canal n'ont besoin que de `channel`. Importer
   // la barrière leur faisait embarquer `id.ts` et `manifest.ts` en code mort.
-  // Sur `preview` seul : `ui` n'importe que des types, effacés à la compilation,
-  // donc son bundle ne peut rien embarquer par cette route et le cas passerait
-  // quoi qu'il arrive. Mesuré en remettant les deux sur la porte d'entrée : un
-  // seul des deux rougit.
-  it('preview n’embarque que ce dont il se sert', () => {
-    const closure = closureOf('preview')
-    expect(closure).toContain('__crypte_preview__')
+  // Sur la fermeture, comme les autres cas. Une version antérieure exigeait de
+  // `ui` qu'il n'ait aucun import relatif : c'est le critère que la section 4
+  // de architecture.md déclare invalide, et il aurait rougi le jour où `ui` lit
+  // une valeur du canal, sans qu'aucune étanchéité soit rompue.
+  //
+  // Le cas est aujourd'hui vacant pour `ui`, qui n'importe que des types : il
+  // mordra dès qu'il importera une valeur, comme `preview` le fait déjà.
+  it.each(['ui', 'preview'])('%s n’embarque que ce dont il se sert', (entry) => {
+    const closure = closureOf(entry)
+    expect(closure).toContain(`__crypte_${entry}__`)
 
     for (const symbol of OUTSIDE_THE_CHANNEL) {
-      expect(closure, `preview embarque ${symbol}`).not.toContain(symbol)
+      expect(closure, `${entry} embarque ${symbol}`).not.toContain(symbol)
     }
-  })
-
-  // Ce qui est vrai de `ui` et qui se vérifie : il se suffit à lui-même.
-  it('ui ne dépend d’aucun autre fichier', () => {
-    const entryOnly = readFileSync(join(dist, 'ui.js'), 'utf8')
-    expect(entryOnly).toContain('__crypte_ui__')
-    expect(entryOnly).not.toMatch(RELATIVE_IMPORT_SOURCE)
   })
 })

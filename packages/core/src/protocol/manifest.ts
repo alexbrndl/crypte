@@ -1,4 +1,8 @@
-// Le catalogue produit par le CLI et lu par le shell. Sérialisable de bout en bout.
+// Le catalogue produit par le CLI et lu par le shell.
+//
+// Il doit survivre à un aller-retour JSON, mais les types ne l'imposent pas :
+// `unknown` accepte une fonction, que `JSON.stringify` retirerait en silence.
+// C'est au CLI de garantir ce qu'il écrit. Voir la section 4.5 de la spec.
 
 import type { ResolvedPropDetails } from './prop'
 import type { StoryMeta } from './story'

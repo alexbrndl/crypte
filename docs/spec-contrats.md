@@ -395,6 +395,16 @@ L'`id` est dérivé du chemin de l'entrée et du nom de la story, passés en min
 
 ---
 
+### 4.5 Sérialisation
+
+Le manifeste est écrit en JSON et relu tel quel. **Tout ce qu'il porte doit survivre à cet aller-retour** : pas de fonction, pas d'instance de classe, pas de `Date`, pas d'`undefined` en valeur.
+
+Les types ne l'imposent pas. `default`, `options` et le contenu de `options` d'une entrée sont typés `unknown`, faute de savoir d'avance ce qu'un composant ou un plugin y met. Une fonction y passerait la compilation, puis disparaîtrait à l'écriture sans qu'aucune erreur ne soit levée, `JSON.stringify` retirant silencieusement ce qu'il ne sait pas représenter.
+
+**C'est donc au CLI de garantir ce qu'il écrit**, en omettant ou en représentant autrement ce qui n'est pas sérialisable. Le cas le plus probable est une prop dont la valeur par défaut est une fonction de rappel.
+
+---
+
 ## 5. Protocole du canal
 
 ### 5.1 Principe

@@ -214,7 +214,7 @@ Vérifient ce que le noyau refuse **installé seul**, par une seconde compilatio
 
 *Pourquoi ailleurs que dans le noyau :* un paquet ne se dépend pas lui-même, donc `@crypte/core/protocol` ne se résout pas depuis `packages/core`. `packages/react` en dépend comme le ferait un plugin, c'est le seul endroit d'où le chemin réel est atteignable.
 
-*Ce que ça couvre et que la simulation ne peut pas :* celle-ci augmente les modules **sources**. Le chemin public passe par les `.d.ts` publiés, où les points d'extension vivent dans un chunk partagé et ne sont que réexportés. Mesuré : renommer un réexport dans la porte d'entrée fait échouer ce test, et lui seul.
+*Ce que ça couvre et que la simulation ne peut pas :* celle-ci augmente les modules **sources**. Le chemin public passe par les `.d.ts` publiés, où les points d'extension vivent dans un chunk partagé et ne sont que réexportés. Renommer un réexport fait échouer ce test **et** celui des réexports, qui compare les noms publics ; ce qui distingue les deux est la fusion à travers le chunk, que le second ne regarde pas.
 
 *Sans lui :* la fonctionnalité phare du lot repose sur le fait que TypeScript fusionne à travers un alias de réexport, ce que rien ne vérifie. Un changement de découpage la casserait en silence.
 

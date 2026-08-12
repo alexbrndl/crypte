@@ -42,7 +42,7 @@ describe('le noyau installé seul', { timeout: 60_000 }, () => {
   it('refuse ce qu’aucun plugin n’a déclaré, et accepte ses propres champs', () => {
     const { ok, output } = run(['--listFiles'])
 
-    expect(output).toContain('no-plugin/cases.ts')
+    expect(output).toContain(join('no-plugin', 'cases.ts'))
     expect(output).not.toContain('plugin-simulation')
     expect(ok, output).toBe(true)
   })
