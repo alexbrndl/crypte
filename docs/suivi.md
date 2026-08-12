@@ -44,6 +44,65 @@ Le contrôle est satisfait dès qu'une revue portant le marqueur existe, quelle 
 
 *Origine :* constaté en passant la PR #16 en prêt.
 
+### `viteConfigOf` ne fixe pas de dossier de cache
+
+La configuration produite laisse Vite écrire dans `<projet>/node_modules/.vite`, le même dossier que le `vite dev` du projet. Deux serveurs aux plugins et aux entrées différents y écriraient le même `_metadata.json`.
+
+*Ce qui l'atteste :* le fabricant de serveurs des tests a dû donner un cache propre à chacun, après deux échecs isolés jamais reproduits. Le code de production porte la même exposition sans la parade.
+
+*Pourquoi ce n'est pas fait ici :* aucun serveur ne tourne encore, `viteConfigOf` n'étant consommé que par les tests. Choisir l'emplacement demande de savoir ce que le serveur de preview partage avec le projet, ce que le lot 5 tranchera.
+
+*Origine :* revue 5 de la PR #17.
+
+### Les chemins déclarés ne s'appliquent pas dans une feuille de style
+
+Un `@import '@/vars.css'` dans le CSS du projet ne résout pas. Le pipeline CSS de Vite ne consulte aucun plugin : il résout `@import` et `url()` par ses propres moyens, alias compris.
+
+*Ce qui a été essayé :* fournir en plus un `resolve.alias` pour les motifs traduisibles. Mesuré, ça résout le CSS **et casse le repli du JavaScript** : un alias s'applique avant le résolveur et réécrit sans condition, donc une première cible inexistante ne retombe plus sur la seconde. Le remède était pire.
+
+*Ce qui le lèverait :* transformer le contenu des feuilles de style avant que Vite ne les résolve, en réécrivant les spécificateurs. C'est un travail à part, avec ses propres cas limites, `url()` et les `@import` conditionnels.
+
+*Origine :* revue 5 de la PR #17.
+
+### Un chemin ne peut pas remplacer un paquet installé
+
+`"paths": { "vue": ["shims/vue.js"] }` reste sans effet quand `vue` est installé : le résolveur passe après ceux de Vite, qui trouvent le paquet d'abord.
+
+*Mesuré :* l'import rend `/node_modules/vue/…`, là où TypeScript rendrait le fichier de remplacement.
+
+*Pourquoi ce n'est pas fait :* ce même ordre est ce qui empêche un motif fourre-tout de détourner les imports que Vite résout déjà. Le corriger demande de distinguer les deux cas, donc de savoir quels identifiants un chemin a le droit d'intercepter.
+
+*Ce que ça coûte :* le remplacement d'un paquet, motif courant pour `react-native-web` ou une variante de build, est ignoré sans un mot.
+
+*Origine :* revue 6 de la PR #17.
+
+### Des échecs isolés, jamais reproduits
+
+Quatre fois sur le lot 3, une commande a échoué sans raison visible puis a réussi à l'identique juste après :
+
+| Ce qui a échoué | Ce qu'on a vu ensuite |
+|---|---|
+| deux tests isolés | vingt-trois lancements verts |
+| le contrôle de mutation | deux relances vertes |
+| `vp run -r pack`, code 2 | « Build complete » affiché, trois relances à zéro |
+| un test, juste avant un commit | treize lancements verts |
+
+*Ce qui a été fait :* donner un dossier de cache propre à chaque serveur de test, la seule cause plausible qui ait été mesurée, à savoir qu'ils partageaient `node_modules/.vite`. Les trois autres occurrences sont postérieures.
+
+*Ce qui reste :* aucune cause démontrée. Les quatre surviennent autour d'un commit ou d'un enchaînement de commandes, ce qui suggère une course avec le cache de tâches, mais rien ne l'établit.
+
+*Pourquoi c'est consigné :* une instabilité rare finit par tomber en intégration continue, où personne ne saura la reproduire. La noter permet au moins de compter.
+
+### `vite` est une dépendance du CLI, pas une dépendance de pair
+
+`CrypteConfig.vite.plugins` transporte des instances créées par le projet contre **sa** version de Vite, et elles s'exécuteront dans le conteneur de celle du CLI. Sous pnpm, un projet en Vite 7 verrait son plugin tourner sous Vite 8.
+
+*Pourquoi c'est ainsi aujourd'hui :* le produit promet deux paquets installés, pas trois. Exiger Vite en dépendance de pair déplacerait ce choix sur l'utilisateur.
+
+*Ce qui reste à trancher :* accepter d'imposer notre version, ou suivre celle du projet. La question se pose vraiment quand un serveur tourne, donc au lot 5.
+
+*Origine :* revue 7 de la PR #17.
+
 ## Observations
 
 ### Le contrôle de la spécification lit moins de formes que celui du barrel

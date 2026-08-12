@@ -1,0 +1,4 @@
+@import 'tailwindcss';
+.badge {
+  color: var(--color-emerald-500);
+}

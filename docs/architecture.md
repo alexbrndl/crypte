@@ -86,6 +86,10 @@ Le paquet installé par l'utilisateur. Il déclare le binaire `crypte`. Le nom d
 
 Aujourd'hui, le binaire affiche la version du protocole et un message indiquant qu'aucune commande n'est implémentée. Il n'y a ni `dev`, ni `init`, ni `check`.
 
+Il expose en revanche `defineConfig`, et sait lire la configuration d'un projet : `src/config.ts` porte le contrat, `src/project.ts` le chargement, `src/config-paths.ts` et `src/paths.ts` les chemins du projet.
+
+**Deux entrées de construction**, `index` pour le binaire et `config` pour l'API. Sans cette séparation, importer `defineConfig` exécuterait la commande, le binaire s'exécutant au chargement.
+
 Son fichier d'entrée porte un shebang. La chaîne de construction le préserve et pose le bit exécutable sur le fichier produit.
 
 *Sans lui :* il n'y a aucun point d'entrée utilisateur.
@@ -294,6 +298,64 @@ La seule méthode qui ait fonctionné à chaque fois est de casser ce que le tes
 
 ---
 
+## 4 ter. La configuration d'un projet
+
+**`crypte.config.ts` est chargé par `loadConfigFromFile`, la fonction publique de Vite.**
+
+*Pourquoi Vite plutôt qu'une brique dédiée :* le fichier est en TypeScript et doit être transpilé. Vite le fait déjà, avec trois stratégies au choix, et le CLI l'aura de toute façon en dépendance pour servir la preview. Il rend en prime la liste des fichiers dont la configuration dépend, ce qu'il faudra pour la relire quand ils changent.
+
+*Ce qui casse si on l'enlève :* il faut une dépendance de plus, du type de `jiti`, pour un travail que Vite fait mieux.
+
+**Les chemins du projet sont appliqués par un plugin, non traduits en alias.**
+
+*Pourquoi pas `resolve.alias`.* Un alias réécrit sans condition, là où TypeScript essaie la cible et retombe sur la résolution normale quand elle n'existe pas. Ce repli n'a pas d'équivalent dans `resolve.alias`, et c'est toute la difficulté : sans lui, un motif un peu large détourne des imports qui ne lui appartiennent pas. Mesuré : traduire `@*` fait intercepter `@vee/runtime-core`, et le projet ne résout plus aucun paquet scopé.
+
+Quatre tours de revue ont été consacrés à approximer ce repli par des règles de forme, chacune corrigeant un cas et en cassant un autre. Le plugin le reproduit au lieu de l'approcher, et referme le sujet.
+
+*L'espace est fini.* Un motif TypeScript porte **au plus un joker**, donc la correspondance revient à comparer un préfixe et un suffixe. Les sept formes possibles résolvent, vérifiées par un serveur réel :
+
+| Forme | Exemple |
+|---|---|
+| exact | `#app` |
+| préfixe avec séparateur | `@/*` |
+| préfixe collé | `@*` |
+| préfixe nommé | `lib-*` |
+| fourre-tout | `*` |
+| suffixe | `*.css` |
+| joker au milieu | `a/*/z` |
+
+*Ce que Vite fait, et qu'on ne réimplémente pas.* `this.resolve` applique les extensions du projet, les `index`, le champ `exports` et ses conditions. Une première version testait l'existence des fichiers elle-même, avec une liste d'extensions en dur qui ignorait `.vue`, `.svelte` et tout `resolve.extensions` configuré.
+
+*Trois règles de départage*, celles de TypeScript : le motif au plus long préfixe fixe l'emporte, un motif sans joker passe avant tous les autres, et **un seul motif est retenu**. Ses cibles sont essayées dans l'ordre, puis on retombe sur la résolution de Vite, jamais sur un autre motif. Se rabattre ferait résoudre ici ce que l'éditeur du développeur déclare introuvable.
+
+*La correspondance est éprouvée seule.* De l'extérieur, une capture fautive est invisible : le repli renvoie l'import à Vite comme si rien ne s'était passé. Mesuré : sans la comparaison du suffixe, du préfixe, ou l'égalité stricte d'un motif exact, aucun test d'intégration ne rougit.
+
+*Deux limites, mesurées et consignées dans `suivi.md`.* Le pipeline CSS ne consulte aucun plugin, donc un `@import` passant par un chemin déclaré ne résout pas ; y ajouter un alias résout le CSS et casse le repli du JavaScript. Et le résolveur passe après ceux de Vite, donc un chemin qui remplacerait un paquet installé reste sans effet.
+
+**Le résolveur a trois entrées, et les trois espaces sont finis.** Les avoir énumérées une à une, plutôt qu'en croyant chaque fois avoir fini, est ce qui a coûté le plus cher sur ce lot : chacune a produit son point bloquant, et chaque fois le même mode de panne, un module chargé en silence à la place d'un autre.
+
+**La provenance de l'import.** Les chemins d'un projet ne valent que pour ses fichiers. Une dépendance qui importe un paquet absent, cas d'un pair optionnel non installé, se verrait sinon servir du code de l'application au lieu d'échouer. Mesuré.
+
+**Les formes de motif et les natures d'identifiant** suivent.
+
+ Les formes de motif d'un côté, sept lignes ; les natures d'identifiant de l'autre, dont seuls les noms de module nus reçoivent les chemins.
+
+| Reçoit les chemins | Passe sans être touché |
+|---|---|
+| `vue`, `@scope/pkg`, `vue/dist/vue.js`, `@/composants/Badge` | `./voisin.js`, `../ailleurs.js`, `/racine.js` |
+| | `https://…`, `data:…`, `file://…`, `node:fs` |
+| | `virtual:mon-module`, les identifiants virtuels de Rollup |
+
+*Les chemins ne s'appliquent qu'aux identifiants nus.* TypeScript n'applique jamais `paths` à un import relatif ou absolu, et il faut le refuser explicitement : le résolveur passant après ceux de Vite, seuls les imports relatifs **cassés** lui parviendraient. Mesuré, un `./theme.css` supprimé se trouvait détourné vers `styles/theme.css` au lieu d'échouer, ce qui est le pire mode de panne, un fichier déplacé chargeant un autre module en silence.
+
+*Où les chemins sont lus*, et depuis quel dossier ils se comptent, reste dans `config-paths.ts`. Ce travail-là n'a pas bougé : la borne de remontée, le suivi des références d'un `tsconfig` de style solution, la poursuite jusqu'au fichier qui déclare vraiment des chemins, et la base prise sur le fichier déclarant.
+
+**La fixture reproduit un projet réel** plutôt qu'un cas d'école : alias `@/`, un `jsconfig.json` commenté sans `tsconfig.json`, des fichiers `.jsx`, un import d'asset. Elle est exclue du lint : son `baseUrl` est refusé par TypeScript 7, et c'est précisément ce qu'un projet existant contient.
+
+*Ce qui casse si on l'enlève :* la résolution n'est plus éprouvée que sur des cas choisis pour passer. Le lot existe pour lever ce risque avant qu'il ne coûte cher.
+
+---
+
 ## 5. Décisions encodées dans la configuration
 
 Ces réglages ont l'air anodins et ne le sont pas. Chacun a été mis là pour une raison précise, et chacun est le genre de ligne qu'on supprime en croyant nettoyer.
@@ -488,6 +550,18 @@ Première ligne du commentaire. Invisible au rendu, cherché tel quel par le wor
 **Le workflow n'imprime jamais le corps des commentaires**, seulement leur nombre. Un texte produit par un agent peut contenir des commandes de workflow, `::error::` ou `::add-mask::`, qui manipuleraient la sortie de l'exécution si elles étaient affichées. En ne faisant sortir que des nombres, la question ne se pose pas.
 
 **Le workflow est séparé de `ci.yml`.** L'intégrer aux dépendances de `ci-passed` le rendrait immédiatement bloquant, puisque `ci-passed` est le contrôle exigé par les règles de la branche. Le contrôle de revue est délibérément non bloquant au départ : on juge son utilité sur trois ou quatre lots avant de l'exiger.
+
+### L'exploration découvre, la revue confirme
+
+Le lot 3 a demandé neuf tours de revue, dont **trois points bloquants**. Les trois étaient les trois paramètres d'une même fonction, `resolveId(source, importer, options)`, découverts à un tour d'intervalle chacun. Aucun n'a été trouvé en amont.
+
+**La cause n'est pas le nombre de constats, c'est le partage du travail.** L'auto-review, telle qu'elle était écrite, relisait le diff : elle vérifiait que ce qui avait été fait était bien fait, et ne cherchait jamais ce qui n'avait pas été fait. Tout le travail de découverte revenait donc à la revue, qui coûte douze minutes et un aller-retour.
+
+**Deux réglages y contribuaient.** Le skill de revue plafonnait à trois points et à une dizaine d'appels d'outils, ce qui garantissait qu'elle en trouve trois et s'arrête. Ce plafond ne vaut plus que pour les tours de correction. Et la méthode d'exploration était une consigne dans `CLAUDE.md`, où elle a été bâclée, oubliée, puis réduite à une relecture. Elle est devenue le skill `/explore`, parce que ce qui s'invoque tient, quand ce qui s'écrit se perd.
+
+*Ce qui casse si on l'enlève :* la découverte retombe sur la revue, et chaque cas limite coûte un tour au lieu d'une minute.
+
+*Ce que le premier usage a appris.* Le tour qui a suivi la première exploration n'a rendu aucun point bloquant, contre trois sur les huit précédents, et ses constats portaient tous sur du code écrit au tour d'avant. Trois règles en sont sorties : le périmètre est le diff entier, puisque corriger une revue produit du code que personne n'a exploré ; une structure reçue est un axe par champ, quatre champs non validés ayant fini en erreur brute ; et croiser n'est pas énumérer, un test posant un seul fichier de configuration ne disant rien du cas à deux.
 
 ### Le critère d'arrêt de la boucle de revue
 

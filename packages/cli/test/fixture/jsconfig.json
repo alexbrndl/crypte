@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    // Un commentaire, comme dans un vrai fichier de projet.
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  }
+}

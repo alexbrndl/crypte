@@ -37,13 +37,26 @@ _Sinon :_ une rupture de l'outillage, encore en version pré-1.0, se corrige dan
 ```bash
 gh pr create --draft --title "…"    # 1. jamais directement ouverte
 /changeset                           # 2. note de version, ou rien à déclarer
-/review                              # 3. délègue à un sous-agent
-                                     # 4. corriger les points remontés
-/review                              # 5. si les corrections touchent du code
-gh pr ready <numéro>                 # 6. une fois les points traités
+/explore                             # 3. découvrir, avant de faire confirmer
+/review                              # 4. délègue à un sous-agent
+                                     # 5. corriger les points remontés
+/review                              # 6. si les corrections touchent du code
+gh pr ready <numéro>                 # 7. une fois les points traités
 ```
 
+**L'exploration découvre, la revue confirme.** Prises à l'envers, elles coûtent un tour de douze minutes par constat : le lot 3 en a demandé neuf, dont trois points bloquants qui étaient les trois paramètres d'une même fonction.
+
 **Auto-review : avant de lancer une revue, relis-toi.** Pas une liste à cocher, qui devient mécanique et ne voit que ce qu'elle nomme : une lecture de ton propre diff comme s'il venait d'un autre, en partant de ce que tu viens de faire et de ce que tu sais du dépôt.
+
+La méthode d'exploration vit dans le skill `/explore`, parce qu'une consigne écrite ici a été bâclée une fois, oubliée une autre, et réduite à une relecture de diff pendant huit tours. Ce qui tient est ce qui s'invoque.
+
+**Regarder de trois places, pas d'une.** Un défaut invisible depuis l'une saute aux yeux depuis les autres.
+
+- **Le code seul.** Sa logique, ses cas limites, ce qu'il fait d'une entrée qu'on n'attendait pas.
+- **Le code parmi les autres.** Qui l'appelle et avec quoi, ce qu'il appelle, ce qui s'exécute avant et après lui, ce qu'un autre fichier suppose de lui. Un plugin correct isolé peut être placé au mauvais endroit d'une chaîne.
+- **Le code depuis l'extérieur.** Ce que le produit promet, ce qu'un utilisateur en fera, ce que la documentation en dit.
+
+**Et énumérer les axes d'entrée avant de croire un espace fermé.** Le lot 3 a produit une table complète des formes de motif, déclarée close, en oubliant que le résolveur a une seconde entrée : la nature de l'identifiant importé. Le seul point bloquant du lot est sorti de là. Fermer un axe ne ferme rien tant que les autres ne sont pas nommés.
 
 Trois questions ouvrent à peu près tout :
 
@@ -60,6 +73,12 @@ Et ce qui reste non corrigé se dit, plutôt que d'attendre que la revue le trou
 Le lot 2 a démarré sur les types du protocole et a absorbé cinq chantiers, d'où neuf revues. `Wrap` en est remonté quatre fois avant d'être sorti du périmètre, et `Manifest.version` a reçu deux avis opposés de deux revues successives, avec deux changements de code à la clé.
 
 Le réflexe : ouvrir l'issue, la lier à la pull request en cours, continuer.
+
+**À la réception d'une revue, la poster, puis classer, puis corriger.** Dans cet ordre, et le postage vient en premier parce que c'est lui qui se perd : deux lots, vingt et une relectures, deux revues arrivées sur la pull request. Le sous-agent rédige, celui qui a la main ensuite poste, et vérifie que le compte a bougé.
+
+**Classer avant de corriger.** Première action, avant d'ouvrir un fichier : reprendre chaque point et lui donner son niveau, en tableau, dans la réponse. La revue rend parfois ses niveaux dans un autre vocabulaire, ou pas du tout ; le classement qui compte est celui qui décide de la suite, et c'est celui-là.
+
+Sans cette étape, tout se corrige indistinctement et la boucle ne se ferme pas. C'est ce qui s'est produit trois fois, y compris le jour où la règle a été écrite.
 
 **Tout code exécutable ajouté après une revue n'a, par définition, pas été relu.** Corriger un point remonté, mais aussi ajouter une fonctionnalité en cours de route ou répondre à une demande arrivée après coup : dans les trois cas, du code part vers la branche par défaut sans qu'aucun regard ne s'y soit posé.
 
@@ -103,6 +122,8 @@ fix: resolve aliases from jsconfig  plutôt que   correction du bug
 **Périmètre.** Ne couvrir que ce qui est démontré par l'usage. Un mécanisme ajouté par précaution crée un usage qu'on ne peut plus reprendre.
 
 **Annuler une modification de test.** Ne jamais utiliser `git checkout` pour défaire une ligne ajoutée le temps d'un essai : la commande restaure la version indexée et emporte tout le travail non commité du même fichier. Copier le fichier avant l'essai, ou retirer la ligne ajoutée.
+
+**Lire la sortie avant de commiter.** Le hook lance le formatage, pas les tests : un `Tests 1 failed` passe donc au commit sans que rien ne s'y oppose, et l'intégration continue ne le dit qu'après le push. C'est arrivé.
 
 **Vérifier avant de commiter.** `vp check | grep 'pass:|error:' && git commit` ne protège de rien : `grep` réussit aussi quand il trouve `error:`. Enchaîner sur le code de sortie de `vp check` seul, sans filtre entre les deux.
 

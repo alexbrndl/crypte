@@ -86,5 +86,77 @@
     "apres": "export type Wrap<C> = C | readonly WrapEntry<C>[] | ((story: unknown) => unknown)",
     "trouvee": "DCJ-189",
     "attendu": "TS2578"
+  },
+  {
+    "garantie": "les alias sont lus depuis la configuration du projet",
+    "fichier": "packages/cli/src/config-paths.ts",
+    "avant": "const CONFIG_NAMES = ['tsconfig.json', 'jsconfig.json']",
+    "apres": "const CONFIG_NAMES: string[] = []",
+    "trouvee": "DCJ-167",
+    "attendu": "jsconfig.json commenté"
+  },
+  {
+    "garantie": "la remontée s'arrête à la racine du projet",
+    "fichier": "packages/cli/src/config-paths.ts",
+    "avant": "{ configName, root }",
+    "apres": "{ configName }",
+    "trouvee": "DCJ-167",
+    "attendu": "ne rend rien quand le projet n"
+  },
+  {
+    "garantie": "une configuration incomplète est refusée en nommant le champ",
+    "fichier": "packages/cli/src/project.ts",
+    "avant": "  assertUsable(config)",
+    "apres": "  void config",
+    "trouvee": "DCJ-167",
+    "attendu": "en nommant le champ"
+  },
+  {
+    "garantie": "le motif le plus spécifique l'emporte",
+    "fichier": "packages/cli/src/paths.ts",
+    "avant": "    const parPrefixe = prefixOf(b).length - prefixOf(a).length\n    if (parPrefixe !== 0) return parPrefixe",
+    "apres": "    if (false) return 0",
+    "trouvee": "revue de la PR #17",
+    "attendu": "retient le motif le plus spécifique"
+  },
+  {
+    "garantie": "le résolveur retombe sur Vite quand la cible n'existe pas",
+    "fichier": "packages/cli/src/paths.ts",
+    "avant": "        if (found) return found\n      }",
+    "apres": "        if (found) return found\n        return { id: candidate }\n      }",
+    "trouvee": "revue 3 de la PR #17",
+    "attendu": "ne se rabat pas sur un autre motif"
+  },
+  {
+    "garantie": "les chemins ne s'appliquent qu'aux identifiants nus",
+    "fichier": "packages/cli/src/paths.ts",
+    "avant": "      if (!isBareSpecifier(source)) return null",
+    "apres": "      if (false) return null",
+    "trouvee": "revue 6 de la PR #17",
+    "attendu": "ne détourne pas un import relatif cassé"
+  },
+  {
+    "garantie": "un seul motif est retenu, comme chez TypeScript",
+    "fichier": "packages/cli/src/paths.ts",
+    "avant": "  for (const [pattern, targets] of ordered) {",
+    "apres": "  for (const [pattern, targets] of [...ordered].reverse()) {",
+    "trouvee": "revue 7 de la PR #17",
+    "attendu": "ne se rabat pas sur un autre motif"
+  },
+  {
+    "garantie": "les chemins ne valent que pour les fichiers du projet",
+    "fichier": "packages/cli/src/paths.ts",
+    "avant": "      if (importer && INSTALLED.test(importer)) return null",
+    "apres": "      if (false) return null",
+    "trouvee": "revue 8 de la PR #17",
+    "attendu": "n’applique pas les chemins à un fichier installé"
+  },
+  {
+    "garantie": "les chemins passent avant les plugins déclarés par le projet",
+    "fichier": "packages/cli/src/project.ts",
+    "avant": "    plugins: [...(paths ? [pathsPlugin(paths)] : []), ...(config.vite?.plugins ?? [])],",
+    "apres": "    plugins: [...(config.vite?.plugins ?? []), ...(paths ? [pathsPlugin(paths)] : [])],",
+    "trouvee": "exploration du lot 3",
+    "attendu": "applique les chemins avant les plugins du projet"
   }
 ]

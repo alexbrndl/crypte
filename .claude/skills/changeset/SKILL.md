@@ -1,6 +1,6 @@
 ---
 name: changeset
-description: Dépose la note de version d'une pull request dans .changeset/, ou constate qu'il n'y a rien à déclarer. À lancer avant /review.
+description: Dépose la note de version d'une pull request dans .changeset/, ou constate qu'il n'y a rien à déclarer. À lancer avant /explore.
 ---
 
 Dépose la note de version de la branche courante, ou constate qu'il n'y a rien à déclarer.
@@ -21,6 +21,14 @@ git diff --stat origin/main...HEAD
 Dans ce cas, dis-le en une ligne et arrête-toi. Ne dépose pas de fichier. Un changelog rempli de « mise à jour de la documentation » ne se lit plus, et le mécanisme perd son intérêt.
 
 ## 2. Choisir le niveau
+
+**Commence par chercher la rupture, ne conclus pas au niveau.** Trois questions, et une seule réponse positive suffit :
+
+- Un nom exporté a-t-il disparu, changé de forme, ou reçu un champ obligatoire ?
+- Une valeur jusqu'ici admise cesse-t-elle de l'être ?
+- Un message, un format de fichier ou un protocole change-t-il de forme ?
+
+Une pull request du lot 2 a déposé un `patch` alors qu'elle retirait un message du canal et renommait un champ d'un autre : le tableau ci-dessous était là, la question ne s'était pas posée.
 
 Le projet est en `0.x`. La convention diffère de celle d'après `1.0.0`, et s'en écarter enverrait le projet en `1.0.0` par accident :
 
