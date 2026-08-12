@@ -37,23 +37,18 @@ _Sinon :_ une rupture de l'outillage, encore en version pré-1.0, se corrige dan
 ```bash
 gh pr create --draft --title "…"    # 1. jamais directement ouverte
 /changeset                           # 2. note de version, ou rien à déclarer
-/review                              # 3. délègue à un sous-agent
-                                     # 4. corriger les points remontés
-/review                              # 5. si les corrections touchent du code
-gh pr ready <numéro>                 # 6. une fois les points traités
+/explore                             # 3. découvrir, avant de faire confirmer
+/review                              # 4. délègue à un sous-agent
+                                     # 5. corriger les points remontés
+/review                              # 6. si les corrections touchent du code
+gh pr ready <numéro>                 # 7. une fois les points traités
 ```
+
+**L'exploration découvre, la revue confirme.** Prises à l'envers, elles coûtent un tour de douze minutes par constat : le lot 3 en a demandé neuf, dont trois points bloquants qui étaient les trois paramètres d'une même fonction.
 
 **Auto-review : avant de lancer une revue, relis-toi.** Pas une liste à cocher, qui devient mécanique et ne voit que ce qu'elle nomme : une lecture de ton propre diff comme s'il venait d'un autre, en partant de ce que tu viens de faire et de ce que tu sais du dépôt.
 
-**L'auto-review découvre, la revue confirme.** C'est l'inverse qui s'est produit sur le lot 3 : neuf tours, trois points bloquants, tous trouvés par la revue et aucun par moi. Une auto-review qui ne fait que vérifier son propre diff laisse tout le travail à celle qui coûte douze minutes.
-
-**Découvrir, c'est explorer l'espace des entrées, pas relire son texte.** Avant de demander une revue sur un composant neuf :
-
-1. Écrire **toutes** les entrées de chaque fonction publique. Ses paramètres, mais aussi ce qu'elle lit du système de fichiers, de la configuration, de l'environnement.
-2. Pour chacune, écrire les **classes de valeurs** possibles. Pas les valeurs auxquelles on pense : les classes, jusqu'aux dégénérées.
-3. Croiser, et éprouver chaque case qui a du sens.
-
-Les trois points bloquants du lot 3 sont les trois paramètres de la même fonction, découverts un par tour. Une table « complète » sur un axe et muette sur deux autres a été présentée comme close.
+La méthode d'exploration vit dans le skill `/explore`, parce qu'une consigne écrite ici a été bâclée une fois, oubliée une autre, et réduite à une relecture de diff pendant huit tours. Ce qui tient est ce qui s'invoque.
 
 **Regarder de trois places, pas d'une.** Un défaut invisible depuis l'une saute aux yeux depuis les autres.
 

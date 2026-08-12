@@ -551,6 +551,16 @@ Première ligne du commentaire. Invisible au rendu, cherché tel quel par le wor
 
 **Le workflow est séparé de `ci.yml`.** L'intégrer aux dépendances de `ci-passed` le rendrait immédiatement bloquant, puisque `ci-passed` est le contrôle exigé par les règles de la branche. Le contrôle de revue est délibérément non bloquant au départ : on juge son utilité sur trois ou quatre lots avant de l'exiger.
 
+### L'exploration découvre, la revue confirme
+
+Le lot 3 a demandé neuf tours de revue, dont **trois points bloquants**. Les trois étaient les trois paramètres d'une même fonction, `resolveId(source, importer, options)`, découverts à un tour d'intervalle chacun. Aucun n'a été trouvé en amont.
+
+**La cause n'est pas le nombre de constats, c'est le partage du travail.** L'auto-review, telle qu'elle était écrite, relisait le diff : elle vérifiait que ce qui avait été fait était bien fait, et ne cherchait jamais ce qui n'avait pas été fait. Tout le travail de découverte revenait donc à la revue, qui coûte douze minutes et un aller-retour.
+
+**Deux réglages y contribuaient.** Le skill de revue plafonnait à trois points et à une dizaine d'appels d'outils, ce qui garantissait qu'elle en trouve trois et s'arrête. Ce plafond ne vaut plus que pour les tours de correction. Et la méthode d'exploration était une consigne dans `CLAUDE.md`, où elle a été bâclée, oubliée, puis réduite à une relecture. Elle est devenue le skill `/explore`, parce que ce qui s'invoque tient, quand ce qui s'écrit se perd.
+
+*Ce qui casse si on l'enlève :* la découverte retombe sur la revue, et chaque cas limite coûte un tour au lieu d'une minute.
+
 ### Le critère d'arrêt de la boucle de revue
 
 Le lot 2 a demandé onze tours. La cause n'est pas le nombre de constats, c'est qu'aucun critère ne disait quand s'arrêter : la règle attendait qu'une revue ne produise plus rien, ce qu'un dépôt vivant ne fait jamais.

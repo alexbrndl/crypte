@@ -28,6 +28,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/mutations.json` | catalogue des garanties, une par constat de revue | le script ci-dessus |
 | `.changeset/config.json` | mode fixe, générateur de changelog | Changesets |
 | `.claude/skills/review/SKILL.md` | prompt de revue | `/review` |
+| `.claude/skills/explore/SKILL.md` | méthode de découverte avant revue | `/explore` |
 | `.claude/skills/changeset/SKILL.md` | prompt de note de version | `/changeset` |
 
 ## `packages/core` — `@crypte/core`
