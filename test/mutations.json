@@ -125,6 +125,6 @@
     "avant": "  if (pattern.includes('*')) return undefined",
     "apres": "  if (pattern === '*') return undefined",
     "trouvee": "revue 3 de la PR #17",
-    "attendu": "laisse passer un paquet scopé"
+    "attendu": "écarte un joker collé au préfixe"
   }
 ]
