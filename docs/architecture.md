@@ -260,7 +260,13 @@ Compare la spécification au code, dans les deux sens : aucun nom retiré ne sur
 
 *Pourquoi :* douze des cinquante-trois constats des revues du lot 2 venaient de là. Un nom renommé qui survit dans le document qui fait foi produit une réimplémentation fausse, et c'est ainsi que le chapitre 5 a décrit pendant deux versions un message que le canal ne connaissait plus.
 
-*Comment :* les renommages sont lus dans les tableaux du journal, qui en est déjà la mémoire. Le journal devient donc son propre contrôle, sans liste à tenir ailleurs. Les noms sont cherchés comme mots entiers et non entre accents graves, parce que c'est dans les blocs de code qu'ils ont surtout traîné.
+*Comment :* une liste de noms retirés, tenue à la main, cherchée dans les **portions de code** de la partie normative. Trois choix, chacun tiré d'un essai raté.
+
+Lire les renommages dans les tableaux du journal semblait élégant, le journal en étant déjà la mémoire. En pratique il contient des tableaux de natures diverses, et la lecture automatique ramassait `crypte`, `ready` et `plugin`, qui sont bien vivants. Une liste juste vaut mieux qu'une déduction fausse ; un cas vérifie qu'elle ne se périme pas, dans les deux sens.
+
+La recherche porte sur le code et non sur la prose : c'est de là qu'on réimplémente, et un mot comme « plugin » est employé partout ailleurs légitimement.
+
+Le contrôle inverse cherche le nom **entier**. Avec une sous-chaîne, `Manifest` était satisfait par `ManifestEntry` : mesuré, les trois types centraux du protocole, `Manifest`, `ShellMessage` et `PreviewMessage`, n'étaient nommés nulle part dans la partie normative et le test restait vert.
 
 ---
 
@@ -493,7 +499,7 @@ Le lot 2 a demandé neuf revues et cinquante-trois constats. Quatre mesures en s
 
 **La re-revue porte sur le diff incrémental**, pas sur la branche entière. C'est ce qui faisait dix minutes par tour et ramenait les mêmes constats de fond.
 
-**La revue lance `npm run mutations`** au lieu de refaire les mutations à la main, ce qu'elle faisait à chaque tour.
+**La revue lance `ppnpm run mutations`** au lieu de refaire les mutations à la main, ce qu'elle faisait à chaque tour.
 
 *Ce qui reste incertain :* les deux premières mesures sont de la discipline, et la discipline a échoué à chaque tour de ce lot. Elles n'ont fonctionné que le jour où elles ont été demandées explicitement. Les écrire les rend opposables en revue, pas automatiques.
 

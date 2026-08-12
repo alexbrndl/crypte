@@ -41,7 +41,8 @@ jobs:
         run: git diff --exit-code
       # Casse chaque garantie et vérifie que le bon test s'en aperçoit. Après le
       # git diff, parce qu'il modifie les sources et les restaure. Sur une seule
-      # version : il relance toute la suite neuf fois, et ne dépend pas de Node.
+      # version : il relance toute la suite une fois par garantie, et ne dépend
+      # pas de Node.
       - name: Guarantees are actually guarded
         if: matrix.node == '24'
         run: node test/mutation-check.mjs

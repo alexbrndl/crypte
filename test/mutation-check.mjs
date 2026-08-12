@@ -66,12 +66,19 @@ for (const mutation of mutations) {
   const path = join(root, mutation.fichier)
   const original = readFileSync(path, 'utf8')
 
-  if (!original.includes(mutation.avant)) {
-    failures.push(`${mutation.garantie} : le motif n'existe plus dans ${mutation.fichier}`)
+  const occurrences = original.split(mutation.avant).length - 1
+  if (occurrences !== 1) {
+    const cause = occurrences === 0 ? "n'existe plus" : `apparaît ${occurrences} fois`
+    failures.push(`${mutation.garantie} : le motif ${cause} dans ${mutation.fichier}`)
     continue
   }
 
-  writeFileSync(path, original.replace(mutation.avant, mutation.apres))
+  // Le remplacement passe par une fonction : la forme chaîne interpréterait
+  // `$&` et `$1` dans le texte, qui y écriraient ce que personne n'a écrit.
+  writeFileSync(
+    path,
+    original.replace(mutation.avant, () => mutation.apres),
+  )
 
   try {
     // La construction précède les tests, comme en intégration continue : le test
@@ -106,7 +113,12 @@ for (const mutation of mutations) {
   }
 }
 
-run(vp, ['run', '-r', 'pack'])
+// `dist` est ignoré par git, donc le contrôle ci-dessous ne verrait pas des
+// artefacts restés construits depuis une source mutée.
+if (!run(vp, ['run', '-r', 'pack']).ok) {
+  console.error('\nLa reconstruction finale a échoué : `dist` ne correspond plus aux sources.')
+  process.exit(1)
+}
 
 // Ce script écrit dans les sources. Qu'il les restaure toutes est sa condition
 // d'emploi, et personne d'autre ne la vérifie : en intégration continue il passe

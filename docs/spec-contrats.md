@@ -353,7 +353,7 @@ Le manifeste alimente l'interface du shell : arbre de navigation, recherche, tab
 
 ### 4.2 Entrées typées
 
-Chaque entrée est un `ManifestEntry`, aujourd'hui toujours un `StoryEntry`, et son champ `component` est un `ComponentRef` qui désigne le fichier et l'export d'origine.
+Le document entier est un `Manifest` : une version et une liste d'entrées. Chaque entrée est un `ManifestEntry`, aujourd'hui toujours un `StoryEntry`, et son champ `component` est un `ComponentRef` qui désigne le fichier et l'export d'origine.
 
 Le manifeste est une liste d'entrées portant chacune un champ `type`. **Une seule valeur est implémentée en v1 : `"story"`.** Les valeurs `"page"` et `"tokens"` sont réservées pour les évolutions design system et ne doivent pas être implémentées maintenant.
 
@@ -421,6 +421,8 @@ La version du protocole est exposée par la constante `PROTOCOL_VERSION`, que la
 
 Le canal ne transporte jamais les props d'une story. Il transporte l'identifiant de l'entrée à rendre, et les **surcharges** issues des controls. Une surcharge est toujours une valeur primitive éditée dans un panneau, donc toujours sérialisable.
 
+Les deux directions portent des types distincts : `ShellMessage` va vers l'iframe, `PreviewMessage` en revient.
+
 ### 5.2 Messages du shell vers la preview
 
 | Message | Charge utile | Effet |
@@ -456,8 +458,6 @@ declare module '@crypte/core/protocol' {
 Tant qu'aucun plugin n'a rien déclaré, l'union ne s'élargit pas et écrire un message inconnu est une erreur de compilation.
 
 `PluginMessage` porte la contrainte sur son paramètre, si bien qu'un message mal formé produit une erreur **sur la ligne de sa déclaration**, avec le motif en clair. Deux réserves : un plugin n'est pas obligé de l'employer, et `skipLibCheck`, très répandu, fait ignorer les erreurs d'un fichier `.d.ts`. Le protocole ne s'y fie donc pas et filtre de son côté : une valeur dont le champ `type` manque ou n'est pas un littéral est écartée de l'union plutôt que d'y entrer, sans quoi elle empêcherait tout `message.type` de discriminer quoi que ce soit chez le consommateur.
-
-Une version antérieure prévoyait un message générique `{ type: 'plugin', plugin, payload }`, qui n'exigeait rien de sa charge utile et faisait coexister deux mécanismes d'extension dans le même protocole.
 
 ---
 
