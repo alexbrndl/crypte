@@ -14,7 +14,10 @@ const CONFIG_NAMES = ['tsconfig.json', 'jsconfig.json']
 // Nom fictif : `parse` attend un fichier et remonte depuis son dossier.
 const PROBE = '__crypte__'
 
-export async function projectPathsOf(root: string): Promise<ProjectPaths | undefined> {
+export async function projectPathsOf(
+  root: string,
+  warn: (message: string) => void = console.warn,
+): Promise<ProjectPaths | undefined> {
   for (const configName of CONFIG_NAMES) {
     // `root` borne la remontée : sans elle, un projet sans configuration
     // hériterait de celle d'un dossier parent quelconque.
@@ -26,7 +29,14 @@ export async function projectPathsOf(root: string): Promise<ProjectPaths | undef
       // avant `nuxt prepare`, ou `@tsconfig/node22` dans un clone sans
       // installation. Les chemins sont un enrichissement, pas une condition de
       // démarrage : on passe au fichier suivant plutôt que de tout arrêter.
-      if ((cause as { code?: string }).code === 'EXTENDS_RESOLVE') continue
+      if ((cause as { code?: string }).code === 'EXTENDS_RESOLVE') {
+        // Sans ce mot, l'utilisateur voit tous ses imports échouer sans que
+        // rien ne désigne la cause, qui est ailleurs que dans son code.
+        warn(
+          `${configName} étend un fichier introuvable : les chemins déclarés sont ignorés. ${(cause as Error).message}`,
+        )
+        continue
+      }
 
       // Un fichier à moitié écrit, ou une virgule en trop : le dire plutôt que
       // de laisser remonter une trace de pile venue d'une bibliothèque.
@@ -53,7 +63,15 @@ function pathsIn(result: TSConfckParseResult, root: string): ProjectPaths | unde
   // fichier référencé, pas dans celui qu'on vient de lire.
   for (const referenced of result.referenced ?? []) {
     const paths = compilerPaths(referenced.tsconfig)
-    if (paths) return { paths, base: baseOf(referenced, root), files: filesOf(referenced) }
+    if (paths) {
+      // La racine aussi : c'est elle qui désigne le projet référencé, donc la
+      // modifier change les chemins autant que le fichier référencé lui-même.
+      return {
+        paths,
+        base: baseOf(referenced, root),
+        files: [...filesOf(result), ...filesOf(referenced)],
+      }
+    }
   }
 
   return undefined
@@ -99,8 +117,8 @@ function compilerPaths(config: unknown): Record<string, string[]> | undefined {
   // TypeScript refuse aussi. Sans ce contrôle, la boucle parcourt les
   // caractères de la chaîne et cherche un fichier par lettre, sans un mot.
   for (const [pattern, targets] of Object.entries(paths)) {
-    if (!Array.isArray(targets)) {
-      throw new ConfigError(`Le chemin \`${pattern}\` doit être un tableau de cibles.`)
+    if (!Array.isArray(targets) || targets.some((target) => typeof target !== 'string')) {
+      throw new ConfigError(`Le chemin \`${pattern}\` doit être un tableau de chemins.`)
     }
   }
 

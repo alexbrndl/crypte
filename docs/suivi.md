@@ -93,6 +93,16 @@ Quatre fois sur le lot 3, une commande a échoué sans raison visible puis a ré
 
 *Pourquoi c'est consigné :* une instabilité rare finit par tomber en intégration continue, où personne ne saura la reproduire. La noter permet au moins de compter.
 
+### `vite` est une dépendance du CLI, pas une dépendance de pair
+
+`CrypteConfig.vite.plugins` transporte des instances créées par le projet contre **sa** version de Vite, et elles s'exécuteront dans le conteneur de celle du CLI. Sous pnpm, un projet en Vite 7 verrait son plugin tourner sous Vite 8.
+
+*Pourquoi c'est ainsi aujourd'hui :* le produit promet deux paquets installés, pas trois. Exiger Vite en dépendance de pair déplacerait ce choix sur l'utilisateur.
+
+*Ce qui reste à trancher :* accepter d'imposer notre version, ou suivre celle du projet. La question se pose vraiment quand un serveur tourne, donc au lot 5.
+
+*Origine :* revue 7 de la PR #17.
+
 ## Observations
 
 ### Le contrôle de la spécification lit moins de formes que celui du barrel

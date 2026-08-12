@@ -208,13 +208,29 @@ describe('chemins déclarés par le projet', () => {
 
   // Une chaîne au lieu d'un tableau : sans contrôle, la boucle parcourt les
   // caractères et cherche un fichier par lettre, sans un mot.
-  it('refuse une cible qui n’est pas un tableau', async () => {
-    const root = projectOf({
-      'tsconfig.json': '{ "compilerOptions": { "paths": { "@/*": "src/*" } } }',
-    })
+  // Sans ces contrôles, une cible mal typée lève un `TypeError` remonté comme
+  // panne interne, au lieu du message que l'erreur de configuration mérite.
+  it.each([
+    ['une chaîne au lieu d’un tableau', '{ "@/*": "src/*" }'],
+    ['un nombre parmi les cibles', '{ "@/*": [123] }'],
+    ['un tableau imbriqué', '{ "@/*": [["src/*"]] }'],
+  ])('refuse %s', async (_, paths) => {
+    const root = projectOf({ 'tsconfig.json': `{ "compilerOptions": { "paths": ${paths} } }` })
 
     await expect(projectPathsOf(root)).rejects.toThrow(ConfigError)
     await expect(projectPathsOf(root)).rejects.toThrow(/@\/\*/)
+  })
+
+  // La racine désigne le projet référencé : la modifier change les chemins.
+  it('surveille la racine autant que le fichier référencé', async () => {
+    const root = projectOf({
+      'tsconfig.json': '{ "files": [], "references": [{ "path": "./app.json" }] }',
+      'app.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
+    })
+
+    const files = (await projectPathsOf(root))?.files ?? []
+    expect(files.some((file) => file.endsWith('tsconfig.json'))).toBe(true)
+    expect(files.some((file) => file.endsWith('app.json'))).toBe(true)
   })
 
   // Un `extends` introuvable arrive tous les jours, avant `nuxt prepare` ou dans
@@ -226,6 +242,16 @@ describe('chemins déclarés par le projet', () => {
     })
 
     expect(await pathsOf(root)).toEqual({ '@/*': ['src/*'] })
+  })
+
+  // Sans ce mot, l'utilisateur voit tous ses imports échouer et rien ne désigne
+  // la cause, qui est dans un fichier qu'il n'a pas encore généré.
+  it('avertit quand un extends introuvable fait perdre les chemins', async () => {
+    const root = projectOf({ 'tsconfig.json': '{ "extends": "./.nuxt/tsconfig.json" }' })
+    const dits: string[] = []
+
+    expect(await projectPathsOf(root, (message) => dits.push(message))).toBeUndefined()
+    expect(dits.join(' ')).toMatch(/tsconfig\.json.*ignor/)
   })
 
   it('nomme le fichier quand il est illisible', async () => {
@@ -388,6 +414,22 @@ describe('résolution des chemins', () => {
     }
   })
 
+  // TypeScript retient un seul motif, essaie ses substitutions, puis retombe
+  // sur la résolution Node. Passer au motif suivant ferait résoudre ici ce que
+  // l'éditeur du développeur déclare introuvable.
+  it('ne se rabat pas sur un autre motif quand le meilleur échoue', async () => {
+    const { server, close } = await resolving('{ "@/lib/*": ["absent/*"], "@/*": ["src/*"] }', {
+      'entry.js': 'export { x } from "@/lib/a.js"',
+      'src/lib/a.js': 'export const x = 1',
+    })
+
+    try {
+      await expect(server.transformRequest('/entry.js')).rejects.toThrow()
+    } finally {
+      await close()
+    }
+  })
+
   // Le repli, qui est toute la raison d'être du résolveur : un alias réécrirait
   // sans condition et détournerait ce paquet vers `src/scope/pkg`. Le code doit
   // pointer vers `node_modules`, non se contenter d'être transformé : rendre
@@ -436,12 +478,7 @@ describe('résolution des chemins', () => {
       'export { x } from "#app"',
       '/src/',
     ],
-    [
-      'la cible qui existe',
-      '{ "@/lib/*": ["absent/*"], "@/*": ["src/*"] }',
-      'export { x } from "@/lib/a.js"',
-      '/src/',
-    ],
+
     // Le préfixe d'un motif sans joker est le motif entier. Le compter à un
     // caractère près le mettrait à égalité avec le joker voisin.
     [

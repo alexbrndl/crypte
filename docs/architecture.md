@@ -326,7 +326,7 @@ Quatre tours de revue ont été consacrés à approximer ce repli par des règle
 
 *Ce que Vite fait, et qu'on ne réimplémente pas.* `this.resolve` applique les extensions du projet, les `index`, le champ `exports` et ses conditions. Une première version testait l'existence des fichiers elle-même, avec une liste d'extensions en dur qui ignorait `.vue`, `.svelte` et tout `resolve.extensions` configuré.
 
-*Trois règles de départage*, celles de TypeScript : le motif au plus long préfixe fixe l'emporte, un motif sans joker passe avant tous les autres, et toutes les cibles d'un motif sont essayées dans l'ordre avant de passer au suivant.
+*Trois règles de départage*, celles de TypeScript : le motif au plus long préfixe fixe l'emporte, un motif sans joker passe avant tous les autres, et **un seul motif est retenu**. Ses cibles sont essayées dans l'ordre, puis on retombe sur la résolution de Vite, jamais sur un autre motif. Se rabattre ferait résoudre ici ce que l'éditeur du développeur déclare introuvable.
 
 *La correspondance est éprouvée seule.* De l'extérieur, une capture fautive est invisible : le repli renvoie l'import à Vite comme si rien ne s'était passé. Mesuré : sans la comparaison du suffixe, du préfixe, ou l'égalité stricte d'un motif exact, aucun test d'intégration ne rougit.
 

@@ -44,29 +44,34 @@ export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
       // module au lieu d'échouer. Mesuré sur un `./theme.css` supprimé.
       if (!isBareSpecifier(source)) return null
 
-      for (const [pattern, targets] of ordered) {
-        const captured = capture(pattern, source)
-        if (captured === null) continue
+      const matched = ordered.find(([pattern]) => capture(pattern, source) !== null)
+      if (!matched) return null
 
-        for (const target of targets) {
-          // La résolution est celle de Vite : extensions du projet, `index`,
-          // champ `exports`, conditions. Rien n'est réimplémenté ici.
-          // Un remplaçant en fonction : la forme chaîne interpréterait `$&` et
-          // ses semblables dans la partie capturée, qui vient de l'utilisateur.
-          const candidate = resolve(
-            base,
-            target.replace('*', () => captured),
-          )
-          const found = await this.resolve(candidate, importer, {
-            ...options,
-            skipSelf: true,
-          })
+      // Un seul motif, celui-là. TypeScript essaie ses substitutions puis
+      // retombe sur la résolution Node, jamais sur un autre motif : passer au
+      // suivant ferait résoudre ici ce que l'éditeur déclare introuvable.
+      const [pattern, targets] = matched
+      const captured = capture(pattern, source) as string
 
-          if (found) return found
-        }
+      for (const target of targets) {
+        // La résolution est celle de Vite : extensions du projet, `index`,
+        // champ `exports`, conditions. Rien n'est réimplémenté ici.
+        // Un remplaçant en fonction : la forme chaîne interpréterait `$&` et
+        // ses semblables dans la partie capturée, qui vient de l'utilisateur.
+        const candidate = resolve(
+          base,
+          target.replace('*', () => captured),
+        )
+        const found = await this.resolve(candidate, importer, {
+          ...options,
+          skipSelf: true,
+        })
+
+        if (found) return found
       }
 
-      // Aucun motif ne s'applique, ou aucune cible n'existe : Vite poursuit.
+      // Le motif retenu n'a mené à rien : Vite poursuit, comme TypeScript
+      // retombe sur la résolution Node.
       return null
     },
   }
