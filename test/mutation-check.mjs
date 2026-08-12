@@ -24,16 +24,16 @@ if (dirty.trim()) {
   process.exit(1)
 }
 
-// Rend `true` si la commande a réussi, `false` si elle a échoué pour ce qu'elle
-// vérifie. Un lancement impossible n'est pas un échec de vérification : le
-// confondre avec un test rouge ferait passer toute mutation pour vue.
+// Rend le succès et la sortie. Un lancement impossible n'est pas un échec de
+// vérification : le confondre avec un test rouge ferait passer toute mutation
+// pour vue.
 function run(command, args) {
   try {
-    execFileSync(command, args, { cwd: root, stdio: 'pipe', encoding: 'utf8' })
-    return true
+    const stdout = execFileSync(command, args, { cwd: root, stdio: 'pipe', encoding: 'utf8' })
+    return { ok: true, output: stdout }
   } catch (error) {
     if (error.code === 'ENOENT') throw new Error(`commande introuvable : ${command}`)
-    return false
+    return { ok: false, output: `${error.stdout ?? ''}${error.stderr ?? ''}` }
   }
 }
 
@@ -43,7 +43,7 @@ const vp = process.env.VP_BIN ?? 'vp'
 // « échec » à chaque appel, donc toute mutation paraît vue, et le script annonce
 // que tout est gardé sans avoir rien lancé. Mesuré : c'était le cas.
 console.log('contrôle positif : la suite passe-t-elle sur le code intact ?')
-if (!run(vp, ['run', '-r', 'pack']) || !run(vp, ['test']) || !run(vp, ['check'])) {
+if (!run(vp, ['run', '-r', 'pack']).ok || !run(vp, ['test']).ok || !run(vp, ['check']).ok) {
   console.error(`\nLa suite échoue déjà sans mutation. Corrige-la, ou vérifie \`${vp}\`.`)
   process.exit(1)
 }
@@ -76,10 +76,23 @@ for (const mutation of mutations) {
     // La construction précède les tests, comme en intégration continue : le test
     // d'isolation lit les artefacts.
     run(vp, ['run', '-r', 'pack'])
-    const noticed = !run(vp, ['test']) || !run(vp, ['check'])
+    const tests = run(vp, ['test'])
+    const check = run(vp, ['check'])
+    const noticed = !tests.ok || !check.ok
 
-    console.log(`${noticed ? 'vu   ' : 'MANQUÉ'}  ${mutation.garantie}`)
+    // Qu'une vérification rougisse ne suffit pas : ce doit être celle qui porte
+    // la garantie. Sans ce contrôle, une mutation vue par un test sans rapport
+    // laisserait croire que la garantie tient, alors que son gardien est muet.
+    const byTheRightOne = `${tests.output}${check.output}`.includes(mutation.attendu)
+
+    const verdict = !noticed ? 'MANQUÉ' : byTheRightOne ? 'vu   ' : 'AILLEURS'
+    console.log(`${verdict}  ${mutation.garantie}`)
+
     if (!noticed) failures.push(`${mutation.garantie} (${mutation.trouvee}) n'est gardée par rien`)
+    else if (!byTheRightOne)
+      failures.push(
+        `${mutation.garantie} : vue par autre chose que « ${mutation.attendu} », son gardien est muet`,
+      )
   } finally {
     writeFileSync(path, original)
     restore = null

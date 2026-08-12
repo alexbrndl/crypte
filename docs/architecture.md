@@ -278,6 +278,8 @@ La seule méthode qui ait fonctionné à chaque fois est de casser ce que le tes
 
 **Deux précautions.** Il refuse de tourner sur un arbre non propre, sinon une interruption laisserait des sources mutées sans que git puisse dire lesquelles. Et il reconstruit les artefacts en sortant, le test d'isolation les lisant.
 
+**Il exige que ce soit le bon gardien qui rougisse.** Chaque entrée nomme ce qui doit apparaître dans la sortie d'échec. Sans cela, une mutation vue par un test sans rapport laisserait croire que la garantie tient, alors que celui qui la porte est muet : c'est « un test passe pour la mauvaise raison » transposé à l'outil censé le détecter. À l'ajout de ce contrôle, deux entrées sur neuf se sont révélées mal attribuées.
+
 **Ce qu'il ne couvre pas.** Seulement les garanties qu'on a pensé à y mettre. Il empêche un défaut trouvé de revenir, il n'en trouve pas de nouveau.
 
 ---
