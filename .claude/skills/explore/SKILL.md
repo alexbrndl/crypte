@@ -15,12 +15,16 @@ Explore le comportement du code que tu viens d'écrire, pour découvrir ce qu'un
 
 ## 1. Inventorier les entrées
 
+**Le périmètre est le diff entier**, pas seulement ce qui paraît neuf. Le code écrit au tour précédent, en corrigeant une revue, n'a jamais été exploré : c'est du code neuf. Trois constats d'un tour du lot 3 portaient exactement là-dessus, sur des garanties écrites la veille et gardées par rien.
+
 Pour chaque fonction publique que le diff ajoute ou modifie, écris **toutes** ses entrées :
 
 - ses paramètres,
 - ce qu'elle lit du système de fichiers,
 - ce qu'elle lit de la configuration ou de l'environnement,
 - ce que son appelant lui passe implicitement, l'ordre dans une chaîne par exemple.
+
+**Une structure reçue est un axe par champ.** Une fonction qui prend un objet de configuration n'a pas une entrée mais autant qu'il a de champs, chacun avec ses classes de valeurs, absent compris. Valider deux champs sur six laisse quatre axes ouverts : les quatre autres ont fini en erreur brute, sans nommer ni le fichier ni le champ.
 
 Cette liste est le point de bascule. Un axe absent ici produira un point bloquant plus tard : `resolveId(source, importer, options)` a coûté trois tours parce que seul le premier paramètre avait été inventorié.
 
@@ -37,6 +41,8 @@ Quand une classe est finie, dis-le et montre-le : un motif TypeScript porte au p
 Croise les axes et **écris le tableau**. C'est lui qui rend visible la colonne manquante, pas le raisonnement.
 
 Chaque case a soit un cas de test, soit une raison écrite de ne pas en avoir. Une case laissée sans mention est une case oubliée.
+
+**Croiser, ce n'est pas énumérer chaque axe à part.** Un cas qui éprouve un axe avec la valeur la plus simple des autres ne dit rien du croisement. Un test vérifiait qu'un fichier de configuration sans chemins était bien surveillé, sur un projet qui n'en contenait qu'un ; le cas réel, deux fichiers dont le premier est muet, échappait entièrement. Quand deux axes se rencontrent dans le code, ils se rencontrent dans le tableau.
 
 ## 4. Éprouver, pas relire
 

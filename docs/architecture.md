@@ -561,6 +561,8 @@ Le lot 3 a demandé neuf tours de revue, dont **trois points bloquants**. Les tr
 
 *Ce qui casse si on l'enlève :* la découverte retombe sur la revue, et chaque cas limite coûte un tour au lieu d'une minute.
 
+*Ce que le premier usage a appris.* Le tour qui a suivi la première exploration n'a rendu aucun point bloquant, contre trois sur les huit précédents, et ses constats portaient tous sur du code écrit au tour d'avant. Trois règles en sont sorties : le périmètre est le diff entier, puisque corriger une revue produit du code que personne n'a exploré ; une structure reçue est un axe par champ, quatre champs non validés ayant fini en erreur brute ; et croiser n'est pas énumérer, un test posant un seul fichier de configuration ne disant rien du cas à deux.
+
 ### Le critère d'arrêt de la boucle de revue
 
 Le lot 2 a demandé onze tours. La cause n'est pas le nombre de constats, c'est qu'aucun critère ne disait quand s'arrêter : la règle attendait qu'une revue ne produise plus rien, ce qu'un dépôt vivant ne fait jamais.
