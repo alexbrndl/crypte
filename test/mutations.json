@@ -150,5 +150,13 @@
     "apres": "      if (false) return null",
     "trouvee": "revue 8 de la PR #17",
     "attendu": "n’applique pas les chemins à un fichier installé"
+  },
+  {
+    "garantie": "les chemins passent avant les plugins déclarés par le projet",
+    "fichier": "packages/cli/src/project.ts",
+    "avant": "    plugins: [...(paths ? [pathsPlugin(paths)] : []), ...(config.vite?.plugins ?? [])],",
+    "apres": "    plugins: [...(config.vite?.plugins ?? []), ...(paths ? [pathsPlugin(paths)] : [])],",
+    "trouvee": "exploration du lot 3",
+    "attendu": "applique les chemins avant les plugins du projet"
   }
 ]

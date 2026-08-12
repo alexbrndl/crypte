@@ -87,8 +87,13 @@ export function viteConfigOf(project: Project): InlineConfig {
   return {
     root,
     configFile: false,
-    // Le résolveur passe après les résolveurs internes de Vite, donc un chemin
-    // qui remplacerait un paquet installé reste sans effet. C'est ce même ordre
+    // Le résolveur d'abord, les plugins du projet ensuite : le premier ne
+    // capture que ce qu'il résout vraiment, son repli laissant passer le reste,
+    // donc le placer devant ne prive personne. Un plugin qui veut la main avant
+    // lui déclare `enforce: 'pre'`, ce que Vite honore.
+    //
+    // L'ensemble passe après les résolveurs internes de Vite, si bien qu'un
+    // chemin remplaçant un paquet installé reste sans effet. C'est ce même ordre
     // qui empêche un motif fourre-tout de détourner les imports relatifs.
     plugins: [...(paths ? [pathsPlugin(paths)] : []), ...(config.vite?.plugins ?? [])],
   }

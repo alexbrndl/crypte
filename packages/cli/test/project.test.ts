@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createServer, type InlineConfig } from 'vite'
+import { createServer, type InlineConfig, type Plugin } from 'vite'
 import { afterAll, describe, expect, it } from 'vitest'
 import { projectPathsOf } from '../src/config-paths'
 import { capture, isBareSpecifier, pathsPlugin } from '../src/paths'
@@ -358,6 +358,88 @@ describe('provenance de l’import', () => {
 
     try {
       await expect(server.transformRequest('/node_modules/dep/i.js')).rejects.toThrow()
+    } finally {
+      await close()
+    }
+  })
+})
+
+// Les quatre provenances possibles, complétant celle du fichier installé.
+// L'ordre entre le résolveur et les plugins que le projet déclare. Le repli
+// rend ce choix peu risqué, mais il reste un choix, et rien ne le gardait.
+describe('ordre des résolveurs', () => {
+  it('applique les chemins avant les plugins du projet', async () => {
+    const root = projectOf({
+      'tsconfig.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
+      'crypte.config.ts': 'export default { stories: "s", adapter: {} }',
+      'src/cible.js': 'export const c = 1',
+      'autre/cible.js': 'export const c = 2',
+    })
+    const config = viteConfigOf(await loadProject(root))
+    const duProjet: Plugin = {
+      name: 'projet',
+      resolveId: (s) => (s === '@/cible.js' ? join(root, 'autre/cible.js') : null),
+    }
+
+    const { server, close } = await serverOn({
+      ...config,
+      plugins: [...(config.plugins ?? []), duProjet],
+    })
+
+    try {
+      const resolved = await server.pluginContainer.resolveId('@/cible.js')
+      expect(resolved?.id).toContain('src/cible.js')
+    } finally {
+      await close()
+    }
+  })
+
+  // Et ce qu'un plugin fait quand il veut la main avant lui.
+  it('cède la main à un plugin qui déclare enforce pre', async () => {
+    const root = projectOf({
+      'tsconfig.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
+      'crypte.config.ts': 'export default { stories: "s", adapter: {} }',
+      'src/cible.js': 'export const c = 1',
+      'autre/cible.js': 'export const c = 2',
+    })
+    const config = viteConfigOf(await loadProject(root))
+    const duProjet: Plugin = {
+      name: 'projet',
+      enforce: 'pre',
+      resolveId: (s) => (s === '@/cible.js' ? join(root, 'autre/cible.js') : null),
+    }
+
+    const { server, close } = await serverOn({
+      ...config,
+      plugins: [...(config.plugins ?? []), duProjet],
+    })
+
+    try {
+      const resolved = await server.pluginContainer.resolveId('@/cible.js')
+      expect(resolved?.id).toContain('autre/cible.js')
+    } finally {
+      await close()
+    }
+  })
+})
+
+describe('provenance, les cas restants', () => {
+  it.each([
+    ['absente, une entrée du graphe', undefined],
+    ['virtuelle, un module qu’un plugin a produit', '\0module-virtuel'],
+    ['du projet', 'entry.js'],
+  ])('applique les chemins quand elle est %s', async (_, importer) => {
+    const root = projectOf({
+      'tsconfig.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
+      'crypte.config.ts': 'export default { stories: "s", adapter: {} }',
+      'src/cible.js': 'export const c = 1',
+    })
+    const { server, close } = await serverOn(viteConfigOf(await loadProject(root)))
+
+    try {
+      const from = typeof importer === 'string' ? join(root, importer) : undefined
+      const resolved = await server.pluginContainer.resolveId('@/cible.js', from)
+      expect(resolved?.id).toContain('src/cible.js')
     } finally {
       await close()
     }
