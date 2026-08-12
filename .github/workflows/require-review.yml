@@ -73,3 +73,20 @@ jobs:
             echo "::error::Aucune revue trouvée. Lancer /review en local avant de fusionner, puis relancer ce contrôle."
             exit 1
           fi
+
+          # Une revue existe, mais de quand ? Le contrôle ne peut pas exiger qu'elle
+          # soit postérieure au dernier commit : corriger un point non bloquant sans
+          # relancer de tour est permis, et le durcir rendrait ces deux règles
+          # contradictoires. Il dit donc l'écart, et laisse juger.
+          last_review=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate --slurp \
+            | jq -r --arg m "$marker" \
+              '[.[][] | select((.body // "") | contains($m)) | .submitted_at] | max // ""')
+          head_date=$(gh api "repos/$REPO/pulls/$PR" --jq '.head.sha' \
+            | xargs -I{} gh api "repos/$REPO/commits/{}" --jq '.commit.committer.date')
+
+          echo "Revue la plus récente : ${last_review:-inconnue}"
+          echo "Dernier commit        : $head_date"
+
+          if [ -n "$last_review" ] && [[ "$last_review" < "$head_date" ]]; then
+            echo "::warning::La revue la plus récente précède le dernier commit. Vérifier que rien de bloquant n'a été ajouté depuis."
+          fi

@@ -5,7 +5,11 @@ description: Relit le diff de la branche courante contre les contraintes écrite
 
 Relis le diff de la branche courante contre les contraintes écrites du dépôt, puis poste ton verdict en revue de la pull request.
 
-**Ce skill n'est pas terminé tant que la revue n'est pas postée sur la pull request.** Répondre son verdict à celui qui t'a délégué ne compte pas : le contrôle `require-review.yml` cherche un marqueur dans les revues de la pull request, pas dans une réponse. Une revue non postée est une revue qui n'existe pas, même si elle est juste. Voir les sections 3 et 4, qui sont obligatoires y compris quand il n'y a rien à signaler.
+**Poste la revue avant d'en rendre compte.** Pas après : l'ordre est la seule chose qui fasse la différence. Mesuré sur le lot 2, douze relectures et **deux revues postées** ; le verdict rendu à l'orchestrateur terminait la tâche, et le postage, dernière étape, sautait.
+
+Ta réponse à celui qui t'a délégué vient donc **après** l'envoi, et cite l'identifiant de la revue postée. Une revue non postée est une revue qui n'existe pas, même juste : le contrôle `require-review.yml` cherche un marqueur dans les revues de la pull request, jamais dans une réponse.
+
+Les sections 3 et 4 sont obligatoires, y compris quand il n'y a rien à signaler.
 
 ## 0. Déléguer si tu as écrit ce code
 
@@ -42,7 +46,13 @@ Diff :
 <sortie de git diff origin/main...HEAD>
 ```
 
-Le sous-agent produit et poste la revue, puis se termine. Tu ne reprends la main qu'ensuite, pour corriger les points remontés.
+Le sous-agent poste la revue, puis se termine en rendant son verdict. **Vérifie qu'elle est bien postée** avant de corriger quoi que ce soit :
+
+```bash
+gh pr view <numéro> --json reviews --jq '[.reviews[]|select(.body|contains("crypte-review"))]|length'
+```
+
+Une relecture dont il ne reste aucune trace n'a pas eu lieu du point de vue du dépôt, et le contrôle sera satisfait par une revue plus ancienne portant sur un autre code.
 
 ## Premier tour ou tour de correction
 

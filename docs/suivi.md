@@ -34,6 +34,16 @@ Le retrait de la branche fonction de l'union ne suffit pas côté React, où un 
 
 *Origine :* revue de la PR #16.
 
+### `has-review` ne regarde pas la date de la revue
+
+Le contrôle est satisfait dès qu'une revue portant le marqueur existe, quelle que soit son ancienneté. Sur la PR #15, deux revues ont suffi pendant douze tours, y compris à la fin, alors qu'elles portaient sur un état du code vieux de plusieurs heures.
+
+*Ce qui a été fait :* le contrôle affiche désormais la date de la revue la plus récente et celle du dernier commit, et pose un avertissement quand la première précède la seconde.
+
+*Pourquoi il n'échoue pas :* l'exiger contredirait la règle qui permet de corriger un point non bloquant sans relancer de tour. Les deux corrections de ce diff, celles du skill et de ce workflow, invalideraient elles-mêmes la revue qui les a motivées. Trancher demande de choisir entre les deux règles, ce qui est une décision et non une correction.
+
+*Origine :* constaté en passant la PR #16 en prêt.
+
 ## Observations
 
 ### Le contrôle de la spécification lit moins de formes que celui du barrel
