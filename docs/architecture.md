@@ -86,7 +86,7 @@ Le paquet installé par l'utilisateur. Il déclare le binaire `crypte`. Le nom d
 
 Aujourd'hui, le binaire affiche la version du protocole et un message indiquant qu'aucune commande n'est implémentée. Il n'y a ni `dev`, ni `init`, ni `check`.
 
-Il expose en revanche `defineConfig`, et sait lire la configuration d'un projet : `src/config.ts` porte le contrat, `src/project.ts` le chargement, `src/aliases.ts` les alias de chemins.
+Il expose en revanche `defineConfig`, et sait lire la configuration d'un projet : `src/config.ts` porte le contrat, `src/project.ts` le chargement, `src/config-paths.ts` et `src/paths.ts` les chemins du projet.
 
 **Deux entrées de construction**, `index` pour le binaire et `config` pour l'API. Sans cette séparation, importer `defineConfig` exécuterait la commande, le binaire s'exécutant au chargement.
 

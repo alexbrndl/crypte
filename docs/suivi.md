@@ -44,6 +44,16 @@ Le contrôle est satisfait dès qu'une revue portant le marqueur existe, quelle 
 
 *Origine :* constaté en passant la PR #16 en prêt.
 
+### `viteConfigOf` ne fixe pas de dossier de cache
+
+La configuration produite laisse Vite écrire dans `<projet>/node_modules/.vite`, le même dossier que le `vite dev` du projet. Deux serveurs aux plugins et aux entrées différents y écriraient le même `_metadata.json`.
+
+*Ce qui l'atteste :* le fabricant de serveurs des tests a dû donner un cache propre à chacun, après deux échecs isolés jamais reproduits. Le code de production porte la même exposition sans la parade.
+
+*Pourquoi ce n'est pas fait ici :* aucun serveur ne tourne encore, `viteConfigOf` n'étant consommé que par les tests. Choisir l'emplacement demande de savoir ce que le serveur de preview partage avec le projet, ce que le lot 5 tranchera.
+
+*Origine :* revue 5 de la PR #17.
+
 ## Observations
 
 ### Le contrôle de la spécification lit moins de formes que celui du barrel

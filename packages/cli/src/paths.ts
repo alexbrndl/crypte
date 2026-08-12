@@ -2,7 +2,7 @@
 // Crypte ne lit jamais le `vite.config` d'un projet : voir la section 1.5.
 
 import { resolve } from 'node:path'
-import type { Plugin } from 'vite'
+import type { Alias, Plugin } from 'vite'
 
 export interface ProjectPaths {
   paths: Record<string, string[]>
@@ -18,7 +18,13 @@ export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
   // TypeScript départage deux motifs par la longueur de leur préfixe fixe, et
   // un motif sans joker l'emporte sur tous. Sans cet ordre, `@/*` gagne sur
   // `@/lib/*` dès que les deux cibles existent.
-  const ordered = Object.entries(paths).sort(([a], [b]) => prefixOf(b).length - prefixOf(a).length)
+  const ordered = Object.entries(paths).sort(([a], [b]) => {
+    const parPrefixe = prefixOf(b).length - prefixOf(a).length
+    if (parPrefixe !== 0) return parPrefixe
+
+    // À égalité de préfixe, le motif sans joker l'emporte : `#app` avant `#app*`.
+    return Number(a.includes('*')) - Number(b.includes('*'))
+  })
 
   return {
     name: 'crypte:paths',
@@ -43,6 +49,27 @@ export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
       return null
     },
   }
+}
+
+// Le pipeline CSS de Vite ne consulte aucun plugin : il résout `@import` et
+// `url()` par ses propres moyens, alias compris. Les motifs qui se traduisent en
+// alias en reçoivent donc un, pour que la feuille de style du projet résolve.
+//
+// Seuls les motifs `préfixe/*` sont traduisibles : le comparateur de Vite ne
+// sait faire que `id === find` ou `id.startsWith(find + '/')`. Les autres formes
+// restent au plugin, donc au JavaScript seul.
+export function cssAliasesOf({ paths, base }: ProjectPaths): Alias[] {
+  return Object.entries(paths).flatMap(([pattern, targets]) => {
+    const target = targets[0]
+    if (!target || !pattern.endsWith('/*') || !target.endsWith('/*')) return []
+
+    return [
+      {
+        find: pattern.slice(0, -2),
+        replacement: resolve(base, target.slice(0, -2)),
+      },
+    ]
+  })
 }
 
 // Un motif porte au plus un joker : le faire correspondre revient à comparer un

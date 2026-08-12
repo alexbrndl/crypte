@@ -114,8 +114,8 @@
   {
     "garantie": "le motif le plus spécifique l'emporte",
     "fichier": "packages/cli/src/paths.ts",
-    "avant": "Object.entries(paths).sort(([a], [b]) => prefixOf(b).length - prefixOf(a).length)",
-    "apres": "Object.entries(paths)",
+    "avant": "    const parPrefixe = prefixOf(b).length - prefixOf(a).length\n    if (parPrefixe !== 0) return parPrefixe",
+    "apres": "    if (false) return 0",
     "trouvee": "revue de la PR #17",
     "attendu": "retient le motif le plus spécifique"
   },
@@ -126,5 +126,13 @@
     "apres": "          if (found) return found\n          return { id: resolve(base, target.replace('*', captured)) }\n        }",
     "trouvee": "revue 3 de la PR #17",
     "attendu": "retient la cible qui existe"
+  },
+  {
+    "garantie": "les feuilles de style du projet résolvent aussi",
+    "fichier": "packages/cli/src/project.ts",
+    "avant": "    resolve: { alias: paths ? cssAliasesOf(paths) : [] },",
+    "apres": "    resolve: { alias: [] },",
+    "trouvee": "revue 5 de la PR #17",
+    "attendu": "résout un @import"
   }
 ]

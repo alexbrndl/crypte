@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path'
 import { loadConfigFromFile, type InlineConfig } from 'vite'
 import { projectPathsOf } from './config-paths'
 import type { CrypteConfig } from './config'
-import { pathsPlugin } from './paths'
+import { cssAliasesOf, pathsPlugin } from './paths'
 import { ConfigError } from './errors'
 
 const CONFIG_FILE = 'crypte.config.ts'
@@ -45,14 +45,12 @@ export async function loadProject(input: string): Promise<Project> {
     throw new ConfigError(`${CONFIG_FILE} n'a pas pu être chargé : ${(cause as Error).message}`)
   }
 
-  if (!loaded) {
-    throw new ConfigError(`${CONFIG_FILE} n'a rien exporté par défaut.`)
-  }
-
-  const config = loaded.config as unknown as CrypteConfig
+  // Jamais nul ici : Vite ne rend `null` que lorsqu'il doit chercher le fichier
+  // lui-même, et on lui en donne toujours un.
+  const config = loaded?.config as unknown as CrypteConfig
   assertUsable(config)
 
-  return { root, config, watch: loaded.dependencies.map((dep) => resolve(root, dep)) }
+  return { root, config, watch: (loaded?.dependencies ?? []).map((dep) => resolve(root, dep)) }
 }
 
 // Deux champs seulement sont obligatoires, et l'erreur les nomme : la
@@ -80,9 +78,13 @@ export async function viteConfigOf(project: Project): Promise<InlineConfig> {
   return {
     root,
     configFile: false,
-    // Le résolveur de chemins d'abord : ceux du projet passent avant ce que ses
-    // propres plugins ajoutent, comme TypeScript les fait passer en premier.
+    // Le résolveur passe après les résolveurs internes de Vite, donc un chemin
+    // qui remplacerait un paquet installé reste sans effet. C'est ce même ordre
+    // qui empêche un motif fourre-tout de détourner les imports relatifs.
     plugins: [...(paths ? [pathsPlugin(paths)] : []), ...(config.vite?.plugins ?? [])],
+    // Le pipeline CSS ne consulte aucun plugin : les motifs traduisibles ont
+    // aussi un alias, sans quoi un `@import '@/vars.css'` ne résout pas.
+    resolve: { alias: paths ? cssAliasesOf(paths) : [] },
   }
 }
 

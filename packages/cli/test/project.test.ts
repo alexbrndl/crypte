@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { createServer, type InlineConfig } from 'vite'
 import { afterAll, describe, expect, it } from 'vitest'
 import { projectPathsOf } from '../src/config-paths'
-import { capture, pathsPlugin } from '../src/paths'
+import { capture, cssAliasesOf, pathsPlugin } from '../src/paths'
 import { ConfigError, cssEntryOf, loadProject, viteConfigOf } from '../src/project'
 
 // La fixture reproduit les contraintes d'un projet réel : alias `@/`, pas de
@@ -115,6 +115,13 @@ describe('chargement de la configuration', () => {
   })
 })
 
+// Un projet jetable avec sa configuration minimale, pour les cas qui ont besoin
+// de la configuration Vite complète plutôt que des seuls chemins.
+async function loadProjectAt(root: string) {
+  writeFileSync(join(root, 'crypte.config.ts'), 'export default { stories: "s", adapter: {} }')
+  return loadProject(root)
+}
+
 // Un projet jetable, décrit par ses fichiers, pour éprouver les formes de
 // configuration qu'on rencontre sans les faire vivre dans la fixture.
 // `realpathSync` parce que les chemins rendus le sont : sur macOS, `tmpdir()`
@@ -196,6 +203,34 @@ describe('chemins déclarés par le projet', () => {
 
     await expect(projectPathsOf(root)).rejects.toThrow(ConfigError)
     await expect(projectPathsOf(root)).rejects.toThrow(/tsconfig\.json/)
+  })
+})
+
+// Le pipeline CSS de Vite ne consulte aucun plugin : sans alias, un `@import`
+// vers un chemin du projet ne résout pas. Mesuré.
+describe('feuilles de style du projet', () => {
+  it('résout un @import passant par un chemin déclaré', async () => {
+    const root = projectOf({
+      'tsconfig.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
+      'src/app.css': "@import '@/vars.css';\n.a { color: red }",
+      'src/vars.css': ':root { --x: 1 }',
+    })
+    const project = await loadProjectAt(root)
+    const { server, close } = await serverOn(await viteConfigOf(project))
+
+    try {
+      await expect(server.transformRequest('/src/app.css')).resolves.not.toBeNull()
+    } finally {
+      await close()
+    }
+  })
+
+  // Seuls les motifs traduisibles en préfixe donnent un alias : le comparateur
+  // de Vite ne sait faire que cela, et un autre alias serait inerte.
+  it('ne traduit que les motifs à séparateur', () => {
+    const base = '/projet'
+    expect(cssAliasesOf({ base, paths: { '@/*': ['src/*'] } })).toHaveLength(1)
+    expect(cssAliasesOf({ base, paths: { '@*': ['src/*'], '#app': ['src/a.js'] } })).toEqual([])
   })
 })
 
@@ -329,6 +364,14 @@ describe('résolution des chemins', () => {
     [
       'le motif exact malgré un joker de même longueur',
       '{ "#ap*": ["vendor/a.js"], "#app": ["src/lib/a.js"] }',
+      'export { x } from "#app"',
+      '/src/',
+    ],
+    // Préfixes strictement égaux : seul le départage explicite tranche, le tri
+    // étant stable et l'ordre de déclaration mettant le joker en premier.
+    [
+      'le motif exact à préfixe égal',
+      '{ "#app*": ["vendor/a.js"], "#app": ["src/lib/a.js"] }',
       'export { x } from "#app"',
       '/src/',
     ],

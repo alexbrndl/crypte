@@ -61,6 +61,10 @@ Le lot 2 a démarré sur les types du protocole et a absorbé cinq chantiers, d'
 
 Le réflexe : ouvrir l'issue, la lier à la pull request en cours, continuer.
 
+**À la réception d'une revue, classer avant de corriger.** Première action, avant d'ouvrir un fichier : reprendre chaque point et lui donner son niveau, en tableau, dans la réponse. La revue rend parfois ses niveaux dans un autre vocabulaire, ou pas du tout ; le classement qui compte est celui qui décide de la suite, et c'est celui-là.
+
+Sans cette étape, tout se corrige indistinctement et la boucle ne se ferme pas. C'est ce qui s'est produit trois fois, y compris le jour où la règle a été écrite.
+
 **Tout code exécutable ajouté après une revue n'a, par définition, pas été relu.** Corriger un point remonté, mais aussi ajouter une fonctionnalité en cours de route ou répondre à une demande arrivée après coup : dans les trois cas, du code part vers la branche par défaut sans qu'aucun regard ne s'y soit posé.
 
 Relancer une revue sur ces changements seuls. S'en passer s'ils ne touchent que de la documentation ou de la configuration déjà éprouvée par l'intégration continue.
