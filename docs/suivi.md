@@ -24,6 +24,26 @@ Une ligne disparaît quand le point est traité, pas avant. Les niveaux sont dé
 
 ---
 
+### `Wrap` reste assignable depuis une fonction quand le composant en est une
+
+Le retrait de la branche fonction de l'union ne suffit pas côté React, où un composant *est* une fonction : `wrap: (story) => …` compile toujours. La section 2.5 en fait donc une règle, toute fonction reçue est instanciée comme composant, et le comportement devient prévisible plutôt qu'ambigu.
+
+*Ce qui reste ouvert :* aucun diagnostic n'avertit celui qui écrit cette forme en attendant l'ancien comportement. Un marqueur sur les composants, ou une vérification à l'exécution dans l'adaptateur, le permettrait.
+
+*Pourquoi ce n'est pas fait ici :* le noyau ne connaît aucun framework, donc la reconnaissance appartient à l'adaptateur, qui n'existe pas encore.
+
+*Origine :* revue de la PR #16.
+
+### `has-review` ne regarde pas la date de la revue
+
+Le contrôle est satisfait dès qu'une revue portant le marqueur existe, quelle que soit son ancienneté. Sur la PR #15, deux revues ont suffi pendant douze tours, y compris à la fin, alors qu'elles portaient sur un état du code vieux de plusieurs heures.
+
+*Ce qui a été fait :* le contrôle affiche désormais la date de la revue la plus récente et celle du dernier commit, et pose un avertissement quand la première précède la seconde.
+
+*Pourquoi il n'échoue pas :* l'exiger contredirait la règle qui permet de corriger un point non bloquant sans relancer de tour. Les deux corrections de ce diff, celles du skill et de ce workflow, invalideraient elles-mêmes la revue qui les a motivées. Trancher demande de choisir entre les deux règles, ce qui est une décision et non une correction.
+
+*Origine :* constaté en passant la PR #16 en prêt.
+
 ## Observations
 
 ### Le contrôle de la spécification lit moins de formes que celui du barrel
@@ -41,11 +61,3 @@ Le champ est ajouté au manifeste publié pour qu'un bundler consommateur puisse
 *Conséquence :* le jour où un module du protocole acquiert un effet de bord au chargement, les bundlers des consommateurs le supprimeront sans avertissement.
 
 *Origine :* revue 12 du lot 2.
-
----
-
-## Renvoyé vers le suivi de projet
-
-| Point | Où |
-|---|---|
-| `Wrap` ne distingue pas un composant d'une fonction d'enveloppe | DCJ-189 |

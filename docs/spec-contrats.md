@@ -1,8 +1,8 @@
 # Crypte, spécification des contrats
 
-> Version 0.8, document de référence. Toute PRD de projet pointe vers ce document plutôt que de redéfinir ces structures.
+> Version 0.9, document de référence. Toute PRD de projet pointe vers ce document plutôt que de redéfinir ces structures.
 >
-> **v0.8 :** le canal s'étend comme le reste du protocole, et la version du manifeste reste comparable. Voir le journal en section 8.
+> **v0.9 :** `wrap` n'empile que des composants. Voir le journal en section 8.
 
 ---
 
@@ -38,7 +38,7 @@ stories/checkout/OrderSummary.ts
 
 Le fichier de story porte **exactement le nom du composant**. L'arbre affiché dans la sidebar est déduit du chemin relatif à la racine des stories, sans aucune déclaration de titre.
 
-L'extension par défaut est `.ts`. Deux cas imposent `.tsx` : un `wrap` sous forme de fonction (section 2.5) et une prop `children` structurée, fréquente sur les composants composés de type `Tabs` ou `Card`. Les deux extensions sont acceptées indifféremment.
+L'extension par défaut est `.ts`. Une prop `children` structurée impose `.tsx`, cas fréquent sur les composants composés de type `Tabs` ou `Card`. Les deux extensions sont acceptées indifféremment.
 
 ### 1.2 Vérification
 
@@ -163,9 +163,13 @@ export default defineStories(Badge, {
 ```ts
 function defineStories<C>(
   component: C,
-  definition?: StoryDefinition<PropsOf<C>, C>
+  definition?: StoryDefinition<PropsOf<C>, AnyComponent>
 ): StoryModule<C>
 
+// `AnyComponent` est le type des composants du framework, fourni par
+// l'adaptateur. Surtout pas celui du composant de la story : une enveloppe n'a
+// aucune raison d'accepter ses props, et `wrap: TooltipProvider` ne compilerait
+// alors pas sur `defineStories(Badge, …)`.
 interface StoryDefinition<P, C> {
   props?: Partial<P>
   stories?: Record<string, Partial<P> | Story<P>>
@@ -201,18 +205,27 @@ Le second argument est typé par les plugins installés, ce qui donne l'autocomp
 
 ### 2.5 `wrap`
 
-`wrap` reconstruit le contexte manquant autour du composant isolé. Quatre formes, de la plus simple à la plus libre :
+`wrap` reconstruit le contexte manquant autour du composant isolé. **Il empile des composants, et rien d'autre.** Trois formes :
 
 ```ts
 wrap: TooltipProvider
 wrap: [ThemeProvider, TooltipProvider]
 wrap: [[ThemeProvider, { mode: 'dark' }], TooltipProvider]
-wrap: (story) => <Foo bar={compute()}>{story}</Foo>
 ```
 
 Dans la forme tableau, **le premier élément est le plus externe**.
 
-Les trois premières formes sont déclaratives, donc portables : l'adaptateur Vue les interprète sans qu'un caractère du fichier ne change. La forme fonction est spécifique au framework et reçoit l'élément déjà rendu, jamais un composant à instancier.
+Les trois sont déclaratives, donc portables : l'adaptateur Vue les interprète sans qu'un caractère du fichier ne change.
+
+**Pas de forme fonction.** Pour React, un composant *est* une fonction : `wrap: TooltipProvider` et `wrap: (story) => …` seraient le même type, et l'adaptateur ne saurait pas s'il doit instancier ce qu'il reçoit ou lui passer l'élément déjà rendu. Une valeur calculée passe par les props, où elle est évaluée au chargement du fichier de stories :
+
+```ts
+wrap: [[Foo, { bar: compute() }]]
+```
+
+Envelopper d'un peu de balisage demande donc un composant plutôt qu'une fonction anonyme. C'est une ligne de plus, et elle reste lisible par tous les adaptateurs.
+
+**Toute fonction reçue par `wrap` est instanciée comme un composant.** Le typage ne peut pas l'imposer, un composant React étant lui-même une fonction : c'est donc une règle, et elle rend le comportement de l'adaptateur prévisible. Qui écrit `wrap: (story) => …` en attendant de recevoir l'élément rendu obtiendra un rendu faux, non une ambiguïté.
 
 Le `wrap` global de `crypte.config.ts` enveloppe le `wrap` du fichier, lui-même enveloppant le composant.
 
@@ -549,6 +562,22 @@ Absents volontairement. Certains relèvent des PRD de projet, d'autres attendent
 ---
 
 ## 8. Journal des versions
+
+**v0.9.** `wrap` n'empile que des composants.
+
+| Avant | Après |
+|---|---|
+| quatre formes, dont `(story) => …` | trois formes, toutes déclaratives |
+
+**Pourquoi.** Pour React, un composant est une fonction. `wrap: TooltipProvider` et `wrap: (story) => …` étaient donc le même type, et l'adaptateur du lot suivant aurait dû deviner lequel des deux il tenait, en se trompant une fois sur deux. Ni le typage ni un `typeof` à l'exécution ne les séparent.
+
+La forme fonction était par ailleurs la seule à ne pas être portable, ce que la section 2.5 disait déjà, et aucun usage ne la réclamait : elle venait d'un outil qui la nomme décorateur, pas d'un besoin rencontré ici.
+
+**Ce qu'elle servait, et qui subsiste.** Passer une valeur calculée, par les props de la forme tableau. Ce qu'elle seule permettait, un balisage jeté à la volée, demande maintenant un petit composant.
+
+Si un usage réel la réclame, elle reviendra sous une clé distincte qui dira sa non-portabilité, et l'ajouter coûtera alors ce qu'il aurait coûté aujourd'hui.
+
+Aucune migration à prévoir, rien n'est publié.
 
 **v0.8.** Deux corrections à la v0.7.
 

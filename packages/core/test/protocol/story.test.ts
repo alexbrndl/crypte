@@ -81,7 +81,7 @@ describe('StoryDefinition', () => {
   })
 })
 
-// Les quatre formes de la section 2.5 de la spécification.
+// Les trois formes de la section 2.5 de la spécification.
 describe('Wrap', () => {
   const Provider = 'Provider'
 
@@ -100,9 +100,14 @@ describe('Wrap', () => {
     expect(wrap).toHaveLength(2)
   })
 
-  it('accepte une fonction', () => {
+  // L'union ne porte plus de branche fonction. Ce cas la garde d'y revenir, et
+  // rien de plus : quand le composant est lui-même une fonction, comme en React,
+  // une fonction de rendu reste assignable. C'est pourquoi la section 2.5 en fait
+  // une règle, à savoir que toute fonction reçue est instanciée.
+  it('n’a plus de branche fonction dans son union', () => {
+    // @ts-expect-error la branche `(story) => unknown` a été retirée
     const wrap = ((story: unknown) => story) satisfies Wrap<string>
-    expect(typeof wrap).toBe('function')
+    expect(wrap).toBeDefined()
   })
 
   it('refuse des props sans composant', () => {
