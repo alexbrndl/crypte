@@ -1,9 +1,9 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createServer, type InlineConfig } from 'vite'
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import { aliasesOf } from '../src/aliases'
 import { ConfigError, cssEntryOf, loadProject, viteConfigOf } from '../src/project'
 
@@ -12,6 +12,14 @@ import { ConfigError, cssEntryOf, loadProject, viteConfigOf } from '../src/proje
 // et un import d'asset. Voir architecture.md.
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), 'fixture')
+
+// Les projets jetables créés par les cas ci-dessous, effacés à la fin : sans
+// cela, chaque lancement en laisse une poignée dans le dossier temporaire.
+const temporary: string[] = []
+
+afterAll(() => {
+  for (const root of temporary) rmSync(root, { recursive: true, force: true })
+})
 
 // Chaque serveur a son propre dossier de cache, et n'optimise aucune dépendance.
 // Sans cela ils partagent `node_modules/.vite` sous la fixture, ce qui a produit
@@ -38,8 +46,9 @@ async function serverOn(config: InlineConfig) {
 
 // Un projet jetable, pour éprouver ce que le CLI accepte et refuse.
 function projectWith(source: string): string {
-  const root = mkdtempSync(join(tmpdir(), 'crypte-config-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'crypte-config-')))
   writeFileSync(join(root, 'crypte.config.ts'), source)
+  temporary.push(root)
   return root
 }
 
@@ -75,6 +84,15 @@ describe('chargement de la configuration', () => {
   })
 
   // Sans ces cas, retirer toute la validation laisse la suite verte. Mesuré.
+  // Vite lève sur un module sans export par défaut, avec un message qui parle
+  // de configuration Vite. Le rattraper est la seule façon de nommer le fichier.
+  it('nomme le fichier quand il n’exporte rien', async () => {
+    const root = projectWith('export const config = { stories: "s" }')
+
+    await expect(loadProject(root)).rejects.toThrow(ConfigError)
+    await expect(loadProject(root)).rejects.toThrow(/crypte\.config\.ts/)
+  })
+
   it.each([
     ['sans stories', 'export default { adapter: {} }', /stories/],
     ['avec un stories vide', 'export default { stories: "", adapter: {} }', /stories/],
@@ -87,6 +105,21 @@ describe('chargement de la configuration', () => {
   })
 })
 
+// Un projet jetable, décrit par ses fichiers, pour éprouver les formes de
+// configuration qu'on rencontre sans les faire vivre dans la fixture.
+// `realpathSync` parce que les chemins rendus le sont : sur macOS, `tmpdir()`
+// passe par un lien symbolique, et les deux écritures du même dossier diffèrent.
+function projectOf(files: Record<string, string>): string {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'crypte-alias-')))
+  for (const [name, content] of Object.entries(files)) {
+    const file = join(root, name)
+    mkdirSync(dirname(file), { recursive: true })
+    writeFileSync(file, content)
+  }
+  temporary.push(root)
+  return root
+}
+
 describe('alias du projet', () => {
   it('lit les chemins d’un jsconfig.json commenté', async () => {
     const alias = await aliasesOf(fixture)
@@ -97,6 +130,54 @@ describe('alias du projet', () => {
   // Sans configuration, pas d'alias : le CLI n'en invente aucun.
   it('ne rend rien quand le projet n’en déclare pas', async () => {
     expect(await aliasesOf(join(fixture, 'src'))).toEqual([])
+  })
+
+  // La forme que produit `npm create vite` : la racine ne porte que des
+  // références, et les chemins vivent dans le fichier référencé.
+  it('suit les références d’un tsconfig de style solution', async () => {
+    const root = projectOf({
+      'tsconfig.json': '{ "files": [], "references": [{ "path": "./tsconfig.app.json" }] }',
+      'tsconfig.app.json':
+        '{ "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["src/*"] } } }',
+    })
+
+    expect(await aliasesOf(root)).toEqual([{ find: '@', replacement: join(root, 'src') }])
+  })
+
+  // Un `tsconfig.json` sans chemins ne doit pas masquer le `jsconfig.json` qui
+  // en porte : sinon le support JavaScript tombe dès qu'un des deux traîne.
+  it('continue jusqu’au fichier qui déclare des chemins', async () => {
+    const root = projectOf({
+      'tsconfig.json': '{ "compilerOptions": { "strict": true } }',
+      'jsconfig.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
+    })
+
+    expect(await aliasesOf(root)).toEqual([{ find: '@', replacement: join(root, 'src') }])
+  })
+
+  // TypeScript retient le motif le plus long, Vite le premier qui correspond :
+  // sans tri, `@/lib/x` part vers `src/lib/x` au lieu de `vendor/lib/x`.
+  it('place le motif le plus spécifique en premier', async () => {
+    const root = projectOf({
+      'tsconfig.json':
+        '{ "compilerOptions": { "paths": { "@/*": ["src/*"], "@/lib/*": ["vendor/lib/*"] } } }',
+    })
+
+    const alias = await aliasesOf(root)
+    expect(alias.map((entry) => entry.find)).toEqual(['@/lib', '@'])
+  })
+
+  // `tsconfck` rend `baseUrl` absolu mais pas les chemins : hérités d'un autre
+  // dossier, ils se comptent depuis le fichier qui les déclare.
+  it('compte les chemins hérités depuis le fichier qui les déclare', async () => {
+    const root = projectOf({
+      'base.json': '{ "compilerOptions": { "paths": { "@shared/*": ["shared/src/*"] } } }',
+      'app/tsconfig.json': '{ "extends": "../base.json" }',
+    })
+
+    expect(await aliasesOf(join(root, 'app'))).toEqual([
+      { find: '@shared', replacement: join(root, 'shared/src') },
+    ])
   })
 })
 

@@ -110,5 +110,13 @@
     "apres": "  void config",
     "trouvee": "DCJ-167",
     "attendu": "en nommant le champ"
+  },
+  {
+    "garantie": "les quatre écarts entre TypeScript et Vite sont traités",
+    "fichier": "packages/cli/src/aliases.ts",
+    "avant": "      .sort(([a], [b]) => b.length - a.length)",
+    "apres": "      .sort(() => 0)",
+    "trouvee": "revue de la PR #17",
+    "attendu": "le motif le plus spécifique en premier"
   }
 ]

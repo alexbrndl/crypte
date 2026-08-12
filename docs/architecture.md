@@ -322,6 +322,17 @@ L'option reproduit le comportement de TypeScript, qui n'applique les `paths` qu'
 
 *La remontée est bornée à la racine du projet.* Sans cette borne, la recherche d'un `tsconfig.json` remonte les dossiers parents et trouve celui du dépôt Crypte avant le `jsconfig.json` du projet, ce qui rend des alias vides. Mesuré par mutation.
 
+**Quatre écarts entre TypeScript et Vite**, tous mesurés sur des projets reproduits, tous gardés par un cas :
+
+| Écart | Ce qui se passait |
+|---|---|
+| un `tsconfig.json` ne portant que des `references` | zéro alias, et c'est la forme que produit `npm create vite` |
+| un premier fichier trouvé sans `paths` | le `jsconfig.json` voisin devenait inatteignable |
+| l'ordre des motifs | Vite retient le premier qui correspond, TypeScript le plus long : `@/*` masquait `@/lib/*` |
+| des `paths` hérités par `extends` d'un autre dossier | comptés depuis le fichier qui hérite, pas depuis celui qui déclare |
+
+Le dernier vient de `tsconfck`, qui rend `baseUrl` en absolu mais laisse `paths` relatif. Le fichier déclarant se lit dans `extended`.
+
 **La fixture reproduit un projet réel** plutôt qu'un cas d'école : alias `@/`, un `jsconfig.json` commenté sans `tsconfig.json`, des fichiers `.jsx`, un import d'asset. Elle est exclue du lint : son `baseUrl` est refusé par TypeScript 7, et c'est précisément ce qu'un projet existant contient.
 
 *Ce qui casse si on l'enlève :* la résolution n'est plus éprouvée que sur des cas choisis pour passer. Le lot existe pour lever ce risque avant qu'il ne coûte cher.
