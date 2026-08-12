@@ -86,8 +86,10 @@ describe('isolation des entrées de @crypte/core', () => {
     const protocol = closureOf('protocol')
 
     // Les deux cas sur `protocol` n'ont que des assertions négatives, qui
-    // passeraient sur une chaîne vide. Celle-ci vérifie qu'il y a de quoi lire.
-    expect(protocol).toContain('normalizeSegment')
+    // passeraient sur une chaîne vide. Celle-ci vérifie qu'il y a de quoi lire,
+    // et cherche une chaîne du corps : le nom d'une fonction est cité par la
+    // ligne de réexport de l'entrée, donc satisfait même sans le code.
+    expect(protocol).toContain('NFD')
 
     expect(protocol).not.toContain('__crypte_ui__')
     expect(protocol).not.toContain('__crypte_preview__')

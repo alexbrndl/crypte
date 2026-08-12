@@ -183,7 +183,7 @@ L'outillage est en version pré-1.0 et des ruptures sont attendues. La règle ga
 
 ## 4. Les tests
 
-Sept fichiers, tous dans `packages/core/test`.
+Huit fichiers dans `packages/core/test`, plus un dans `packages/react/test` pour la raison dite plus bas.
 
 **`test/protocol/id.test.ts`**
 Couvre la dérivation des identifiants : accents, casse, séparateurs, segments vides, et le fait que deux noms ne différant que par un accent tombent sur le même identifiant, ce qui est assumé.
@@ -277,6 +277,10 @@ La seule méthode qui ait fonctionné à chaque fois est de casser ce que le tes
 **Ce qui casse si on l'enlève.** Rien immédiatement, et c'est le problème : les garanties se dégraderaient une par une sans qu'aucun test ne rougisse, exactement comme entre la huitième et la neuvième revue.
 
 **Trois précautions.** Il refuse de tourner sur un arbre non propre, sinon une interruption laisserait des sources mutées sans que git puisse dire lesquelles. Il reconstruit les artefacts en sortant, le test d'isolation les lisant. Et il vérifie lui-même qu'il n'a rien laissé de modifié : en intégration continue il passe après le `git diff --exit-code`, donc personne d'autre ne le ferait.
+
+*Ce qu'il ne fait pas :* rattraper un signal. Une version antérieure enregistrait un gestionnaire pour `SIGINT`, ce qui ne servait à rien et nuisait : la boucle étant synchrone, le gestionnaire ne s'exécutait jamais, et l'enregistrer suffisait à désactiver l'interruption par défaut, donc à rendre le script impossible à arrêter au clavier. La restauration tient dans le `finally` de chaque tour, et une interruption laisse une source mutée que `git status` montre.
+
+*Une construction en échec interrompt le tour* plutôt que de laisser les tests lire les artefacts précédents, ce qui accuserait une garantie pourtant gardée.
 
 **Il exige que ce soit le bon gardien qui rougisse.** Chaque entrée nomme ce qui doit apparaître dans la sortie d'échec. Sans cela, une mutation vue par un test sans rapport laisserait croire que la garantie tient, alors que celui qui la porte est muet : c'est « un test passe pour la mauvaise raison » transposé à l'outil censé le détecter. À l'ajout de ce contrôle, deux entrées sur neuf se sont révélées mal attribuées.
 

@@ -10,8 +10,8 @@
   {
     "garantie": "Un message de plugin mal formé est écarté de l'union",
     "fichier": "packages/core/src/protocol/channel.ts",
-    "avant": "  [K in keyof T]: NonNullable<T[K]> extends { type: infer Kind }\n    ? string extends Kind\n      ? never\n      : NonNullable<T[K]>\n    : never",
-    "apres": "  [K in keyof T]: T[K]",
+    "avant": "  [K in keyof T]-?: NonNullable<T[K]> extends { type: infer Kind }\n    ? string extends Kind\n      ? never\n      : NonNullable<T[K]>\n    : never",
+    "apres": "  [K in keyof T]-?: T[K]",
     "trouvee": "revue 4",
     "attendu": "TS2339"
   },
@@ -22,6 +22,14 @@
     "apres": "T[K] extends { type: infer Kind }",
     "trouvee": "revue 8",
     "attendu": "viewport:set"
+  },
+  {
+    "garantie": "undefined n'est pas un message du canal",
+    "fichier": "packages/core/src/protocol/channel.ts",
+    "avant": "  [K in keyof T]-?: NonNullable<T[K]> extends { type: infer Kind }",
+    "apres": "  [K in keyof T]: NonNullable<T[K]> extends { type: infer Kind }",
+    "trouvee": "revue 10",
+    "attendu": "n’admet pas undefined comme message"
   },
   {
     "garantie": "La version du manifeste reste comparable",

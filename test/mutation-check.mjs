@@ -57,20 +57,14 @@ if (!run(vp, ['run', '-r', 'pack']).ok || !run(vp, ['test']).ok || !run(vp, ['ch
 
 const failures = []
 
-// Le `finally` d'une boucle ne joue pas sur un signal : sans ce filet, une
-// interruption au clavier laisse une source mutée dans l'arbre de travail.
-let restore = null
-for (const signal of ['SIGINT', 'SIGTERM']) {
-  process.on(signal, () => {
-    if (restore) restore()
-    process.exit(130)
-  })
-}
-
+// La restauration tient dans le `finally` de chaque tour, et nulle part ailleurs.
+// Un gestionnaire de signal ne servirait à rien ici : la boucle est synchrone, le
+// gestionnaire ne s'exécuterait donc jamais, et l'enregistrer suffirait à
+// désactiver l'interruption par défaut, rendant le script impossible à arrêter.
+// Une interruption au clavier laisse une source mutée : `git status` la montre.
 for (const mutation of mutations) {
   const path = join(root, mutation.fichier)
   const original = readFileSync(path, 'utf8')
-  restore = () => writeFileSync(path, original)
 
   if (!original.includes(mutation.avant)) {
     failures.push(`${mutation.garantie} : le motif n'existe plus dans ${mutation.fichier}`)
@@ -82,8 +76,10 @@ for (const mutation of mutations) {
   try {
     // La construction précède les tests, comme en intégration continue : le test
     // d'isolation lit les artefacts.
-    run(vp, ['run', '-r', 'pack'])
-    const tests = run(vp, ['test'])
+    // Une construction en échec laisserait les tests lire les artefacts
+    // précédents, et le verdict accuserait une garantie pourtant gardée.
+    const built = run(vp, ['run', '-r', 'pack'])
+    const tests = built.ok ? run(vp, ['test']) : { ok: false, output: built.output }
     const check = run(vp, ['check'])
     const noticed = !tests.ok || !check.ok
 
@@ -102,7 +98,6 @@ for (const mutation of mutations) {
       )
   } finally {
     writeFileSync(path, original)
-    restore = null
   }
 }
 

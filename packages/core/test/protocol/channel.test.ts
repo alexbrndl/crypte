@@ -28,6 +28,14 @@ describe('messages du shell', () => {
     expect(message.width).toBe(320)
   })
 
+  // Un membre optionnel se transmet au type mappé : sans `-?`, `undefined`
+  // devenait un message valide et le canal en postait un à travers la frontière.
+  it('n’admet pas undefined comme message', () => {
+    // @ts-expect-error `undefined` n'est pas un message
+    const nothing: ShellMessage = undefined
+    expect(nothing).toBeUndefined()
+  })
+
   it('refuse un type de message inconnu', () => {
     // @ts-expect-error `resize` ne fait pas partie du protocole
     const unknown = { type: 'resize', width: 320 } satisfies ShellMessage
