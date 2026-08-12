@@ -102,5 +102,13 @@
     "apres": "{ configName }",
     "trouvee": "DCJ-167",
     "attendu": "jsconfig.json commenté"
+  },
+  {
+    "garantie": "une configuration incomplète est refusée en nommant le champ",
+    "fichier": "packages/cli/src/project.ts",
+    "avant": "  assertUsable(config)",
+    "apres": "  void config",
+    "trouvee": "DCJ-167",
+    "attendu": "en nommant le champ"
   }
 ]

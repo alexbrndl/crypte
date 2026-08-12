@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -36,6 +36,13 @@ async function serverOn(config: InlineConfig) {
   }
 }
 
+// Un projet jetable, pour éprouver ce que le CLI accepte et refuse.
+function projectWith(source: string): string {
+  const root = mkdtempSync(join(tmpdir(), 'crypte-config-'))
+  writeFileSync(join(root, 'crypte.config.ts'), source)
+  return root
+}
+
 describe('chargement de la configuration', () => {
   it('lit un crypte.config.ts et suit ses dépendances', async () => {
     const project = await loadProject(fixture)
@@ -55,6 +62,28 @@ describe('chargement de la configuration', () => {
   it('nomme le fichier manquant plutôt que de lever une trace de pile', async () => {
     await expect(loadProject(join(fixture, 'src'))).rejects.toThrow(ConfigError)
     await expect(loadProject(join(fixture, 'src'))).rejects.toThrow(/crypte\.config\.ts/)
+  })
+
+  // Deux champs obligatoires, et rien d'autre : c'est le minimum de
+  // configuration que la section 1.5 promet.
+  it('accepte une configuration réduite aux deux champs obligatoires', async () => {
+    const root = projectWith('export default { stories: "s", adapter: {} }')
+    const project = await loadProject(root)
+
+    expect(project.config.stories).toBe('s')
+    expect(project.config.css).toBeUndefined()
+  })
+
+  // Sans ces cas, retirer toute la validation laisse la suite verte. Mesuré.
+  it.each([
+    ['sans stories', 'export default { adapter: {} }', /stories/],
+    ['avec un stories vide', 'export default { stories: "", adapter: {} }', /stories/],
+    ['sans adapter', 'export default { stories: "s" }', /adapter/],
+  ])('refuse une configuration %s, en nommant le champ', async (_, source, expected) => {
+    const root = projectWith(source)
+
+    await expect(loadProject(root)).rejects.toThrow(ConfigError)
+    await expect(loadProject(root)).rejects.toThrow(expected)
   })
 })
 
