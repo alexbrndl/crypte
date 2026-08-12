@@ -125,7 +125,7 @@
     "avant": "        if (found) return found\n      }",
     "apres": "        if (found) return found\n        return { id: candidate }\n      }",
     "trouvee": "revue 3 de la PR #17",
-    "attendu": "laisse Vite résoudre un paquet"
+    "attendu": "ne se rabat pas sur un autre motif"
   },
   {
     "garantie": "les chemins ne s'appliquent qu'aux identifiants nus",
