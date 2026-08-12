@@ -74,7 +74,9 @@ Le lot 2 a démarré sur les types du protocole et a absorbé cinq chantiers, d'
 
 Le réflexe : ouvrir l'issue, la lier à la pull request en cours, continuer.
 
-**À la réception d'une revue, classer avant de corriger.** Première action, avant d'ouvrir un fichier : reprendre chaque point et lui donner son niveau, en tableau, dans la réponse. La revue rend parfois ses niveaux dans un autre vocabulaire, ou pas du tout ; le classement qui compte est celui qui décide de la suite, et c'est celui-là.
+**À la réception d'une revue, la poster, puis classer, puis corriger.** Dans cet ordre, et le postage vient en premier parce que c'est lui qui se perd : deux lots, vingt et une relectures, deux revues arrivées sur la pull request. Le sous-agent rédige, celui qui a la main ensuite poste, et vérifie que le compte a bougé.
+
+**Classer avant de corriger.** Première action, avant d'ouvrir un fichier : reprendre chaque point et lui donner son niveau, en tableau, dans la réponse. La revue rend parfois ses niveaux dans un autre vocabulaire, ou pas du tout ; le classement qui compte est celui qui décide de la suite, et c'est celui-là.
 
 Sans cette étape, tout se corrige indistinctement et la boucle ne se ferme pas. C'est ce qui s'est produit trois fois, y compris le jour où la règle a été écrite.
 

@@ -5,11 +5,13 @@ description: Relit le diff de la branche courante contre les contraintes écrite
 
 Relis le diff de la branche courante contre les contraintes écrites du dépôt, puis poste ton verdict en revue de la pull request.
 
-**Poste la revue avant d'en rendre compte.** Pas après : l'ordre est la seule chose qui fasse la différence. Mesuré sur le lot 2, douze relectures et **deux revues postées** ; le verdict rendu à l'orchestrateur terminait la tâche, et le postage, dernière étape, sautait.
+**Le sous-agent rédige, l'orchestrateur poste.** Un seul responsable, et c'est celui qui a la main en dernier.
 
-Ta réponse à celui qui t'a délégué vient donc **après** l'envoi, et cite l'identifiant de la revue postée. Une revue non postée est une revue qui n'existe pas, même juste : le contrôle `require-review.yml` cherche un marqueur dans les revues de la pull request, jamais dans une réponse.
+Ce partage vient de deux échecs mesurés. Sur le lot 2, douze relectures et **deux revues postées** ; sur le lot 3, neuf relectures et **aucune**. Demander au sous-agent de poster avant de rendre compte n'y a rien changé : sa tâche se termine quand il rend son texte, et ce qui vient après se perd.
 
-Les sections 3 et 4 sont obligatoires, y compris quand il n'y a rien à signaler.
+Le postage n'est donc plus son affaire. Il rédige la revue au format de la section 6 et la rend telle quelle. **L'orchestrateur la poste dès réception, avant toute correction**, puis vérifie qu'elle y est.
+
+Une revue non postée est une revue qui n'existe pas : `require-review.yml` cherche un marqueur dans les revues de la pull request, jamais dans une réponse d'agent. Et une revue que l'auteur du code ne voit pas passer sur la pull request n'a servi qu'à lui.
 
 ## 0. Déléguer si tu as écrit ce code
 
@@ -46,11 +48,17 @@ Diff :
 <sortie de git diff origin/main...HEAD>
 ```
 
-Le sous-agent poste la revue, puis se termine en rendant son verdict. **Vérifie qu'elle est bien postée** avant de corriger quoi que ce soit :
+Le sous-agent rend son verdict et se termine. **Poste-le immédiatement, avant de lire les points en détail et avant toute correction**, puis vérifie qu'il y est :
 
 ```bash
-gh pr view <numéro> --json reviews --jq '[.reviews[]|select(.body|contains("crypte-review"))]|length'
+gh api repos/<dépôt>/pulls/<numéro>/reviews --input revue.json   # 1. poster
+gh pr view <numéro> --json reviews \
+  --jq '[.reviews[]|select(.body|contains("crypte-review"))]|length'  # 2. compter
 ```
+
+Le compte doit avoir augmenté. S'il vaut zéro, le postage a échoué et rien d'autre ne compte tant qu'il n'a pas abouti.
+
+Le contenu est celui du sous-agent, **transcrit sans réécriture**. Ajoute une ligne disant d'où il vient : c'est l'auteur du code qui poste, la revue reste celle d'un regard vierge.
 
 Une relecture dont il ne reste aucune trace n'a pas eu lieu du point de vue du dépôt, et le contrôle sera satisfait par une revue plus ancienne portant sur un autre code.
 
@@ -122,9 +130,11 @@ En cas d'hésitation entre deux niveaux, prendre le plus bas et dire pourquoi : 
 
 **Lis `docs/suivi.md` avant de rédiger.** Ce qui y figure est arbitré : le re-signaler n'apprend rien. Si un point du fichier est devenu bloquant, c'est en revanche un constat à part entière, et il faut dire ce qui a changé.
 
-## 6. Poster le verdict
+## 6. Le format du verdict
 
-**Poste une revue, pas un commentaire simple.** Un commentaire de pull request ne peut pas être marqué comme résolu ; un commentaire de revue ancré sur une ligne le peut. Chaque point devient ainsi une conversation qu'il faut clore explicitement, et la fusion est bloquée tant qu'il en reste une ouverte.
+Le sous-agent le rédige, l'orchestrateur le poste. Voir la section 0.
+
+**Une revue, pas un commentaire simple.** Un commentaire de pull request ne peut pas être marqué comme résolu ; un commentaire de revue ancré sur une ligne le peut. Chaque point devient ainsi une conversation qu'il faut clore explicitement, et la fusion est bloquée tant qu'il en reste une ouverte.
 
 Le corps de la revue doit commencer par ce marqueur exact, seul sur sa première ligne :
 
