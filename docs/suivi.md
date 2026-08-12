@@ -24,6 +24,16 @@ Une ligne disparaît quand le point est traité, pas avant. Les niveaux sont dé
 
 ---
 
+### `Wrap` reste assignable depuis une fonction quand le composant en est une
+
+Le retrait de la branche fonction de l'union ne suffit pas côté React, où un composant *est* une fonction : `wrap: (story) => …` compile toujours. La section 2.5 en fait donc une règle, toute fonction reçue est instanciée comme composant, et le comportement devient prévisible plutôt qu'ambigu.
+
+*Ce qui reste ouvert :* aucun diagnostic n'avertit celui qui écrit cette forme en attendant l'ancien comportement. Un marqueur sur les composants, ou une vérification à l'exécution dans l'adaptateur, le permettrait.
+
+*Pourquoi ce n'est pas fait ici :* le noyau ne connaît aucun framework, donc la reconnaissance appartient à l'adaptateur, qui n'existe pas encore.
+
+*Origine :* revue de la PR #16.
+
 ## Observations
 
 ### Le contrôle de la spécification lit moins de formes que celui du barrel

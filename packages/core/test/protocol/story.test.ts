@@ -100,19 +100,14 @@ describe('Wrap', () => {
     expect(wrap).toHaveLength(2)
   })
 
-  // Le cas qui motive le retrait de la forme fonction : pour React, un composant
-  // est une fonction, donc l'adaptateur ne pourrait pas distinguer les deux.
-  it('refuse une fonction', () => {
-    // @ts-expect-error une enveloppe est un composant, pas une fonction de rendu
+  // L'union ne porte plus de branche fonction. Ce cas la garde d'y revenir, et
+  // rien de plus : quand le composant est lui-même une fonction, comme en React,
+  // une fonction de rendu reste assignable. C'est pourquoi la section 2.5 en fait
+  // une règle, à savoir que toute fonction reçue est instanciée.
+  it('n’a plus de branche fonction dans son union', () => {
+    // @ts-expect-error la branche `(story) => unknown` a été retirée
     const wrap = ((story: unknown) => story) satisfies Wrap<string>
     expect(wrap).toBeDefined()
-  })
-
-  // Ce que la forme fonction servait, et que le tableau fait aussi bien : la
-  // valeur est calculée au chargement du fichier de stories.
-  it('accepte une valeur calculée en props', () => {
-    const wrap = [[Provider, { at: Number('42') }]] satisfies Wrap<string>
-    expect(wrap).toHaveLength(1)
   })
 
   it('refuse des props sans composant', () => {

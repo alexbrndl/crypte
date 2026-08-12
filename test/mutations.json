@@ -80,7 +80,7 @@
     "attendu": "figure encore dans le code de la spécification"
   },
   {
-    "garantie": "wrap n'accepte que des composants",
+    "garantie": "l'union de wrap n'a pas de branche fonction",
     "fichier": "packages/core/src/protocol/story.ts",
     "avant": "export type Wrap<C> = C | readonly WrapEntry<C>[]",
     "apres": "export type Wrap<C> = C | readonly WrapEntry<C>[] | ((story: unknown) => unknown)",

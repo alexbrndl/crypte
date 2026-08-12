@@ -1,6 +1,6 @@
 # Crypte, spécification des contrats
 
-> Version 0.8, document de référence. Toute PRD de projet pointe vers ce document plutôt que de redéfinir ces structures.
+> Version 0.9, document de référence. Toute PRD de projet pointe vers ce document plutôt que de redéfinir ces structures.
 >
 > **v0.9 :** `wrap` n'empile que des composants. Voir le journal en section 8.
 
@@ -38,7 +38,7 @@ stories/checkout/OrderSummary.ts
 
 Le fichier de story porte **exactement le nom du composant**. L'arbre affiché dans la sidebar est déduit du chemin relatif à la racine des stories, sans aucune déclaration de titre.
 
-L'extension par défaut est `.ts`. Deux cas imposent `.tsx` : un `wrap` sous forme de fonction (section 2.5) et une prop `children` structurée, fréquente sur les composants composés de type `Tabs` ou `Card`. Les deux extensions sont acceptées indifféremment.
+L'extension par défaut est `.ts`. Une prop `children` structurée impose `.tsx`, cas fréquent sur les composants composés de type `Tabs` ou `Card`. Les deux extensions sont acceptées indifféremment.
 
 ### 1.2 Vérification
 
@@ -163,9 +163,13 @@ export default defineStories(Badge, {
 ```ts
 function defineStories<C>(
   component: C,
-  definition?: StoryDefinition<PropsOf<C>, C>
+  definition?: StoryDefinition<PropsOf<C>, AnyComponent>
 ): StoryModule<C>
 
+// `AnyComponent` est le type des composants du framework, fourni par
+// l'adaptateur. Surtout pas celui du composant de la story : une enveloppe n'a
+// aucune raison d'accepter ses props, et `wrap: TooltipProvider` ne compilerait
+// alors pas sur `defineStories(Badge, …)`.
 interface StoryDefinition<P, C> {
   props?: Partial<P>
   stories?: Record<string, Partial<P> | Story<P>>
@@ -220,6 +224,8 @@ wrap: [[Foo, { bar: compute() }]]
 ```
 
 Envelopper d'un peu de balisage demande donc un composant plutôt qu'une fonction anonyme. C'est une ligne de plus, et elle reste lisible par tous les adaptateurs.
+
+**Toute fonction reçue par `wrap` est instanciée comme un composant.** Le typage ne peut pas l'imposer, un composant React étant lui-même une fonction : c'est donc une règle, et elle rend le comportement de l'adaptateur prévisible. Qui écrit `wrap: (story) => …` en attendant de recevoir l'élément rendu obtiendra un rendu faux, non une ambiguïté.
 
 Le `wrap` global de `crypte.config.ts` enveloppe le `wrap` du fichier, lui-même enveloppant le composant.
 
