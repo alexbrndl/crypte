@@ -139,7 +139,7 @@
     "garantie": "un seul motif est retenu, comme chez TypeScript",
     "fichier": "packages/cli/src/paths.ts",
     "avant": "      const matched = ordered.find(([pattern]) => capture(pattern, source) !== null)",
-    "apres": "      const matched = ordered.find(([pattern]) => capture(pattern, source) === null)",
+    "apres": "      const matched = ordered.findLast(([pattern]) => capture(pattern, source) !== null)",
     "trouvee": "revue 7 de la PR #17",
     "attendu": "ne se rabat pas sur un autre motif"
   }
