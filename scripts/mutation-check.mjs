@@ -34,6 +34,16 @@ function run(command, args) {
 }
 
 const vp = process.env.VP_BIN ?? 'vp'
+
+// Contrôle positif, avant tout le reste. Sans lui, un binaire introuvable rend
+// « échec » à chaque appel, donc toute mutation paraît vue, et le script annonce
+// que tout est gardé sans avoir rien lancé. Mesuré : c'était le cas.
+console.log('contrôle positif : la suite passe-t-elle sur le code intact ?')
+if (!run(vp, ['run', '-r', 'pack']) || !run(vp, ['test']) || !run(vp, ['check'])) {
+  console.error(`\nLa suite échoue déjà sans mutation. Corrige-la, ou vérifie \`${vp}\`.`)
+  process.exit(1)
+}
+
 const failures = []
 
 for (const mutation of mutations) {
