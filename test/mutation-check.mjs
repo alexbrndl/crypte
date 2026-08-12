@@ -101,6 +101,15 @@ for (const mutation of mutations) {
 
 run(vp, ['run', '-r', 'pack'])
 
+// Ce script écrit dans les sources. Qu'il les restaure toutes est sa condition
+// d'emploi, et personne d'autre ne la vérifie : en intégration continue il passe
+// après le `git diff`, donc un fichier laissé muté ne serait vu de personne.
+const left = execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' })
+if (left.trim()) {
+  console.error(`\nDes sources sont restées modifiées :\n${left}`)
+  process.exit(1)
+}
+
 if (failures.length > 0) {
   console.error(`\n${failures.length} garantie(s) sans garde :`)
   for (const failure of failures) console.error(`  ${failure}`)
