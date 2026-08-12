@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, isAbsolute, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createServer, type InlineConfig } from 'vite'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -64,6 +64,15 @@ describe('chargement de la configuration', () => {
   it('rend l’entrée CSS en chemin absolu', async () => {
     const css = cssEntryOf(await loadProject(fixture))
     expect(css).toBe(join(fixture, 'src/styles/app.css'))
+  })
+
+  // Une racine relative, ce qu'un `crypte dev ./demo` passerait depuis la ligne
+  // de commande : sans normalisation, tous les chemins produits le restent.
+  it('normalise une racine relative', async () => {
+    const project = await loadProject(relative(process.cwd(), fixture))
+
+    expect(isAbsolute(project.root)).toBe(true)
+    expect(isAbsolute(cssEntryOf(project) as string)).toBe(true)
   })
 
   // Le message nomme le fichier attendu et l'endroit cherché : sans cela,
