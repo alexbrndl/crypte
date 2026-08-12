@@ -76,6 +76,21 @@ function assertUsable(config: CrypteConfig): void {
   if (config.adapter == null) {
     throw new ConfigError(`${CONFIG_FILE} doit déclarer \`adapter\`, celui de son framework.`)
   }
+
+  // Les champs facultatifs aussi : mal typés, ils lèvent plus loin une erreur
+  // qui ne nomme ni le fichier ni le champ, sur un spread ou un `resolve`.
+  if (config.css !== undefined && typeof config.css !== 'string') {
+    throw new ConfigError(`${CONFIG_FILE} : \`css\` doit être un chemin.`)
+  }
+
+  for (const [champ, valeur] of [
+    ['plugins', config.plugins],
+    ['vite.plugins', config.vite?.plugins],
+  ] as const) {
+    if (valeur !== undefined && !Array.isArray(valeur)) {
+      throw new ConfigError(`${CONFIG_FILE} : \`${champ}\` doit être un tableau.`)
+    }
+  }
 }
 
 // La configuration Vite du projet, montée depuis la sienne. Rien n'en est

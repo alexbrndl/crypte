@@ -1,7 +1,7 @@
 // Où le projet déclare ses chemins, et depuis quel dossier ils se comptent.
 // Ce qu'on en fait est dans `paths.ts`.
 
-import { dirname, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { parse, type TSConfckParseResult } from 'tsconfck'
 import { ConfigError } from './errors'
 import type { ProjectPaths } from './paths'
@@ -27,6 +27,11 @@ export async function readProjectPaths(
   for (const configName of CONFIG_NAMES) {
     // `root` borne la remontée : sans elle, un projet sans configuration
     // hériterait de celle d'un dossier parent quelconque.
+    // Le fichier cherché entre dans la liste avant même d'être lu : qu'il soit
+    // illisible, sans chemins, ou qu'il en fournisse, le modifier change ce qui
+    // sera résolu, donc doit provoquer une relecture.
+    seen.push(join(root, configName))
+
     let result: TSConfckParseResult
     try {
       result = await parse(resolve(root, PROBE), { configName, root })
@@ -56,7 +61,10 @@ export async function readProjectPaths(
     const found = pathsIn(result, root)
     // Un fichier trouvé mais sans chemins ne clôt pas la recherche : sinon un
     // `tsconfig.json` minimal rendrait le `jsconfig.json` voisin inatteignable.
-    if (found) return { paths: found, files: found.files }
+    // Les fichiers déjà parcourus comptent autant que celui qui a fourni les
+    // chemins : un `tsconfig.json` sans `paths`, lu en premier, en gagnera
+    // peut-être demain, et il est lu avant celui qui répond aujourd'hui.
+    if (found) return { paths: found, files: [...new Set([...seen, ...found.files])] }
   }
 
   // Sans ce mot, l'utilisateur voit tous ses imports échouer sans que rien ne

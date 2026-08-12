@@ -115,6 +115,23 @@ describe('chargement de la configuration', () => {
     ['sans stories', 'export default { adapter: {} }', /stories/],
     ['avec un stories vide', 'export default { stories: "", adapter: {} }', /stories/],
     ['sans adapter', 'export default { stories: "s" }', /adapter/],
+    // Les facultatifs aussi : mal typés, ils lèvent plus loin sur un spread ou
+    // un `resolve`, avec une erreur qui ne nomme ni le fichier ni le champ.
+    [
+      'avec un css qui n’est pas un chemin',
+      'export default { stories: "s", adapter: {}, css: 12 }',
+      /css/,
+    ],
+    [
+      'avec des plugins qui ne sont pas un tableau',
+      'export default { stories: "s", adapter: {}, plugins: {} }',
+      /plugins/,
+    ],
+    [
+      'avec un vite.plugins mal formé',
+      'export default { stories: "s", adapter: {}, vite: { plugins: {} } }',
+      /vite\.plugins/,
+    ],
   ])('refuse une configuration %s, en nommant le champ', async (_, source, expected) => {
     const root = projectWith(source)
 
@@ -269,6 +286,31 @@ describe('chemins déclarés par le projet', () => {
 
   // Un fichier sans chemins reste à surveiller : en ajouter doit provoquer une
   // relecture, ce qu'aucune liste ne permettra s'il n'y figure pas.
+  // Le croisement que le cas suivant ne couvre pas : le fichier lu en premier
+  // n'a pas de chemins, un autre en fournit, et le premier reste à surveiller
+  // puisqu'il est consulté avant.
+  it.each([
+    [
+      'quand un autre fichier fournit les chemins',
+      {
+        'tsconfig.json': '{ "compilerOptions": { "strict": true } }',
+        'jsconfig.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
+      },
+    ],
+    [
+      'quand son extends est introuvable',
+      { 'tsconfig.json': '{ "extends": "./.nuxt/tsconfig.json" }' },
+    ],
+  ])('surveille le tsconfig %s', async (_, fichiers) => {
+    const root = projectOf({
+      ...fichiers,
+      'crypte.config.ts': 'export default { stories: "s", adapter: {} }',
+    })
+    const project = await loadProject(root)
+
+    expect(project.watch.some((file) => file.endsWith('tsconfig.json'))).toBe(true)
+  })
+
   it('surveille un tsconfig même sans chemins', async () => {
     const root = projectOf({
       'tsconfig.json': '{ "compilerOptions": { "strict": true } }',
