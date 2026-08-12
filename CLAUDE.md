@@ -108,6 +108,8 @@ fix: resolve aliases from jsconfig  plutôt que   correction du bug
 
 **Annuler une modification de test.** Ne jamais utiliser `git checkout` pour défaire une ligne ajoutée le temps d'un essai : la commande restaure la version indexée et emporte tout le travail non commité du même fichier. Copier le fichier avant l'essai, ou retirer la ligne ajoutée.
 
+**Lire la sortie avant de commiter.** Le hook lance le formatage, pas les tests : un `Tests 1 failed` passe donc au commit sans que rien ne s'y oppose, et l'intégration continue ne le dit qu'après le push. C'est arrivé.
+
 **Vérifier avant de commiter.** `vp check | grep 'pass:|error:' && git commit` ne protège de rien : `grep` réussit aussi quand il trouve `error:`. Enchaîner sur le code de sortie de `vp check` seul, sans filtre entre les deux.
 
 **Causes.** Ne jamais attribuer une cause sans l'avoir isolée par une mesure. Une explication cohérente avec les chiffres observés n'est pas une cause démontrée.
