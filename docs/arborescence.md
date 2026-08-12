@@ -60,6 +60,10 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | Fichier | Contient | Consommé par |
 | -- | -- | -- |
 | `src/index.ts` | binaire `crypte` | l'utilisateur final |
+| `src/config.ts` | contrat de `crypte.config.ts`, `defineConfig` | le projet utilisateur |
+| `src/project.ts` | chargement de la configuration, config Vite | le futur serveur |
+| `src/aliases.ts` | alias lus depuis `tsconfig` ou `jsconfig` | `project.ts` |
+| `test/fixture/` | projet imité, aux contraintes réelles | `test/project.test.ts` |
 
 ## `packages/react` — `@crypte/react`
 

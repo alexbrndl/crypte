@@ -1,6 +1,8 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createServer } from 'vite'
+import { createServer, type InlineConfig } from 'vite'
 import { describe, expect, it } from 'vitest'
 import { aliasesOf } from '../src/aliases'
 import { ConfigError, cssEntryOf, loadProject, viteConfigOf } from '../src/project'
@@ -10,6 +12,29 @@ import { ConfigError, cssEntryOf, loadProject, viteConfigOf } from '../src/proje
 // et un import d'asset. Voir architecture.md.
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), 'fixture')
+
+// Chaque serveur a son propre dossier de cache, et n'optimise aucune dépendance.
+// Sans cela ils partagent `node_modules/.vite` sous la fixture, ce qui a produit
+// deux échecs isolés en vingt-cinq lancements, jamais reproduits depuis. La cause
+// n'est donc pas démontrée : ce qui l'est, c'est que le dossier était commun.
+async function serverOn(config: InlineConfig) {
+  const cacheDir = mkdtempSync(join(tmpdir(), 'crypte-vite-'))
+  const server = await createServer({
+    ...config,
+    cacheDir,
+    optimizeDeps: { noDiscovery: true, include: [] },
+    logLevel: 'silent',
+    server: { middlewareMode: true },
+  })
+
+  return {
+    server,
+    async close() {
+      await server.close()
+      rmSync(cacheDir, { recursive: true, force: true })
+    },
+  }
+}
 
 describe('chargement de la configuration', () => {
   it('lit un crypte.config.ts et suit ses dépendances', async () => {
@@ -51,11 +76,7 @@ describe('alias du projet', () => {
 describe('résolution réelle par un serveur Vite', () => {
   it('résout un alias et un asset depuis un fichier .jsx', async () => {
     const project = await loadProject(fixture)
-    const server = await createServer({
-      ...(await viteConfigOf(project)),
-      logLevel: 'silent',
-      server: { middlewareMode: true },
-    })
+    const { server, close } = await serverOn(await viteConfigOf(project))
 
     try {
       const result = await server.transformRequest('/entry.jsx')
@@ -64,24 +85,19 @@ describe('résolution réelle par un serveur Vite', () => {
       expect(result?.code).toContain('/src/components/Badge.jsx')
       expect(result?.code).toContain('/src/assets.js')
     } finally {
-      await server.close()
+      await close()
     }
   })
 
   // Contrôle négatif : sans les alias, le même import échoue. Sinon le cas
   // ci-dessus passerait aussi bien avec une configuration vide.
   it('échoue sans les alias, ce qui prouve qu’ils servent', async () => {
-    const server = await createServer({
-      root: fixture,
-      configFile: false,
-      logLevel: 'silent',
-      server: { middlewareMode: true },
-    })
+    const { server, close } = await serverOn({ root: fixture, configFile: false })
 
     try {
       await expect(server.transformRequest('/entry.jsx')).rejects.toThrow(/@\/components\/Badge/)
     } finally {
-      await server.close()
+      await close()
     }
   })
 })

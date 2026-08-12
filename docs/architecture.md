@@ -86,6 +86,10 @@ Le paquet installé par l'utilisateur. Il déclare le binaire `crypte`. Le nom d
 
 Aujourd'hui, le binaire affiche la version du protocole et un message indiquant qu'aucune commande n'est implémentée. Il n'y a ni `dev`, ni `init`, ni `check`.
 
+Il expose en revanche `defineConfig`, et sait lire la configuration d'un projet : `src/config.ts` porte le contrat, `src/project.ts` le chargement, `src/aliases.ts` les alias de chemins.
+
+**Deux entrées de construction**, `index` pour le binaire et `config` pour l'API. Sans cette séparation, importer `defineConfig` exécuterait la commande, le binaire s'exécutant au chargement.
+
 Son fichier d'entrée porte un shebang. La chaîne de construction le préserve et pose le bit exécutable sur le fichier produit.
 
 *Sans lui :* il n'y a aucun point d'entrée utilisateur.
@@ -291,6 +295,36 @@ La seule méthode qui ait fonctionné à chaque fois est de casser ce que le tes
 **Il exige que ce soit le bon gardien qui rougisse.** Chaque entrée nomme ce qui doit apparaître dans la sortie d'échec. Sans cela, une mutation vue par un test sans rapport laisserait croire que la garantie tient, alors que celui qui la porte est muet : c'est « un test passe pour la mauvaise raison » transposé à l'outil censé le détecter. À l'ajout de ce contrôle, deux entrées sur neuf se sont révélées mal attribuées.
 
 **Ce qu'il ne couvre pas.** Seulement les garanties qu'on a pensé à y mettre : il empêche un défaut trouvé de revenir, il n'en trouve pas de nouveau. Le contrôle de la spécification, lui, vérifie qu'un nom est **mentionné**, pas qu'il est décrit : un type cité en passant lui suffit.
+
+---
+
+## 4 ter. La configuration d'un projet
+
+**`crypte.config.ts` est chargé par `loadConfigFromFile`, la fonction publique de Vite.**
+
+*Pourquoi Vite plutôt qu'une brique dédiée :* le fichier est en TypeScript et doit être transpilé. Vite le fait déjà, avec trois stratégies au choix, et le CLI l'aura de toute façon en dépendance pour servir la preview. Il rend en prime la liste des fichiers dont la configuration dépend, ce qu'il faudra pour la relire quand ils changent.
+
+*Ce qui casse si on l'enlève :* il faut une dépendance de plus, du type de `jiti`, pour un travail que Vite fait mieux.
+
+**Les alias de chemins sont lus avec `tsconfck`, puis traduits en `resolve.alias`.**
+
+*Pourquoi pas l'option de Vite.* `resolve.tsconfigPaths` existe et paraît faite pour ça. Mesuré avant de choisir :
+
+| Projet | `resolve.tsconfigPaths` | lecture puis `resolve.alias` |
+|---|---|---|
+| TypeScript, `.ts` et `.tsx` | résout | résout |
+| JavaScript, `.js` et `.jsx` | échoue | résout |
+| `tsconfig.json` mais fichiers `.jsx` | échoue | résout |
+
+L'option reproduit le comportement de TypeScript, qui n'applique les `paths` qu'aux fichiers TypeScript et ignore `jsconfig.json`. Un projet React écrit en JavaScript ne résoudrait donc rien. Le résolveur d'oxc, sous Vite, sait pourtant lire un fichier de configuration arbitraire, mais Vite n'expose qu'un booléen et ce réglage reste hors d'atteinte.
+
+*Pourquoi `tsconfck` plutôt qu'une lecture maison.* Une lecture maison tient en une vingtaine de lignes, mais ces lignes contiennent un parseur de commentaires et une résolution d'`extends`, c'est-à-dire les cas limites qui mordent plus tard. `tsconfck` pèse 100 Ko, n'a aucune dépendance, et vient de l'équipe Vite. La traduction en alias reste chez nous, et c'est elle qui porte la décision.
+
+*La remontée est bornée à la racine du projet.* Sans cette borne, la recherche d'un `tsconfig.json` remonte les dossiers parents et trouve celui du dépôt Crypte avant le `jsconfig.json` du projet, ce qui rend des alias vides. Mesuré par mutation.
+
+**La fixture reproduit un projet réel** plutôt qu'un cas d'école : alias `@/`, un `jsconfig.json` commenté sans `tsconfig.json`, des fichiers `.jsx`, un import d'asset. Elle est exclue du lint : son `baseUrl` est refusé par TypeScript 7, et c'est précisément ce qu'un projet existant contient.
+
+*Ce qui casse si on l'enlève :* la résolution n'est plus éprouvée que sur des cas choisis pour passer. Le lot existe pour lever ce risque avant qu'il ne coûte cher.
 
 ---
 
