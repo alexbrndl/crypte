@@ -54,6 +54,16 @@ La configuration produite laisse Vite écrire dans `<projet>/node_modules/.vite`
 
 *Origine :* revue 5 de la PR #17.
 
+### Les chemins déclarés ne s'appliquent pas dans une feuille de style
+
+Un `@import '@/vars.css'` dans le CSS du projet ne résout pas. Le pipeline CSS de Vite ne consulte aucun plugin : il résout `@import` et `url()` par ses propres moyens, alias compris.
+
+*Ce qui a été essayé :* fournir en plus un `resolve.alias` pour les motifs traduisibles. Mesuré, ça résout le CSS **et casse le repli du JavaScript** : un alias s'applique avant le résolveur et réécrit sans condition, donc une première cible inexistante ne retombe plus sur la seconde. Le remède était pire.
+
+*Ce qui le lèverait :* transformer le contenu des feuilles de style avant que Vite ne les résolve, en réécrivant les spécificateurs. C'est un travail à part, avec ses propres cas limites, `url()` et les `@import` conditionnels.
+
+*Origine :* revue 5 de la PR #17.
+
 ## Observations
 
 ### Le contrôle de la spécification lit moins de formes que celui du barrel

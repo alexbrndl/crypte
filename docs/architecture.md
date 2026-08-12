@@ -330,6 +330,8 @@ Quatre tours de revue ont été consacrés à approximer ce repli par des règle
 
 *La correspondance est éprouvée seule.* De l'extérieur, une capture fautive est invisible : le repli renvoie l'import à Vite comme si rien ne s'était passé. Mesuré : sans la comparaison du suffixe, du préfixe, ou l'égalité stricte d'un motif exact, aucun test d'intégration ne rougit.
 
+*Deux limites, mesurées et consignées dans `suivi.md`.* Le pipeline CSS ne consulte aucun plugin, donc un `@import` passant par un chemin déclaré ne résout pas ; y ajouter un alias résout le CSS et casse le repli du JavaScript. Et le résolveur passe après ceux de Vite, donc un chemin qui remplacerait un paquet installé reste sans effet, ce même ordre empêchant un motif fourre-tout de détourner les imports relatifs.
+
 *Où les chemins sont lus*, et depuis quel dossier ils se comptent, reste dans `config-paths.ts`. Ce travail-là n'a pas bougé : la borne de remontée, le suivi des références d'un `tsconfig` de style solution, la poursuite jusqu'au fichier qui déclare vraiment des chemins, et la base prise sur le fichier déclarant.
 
 **La fixture reproduit un projet réel** plutôt qu'un cas d'école : alias `@/`, un `jsconfig.json` commenté sans `tsconfig.json`, des fichiers `.jsx`, un import d'asset. Elle est exclue du lint : son `baseUrl` est refusé par TypeScript 7, et c'est précisément ce qu'un projet existant contient.

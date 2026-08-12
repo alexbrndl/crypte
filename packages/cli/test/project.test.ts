@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { createServer, type InlineConfig } from 'vite'
 import { afterAll, describe, expect, it } from 'vitest'
 import { projectPathsOf } from '../src/config-paths'
-import { capture, cssAliasesOf, pathsPlugin } from '../src/paths'
+import { capture, pathsPlugin } from '../src/paths'
 import { ConfigError, cssEntryOf, loadProject, viteConfigOf } from '../src/project'
 
 // La fixture reproduit les contraintes d'un projet réel : alias `@/`, pas de
@@ -206,31 +206,25 @@ describe('chemins déclarés par le projet', () => {
   })
 })
 
-// Le pipeline CSS de Vite ne consulte aucun plugin : sans alias, un `@import`
-// vers un chemin du projet ne résout pas. Mesuré.
+// Le pipeline CSS de Vite ne consulte aucun plugin : il résout `@import` et
+// `url()` par ses propres moyens. Les chemins déclarés n'y sont donc pas
+// appliqués, et un alias qui les y appliquerait court-circuiterait le repli.
+// Consigné dans suivi.md.
 describe('feuilles de style du projet', () => {
-  it('résout un @import passant par un chemin déclaré', async () => {
+  it('n’applique pas les chemins déclarés dans un @import', async () => {
     const root = projectOf({
       'tsconfig.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
+      'crypte.config.ts': 'export default { stories: "s", adapter: {} }',
       'src/app.css': "@import '@/vars.css';\n.a { color: red }",
       'src/vars.css': ':root { --x: 1 }',
     })
-    const project = await loadProjectAt(root)
-    const { server, close } = await serverOn(await viteConfigOf(project))
+    const { server, close } = await serverOn(await viteConfigOf(await loadProject(root)))
 
     try {
-      await expect(server.transformRequest('/src/app.css')).resolves.not.toBeNull()
+      await expect(server.transformRequest('/src/app.css')).rejects.toThrow()
     } finally {
       await close()
     }
-  })
-
-  // Seuls les motifs traduisibles en préfixe donnent un alias : le comparateur
-  // de Vite ne sait faire que cela, et un autre alias serait inerte.
-  it('ne traduit que les motifs à séparateur', () => {
-    const base = '/projet'
-    expect(cssAliasesOf({ base, paths: { '@/*': ['src/*'] } })).toHaveLength(1)
-    expect(cssAliasesOf({ base, paths: { '@*': ['src/*'], '#app': ['src/a.js'] } })).toEqual([])
   })
 })
 
@@ -271,12 +265,10 @@ describe('résolution des chemins', () => {
       'node_modules/@scope/pkg/i.js': 'export const p = 1',
       ...files,
     })
-    const declared = await projectPathsOf(root)
-    const { server, close } = await serverOn({
-      root,
-      configFile: false,
-      plugins: declared ? [pathsPlugin(declared)] : [],
-    })
+    // La configuration réelle du CLI, non un serveur monté à la main : une
+    // option ajoutée ailleurs, un alias par exemple, doit se voir ici.
+    writeFileSync(join(root, 'crypte.config.ts'), 'export default { stories: "s", adapter: {} }')
+    const { server, close } = await serverOn(await viteConfigOf(await loadProject(root)))
 
     return { root, server, close }
   }

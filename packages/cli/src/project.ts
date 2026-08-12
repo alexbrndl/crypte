@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path'
 import { loadConfigFromFile, type InlineConfig } from 'vite'
 import { projectPathsOf } from './config-paths'
 import type { CrypteConfig } from './config'
-import { cssAliasesOf, pathsPlugin } from './paths'
+import { pathsPlugin } from './paths'
 import { ConfigError } from './errors'
 
 const CONFIG_FILE = 'crypte.config.ts'
@@ -82,9 +82,6 @@ export async function viteConfigOf(project: Project): Promise<InlineConfig> {
     // qui remplacerait un paquet installé reste sans effet. C'est ce même ordre
     // qui empêche un motif fourre-tout de détourner les imports relatifs.
     plugins: [...(paths ? [pathsPlugin(paths)] : []), ...(config.vite?.plugins ?? [])],
-    // Le pipeline CSS ne consulte aucun plugin : les motifs traduisibles ont
-    // aussi un alias, sans quoi un `@import '@/vars.css'` ne résout pas.
-    resolve: { alias: paths ? cssAliasesOf(paths) : [] },
   }
 }
 
