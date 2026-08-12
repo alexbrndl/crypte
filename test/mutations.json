@@ -120,11 +120,11 @@
     "attendu": "le motif le plus spécifique en premier"
   },
   {
-    "garantie": "chaque forme de motif résout vraiment, pas seulement en apparence",
+    "garantie": "les jokers sans repli possible sont écartés",
     "fichier": "packages/cli/src/aliases.ts",
-    "avant": "    const separator = target.endsWith('/*') ? '/' : ''",
-    "apres": "    const separator = ''",
+    "avant": "  if (pattern.includes('*')) return undefined",
+    "apres": "  if (pattern === '*') return undefined",
     "trouvee": "revue 3 de la PR #17",
-    "attendu": "résout le motif"
+    "attendu": "laisse passer un paquet scopé"
   }
 ]

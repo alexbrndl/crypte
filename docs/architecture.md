@@ -322,7 +322,7 @@ L'option reproduit le comportement de TypeScript, qui n'applique les `paths` qu'
 
 *La remontée est bornée à la racine du projet.* Sans cette borne, la recherche d'un `tsconfig.json` remonte les dossiers parents et trouve celui du dépôt Crypte avant le `jsconfig.json` du projet, ce qui rend des alias vides. Mesuré par mutation.
 
-**Quatre écarts entre TypeScript et Vite**, tous mesurés sur des projets reproduits, tous gardés par un cas :
+**Les écarts entre TypeScript et Vite**, tous mesurés sur des projets reproduits, tous gardés par un cas :
 
 | Écart | Ce qui se passait |
 |---|---|
@@ -331,15 +331,18 @@ L'option reproduit le comportement de TypeScript, qui n'applique les `paths` qu'
 | l'ordre des motifs | Vite retient le premier qui correspond, TypeScript le plus long : `@/*` masquait `@/lib/*` |
 | des `paths` hérités par `extends` d'un autre dossier | comptés depuis le fichier qui hérite, pas depuis celui qui déclare |
 | un motif exact voisin d'un joker, `#app` et `#app/*` chez Nuxt | le joker interceptait l'import exact |
-| un joker collé au préfixe, `@*` | l'alias restait inerte, Vite ne pouvant jamais le satisfaire |
-| le fourre-tout `"*"` | son `find` vide correspondait à **tout**, point d'entrée compris |
+| les jokers sans séparateur, `@*`, `*.css`, `"*"` | écartés, faute de repli côté Vite : voir plus bas |
 | un `"paths": {}` déclaré mais vide | il clôturait la recherche et masquait le `jsconfig.json` voisin |
 
-Le quatrième vient de `tsconfck`, qui rend `baseUrl` en absolu mais laisse `paths` relatif. Le fichier déclarant ne se lit pas dans `extended` : cette liste porte des configurations déjà fusionnées, où chaque niveau a hérité des `paths` du suivant. Il faut relire chaque fichier pour savoir lequel les écrit lui-même, et c'est le premier de la chaîne, non le dernier. Prendre le dernier envoie les alias d'un projet qui étend `@tsconfig/node22` droit dans `node_modules`.
+Celui des `paths` hérités vient de `tsconfck`, qui rend `baseUrl` en absolu mais laisse `paths` relatif. Le fichier déclarant se lit dans `extended`, où chaque niveau porte **ce qu'il déclare lui-même**, sans héritage : seul `result.tsconfig` est fusionné. C'est le premier de la chaîne qui compte, non le dernier ; prendre le dernier envoie les alias d'un projet qui étend `@tsconfig/node22` droit dans `node_modules`.
 
 Les motifs exacts deviennent des expressions ancrées et passent devant tous les jokers : ils ne peuvent masquer personne, alors qu'un joker de même préfixe les intercepte.
 
-**Le comparateur de Vite ne sait faire qu'un préfixe suivi d'une barre oblique**, `id === find` ou `id.startsWith(find + '/')`. Seul `@/*` s'y traduit en chaîne ; `@*`, `lib-*` et les motifs exacts demandent une expression, faute de quoi l'alias existe et ne correspond jamais.
+**Le comparateur de Vite ne sait faire qu'un préfixe suivi d'une barre oblique**, `id === find` ou `id.startsWith(find + '/')`. Seul `@/*` s'y traduit en chaîne, et un motif sans joker demande une expression ancrée.
+
+**Les autres formes de joker sont écartées, et c'est un choix.** `@*`, `*.css`, `@app/*/lib` et le fourre-tout `"*"` sont valides côté TypeScript, mais un alias Vite réécrit **sans repli**, là où TypeScript retombe sur la résolution Node quand la cible mappée n'existe pas. Mesuré : traduire `@*` fait intercepter `@vue/runtime-core`, et le projet ne résout plus aucun paquet scopé. Le fourre-tout, lui, correspond à tout identifiant, point d'entrée compris.
+
+Un projet employant ces formes n'a donc pas ses alias, et ses imports échouent avec un message clair plutôt que d'être détournés en silence. Ce qui les débloquerait est un plugin de résolution qui tente la cible puis retombe, ce que `resolve.alias` ne permet pas. Consigné dans `suivi.md` pour le lot 5.
 
 *Une leçon de méthode, payée deux fois ici :* un test qui lit la **forme** d'un alias ne prouve rien. Celui du joker collé au préfixe vérifiait `{ find: '@', replacement: … }`, exactement ce qu'on attendait, sur un alias que Vite ne pouvait pas satisfaire. Les formes de motif sont désormais éprouvées par un serveur qui résout un import réel.
 

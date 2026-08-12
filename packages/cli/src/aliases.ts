@@ -2,9 +2,8 @@
 // Crypte ne lit jamais le `vite.config` d'un projet : voir la section 1.5.
 // Les écarts entre TypeScript et Vite sont traités ici, voir architecture.md.
 
-import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import { parse, toJson, type TSConfckParseResult } from 'tsconfck'
+import { parse, type TSConfckParseResult } from 'tsconfck'
 import type { Alias } from 'vite'
 import { ConfigError } from './errors'
 
@@ -83,23 +82,14 @@ function baseOf(result: TSConfckParseResult, root: string): string {
 }
 
 // Le premier fichier de la chaîne qui écrit `paths` lui-même. `extended` va du
-// fichier d'origine au plus lointain, et la fusion donne la priorité au premier.
+// fichier d'origine au plus lointain, et chaque entrée porte ce que ce niveau
+// déclare, sans héritage : seul `result.tsconfig` est fusionné.
 function declaringFile(result: TSConfckParseResult): string | undefined {
-  for (const { tsconfigFile } of result.extended ?? []) {
-    if (compilerPaths(rawConfig(tsconfigFile))) return tsconfigFile
+  for (const level of result.extended ?? []) {
+    if (compilerPaths(level.tsconfig)) return level.tsconfigFile
   }
 
   return undefined
-}
-
-// Le contenu déclaré d'un fichier, avant fusion : `extended` porte les
-// résultats fusionnés, où chaque niveau a déjà hérité des `paths` du suivant.
-function rawConfig(file: string): unknown {
-  try {
-    return JSON.parse(toJson(readFileSync(file, 'utf8')))
-  } catch {
-    return undefined
-  }
 }
 
 // Un `paths` vide ne compte pas : sinon `"paths": {}` dans un `tsconfig.json`
@@ -153,19 +143,12 @@ function aliasFor(pattern: string, target: string, base: string): Alias | undefi
     }
   }
 
-  // Un joker collé au préfixe, `@*` ou `lib-*`. La partie capturée se réinjecte
-  // dans la cible, faute de quoi tous les modules tomberaient sur le même chemin.
-  if (pattern.endsWith('*')) {
-    const prefix = escapeForRegExp(pattern.slice(0, -1))
-    // `resolve` mange la barre oblique finale : la remettre quand la cible en
-    // portait une, sinon `src/*` donne `srcBadge` au lieu de `src/Badge`.
-    const separator = target.endsWith('/*') ? '/' : ''
-
-    return {
-      find: new RegExp(`^${prefix}(.*)$`),
-      replacement: resolve(base, target.replace(/\/?\*$/, '')) + separator + '$1',
-    }
-  }
+  // Tout autre joker est écarté, et c'est un choix : `@*`, `*.css` ou
+  // `@app/*/lib` sont valides côté TypeScript, mais un alias Vite réécrit sans
+  // repli là où TypeScript retombe sur la résolution Node quand la cible mappée
+  // n'existe pas. Traduit, `@*` intercepterait `@vue/runtime-core` et le projet
+  // ne résoudrait plus aucun paquet scopé. Voir docs/suivi.md.
+  if (pattern.includes('*')) return undefined
 
   // Un motif sans joker désigne un module précis, pas un préfixe : l'ancrer
   // évite que `@lib/x` parte vers `@lib/index.ts/x`.

@@ -231,14 +231,42 @@ describe('alias du projet', () => {
     expect(await aliasesOf(root)).toEqual([{ find: '@', replacement: join(root, 'src') }])
   })
 
-  // Le fourre-tout de TypeScript n'a pas d'équivalent : traduit, son `find` vide
-  // correspondrait à tout identifiant, y compris au point d'entrée.
-  it('écarte le motif fourre-tout', async () => {
-    const root = projectOf({
-      'tsconfig.json': '{ "compilerOptions": { "paths": { "*": ["types/*"] } } }',
-    })
+  // Un alias Vite réécrit sans repli, là où TypeScript retombe sur la résolution
+  // Node quand la cible mappée n'existe pas. Ces formes sont donc écartées
+  // plutôt que traduites : `@*` intercepterait `@vue/runtime-core`, et le
+  // fourre-tout `*` correspondrait à tout, point d'entrée compris.
+  it.each([
+    ['le fourre-tout', '{ "*": ["types/*"] }'],
+    ['un joker collé au préfixe', '{ "@*": ["src/*"] }'],
+    ['un joker au milieu', '{ "@app/*/lib": ["p/*/lib"] }'],
+    ['un joker dans une extension', '{ "*.css": ["styles/*.css"] }'],
+  ])('écarte %s, faute de repli côté Vite', async (_, paths) => {
+    const root = projectOf({ 'tsconfig.json': `{ "compilerOptions": { "paths": ${paths} } }` })
 
     expect(await aliasesOf(root)).toEqual([])
+  })
+
+  // Le cas que l'écart protège : un paquet scopé doit rester résolu par Node.
+  // Traduire `@*` le détournerait vers `src/scope/pkg`, qui n'existe pas.
+  it('laisse passer un paquet scopé malgré un motif @*', async () => {
+    const root = projectOf({
+      'tsconfig.json': '{ "compilerOptions": { "paths": { "@*": ["src/*"] } } }',
+      'node_modules/@scope/pkg/package.json': '{ "name": "@scope/pkg", "main": "index.js" }',
+      'node_modules/@scope/pkg/index.js': 'export const p = 1',
+      'entry.js': 'import "@scope/pkg"',
+    })
+
+    const { server, close } = await serverOn({
+      root,
+      configFile: false,
+      resolve: { alias: await aliasesOf(root) },
+    })
+
+    try {
+      await expect(server.transformRequest('/entry.js')).resolves.not.toBeNull()
+    } finally {
+      await close()
+    }
   })
 
   it('nomme le fichier quand il est illisible', async () => {
@@ -255,9 +283,7 @@ describe('alias du projet', () => {
 describe('résolution des formes de motif', () => {
   it.each([
     ['@/*', '{ "@/*": ["src/*"] }', 'import "@/Badge.js"'],
-    ['@*', '{ "@*": ["src/*"] }', 'import "@Badge.js"'],
     ['exact', '{ "@lib": ["src/Badge.js"] }', 'import "@lib"'],
-    ['préfixe nommé', '{ "lib-*": ["src/*"] }', 'import "lib-Badge.js"'],
   ])('résout le motif %s', async (_, paths, source) => {
     const root = projectOf({
       'tsconfig.json': `{ "compilerOptions": { "paths": ${paths} } }`,
