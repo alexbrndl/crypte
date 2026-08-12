@@ -142,5 +142,13 @@
     "apres": "  for (const [pattern, targets] of [...ordered].reverse()) {",
     "trouvee": "revue 7 de la PR #17",
     "attendu": "ne se rabat pas sur un autre motif"
+  },
+  {
+    "garantie": "les chemins ne valent que pour les fichiers du projet",
+    "fichier": "packages/cli/src/paths.ts",
+    "avant": "      if (importer && INSTALLED.test(importer)) return null",
+    "apres": "      if (false) return null",
+    "trouvee": "revue 8 de la PR #17",
+    "attendu": "n’applique pas les chemins à un fichier installé"
   }
 ]

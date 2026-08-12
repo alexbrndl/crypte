@@ -19,6 +19,9 @@ const PROTOCOL = /^[a-z][a-z\d+.-]*:/i
 // Le préfixe des identifiants virtuels de Rollup.
 const VIRTUAL = '\0'
 
+// Un fichier installé, donc étranger au projet et à ses chemins.
+const INSTALLED = /[\\/]node_modules[\\/]/
+
 // Un plugin plutôt que des `resolve.alias` : un alias réécrit sans condition, là
 // où TypeScript essaie la cible et retombe sur la résolution normale quand elle
 // n'existe pas. Ce repli est toute la différence, et il n'a pas d'équivalent
@@ -43,6 +46,11 @@ export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
       // **cassé** ou non résolu ailleurs : le capturer ferait charger un autre
       // module au lieu d'échouer. Mesuré sur un `./theme.css` supprimé.
       if (!isBareSpecifier(source)) return null
+
+      // Les chemins du projet ne valent que pour ses fichiers. Une dépendance
+      // qui importe un paquet absent, cas d'un pair optionnel non installé, se
+      // verrait sinon servir du code de l'application au lieu d'échouer.
+      if (importer && INSTALLED.test(importer)) return null
 
       // Un seul motif, le mieux classé qui corresponde. TypeScript essaie ses
       // substitutions puis retombe sur la résolution Node, jamais sur un autre

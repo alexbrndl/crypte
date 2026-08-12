@@ -14,10 +14,16 @@ const CONFIG_NAMES = ['tsconfig.json', 'jsconfig.json']
 // Nom fictif : `parse` attend un fichier et remonte depuis son dossier.
 const PROBE = '__crypte__'
 
-export async function projectPathsOf(
+// Rend les chemins s'il y en a, et dans tous les cas les fichiers lus : un
+// `tsconfig.json` sans `paths` doit être surveillé quand même, sinon en ajouter
+// un ne provoquera aucune relecture.
+export async function readProjectPaths(
   root: string,
   warn: (message: string) => void = console.warn,
-): Promise<ProjectPaths | undefined> {
+): Promise<{ paths: ProjectPaths | undefined; files: string[] }> {
+  const unresolved: string[] = []
+  const seen: string[] = []
+
   for (const configName of CONFIG_NAMES) {
     // `root` borne la remontée : sans elle, un projet sans configuration
     // hériterait de celle d'un dossier parent quelconque.
@@ -30,28 +36,44 @@ export async function projectPathsOf(
       // installation. Les chemins sont un enrichissement, pas une condition de
       // démarrage : on passe au fichier suivant plutôt que de tout arrêter.
       if ((cause as { code?: string }).code === 'EXTENDS_RESOLVE') {
-        // Sans ce mot, l'utilisateur voit tous ses imports échouer sans que
-        // rien ne désigne la cause, qui est ailleurs que dans son code.
-        warn(
-          `${configName} étend un fichier introuvable : les chemins déclarés sont ignorés. ${(cause as Error).message}`,
-        )
+        // Gardé pour la fin : le fichier suivant fournit peut-être les chemins,
+        // et annoncer une perte qui n'a pas lieu vaut à peine mieux que le
+        // silence.
+        unresolved.push(`${configName} étend un fichier introuvable`)
         continue
       }
 
       // Un fichier à moitié écrit, ou une virgule en trop : le dire plutôt que
       // de laisser remonter une trace de pile venue d'une bibliothèque.
-      throw new ConfigError(`${configName} n'a pas pu être lu : ${(cause as Error).message}`)
+      throw new ConfigError(`${configName} n'a pas pu être lu : ${(cause as Error).message}`, {
+        cause,
+      })
     }
 
     if (!result.tsconfigFile) continue
 
+    seen.push(...filesOf(result))
     const found = pathsIn(result, root)
     // Un fichier trouvé mais sans chemins ne clôt pas la recherche : sinon un
     // `tsconfig.json` minimal rendrait le `jsconfig.json` voisin inatteignable.
-    if (found) return found
+    if (found) return { paths: found, files: found.files }
   }
 
-  return undefined
+  // Sans ce mot, l'utilisateur voit tous ses imports échouer sans que rien ne
+  // désigne la cause, qui est dans un fichier qu'il n'a pas encore généré.
+  for (const message of unresolved) {
+    warn(`${message} : les chemins déclarés sont ignorés.`)
+  }
+
+  return { paths: undefined, files: [...new Set(seen)] }
+}
+
+// Les seuls chemins, pour qui n'a pas besoin de savoir ce qui a été lu.
+export async function projectPathsOf(
+  root: string,
+  warn?: (message: string) => void,
+): Promise<ProjectPaths | undefined> {
+  return (await readProjectPaths(root, warn)).paths
 }
 
 function pathsIn(result: TSConfckParseResult, root: string): ProjectPaths | undefined {

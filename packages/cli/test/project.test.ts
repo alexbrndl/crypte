@@ -254,6 +254,31 @@ describe('chemins déclarés par le projet', () => {
     expect(dits.join(' ')).toMatch(/tsconfig\.json.*ignor/)
   })
 
+  // Et se tait quand le fichier suivant les fournit : annoncer une perte qui
+  // n'a pas lieu vaut à peine mieux que le silence.
+  it('ne dit rien quand le fichier suivant fournit les chemins', async () => {
+    const root = projectOf({
+      'tsconfig.json': '{ "extends": "./absent.json" }',
+      'jsconfig.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
+    })
+    const dits: string[] = []
+
+    await projectPathsOf(root, (message) => dits.push(message))
+    expect(dits).toEqual([])
+  })
+
+  // Un fichier sans chemins reste à surveiller : en ajouter doit provoquer une
+  // relecture, ce qu'aucune liste ne permettra s'il n'y figure pas.
+  it('surveille un tsconfig même sans chemins', async () => {
+    const root = projectOf({
+      'tsconfig.json': '{ "compilerOptions": { "strict": true } }',
+      'crypte.config.ts': 'export default { stories: "s", adapter: {} }',
+    })
+    const project = await loadProject(root)
+
+    expect(project.watch.some((file) => file.endsWith('tsconfig.json'))).toBe(true)
+  })
+
   it('nomme le fichier quand il est illisible', async () => {
     const root = projectOf({ 'tsconfig.json': '{ "compilerOptions": { paths } }' })
 
@@ -317,6 +342,28 @@ describe('imports relatifs', () => {
 //
 // L'avoir oublié a produit le seul bloquant du lot : avec un motif fourre-tout,
 // un `./theme.css` supprimé était détourné vers `styles/theme.css`.
+// Le troisième axe : d'où vient l'import. Les chemins du projet ne valent que
+// pour ses fichiers, et une dépendance qui importe un paquet absent se verrait
+// sinon servir du code de l'application.
+describe('provenance de l’import', () => {
+  it('n’applique pas les chemins à un fichier installé', async () => {
+    const root = projectOf({
+      'tsconfig.json': '{ "compilerOptions": { "paths": { "*": ["src/*"] } } }',
+      'crypte.config.ts': 'export default { stories: "s", adapter: {} }',
+      'src/secret-lib.js': 'export const secret = 1',
+      'node_modules/dep/package.json': '{ "name": "dep", "main": "i.js" }',
+      'node_modules/dep/i.js': 'import "secret-lib"\nexport const d = 1',
+    })
+    const { server, close } = await serverOn(viteConfigOf(await loadProject(root)))
+
+    try {
+      await expect(server.transformRequest('/node_modules/dep/i.js')).rejects.toThrow()
+    } finally {
+      await close()
+    }
+  })
+})
+
 describe('natures d’identifiant', () => {
   it.each([
     ['un nom de paquet', 'vue'],

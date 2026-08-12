@@ -332,7 +332,13 @@ Quatre tours de revue ont été consacrés à approximer ce repli par des règle
 
 *Deux limites, mesurées et consignées dans `suivi.md`.* Le pipeline CSS ne consulte aucun plugin, donc un `@import` passant par un chemin déclaré ne résout pas ; y ajouter un alias résout le CSS et casse le repli du JavaScript. Et le résolveur passe après ceux de Vite, donc un chemin qui remplacerait un paquet installé reste sans effet.
 
-**Le résolveur a deux entrées, et les deux espaces sont finis.** Les formes de motif d'un côté, sept lignes ; les natures d'identifiant de l'autre, dont seuls les noms de module nus reçoivent les chemins.
+**Le résolveur a trois entrées, et les trois espaces sont finis.** Les avoir énumérées une à une, plutôt qu'en croyant chaque fois avoir fini, est ce qui a coûté le plus cher sur ce lot : chacune a produit son point bloquant, et chaque fois le même mode de panne, un module chargé en silence à la place d'un autre.
+
+**La provenance de l'import.** Les chemins d'un projet ne valent que pour ses fichiers. Une dépendance qui importe un paquet absent, cas d'un pair optionnel non installé, se verrait sinon servir du code de l'application au lieu d'échouer. Mesuré.
+
+**Les formes de motif et les natures d'identifiant** suivent.
+
+ Les formes de motif d'un côté, sept lignes ; les natures d'identifiant de l'autre, dont seuls les noms de module nus reçoivent les chemins.
 
 | Reçoit les chemins | Passe sans être touché |
 |---|---|

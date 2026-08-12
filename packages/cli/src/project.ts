@@ -4,7 +4,7 @@
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { loadConfigFromFile, type InlineConfig } from 'vite'
-import { projectPathsOf } from './config-paths'
+import { readProjectPaths } from './config-paths'
 import type { CrypteConfig } from './config'
 import { pathsPlugin, type ProjectPaths } from './paths'
 import { ConfigError } from './errors'
@@ -46,7 +46,9 @@ export async function loadProject(input: string): Promise<Project> {
       'silent',
     )
   } catch (cause) {
-    throw new ConfigError(`${CONFIG_FILE} n'a pas pu être chargé : ${(cause as Error).message}`)
+    throw new ConfigError(`${CONFIG_FILE} n'a pas pu être chargé : ${(cause as Error).message}`, {
+      cause,
+    })
   }
 
   // Jamais nul ici : Vite ne rend `null` que lorsqu'il doit chercher le fichier
@@ -54,11 +56,10 @@ export async function loadProject(input: string): Promise<Project> {
   const config = loaded?.config as unknown as CrypteConfig
   assertUsable(config)
 
-  const paths = await projectPathsOf(root)
-  const watch = [
-    ...(loaded?.dependencies ?? []).map((dep) => resolve(root, dep)),
-    ...(paths?.files ?? []),
-  ]
+  // Les fichiers lus sont rendus même sans chemins : ajouter un `paths` à un
+  // `tsconfig.json` existant doit provoquer une relecture.
+  const { paths, files } = await readProjectPaths(root)
+  const watch = [...(loaded?.dependencies ?? []).map((dep) => resolve(root, dep)), ...files]
 
   return { root, config, paths, watch }
 }
