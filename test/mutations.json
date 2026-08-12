@@ -78,5 +78,13 @@
     "apres": "  meta?: EntryMeta",
     "trouvee": "revue 9",
     "attendu": "figure encore dans le code de la spécification"
+  },
+  {
+    "garantie": "wrap n'accepte que des composants",
+    "fichier": "packages/core/src/protocol/story.ts",
+    "avant": "export type Wrap<C> = C | readonly WrapEntry<C>[]",
+    "apres": "export type Wrap<C> = C | readonly WrapEntry<C>[] | ((story: unknown) => unknown)",
+    "trouvee": "DCJ-189",
+    "attendu": "TS2578"
   }
 ]
