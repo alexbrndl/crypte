@@ -511,7 +511,7 @@ Le lot 2 a demandé neuf revues et cinquante-trois constats. Quatre mesures en s
 
 **La re-revue porte sur le diff incrémental**, pas sur la branche entière. C'est ce qui faisait dix minutes par tour et ramenait les mêmes constats de fond.
 
-**La revue lance `ppnpm run mutations`** au lieu de refaire les mutations à la main, ce qu'elle faisait à chaque tour.
+**La revue lance `pnpm run mutations`** au lieu de refaire les mutations à la main, ce qu'elle faisait à chaque tour.
 
 *Ce qui reste incertain :* les deux premières mesures sont de la discipline, et la discipline a échoué à chaque tour de ce lot. Elles n'ont fonctionné que le jour où elles ont été demandées explicitement. Les écrire les rend opposables en revue, pas automatiques.
 

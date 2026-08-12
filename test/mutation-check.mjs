@@ -110,11 +110,16 @@ for (const mutation of mutations) {
       )
   } finally {
     writeFileSync(path, original)
+    // `dist` reste issu de la source mutée, et git ne le voit pas puisqu'il est
+    // ignoré. Reconstruire ici plutôt qu'après la boucle : une exception ou une
+    // interruption laisserait sinon des bundles qui ne suivent aucune source.
+    run(vp, ['run', '-r', 'pack'])
   }
 }
 
 // `dist` est ignoré par git, donc le contrôle ci-dessous ne verrait pas des
-// artefacts restés construits depuis une source mutée.
+// artefacts restés construits depuis une source mutée. La reconstruction vaut
+// aussi pour la sortie par exception, d'où le `finally` autour de la boucle.
 if (!run(vp, ['run', '-r', 'pack']).ok) {
   console.error('\nLa reconstruction finale a échoué : `dist` ne correspond plus aux sources.')
   process.exit(1)

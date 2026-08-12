@@ -24,7 +24,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `.github/workflows/ts7-readiness.yml` | sonde mensuelle sur `vue-tsc` | personne, ouvre une issue |
 | `.github/dependabot.yml` | veille sur les actions GitHub | Dependabot |
 | `.vite-hooks/pre-commit` | lance `vp staged` | Git, avant chaque commit |
-| `test/mutation-check.mjs` | casse chaque garantie, attend un test rouge | `ppnpm run mutations`, la CI |
+| `test/mutation-check.mjs` | casse chaque garantie, attend un test rouge | `pnpm run mutations`, la CI |
 | `test/mutations.json` | catalogue des garanties, une par constat de revue | le script ci-dessus |
 | `.changeset/config.json` | mode fixe, générateur de changelog | Changesets |
 | `.claude/skills/review/SKILL.md` | prompt de revue | `/review` |
