@@ -6,6 +6,7 @@
     "dist"
   ],
   "type": "module",
+  "sideEffects": false,
   "exports": {
     "./preview": "./dist/preview.js",
     "./protocol": "./dist/protocol.js",

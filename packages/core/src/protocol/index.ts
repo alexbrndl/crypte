@@ -1,15 +1,34 @@
-export const PROTOCOL_VERSION = 1
+// Porte d'entrée de @crypte/core/protocol : ne fait que réexporter, un groupe
+// par module, dans l'ordre du parcours d'une story.
 
-export type Overrides = Record<string, unknown>
+// Ce qu'on peut dire d'une prop
+export type { PropDetails, ResolvedPropDetails, PropKind, PluginPropDetails } from './prop'
 
-export type ShellMessage =
-  | { type: 'render'; id: string; overrides: Overrides }
-  | { type: 'update-overrides'; id: string; overrides: Overrides }
-  | { type: 'set-globals'; globals: Record<string, unknown> }
-  | { type: 'plugin'; plugin: string; payload: unknown }
+// Ce qu'on écrit dans un fichier de stories
+export type {
+  StoryDefinition,
+  Story,
+  StoryOptions,
+  Wrap,
+  WrapEntry,
+  StoryMeta,
+  PluginStoryOptions,
+} from './story'
 
-export type PreviewMessage =
-  | { type: 'ready'; manifestVersion: number }
-  | { type: 'rendered'; id: string; durationMs: number }
-  | { type: 'error'; id: string; message: string; stack?: string }
-  | { type: 'plugin'; plugin: string; payload: unknown }
+// Ce que le CLI en produit et que le shell lit
+export type { Manifest, ManifestEntry, StoryEntry, ComponentRef } from './manifest'
+export { MANIFEST_VERSION } from './manifest'
+
+// Comment une story est désignée
+export { normalizeSegment, storyId } from './id'
+
+// Comment le shell et la preview se parlent
+export type {
+  ShellMessage,
+  PreviewMessage,
+  Overrides,
+  PluginShellMessages,
+  PluginPreviewMessages,
+  PluginMessage,
+} from './channel'
+export { PROTOCOL_VERSION } from './channel'

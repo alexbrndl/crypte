@@ -72,7 +72,7 @@ Le noyau. Trois entrées indépendantes, chacune produisant son propre bundle et
 | `src/ui/` | `createShellChannel`, le côté shell du canal |
 | `src/preview/` | `createPreviewChannel`, le côté iframe du canal |
 
-Chaque entrée exporte aussi une constante marqueur, utilisée par le test d'isolation.
+`ui` et `preview` exportent chacune une constante marqueur, utilisée par le test d'isolation pour repérer leur code là où il ne devrait pas être.
 
 **Aucune des trois n'importe de framework de rendu**, et une règle de lint l'interdit sur tout `core/src`. Voir la section 10.
 
@@ -183,21 +183,114 @@ L'outillage est en version pré-1.0 et des ruptures sont attendues. La règle ga
 
 ## 4. Les tests
 
-Deux fichiers, tous deux dans `packages/core`.
+Huit fichiers dans `packages/core/test`, plus un dans `packages/react/test` pour la raison dite plus bas.
 
-**`src/protocol/index.test.ts`**
-Vérifie que la version du protocole est bien exposée. Le test est trivial et c'est voulu : il sert à prouver que la chaîne de test fonctionne réellement, plutôt que de laisser la commande passer au vert faute de test à exécuter.
+**`test/protocol/id.test.ts`**
+Couvre la dérivation des identifiants : accents, casse, séparateurs, segments vides, et le fait que deux noms ne différant que par un accent tombent sur le même identifiant, ce qui est assumé.
+
+**`test/protocol/story.test.ts`** et **`test/protocol/manifest.test.ts`**
+Vérifient que les types du format acceptent ce que la spécification écrit, et **refusent le reste**. Les assertions sont portées par `satisfies` et `@ts-expect-error`, donc évaluées à la compilation ; les `expect` qui suivent n'existent que pour donner un corps au test.
+
+*Pourquoi des cas négatifs :* sans eux, ces tests passeraient à l'identique si le type acceptait n'importe quelle clé. C'est arrivé : une première version élargissait le type par une intersection avec un type indexé, et `{ mni: 0 }` compilait sans broncher.
+
+**`test/plugin-simulation.d.ts`**
+Remplit les points d'extension `PluginPropDetails` et `PluginStoryOptions` avec les champs qu'un plugin déclarerait, et joue donc le rôle d'un plugin installé. C'est ce qui permet aux tests de vérifier qu'un champ apporté par un plugin est accepté, et qu'un champ que personne n'a déclaré est refusé.
+
+*Pourquoi un fichier à part :* une augmentation de module vaut pour tout le programme, jamais pour le seul fichier qui la porte. Écrite dans un test, elle contamine silencieusement les autres, qui passeraient alors grâce à une déclaration qu'ils ne mentionnent pas. Le fichier unique rend visible ce que les tests supposent installé.
+
+*Sans lui :* les cas positifs des deux fichiers ci-dessus ne compilent plus, puisque les points d'extension sont vides dans le noyau. L'échec est immédiat et lisible, ce qui est le comportement voulu.
+
+*Un piège que ce fichier a révélé :* un test positif sur un point d'extension ne prouve rien à lui seul. Celui de `StoryOptions` passait à l'identique avec ou sans la simulation, parce qu'un type sans propriété n'entraîne aucun contrôle de propriétés excédentaires. C'est le type qui a dû changer, pas le test.
+
+**`test/no-plugin.test.ts` et `test/no-plugin/`**
+Vérifient ce que le noyau refuse **installé seul**, par une seconde compilation qui n'inclut pas la simulation.
+
+*Pourquoi une compilation à part :* l'augmentation vaut pour tout le programme, donc l'état « aucun plugin » n'existe dans aucun des autres tests. Mesuré : en annulant l'aiguillage de `StoryOptions`, tous les autres tests et `tsc` restaient verts. La garantie de la v0.6 n'était donc surveillée par rien.
+
+*Comment :* les cas sont des `@ts-expect-error` dans `no-plugin/cases.ts`. Une directive inutilisée est elle-même une erreur, donc la compilation échoue aussi bien si le noyau accepte ce qu'il devait refuser que l'inverse.
+
+**`packages/react/test/public-augmentation.ts`**
+Éprouve le chemin que la spécification recommande aux plugins : augmenter `@crypte/core/protocol`, la porte d'entrée publique.
+
+*Pourquoi ailleurs que dans le noyau :* un paquet ne se dépend pas lui-même, donc `@crypte/core/protocol` ne se résout pas depuis `packages/core`. `packages/react` en dépend comme le ferait un plugin, c'est le seul endroit d'où le chemin réel est atteignable.
+
+*Ce que ça couvre et que la simulation ne peut pas :* celle-ci augmente les modules **sources**. Le chemin public passe par les `.d.ts` publiés, où les points d'extension vivent dans un chunk partagé et ne sont que réexportés. Renommer un réexport fait échouer ce test **et** celui des réexports, qui compare les noms publics ; ce qui distingue les deux est la fusion à travers le chunk, que le second ne regarde pas.
+
+*Sans lui :* la fonctionnalité phare du lot repose sur le fait que TypeScript fusionne à travers un alias de réexport, ce que rien ne vérifie. Un changement de découpage la casserait en silence.
+
+*Un premier essai passait sans rien compiler :* le `tsconfig` du paquet exclut ce dossier, et l'exclusion se transmettait par héritage. Le programme était vide, et une compilation vide réussit. D'où le cas qui vérifie, avant tous les autres, que le fichier est bien dans le programme et la simulation bien absente.
+
+**`test/protocol/channel.test.ts`**
+Vérifie la forme des messages du canal.
+
+**`test/protocol/index.test.ts`**
+Vérifie que la porte d'entrée du protocole réexporte tout ce que les quatre modules déclarent.
+
+*Pourquoi :* un nom oublié en réorganisant `index.ts` disparaît de l'API publique sans que rien ne bronche. Les consommateurs internes importent depuis les fichiers, pas depuis la porte, donc ni le typage ni la construction ne voient l'absence. C'est arrivé en regroupant les réexports par thème, où `StoryEntry` s'est perdu.
+
+*Sans lui :* un paquet publié perd un type entre deux versions, et le seul à s'en apercevoir est l'utilisateur.
+
+*Ce qu'il lit :* les modules sont pris dans le dossier et non énumérés à la main, sinon un fichier oublié dans les deux endroits resterait invisible. Les noms déclarés couvrent aussi les formes que le protocole n'emploie pas encore, `export async function` par exemple, et les blocs `export { X }` sans `from`. Côté porte d'entrée, un réexport renommé compte pour son nom public : `StoryEntry as Entry` retire bien `StoryEntry` de l'API. Un `export *` est refusé, puisqu'il exposerait des noms sans les nommer et mettrait la comparaison hors service sans la faire échouer.
+
+*Il lit du texte, faute d'alternative :* un type n'existe pas à l'exécution, il n'y a donc rien à énumérer dans le module importé. Une première version cherchait chaque nom n'importe où dans le fichier, et le trouvait dans les commentaires de regroupement : elle laissait passer le retrait d'un export cité juste au-dessus. Les noms sont maintenant pris dans les accolades des réexports.
 
 **`test/isolation.test.ts`**
 Vérifie l'étanchéité décrite en section 3, en lisant le bundle construit et non les sources. Il porte trois garanties :
 
-1. Le bundle de `protocol` ne contient aucun marqueur provenant de `ui` ou de `preview`.
-2. Le bundle de `protocol` ne comporte aucun import relatif, donc ne dépend d'aucun morceau partagé. **C'est l'assertion qui garde réellement**, la première ne suffit pas : quand une fuite est introduite, l'outil produit un morceau séparé et un import plutôt que de recopier le code, si bien que le marqueur reste absent du bundle et que la première assertion passe malgré la fuite.
-3. Le test échoue explicitement si les artefacts sont absents, plutôt que de passer au vert sans rien avoir vérifié.
+1. Le bundle de `protocol` ne contient aucun marqueur provenant de `ui` ou de `preview`, et réciproquement les deux côtés du canal n'embarquent rien du reste du protocole. Ce second sens cherche plusieurs symboles et non un seul : la disparition simultanée de tous rendrait le contrôle muet, celle d'un seul le rendrait complaisant.
+2. Rien de `core/ui` ni de `core/preview` n'apparaît dans la **fermeture** de `protocol`, c'est-à-dire son fichier plus tout ce qu'il atteint par imports relatifs. Suivre la fermeture est indispensable : quand une fuite est introduite, l'outil produit un morceau séparé et un import plutôt que de recopier le code, si bien qu'un test qui ne lirait que le fichier d'entrée passerait malgré la fuite.
+3. Le test échoue explicitement si les artefacts sont absents, plutôt que de passer au vert sans rien avoir vérifié. Un contrôle négatif vérifie en outre que la fermeture de `protocol` contient le **corps** d'une de ses fonctions.
+
+Ce contrôle doit **exercer le suivi des imports**, faute de quoi les garanties ci-dessus passeraient sur le seul fichier d'entrée. Il s'appuie sur deux fichiers que le test écrit lui-même dans un dossier temporaire, l'un important l'autre, et vérifie que la fermeture du premier atteint le second. Surtout pas dans `dist`, qui est le contenu publié : un run interrompu avant le nettoyage les enverrait dans le paquet npm.
+
+Trois versions antérieures ancraient ce contrôle sur la forme des artefacts, et toutes trois ont fini par ne rien vérifier. La première cherchait un nom que le fichier d'entrée cite dans son réexport. La deuxième cherchait `NFD`, vrai tant que l'entrée n'était qu'un talon, faux dès que la répartition des chunks a changé et que le corps de `normalizeSegment` s'est retrouvé inline. La troisième cherchait une constante dans un chunk, et rougissait dès qu'un refactoring légitime faisait disparaître ce chunk.
+
+La leçon vaut au-delà de ce fichier : **un test ne s'ancre pas sur la forme d'un artefact produit par un outil.** Elle change sans prévenir, dans les deux sens, et le test devient tour à tour complaisant et cassant. Ce qui doit être éprouvé est le mécanisme, sur une structure que le test contrôle lui-même.
+
+Une cible d'import non résolue fait désormais échouer le test. L'ignorer, comme le faisait une version antérieure pour éviter un faux positif hypothétique, ramenait la fermeture au fichier d'entrée sans rien signaler.
+
+**Une version antérieure interdisait tout import relatif dans le bundle.** Ce critère est devenu faux dès que `protocol` a été découpé en plusieurs fichiers sources : l'entrée réexporte alors depuis un chunk qui ne contient que son propre code, ce qui est légitime. Pire, le test sélectionnait son fichier par préfixe et lisait le chunk plutôt que l'entrée, donc ne vérifiait plus rien. Ce qui compte n'est pas la forme des imports mais ce qui est réellement atteignable.
 
 Cette garantie explique en partie l'ordre des étapes de l'intégration continue : la construction doit précéder les tests. Dans l'ordre inverse, le test lirait des artefacts absents et signalerait une erreur d'exécution au lieu de vérifier quoi que ce soit.
 
 La fraîcheur des artefacts n'est volontairement pas vérifiée par comparaison de dates. Le cache de tâches restaure les fichiers construits avec leurs dates d'origine, ce qui provoquerait des échecs sur un état pourtant correct. Elle repose sur deux mécanismes plus fiables : le cache s'invalide quand les sources changent, et l'intégration continue construit avant de tester.
+
+**`test/spec.test.ts`**
+Compare la spécification au code, dans les deux sens : aucun nom retiré ne survit dans la partie normative, et tout type exporté y figure.
+
+*Pourquoi :* douze des cinquante-trois constats des revues du lot 2 venaient de là. Un nom renommé qui survit dans le document qui fait foi produit une réimplémentation fausse, et c'est ainsi que le chapitre 5 a décrit pendant deux versions un message que le canal ne connaissait plus.
+
+*Comment :* une liste de noms retirés, tenue à la main, cherchée dans les **portions de code** de la partie normative. Trois choix, chacun tiré d'un essai raté.
+
+Lire les renommages dans les tableaux du journal semblait élégant, le journal en étant déjà la mémoire. En pratique il contient des tableaux de natures diverses, et la lecture automatique ramassait `crypte`, `ready` et `plugin`, qui sont bien vivants. Une liste juste vaut mieux qu'une déduction fausse ; un cas vérifie qu'elle ne se périme pas, dans les deux sens.
+
+La recherche porte sur le code et non sur la prose : c'est de là qu'on réimplémente, et un mot comme « plugin » est employé partout ailleurs légitimement.
+
+Le contrôle inverse cherche le nom **entier**. Avec une sous-chaîne, `Manifest` était satisfait par `ManifestEntry` : mesuré, les trois types centraux du protocole, `Manifest`, `ShellMessage` et `PreviewMessage`, n'étaient nommés nulle part dans la partie normative et le test restait vert.
+
+---
+
+## 4 bis. Le contrôle de mutation
+
+`test/mutation-check.mjs` casse chaque garantie du protocole, une par une, et vérifie qu'au moins un test s'en aperçoit. Le catalogue est dans `test/mutations.json`, une entrée par constat de revue réel.
+
+**Pourquoi il existe.** Sur les cinquante-trois constats des neuf revues du lot 2, sept portaient sur un test qui passait pour la mauvaise raison, et quatre sur une garantie tenue par le code mais gardée par aucun test. C'est la première cause de défaut du dépôt, très loin devant les bugs de comportement, qui sont deux.
+
+La seule méthode qui ait fonctionné à chaque fois est de casser ce que le test surveille et de le voir rougir. Faite à la main, elle dépend de l'attention de qui écrit, laquelle a failli à chaque tour. Ce script la rend exécutable.
+
+**Ce qu'il a trouvé le jour de son écriture.** Une correction annoncée deux revues plus tôt, `NonNullable` dans le filtre des messages, n'avait jamais été appliquée : le remplacement visait une forme multiligne que le formateur avait condensée, et n'a donc rien remplacé, sans rien signaler.
+
+**Ce qui casse si on l'enlève.** Rien immédiatement, et c'est le problème : les garanties se dégraderaient une par une sans qu'aucun test ne rougisse, exactement comme entre la huitième et la neuvième revue.
+
+**Trois précautions.** Il refuse de tourner sur un arbre non propre, sinon une interruption laisserait des sources mutées sans que git puisse dire lesquelles. Il reconstruit les artefacts en sortant, le test d'isolation les lisant. Et il vérifie lui-même qu'il n'a rien laissé de modifié : en intégration continue il passe après le `git diff --exit-code`, donc personne d'autre ne le ferait.
+
+*Ce qu'il ne fait pas :* rattraper un signal. Une version antérieure enregistrait un gestionnaire pour `SIGINT`, ce qui ne servait à rien et nuisait : la boucle étant synchrone, le gestionnaire ne s'exécutait jamais, et l'enregistrer suffisait à désactiver l'interruption par défaut, donc à rendre le script impossible à arrêter au clavier. La restauration tient dans le `finally` de chaque tour, et une interruption laisse une source mutée que `git status` montre.
+
+*Une construction en échec interrompt le tour* plutôt que de laisser les tests lire les artefacts précédents, ce qui accuserait une garantie pourtant gardée.
+
+**Il exige que ce soit le bon gardien qui rougisse.** Chaque entrée nomme ce qui doit apparaître dans la sortie d'échec. Sans cela, une mutation vue par un test sans rapport laisserait croire que la garantie tient, alors que celui qui la porte est muet : c'est « un test passe pour la mauvaise raison » transposé à l'outil censé le détecter. À l'ajout de ce contrôle, deux entrées sur neuf se sont révélées mal attribuées.
+
+**Ce qu'il ne couvre pas.** Seulement les garanties qu'on a pensé à y mettre : il empêche un défaut trouvé de revenir, il n'en trouve pas de nouveau. Le contrôle de la spécification, lui, vérifie qu'un nom est **mentionné**, pas qu'il est décrit : un type cité en passant lui suffit.
 
 ---
 
@@ -395,6 +488,32 @@ Première ligne du commentaire. Invisible au rendu, cherché tel quel par le wor
 **Le workflow n'imprime jamais le corps des commentaires**, seulement leur nombre. Un texte produit par un agent peut contenir des commandes de workflow, `::error::` ou `::add-mask::`, qui manipuleraient la sortie de l'exécution si elles étaient affichées. En ne faisant sortir que des nombres, la question ne se pose pas.
 
 **Le workflow est séparé de `ci.yml`.** L'intégrer aux dépendances de `ci-passed` le rendrait immédiatement bloquant, puisque `ci-passed` est le contrôle exigé par les règles de la branche. Le contrôle de revue est délibérément non bloquant au départ : on juge son utilité sur trois ou quatre lots avant de l'exiger.
+
+### Le critère d'arrêt de la boucle de revue
+
+Le lot 2 a demandé onze tours. La cause n'est pas le nombre de constats, c'est qu'aucun critère ne disait quand s'arrêter : la règle attendait qu'une revue ne produise plus rien, ce qu'un dépôt vivant ne fait jamais.
+
+**Chaque point porte donc un niveau**, et seul le niveau `bloquant` retient la pull request au brouillon. Un bloquant rompt un contrat, introduit une régression, ou rend vert un contrôle qui ne vérifie plus rien. Le reste devient une issue de suivi.
+
+Mesuré sur le onzième tour : six points, dont deux bloquants seulement. Les quatre autres auraient pu partir en issue, et ce tour aurait été le dernier.
+
+**Deux causes secondaires, mesurées elles aussi.** Les trois derniers tours ne portaient plus sur le protocole, dont le code n'avait pas bougé, mais sur les outils de vérification ajoutés pendant la pull request : chaque outil est une surface neuve qui produit ses propres constats. Et la borne d'effort de la revue, fixée à une dizaine d'appels d'outils, a été dépassée trois fois de suite à trente-quatre et quarante-trois, principalement pour refaire à la main ce que `pnpm run mutations` fait déjà.
+
+Sur les 1907 lignes du lot, 245 sont du code de production, 1193 des tests et des outils, 464 de la documentation.
+
+### Le nombre de tours, et ce qui le fait baisser
+
+Le lot 2 a demandé neuf revues et cinquante-trois constats. Quatre mesures en sont tirées, les deux premières dans `CLAUDE.md`, les deux autres dans le skill.
+
+**L'auto-critique avant la revue.** Cinq faiblesses réelles ont été trouvées de cette façon en quelques minutes, dont un faux vert du contrôle de mutation. Elles auraient coûté un ou deux tours. La règle ne fixe pas de liste : une liste ne voit que ce qu'elle nomme, et les défauts changent de forme à chaque lot.
+
+**Le périmètre.** Une décision de conception arrivée en cours de route crée une surface qu'aucune revue n'a vue, donc un tour de plus. Cinq chantiers ont été absorbés par cette pull request.
+
+**La re-revue porte sur le diff incrémental**, pas sur la branche entière. C'est ce qui faisait dix minutes par tour et ramenait les mêmes constats de fond.
+
+**La revue lance `pnpm run mutations`** au lieu de refaire les mutations à la main, ce qu'elle faisait à chaque tour.
+
+*Ce qui reste incertain :* les deux premières mesures sont de la discipline, et la discipline a échoué à chaque tour de ce lot. Elles n'ont fonctionné que le jour où elles ont été demandées explicitement. Les écrire les rend opposables en revue, pas automatiques.
 
 ### Ce que la revue attrape, et ce qu'elle n'attrape pas
 

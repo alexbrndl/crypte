@@ -1,0 +1,43 @@
+// Le catalogue produit par le CLI et lu par le shell.
+//
+// Il doit survivre à un aller-retour JSON, mais les types ne l'imposent pas :
+// `unknown` accepte une fonction, que `JSON.stringify` retirerait en silence.
+// C'est au CLI de garantir ce qu'il écrit. Voir la section 4.5 de la spec.
+
+import type { ResolvedPropDetails } from './prop'
+import type { StoryMeta } from './story'
+
+export interface Manifest {
+  // Pas `typeof MANIFEST_VERSION` : ce champ sert à détecter un manifeste écrit
+  // par une autre version, comparaison qu'un type figé rendrait impossible.
+  version: number
+  entries: ManifestEntry[]
+}
+
+// `page` et `tokens` sont réservées aux évolutions design system : le champ
+// existe déjà pour qu'elles n'imposent pas de migration.
+export type ManifestEntry = StoryEntry
+
+export interface StoryEntry {
+  type: 'story'
+  id: string
+  path: string[]
+  name: string
+  component: ComponentRef
+  storyFile: string
+  // Ouvert parce que ce champ ne contient que des réglages de plugins : le noyau
+  // n'a rien à y typer, et le lecteur n'a pas forcément les mêmes plugins.
+  options: Record<string, unknown>
+  // Indexé par nom de prop, d'où l'absence de champ `name` dans la valeur.
+  details: Record<string, ResolvedPropDetails>
+  source: string
+  meta?: StoryMeta
+}
+
+export interface ComponentRef {
+  name: string
+  file: string
+  export: string
+}
+
+export const MANIFEST_VERSION = 1

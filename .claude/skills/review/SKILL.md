@@ -44,6 +44,36 @@ Diff :
 
 Le sous-agent produit et poste la revue, puis se termine. Tu ne reprends la main qu'ensuite, pour corriger les points remontés.
 
+## Premier tour ou tour de correction
+
+**Premier tour :** le diff complet, `origin/main...HEAD`.
+
+**Tour de correction :** seulement ce qui a bougé depuis la dernière revue, plus la liste des points déjà traités **et de ceux déjà arbitrés**, tous fournis dans le prompt. Un point classé « observation » ou renvoyé vers une issue ne se re-signale pas : `Wrap` est remonté quatre fois avant d'être sorti du périmètre, ce qui n'a rien appris à personne. Relire vingt-sept fichiers pour en vérifier trois fait perdre du temps et ramène les mêmes constats de fond à chaque tour.
+
+Ce qui reste hors périmètre d'un tour de correction se signale en une ligne, sans être réexaminé.
+
+## Ce que le dépôt vérifie déjà
+
+`pnpm run mutations` casse chaque garantie du protocole et vérifie que le bon test s'en aperçoit. **Lance-le plutôt que de refaire ces mutations à la main**, et consacre ton temps à ce qui n'y figure pas.
+
+Le catalogue est dans `test/mutations.json` : une garantie absente de ce fichier est une garantie que personne ne surveille, et c'est en soi un constat.
+
+## Donner un niveau à chaque point
+
+Sans niveau, tout point se traite comme un empêchement, et la boucle ne se ferme jamais : il y a toujours quelque chose à améliorer dans du code. **Chaque point porte donc l'un de ces trois niveaux, et le mot exact.**
+
+**Bloquant.** Rompt un contrat public, introduit une régression, ou rend vert un contrôle qui ne vérifie plus rien. Se corrige avant la sortie du brouillon, et la correction se fait relire.
+
+**Important.** Défaut réel dont rien ne dépend aujourd'hui : robustesse, cas limite non atteint, dette assumée. Se corrige s'il l'est sans risque, devient une issue sinon.
+
+**Observation.** Imprécision, incohérence de documentation, amélioration possible. Ne justifie **jamais** un tour de plus.
+
+En cas d'hésitation entre deux niveaux, prendre le plus bas et dire pourquoi : c'est celui qui a un coût, l'autre n'en a pas.
+
+**Le critère d'arrêt de la boucle est là.** La pull request sort du brouillon quand aucun bloquant ne reste, pas quand la revue est vide. Les points restants sont consignés dans `docs/suivi.md`, dans le même diff.
+
+**Lis `docs/suivi.md` avant de rédiger.** Ce qui y figure est arbitré : le re-signaler n'apprend rien. Si un point du fichier est devenu bloquant, c'est en revanche un constat à part entière, et il faut dire ce qui a changé.
+
 ## Borne d'effort
 
 **Reste proportionné au diff.** Une revue longue sur un petit diff ne sera pas lue, et c'est le seul mode d'échec qui compte ici.
@@ -55,6 +85,10 @@ Le sous-agent produit et poste la revue, puis se termine. Tu ne reprends la main
 - Ne rends compte que de ce que tu signales. Pas de liste de ce que tu as vérifié et trouvé conforme.
 
 Repère chiffré : **une dizaine d'appels d'outils au maximum**, poster la revue et relancer le contrôle compris. Au-delà, tu es en train d'enquêter au lieu de relire.
+
+Cette borne a été dépassée trois fois de suite, à trente-quatre et quarante-trois appels : un budget qui n'est jamais tenu ne sert à rien. **Sur un tour de correction, elle est ferme.** Ce qui la fait exploser est de refaire à la main ce que `pnpm run mutations` fait déjà, et de monter des projets témoins pour éprouver un mécanisme que le diff seul permet de juger.
+
+Sur un premier tour, l'enquête est en revanche légitime : c'est elle qui a produit les meilleurs constats de ce dépôt.
 
 Un diff de cinquante lignes mérite quelques minutes, pas une enquête.
 
@@ -100,13 +134,24 @@ C'est lui, et lui seul, que cherche le workflow `require-review.yml`. Sans lui, 
 
 Construis un fichier JSON, puis envoie-le :
 
+**Chaque commentaire commence par son niveau**, en gras, et le verdict compte les bloquants séparément : c'est ce compte, et lui seul, qui dit si la pull request peut sortir du brouillon.
+
 ```json
 {
   "event": "COMMENT",
-  "body": "<!-- crypte-review -->\n## Revue\n\n**Verdict : 2 points.**",
-  "comments": [{ "path": "packages/cli/src/index.ts", "line": 12, "side": "RIGHT", "body": "…" }]
+  "body": "<!-- crypte-review -->\n## Revue\n\n**Verdict : 1 bloquant, 2 points au total.**",
+  "comments": [
+    {
+      "path": "packages/cli/src/index.ts",
+      "line": 12,
+      "side": "RIGHT",
+      "body": "**Bloquant.** …"
+    }
+  ]
 }
 ```
+
+Un verdict sans compte de bloquants est inutilisable : celui qui le reçoit ne peut pas savoir ce qui retient la pull request, et retombe alors à tout corriger, ce qui est la boucle qu'on cherche à fermer.
 
 ```bash
 gh api "repos/$(gh repo view --json nameWithOwner --jq .nameWithOwner)/pulls/<numéro>/reviews" --input <fichier.json>

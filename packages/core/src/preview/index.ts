@@ -1,18 +1,18 @@
-import { PROTOCOL_VERSION, type PreviewMessage, type ShellMessage } from '../protocol/index'
+// Côté iframe du canal.
 
-// Marqueur unique : sert au test d'isolation des entrées (test/isolation.test.ts)
+import { PROTOCOL_VERSION, type PreviewMessage, type ShellMessage } from '../protocol/channel'
+
+// Marqueur lu par test/isolation.test.ts
 export const PREVIEW_MARKER = '__crypte_preview__'
 
 export interface PreviewHandlers {
   render(id: string, overrides: Record<string, unknown>): void
 }
 
-// Côté preview du canal. Reçoit les messages du shell et répond, sans rien savoir
-// du framework qui rendra le composant : c'est l'adaptateur qui s'en charge.
+// Ne sait rien du framework de rendu : c'est l'adaptateur qui s'en charge.
 export function createPreviewChannel(handlers: PreviewHandlers): () => void {
-  // Le shell est servi par le même serveur que la preview. Un '*' exposerait les
-  // messages à toute page ayant ouvert cette preview en iframe, et accepterait
-  // les ordres de n'importe qui.
+  // Jamais '*' : toute page ayant ouvert cette preview en iframe pourrait lire
+  // les messages et en envoyer.
   const origin = window.location.origin
   const reply = (message: PreviewMessage) => window.parent.postMessage(message, origin)
 
@@ -38,7 +38,7 @@ export function createPreviewChannel(handlers: PreviewHandlers): () => void {
   }
 
   window.addEventListener('message', listener)
-  reply({ type: 'ready', manifestVersion: PROTOCOL_VERSION })
+  reply({ type: 'ready', protocolVersion: PROTOCOL_VERSION })
 
   return () => window.removeEventListener('message', listener)
 }

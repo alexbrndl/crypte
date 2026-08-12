@@ -1,8 +1,8 @@
 # Crypte, spécification des contrats
 
-> Version 0.3, document de référence. Toute PRD de projet pointe vers ce document plutôt que de redéfinir ces structures.
+> Version 0.8, document de référence. Toute PRD de projet pointe vers ce document plutôt que de redéfinir ces structures.
 >
-> **v0.4 :** nommage des paquets. Le nom nu `crypte` est indisponible sur npm (filtre anti-typosquatting, collision avec `crypto`). Le projet est entièrement scopé sous `@crypte`. Voir le journal en section 8.
+> **v0.8 :** le canal s'étend comme le reste du protocole, et la version du manifeste reste comparable. Voir le journal en section 8.
 
 ---
 
@@ -163,17 +163,19 @@ export default defineStories(Badge, {
 ```ts
 function defineStories<C>(
   component: C,
-  definition?: StoryDefinition<C>
+  definition?: StoryDefinition<PropsOf<C>, C>
 ): StoryModule<C>
 
-interface StoryDefinition<C> {
-  props?: Partial<PropsOf<C>>
-  stories?: Record<string, Partial<PropsOf<C>> | Story<C>>
-  wrap?: Wrap
-  controls?: Partial<Record<keyof PropsOf<C>, ControlOverride>>
-  meta?: EntryMeta
+interface StoryDefinition<P, C> {
+  props?: Partial<P>
+  stories?: Record<string, Partial<P> | Story<P>>
+  wrap?: Wrap<C>
+  details?: Partial<Record<keyof P, PropDetails>>
+  meta?: StoryMeta
 }
 ```
+
+Une entrée de `wrap` sous forme de tableau est un `WrapEntry`, soit un composant seul, soit un couple composant et props.
 
 **`props`** porte ce qui est commun à toutes les stories. Chaque story ne déclare que ce qui diffère. La fusion est superficielle, prop par prop.
 
@@ -248,12 +250,12 @@ Le test du format sur cinq composants réels n'a produit aucun cas où cette ré
 
 ---
 
-## 3. argTypes : inférence et fusion
+## 3. Détails des props : inférence et fusion
 
 ### 3.1 Deux sources
 
 1. **Inférence au build.** Le CLI extrait l'interface de props TypeScript et les commentaires JSDoc associés. Sur un composant correctement typé, cela suffit dans la grande majorité des cas.
-2. **Déclaration explicite.** Le champ `controls` du fichier de story.
+2. **Déclaration explicite.** Le champ `details` du fichier de story.
 
 ### 3.2 Règle de fusion
 
@@ -262,30 +264,64 @@ Le test du format sur cinq composants réels n'a produit aucun cas où cette ré
 C'est la règle qui rend la flexibilité indolore. Une fusion par composant obligerait à tout réécrire dès qu'un seul réglage est nécessaire.
 
 ```ts
-controls: {
+details: {
   price: { min: 0, max: 500, step: 10 },
 }
 ```
 
 Ici, `price` conserve son type, sa description JSDoc, son caractère requis et sa valeur par défaut issus de l'inférence. Seules les bornes sont ajoutées.
 
-### 3.3 Structure d'un argType
+Le champ s'appelle `details` parce qu'il est **complémentaire** : on n'y écrit que ce que l'inférence n'a pas su trouver, jamais la description entière d'une prop.
+
+### 3.3 Structure des détails d'une prop
 
 ```ts
-interface ArgType {
-  name: string
-  type: 'string' | 'number' | 'boolean' | 'enum' | 'object' | 'array' | 'function' | 'node' | 'unknown'
-  required: boolean
+interface PluginPropDetails {}
+
+// ce qu'on écrit dans `details`
+interface PropDetails extends PluginPropDetails {
+  type?: 'string' | 'number' | 'boolean' | 'enum' | 'object' | 'array' | 'function' | 'node' | 'unknown'
+  required?: boolean
   default?: unknown
   description?: string
   options?: unknown[]
-  control?: ControlSpec | false
+}
+
+// ce que le manifeste porte, une fois l'inférence faite
+interface ResolvedPropDetails extends PropDetails {
+  type: PropKind
+  required: boolean
 }
 ```
 
-`control: false` retire la prop du panneau sans la retirer de la documentation.
+**Le noyau ne décrit que ce qui vaut indépendamment de tout plugin :** la nature d'une prop, son caractère requis, sa valeur par défaut, sa description, ses valeurs possibles. Tout cela sert la documentation, qui existe sans qu'aucun plugin ne soit installé.
 
-Quand l'inférence échoue (projet sans `tsconfig`, type trop complexe), le type retombe sur `unknown` et la prop reste documentée sans control interactif. **L'échec d'inférence ne doit jamais empêcher le rendu d'une story.**
+`PluginPropDetails` est un point d'extension vide. Un plugin y ajoute ses propres champs depuis son propre paquet, par augmentation de module, sans qu'aucune ligne du noyau ne change :
+
+```ts
+declare module '@crypte/core/protocol' {
+  interface PluginPropDetails {
+    min?: number
+    max?: number
+    step?: number
+    control?: ControlSpec | false // ControlSpec est défini par le plugin, pas par le noyau
+  }
+}
+```
+
+Les bornes d'un curseur et le réglage `control`, qui retire une prop du panneau d'édition sans la retirer de la documentation, relèvent du plugin `controls`. **Ils n'ont aucun sens sans lui**, et le noyau n'a donc pas à les connaître. Sans le plugin installé, les écrire est une erreur de compilation, ce qui est le comportement voulu : personne ne les lirait.
+
+**Un point d'extension vide ne suffit pas à obtenir ce refus.** TypeScript ne signale pas les propriétés excédentaires face à un type qui n'a aucune propriété : tant qu'aucun plugin n'a rien déclaré, un objet quelconque satisfait une interface vide. `PropDetails` échappe au problème parce qu'il hérite de champs du noyau, donc n'est jamais vide. `StoryOptions`, qui n'est fait que du point d'extension, doit l'obtenir explicitement :
+
+```ts
+export type StoryOptions = [keyof PluginStoryOptions] extends [never]
+  ? Record<string, never>
+  : PluginStoryOptions
+```
+
+Aucune clé n'est admise tant que le point d'extension est vide, et le contrôle habituel reprend dès qu'un plugin le remplit.
+
+Quand l'inférence échoue (projet sans `tsconfig`, type trop complexe), le type retombe sur `unknown` et la prop reste documentée. **L'échec d'inférence ne doit jamais empêcher le rendu d'une story.**
 
 ### 3.4 Props HTML en pass-through
 
@@ -299,7 +335,7 @@ Une règle, aucun champ supplémentaire, aucune notion de groupe repliable dans 
 
 Certaines constructions ne sont pas résolubles par analyse syntaxique seule et retombent sur la déclaration explicite.
 
-Le cas le plus fréquent est CVA : `VariantProps<typeof badgeVariants>` est un type dérivé d'un appel de fonction à l'exécution. Le résoudre exigerait un vérificateur de types complet, ce qu'Oxc n'est pas. Les options doivent donc être déclarées dans `controls.options`.
+Le cas le plus fréquent est CVA : `VariantProps<typeof badgeVariants>` est un type dérivé d'un appel de fonction à l'exécution. Le résoudre exigerait un vérificateur de types complet, ce qu'Oxc n'est pas. Les options doivent donc être déclarées dans `details.options`.
 
 Une amélioration possible, à traiter dans la PRD du plugin `docs` et non ici : l'objet passé à `cva()` est un objet littéral présent dans le fichier source, donc analysable statiquement.
 
@@ -313,9 +349,11 @@ Produit par le CLI, consommé par le shell.
 
 **Le manifeste n'est pas la source du rendu.** La preview importe les modules de stories directement, puisqu'ils appartiennent à son propre bundle Vite. Elle dispose donc des vraies props, fonctions et éléments compris, sans que rien ne traverse le canal.
 
-Le manifeste alimente l'interface du shell : arbre de navigation, recherche, table de props, panneau de controls. Il ne contient que des données sérialisables. Une prop non sérialisable n'y figure pas : `argTypes` suffit à en signaler l'existence et le type.
+Le manifeste alimente l'interface du shell : arbre de navigation, recherche, table de props, panneau de controls. Il ne contient que des données sérialisables. Une prop non sérialisable n'y figure pas : `details` suffit à en signaler l'existence et le type.
 
 ### 4.2 Entrées typées
+
+Le document entier est un `Manifest` : une version et une liste d'entrées. Chaque entrée est un `ManifestEntry`, aujourd'hui toujours un `StoryEntry`, et son champ `component` est un `ComponentRef` qui désigne le fichier et l'export d'origine.
 
 Le manifeste est une liste d'entrées portant chacune un champ `type`. **Une seule valeur est implémentée en v1 : `"story"`.** Les valeurs `"page"` et `"tokens"` sont réservées pour les évolutions design system et ne doivent pas être implémentées maintenant.
 
@@ -337,7 +375,7 @@ Cette réserve coûte un champ aujourd'hui et évite une migration plus tard.
       },
       "storyFile": "stories/checkout/OrderSummary.ts",
       "options": {},
-      "argTypes": { },
+      "details": { },
       "source": "<OrderSummary reference=\"REF-4821…\" />",
       "meta": { "status": "stable" }
     }
@@ -347,13 +385,27 @@ Cette réserve coûte un champ aujourd'hui et évite une migration plus tard.
 
 ### 4.3 Stabilité des identifiants
 
-L'`id` est dérivé du chemin de l'entrée et du nom de la story, normalisés en minuscules sans accents.
+L'`id` est produit par `storyId`, qui applique `normalizeSegment` au chemin de l'entrée et au nom de la story, passés en minuscules, débarrassés de leurs accents latins et de tout ce qui n'est ni lettre, ni chiffre, ni marque.
+
+**Les marques sont conservées**, et c'est ce qui distingue « Всё » de « Все » : les mêmes signes qui portent un accent latin composent des lettres entières ailleurs. Ne retirer les accents que sur une base latine est donc la règle, pas un détail d'implémentation.
+
+**Il n'est pas garanti ASCII.** Les écritures non latines sont conservées, faute de quoi deux stories russes ou japonaises distinctes tomberaient sur le même identifiant : `storyId(['Button'], 'Активная')` rend `button--активная`. Qui le place dans une URL doit donc l'encoder, et qui en fait un nom de fichier de baseline doit vérifier que le système de fichiers l'accepte. La forme rendue est recomposée en NFC, pour que deux identifiants identiques à l'œil le soient aussi octet à octet.
 
 **C'est une donnée stable, pas un détail d'implémentation.** Il sert d'URL, de clé de baseline pour `visual-tests`, et de référence pour les commentaires. Renommer une story change son `id` et casse sa baseline : ce comportement est assumé et doit être documenté à l'utilisateur, pas contourné.
 
 ### 4.4 Champs transportés sans interprétation
 
-`meta`, `options` et `argTypes` sont transportés tels quels du fichier de story jusqu'au manifeste. Le noyau ne les interprète pas : ce sont les plugins qui les consomment. Un plugin peut donc ajouter ses propres clés dans `options` sans modification du noyau.
+`meta`, `options` et `details` sont transportés tels quels du fichier de story jusqu'au manifeste. Le noyau ne les interprète pas : ce sont les plugins qui les consomment. Un plugin peut donc ajouter ses propres clés dans `options` sans modification du noyau.
+
+---
+
+### 4.5 Sérialisation
+
+Le manifeste est écrit en JSON et relu tel quel. **Tout ce qu'il porte doit survivre à cet aller-retour** : pas de fonction, pas d'instance de classe, pas de `Date`, pas d'`undefined` en valeur.
+
+Les types ne l'imposent pas. `default`, `options` et le contenu de `options` d'une entrée sont typés `unknown`, faute de savoir d'avance ce qu'un composant ou un plugin y met. Une fonction y passerait la compilation, puis disparaîtrait à l'écriture sans qu'aucune erreur ne soit levée, `JSON.stringify` retirant silencieusement ce qu'il ne sait pas représenter.
+
+**C'est donc au CLI de garantir ce qu'il écrit**, en omettant ou en représentant autrement ce qui n'est pas sérialisable. Le cas le plus probable est une prop dont la valeur par défaut est une fonction de rappel.
 
 ---
 
@@ -365,31 +417,49 @@ Le shell et la preview ne communiquent que par `postMessage`, avec des messages 
 
 Cette contrainte est la garantie d'agnosticisme du noyau. Toute exception introduite ici annulerait l'architecture entière.
 
+La version du protocole est exposée par la constante `PROTOCOL_VERSION`, que la preview annonce dans son message `ready`. Elle est distincte de `MANIFEST_VERSION` : le format du catalogue et celui des messages évoluent séparément.
+
+**Elle vaut 1, et le lot qui a écrit ce chapitre est cette version 1.** Les changements qu'il décrit ne rompent donc rien : ils construisent le protocole, ils ne le cassent pas. Le compteur s'incrémentera au premier changement rompant *après* publication, quand une preview et un shell de versions différentes pourront réellement se rencontrer.
+
 Le canal ne transporte jamais les props d'une story. Il transporte l'identifiant de l'entrée à rendre, et les **surcharges** issues des controls. Une surcharge est toujours une valeur primitive éditée dans un panneau, donc toujours sérialisable.
+
+Les deux directions portent des types distincts : `ShellMessage` va vers l'iframe, `PreviewMessage` en revient.
 
 ### 5.2 Messages du shell vers la preview
 
 | Message | Charge utile | Effet |
 |---|---|---|
-| `render` | `{ id, overrides }` | Monte l'entrée demandée |
+| `render` | `{ id, overrides }` | Monte l'entrée demandée, `overrides` étant de type `Overrides` |
 | `update-overrides` | `{ id, overrides }` | Met à jour sans remonter |
-| `set-globals` | `{ theme, direction, … }` | Applique les réglages globaux |
-| `plugin` | `{ plugin, payload }` | Message adressé à un hook de plugin |
+| `set-globals` | `{ globals }` | Applique les réglages globaux |
+| déclaré par un plugin | la sienne | Voir `PluginShellMessages` ci-dessous |
 
 ### 5.3 Messages de la preview vers le shell
 
 | Message | Charge utile | Effet |
 |---|---|---|
-| `ready` | `{ manifestVersion }` | La preview est initialisée |
+| `ready` | `{ protocolVersion }` | La preview est initialisée |
 | `rendered` | `{ id, durationMs }` | Rendu terminé |
 | `error` | `{ id, message, stack }` | Erreur de rendu, affichée sans casser le shell |
-| `plugin` | `{ plugin, payload }` | Remontée depuis un hook de plugin |
+| déclaré par un plugin | la sienne | Voir `PluginPreviewMessages` ci-dessous |
 
 ### 5.4 Règles
 
 - Toute charge utile doit survivre à un aller-retour JSON. Pas de fonction, pas d'instance de classe, pas de nœud DOM.
-- Le canal `plugin` est générique : ajouter un plugin n'ajoute jamais de type de message au protocole.
 - Une erreur de rendu remonte par `error` et ne doit jamais faire tomber le shell.
+- Un plugin déclare ses messages depuis son propre paquet, comme il déclare ses options et ses détails de prop :
+
+```ts
+declare module '@crypte/core/protocol' {
+  interface PluginShellMessages {
+    controls: PluginMessage<{ type: 'controls:open'; open: boolean }>
+  }
+}
+```
+
+Tant qu'aucun plugin n'a rien déclaré, l'union ne s'élargit pas et écrire un message inconnu est une erreur de compilation.
+
+`PluginMessage` porte la contrainte sur son paramètre, si bien qu'un message mal formé produit une erreur **sur la ligne de sa déclaration**, avec le motif en clair. Deux réserves : un plugin n'est pas obligé de l'employer, et `skipLibCheck`, très répandu, fait ignorer les erreurs d'un fichier `.d.ts`. Le protocole ne s'y fie donc pas et filtre de son côté : une valeur dont le champ `type` manque ou n'est pas un littéral est écartée de l'union plutôt que d'y entrer, sans quoi elle empêcherait tout `message.type` de discriminer quoi que ce soit chez le consommateur.
 
 ---
 
@@ -443,7 +513,7 @@ Ce qui exige un contexte de framework (`ThemeProvider`, `QueryClientProvider`) r
 
 Dans `beforeMount`, un plugin peut modifier `ctx.props`. C'est le seul moment où les props sont mutables ; ailleurs, le contexte est en lecture seule.
 
-Cette ouverture existe pour un cas précis et démontré : une prop de type fonction non déclarée par l'auteur de la story. `PricingCard` attend `onSelect`, la story ne le fournit pas, le composant reçoit `undefined` et casse au premier clic. Le plugin `actions` remplit ces props avec des fonctions qui journalisent, dans `beforeMount`, en s'appuyant sur `argTypes` pour savoir lesquelles sont des fonctions.
+Cette ouverture existe pour un cas précis et démontré : une prop de type fonction non déclarée par l'auteur de la story. `PricingCard` attend `onSelect`, la story ne le fournit pas, le composant reçoit `undefined` et casse au premier clic. Le plugin `actions` remplit ces props avec des fonctions qui journalisent, dans `beforeMount`, en s'appuyant sur `details` pour savoir lesquelles sont des fonctions.
 
 Le noyau ne connaît rien de ce mécanisme. Sans le plugin `actions` installé, l'auteur déclare simplement la fonction lui-même.
 
@@ -479,6 +549,77 @@ Absents volontairement. Certains relèvent des PRD de projet, d'autres attendent
 ---
 
 ## 8. Journal des versions
+
+**v0.8.** Deux corrections à la v0.7.
+
+| Avant | Après |
+|---|---|
+| sections 5.2 à 5.4 décrivant le message `plugin` | les points d'extension du canal, comme le reste |
+| `Manifest.version: typeof MANIFEST_VERSION` | `number` |
+
+**La partie normative suivait le code d'une version en retard.** Le journal de la v0.7 actait le remplacement du message `plugin`, mais les tableaux du chapitre 5, qui font foi, le décrivaient encore. Qui implémentait le shell depuis ce chapitre écrivait un message que le protocole ne connaît plus.
+
+**Figer la version du manifeste supprimait ce à quoi elle sert.** Le champ existe pour reconnaître un manifeste écrit par une autre version. Lié au littéral courant, la comparaison `manifest.version !== MANIFEST_VERSION` devenait statiquement toujours fausse, et un manifeste v1 relu après passage à v2 n'était typable qu'au prix d'un cast qui affirme le contraire de son contenu.
+
+Aucune migration à prévoir, rien n'est publié.
+
+**v0.7.** Le dossier `protocol` suit trois règles, sans exception.
+
+1. Le nom simple va au côté qu'un humain écrit, le côté produit porte un qualificatif.
+2. Tout point d'extension est une interface vide préfixée `Plugin`, augmentée par module.
+3. Les imports vont dans un seul sens.
+
+| Avant | Après |
+|---|---|
+| `PropDetails` (manifeste), `PropDetailsInput` (écrit) | `PropDetails` (écrit), `ResolvedPropDetails` (manifeste) |
+| les deux dans `manifest.ts` et `story.ts`, qui s'importaient en rond | `prop.ts`, importé par les deux |
+| `EntryMeta` | `StoryMeta` |
+| `{ type: 'plugin', plugin, payload }` | `PluginShellMessages`, `PluginPreviewMessages` |
+| `PropDetails.name` | retiré, `details` est indexé par nom de prop |
+| `Manifest.version: number` | `typeof MANIFEST_VERSION` |
+
+**Le nom.** `PropDetails` désignait ce que le CLI produit, d'où le suffixe `Input` sur ce qu'on écrit, et une dérivation à contresens du flux. Pour savoir ce qu'on pouvait mettre dans `details`, il fallait ouvrir trois fichiers et finir sur une interface vide, d'où l'impression que ces champs venaient tous des plugins. Ils viennent du noyau, sauf quatre.
+
+**Le point d'extension du canal.** Le message `plugin` n'exigeait rien : un plugin y envoyait n'importe quoi. Deux mécanismes d'extension pour le même besoin, dans le même dossier.
+
+**Le champ `name`.** `details` est indexé par nom de prop, donc `name` dupliquait sa clé. C'est pour cette raison qu'on l'ôtait déjà côté écriture.
+
+**Ce qui n'a pas changé, et pourquoi.** `StoryEntry.options` reste ouvert quand `details` est typé. Le motif écrit jusqu'ici était faux : ce n'est pas parce qu'un manifeste peut venir d'un projet aux autres plugins, ce qui vaudrait pour les deux, mais parce que `options` ne contient **que** des réglages de plugins, quand `details` porte `type` et `required`, que le shell lit.
+
+Aucune migration à prévoir, rien n'est publié.
+
+**v0.6.** Deux garanties qui n'étaient pas tenues.
+
+| Avant | Après |
+|---|---|
+| `ready` annonce `manifestVersion` | `ready` annonce `protocolVersion` |
+| `StoryOptions = PluginStoryOptions` | aiguillage qui n'admet aucune clé tant que le point d'extension est vide |
+
+**Le nom du champ du message.** Il transportait déjà la version du protocole du canal, pas celle du manifeste, que la preview ne connaît d'ailleurs pas au moment où elle se déclare prête. Tant que les deux valaient 1, l'écart était invisible ; au premier changement de format du manifeste, le shell aurait affiché une version pour l'autre sans qu'aucun des deux côtés ne détecte l'incompatibilité.
+
+**Le refus des clés inconnues.** La v0.5 annonçait qu'écrire une option sans le plugin qui la lit était une erreur de compilation. Ce n'était vrai que pour `PropDetails`, qui hérite de champs du noyau. Pour `StoryOptions`, fait du seul point d'extension, TypeScript ne contrôlait rien : une interface vide accepte n'importe quel objet. Voir la section 3.3 pour la forme retenue.
+
+Aucune migration à prévoir, rien n'est publié.
+
+**v0.5.** Le noyau ne connaît plus aucun plugin.
+
+Deux changements, un de nom et un de structure.
+
+| Avant | Après |
+|---|---|
+| champ `controls` d'un fichier de stories | champ `details` |
+| champ `argTypes` du manifeste | champ `details` |
+| `ArgType` | `PropDetails` |
+| `ControlOverride` | `PropDetailsInput` |
+| `ArgType.control`, `ControlSpec` | sortis du noyau, apportés par le plugin |
+
+**Le nom.** `controls` et `argTypes` désignaient la même chose sous deux noms, l'un hérité du plugin qui la consomme, l'autre d'un vocabulaire extérieur. Or ce champ décrit des props, et il le fait **partiellement** : on n'y écrit que ce que l'inférence n'a pas trouvé. `details` dit les deux, et il est le même des deux côtés, à l'écriture comme dans le manifeste.
+
+**La structure.** `control` et les bornes n'ont de sens qu'avec le plugin `controls` installé, et le noyau les déclarait pourtant. Un plugin devait donc modifier le noyau pour ajouter un réglage, ce que la section 4.4 interdit explicitement pour `options`. Ils passent par `PluginPropDetails`, un point d'extension vide que chaque plugin remplit depuis son propre paquet.
+
+Conséquence voulue : sans le plugin, écrire une borne est une erreur de compilation. Personne ne la lirait.
+
+Aucune migration à prévoir, rien n'est publié.
 
 **v0.4.** Nommage des paquets.
 
