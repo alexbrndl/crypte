@@ -16,6 +16,13 @@ import { fileURLToPath } from 'node:url'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const mutations = JSON.parse(readFileSync(join(root, 'test', 'mutations.json'), 'utf8'))
 
+// Un catalogue vide annonçait « 0 garanties, toutes gardées », qui se lit comme
+// un succès. Rien à vérifier n'est un état à signaler, pas à approuver.
+if (mutations.length === 0) {
+  console.error('Catalogue vide : ce contrôle n’aurait rien à vérifier.')
+  process.exit(1)
+}
+
 // Un arbre sale rendrait la restauration ambiguë, et une interruption laisserait
 // des sources mutées sans que git puisse dire lesquelles.
 const dirty = execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' })

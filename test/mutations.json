@@ -1,1 +1,74 @@
-[]
+[
+  {
+    "garantie": "Un point d'extension vide n'admet aucune clé",
+    "fichier": "packages/core/src/protocol/story.ts",
+    "avant": "export type StoryOptions = [keyof PluginStoryOptions] extends [never]\n  ? Record<string, never>\n  : PluginStoryOptions",
+    "apres": "export type StoryOptions = PluginStoryOptions",
+    "trouvee": "revue 1",
+    "attendu": "no-plugin/cases.ts"
+  },
+  {
+    "garantie": "Un message de plugin mal formé est écarté de l'union",
+    "fichier": "packages/core/src/protocol/channel.ts",
+    "avant": "  [K in keyof T]: NonNullable<T[K]> extends { type: infer Kind }\n    ? string extends Kind\n      ? never\n      : NonNullable<T[K]>\n    : never",
+    "apres": "  [K in keyof T]: T[K]",
+    "trouvee": "revue 4",
+    "attendu": "TS2339"
+  },
+  {
+    "garantie": "Un message de plugin déclaré optionnel reste dans l'union",
+    "fichier": "packages/core/src/protocol/channel.ts",
+    "avant": "NonNullable<T[K]> extends { type: infer Kind }",
+    "apres": "T[K] extends { type: infer Kind }",
+    "trouvee": "revue 8",
+    "attendu": "viewport:set"
+  },
+  {
+    "garantie": "La version du manifeste reste comparable",
+    "fichier": "packages/core/src/protocol/manifest.ts",
+    "avant": "  version: number",
+    "apres": "  version: typeof MANIFEST_VERSION",
+    "trouvee": "revue 7",
+    "attendu": "TS2322"
+  },
+  {
+    "garantie": "Les marques des écritures non latines sont conservées",
+    "fichier": "packages/core/src/protocol/id.ts",
+    "avant": "const LATIN_DIACRITICS = /([a-z])[\\u0300-\\u036f]+/gi",
+    "apres": "const LATIN_DIACRITICS = /()[\\u0300-\\u036f]+/g",
+    "trouvee": "revue 5",
+    "attendu": "garde les marques des écritures non latines"
+  },
+  {
+    "garantie": "Le suivi des imports relie une entrée à son chunk",
+    "fichier": "packages/core/test/isolation.test.ts",
+    "avant": "const RELATIVE_IMPORT = new RegExp(RELATIVE_IMPORT_SOURCE, 'g')",
+    "apres": "const RELATIVE_IMPORT = /jamais-de-correspondance/g",
+    "trouvee": "revue 4",
+    "attendu": "atteint un fichier que l"
+  },
+  {
+    "garantie": "La porte d'entrée réexporte tout ce que les modules déclarent",
+    "fichier": "packages/core/src/protocol/index.ts",
+    "avant": "export type { Manifest, ManifestEntry, StoryEntry, ComponentRef } from './manifest'",
+    "apres": "export type { Manifest, ManifestEntry, ComponentRef } from './manifest'",
+    "trouvee": "revue 2",
+    "attendu": "StoryEntry n'est pas réexporté"
+  },
+  {
+    "garantie": "L'augmentation fusionne à travers les types publiés",
+    "fichier": "packages/core/src/protocol/index.ts",
+    "avant": "export type { PropDetails, ResolvedPropDetails, PropKind, PluginPropDetails } from './prop'",
+    "apres": "export type { PropDetails, ResolvedPropDetails, PropKind, PluginPropDetails as PluginPropFields } from './prop'",
+    "trouvee": "revue 9",
+    "attendu": "fusionne à travers les types publiés"
+  },
+  {
+    "garantie": "Un nom retiré ne survit pas dans la partie normative",
+    "fichier": "docs/spec-contrats.md",
+    "avant": "  meta?: StoryMeta",
+    "apres": "  meta?: EntryMeta",
+    "trouvee": "revue 9",
+    "attendu": "figure encore dans la spécification"
+  }
+]
