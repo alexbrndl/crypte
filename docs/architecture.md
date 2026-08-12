@@ -209,6 +209,15 @@ Vérifient ce que le noyau refuse **installé seul**, par une seconde compilatio
 
 *Comment :* les cas sont des `@ts-expect-error` dans `no-plugin/cases.ts`. Une directive inutilisée est elle-même une erreur, donc la compilation échoue aussi bien si le noyau accepte ce qu'il devait refuser que l'inverse.
 
+**`packages/react/test/public-augmentation.ts`**
+Éprouve le chemin que la spécification recommande aux plugins : augmenter `@crypte/core/protocol`, la porte d'entrée publique.
+
+*Pourquoi ailleurs que dans le noyau :* un paquet ne se dépend pas lui-même, donc `@crypte/core/protocol` ne se résout pas depuis `packages/core`. `packages/react` en dépend comme le ferait un plugin, c'est le seul endroit d'où le chemin réel est atteignable.
+
+*Ce que ça couvre et que la simulation ne peut pas :* celle-ci augmente les modules **sources**. Le chemin public passe par les `.d.ts` publiés, où les points d'extension vivent dans un chunk partagé et ne sont que réexportés. Mesuré : renommer un réexport dans la porte d'entrée fait échouer ce test, et lui seul.
+
+*Sans lui :* la fonctionnalité phare du lot repose sur le fait que TypeScript fusionne à travers un alias de réexport, ce que rien ne vérifie. Un changement de découpage la casserait en silence.
+
 *Un premier essai passait sans rien compiler :* le `tsconfig` du paquet exclut ce dossier, et l'exclusion se transmettait par héritage. Le programme était vide, et une compilation vide réussit. D'où le cas qui vérifie, avant tous les autres, que le fichier est bien dans le programme et la simulation bien absente.
 
 **`test/protocol/channel.test.ts`**

@@ -10,9 +10,13 @@ const core = join(dirname(fileURLToPath(import.meta.url)), '..')
 const tsc = join(core, 'node_modules', '.bin', 'tsc')
 const project = join(core, 'test', 'no-plugin', 'tsconfig.json')
 
-function run(args: string[]): { ok: boolean; output: string } {
+// Dans `packages/react`, seul endroit d'où `@crypte/core/protocol` se résout
+// comme chez un utilisateur : un paquet ne se dépend pas lui-même.
+const publicPath = join(core, '..', 'react', 'test', 'tsconfig.json')
+
+function run(args: string[], target = project): { ok: boolean; output: string } {
   try {
-    const stdout = execFileSync(tsc, ['-p', project, ...args], {
+    const stdout = execFileSync(tsc, ['-p', target, ...args], {
       cwd: core,
       encoding: 'utf8',
       stdio: 'pipe',
@@ -32,17 +36,27 @@ function run(args: string[]): { ok: boolean; output: string } {
 
 // La compilation dépasse le délai par défaut de vitest.
 describe('le noyau installé seul', { timeout: 60_000 }, () => {
-  // Une compilation qui ne compile rien réussit : à vérifier avant le reste.
-  it('compile bien le fichier de cas, sans la simulation de plugin', () => {
+  // `--listFiles` vérifie les types comme un appel nu : une seule compilation
+  // porte donc les deux garanties. Et celle sur le programme passe en premier,
+  // parce qu'une compilation qui ne compile rien réussit.
+  it('refuse ce qu’aucun plugin n’a déclaré, et accepte ses propres champs', () => {
     const { ok, output } = run(['--listFiles'])
 
-    expect(ok, output).toBe(true)
     expect(output).toContain('no-plugin/cases.ts')
     expect(output).not.toContain('plugin-simulation')
+    expect(ok, output).toBe(true)
   })
+})
 
-  it('refuse ce qu’aucun plugin n’a déclaré, et accepte ses propres champs', () => {
-    const { ok, output } = run([])
+// La simulation du noyau augmente les modules sources. Le chemin que la
+// spécification recommande, augmenter `@crypte/core/protocol`, passe par les
+// types publiés et n'était éprouvé nulle part.
+describe('l’augmentation par la porte d’entrée publique', { timeout: 60_000 }, () => {
+  it('fusionne à travers les types publiés', () => {
+    const { ok, output } = run(['--listFiles'], publicPath)
+
+    expect(output).toContain('public-augmentation.ts')
+    expect(output).toContain(join('core', 'dist'))
     expect(ok, output).toBe(true)
   })
 })

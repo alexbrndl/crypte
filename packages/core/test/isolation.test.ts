@@ -10,7 +10,8 @@ const dist = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist')
 
 // Réexport, effet de bord et import dynamique : n'en couvrir qu'un laisserait une
 // porte de sortie hors de la fermeture.
-const RELATIVE_IMPORT = /(?:from|import)\s*\(?\s*['"](\.[^'"]*)['"]/g
+const RELATIVE_IMPORT_SOURCE = /(?:from|import)\s*\(?\s*['"](\.[^'"]*)['"]/
+const RELATIVE_IMPORT = new RegExp(RELATIVE_IMPORT_SOURCE, 'g')
 
 // Le fichier d'une entrée, plus tout ce qu'il atteint par imports relatifs.
 function closureOf(entry: string, base = dist): string {
@@ -121,6 +122,6 @@ describe('isolation des entrées de @crypte/core', () => {
   it('ui ne dépend d’aucun autre fichier', () => {
     const entryOnly = readFileSync(join(dist, 'ui.js'), 'utf8')
     expect(entryOnly).toContain('__crypte_ui__')
-    expect(entryOnly).not.toMatch(RELATIVE_IMPORT)
+    expect(entryOnly).not.toMatch(RELATIVE_IMPORT_SOURCE)
   })
 })

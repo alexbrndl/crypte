@@ -63,6 +63,8 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | Fichier | Contient | Consommé par |
 | -- | -- | -- |
 | `src/index.ts` | adaptateur, montage React | la page de preview |
+| `test/public-augmentation.ts` | augmentation par la porte d'entrée publique | `core/test/no-plugin.test.ts` |
+| `test/tsconfig.json` | programme du test ci-dessus | idem |
 
 ## `apps/shell` — privé, jamais publié
 
