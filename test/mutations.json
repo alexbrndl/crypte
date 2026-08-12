@@ -89,7 +89,7 @@
   },
   {
     "garantie": "les alias sont lus depuis la configuration du projet",
-    "fichier": "packages/cli/src/aliases.ts",
+    "fichier": "packages/cli/src/config-paths.ts",
     "avant": "const CONFIG_NAMES = ['tsconfig.json', 'jsconfig.json']",
     "apres": "const CONFIG_NAMES: string[] = []",
     "trouvee": "DCJ-167",
@@ -97,7 +97,7 @@
   },
   {
     "garantie": "la remontée s'arrête à la racine du projet",
-    "fichier": "packages/cli/src/aliases.ts",
+    "fichier": "packages/cli/src/config-paths.ts",
     "avant": "{ configName, root }",
     "apres": "{ configName }",
     "trouvee": "DCJ-167",
@@ -112,19 +112,19 @@
     "attendu": "en nommant le champ"
   },
   {
-    "garantie": "les écarts de spécificité entre TypeScript et Vite sont traités",
-    "fichier": "packages/cli/src/aliases.ts",
-    "avant": "        const exactness = Number(a.endsWith('*')) - Number(b.endsWith('*'))\n        return exactness || b.length - a.length",
-    "apres": "        return 0",
+    "garantie": "le motif le plus spécifique l'emporte",
+    "fichier": "packages/cli/src/paths.ts",
+    "avant": "Object.entries(paths).sort(([a], [b]) => prefixOf(b).length - prefixOf(a).length)",
+    "apres": "Object.entries(paths)",
     "trouvee": "revue de la PR #17",
-    "attendu": "le motif le plus spécifique en premier"
+    "attendu": "retient le motif le plus spécifique"
   },
   {
-    "garantie": "les jokers sans repli possible sont écartés",
-    "fichier": "packages/cli/src/aliases.ts",
-    "avant": "  if (pattern.includes('*')) return undefined",
-    "apres": "  if (pattern === '*') return undefined",
+    "garantie": "le résolveur retombe sur Vite quand la cible n'existe pas",
+    "fichier": "packages/cli/src/paths.ts",
+    "avant": "          if (found) return found\n        }",
+    "apres": "          if (found) return found\n          return { id: resolve(base, target.replace('*', captured)) }\n        }",
     "trouvee": "revue 3 de la PR #17",
-    "attendu": "écarte un joker collé au préfixe"
+    "attendu": "retient la cible qui existe"
   }
 ]

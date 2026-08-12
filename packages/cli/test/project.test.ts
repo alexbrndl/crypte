@@ -4,7 +4,8 @@ import { dirname, isAbsolute, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createServer, type InlineConfig } from 'vite'
 import { afterAll, describe, expect, it } from 'vitest'
-import { aliasesOf } from '../src/aliases'
+import { projectPathsOf } from '../src/config-paths'
+import { capture, pathsPlugin } from '../src/paths'
 import { ConfigError, cssEntryOf, loadProject, viteConfigOf } from '../src/project'
 
 // La fixture reproduit les contraintes d'un projet réel : alias `@/`, pas de
@@ -129,16 +130,16 @@ function projectOf(files: Record<string, string>): string {
   return root
 }
 
-describe('alias du projet', () => {
-  it('lit les chemins d’un jsconfig.json commenté', async () => {
-    const alias = await aliasesOf(fixture)
+describe('chemins déclarés par le projet', () => {
+  const pathsOf = async (root: string) => (await projectPathsOf(root))?.paths
 
-    expect(alias).toEqual([{ find: '@', replacement: join(fixture, 'src') }])
+  it('lit les chemins d’un jsconfig.json commenté', async () => {
+    expect(await pathsOf(fixture)).toEqual({ '@/*': ['src/*'] })
   })
 
-  // Sans configuration, pas d'alias : le CLI n'en invente aucun.
+  // Sans configuration, rien : le CLI n'invente aucun chemin.
   it('ne rend rien quand le projet n’en déclare pas', async () => {
-    expect(await aliasesOf(join(fixture, 'src'))).toEqual([])
+    expect(await projectPathsOf(join(fixture, 'src'))).toBeUndefined()
   })
 
   // La forme que produit `npm create vite` : la racine ne porte que des
@@ -150,30 +151,21 @@ describe('alias du projet', () => {
         '{ "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["src/*"] } } }',
     })
 
-    expect(await aliasesOf(root)).toEqual([{ find: '@', replacement: join(root, 'src') }])
+    expect(await pathsOf(root)).toEqual({ '@/*': ['src/*'] })
   })
 
   // Un `tsconfig.json` sans chemins ne doit pas masquer le `jsconfig.json` qui
   // en porte : sinon le support JavaScript tombe dès qu'un des deux traîne.
-  it('continue jusqu’au fichier qui déclare des chemins', async () => {
+  it.each([
+    ['sans clé paths', '{ "compilerOptions": { "strict": true } }'],
+    ['avec un paths vide', '{ "compilerOptions": { "paths": {} } }'],
+  ])('continue jusqu’au fichier qui déclare des chemins, %s', async (_, tsconfig) => {
     const root = projectOf({
-      'tsconfig.json': '{ "compilerOptions": { "strict": true } }',
+      'tsconfig.json': tsconfig,
       'jsconfig.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
     })
 
-    expect(await aliasesOf(root)).toEqual([{ find: '@', replacement: join(root, 'src') }])
-  })
-
-  // TypeScript retient le motif le plus long, Vite le premier qui correspond :
-  // sans tri, `@/lib/x` part vers `src/lib/x` au lieu de `vendor/lib/x`.
-  it('place le motif le plus spécifique en premier', async () => {
-    const root = projectOf({
-      'tsconfig.json':
-        '{ "compilerOptions": { "paths": { "@/*": ["src/*"], "@/lib/*": ["vendor/lib/*"] } } }',
-    })
-
-    const alias = await aliasesOf(root)
-    expect(alias.map((entry) => entry.find)).toEqual(['@/lib', '@'])
+    expect(await pathsOf(root)).toEqual({ '@/*': ['src/*'] })
   })
 
   // `tsconfck` rend `baseUrl` absolu mais pas les chemins : hérités d'un autre
@@ -184,14 +176,11 @@ describe('alias du projet', () => {
       'app/tsconfig.json': '{ "extends": "../base.json" }',
     })
 
-    expect(await aliasesOf(join(root, 'app'))).toEqual([
-      { find: '@shared', replacement: join(root, 'shared/src') },
-    ])
+    expect((await projectPathsOf(join(root, 'app')))?.base).toBe(root)
   })
 
-  // Et l'inverse, qui est la forme courante : le projet étend un fichier
-  // lointain, `@tsconfig/node22` par exemple, et déclare ses propres chemins.
-  // Les compter depuis le fichier étendu les enverrait dans `node_modules`.
+  // Et l'inverse, la forme courante : le projet étend un fichier lointain,
+  // `@tsconfig/node22` par exemple, et déclare ses propres chemins.
   it('compte les chemins déclarés localement depuis le projet', async () => {
     const root = projectOf({
       'base.json': '{ "compilerOptions": { "strict": true } }',
@@ -199,67 +188,79 @@ describe('alias du projet', () => {
         '{ "extends": "../base.json", "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
     })
 
-    expect(await aliasesOf(join(root, 'app'))).toEqual([
-      { find: '@', replacement: join(root, 'app/src') },
-    ])
+    expect((await projectPathsOf(join(root, 'app')))?.base).toBe(join(root, 'app'))
   })
 
-  // Un motif exact désigne un module, pas un préfixe. Nuxt génère exactement
-  // cette paire, `#app` et `#app/*`, et l'ordre décide de ce qui l'emporte.
-  it('distingue un motif exact de son voisin joker', async () => {
-    const root = projectOf({
-      'tsconfig.json':
-        '{ "compilerOptions": { "paths": { "@lib/*": ["vendor/*"], "@lib": ["src/lib/index.ts"] } } }',
-    })
+  it('nomme le fichier quand il est illisible', async () => {
+    const root = projectOf({ 'tsconfig.json': '{ "compilerOptions": { paths } }' })
 
-    const alias = await aliasesOf(root)
-    expect(alias[0]?.find).toEqual(/^@lib$/)
-    expect(alias[0]?.replacement).toBe(join(root, 'src/lib/index.ts'))
-    expect(alias[1]?.find).toBe('@lib')
+    await expect(projectPathsOf(root)).rejects.toThrow(ConfigError)
+    await expect(projectPathsOf(root)).rejects.toThrow(/tsconfig\.json/)
   })
+})
 
-  // Un joker sans barre oblique est valide côté TypeScript. Garder l'astérisque
-  // dans le `find` rendait l'alias inerte : Vite ne peut jamais le satisfaire.
-  // Un `paths` vide ne clôt pas la recherche : sinon le `jsconfig.json` voisin
-  // reste inatteignable, ce que la poursuite existe pour éviter.
-  it('ignore un paths déclaré mais vide', async () => {
-    const root = projectOf({
-      'tsconfig.json': '{ "compilerOptions": { "paths": {} } }',
-      'jsconfig.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
-    })
-
-    expect(await aliasesOf(root)).toEqual([{ find: '@', replacement: join(root, 'src') }])
-  })
-
-  // Un alias Vite réécrit sans repli, là où TypeScript retombe sur la résolution
-  // Node quand la cible mappée n'existe pas. Ces formes sont donc écartées
-  // plutôt que traduites : `@*` intercepterait `@vue/runtime-core`, et le
-  // fourre-tout `*` correspondrait à tout, point d'entrée compris.
+// La correspondance d'un motif, éprouvée seule : de l'extérieur, une capture
+// fautive est invisible, puisque le repli renvoie l'import à Vite comme si rien
+// ne s'était passé.
+describe('correspondance d’un motif', () => {
   it.each([
-    ['le fourre-tout', '{ "*": ["types/*"] }'],
-    ['un joker collé au préfixe', '{ "@*": ["src/*"] }'],
-    ['un joker au milieu', '{ "@app/*/lib": ["p/*/lib"] }'],
-    ['un joker dans une extension', '{ "*.css": ["styles/*.css"] }'],
-  ])('écarte %s, faute de repli côté Vite', async (_, paths) => {
-    const root = projectOf({ 'tsconfig.json': `{ "compilerOptions": { "paths": ${paths} } }` })
-
-    expect(await aliasesOf(root)).toEqual([])
+    ['#app', '#app', ''],
+    ['@/*', '@/a.js', 'a.js'],
+    ['@*', '@a.js', 'a.js'],
+    ['*', 'a.js', 'a.js'],
+    ['*.css', 'a.css', 'a'],
+    ['a/*/z', 'a/b/z', 'b'],
+  ])('capture %s sur %s', (pattern, id, attendu) => {
+    expect(capture(pattern, id)).toBe(attendu)
   })
 
-  // Le cas que l'écart protège : un paquet scopé doit rester résolu par Node.
-  // Traduire `@*` le détournerait vers `src/scope/pkg`, qui n'existe pas.
-  it('laisse passer un paquet scopé malgré un motif @*', async () => {
-    const root = projectOf({
-      'tsconfig.json': '{ "compilerOptions": { "paths": { "@*": ["src/*"] } } }',
-      'node_modules/@scope/pkg/package.json': '{ "name": "@scope/pkg", "main": "index.js" }',
-      'node_modules/@scope/pkg/index.js': 'export const p = 1',
-      'entry.js': 'import "@scope/pkg"',
-    })
+  it.each([
+    ['un motif exact contre un autre identifiant', '#app', '@scope/pkg'],
+    ['un préfixe qui ne correspond pas', '@/*', '@scope/pkg'],
+    ['un suffixe qui ne correspond pas', '*.css', 'a.js'],
+    ['un identifiant trop court pour le motif', 'a*a', 'a'],
+    ['un joker au milieu sans la fin attendue', 'a/*/z', 'a/b/y'],
+  ])('ne capture pas %s', (_, pattern, id) => {
+    expect(capture(pattern, id)).toBeNull()
+  })
+})
 
+// L'espace des motifs est fini : TypeScript en admet au plus un joker. Ces cas
+// le parcourent en entier, par une résolution réelle et non par la forme d'un
+// alias, qui peut être juste et pourtant inerte.
+describe('résolution des chemins', () => {
+  async function resolving(paths: string, files: Record<string, string>) {
+    const root = projectOf({
+      'tsconfig.json': `{ "compilerOptions": { "paths": ${paths} } }`,
+      'node_modules/@scope/pkg/package.json': '{ "name": "@scope/pkg", "main": "i.js" }',
+      'node_modules/@scope/pkg/i.js': 'export const p = 1',
+      ...files,
+    })
+    const declared = await projectPathsOf(root)
     const { server, close } = await serverOn({
       root,
       configFile: false,
-      resolve: { alias: await aliasesOf(root) },
+      plugins: declared ? [pathsPlugin(declared)] : [],
+    })
+
+    return { root, server, close }
+  }
+
+  it.each([
+    ['exact', '{ "#app": ["src/app.js"] }', 'import "#app"', 'src/app.js'],
+    ['préfixe séparé', '{ "@/*": ["src/*"] }', 'import "@/app.js"', 'src/app.js'],
+    ['préfixe collé', '{ "@*": ["src/*"] }', 'import "@app.js"', 'src/app.js'],
+    ['préfixe nommé', '{ "lib-*": ["src/*"] }', 'import "lib-app.js"', 'src/app.js'],
+    ['fourre-tout', '{ "*": ["src/*"] }', 'import "app.js"', 'src/app.js'],
+    ['suffixe', '{ "*.css": ["styles/*.css"] }', 'import "app.css"', 'styles/app.css'],
+    ['joker au milieu', '{ "a/*/z": ["src/*/z.js"] }', 'import "a/app/z"', 'src/app/z.js'],
+    ['sans extension', '{ "@/*": ["src/*"] }', 'import "@/app"', 'src/app.js'],
+    ['vers un index', '{ "@/*": ["src/*"] }', 'import "@/mod"', 'src/mod/index.js'],
+    ['seconde cible', '{ "@/*": ["absent/*", "src/*"] }', 'import "@/app.js"', 'src/app.js'],
+  ])('résout le motif %s', async (_, paths, source, cible) => {
+    const { server, close } = await resolving(paths, {
+      'entry.js': source,
+      [cible]: 'export const x = 1',
     })
 
     try {
@@ -269,36 +270,70 @@ describe('alias du projet', () => {
     }
   })
 
-  it('nomme le fichier quand il est illisible', async () => {
-    const root = projectOf({ 'tsconfig.json': '{ "compilerOptions": { paths } }' })
-
-    await expect(aliasesOf(root)).rejects.toThrow(ConfigError)
-    await expect(aliasesOf(root)).rejects.toThrow(/tsconfig\.json/)
-  })
-})
-
-// Les cas ci-dessus lisent la forme des alias. Ceux-ci vérifient qu'un serveur
-// résout vraiment : le joker collé au préfixe produisait un alias d'apparence
-// juste, et parfaitement inerte, que seule la résolution révèle.
-describe('résolution des formes de motif', () => {
-  it.each([
-    ['@/*', '{ "@/*": ["src/*"] }', 'import "@/Badge.js"'],
-    ['exact', '{ "@lib": ["src/Badge.js"] }', 'import "@lib"'],
-  ])('résout le motif %s', async (_, paths, source) => {
-    const root = projectOf({
-      'tsconfig.json': `{ "compilerOptions": { "paths": ${paths} } }`,
-      'src/Badge.js': 'export const Badge = 1',
-      'entry.js': source,
-    })
-
-    const { server, close } = await serverOn({
-      root,
-      configFile: false,
-      resolve: { alias: await aliasesOf(root) },
+  // Le repli, qui est toute la raison d'être du résolveur : un alias réécrirait
+  // sans condition et détournerait ce paquet vers `src/scope/pkg`. Le code doit
+  // pointer vers `node_modules`, non se contenter d'être transformé : rendre
+  // l'identifiant tel quel passerait aussi, sans avoir rien résolu.
+  it('laisse Vite résoudre un paquet qu’aucune cible ne couvre', async () => {
+    const { server, close } = await resolving('{ "@*": ["src/*"] }', {
+      'entry.js': 'import "@scope/pkg"',
     })
 
     try {
-      await expect(server.transformRequest('/entry.js')).resolves.not.toBeNull()
+      const result = await server.transformRequest('/entry.js')
+      expect(result?.code).toContain('node_modules/@scope/pkg')
+    } finally {
+      await close()
+    }
+  })
+
+  // Un motif ne correspond que s'il correspond vraiment : sans la comparaison
+  // du suffixe ou l'égalité stricte d'un motif exact, tout serait capturé, et
+  // la première cible venue détournerait des imports sans rapport.
+  it.each([
+    ['un suffixe qui ne correspond pas', '{ "*.css": ["styles/*.css"] }', 'import "@scope/pkg"'],
+    ['un motif exact qui ne correspond pas', '{ "#app": ["src/app.js"] }', 'import "@scope/pkg"'],
+    ['un préfixe qui ne correspond pas', '{ "@/*": ["src/*"] }', 'import "@scope/pkg"'],
+  ])('ne capture pas %s', async (_, paths, source) => {
+    const { server, close } = await resolving(paths, { 'entry.js': source })
+
+    try {
+      const result = await server.transformRequest('/entry.js')
+      expect(result?.code).toContain('node_modules/@scope/pkg')
+    } finally {
+      await close()
+    }
+  })
+
+  it.each([
+    [
+      'le motif le plus spécifique',
+      '{ "@/*": ["src/*"], "@/lib/*": ["vendor/*"] }',
+      'export { x } from "@/lib/a.js"',
+      '/vendor/',
+    ],
+    [
+      'le motif exact avant le joker',
+      '{ "#app/*": ["vendor/*"], "#app": ["src/lib/a.js"] }',
+      'export { x } from "#app"',
+      '/src/',
+    ],
+    [
+      'la cible qui existe',
+      '{ "@/lib/*": ["absent/*"], "@/*": ["src/*"] }',
+      'export { x } from "@/lib/a.js"',
+      '/src/',
+    ],
+  ])('retient %s', async (_, paths, source, attendu) => {
+    const { server, close } = await resolving(paths, {
+      'entry.js': source,
+      'src/lib/a.js': 'export const x = 1',
+      'vendor/a.js': 'export const x = 1',
+    })
+
+    try {
+      const result = await server.transformRequest('/entry.js')
+      expect(result?.code).toContain(attendu)
     } finally {
       await close()
     }
@@ -323,9 +358,9 @@ describe('résolution réelle par un serveur Vite', () => {
     }
   })
 
-  // Contrôle négatif : sans les alias, le même import échoue. Sinon le cas
+  // Contrôle négatif : sans le résolveur, le même import échoue. Sinon le cas
   // ci-dessus passerait aussi bien avec une configuration vide.
-  it('échoue sans les alias, ce qui prouve qu’ils servent', async () => {
+  it('échoue sans le résolveur, ce qui prouve qu’il sert', async () => {
     const { server, close } = await serverOn({ root: fixture, configFile: false })
 
     try {

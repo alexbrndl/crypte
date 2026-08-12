@@ -44,18 +44,6 @@ Le contrôle est satisfait dès qu'une revue portant le marqueur existe, quelle 
 
 *Origine :* constaté en passant la PR #16 en prêt.
 
-### Les motifs à joker sans séparateur sont écartés
-
-`@*`, `*.css`, `@app/*/lib` et le fourre-tout `*` sont valides côté TypeScript, et Crypte n'en produit aucun alias.
-
-*Pourquoi :* un alias Vite réécrit sans repli, là où TypeScript retombe sur la résolution Node quand la cible mappée n'existe pas. Mesuré : traduire `@*` fait intercepter `@vue/runtime-core`, et le projet ne résout plus aucun paquet scopé. Le fourre-tout, lui, correspond à tout identifiant, point d'entrée compris.
-
-*Ce que ça coûte :* un projet employant ces formes n'a pas ses alias, et ses imports échouent avec un message clair de Vite plutôt que d'être détournés en silence.
-
-*Ce qui les débloquerait :* un plugin de résolution qui tente la cible et retombe sur la résolution normale, ce que `resolve.alias` ne permet pas. C'est ce que fait `vite-tsconfig-paths`. À traiter au lot 5, où le serveur existe.
-
-*Origine :* revue 4 de la PR #17.
-
 ## Observations
 
 ### Le contrôle de la spécification lit moins de formes que celui du barrel

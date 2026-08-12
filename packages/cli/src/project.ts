@@ -4,8 +4,9 @@
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { loadConfigFromFile, type InlineConfig } from 'vite'
-import { aliasesOf } from './aliases'
+import { projectPathsOf } from './config-paths'
 import type { CrypteConfig } from './config'
+import { pathsPlugin } from './paths'
 import { ConfigError } from './errors'
 
 const CONFIG_FILE = 'crypte.config.ts'
@@ -74,11 +75,14 @@ function assertUsable(config: CrypteConfig): void {
 export async function viteConfigOf(project: Project): Promise<InlineConfig> {
   const { root, config } = project
 
+  const paths = await projectPathsOf(root)
+
   return {
     root,
     configFile: false,
-    resolve: { alias: await aliasesOf(root) },
-    plugins: config.vite?.plugins ?? [],
+    // Le résolveur de chemins d'abord : ceux du projet passent avant ce que ses
+    // propres plugins ajoutent, comme TypeScript les fait passer en premier.
+    plugins: [...(paths ? [pathsPlugin(paths)] : []), ...(config.vite?.plugins ?? [])],
   }
 }
 

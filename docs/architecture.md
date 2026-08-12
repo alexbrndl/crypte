@@ -306,45 +306,31 @@ La seule méthode qui ait fonctionné à chaque fois est de casser ce que le tes
 
 *Ce qui casse si on l'enlève :* il faut une dépendance de plus, du type de `jiti`, pour un travail que Vite fait mieux.
 
-**Les alias de chemins sont lus avec `tsconfck`, puis traduits en `resolve.alias`.**
+**Les chemins du projet sont appliqués par un plugin, non traduits en alias.**
 
-*Pourquoi pas l'option de Vite.* `resolve.tsconfigPaths` existe et paraît faite pour ça. Mesuré avant de choisir :
+*Pourquoi pas `resolve.alias`.* Un alias réécrit sans condition, là où TypeScript essaie la cible et retombe sur la résolution normale quand elle n'existe pas. Ce repli n'a pas d'équivalent dans `resolve.alias`, et c'est toute la difficulté : sans lui, un motif un peu large détourne des imports qui ne lui appartiennent pas. Mesuré : traduire `@*` fait intercepter `@vee/runtime-core`, et le projet ne résout plus aucun paquet scopé.
 
-| Projet | `resolve.tsconfigPaths` | lecture puis `resolve.alias` |
-|---|---|---|
-| TypeScript, `.ts` et `.tsx` | résout | résout |
-| JavaScript, `.js` et `.jsx` | échoue | résout |
-| `tsconfig.json` mais fichiers `.jsx` | échoue | résout |
+Quatre tours de revue ont été consacrés à approximer ce repli par des règles de forme, chacune corrigeant un cas et en cassant un autre. Le plugin le reproduit au lieu de l'approcher, et referme le sujet.
 
-L'option reproduit le comportement de TypeScript, qui n'applique les `paths` qu'aux fichiers TypeScript et ignore `jsconfig.json`. Un projet React écrit en JavaScript ne résoudrait donc rien. Le résolveur d'oxc, sous Vite, sait pourtant lire un fichier de configuration arbitraire, mais Vite n'expose qu'un booléen et ce réglage reste hors d'atteinte.
+*L'espace est fini.* Un motif TypeScript porte **au plus un joker**, donc la correspondance revient à comparer un préfixe et un suffixe. Les sept formes possibles résolvent, vérifiées par un serveur réel :
 
-*Pourquoi `tsconfck` plutôt qu'une lecture maison.* Une lecture maison tient en une vingtaine de lignes, mais ces lignes contiennent un parseur de commentaires et une résolution d'`extends`, c'est-à-dire les cas limites qui mordent plus tard. `tsconfck` pèse 100 Ko, n'a aucune dépendance, et vient de l'équipe Vite. La traduction en alias reste chez nous, et c'est elle qui porte la décision.
-
-*La remontée est bornée à la racine du projet.* Sans cette borne, la recherche d'un `tsconfig.json` remonte les dossiers parents et trouve celui du dépôt Crypte avant le `jsconfig.json` du projet, ce qui rend des alias vides. Mesuré par mutation.
-
-**Les écarts entre TypeScript et Vite**, tous mesurés sur des projets reproduits, tous gardés par un cas :
-
-| Écart | Ce qui se passait |
+| Forme | Exemple |
 |---|---|
-| un `tsconfig.json` ne portant que des `references` | zéro alias, et c'est la forme que produit `npm create vite` |
-| un premier fichier trouvé sans `paths` | le `jsconfig.json` voisin devenait inatteignable |
-| l'ordre des motifs | Vite retient le premier qui correspond, TypeScript le plus long : `@/*` masquait `@/lib/*` |
-| des `paths` hérités par `extends` d'un autre dossier | comptés depuis le fichier qui hérite, pas depuis celui qui déclare |
-| un motif exact voisin d'un joker, `#app` et `#app/*` chez Nuxt | le joker interceptait l'import exact |
-| les jokers sans séparateur, `@*`, `*.css`, `"*"` | écartés, faute de repli côté Vite : voir plus bas |
-| un `"paths": {}` déclaré mais vide | il clôturait la recherche et masquait le `jsconfig.json` voisin |
+| exact | `#app` |
+| préfixe avec séparateur | `@/*` |
+| préfixe collé | `@*` |
+| préfixe nommé | `lib-*` |
+| fourre-tout | `*` |
+| suffixe | `*.css` |
+| joker au milieu | `a/*/z` |
 
-Celui des `paths` hérités vient de `tsconfck`, qui rend `baseUrl` en absolu mais laisse `paths` relatif. Le fichier déclarant se lit dans `extended`, où chaque niveau porte **ce qu'il déclare lui-même**, sans héritage : seul `result.tsconfig` est fusionné. C'est le premier de la chaîne qui compte, non le dernier ; prendre le dernier envoie les alias d'un projet qui étend `@tsconfig/node22` droit dans `node_modules`.
+*Ce que Vite fait, et qu'on ne réimplémente pas.* `this.resolve` applique les extensions du projet, les `index`, le champ `exports` et ses conditions. Une première version testait l'existence des fichiers elle-même, avec une liste d'extensions en dur qui ignorait `.vue`, `.svelte` et tout `resolve.extensions` configuré.
 
-Les motifs exacts deviennent des expressions ancrées et passent devant tous les jokers : ils ne peuvent masquer personne, alors qu'un joker de même préfixe les intercepte.
+*Trois règles de départage*, celles de TypeScript : le motif au plus long préfixe fixe l'emporte, un motif sans joker passe avant tous les autres, et toutes les cibles d'un motif sont essayées dans l'ordre avant de passer au suivant.
 
-**Le comparateur de Vite ne sait faire qu'un préfixe suivi d'une barre oblique**, `id === find` ou `id.startsWith(find + '/')`. Seul `@/*` s'y traduit en chaîne, et un motif sans joker demande une expression ancrée.
+*La correspondance est éprouvée seule.* De l'extérieur, une capture fautive est invisible : le repli renvoie l'import à Vite comme si rien ne s'était passé. Mesuré : sans la comparaison du suffixe, du préfixe, ou l'égalité stricte d'un motif exact, aucun test d'intégration ne rougit.
 
-**Les autres formes de joker sont écartées, et c'est un choix.** `@*`, `*.css`, `@app/*/lib` et le fourre-tout `"*"` sont valides côté TypeScript, mais un alias Vite réécrit **sans repli**, là où TypeScript retombe sur la résolution Node quand la cible mappée n'existe pas. Mesuré : traduire `@*` fait intercepter `@vue/runtime-core`, et le projet ne résout plus aucun paquet scopé. Le fourre-tout, lui, correspond à tout identifiant, point d'entrée compris.
-
-Un projet employant ces formes n'a donc pas ses alias, et ses imports échouent avec un message clair plutôt que d'être détournés en silence. Ce qui les débloquerait est un plugin de résolution qui tente la cible puis retombe, ce que `resolve.alias` ne permet pas. Consigné dans `suivi.md` pour le lot 5.
-
-*Une leçon de méthode, payée deux fois ici :* un test qui lit la **forme** d'un alias ne prouve rien. Celui du joker collé au préfixe vérifiait `{ find: '@', replacement: … }`, exactement ce qu'on attendait, sur un alias que Vite ne pouvait pas satisfaire. Les formes de motif sont désormais éprouvées par un serveur qui résout un import réel.
+*Où les chemins sont lus*, et depuis quel dossier ils se comptent, reste dans `config-paths.ts`. Ce travail-là n'a pas bougé : la borne de remontée, le suivi des références d'un `tsconfig` de style solution, la poursuite jusqu'au fichier qui déclare vraiment des chemins, et la base prise sur le fichier déclarant.
 
 **La fixture reproduit un projet réel** plutôt qu'un cas d'école : alias `@/`, un `jsconfig.json` commenté sans `tsconfig.json`, des fichiers `.jsx`, un import d'asset. Elle est exclue du lint : son `baseUrl` est refusé par TypeScript 7, et c'est précisément ce qu'un projet existant contient.
 
