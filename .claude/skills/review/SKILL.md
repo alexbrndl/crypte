@@ -132,13 +132,24 @@ C'est lui, et lui seul, que cherche le workflow `require-review.yml`. Sans lui, 
 
 Construis un fichier JSON, puis envoie-le :
 
+**Chaque commentaire commence par son niveau**, en gras, et le verdict compte les bloquants séparément : c'est ce compte, et lui seul, qui dit si la pull request peut sortir du brouillon.
+
 ```json
 {
   "event": "COMMENT",
-  "body": "<!-- crypte-review -->\n## Revue\n\n**Verdict : 2 points.**",
-  "comments": [{ "path": "packages/cli/src/index.ts", "line": 12, "side": "RIGHT", "body": "…" }]
+  "body": "<!-- crypte-review -->\n## Revue\n\n**Verdict : 1 bloquant, 2 points au total.**",
+  "comments": [
+    {
+      "path": "packages/cli/src/index.ts",
+      "line": 12,
+      "side": "RIGHT",
+      "body": "**Bloquant.** …"
+    }
+  ]
 }
 ```
+
+Un verdict sans compte de bloquants est inutilisable : celui qui le reçoit ne peut pas savoir ce qui retient la pull request, et retombe alors à tout corriger, ce qui est la boucle qu'on cherche à fermer.
 
 ```bash
 gh api "repos/$(gh repo view --json nameWithOwner --jq .nameWithOwner)/pulls/<numéro>/reviews" --input <fichier.json>
