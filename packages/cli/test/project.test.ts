@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { createServer, type InlineConfig } from 'vite'
 import { afterAll, describe, expect, it } from 'vitest'
 import { projectPathsOf } from '../src/config-paths'
-import { capture, pathsPlugin } from '../src/paths'
+import { capture, isBareSpecifier, pathsPlugin } from '../src/paths'
 import { ConfigError, cssEntryOf, loadProject, viteConfigOf } from '../src/project'
 
 // La fixture reproduit les contraintes d'un projet réel : alias `@/`, pas de
@@ -263,6 +263,8 @@ describe('feuilles de style du projet', () => {
 // résolveurs de Vite, seuls les imports relatifs **cassés** lui parviennent, et
 // les détourner ferait charger un autre module au lieu d'échouer.
 describe('imports relatifs', () => {
+  // Le croisement des deux axes : le motif le plus large possible, contre les
+  // natures d'identifiant qu'il ne doit pas toucher.
   it.each([
     ['un fourre-tout', '{ "*": ["src/*"] }'],
     ['un suffixe', '{ "*.css": ["src/*.css"] }'],
@@ -280,6 +282,37 @@ describe('imports relatifs', () => {
     } finally {
       await close()
     }
+  })
+})
+
+// Le second axe du résolveur, aussi fini que celui des motifs : ce qu'un import
+// peut être. Les chemins ne s'appliquent qu'aux noms de module, comme chez
+// TypeScript ; tout le reste appartient à Vite, à un plugin, ou au disque.
+//
+// L'avoir oublié a produit le seul bloquant du lot : avec un motif fourre-tout,
+// un `./theme.css` supprimé était détourné vers `styles/theme.css`.
+describe('natures d’identifiant', () => {
+  it.each([
+    ['un nom de paquet', 'vue'],
+    ['un paquet scopé', '@scope/pkg'],
+    ['un sous-chemin de paquet', 'vue/dist/vue.js'],
+    ['un nom avec chemin', '@/composants/Badge'],
+  ])('applique les chemins à %s', (_, id) => {
+    expect(isBareSpecifier(id)).toBe(true)
+  })
+
+  it.each([
+    ['un relatif', './voisin.js'],
+    ['un relatif remontant', '../ailleurs.js'],
+    ['un absolu', '/racine.js'],
+    ['une URL', 'https://cdn.example/x.js'],
+    ['une source de données', 'data:text/javascript,void 0'],
+    ['un module natif', 'node:fs'],
+    ['un module virtuel de plugin', 'virtual:mon-module'],
+    ['un identifiant virtuel de Rollup', '\0virtuel'],
+    ['un fichier par URL', 'file:///tmp/x.js'],
+  ])('laisse passer %s', (_, id) => {
+    expect(isBareSpecifier(id)).toBe(false)
   })
 })
 

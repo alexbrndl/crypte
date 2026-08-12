@@ -128,9 +128,9 @@
     "attendu": "retient la cible qui existe"
   },
   {
-    "garantie": "les chemins ne s'appliquent pas aux imports relatifs",
+    "garantie": "les chemins ne s'appliquent qu'aux identifiants nus",
     "fichier": "packages/cli/src/paths.ts",
-    "avant": "      if (source.startsWith('.') || isAbsolute(source)) return null",
+    "avant": "      if (!isBareSpecifier(source)) return null",
     "apres": "      if (false) return null",
     "trouvee": "revue 6 de la PR #17",
     "attendu": "ne détourne pas un import relatif cassé"

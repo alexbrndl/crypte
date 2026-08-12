@@ -119,6 +119,10 @@ Lis ensuite `CLAUDE.md` et, si le diff touche au format de story, au manifeste, 
 
 ## 2. Vérifier contre les contraintes, pas contre le goût
 
+**Regarde de trois places.** Le code seul, le code parmi les autres fichiers et dans l'ordre où il s'exécute, et le code depuis l'extérieur, c'est-à-dire ce que le produit promet. Un mécanisme juste en lui-même peut être placé au mauvais endroit d'une chaîne, ou tenir une promesse que la documentation dément.
+
+**Quand un diff pose une table de cas, demande quels axes elle croise.** Une table complète sur un axe et muette sur un autre se présente comme close et ne l'est pas.
+
 **Ce qui est recherché**, dans cet ordre :
 
 1. **Les quatre contraintes structurelles de `CLAUDE.md`.** Une dépendance interne embarquée en copie, un composant placé dans `core/ui` sans qu'un plugin réel le demande, un import de `vite-plus` dans du code publié, une entrée de `core` qui en tire une autre.

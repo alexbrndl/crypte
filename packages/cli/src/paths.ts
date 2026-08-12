@@ -12,6 +12,13 @@ export interface ProjectPaths {
   files: string[]
 }
 
+// Un identifiant porté par un protocole : `https:`, `data:`, `node:`, et les
+// modules virtuels qu'un plugin déclare, `virtual:` par convention.
+const PROTOCOL = /^[a-z][a-z\d+.-]*:/i
+
+// Le préfixe des identifiants virtuels de Rollup.
+const VIRTUAL = '\0'
+
 // Un plugin plutôt que des `resolve.alias` : un alias réécrit sans condition, là
 // où TypeScript essaie la cible et retombe sur la résolution normale quand elle
 // n'existe pas. Ce repli est toute la différence, et il n'a pas d'équivalent
@@ -31,11 +38,11 @@ export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
   return {
     name: 'crypte:paths',
     async resolveId(source, importer, options) {
-      // TypeScript n'applique jamais `paths` à un chemin relatif ou absolu, et
-      // ce résolveur passant après ceux de Vite, seuls les imports relatifs
-      // **cassés** lui parviendraient : un fichier déplacé chargerait alors un
-      // autre module au lieu d'échouer.
-      if (source.startsWith('.') || isAbsolute(source)) return null
+      // TypeScript n'applique `paths` qu'aux identifiants de module nus. Ce
+      // résolveur passant après ceux de Vite, tout le reste ne lui parvient que
+      // **cassé** ou non résolu ailleurs : le capturer ferait charger un autre
+      // module au lieu d'échouer. Mesuré sur un `./theme.css` supprimé.
+      if (!isBareSpecifier(source)) return null
 
       for (const [pattern, targets] of ordered) {
         const captured = capture(pattern, source)
@@ -63,6 +70,15 @@ export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
       return null
     },
   }
+}
+
+// Ce à quoi les chemins s'appliquent : un nom de module, et rien d'autre. Les
+// autres natures appartiennent à Vite, à un plugin, ou au système de fichiers.
+export function isBareSpecifier(id: string): boolean {
+  if (id.startsWith('.') || id.startsWith(VIRTUAL)) return false
+  if (isAbsolute(id)) return false
+
+  return !PROTOCOL.test(id)
 }
 
 // Un motif porte au plus un joker : le faire correspondre revient à comparer un

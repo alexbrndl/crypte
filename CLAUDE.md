@@ -45,6 +45,14 @@ gh pr ready <numéro>                 # 6. une fois les points traités
 
 **Auto-review : avant de lancer une revue, relis-toi.** Pas une liste à cocher, qui devient mécanique et ne voit que ce qu'elle nomme : une lecture de ton propre diff comme s'il venait d'un autre, en partant de ce que tu viens de faire et de ce que tu sais du dépôt.
 
+**Regarder de trois places, pas d'une.** Un défaut invisible depuis l'une saute aux yeux depuis les autres.
+
+- **Le code seul.** Sa logique, ses cas limites, ce qu'il fait d'une entrée qu'on n'attendait pas.
+- **Le code parmi les autres.** Qui l'appelle et avec quoi, ce qu'il appelle, ce qui s'exécute avant et après lui, ce qu'un autre fichier suppose de lui. Un plugin correct isolé peut être placé au mauvais endroit d'une chaîne.
+- **Le code depuis l'extérieur.** Ce que le produit promet, ce qu'un utilisateur en fera, ce que la documentation en dit.
+
+**Et énumérer les axes d'entrée avant de croire un espace fermé.** Le lot 3 a produit une table complète des formes de motif, déclarée close, en oubliant que le résolveur a une seconde entrée : la nature de l'identifiant importé. Le seul point bloquant du lot est sorti de là. Fermer un axe ne ferme rien tant que les autres ne sont pas nommés.
+
 Trois questions ouvrent à peu près tout :
 
 - Qu'ai-je **affirmé** sans l'avoir vérifié ? Un commentaire, un message de commit, une phrase de documentation, une réponse donnée plus haut.
