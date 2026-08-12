@@ -13,7 +13,7 @@
     "test": "vp test",
     "pack": "vp run -r pack",
     "ready": "vp check && vp run -r pack && vp test",
-    "mutations": "node scripts/mutation-check.mjs"
+    "mutations": "node test/mutation-check.mjs"
   },
   "devDependencies": {
     "@changesets/changelog-github": "catalog:",

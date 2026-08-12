@@ -14,7 +14,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const mutations = JSON.parse(readFileSync(join(root, 'scripts', 'mutations.json'), 'utf8'))
+const mutations = JSON.parse(readFileSync(join(root, 'test', 'mutations.json'), 'utf8'))
 
 // Un arbre sale rendrait la restauration ambiguë, et une interruption laisserait
 // des sources mutées sans que git puisse dire lesquelles.
@@ -24,11 +24,15 @@ if (dirty.trim()) {
   process.exit(1)
 }
 
+// Rend `true` si la commande a réussi, `false` si elle a échoué pour ce qu'elle
+// vérifie. Un lancement impossible n'est pas un échec de vérification : le
+// confondre avec un test rouge ferait passer toute mutation pour vue.
 function run(command, args) {
   try {
     execFileSync(command, args, { cwd: root, stdio: 'pipe', encoding: 'utf8' })
     return true
-  } catch {
+  } catch (error) {
+    if (error.code === 'ENOENT') throw new Error(`commande introuvable : ${command}`)
     return false
   }
 }
@@ -46,9 +50,20 @@ if (!run(vp, ['run', '-r', 'pack']) || !run(vp, ['test']) || !run(vp, ['check'])
 
 const failures = []
 
+// Le `finally` d'une boucle ne joue pas sur un signal : sans ce filet, une
+// interruption au clavier laisse une source mutée dans l'arbre de travail.
+let restore = null
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.on(signal, () => {
+    if (restore) restore()
+    process.exit(130)
+  })
+}
+
 for (const mutation of mutations) {
   const path = join(root, mutation.fichier)
   const original = readFileSync(path, 'utf8')
+  restore = () => writeFileSync(path, original)
 
   if (!original.includes(mutation.avant)) {
     failures.push(`${mutation.garantie} : le motif n'existe plus dans ${mutation.fichier}`)
@@ -67,6 +82,7 @@ for (const mutation of mutations) {
     if (!noticed) failures.push(`${mutation.garantie} (${mutation.trouvee}) n'est gardée par rien`)
   } finally {
     writeFileSync(path, original)
+    restore = null
   }
 }
 

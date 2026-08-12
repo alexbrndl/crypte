@@ -266,7 +266,7 @@ Compare la spécification au code, dans les deux sens : aucun nom retiré ne sur
 
 ## 4 bis. Le contrôle de mutation
 
-`scripts/mutation-check.mjs` casse chaque garantie du protocole, une par une, et vérifie qu'au moins un test s'en aperçoit. Le catalogue est dans `scripts/mutations.json`, une entrée par constat de revue réel.
+`test/mutation-check.mjs` casse chaque garantie du protocole, une par une, et vérifie qu'au moins un test s'en aperçoit. Le catalogue est dans `test/mutations.json`, une entrée par constat de revue réel.
 
 **Pourquoi il existe.** Sur les cinquante-trois constats des neuf revues du lot 2, sept portaient sur un test qui passait pour la mauvaise raison, et quatre sur une garantie tenue par le code mais gardée par aucun test. C'est la première cause de défaut du dépôt, très loin devant les bugs de comportement, qui sont deux.
 

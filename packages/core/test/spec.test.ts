@@ -64,9 +64,21 @@ describe('la spécification et le code', () => {
   })
 
   // L'écart dans l'autre sens : un type public que la spécification ignore.
+  // Sur la partie normative seule, sinon une mention dans le journal suffirait
+  // à faire passer un type que le document qui fait foi ne décrit nulle part.
   it('décrit tout ce que le protocole expose', () => {
     for (const name of declared) {
-      expect(spec, `${name} est exporté mais absent de la spécification`).toContain(name)
+      expect(normative, `${name} est exporté mais absent de la partie normative`).toContain(name)
+    }
+  })
+
+  // Une liste d'exceptions se périme en silence : elle finit par dispenser du
+  // contrôle un type qui existe désormais bel et bien.
+  it('ne garde aucune exception devenue inutile', () => {
+    for (const name of NOT_OURS) {
+      expect(declared, `${name} est déclaré par le noyau, retire-le des exceptions`).not.toContain(
+        name,
+      )
     }
   })
 })
