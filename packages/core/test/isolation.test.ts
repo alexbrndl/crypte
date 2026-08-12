@@ -68,7 +68,9 @@ describe('le suivi des imports', () => {
   })
 
   afterAll(() => {
-    rmSync(sandbox, { recursive: true, force: true })
+    // Sans la garde, un `beforeAll` en échec laisse `sandbox` indéfini et c'est
+    // l'erreur du nettoyage qui s'affiche, pas la vraie.
+    if (sandbox) rmSync(sandbox, { recursive: true, force: true })
   })
 
   it('atteint un fichier que l’entrée ne fait qu’importer', () => {
@@ -81,6 +83,11 @@ describe('le suivi des imports', () => {
 describe('isolation des entrées de @crypte/core', () => {
   it('protocol ne contient rien de ui ni de preview', () => {
     const protocol = closureOf('protocol')
+
+    // Les deux cas sur `protocol` n'ont que des assertions négatives, qui
+    // passeraient sur une chaîne vide. Celle-ci vérifie qu'il y a de quoi lire.
+    expect(protocol).toContain('normalizeSegment')
+
     expect(protocol).not.toContain('__crypte_ui__')
     expect(protocol).not.toContain('__crypte_preview__')
   })

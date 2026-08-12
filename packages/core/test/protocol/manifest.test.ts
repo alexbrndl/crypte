@@ -30,6 +30,13 @@ describe('Manifest', () => {
     expect(manifest.entries[0]?.id).toBe('checkout/ordersummary--avec-reference')
   })
 
+  // `version` n'est pas lié à `MANIFEST_VERSION` : le champ sert à reconnaître un
+  // manifeste écrit par une autre version, ce qu'un type figé rendrait impossible.
+  it('accepte une version autre que la version courante', () => {
+    const older = { version: 2, entries: [] } satisfies Manifest
+    expect(older.version).toBe(2)
+  })
+
   it('rend meta facultatif', () => {
     const entry = {
       type: 'story',

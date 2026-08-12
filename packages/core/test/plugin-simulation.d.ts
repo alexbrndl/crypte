@@ -27,6 +27,9 @@ declare module '../src/protocol/channel' {
 
   interface PluginPreviewMessages {
     a11y: PluginMessage<{ type: 'a11y:report'; violations: string[] }>
+    // Sans `PluginMessage`, et mal formé : le filtre doit l'écarter de l'union.
+    // Voir `channel.test.ts`, qui échoue si ce n'est plus le cas.
+    legacy: { type: string; payload: unknown }
   }
 }
 
