@@ -1,8 +1,8 @@
 // What can be said about a prop, on both sides: what an author writes, and what
 // the manifest carries once inference has run.
 
-// What you write in `details`. Extends the plugin extension point, so it is
-// never empty, which is what makes TypeScript refuse an unknown key.
+// What you write in `details`. Every field is optional: you only fill in what
+// inference could not find.
 export interface PropDetails extends PluginPropDetails {
   type?: PropKind
   required?: boolean
@@ -17,7 +17,8 @@ export interface ResolvedPropDetails extends PropDetails {
   required: boolean
 }
 
-// `unknown` when inference fails: a prop stays documented, and the story renders.
+// A failed inference gives `unknown` rather than nothing: the prop stays
+// documented, and the story still renders.
 export type PropKind =
   | 'string'
   | 'number'

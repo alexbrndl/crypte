@@ -34,7 +34,7 @@ _2026-08-13_
 
 **Decided.** Everything a user or a contributor reads goes to English: `README.md`, `CONTRIBUTING.md`, the contracts, the user guide, this file, the error messages of the CLI, and the comments in published source.
 
-Everything on that list has moved, and `test/published-english.test.mjs` now refuses an accented character in `packages/*/src` outside a backquoted example. What is left in French is the design notes, on purpose, and the test names, tracked in DCJ-210.
+Everything on that list has moved, and `test/published-english.test.mjs` now refuses an accented character in `packages/*/src` outside a short backquoted example. What is left in French is the design notes, on purpose, the test names, tracked in DCJ-210, and whatever French carries no accent, which no check can see.
 
 Notes written for the maintainer stay in French: `architecture.md`, `suivi.md`, `arborescence.md`, the planning documents, `CLAUDE.md`, and the skills under `.claude/`.
 

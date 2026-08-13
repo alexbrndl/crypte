@@ -12,8 +12,9 @@ const PUBLISHED = /^packages\/[^/]+\/src\//
 const FRENCH = /[àâäçéèêëîïôöùûüÿœæ]/i
 
 // Un exemple se cite entre accents graves, et il porte souvent ce qu'il décrit :
-// « `é` devient `e` » est en anglais malgré ses accents.
-const QUOTED = /`[^`]*`/g
+// « `é` devient `e` » est en anglais malgré ses accents. Sans espace à
+// l'intérieur : une phrase entière entre accents graves passerait sinon entière.
+const QUOTED = /`[^`\s]*`/g
 
 const sources = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' })
   .split('\n')

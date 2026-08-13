@@ -31,8 +31,8 @@ export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
   // and a pattern with no wildcard beats every other. Without this order, `@/*`
   // wins over `@/lib/*` as soon as both targets exist.
   const ordered = Object.entries(paths).sort(([a], [b]) => {
-    const parPrefixe = prefixOf(b).length - prefixOf(a).length
-    if (parPrefixe !== 0) return parPrefixe
+    const byPrefix = prefixOf(b).length - prefixOf(a).length
+    if (byPrefix !== 0) return byPrefix
 
     // At equal prefix, the one with no wildcard wins: `#app` before `#app*`.
     return Number(a.includes('*')) - Number(b.includes('*'))

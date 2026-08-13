@@ -4,7 +4,7 @@ A component workshop for design systems, built to stay light and to work with mo
 
 A framework-neutral core, one adapter per framework, and plugins you add one at a time. Nothing you have not installed is ever loaded.
 
-> **Status: in progress.** The contracts are frozen, the CLI reads a project's configuration and resolves its path aliases, and the channel between the shell and the preview is built and tested. **No command runs yet**, and nothing is published to npm. Section 8 of [`docs/contracts.md`](docs/contracts.md) says exactly what exists.
+> **Status: in progress.** Three of the four contracts are settled, the plugin one is still provisional. The CLI reads a project's configuration and resolves its path aliases, and the channel between the shell and the preview is built and tested. **No command runs yet**, and nothing is published to npm. Section 8 of [`docs/contracts.md`](docs/contracts.md) says exactly what exists.
 
 ## Why
 
