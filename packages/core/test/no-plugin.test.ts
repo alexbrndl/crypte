@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 // Ce que le noyau refuse installé seul, par une compilation sans la simulation
-// de plugin. Les autres tests ne peuvent pas l'atteindre. Voir architecture.md.
+// de plugin. Les autres tests ne peuvent pas l'atteindre. Voir docs/internal/architecture.md.
 
 const core = join(dirname(fileURLToPath(import.meta.url)), '..')
 const tsc = join(core, 'node_modules', '.bin', 'tsc')

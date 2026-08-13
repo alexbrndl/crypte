@@ -34,10 +34,15 @@ vp run ready
 packages/core     @crypte/core    noyau, trois entrées : protocol, ui, preview
 packages/cli      @crypte/cli     binaire `crypte`
 packages/react    @crypte/react   adaptateur React
-docs/                             documents de référence
+docs/                             documents publics
+docs/internal/                    notes du mainteneur, en français
 ```
 
-`docs/architecture.md` détaille le rôle de chaque fichier et ce qui casse en son absence. `docs/spec-contrats.md` fait foi pour le format de story, le manifeste, le protocole et le contrat de plugin.
+`docs/spec-contrats.md` fait foi pour le format de story, le manifeste, le protocole et le contrat de plugin. `docs/internal/architecture.md` détaille le rôle de chaque fichier et ce qui casse en son absence.
+
+**Les notes de conception resteront en français**, quand tout le reste passera à l'anglais. Ce que vous lisez pour utiliser Crypte ou pour proposer une modification est destiné à l'anglais ; ce qui est écrit pour le mainteneur non, parce que ce sont des règles précises dont une traduction approximative perdrait plus qu'elle n'apporterait.
+
+La bascule est en cours et ce fichier n'y est pas encore passé : aujourd'hui, seul `docs/decisions.md` est en anglais. Le choix, ce qui a été écarté et ce qui le rouvrirait sont dans `docs/decisions.md`.
 
 ## Format des modules
 
@@ -66,7 +71,7 @@ Une branche par modification, nommée en kebab-case.
 
 Avant d'ouvrir une pull request, vérifiez que `vp check`, `vp run -r pack` et `vp test` passent en local. L'intégration continue rejoue les trois sur Node 22 et 24, et vérifie en plus que les exports générés commités sont à jour.
 
-**Si votre modification ajoute une pièce mobile**, un workflow, un script, une configuration qui encode une décision, ou un test dont l'assertion n'est pas évidente, mettez à jour `docs/architecture.md` en répondant à trois questions : ce que ça fait, pourquoi ça existe, et ce qui casse si on l'enlève.
+**Si votre modification ajoute une pièce mobile**, un workflow, un script, une configuration qui encode une décision, ou un test dont l'assertion n'est pas évidente, mettez à jour `docs/internal/architecture.md` en répondant à trois questions : ce que ça fait, pourquoi ça existe, et ce qui casse si on l'enlève.
 
 À l'inverse, n'ajoutez pas de documentation pour du code qui se lit tout seul.
 

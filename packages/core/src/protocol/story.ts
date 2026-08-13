@@ -17,7 +17,7 @@ export interface Story<P> {
 }
 
 // L'aiguillage n'admet aucune clé tant que le point d'extension est vide : une
-// interface sans propriété accepterait n'importe quel objet. Voir architecture.md.
+// interface sans propriété accepterait n'importe quel objet. Voir docs/internal/architecture.md.
 export type StoryOptions = [keyof PluginStoryOptions] extends [never]
   ? Record<string, never>
   : PluginStoryOptions

@@ -46,7 +46,7 @@ function run(command, args) {
 
 const vp = process.env.VP_BIN ?? 'vp'
 
-// `\e[2m > \e[22m` n'est pas ` > `. Voir architecture.md. Construite depuis un
+// `\e[2m > \e[22m` n'est pas ` > `. Voir docs/internal/architecture.md. Construite depuis un
 // code, une séquence d'échappement en littéral étant refusée par le lint.
 const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[\\d;]*m`, 'g')
 

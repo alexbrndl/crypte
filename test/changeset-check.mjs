@@ -1,7 +1,7 @@
 // Une pull request qui change un paquet publié dépose sa note de version.
 //
 // Le contrôle ne juge pas le contenu de la note : il vérifie qu'elle existe.
-// Voir architecture.md.
+// Voir docs/internal/architecture.md.
 
 import { execFileSync } from 'node:child_process'
 import { argv, env, exit } from 'node:process'
@@ -19,9 +19,30 @@ const PUBLISHED =
 // l'autre n'est une note.
 const NOTE = /^\.changeset\/(?!README\.md$)[^/]+\.md$/
 
+// Les commentaires de ligne seulement. Mesuré : ils sont retirés des `.d.ts`
+// publiés, alors qu'un bloc `/** */` posé sur un type exporté s'y retrouve, donc
+// il change ce que reçoit l'utilisateur.
+const COMMENT = /^\s*\/\//
+
+// Un fichier dont le diff ne touche que des commentaires de ligne ne change rien
+// pour l'utilisateur. Sans patch, l'API n'en fournissant pas au-delà d'une
+// certaine taille, on exige la note : c'est le sens sûr.
+export function commentsOnly(patch) {
+  if (!patch) return false
+
+  const changed = patch
+    .split('\n')
+    .filter((line) => /^[+-]/.test(line) && !/^(\+\+\+|---)/.test(line))
+    .map((line) => line.slice(1))
+
+  return changed.length > 0 && changed.every((line) => line.trim() === '' || COMMENT.test(line))
+}
+
 // Rend ce qui a été vu, et si la pull request peut passer.
 export function decide(files) {
-  const published = files.filter((file) => PUBLISHED.test(file.filename)).map((f) => f.filename)
+  const published = files
+    .filter((file) => PUBLISHED.test(file.filename) && !commentsOnly(file.patch))
+    .map((f) => f.filename)
 
   // Ajoutée, jamais modifiée : plusieurs notes attendent en permanence dans
   // `.changeset/` sur `main`, et le formateur en touche une de temps en temps.
@@ -43,7 +64,7 @@ export function filesOf(number, repo, run = gh) {
     run(['api', `repos/${repo}/pulls/${number}/files`, '--paginate', '--slurp']),
   )
 
-  return pages.flat().map(({ filename, status }) => ({ filename, status }))
+  return pages.flat().map(({ filename, status, patch }) => ({ filename, status, patch }))
 }
 
 // `||` et non `??` : un déclenchement manuel passe une chaîne vide, que `??`

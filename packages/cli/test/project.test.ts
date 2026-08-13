@@ -10,7 +10,7 @@ import { ConfigError, cssEntryOf, loadProject, viteConfigOf } from '../src/proje
 
 // La fixture reproduit les contraintes d'un projet réel : alias `@/`, pas de
 // `tsconfig.json` mais un `jsconfig.json` à commentaires, des fichiers `.jsx`,
-// et un import d'asset. Voir architecture.md.
+// et un import d'asset. Voir docs/internal/architecture.md.
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), 'fixture')
 
@@ -332,7 +332,7 @@ describe('chemins déclarés par le projet', () => {
 // Le pipeline CSS de Vite ne consulte aucun plugin : il résout `@import` et
 // `url()` par ses propres moyens. Les chemins déclarés n'y sont donc pas
 // appliqués, et un alias qui les y appliquerait court-circuiterait le repli.
-// Consigné dans suivi.md.
+// Consigné dans docs/internal/suivi.md.
 describe('feuilles de style du projet', () => {
   it('n’applique pas les chemins déclarés dans un @import', async () => {
     const root = projectOf({

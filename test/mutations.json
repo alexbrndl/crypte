@@ -302,5 +302,29 @@
     "apres": "",
     "trouvee": "revue 2 de la PR #21",
     "attendu": "channel.test.ts > chaque côté lit sa propre fenêtre pendant la distribution"
+  },
+  {
+    "garantie": "Un document cité mais introuvable est vu",
+    "fichier": "packages/cli/src/paths.ts",
+    "avant": "// dans `resolve.alias`. Voir docs/internal/architecture.md.",
+    "apres": "// dans `resolve.alias`. Voir docs/internal/architecture-absent.md.",
+    "trouvee": "lot 0 terdecies",
+    "attendu": "doc-links.test.mjs > les documents cités existent"
+  },
+  {
+    "garantie": "Hors de docs, un nom de document sans chemin est vu",
+    "fichier": "packages/core/src/protocol/story.ts",
+    "avant": "Voir docs/internal/architecture.md.",
+    "apres": "Voir architecture.md.",
+    "trouvee": "lot 0 terdecies",
+    "attendu": "doc-links.test.mjs > hors de docs, un document est cité par son chemin"
+  },
+  {
+    "garantie": "Un bloc de documentation publié exige une note de version",
+    "fichier": "test/changeset-check.mjs",
+    "avant": "const COMMENT = /^\\s*\\/\\//",
+    "apres": "const COMMENT = /^\\s*(\\/\\/|\\/\\*|\\*)/",
+    "trouvee": "lot 0 terdecies",
+    "attendu": "changeset-check.test.mjs > ce qui compte comme un changement de commentaire"
   }
 ]

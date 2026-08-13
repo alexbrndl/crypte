@@ -102,6 +102,26 @@ Quatre fois sur le lot 3, puis une fois sur le lot 0 decies, une commande a éch
 
 *Origine :* revue 7 de la PR #17.
 
+### La documentation publique s'annonce en anglais et l'est à un quart
+
+`CONTRIBUTING.md` et `arborescence.md` étiquettent `docs/` comme public et anglais. Sur ses deux documents, seul `decisions.md` l'est, `spec-contrats.md` étant en français. Les deux autres documents publics sont à la racine, `README.md` et `CONTRIBUTING.md`, et tous deux en français.
+
+*Ce qui a été fait :* les deux étiquettes disent désormais que la bascule est en cours, et `decisions.md` nomme l'issue qui la termine.
+
+*Pourquoi ce n'est pas fait ici :* traduire `spec-contrats.md` avant de l'avoir confronté au code reviendrait à traduire des phrases fausses, ce que `DCJ-208` corrige. `README.md` et `CONTRIBUTING.md` suivent en `DCJ-209`.
+
+*Origine :* revue de la PR #23.
+
+### `commentsOnly` accepte des commentaires qui ne sont pas inertes
+
+Le contrôle de note de version exempte toute ligne commençant par `//`. Or `/// <reference types="…" />` est recopiée dans les déclarations émises, et `// @ts-expect-error` ou `// eslint-disable-next-line` changent ce qui compile.
+
+*Mesuré :* aucune de ces directives dans `packages/*/src` aujourd'hui, et aucun `.d.ts` écrit à la main sous `src/`. Le cas est vacant.
+
+*Pourquoi ce n'est pas fait ici :* les distinguer demande de reconnaître trois formes dont aucune n'existe dans le dépôt. Le jour où l'une apparaît, la mesure qui justifie l'exemption ne couvre plus le critère.
+
+*Origine :* revue de la PR #23.
+
 ## Observations
 
 ### Le contrôle de la spécification lit moins de formes que celui du barrel

@@ -304,7 +304,27 @@ Le verdict ne pouvait pas être « n'est gardée par rien » : celui-là ne dép
 
 ---
 
-## 4 ter. La configuration d'un projet
+## 4 ter. Les documents cités
+
+`test/doc-links.test.mjs` vérifie que tout fichier `.md` cité quelque part existe.
+
+**Pourquoi il existe.** Une référence en prose devenue fausse ne fait rougir aucun test. Le passage à `docs/internal/` en a cassé une quarantaine d'un coup, dont deux dans du code publié : sans ce contrôle, elles seraient parties sur `main` sans un mot.
+
+**Deux règles.** Un document cité existe, par son chemin ou par son nom de fichier. Et **hors de `docs/`, il est cité par son chemin** : un nom nu se retrouve par son seul nom de fichier, donc il survit à un déplacement, ce qui est exactement ce qu'on ne veut pas.
+
+**Ce qu'il lit d'un fichier de code.** Ses commentaires, et rien d'autre. Une citation y vit ; les chemins fabriqués vivent dans des chaînes, qu'un test ou une fixture écrit par construction. Séparer sur la nature de la ligne évite d'exempter des fichiers entiers.
+
+Un seul fichier est écarté, nommément : `test/mutations.json`, qui porte le code muté et n'a pas de commentaire où séparer le vrai du fabriqué. Le nommer plutôt qu'écarter tous les JSON garde l'exemption visible.
+
+Une première version exemptait tous les `*.test.*`, au motif que leurs vraies dépendances échouent d'elles-mêmes. C'est vrai d'un chemin lu à l'exécution, faux d'une citation en commentaire : six renvois réécrits par ce même lot n'étaient surveillés par rien. Constat de la revue de la PR #23.
+
+**Ce qui casse si on l'enlève.** Rien immédiatement. Puis un document est renommé, la moitié des renvois pointent dans le vide, et on ne le découvre qu'en suivant un lien mort.
+
+*Éprouvé dans les deux sens :* le contrôle a été écrit avant le déplacement, vu passer sur l'arbre intact, puis vu rougir sur les quarante références cassées par le `git mv`.
+
+---
+
+## 4 quater. La configuration d'un projet
 
 **`crypte.config.ts` est chargé par `loadConfigFromFile`, la fonction publique de Vite.**
 
@@ -786,6 +806,12 @@ Ces trois fichiers comptent **en entier**, `scripts` et `devDependencies` compri
 **Une note ne compte que si elle est ajoutée.** Plusieurs notes attendent en permanence dans `.changeset/` jusqu'à la fusion de la pull request de version, et le formateur en touche une de temps en temps : accepter une note modifiée laisserait une pull request se déclarer conforme avec la note d'un autre lot.
 
 **Les mêmes deux exemptions que le contrôle de revue :** les brouillons, puisque le flux dépose la note pendant le brouillon, et les branches `changeset-release/*`, où le robot n'en dépose jamais.
+
+**Un changement de commentaire de ligne n'exige rien.** Le contrôle lit le patch de chaque fichier publié : si toutes les lignes changées sont des `//` ou des lignes vides, il n'y a rien à déclarer.
+
+La frontière entre les deux sortes de commentaire est mesurée. Un `//` est retiré du `.d.ts` publié ; un bloc `/** */` posé sur un type exporté s'y retrouve, donc il atteint l'utilisateur et il demande une note. Un fichier sans patch en demande une aussi, l'API n'en fournissant pas au-delà d'une certaine taille.
+
+*Ce qui l'a provoqué :* à son premier usage réel, le contrôle a exigé une note pour deux commentaires où un chemin de documentation avait bougé. Écrire cette note aurait ajouté au changelog une ligne qui ne dit rien, c'est-à-dire exactement ce que le skill `/changeset` existe pour empêcher.
 
 **Il échoue en cas de panne**, plutôt que de laisser passer : une réponse d'API illisible fait tomber le script, donc le contrôle. C'est le sens sûr pour une barrière, à l'inverse de `post-review.mjs`, dont l'échec doit se distinguer d'un verdict mal formé parce qu'il commande un autre geste.
 
