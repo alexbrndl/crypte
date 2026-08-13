@@ -292,6 +292,10 @@ La seule méthode qui ait fonctionné à chaque fois est de casser ce que le tes
 
 *Une construction en échec interrompt le tour* plutôt que de laisser les tests lire les artefacts précédents, ce qui accuserait une garantie pourtant gardée.
 
+**Il compare sur une sortie sans couleurs.** En intégration continue, vitest colorise, et le `>` qui sépare le fichier du nom de test se retrouve enveloppé de codes d'échappement : `channel.test.ts > un aller-retour` n'apparaît alors jamais tel quel. Trois entrées ont été déclarées sans garde pour cette seule raison, vertes en local et rouges en CI. Le contrôle retire donc les couleurs avant de chercher.
+
+*Ce que ça a appris :* un verdict « vue par autre chose » ne disait pas ce qui avait rougi à la place, donc ne se diagnostiquait pas. Il en donne maintenant les trois premières lignes, et c'est ce qui a permis de voir les codes d'échappement.
+
 **Il exige que ce soit le bon gardien qui rougisse.** Chaque entrée nomme ce qui doit apparaître dans la sortie d'échec. Sans cela, une mutation vue par un test sans rapport laisserait croire que la garantie tient, alors que celui qui la porte est muet : c'est « un test passe pour la mauvaise raison » transposé à l'outil censé le détecter. À l'ajout de ce contrôle, deux entrées sur neuf se sont révélées mal attribuées.
 
 **Ce qu'il ne couvre pas.** Seulement les garanties qu'on a pensé à y mettre : il empêche un défaut trouvé de revenir, il n'en trouve pas de nouveau. Le contrôle de la spécification, lui, vérifie qu'un nom est **mentionné**, pas qu'il est décrit : un type cité en passant lui suffit.
