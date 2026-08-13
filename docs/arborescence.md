@@ -26,6 +26,8 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `.vite-hooks/pre-commit` | lance `vp staged` | Git, avant chaque commit |
 | `test/mutation-check.mjs` | casse chaque garantie, attend un test rouge | `pnpm run mutations`, la CI |
 | `test/mutations.json` | catalogue des garanties, une par constat de revue | le script ci-dessus |
+| `test/post-review.mjs` | publie un verdict de revue, et vérifie qu'il y est arrivé | `/review` |
+| `test/post-review.test.mjs` | ce que le script refuse de publier | — |
 | `.changeset/config.json` | mode fixe, générateur de changelog | Changesets |
 | `.claude/skills/review/SKILL.md` | prompt de revue | `/review` |
 | `.claude/skills/explore/SKILL.md` | méthode de découverte avant revue | `/explore` |

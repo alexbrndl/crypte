@@ -78,7 +78,7 @@ Un `@import '@/vars.css'` dans le CSS du projet ne résout pas. Le pipeline CSS 
 
 ### Des échecs isolés, jamais reproduits
 
-Quatre fois sur le lot 3, une commande a échoué sans raison visible puis a réussi à l'identique juste après :
+Quatre fois sur le lot 3, puis une fois sur le lot 0 decies, une commande a échoué sans raison visible puis a réussi à l'identique juste après :
 
 | Ce qui a échoué | Ce qu'on a vu ensuite |
 |---|---|
@@ -86,6 +86,7 @@ Quatre fois sur le lot 3, une commande a échoué sans raison visible puis a ré
 | le contrôle de mutation | deux relances vertes |
 | `vp run -r pack`, code 2 | « Build complete » affiché, trois relances à zéro |
 | un test, juste avant un commit | treize lancements verts |
+| un test de `post-review`, dans la foulée d'un `vp check --fix` | quatre lancements verts sur un fichier identique au fichier rouge |
 
 *Ce qui a été fait :* donner un dossier de cache propre à chaque serveur de test, la seule cause plausible qui ait été mesurée, à savoir qu'ils partageaient `node_modules/.vite`. Les trois autres occurrences sont postérieures.
 
@@ -112,6 +113,14 @@ Quatre fois sur le lot 3, une commande a échoué sans raison visible puis a ré
 *Conséquence :* un type déclaré puis exporté séparément échappe au contrôle, et la partie normative peut l'ignorer en silence.
 
 *Origine :* revue 12 du lot 2.
+
+### La relance du contrôle de revue reste écrite à la main
+
+`post-review.mjs` publie le verdict, mais `require-review.yml` ne réagit qu'à l'ouverture d'une pull request et aux nouvelles poussées : le contrôle reste rouge jusqu'à une relance, que la section 7 du skill fait en deux commandes.
+
+*Pourquoi ce n'est pas dans le script :* `gh run rerun` échoue sur un lancement encore en cours, donc l'étape serait au mieux tentée. Un script dont une partie peut échouer sans conséquence contredit exactement ce qu'il apporte, un code de sortie qui veut dire quelque chose.
+
+*Origine :* exploration du lot 0 decies.
 
 ### `sideEffects: false` n'est ni documenté ni gardé
 
