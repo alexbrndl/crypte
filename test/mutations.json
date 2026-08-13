@@ -114,7 +114,7 @@
   {
     "garantie": "le motif le plus spécifique l'emporte",
     "fichier": "packages/cli/src/paths.ts",
-    "avant": "    const parPrefixe = prefixOf(b).length - prefixOf(a).length\n    if (parPrefixe !== 0) return parPrefixe",
+    "avant": "    const byPrefix = prefixOf(b).length - prefixOf(a).length\n    if (byPrefix !== 0) return byPrefix",
     "apres": "    if (false) return 0",
     "trouvee": "revue de la PR #17",
     "attendu": "retient le motif le plus spécifique"
@@ -306,16 +306,16 @@
   {
     "garantie": "Un document cité mais introuvable est vu",
     "fichier": "packages/cli/src/paths.ts",
-    "avant": "// dans `resolve.alias`. Voir docs/internal/architecture.md.",
-    "apres": "// dans `resolve.alias`. Voir docs/internal/architecture-absent.md.",
+    "avant": "// has no equivalent. See docs/internal/architecture.md.",
+    "apres": "// has no equivalent. See docs/internal/architecture-absent.md.",
     "trouvee": "lot 0 terdecies",
     "attendu": "doc-links.test.mjs > les documents cités existent"
   },
   {
     "garantie": "Hors de docs, un nom de document sans chemin est vu",
     "fichier": "packages/core/src/protocol/story.ts",
-    "avant": "Voir docs/internal/architecture.md.",
-    "apres": "Voir architecture.md.",
+    "avant": "See docs/internal/architecture.md.",
+    "apres": "See architecture.md.",
     "trouvee": "lot 0 terdecies",
     "attendu": "doc-links.test.mjs > hors de docs, un document est cité par son chemin"
   },
@@ -342,5 +342,21 @@
     "apres": "interface ComponentReference {",
     "trouvee": "lot 0 quaterdecies",
     "attendu": "aucun bloc de code ne déclare ComponentRef"
+  },
+  {
+    "garantie": "Une phrase française dans le code publié est vue",
+    "fichier": "packages/cli/src/errors.ts",
+    "avant": "// The error the CLI shows a user, with no stack trace.",
+    "apres": "// L'erreur que le CLI montre à l'utilisateur, sans trace de pile.",
+    "trouvee": "lot 0 quindecies",
+    "attendu": "published-english.test.mjs > le code publié ne contient pas de français"
+  },
+  {
+    "garantie": "Une phrase française entre accents graves ne passe pas pour un exemple",
+    "fichier": "test/published-english.test.mjs",
+    "avant": "const QUOTED = /`[^`\\s]*`/g",
+    "apres": "const QUOTED = /`[^`]*`/g",
+    "trouvee": "revue 2 de la PR #26",
+    "attendu": "published-english.test.mjs > un exemple cité n’est pas du français, une phrase citée en est"
   }
 ]

@@ -1,30 +1,30 @@
-// Ce qu'un projet écrit dans `crypte.config.ts`. Voir la section 1.5 de la spec.
+// What a project writes in `crypte.config.ts`. See section 1.5 of docs/contracts.md.
 
 import type { PluginOption } from 'vite'
 
 export interface CrypteConfig {
-  // Racine des fichiers de stories, relative à celle du projet.
+  // Root of the story files, relative to the project root.
   stories: string
   adapter: Adapter
-  // Feuille de style chargée dans la preview, celle du projet.
+  // Style sheet loaded in the preview, the project's own.
   css?: string
-  // Enveloppe appliquée à toutes les stories, avant celle du fichier. Opaque
-  // comme l'adaptateur : `Wrap<unknown>` s'effondrerait en `unknown`, et le
-  // champ aurait l'air typé sans rien contraindre.
+  // Wrapper applied to every story, outside the file's own. Opaque like the
+  // adapter: `Wrap<unknown>` would collapse to `unknown`, and the field would
+  // look typed while constraining nothing.
   wrap?: GlobalWrap
   plugins?: CryptePlugin[]
-  // Transformations que le projet impose, les auto-imports de Nuxt par exemple.
-  // Crypte ne les devine jamais : il ne lit pas le `vite.config` du projet.
+  // Transforms the project needs, Nuxt auto-imports for example. Crypte never
+  // guesses them: it does not read the project's `vite.config`.
   vite?: { plugins?: PluginOption[] }
 }
 
-// Rend la configuration telle quelle, pour le typage et l'autocomplétion.
+// Returns the configuration as is, for types and autocompletion.
 export function defineConfig(config: CrypteConfig): CrypteConfig {
   return config
 }
 
-// Opaques ici : le CLI les transporte sans jamais les interpréter. Leur forme
-// appartient à l'adaptateur et aux plugins, que le lot 6 introduira.
+// Opaque here: the CLI carries them and never reads them. Their shape belongs
+// to the adapter and to the plugins, which lot 6 introduces.
 export type Adapter = unknown
 export type CryptePlugin = unknown
 export type GlobalWrap = unknown

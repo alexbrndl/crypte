@@ -1,22 +1,22 @@
-// Où le projet déclare ses chemins, et depuis quel dossier ils se comptent.
-// Ce qu'on en fait est dans `paths.ts`.
+// Where a project declares its paths, and which folder they count from.
+// What we do with them is in `paths.ts`.
 
 import { dirname, join, resolve } from 'node:path'
 import { parse, type TSConfckParseResult } from 'tsconfck'
 import { ConfigError } from './errors'
 import type { ProjectPaths } from './paths'
 
-// Les deux noms admis, celui de TypeScript et celui des projets JavaScript.
-// `jsconfig.json` n'est pas une commodité : c'est le seul endroit où un projet
-// sans TypeScript peut déclarer ses chemins.
+// The two accepted names, TypeScript's and the one JavaScript projects use.
+// `jsconfig.json` is not a convenience: it is the only place a project without
+// TypeScript can declare its paths.
 const CONFIG_NAMES = ['tsconfig.json', 'jsconfig.json']
 
-// Nom fictif : `parse` attend un fichier et remonte depuis son dossier.
+// A made-up name: `parse` expects a file and walks up from its folder.
 const PROBE = '__crypte__'
 
-// Rend les chemins s'il y en a, et dans tous les cas les fichiers lus : un
-// `tsconfig.json` sans `paths` doit être surveillé quand même, sinon en ajouter
-// un ne provoquera aucune relecture.
+// Returns the paths if there are any, and in every case the files it read: a
+// `tsconfig.json` with no `paths` still has to be watched, otherwise adding
+// some would trigger no reload.
 export async function readProjectPaths(
   root: string,
   warn: (message: string) => void = console.warn,
@@ -25,32 +25,31 @@ export async function readProjectPaths(
   const seen: string[] = []
 
   for (const configName of CONFIG_NAMES) {
-    // `root` borne la remontée : sans elle, un projet sans configuration
-    // hériterait de celle d'un dossier parent quelconque.
-    // Le fichier cherché entre dans la liste avant même d'être lu : qu'il soit
-    // illisible, sans chemins, ou qu'il en fournisse, le modifier change ce qui
-    // sera résolu, donc doit provoquer une relecture.
+    // `root` bounds the walk up: without it, a project with no configuration
+    // would inherit one from some parent folder.
+    // The file enters the list before it is even read: unreadable, without
+    // paths, or with some, changing it changes what gets resolved, so it has
+    // to trigger a reload.
     seen.push(join(root, configName))
 
     let result: TSConfckParseResult
     try {
       result = await parse(resolve(root, PROBE), { configName, root })
     } catch (cause) {
-      // Un `extends` introuvable arrive tous les jours : `./.nuxt/tsconfig.json`
-      // avant `nuxt prepare`, ou `@tsconfig/node22` dans un clone sans
-      // installation. Les chemins sont un enrichissement, pas une condition de
-      // démarrage : on passe au fichier suivant plutôt que de tout arrêter.
+      // A missing `extends` target happens every day: `./.nuxt/tsconfig.json`
+      // before `nuxt prepare`, or `@tsconfig/node22` in a clone with no
+      // install. Paths are an improvement, not a condition to start: move on to
+      // the next file rather than stopping everything.
       if ((cause as { code?: string }).code === 'EXTENDS_RESOLVE') {
-        // Gardé pour la fin : le fichier suivant fournit peut-être les chemins,
-        // et annoncer une perte qui n'a pas lieu vaut à peine mieux que le
-        // silence.
-        unresolved.push(`${configName} étend un fichier introuvable`)
+        // Kept for the end: the next file may provide the paths, and warning
+        // about a loss that does not happen is barely better than silence.
+        unresolved.push(`${configName} extends a file that cannot be found`)
         continue
       }
 
-      // Un fichier à moitié écrit, ou une virgule en trop : le dire plutôt que
-      // de laisser remonter une trace de pile venue d'une bibliothèque.
-      throw new ConfigError(`${configName} n'a pas pu être lu : ${(cause as Error).message}`, {
+      // A half-written file, or one comma too many: say so rather than let a
+      // stack trace from a library surface.
+      throw new ConfigError(`${configName} could not be read: ${(cause as Error).message}`, {
         cause,
       })
     }
@@ -59,24 +58,24 @@ export async function readProjectPaths(
 
     seen.push(...filesOf(result))
     const found = pathsIn(result, root)
-    // Un fichier trouvé mais sans chemins ne clôt pas la recherche : sinon un
-    // `tsconfig.json` minimal rendrait le `jsconfig.json` voisin inatteignable.
-    // Les fichiers déjà parcourus comptent autant que celui qui a fourni les
-    // chemins : un `tsconfig.json` sans `paths`, lu en premier, en gagnera
-    // peut-être demain, et il est lu avant celui qui répond aujourd'hui.
+    // A file found with no paths does not end the search: a minimal
+    // `tsconfig.json` would otherwise make the neighbouring `jsconfig.json`
+    // unreachable. The files already walked count as much as the one that gave
+    // the paths: a `tsconfig.json` with no `paths`, read first, may gain some
+    // tomorrow, and it is read before the one that answers today.
     if (found) return { paths: found, files: [...new Set([...seen, ...found.files])] }
   }
 
-  // Sans ce mot, l'utilisateur voit tous ses imports échouer sans que rien ne
-  // désigne la cause, qui est dans un fichier qu'il n'a pas encore généré.
+  // Without this word, the user watches every import fail with nothing naming
+  // the cause, which sits in a file they have not generated yet.
   for (const message of unresolved) {
-    warn(`${message} : les chemins déclarés sont ignorés.`)
+    warn(`${message}: the declared paths are ignored.`)
   }
 
   return { paths: undefined, files: [...new Set(seen)] }
 }
 
-// Les seuls chemins, pour qui n'a pas besoin de savoir ce qui a été lu.
+// The paths alone, for callers that do not need to know what was read.
 export async function projectPathsOf(
   root: string,
   warn?: (message: string) => void,
@@ -88,14 +87,14 @@ function pathsIn(result: TSConfckParseResult, root: string): ProjectPaths | unde
   const own = compilerPaths(result.tsconfig)
   if (own) return { paths: own, base: baseOf(result, root), files: filesOf(result) }
 
-  // Un `tsconfig.json` de style « solution » ne déclare que des références, et
-  // c'est la forme que `npm create vite` produit : les chemins sont dans le
-  // fichier référencé, pas dans celui qu'on vient de lire.
+  // A solution-style `tsconfig.json` declares references only, and that is
+  // what `npm create vite` produces: the paths are in the referenced file, not
+  // in the one we just read.
   for (const referenced of result.referenced ?? []) {
     const paths = compilerPaths(referenced.tsconfig)
     if (paths) {
-      // La racine aussi : c'est elle qui désigne le projet référencé, donc la
-      // modifier change les chemins autant que le fichier référencé lui-même.
+      // The base too: it points at the referenced project, so changing it
+      // changes the paths as much as the referenced file itself.
       return {
         paths,
         base: baseOf(referenced, root),
@@ -107,17 +106,17 @@ function pathsIn(result: TSConfckParseResult, root: string): ProjectPaths | unde
   return undefined
 }
 
-// Le fichier lu et toute sa chaîne d'héritage : modifier l'un d'eux change les
-// chemins, donc doit provoquer une relecture au même titre que la configuration.
+// The file read and its whole `extends` chain: changing any of them changes
+// the paths, so each must trigger a reload like the configuration itself.
 function filesOf(result: TSConfckParseResult): string[] {
   const chain = (result.extended ?? []).map((level) => level.tsconfigFile)
   return [...new Set([result.tsconfigFile, ...chain].filter(Boolean))]
 }
 
-// `tsconfck` rend `baseUrl` en absolu, mais pas les chemins : hérités par
-// `extends`, ils restent relatifs au fichier qui les **déclare**. Un projet qui
-// étend `@tsconfig/node22` et déclare les siens les verrait sinon comptés depuis
-// `node_modules`.
+// `tsconfck` makes `baseUrl` absolute, but not the paths: inherited through
+// `extends`, they stay relative to the file that **declares** them. A project
+// extending `@tsconfig/node22` and declaring its own would otherwise have them
+// counted from `node_modules`.
 function baseOf(result: TSConfckParseResult, root: string): string {
   const baseUrl = result.tsconfig?.compilerOptions?.baseUrl as string | undefined
   if (baseUrl) return baseUrl
@@ -126,9 +125,9 @@ function baseOf(result: TSConfckParseResult, root: string): string {
   return declaring ? dirname(declaring) : root
 }
 
-// Le premier fichier de la chaîne qui écrit `paths` lui-même. `extended` va du
-// fichier d'origine au plus lointain, et chaque entrée porte ce que ce niveau
-// déclare, sans héritage : seul `result.tsconfig` est fusionné.
+// The first file of the chain that writes `paths` itself. `extended` runs from
+// the origin file to the furthest one, and each entry carries what that level
+// declares, with no inheritance: only `result.tsconfig` is merged.
 function declaringFile(result: TSConfckParseResult): string | undefined {
   for (const level of result.extended ?? []) {
     if (compilerPaths(level.tsconfig)) return level.tsconfigFile
@@ -137,18 +136,18 @@ function declaringFile(result: TSConfckParseResult): string | undefined {
   return undefined
 }
 
-// Un `paths` vide ne compte pas : sinon `"paths": {}` dans un `tsconfig.json`
-// rend le `jsconfig.json` voisin inatteignable, ce que la poursuite évite.
+// An empty `paths` does not count: `"paths": {}` in a `tsconfig.json` would
+// otherwise make the neighbouring `jsconfig.json` unreachable.
 function compilerPaths(config: unknown): Record<string, string[]> | undefined {
   const paths = (config as { compilerOptions?: { paths?: unknown } })?.compilerOptions?.paths
   if (!paths || typeof paths !== 'object' || Object.keys(paths).length === 0) return undefined
 
-  // Une chaîne au lieu d'un tableau est une faute de frappe courante, que
-  // TypeScript refuse aussi. Sans ce contrôle, la boucle parcourt les
-  // caractères de la chaîne et cherche un fichier par lettre, sans un mot.
+  // A string instead of an array is a common typo, and TypeScript refuses it
+  // too. Without this check, the loop walks the characters of the string and
+  // looks for one file per letter, silently.
   for (const [pattern, targets] of Object.entries(paths)) {
     if (!Array.isArray(targets) || targets.some((target) => typeof target !== 'string')) {
-      throw new ConfigError(`Le chemin \`${pattern}\` doit être un tableau de chemins.`)
+      throw new ConfigError(`The path \`${pattern}\` must be an array of paths.`)
     }
   }
 

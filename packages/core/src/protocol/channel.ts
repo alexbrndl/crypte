@@ -1,5 +1,5 @@
-// Les messages échangés entre le shell et la preview. Rien d'autre ne traverse
-// la frontière.
+// The messages the shell and the preview exchange. Nothing else crosses the
+// boundary.
 
 export type ShellMessage =
   | { type: 'render'; id: string; overrides: Overrides }
@@ -13,14 +13,14 @@ export type PreviewMessage =
   | { type: 'error'; id: string; message: string; stack?: string }
   | MessagesOf<PluginPreviewMessages>
 
-// Ne retient que ce qui a la forme d'un message, `type` compris comme littéral.
-// `-?` retire le modificateur optionnel, que ce type mappé conserverait sinon :
-// un membre `controls?: …` ferait entrer `undefined` dans l'union, donc plus
-// aucun `message.type` ne compilerait chez le consommateur. `NonNullable` traite
-// le même cas côté valeur, pour que le membre soit gardé plutôt qu'écarté.
-// Sans ce filtre, un plugin déclarant `{ x: string }` ou `{ type: string }`
-// ferait entrer sa valeur dans l'union, et plus aucun `message.type` ne
-// distinguerait quoi que ce soit chez le consommateur.
+// Keeps only what has the shape of a message, with `type` as a literal.
+// `-?` drops the optional modifier this mapped type would otherwise keep: an
+// `controls?: …` member would let `undefined` into the union, and no
+// `message.type` would narrow for the consumer. `NonNullable` handles the same
+// case on the value side, so the member is kept rather than dropped.
+// Without this filter, a plugin declaring `{ x: string }` or `{ type: string }`
+// would push its value into the union, and `message.type` would stop telling
+// anything apart.
 type MessagesOf<T> = {
   [K in keyof T]-?: NonNullable<T[K]> extends { type: infer Kind }
     ? string extends Kind
@@ -29,21 +29,21 @@ type MessagesOf<T> = {
     : never
 }[keyof T]
 
-// Le canal ne transporte jamais les props d'une story : la preview importe les
-// modules directement. Il transporte les valeurs éditées dans un panneau.
+// The channel never carries a story's props: the preview imports the modules
+// itself. It carries the values edited in a panel.
 export type Overrides = Record<string, unknown>
 
 export const PROTOCOL_VERSION = 1
 
-// Vides ici. Un plugin y déclare ses messages par augmentation de module, en
-// passant par `PluginMessage` pour être averti à la ligne s'il se trompe :
+// Empty here. A plugin declares its messages by module augmentation, going
+// through `PluginMessage` to be told on the line where it gets it wrong:
 // `declare module '@crypte/core/protocol' { interface PluginShellMessages { x: PluginMessage<{ type: 'x' }> } }`
 export interface PluginShellMessages {}
 export interface PluginPreviewMessages {}
 
-// La contrainte porte sur le paramètre, donc l'erreur tombe sur la déclaration
-// plutôt qu'à l'usage. Rien n'oblige un plugin à l'employer : `MessagesOf` reste
-// le filet pour ceux qui déclarent sans.
-type LiteralOnly<K> = string extends K ? 'le champ `type` doit être un littéral' : K
+// The constraint sits on the parameter, so the error lands on the declaration
+// rather than at the point of use. Nothing forces a plugin to use it:
+// `MessagesOf` stays the net for those who declare without.
+type LiteralOnly<K> = string extends K ? 'the `type` field must be a literal' : K
 
 export type PluginMessage<T extends { type: LiteralOnly<T['type']> }> = T

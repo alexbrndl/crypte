@@ -1,58 +1,56 @@
-# Contribuer
+# Contributing
 
-Merci de votre intérêt. Ce document décrit comment installer le projet, le vérifier et proposer une modification.
+Thanks for your interest. This document says how to install the project, how to check it, and how a change gets in.
 
-## Prérequis
+## Requirements
 
-Node 22.18 ou plus récent, et [Vite+](https://viteplus.dev), qui fournit la commande `vp` et sélectionne lui-même le gestionnaire de paquets et la version de Node du projet. Aucun gestionnaire de paquets n'est à installer séparément.
+Node 22.18 or newer, and [Vite+](https://viteplus.dev), which provides the `vp` command and picks the project's package manager and Node version for you. Nothing else to install.
 
-## Installation
+## Install
 
 ```bash
 vp install
 ```
 
-## Vérifier
+## Check
 
 ```bash
-vp check          # formatage, lint et types
-vp run -r pack    # construit les trois paquets
+vp check          # formatting, lint and types
+vp run -r pack    # builds the three packages
 vp test           # tests
 ```
 
-Ou l'enchaînement complet, dans l'ordre attendu :
+Or the whole chain, in the order it expects:
 
 ```bash
 vp run ready
 ```
 
-**L'ordre compte.** La construction doit précéder les tests : le test d'isolation de `@crypte/core` lit les artefacts construits, pas les sources. Lancé sans construction préalable, il échoue explicitement plutôt que de passer au vert sans rien vérifier.
+**The order matters.** The build has to come before the tests: the isolation test of `@crypte/core` reads built artefacts, not sources. Run without a build, it fails loudly instead of passing while checking nothing.
 
-## Structure
+## Layout
 
 ```
-packages/core     @crypte/core    noyau, trois entrées : protocol, ui, preview
-packages/cli      @crypte/cli     binaire `crypte`
-packages/react    @crypte/react   adaptateur React
-docs/                             documents publics
-docs/internal/                    notes du mainteneur, en français
+packages/core     @crypte/core    the core, three entries: protocol, ui, preview
+packages/cli      @crypte/cli     the `crypte` binary
+packages/react    @crypte/react   the React adapter
+docs/                             public documents, in English
+docs/internal/                    maintainer notes, in French
 ```
 
-`docs/contracts.md` fait foi pour le format de story, le manifeste, le protocole et le contrat de plugin. `docs/internal/architecture.md` détaille le rôle de chaque fichier et ce qui casse en son absence.
+`docs/contracts.md` is the reference for the story format, the manifest, the protocol and the plugin contract. `docs/internal/architecture.md` explains what each mechanism is for and what breaks without it.
 
-**Les notes de conception resteront en français**, quand tout le reste passera à l'anglais. Ce que vous lisez pour utiliser Crypte ou pour proposer une modification est destiné à l'anglais ; ce qui est écrit pour le mainteneur non, parce que ce sont des règles précises dont une traduction approximative perdrait plus qu'elle n'apporterait.
+**Design notes stay in French.** What you read to use Crypte, or to propose a change, is in English. What is written for the maintainer is not: those are precise rules, and a loose translation would lose more than it gains. The choice, what was turned down, and what would reopen it are in `docs/decisions.md`.
 
-La bascule est en cours et ce fichier n'y est pas encore passé : aujourd'hui, seul `docs/decisions.md` est en anglais. Le choix, ce qui a été écarté et ce qui le rouvrirait sont dans `docs/decisions.md`.
+## Module format
 
-## Format des modules
+The packages ship **ESM only**. No CommonJS.
 
-Les paquets sont publiés en **ESM uniquement**. Pas de CommonJS.
-
-C'est un choix délibéré pour un outil de développement : Node supporte ESM depuis longtemps, l'écosystème des outils de build a basculé, et maintenir un double format double la surface de test pour un bénéfice qui décroît. Ajouter CommonJS plus tard reste possible sans rupture, le retirer ne le serait pas.
+That is a deliberate choice for a development tool: Node has supported ESM for a long time, the build tooling has moved, and keeping two formats doubles the surface to test for a shrinking benefit. Adding CommonJS later stays possible without a break. Removing it would not.
 
 ## Commits
 
-Le projet suit les [Conventional Commits](https://www.conventionalcommits.org). Le message est en anglais, à l'impératif.
+The project follows [Conventional Commits](https://www.conventionalcommits.org). Messages are in English, in the imperative.
 
 ```
 feat: add story discovery
@@ -61,20 +59,20 @@ docs: document the isolation test
 chore: bump actions
 ```
 
-Ce format sert la lisibilité de l'historique. Il ne détermine pas les numéros de version : ceux-ci viendront de notes déposées explicitement, pas des messages de commit.
+This format serves the history. It does not decide version numbers: those come from notes dropped on purpose, never from commit messages.
 
-## Branches et pull requests
+## Branches and pull requests
 
-Une branche par modification, nommée en kebab-case.
+One branch per change, named in kebab-case.
 
-**Le titre de la pull request suit le même format que les messages de commit.** Les pull requests sont fusionnées en squash, donc le titre devient le message du commit sur `main`, et les commits intermédiaires disparaissent. C'est le titre qui reste dans l'historique du projet.
+**A pull request title follows the same format as a commit message.** Pull requests are squash-merged, so the title becomes the commit message on `main` and the intermediate commits disappear. The title is what stays in the history.
 
-Avant d'ouvrir une pull request, vérifiez que `vp check`, `vp run -r pack` et `vp test` passent en local. L'intégration continue rejoue les trois sur Node 22 et 24, et vérifie en plus que les exports générés commités sont à jour.
+Before opening a pull request, check that `vp check`, `vp run -r pack` and `vp test` pass locally. Continuous integration replays all three on Node 22 and 24, and also checks that the committed generated exports are up to date.
 
-**Si votre modification ajoute une pièce mobile**, un workflow, un script, une configuration qui encode une décision, ou un test dont l'assertion n'est pas évidente, mettez à jour `docs/internal/architecture.md` en répondant à trois questions : ce que ça fait, pourquoi ça existe, et ce qui casse si on l'enlève.
+**If your change adds a moving part** — a workflow, a script, a configuration that encodes a decision, or a test whose assertion is not obvious — update `docs/internal/architecture.md` with three answers: what it does, why it exists, and what breaks if you remove it.
 
-À l'inverse, n'ajoutez pas de documentation pour du code qui se lit tout seul.
+The other way round: do not document code that reads by itself.
 
-## Signaler un problème
+## Reporting a problem
 
-Ouvrez une issue en décrivant le comportement attendu, le comportement observé, et si possible un cas reproductible minimal.
+Open an issue with the behaviour you expected, the behaviour you got, and a small reproducible case if you can.

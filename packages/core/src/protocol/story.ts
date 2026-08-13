@@ -1,4 +1,4 @@
-// Ce qu'un développeur écrit dans un fichier de stories.
+// What a developer writes in a story file.
 
 import type { PropDetails } from './prop'
 
@@ -10,24 +10,24 @@ export interface StoryDefinition<P, C> {
   meta?: StoryMeta
 }
 
-// Une story nommée, quand la forme courte `{ price: 500 }` ne suffit plus.
+// A named story, for when the short form `{ price: 500 }` is not enough.
 export interface Story<P> {
   props: Partial<P>
   options?: StoryOptions
 }
 
-// L'aiguillage n'admet aucune clé tant que le point d'extension est vide : une
-// interface sans propriété accepterait n'importe quel objet. Voir docs/internal/architecture.md.
+// Accepts no key while the extension point is empty: an interface with no
+// property would accept any object. See docs/internal/architecture.md.
 export type StoryOptions = [keyof PluginStoryOptions] extends [never]
   ? Record<string, never>
   : PluginStoryOptions
 
-// Le noyau ne connaît aucun framework : un composant reste une valeur opaque.
-// Des composants, et rien d'autre : une fonction d'enveloppe ne se distinguerait
-// pas d'un composant React, qui en est une. Voir la section 2.5 de la spec.
+// The core knows no framework: a component stays an opaque value.
+// Components only: a wrapper function would not differ from a React component,
+// which is one. See section 2.5 of docs/contracts.md.
 export type Wrap<C> = C | readonly WrapEntry<C>[]
 
-// Dans la forme tableau, le premier élément est le plus externe.
+// In the array form, the first entry is the outermost.
 export type WrapEntry<C> = C | readonly [C, Record<string, unknown>]
 
 export interface StoryMeta {
@@ -37,6 +37,6 @@ export interface StoryMeta {
   description?: string
 }
 
-// Vide ici. Un plugin y ajoute ses champs par augmentation de module :
+// Empty here. A plugin adds its own fields by module augmentation:
 // `declare module '@crypte/core/protocol' { interface PluginStoryOptions { responsive?: 'mobile' } }`
 export interface PluginStoryOptions {}

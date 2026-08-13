@@ -1,21 +1,21 @@
-// Le catalogue produit par le CLI et lu par le shell.
+// The catalogue the CLI writes and the shell reads.
 //
-// Il doit survivre à un aller-retour JSON, mais les types ne l'imposent pas :
-// `unknown` accepte une fonction, que `JSON.stringify` retirerait en silence.
-// C'est au CLI de garantir ce qu'il écrit. Voir la section 4.5 de la spec.
+// It has to survive a JSON round trip, and the types do not enforce it:
+// `unknown` accepts a function, which `JSON.stringify` would drop in silence.
+// The CLI guarantees what it writes. See section 4.5 of docs/contracts.md.
 
 import type { ResolvedPropDetails } from './prop'
 import type { StoryMeta } from './story'
 
 export interface Manifest {
-  // Pas `typeof MANIFEST_VERSION` : ce champ sert à détecter un manifeste écrit
-  // par une autre version, comparaison qu'un type figé rendrait impossible.
+  // Not `typeof MANIFEST_VERSION`: this field exists to spot a manifest written
+  // by another version, a comparison a frozen type would make impossible.
   version: number
   entries: ManifestEntry[]
 }
 
-// `page` et `tokens` sont réservées aux évolutions design system : le champ
-// existe déjà pour qu'elles n'imposent pas de migration.
+// `page` and `tokens` are reserved for design-system work: the field is here so
+// that they will not force a migration.
 export type ManifestEntry = StoryEntry
 
 export interface StoryEntry {
@@ -25,10 +25,10 @@ export interface StoryEntry {
   name: string
   component: ComponentRef
   storyFile: string
-  // Ouvert parce que ce champ ne contient que des réglages de plugins : le noyau
-  // n'a rien à y typer, et le lecteur n'a pas forcément les mêmes plugins.
+  // Open because this field only holds plugin settings: the core has nothing to
+  // type here, and the reader may not have the same plugins.
   options: Record<string, unknown>
-  // Indexé par nom de prop, d'où l'absence de champ `name` dans la valeur.
+  // Keyed by prop name, hence no `name` field in the value.
   details: Record<string, ResolvedPropDetails>
   source: string
   meta?: StoryMeta

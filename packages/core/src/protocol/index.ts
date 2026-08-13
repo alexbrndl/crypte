@@ -1,10 +1,10 @@
-// Porte d'entrée de @crypte/core/protocol : ne fait que réexporter, un groupe
-// par module, dans l'ordre du parcours d'une story.
+// The door into @crypte/core/protocol: re-exports only, one group per module,
+// in the order a story travels through them.
 
-// Ce qu'on peut dire d'une prop
+// What can be said about a prop
 export type { PropDetails, ResolvedPropDetails, PropKind, PluginPropDetails } from './prop'
 
-// Ce qu'on écrit dans un fichier de stories
+// What you write in a story file
 export type {
   StoryDefinition,
   Story,
@@ -15,14 +15,14 @@ export type {
   PluginStoryOptions,
 } from './story'
 
-// Ce que le CLI en produit et que le shell lit
+// What the CLI writes from it, and the shell reads
 export type { Manifest, ManifestEntry, StoryEntry, ComponentRef } from './manifest'
 export { MANIFEST_VERSION } from './manifest'
 
-// Comment une story est désignée
+// How a story is named
 export { normalizeSegment, storyId } from './id'
 
-// Comment le shell et la preview se parlent
+// How the shell and the preview talk
 export type {
   ShellMessage,
   PreviewMessage,

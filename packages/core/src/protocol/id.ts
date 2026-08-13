@@ -1,10 +1,10 @@
-// La dérivation des identifiants de story, seul code exécuté du protocole.
+// How a story identifier is derived, the only code the protocol runs.
 
-// « é » devient « e », pas un tiret. Seulement sur une base latine : les mêmes
-// marques composent « й » et « ё », qui tomberaient sinon sur « и » et « е ».
+// `é` becomes `e`, not a dash. On a latin base only: the same marks build `й`
+// and `ё`, which would otherwise fall onto `и` and `е`.
 const LATIN_DIACRITICS = /([a-z])[\u0300-\u036f]+/gi
-// Toutes les écritures, pas seulement le latin : `a-z0-9` donnait `button--` pour
-// tout nom cyrillique. Les marques restent, sinon « が » devient « か ».
+// Every script, not just latin: `a-z0-9` gave `button--` for any cyrillic name.
+// Marks stay, otherwise `が` becomes `か`.
 const NON_ALPHANUMERIC = /[^\p{L}\p{N}\p{M}]+/gu
 const EDGE_SEPARATORS = /^-+|-+$/g
 
@@ -16,13 +16,13 @@ export function normalizeSegment(value: string): string {
       .toLowerCase()
       .replace(NON_ALPHANUMERIC, '-')
       .replace(EDGE_SEPARATORS, '')
-      // Recomposée : sinon deux noms identiques à l'œil désignent deux fichiers.
+      // Recomposed: otherwise two names that look the same point at two files.
       .normalize('NFC')
   )
 }
 
-// L'identifiant sert d'URL et de clé de baseline. Renommer une story change son
-// identifiant et casse sa baseline : assumé, à documenter à l'utilisateur.
+// The identifier is a URL and a baseline key. Renaming a story changes it and
+// breaks its baseline: accepted, and documented to the user.
 export function storyId(path: readonly string[], name: string): string {
   const prefix = path.map(normalizeSegment).filter(Boolean).join('/')
   const suffix = normalizeSegment(name)

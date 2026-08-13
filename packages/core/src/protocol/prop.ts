@@ -1,7 +1,9 @@
-// Tout ce qu'on peut dire d'une prop, des deux côtés.
+// What can be said about a prop, on both sides: what an author writes, and what
+// the manifest carries once inference has run.
 
-// Ce qu'on écrit dans `details`, en complément de l'inférence. Tout est
-// facultatif : on ne précise que ce que l'inférence n'a pas trouvé.
+// What you write in `details`. Every field is optional: you only fill in what
+// inference could not find. Its own fields are also what makes TypeScript
+// refuse an unknown key, see section 3.3 of docs/contracts.md.
 export interface PropDetails extends PluginPropDetails {
   type?: PropKind
   required?: boolean
@@ -10,13 +12,14 @@ export interface PropDetails extends PluginPropDetails {
   options?: unknown[]
 }
 
-// La même chose une fois l'inférence faite. Le shell a besoin de `type` et de
-// `required` pour afficher la prop, donc le manifeste les porte toujours.
+// What the manifest carries. Inference fills in what the author left out.
 export interface ResolvedPropDetails extends PropDetails {
   type: PropKind
   required: boolean
 }
 
+// A failed inference gives `unknown` rather than nothing: the prop stays
+// documented, and the story still renders.
 export type PropKind =
   | 'string'
   | 'number'
@@ -28,6 +31,6 @@ export type PropKind =
   | 'node'
   | 'unknown'
 
-// Vide ici. Un plugin y ajoute ses champs par augmentation de module :
+// Empty here. A plugin adds its own fields by module augmentation:
 // `declare module '@crypte/core/protocol' { interface PluginPropDetails { min?: number } }`
 export interface PluginPropDetails {}
