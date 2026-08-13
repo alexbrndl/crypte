@@ -114,7 +114,7 @@
   {
     "garantie": "le motif le plus spécifique l'emporte",
     "fichier": "packages/cli/src/paths.ts",
-    "avant": "    const parPrefixe = prefixOf(b).length - prefixOf(a).length\n    if (parPrefixe !== 0) return parPrefixe",
+    "avant": "    const byPrefix = prefixOf(b).length - prefixOf(a).length\n    if (byPrefix !== 0) return byPrefix",
     "apres": "    if (false) return 0",
     "trouvee": "revue de la PR #17",
     "attendu": "retient le motif le plus spécifique"
