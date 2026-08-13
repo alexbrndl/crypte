@@ -99,4 +99,5 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `arborescence.md` | ce fichier | qui cherche où se trouve quoi |
 | `plugins.md` | catalogue des plugins et phases | la planification |
 | `suivi.md` | points de revue arbitrés, non corrigés | la revue, qui ne les re-signale plus |
+| `pistes-shell.md` | propositions issues de l'exploration d'interface, non arbitrées | qui ouvrira les lots du shell |
 | `test-format-stories.md` | test du format sur cinq composants réels | historique |
