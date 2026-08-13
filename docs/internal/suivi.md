@@ -102,7 +102,7 @@ Quatre fois sur le lot 3, puis une fois sur le lot 0 decies, une commande a éch
 
 *Origine :* revue 7 de la PR #17.
 
-### La documentation publique s'annonce en anglais et ne l'est qu'à moitié
+### La documentation publique s'annonce en anglais et l'est à un quart
 
 `CONTRIBUTING.md` et `arborescence.md` étiquettent `docs/` comme public et anglais. Sur ses deux documents, seul `decisions.md` l'est, `spec-contrats.md` étant en français. Les deux autres documents publics sont à la racine, `README.md` et `CONTRIBUTING.md`, et tous deux en français.
 
