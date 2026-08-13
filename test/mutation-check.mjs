@@ -46,11 +46,8 @@ function run(command, args) {
 
 const vp = process.env.VP_BIN ?? 'vp'
 
-// Les couleurs de terminal. En intégration continue, vitest colorise, et le
-// `>` qui sépare le fichier du nom de test se retrouve enveloppé de codes : le
-// nom attendu n'apparaît alors jamais tel quel. Construite depuis un code plutôt
-// qu'écrite en toutes lettres, une séquence d'échappement en littéral étant
-// refusée par le lint.
+// `\e[2m > \e[22m` n'est pas ` > `. Voir architecture.md. Construite depuis un
+// code, une séquence d'échappement en littéral étant refusée par le lint.
 const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[\\d;]*m`, 'g')
 
 function plain(output) {
@@ -59,14 +56,10 @@ function plain(output) {
 
 // Ce qui a rougi, en trois lignes : les échecs nommés, sinon la fin de la sortie.
 function sample(output) {
-  const named = plain(output)
-    .split('\n')
-    .filter((line) => /\bFAIL\b|error:|✕|×/.test(line))
-    .slice(0, 3)
+  const lines = plain(output).split('\n')
+  const named = lines.filter((line) => /\bFAIL\b|error:|✕|×/.test(line)).slice(0, 3)
 
-  return named.length > 0
-    ? named.join('\n    ')
-    : output.trim().split('\n').slice(-3).join('\n    ')
+  return (named.length > 0 ? named : lines.slice(-3)).join('\n    ')
 }
 
 // Contrôle positif, avant tout le reste. Sans lui, un binaire introuvable rend
@@ -129,10 +122,8 @@ for (const mutation of mutations) {
       failures.push(`${mutation.garantie} (${mutation.trouvee}) n'est gardée par rien`)
     else if (!byTheRightOne)
       failures.push(
+        // Sans l'extrait, ce verdict dit ce qui manque, jamais ce qui a rougi.
         `${mutation.garantie} : vue par autre chose que « ${mutation.attendu} », son gardien est muet\n` +
-          // Sans ces lignes, un verdict AILLEURS ne se diagnostique pas : il dit
-          // ce qui manque, jamais ce qui a rougi à la place. Mesuré, un tel
-          // verdict n'est apparu qu'en intégration continue.
           `    à la place : ${sample(`${tests.output}${check.output}`)}`,
       )
   } finally {

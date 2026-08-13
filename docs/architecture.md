@@ -292,7 +292,9 @@ La seule méthode qui ait fonctionné à chaque fois est de casser ce que le tes
 
 *Une construction en échec interrompt le tour* plutôt que de laisser les tests lire les artefacts précédents, ce qui accuserait une garantie pourtant gardée.
 
-**Il compare sur une sortie sans couleurs.** En intégration continue, vitest colorise, et le `>` qui sépare le fichier du nom de test se retrouve enveloppé de codes d'échappement : `channel.test.ts > un aller-retour` n'apparaît alors jamais tel quel. Trois entrées ont été déclarées sans garde pour cette seule raison, vertes en local et rouges en CI. Le contrôle retire donc les couleurs avant de chercher.
+**Il compare sur une sortie sans couleurs.** En intégration continue, vitest colorise, et le `>` qui sépare le fichier du nom de test se retrouve enveloppé de codes d'échappement : `channel.test.ts > un aller-retour` n'apparaît alors jamais tel quel. Trois entrées ont été déclarées **vues par autre chose que leur gardien**, vertes en local et rouges en CI. Le contrôle retire donc les couleurs avant de chercher.
+
+Le verdict ne pouvait pas être « n'est gardée par rien » : celui-là ne dépend que des codes de sortie, que la colorisation ne change pas. Seule la comparaison au gardien attendu lit du texte, donc elle seule était exposée.
 
 *Ce que ça a appris :* un verdict « vue par autre chose » ne disait pas ce qui avait rougi à la place, donc ne se diagnostiquait pas. Il en donne maintenant les trois premières lignes, et c'est ce qui a permis de voir les codes d'échappement.
 
