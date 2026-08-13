@@ -11,12 +11,15 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 const SCANNED = /\.(md|ts|tsx|mjs|yml|yaml|json|vue)$/
 
-// Dans du code, une citation vit dans un commentaire, et les chemins fabriqués
-// vivent dans des chaînes : un test, une fixture et le catalogue de mutation en
-// écrivent qui n'existent pas, et c'est leur travail. Ne lire que les
-// commentaires sépare les deux sans exempter aucun fichier.
-const CODE = /\.(ts|tsx|mjs|json|vue)$/
+// D'un fichier qui écrit des chemins dans des chaînes, on ne lit que les
+// commentaires. Voir docs/internal/architecture.md.
+const WRITES_PATHS = /\.(ts|tsx|mjs)$/
 const COMMENT = /^\s*(\/\/|\/\*|\*)/
+
+// Le seul fichier écarté, et il l'est nommément : le catalogue de mutation
+// porte le code muté, chemins faux compris, et le JSON n'a pas de commentaire
+// où l'on puisse séparer les deux.
+const CATALOGUE = 'test/mutations.json'
 
 const URL_LIKE = /https?:\/\/\S+/g
 
@@ -37,12 +40,12 @@ for (const path of documents) {
 
 function mentionsOf(path) {
   const lines = readFileSync(join(root, path), 'utf8').replace(URL_LIKE, ' ').split('\n')
-  const read = CODE.test(path) ? lines.filter((line) => COMMENT.test(line)) : lines
+  const read = WRITES_PATHS.test(path) ? lines.filter((line) => COMMENT.test(line)) : lines
 
   return [...new Set(read.join('\n').match(MENTION) ?? [])]
 }
 
-const scanned = tracked.filter((path) => SCANNED.test(path))
+const scanned = tracked.filter((path) => SCANNED.test(path) && path !== CATALOGUE)
 
 test('les documents cités existent', () => {
   const missing = []

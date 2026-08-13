@@ -102,9 +102,9 @@ Quatre fois sur le lot 3, puis une fois sur le lot 0 decies, une commande a éch
 
 *Origine :* revue 7 de la PR #17.
 
-### `docs/` s'annonce en anglais et ne l'est qu'à un quart
+### La documentation publique s'annonce en anglais et ne l'est qu'à moitié
 
-`CONTRIBUTING.md` et `arborescence.md` étiquettent `docs/` comme public et anglais, alors que sur ses quatre documents, seul `decisions.md` l'est. `README.md`, `CONTRIBUTING.md` et `spec-contrats.md` sont en français.
+`CONTRIBUTING.md` et `arborescence.md` étiquettent `docs/` comme public et anglais. Sur ses deux documents, seul `decisions.md` l'est, `spec-contrats.md` étant en français. Les deux autres documents publics sont à la racine, `README.md` et `CONTRIBUTING.md`, et tous deux en français.
 
 *Ce qui a été fait :* les deux étiquettes disent désormais que la bascule est en cours, et `decisions.md` nomme l'issue qui la termine.
 
