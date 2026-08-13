@@ -777,9 +777,13 @@ Le manifeste compte **en entier**, `scripts` et `devDependencies` compris, plut�
 
 **Les mêmes deux exemptions que le contrôle de revue :** les brouillons, puisque le flux dépose la note pendant le brouillon, et les branches `changeset-release/*`, où le robot n'en dépose jamais.
 
+**Il échoue en cas de panne**, plutôt que de laisser passer : une réponse d'API illisible fait tomber le script, donc le contrôle. C'est le sens sûr pour une barrière, à l'inverse de `post-review.mjs`, dont l'échec doit se distinguer d'un verdict mal formé parce qu'il commande un autre geste.
+
 **Ce qui casse si on l'enlève.** Rien immédiatement. Puis un lot change un contrat sans que le changelog le dise, et la version publiée annonce moins qu'elle ne change : c'est le consommateur qui l'apprend, à l'exécution.
 
-*Éprouvé dans les deux sens avant livraison*, ce que le dépôt exige de tout contrôle : sur la PR #17, qui touche six fichiers publiés et porte une note, il passe ; sur la PR #18, outillage seul, il n'exige rien ; et avec un faux `gh` rendant un fichier publié sans note, il sort en 1. Un contrôle qui ne sait que dire oui est indiscernable d'un contrôle correct, et le dépôt en a compté quatre.
+**Éprouvé dans les deux sens avant livraison**, sur une pull request jetable et par le workflow lui-même, pas seulement par les tests : sans note il échoue en nommant le fichier publié, avec une note il passe en nommant la note. Les deux lancements sont les 31688105015 et 31688169680.
+
+Cette vérification n'est pas une formalité. Une sortie « aucun fichier publié touché » est **exactement celle qu'un script qui ne lit rien produirait**, et le dépôt compte quatre contrôles qui sont passés au vert sans rien vérifier. Seul l'échec provoqué distingue les deux.
 
 *Hors périmètre :* l'ajouter aux contrôles exigés du ruleset. Comme pour la revue, le juger sur quelques lots avant de le rendre bloquant.
 

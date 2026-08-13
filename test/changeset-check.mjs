@@ -40,11 +40,13 @@ export function filesOf(number, repo, run = gh) {
   return pages.flat().map(({ filename, status }) => ({ filename, status }))
 }
 
+// `||` et non `??` : un déclenchement manuel passe une chaîne vide, que `??`
+// garderait pour un numéro.
 function main([given]) {
   const repo =
-    env.GITHUB_REPOSITORY ??
+    env.GITHUB_REPOSITORY ||
     gh(['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner'])
-  const number = given ?? gh(['pr', 'view', '--json', 'number', '--jq', '.number'])
+  const number = given || gh(['pr', 'view', '--json', 'number', '--jq', '.number'])
   const { published, notes, ok } = decide(filesOf(number, repo))
 
   console.log(`Fichiers publiés touchés : ${published.length ? published.join(', ') : 'aucun'}`)
