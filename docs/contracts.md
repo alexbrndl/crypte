@@ -453,11 +453,13 @@ Every entry carries a `type`. **One value is implemented: `"story"`.** `"page"` 
 ### 4.3 Stable identifiers
 
 ```ts
-function normalizeSegment(input: string): string
-function storyId(path: string[], name: string): string
+function normalizeSegment(value: string): string
+function storyId(path: readonly string[], name: string): string
 ```
 
-`storyId` applies `normalizeSegment` to the entry path and to the story name. Each is lowercased, stripped of latin accents, and stripped of everything that is not a letter, a digit or a mark.
+`normalizeSegment` lowercases its input, drops latin accents, then **replaces** every run of characters that is not a letter, a digit or a mark with a single `-`. Leading and trailing dashes are removed. So `With reference` gives `with-reference`, not `withreference`.
+
+`storyId` normalises each path segment, drops the empty ones, joins them with `/`, and joins that prefix to the normalised name with `--`. When one of the two sides is empty, the separator is dropped with it: a story at the root gives just its name.
 
 **Marks are kept**, and that is what separates `Всё` from `Все`: the same signs that carry a latin accent build whole letters elsewhere. Removing accents only on a latin base is the rule, not an implementation detail.
 
@@ -652,17 +654,19 @@ This document is a contract. This section is the only place that says what exist
 
 | Section | State |
 | --- | --- |
-| 1.5, project configuration | built, minus the CSS entry, which is loaded by the preview |
+| 1.5, project configuration | the config is read, and the CSS entry is turned into an absolute path. Nothing loads that style sheet yet |
 | 1.5, path aliases | built |
 | 2 and 3, the types | built. `defineStories`, `story` and inference are not |
 | 4, the manifest types | built. Nothing writes a manifest yet |
 | 5, the channel | built and exercised on both sides |
-| 1.2, `crypte check` | not built |
 | 6, plugin contract | not built, and provisional |
 
-Two known gaps between this document and the code:
+**No command is built.** The `crypte` binary answers `--version` and nothing else, `crypte dev` and `crypte check` included.
+
+Three known gaps between this document and the code:
 
 - `update-overrides` and `set-globals` are part of the protocol and have no effect yet. The preview drops them.
+- A path alias cannot replace an installed package. `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because the resolver runs after Vite's own. TypeScript would return the replacement file.
 - The CLI does not yet guarantee the serialisation promised in 4.5, because nothing writes a manifest.
 
 ---
@@ -683,7 +687,7 @@ Two known gaps between this document and the code:
 
 `update-overrides` and `set-globals` stay in the protocol, and the preview still ignores them. The code is what is late here, not the document. Tracked in DCJ-214.
 
-**v0.9 and earlier.** Eight versions, in French, in `docs/internal/spec-journal.md`. Each one carries the reasoning that led to it, which is why it was kept rather than translated.
+**v0.9 and earlier.** Nine versions, in French, in `docs/internal/spec-journal.md`. Each one carries the reasoning that led to it, which is why it was kept rather than translated.
 
 | Version | Change |
 | --- | --- |

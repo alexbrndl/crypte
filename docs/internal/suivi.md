@@ -102,13 +102,13 @@ Quatre fois sur le lot 3, puis une fois sur le lot 0 decies, une commande a éch
 
 *Origine :* revue 7 de la PR #17.
 
-### La documentation publique s'annonce en anglais et l'est à un quart
+### La documentation publique s'annonce en anglais et l'est à moitié
 
-`CONTRIBUTING.md` et `arborescence.md` étiquettent `docs/` comme public et anglais. Sur ses deux documents, seul `decisions.md` l'est, `contracts.md` étant en français. Les deux autres documents publics sont à la racine, `README.md` et `CONTRIBUTING.md`, et tous deux en français.
+`CONTRIBUTING.md` et `arborescence.md` étiquettent `docs/` comme public et anglais. Ses deux documents le sont depuis la convergence, `contracts.md` et `decisions.md`. Les deux autres documents publics sont à la racine, `README.md` et `CONTRIBUTING.md`, tous deux encore en français.
 
-*Ce qui a été fait :* les deux étiquettes disent désormais que la bascule est en cours, et `decisions.md` nomme l'issue qui la termine.
+*Ce qui a été fait :* les deux étiquettes disent que la bascule est en cours, et `decisions.md` nomme l'issue qui la termine.
 
-*Pourquoi ce n'est pas fait ici :* traduire `contracts.md` avant de l'avoir confronté au code reviendrait à traduire des phrases fausses, ce que `DCJ-208` corrige. `README.md` et `CONTRIBUTING.md` suivent en `DCJ-209`.
+*Pourquoi ce n'est pas fait ici :* `README.md` et `CONTRIBUTING.md` sont le lot `DCJ-209`. Le README est par ailleurs faux sur l'état du projet, donc c'est une réécriture, pas une traduction.
 
 *Origine :* revue de la PR #23.
 

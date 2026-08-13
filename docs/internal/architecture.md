@@ -274,7 +274,7 @@ Le contrôle inverse cherche le nom **entier**. Avec une sous-chaîne, `Manifest
 
 **Depuis la v1.0 du document, il descend au champ.** Chaque interface exportée doit être **déclarée** dans un bloc de code de la partie normative, et tous ses champs doivent s'y trouver. Citer un nom ne coûtait rien : un type mentionné en passant satisfaisait le contrôle précédent, alors qu'un champ absent est un contrat que personne ne peut réimplémenter depuis le document.
 
-La recherche porte sur `interface X`, la déclaration, et non sur une mention. Mesuré : plusieurs interfaces partagent un bloc en section 4.2, et un simple `component: ComponentRef` suffisait à faire passer une interface que le document ne déclarait plus.
+La recherche porte sur `interface X`, la déclaration, et non sur une mention. Elle porte ensuite sur le **corps** de cette interface, pas sur le bloc. Mesuré deux fois : plusieurs interfaces partagent un bloc en section 4.2, si bien qu'un `component: ComponentRef` suffisait à faire passer une interface que le document ne déclarait plus, et que cinq champs sur vingt-quatre, dont `name` et `type`, pouvaient disparaître sans rien faire rougir parce qu'une interface voisine les portait.
 
 *Le contrôle vérifie aussi qu'il a trouvé quelque chose* : une extraction muette parcourrait une liste vide en annonçant que tout est décrit, ce qui est le mode d'échec des trois autres contrôles du dépôt.
 

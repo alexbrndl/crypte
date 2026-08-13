@@ -49,6 +49,12 @@ const NOT_OURS = new Set(['ControlSpec', 'PropsOf', 'StoryModule'])
 const BLOCKS = /```[\s\S]*?```/g
 const normativeBlocks = normative.match(BLOCKS) ?? []
 
+// Le corps d'une interface dans un bloc de documentation, accolades comprises,
+// ou rien si le bloc ne la déclare pas.
+function bodyOf(block: string, name: string): string | undefined {
+  return block.match(new RegExp(`interface\\s+${name}\\b[^{]*\\{([^}]*)\\}`))?.[1]
+}
+
 // Une interface exportée et ses champs, `send(ctx): void` compris.
 function declaredInterfaces(): { name: string; fields: string[] }[] {
   return readdirSync(protocol)
@@ -122,13 +128,16 @@ describe('la spécification et le code', () => {
       // Sur la déclaration, pas sur une mention : plusieurs interfaces partagent
       // un bloc, et un simple `component: ComponentRef` suffisait sinon à faire
       // passer une interface que le document ne déclare plus.
-      const blocks = normativeBlocks.filter((block) =>
-        new RegExp(`interface\\s+${name}\\b`).test(block),
-      )
-      expect(blocks, `aucun bloc de code ne déclare ${name}`).not.toEqual([])
+      const bodies = normativeBlocks
+        .map((block) => bodyOf(block, name))
+        .filter((body) => body !== undefined)
+      expect(bodies, `aucun bloc de code ne déclare ${name}`).not.toEqual([])
 
+      // Dans le corps de l'interface, pas dans le bloc : `name` et `type` sont
+      // portés par trois interfaces d'un même bloc en section 4.2, et cinq
+      // champs sur vingt-quatre pouvaient disparaître sans rien faire rougir.
       const missing = fields.filter(
-        (field) => !blocks.some((block) => new RegExp(`\\b${field}\\b`).test(block)),
+        (field) => !bodies.some((body) => new RegExp(`\\b${field}\\b`).test(body)),
       )
       expect(missing, `${name} : ces champs ne sont décrits nulle part`).toEqual([])
     }
