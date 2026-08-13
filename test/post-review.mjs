@@ -70,6 +70,10 @@ function gh(args) {
   return execFileSync('gh', args, { stdio: 'pipe', encoding: 'utf8' }).trim()
 }
 
+function git(args) {
+  return execFileSync('git', args, { stdio: 'pipe', encoding: 'utf8' })
+}
+
 // Le compte rendu par `gh`. Un `NaN` passerait toutes les comparaisons qui
 // suivent, donc une publication manquée passerait pour un succès.
 export function readCount(output) {
@@ -91,6 +95,19 @@ function marked(number, run) {
   ])
 
   return readCount(count)
+}
+
+// Les fichiers du diff : un point ancré ailleurs fait refuser le tout en 422,
+// donc au code 2, dont le geste n'est pas celui qui corrige. Une panne de git se
+// dit : un contrôle éteint en silence est pire que pas de contrôle.
+export function changedFiles(run = git) {
+  try {
+    return run(['diff', '--name-only', 'origin/main...HEAD']).split('\n').filter(Boolean)
+  } catch (error) {
+    console.error(`Fichiers du diff illisibles, ancrages non vérifiés : ${error.message}`)
+
+    return undefined
+  }
 }
 
 // Publie, puis vérifie que le compte a bougé. Lève si la revue n'est pas
@@ -129,22 +146,7 @@ function main([file, given]) {
     exit(1)
   }
 
-  // Les fichiers du diff, quand git répond : un point ancré ailleurs fait
-  // refuser le tout en 422, donc au code 2, dont le geste n'est pas celui qui
-  // corrige.
-  let changed
-  try {
-    changed = execFileSync('git', ['diff', '--name-only', 'origin/main...HEAD'], {
-      stdio: 'pipe',
-      encoding: 'utf8',
-    })
-      .split('\n')
-      .filter(Boolean)
-  } catch {
-    changed = undefined
-  }
-
-  const problems = validate(review, changed)
+  const problems = validate(review, changedFiles())
   if (problems.length > 0) {
     console.error(`Verdict refusé, ${problems.length} raison(s) :`)
     for (const problem of problems) console.error(`  ${problem}`)
@@ -160,7 +162,7 @@ function main([file, given]) {
     console.log(`Revue publiée sur #${number} : ${before} → ${after} revue(s) marquée(s).`)
   } catch (error) {
     console.error(`${error.stdout ?? ''}${error.stderr ?? ''}${error.message}`)
-    console.error("La revue n'est pas sur la pull request.")
+    console.error(`La revue n'est pas sur la pull request ${given ? `#${given}` : 'courante'}.`)
     exit(2)
   }
 }

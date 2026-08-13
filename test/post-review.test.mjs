@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { MARKER, publish, readCount, validate } from './post-review.mjs'
+import { changedFiles, MARKER, publish, readCount, validate } from './post-review.mjs'
 
 // Un faux `gh` : rend le compte de revues marquées, qui n'augmente que si la
 // publication a eu lieu.
@@ -130,6 +130,26 @@ test('sans numéro, la pull request est demandée à gh', () => {
 
   expect(publish('revue.json', undefined, gh.run).number).toBe('18')
   expect(gh.calls).toContain('pr view --json number --jq .number')
+})
+
+test('une panne de git laisse les ancrages non vérifiés, mais le dit', () => {
+  const erreurs = []
+  const dire = console.error
+  console.error = (message) => erreurs.push(message)
+
+  try {
+    expect(changedFiles(() => 'a.md\nb.md\n')).toEqual(['a.md', 'b.md'])
+    expect(erreurs).toEqual([])
+
+    expect(
+      changedFiles(() => {
+        throw new Error('bad revision')
+      }),
+    ).toBeUndefined()
+    expect(erreurs).toEqual([expect.stringContaining('bad revision')])
+  } finally {
+    console.error = dire
+  }
 })
 
 test('un point ancré hors du diff est refusé', () => {

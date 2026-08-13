@@ -163,14 +163,14 @@ Construis un fichier JSON, puis envoie-le :
 
 Un verdict sans compte de bloquants est inutilisable : celui qui le reçoit ne peut pas savoir ce qui retient la pull request, et retombe alors à tout corriger, ce qui est la boucle qu'on cherche à fermer.
 
-`test/post-review.mjs` refuse le fichier tant que quatre conditions ne sont pas réunies : le marqueur seul sur la première ligne, `event` à `COMMENT`, un niveau en tête de chaque point ancré, et un compte de bloquants égal au nombre de points ancrés qui en portent le niveau.
+`test/post-review.mjs` refuse le fichier tant que ces conditions ne sont pas réunies : le marqueur seul sur la première ligne, `event` à `COMMENT`, un niveau en tête de chaque point, un `path` et une `line` pour chacun, ce `path` appartenant au diff, et un compte de bloquants égal au nombre de points ancrés qui en portent le niveau.
 
-Cette dernière condition est la moins évidente : **un bloquant laissé dans le corps n'est pas résolvable, donc ne bloque rien.** Le compte annoncé et les points ancrés doivent donc coïncider.
+La dernière est la moins évidente : **un bloquant laissé dans le corps n'est pas résolvable, donc ne bloque rien.** Le compte annoncé et les points ancrés doivent donc coïncider.
 
-Deux contraintes de l'API restent à ta charge, le script ne pouvant pas les vérifier :
+Deux choses restent à ta charge :
 
-- `path` et `line` doivent désigner une ligne **présente dans le diff**, sinon l'appel entier échoue. En cas de doute, vérifie avec `git diff origin/main...HEAD -- <fichier>`.
-- **Ancre chaque point sur un fichier autant que possible.** Pour une remarque sans ligne évidente, par exemple une documentation manquante, ancre-la sur le fichier le plus concerné du diff.
+- **Ancre chaque point sur un fichier.** Pour une remarque sans ligne évidente, par exemple une documentation manquante, ancre-la sur le fichier le plus concerné du diff.
+- **`line` doit tomber dans une portion du diff**, pas seulement dans un fichier qu'il touche. Le script vérifie le fichier, pas la ligne, et l'API refuse l'appel entier pour un seul point mal placé. En cas de doute, `git diff origin/main...HEAD -- <fichier>`.
 
 Structure de chaque commentaire ancré : la contrainte enfreinte citée nommément, et ce qui casse concrètement.
 
