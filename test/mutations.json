@@ -290,9 +290,17 @@
   {
     "garantie": "La simulation clone, donc rien de non sérialisable ne traverse",
     "fichier": "packages/core/test/fake-window.ts",
-    "avant": "const data = structuredClone(event.data)",
-    "apres": "const data = event.data",
+    "avant": "const copie = structuredClone(data)",
+    "apres": "const copie = data",
     "trouvee": "revue de la PR #21",
     "attendu": "channel.test.ts > refuse de transporter ce qui n’est pas sérialisable"
+  },
+  {
+    "garantie": "La simulation exécute chaque écouteur dans sa propre fenêtre",
+    "fichier": "packages/core/test/fake-window.ts",
+    "avant": "      global.window = self\n",
+    "apres": "",
+    "trouvee": "revue 2 de la PR #21",
+    "attendu": "channel.test.ts > chaque côté lit sa propre fenêtre pendant la distribution"
   }
 ]

@@ -6,6 +6,8 @@
 
 type Listener = (event: MessageEvent) => void
 
+const global = globalThis as unknown as { window?: unknown }
+
 export interface FakeWindow {
   location: { origin: string }
   parent: FakeWindow
@@ -38,7 +40,15 @@ export function windowAt(origin: string): FakeWindow {
     },
 
     postMessage(data, targetOrigin) {
-      self.deliver({ data, origin: self.sender.location.origin, source: self.sender }, targetOrigin)
+      // Le clonage a lieu à l'envoi, avant tout examen de `targetOrigin` : une
+      // fonction ou une instance de composant lève chez l'émetteur, même quand
+      // le message n'aurait été livré à personne. C'est la promesse du canal.
+      const copie = structuredClone(data)
+
+      self.deliver(
+        { data: copie, origin: self.sender.location.origin, source: self.sender },
+        targetOrigin,
+      )
     },
 
     deliver(event, targetOrigin) {
@@ -48,13 +58,20 @@ export function windowAt(origin: string): FakeWindow {
       // construction : les deux divergeraient dès qu'un test change l'origine.
       if (targetOrigin !== '*' && targetOrigin !== self.location.origin) return
 
-      // Le navigateur clone : une fonction, un noeud DOM ou une instance de
-      // composant lève ici plutôt que de traverser. C'est la promesse du canal.
-      const data = structuredClone(event.data)
+      // Un écouteur s'exécute dans la fenêtre qui reçoit : pendant la
+      // distribution, `window` désigne celle-ci et non celle qui a émis. Sans
+      // ce passage, les deux canaux d'un même test liraient le même `parent` et
+      // la même origine, et l'appariement des deux côtés ne serait pas éprouvé.
+      const precedent = global.window
+      global.window = self
 
-      // Copie de la liste : un écouteur qui se retire pendant la distribution ne
-      // doit pas décaler les autres.
-      for (const listener of [...listeners]) listener({ ...event, data } as unknown as MessageEvent)
+      try {
+        // Copie de la liste : un écouteur qui se retire pendant la distribution
+        // ne doit pas décaler les autres.
+        for (const listener of [...listeners]) listener(event as unknown as MessageEvent)
+      } finally {
+        global.window = precedent
+      }
     },
 
     listenerCount: () => listeners.size,

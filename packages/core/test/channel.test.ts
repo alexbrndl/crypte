@@ -15,29 +15,30 @@ afterEach(() => {
   delete global.window
 })
 
-// Monte les deux canaux, chacun dans son contexte : le global bascule d'une
-// fenêtre à l'autre, comme deux documents servis par le même serveur.
+// Monte les deux canaux, chacun dans son contexte. `window` désigne le shell au
+// retour, comme dans le document qui pilote ; la simulation le bascule d'elle-
+// même vers la fenêtre qui reçoit, le temps de chaque distribution.
 function branche(render: (id: string, overrides: Record<string, unknown>) => void) {
   const shell = windowAt(ORIGIN)
   const preview = windowAt(ORIGIN)
 
   preview.parent = shell
   preview.sender = shell
-  shell.parent = shell
   shell.sender = preview
 
   const recus: unknown[] = []
 
+  // Le shell d'abord, comme dans un navigateur : il pose l'iframe, qui se
+  // charge ensuite et annonce `ready`. L'ordre inverse perdrait l'annonce.
   global.window = shell
   const canal = createShellChannel({ contentWindow: preview } as unknown as HTMLIFrameElement)
   const stop = canal.onMessage((message) => recus.push(message))
 
   global.window = preview
   createPreviewChannel({ render })
-
   global.window = shell
 
-  return { canal, recus, stop }
+  return { shell, preview, canal, recus, stop }
 }
 
 it('un aller-retour complet, sans message forgé', () => {
@@ -74,4 +75,17 @@ it('refuse de transporter ce qui n’est pas sérialisable', () => {
   expect(() =>
     canal.send({ type: 'render', id: 'badge--par-defaut', overrides: { onClick: () => {} } }),
   ).toThrow()
+})
+
+// Ce que la preview lit dans `window` doit être sa fenêtre, pas celle du shell.
+// Sans cette bascule, les deux canaux liraient le même `parent` et la même
+// origine, et l'appariement des deux côtés serait vrai par accident.
+it('chaque côté lit sa propre fenêtre pendant la distribution', () => {
+  const vues: unknown[] = []
+  const { shell, preview, canal } = branche(() => vues.push(global.window))
+
+  canal.send({ type: 'render', id: 'badge--par-defaut', overrides: {} })
+
+  expect(vues).toEqual([preview])
+  expect(global.window).toBe(shell)
 })

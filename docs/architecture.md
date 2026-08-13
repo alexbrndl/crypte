@@ -866,7 +866,9 @@ La première règle rend les filtres observables. Sans elle, remplacer `window.l
 
 La seconde est la promesse structurelle de la section 5.1 de la spécification : c'est `postMessage` qui interdit à un élément React de traverser, pas une convention. Une simulation qui passe la référence telle quelle laisserait écrire un test que le navigateur refuserait.
 
-**Les deux règles sont elles-mêmes au catalogue de mutation.** Si la simulation cesse de les tenir, les douze mutations du canal ne prouvent plus rien : c'est le seul endroit du dépôt où un outil de vérification est vérifié par un autre.
+Une troisième règle vient de la même exigence : **un écouteur s'exécute dans la fenêtre qui reçoit**, donc `window` bascule le temps de chaque distribution. Sans ce passage, les deux canaux d'un même test liraient le même `parent` et la même origine, et leur appariement serait vrai par accident.
+
+**Ces règles sont elles-mêmes au catalogue de mutation.** Si la simulation cesse de les tenir, les mutations du canal ne prouvent plus rien : c'est le seul endroit du dépôt où un outil de vérification est lui-même vérifié.
 
 **Ce qui casse si on l'enlève.** Rien de visible, et c'est le problème : avant ces tests, remplacer `origin` par `'*'` dans la réponse de la preview laissait la suite entièrement verte, alors que le commentaire juste au-dessus en fait la raison de sûreté du canal.
 
