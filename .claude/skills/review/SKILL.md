@@ -48,15 +48,13 @@ Diff :
 <sortie de git diff origin/main...HEAD>
 ```
 
-Le sous-agent rend son verdict et se termine. **Poste-le immédiatement, avant de lire les points en détail et avant toute correction**, puis vérifie qu'il y est :
+Le sous-agent rend son verdict et se termine. Écris-le dans un fichier JSON au format de la section 6, et **publie-le immédiatement, avant de lire les points en détail et avant toute correction** :
 
 ```bash
-gh api repos/<dépôt>/pulls/<numéro>/reviews --input revue.json   # 1. poster
-gh pr view <numéro> --json reviews \
-  --jq '[.reviews[]|select(.body|contains("crypte-review"))]|length'  # 2. compter
+node test/post-review.mjs revue.json <numéro>
 ```
 
-Le compte doit avoir augmenté. S'il vaut zéro, le postage a échoué et rien d'autre ne compte tant qu'il n'a pas abouti.
+Le script refuse un verdict mal formé, compte les revues marquées avant et après, et échoue si le compte n'a pas bougé. Code 1, le verdict est refusé, corrige-le. Code 2, la revue n'est pas arrivée, et rien d'autre ne compte tant que ce n'est pas le cas.
 
 Le contenu est celui du sous-agent, **transcrit sans réécriture**. Ajoute une ligne disant d'où il vient : c'est l'auteur du code qui poste, la revue reste celle d'un regard vierge.
 
@@ -165,15 +163,14 @@ Construis un fichier JSON, puis envoie-le :
 
 Un verdict sans compte de bloquants est inutilisable : celui qui le reçoit ne peut pas savoir ce qui retient la pull request, et retombe alors à tout corriger, ce qui est la boucle qu'on cherche à fermer.
 
-```bash
-gh api "repos/$(gh repo view --json nameWithOwner --jq .nameWithOwner)/pulls/<numéro>/reviews" --input <fichier.json>
-```
+`test/post-review.mjs` refuse le fichier tant que ces conditions ne sont pas réunies : le marqueur seul sur la première ligne, `event` à `COMMENT`, un niveau en tête de chaque point, un `path` et une `line` pour chacun, ce `path` appartenant au diff quand les fichiers du diff sont lisibles, et un compte de bloquants égal au nombre de points ancrés qui en portent le niveau.
 
-Trois contraintes de l'API à respecter :
+La dernière est la moins évidente : **un bloquant laissé dans le corps n'est pas résolvable, donc ne bloque rien.** Le compte annoncé et les points ancrés doivent donc coïncider.
 
-- `event` doit valoir `COMMENT`. `APPROVE` et `REQUEST_CHANGES` sont refusés sur sa propre pull request.
-- `path` et `line` doivent désigner une ligne **présente dans le diff**, sinon l'appel entier échoue. En cas de doute, vérifie avec `git diff origin/main...HEAD -- <fichier>`.
-- **Ancre chaque point sur un fichier autant que possible.** Un point laissé dans le corps de la revue n'est pas résolvable, donc ne bloque rien. Pour une remarque sans ligne évidente, par exemple une documentation manquante, ancre-la sur le fichier le plus concerné du diff.
+Deux choses restent à ta charge :
+
+- **Ancre chaque point sur un fichier.** Pour une remarque sans ligne évidente, par exemple une documentation manquante, ancre-la sur le fichier le plus concerné du diff.
+- **`line` doit tomber dans une portion du diff**, pas seulement dans un fichier qu'il touche. Le script vérifie le fichier, pas la ligne, et l'API refuse l'appel entier pour un seul point mal placé. En cas de doute, `git diff origin/main...HEAD -- <fichier>`.
 
 Structure de chaque commentaire ancré : la contrainte enfreinte citée nommément, et ce qui casse concrètement.
 

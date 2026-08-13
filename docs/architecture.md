@@ -589,6 +589,28 @@ Le lot 2 a demandé neuf revues et cinquante-trois constats. Quatre mesures en s
 
 *Ce qui reste incertain :* les deux premières mesures sont de la discipline, et la discipline a échoué à chaque tour de ce lot. Elles n'ont fonctionné que le jour où elles ont été demandées explicitement. Les écrire les rend opposables en revue, pas automatiques.
 
+### La publication du verdict
+
+`test/post-review.mjs` prend le verdict rendu par le sous-agent et le publie sur la pull request.
+
+**Pourquoi il existe.** Sur les lots 2 et 3, vingt et une relectures ont produit **deux revues** arrivées sur une pull request. Le reste n'existe que dans une conversation, donc n'a servi qu'à son auteur, et `require-review.yml` cherchant un marqueur dans les revues du dépôt, le contrôle finit satisfait par une revue plus ancienne portant sur un autre code.
+
+Deux corrections avaient été tentées sans rien changer : demander au sous-agent de publier avant de rendre compte, sa tâche s'achevant quand il rend son texte ; puis déplacer la responsabilité sur l'orchestrateur, ce qui reste une règle écrite.
+
+**Ce qu'il vérifie.** Le marqueur seul sur la première ligne, `event` à `COMMENT`, un niveau en tête de chaque point, un fichier et une ligne pour chacun, ce fichier appartenant au diff, et un compte de bloquants égal au nombre de points ancrés qui en portent le niveau.
+
+Les deux dernières conditions ne sont pas cosmétiques. Un bloquant laissé dans le corps de la revue n'est pas résolvable, donc ne bloque rien. Et un seul point ancré hors du diff fait refuser l'appel entier en 422 : sans ce contrôle, l'échec sortirait en code 2, celui dont le geste est de recommencer, alors que ce qu'il faut est corriger le fichier.
+
+Puis il compte les revues marquées **avant et après** l'appel, et échoue si le nombre n'a pas bougé. C'est la présence sur la pull request qui fait foi, pas le code de sortie de `gh` : une réponse d'API acceptée mais sans effet passerait sinon pour un succès.
+
+**Le lanceur est injectable.** `publish(fichier, numéro, run)` reçoit ce qui appelle `gh`, ce qui rend testable la garantie même du script. Sans cette couture, inverser la comparaison des deux comptes laissait la suite verte, exactement le défaut que ce script existe pour empêcher : constaté en revue de la pull request qui l'introduit.
+
+Deux codes de sortie, parce qu'ils appellent deux gestes différents : **1**, le verdict est refusé, corrige le fichier ; **2**, la revue n'est pas arrivée, recommence. Tout ce qui parle à GitHub sort en 2, y compris une pull request introuvable, sans quoi une exception sortirait en 1 et se lirait comme un verdict mal formé.
+
+**Ce qui casse si on l'enlève.** Rien mécaniquement, et c'est la limite de ce contrôle : **il ne peut pas forcer sa propre invocation.** Ce qu'il apporte est qu'un postage qui échoue cesse de passer pour un succès, et qu'un tour sans revue publiée devient visible après coup.
+
+*Écarté :* exiger dans `require-review.yml` une revue postérieure au dernier commit. Cette exigence entre en conflit direct avec la règle qui autorise à corriger un point non bloquant sans relancer de tour, et les corrections d'un même diff invalideraient la revue qui les a motivées.
+
 ### Ce que la revue attrape, et ce qu'elle n'attrape pas
 
 **Attrapé :** les écarts par rapport à des règles écrites. Une dépendance interne embarquée en copie, une décision documentée puis prise à l'envers, un ordre d'étapes qui rend un test inopérant.
