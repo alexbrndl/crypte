@@ -24,7 +24,7 @@ Crypte prend le pari inverse : une architecture en couches dès le départ, pour
 
 | Document | Contenu |
 |---|---|
-| [`docs/spec-contrats.md`](docs/spec-contrats.md) | Format de story, manifeste, protocole du canal, contrat de plugin |
+| [`docs/contracts.md`](docs/contracts.md) | Format de story, manifeste, protocole du canal, contrat de plugin |
 | [`docs/internal/test-format-stories.md`](docs/internal/test-format-stories.md) | Test du format sur cinq composants réels, frictions relevées |
 | [`docs/internal/plugins.md`](docs/internal/plugins.md) | Catalogue des plugins, nommage, phases |
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Manifest, StoryEntry } from '../../src/protocol/manifest'
 import type { ResolvedPropDetails } from '../../src/protocol/prop'
 
-// L'entrée de docs/spec-contrats.md §4.2, acceptée telle quelle.
+// L'entrée de docs/contracts.md §4.2, acceptée telle quelle.
 describe('Manifest', () => {
   it("accepte l'exemple de la spécification", () => {
     const manifest = {

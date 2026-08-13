@@ -73,7 +73,7 @@
   },
   {
     "garantie": "Un nom retiré ne survit pas dans le code de la spécification",
-    "fichier": "docs/spec-contrats.md",
+    "fichier": "docs/contracts.md",
     "avant": "  meta?: StoryMeta",
     "apres": "  meta?: EntryMeta",
     "trouvee": "revue 9",
@@ -326,5 +326,21 @@
     "apres": "const COMMENT = /^\\s*(\\/\\/|\\/\\*|\\*)/",
     "trouvee": "lot 0 terdecies",
     "attendu": "changeset-check.test.mjs > ce qui compte comme un changement de commentaire"
+  },
+  {
+    "garantie": "Un champ public absent du document est vu",
+    "fichier": "docs/contracts.md",
+    "avant": "  storyFile: string\n",
+    "apres": "",
+    "trouvee": "lot 0 quaterdecies",
+    "attendu": "spec.test.ts > la spécification et le code > décrit chaque champ dans le bloc de son interface"
+  },
+  {
+    "garantie": "Une interface publique que le document ne déclare plus est vue",
+    "fichier": "docs/contracts.md",
+    "avant": "interface ComponentRef {",
+    "apres": "interface ComponentReference {",
+    "trouvee": "lot 0 quaterdecies",
+    "attendu": "aucun bloc de code ne déclare ComponentRef"
   }
 ]

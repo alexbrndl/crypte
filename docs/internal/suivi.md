@@ -20,7 +20,7 @@ La section 5.2 de la spécification déclare trois messages du shell vers la pre
 
 *Pourquoi ce n'est pas fait ici :* `update-overrides` suppose un panneau qui édite des valeurs, `set-globals` un thème ou une locale à appliquer. Ni l'un ni l'autre n'existe avant le lot 8.
 
-*Origine :* revue de la PR #21.
+*Origine :* revue de la PR #21, devenue `DCJ-214` à la convergence.
 
 ### `Wrap` reste assignable depuis une fonction quand le composant en est une
 
@@ -104,11 +104,11 @@ Quatre fois sur le lot 3, puis une fois sur le lot 0 decies, une commande a éch
 
 ### La documentation publique s'annonce en anglais et l'est à un quart
 
-`CONTRIBUTING.md` et `arborescence.md` étiquettent `docs/` comme public et anglais. Sur ses deux documents, seul `decisions.md` l'est, `spec-contrats.md` étant en français. Les deux autres documents publics sont à la racine, `README.md` et `CONTRIBUTING.md`, et tous deux en français.
+`CONTRIBUTING.md` et `arborescence.md` étiquettent `docs/` comme public et anglais. Sur ses deux documents, seul `decisions.md` l'est, `contracts.md` étant en français. Les deux autres documents publics sont à la racine, `README.md` et `CONTRIBUTING.md`, et tous deux en français.
 
 *Ce qui a été fait :* les deux étiquettes disent désormais que la bascule est en cours, et `decisions.md` nomme l'issue qui la termine.
 
-*Pourquoi ce n'est pas fait ici :* traduire `spec-contrats.md` avant de l'avoir confronté au code reviendrait à traduire des phrases fausses, ce que `DCJ-208` corrige. `README.md` et `CONTRIBUTING.md` suivent en `DCJ-209`.
+*Pourquoi ce n'est pas fait ici :* traduire `contracts.md` avant de l'avoir confronté au code reviendrait à traduire des phrases fausses, ce que `DCJ-208` corrige. `README.md` et `CONTRIBUTING.md` suivent en `DCJ-209`.
 
 *Origine :* revue de la PR #23.
 

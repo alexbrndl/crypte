@@ -1,6 +1,6 @@
 # Architecture du dépôt
 
-> Décrit l'état du dépôt aujourd'hui, pas ce qui est prévu. Les contrats du produit (format de story, manifeste, protocole du canal, contrat de plugin) sont dans `spec-contrats.md` et ne sont pas répétés ici.
+> Décrit l'état du dépôt aujourd'hui, pas ce qui est prévu. Les contrats du produit (format de story, manifeste, protocole du canal, contrat de plugin) sont dans `contracts.md` et ne sont pas répétés ici.
 
 Le dépôt est un monorepo. Il contient trois paquets publiables sous le scope `@crypte` et la chaîne d'outillage qui les vérifie et les construit. À ce stade, **aucune fonctionnalité produit n'est implémentée** : ce qui existe est le squelette, la chaîne de build et les garde-fous.
 
@@ -112,7 +112,7 @@ Elle contient aussi `Badge.tsx`, un composant codé en dur. Il n'y a aucune déc
 
 ### `docs/`
 
-Documents de référence. `spec-contrats.md` fait foi pour les quatre contrats du produit. Ces fichiers sont exclus du formatage automatique.
+Documents de référence. `contracts.md` fait foi pour les quatre contrats du produit. Ces fichiers sont exclus du formatage automatique.
 
 ---
 
@@ -272,6 +272,12 @@ La recherche porte sur le code et non sur la prose : c'est de là qu'on réimpl�
 
 Le contrôle inverse cherche le nom **entier**. Avec une sous-chaîne, `Manifest` était satisfait par `ManifestEntry` : mesuré, les trois types centraux du protocole, `Manifest`, `ShellMessage` et `PreviewMessage`, n'étaient nommés nulle part dans la partie normative et le test restait vert.
 
+**Depuis la v1.0 du document, il descend au champ.** Chaque interface exportée doit être **déclarée** dans un bloc de code de la partie normative, et tous ses champs doivent s'y trouver. Citer un nom ne coûtait rien : un type mentionné en passant satisfaisait le contrôle précédent, alors qu'un champ absent est un contrat que personne ne peut réimplémenter depuis le document.
+
+La recherche porte sur `interface X`, la déclaration, et non sur une mention. Mesuré : plusieurs interfaces partagent un bloc en section 4.2, et un simple `component: ComponentRef` suffisait à faire passer une interface que le document ne déclarait plus.
+
+*Le contrôle vérifie aussi qu'il a trouvé quelque chose* : une extraction muette parcourrait une liste vide en annonçant que tout est décrit, ce qui est le mode d'échec des trois autres contrôles du dépôt.
+
 ---
 
 ## 4 bis. Le contrôle de mutation
@@ -300,7 +306,7 @@ Le verdict ne pouvait pas être « n'est gardée par rien » : celui-là ne dép
 
 **Il exige que ce soit le bon gardien qui rougisse.** Chaque entrée nomme ce qui doit apparaître dans la sortie d'échec. Sans cela, une mutation vue par un test sans rapport laisserait croire que la garantie tient, alors que celui qui la porte est muet : c'est « un test passe pour la mauvaise raison » transposé à l'outil censé le détecter. À l'ajout de ce contrôle, deux entrées sur neuf se sont révélées mal attribuées.
 
-**Ce qu'il ne couvre pas.** Seulement les garanties qu'on a pensé à y mettre : il empêche un défaut trouvé de revenir, il n'en trouve pas de nouveau. Le contrôle de la spécification, lui, vérifie qu'un nom est **mentionné**, pas qu'il est décrit : un type cité en passant lui suffit.
+**Ce qu'il ne couvre pas.** Seulement les garanties qu'on a pensé à y mettre : il empêche un défaut trouvé de revenir, il n'en trouve pas de nouveau. Le contrôle de la spécification, lui, ne descend pas plus bas que le champ : il voit un champ absent, pas une phrase fausse à côté d'un champ présent.
 
 ---
 
@@ -492,7 +498,7 @@ Règle à retenir si un autre workflow apparaît : `cancel-in-progress: true` po
 
 **Le prompt** vit dans `.claude/skills/review/SKILL.md` et se lance avec `/review` depuis la racine du dépôt. Cet emplacement est la convention de l'outil : un dossier par skill, contenant un `SKILL.md` avec un en-tête `name` et `description`. Versionné dans le dépôt, il suit les branches et s'améliore au fil des lots.
 
-Il relit le diff de la branche contre `origin/main`, le confronte à `CLAUDE.md` et aux contrats de `docs/spec-contrats.md`, puis poste son verdict en commentaire de la pull request.
+Il relit le diff de la branche contre `origin/main`, le confronte à `CLAUDE.md` et aux contrats de `docs/contracts.md`, puis poste son verdict en commentaire de la pull request.
 
 **Le contrôle** est `.github/workflows/require-review.yml`. Il liste les commentaires et les revues de la pull request, cherche le marqueur, et échoue s'il ne le trouve pas.
 

@@ -8,10 +8,16 @@ import { describe, expect, it } from 'vitest'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const protocol = join(here, '..', 'src', 'protocol')
-const spec = readFileSync(join(here, '..', '..', '..', 'docs', 'spec-contrats.md'), 'utf8')
+const docs = join(here, '..', '..', '..', 'docs')
+const spec = readFileSync(join(docs, 'contracts.md'), 'utf8')
 
-const JOURNAL = '## 8. Journal des versions'
-const [normative = '', journal = ''] = spec.split(JOURNAL)
+// L'historique d'avant la v1.0 vit à part, en français : il porte le raisonnement
+// de huit versions, que le document public résume en un tableau.
+const history = readFileSync(join(docs, 'internal', 'spec-journal.md'), 'utf8')
+
+const LOG = '## 9. Version log'
+const [normative = '', log = ''] = spec.split(LOG)
+const journal = `${log}\n${history}`
 
 // Les portions de code de la partie normative, blocs et fragments. C'est de là
 // qu'on réimplémente, donc la seule matière où un nom mort fait des dégâts. Le
@@ -38,6 +44,24 @@ const RETIRED: [string, RegExp][] = [
 // fournit, ou c'est une évolution annoncée. Toute autre absence est un écart.
 const NOT_OURS = new Set(['ControlSpec', 'PropsOf', 'StoryModule'])
 
+// Les blocs de code de la partie normative, séparés : un champ doit se trouver
+// dans le même bloc que son interface, pas n'importe où dans le document.
+const BLOCKS = /```[\s\S]*?```/g
+const normativeBlocks = normative.match(BLOCKS) ?? []
+
+// Une interface exportée et ses champs, `send(ctx): void` compris.
+function declaredInterfaces(): { name: string; fields: string[] }[] {
+  return readdirSync(protocol)
+    .filter((file) => file.endsWith('.ts') && file !== 'index.ts')
+    .flatMap((file) => {
+      const source = readFileSync(join(protocol, file), 'utf8')
+      return [...source.matchAll(/^export interface (\w+)[^{]*\{([^}]*)\}/gm)].map((match) => ({
+        name: match[1] as string,
+        fields: [...(match[2] ?? '').matchAll(/^\s{2}(\w+)\??[:(]/gm)].map((f) => f[1] as string),
+      }))
+    })
+}
+
 function declaredNames(): string[] {
   return readdirSync(protocol)
     .filter((file) => file.endsWith('.ts') && file !== 'index.ts')
@@ -53,9 +77,15 @@ describe('la spécification et le code', () => {
   const declared = declaredNames()
 
   it('lit bien les deux', () => {
-    expect(journal, 'section 8 introuvable').not.toBe('')
+    expect(log, 'section 9 introuvable').not.toBe('')
     expect(declared.length).toBeGreaterThan(10)
     expect(normativeCode.length).toBeGreaterThan(1000)
+
+    // Une extraction muette rendrait le contrôle des champs vacant : il
+    // parcourrait une liste vide en annonçant que tout est décrit.
+    const withFields = declaredInterfaces().filter((one) => one.fields.length > 0)
+    expect(withFields.length, 'aucune interface à champs trouvée').toBeGreaterThan(5)
+    expect(normativeBlocks.length).toBeGreaterThan(10)
   })
 
   // Douze constats de revue venaient de là : un nom renommé qui survit dans la
@@ -79,6 +109,28 @@ describe('la spécification et le code', () => {
       expect(normative, `${name} est exporté mais absent de la partie normative`).toMatch(
         new RegExp(`\\b${name}\\b`),
       )
+    }
+  })
+
+  // Citer un nom ne coûte rien : un type mentionné en passant satisfaisait le
+  // contrôle précédent. Un champ absent du bloc qui décrit son interface est en
+  // revanche un contrat que personne ne peut réimplémenter depuis le document.
+  it('décrit chaque champ dans le bloc de son interface', () => {
+    for (const { name, fields } of declaredInterfaces()) {
+      if (fields.length === 0) continue
+
+      // Sur la déclaration, pas sur une mention : plusieurs interfaces partagent
+      // un bloc, et un simple `component: ComponentRef` suffisait sinon à faire
+      // passer une interface que le document ne déclare plus.
+      const blocks = normativeBlocks.filter((block) =>
+        new RegExp(`interface\\s+${name}\\b`).test(block),
+      )
+      expect(blocks, `aucun bloc de code ne déclare ${name}`).not.toEqual([])
+
+      const missing = fields.filter(
+        (field) => !blocks.some((block) => new RegExp(`\\b${field}\\b`).test(block)),
+      )
+      expect(missing, `${name} : ces champs ne sont décrits nulle part`).toEqual([])
     }
   })
 

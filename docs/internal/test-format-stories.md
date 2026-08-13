@@ -275,7 +275,7 @@ Sur les quatre décisions structurantes, trois sont confirmées sans réserve.
 
 ## 4. Suite
 
-Six corrections à reporter dans `docs/spec-contrats.md`, dont une seule touche à la structure du manifeste et du protocole : le marqueur de fonction.
+Six corrections à reporter dans `docs/contracts.md`, dont une seule touche à la structure du manifeste et du protocole : le marqueur de fonction.
 
 Deux fichiers de fixtures à ajouter côté projet, dans `src/fixtures/` : les plans tarifaires et les traductions de loader.
 

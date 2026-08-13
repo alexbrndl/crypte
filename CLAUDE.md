@@ -1,6 +1,6 @@
 # Instructions pour les agents
 
-Lire `docs/internal/architecture.md` avant toute modification de structure, et `docs/spec-contrats.md` avant toute question de format, de manifeste, de protocole ou de plugin.
+Lire `docs/internal/architecture.md` avant toute modification de structure, et `docs/contracts.md` avant toute question de format, de manifeste, de protocole ou de plugin.
 
 ---
 
@@ -43,6 +43,8 @@ gh pr create --draft --title "…"    # 1. jamais directement ouverte
 /review                              # 6. si les corrections touchent du code
 gh pr ready <numéro>                 # 7. une fois les points traités
 ```
+
+**Le statut du tracker suit le travail, pas la fin du travail.** En ouvrant la branche, l'issue passe **In Progress** ; en sortant du brouillon, **Review Tech** ; à la fusion, **Done**. C'est ce qui permet de savoir où en est un lot sans lire une conversation, et ça s'oublie exactement quand le lot devient intéressant.
 
 **L'exploration découvre, la revue confirme.** Prises à l'envers, elles coûtent un tour de douze minutes par constat : le lot 3 en a demandé neuf, dont trois points bloquants qui étaient les trois paramètres d'une même fonction.
 

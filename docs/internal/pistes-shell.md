@@ -1,6 +1,6 @@
 # Crypte, pistes issues de l'exploration d'interface
 
-> Propositions, rien n'est arbitré. Ce fichier existe pour que les décisions prises en dessinant le shell ne se perdent pas entre deux lots. Il ne fait pas foi : `spec-contrats.md` fait foi, et `suivi.md` porte les points de revue arbitrés, ce qui n'est pas le cas d'ici.
+> Propositions, rien n'est arbitré. Ce fichier existe pour que les décisions prises en dessinant le shell ne se perdent pas entre deux lots. Il ne fait pas foi : `contracts.md` fait foi, et `suivi.md` porte les points de revue arbitrés, ce qui n'est pas le cas d'ici.
 >
 > Chaque piste dit ce qu'elle coûte. L'ordre va du moins cher au plus cher à l'intérieur de chaque section.
 
@@ -8,7 +8,7 @@
 
 ## 1. Ce qui touche aux contrats
 
-Ces quatre points modifient `spec-contrats.md`. Aucun n'est rétrocompatible par accident : trois sont additifs, le dernier ne l'est pas.
+Ces quatre points modifient `contracts.md`. Aucun n'est rétrocompatible par accident : trois sont additifs, le dernier ne l'est pas.
 
 ### 1.1 `UIContribution` prend une forme
 

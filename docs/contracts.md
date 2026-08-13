@@ -1,0 +1,698 @@
+# Crypte contracts
+
+> Version 1.0, reference document. A project brief points here instead of restating these shapes.
+>
+> Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
+
+---
+
+## 0. Scope
+
+This document covers the four surfaces that are expensive to change once the project ships:
+
+1. The **story format**, the public API developers write by hand.
+2. The **manifest**, the contract between the CLI and the core.
+3. The **channel protocol**, the contract between the shell and the preview.
+4. The **plugin contract**, the contract for every plugin to come.
+
+Everything else belongs to a project brief and can change freely.
+
+**Two guiding rules.**
+
+Crypte never reads a project's `vite.config`. It reads standard, framework-neutral formats, plus what the project declares to it.
+
+This document does not try to cover every case. It covers what real use has shown, and lets the rest arrive through bug reports. A mechanism added just in case creates a use you can no longer take back; a mechanism added after a real need breaks nothing.
+
+---
+
+## 1. File conventions
+
+### 1.1 Where stories live
+
+Stories live in their own folder at the root of the project. Its tree mirrors the component tree.
+
+```
+src/components/checkout/OrderSummary.tsx
+stories/checkout/OrderSummary.ts
+```
+
+A story file carries **the exact name of its component**. The sidebar tree comes from the path relative to the stories root. No title is ever declared.
+
+The default extension is `.ts`. A structured `children` prop forces `.tsx`, which is common on composed components such as `Tabs` or `Card`. Both extensions are accepted.
+
+### 1.2 `crypte check`
+
+The command reports two problems:
+
+- **Orphan story**: the component it points at is gone.
+- **Component with no story**: an exported component has no story. This one is a warning and never fails the command.
+
+The second check only looks at exports **identified as components**: a capitalised name that returns an element. Utility functions exported from a component file, such as `stepFromProgress` in `ProgressLoader.tsx`, are never reported.
+
+**When in doubt, report nothing.** A false warning costs more than a miss: it teaches people to ignore the command.
+
+### 1.3 Fixtures
+
+Large props, such as business objects or translation dictionaries, do not belong in story files. They live in shared fixtures and get imported, exactly as application code does.
+
+```ts
+import { planPro } from '@/fixtures/plans'
+```
+
+Crypte imposes no location and no naming rule. Fixtures are ordinary modules, resolved through the project's own path aliases.
+
+### 1.4 Packages
+
+Everything is scoped under `@crypte`. A user installs two packages:
+
+```bash
+npm i -D @crypte/cli @crypte/react
+```
+
+| Package | Role | Installed by the user |
+| --- | --- | --- |
+| `@crypte/cli` | the `crypte` binary, `defineConfig` | yes |
+| `@crypte/react` | adapter, `defineStories`, `story` | yes, the one for their framework |
+| `@crypte/core` | the core, an internal dependency | no, never imported directly |
+| `@crypte/<plugin>` | plugins, one at a time | on demand |
+
+The package name and the command name are independent: `@crypte/cli` declares a binary called `crypte`, and the user types `crypte dev`.
+
+**`defineStories` and `story` come from the adapter, not from a neutral package.** The adapter knows the framework, so prop types are inferred more precisely. A Vue project imports them from its own adapter, and nothing else changes.
+
+### 1.5 Project configuration
+
+A `crypte.config.ts` file at the root:
+
+```ts
+import { defineConfig } from '@crypte/cli'
+import react from '@crypte/react'
+import controls from '@crypte/controls'
+import { ThemeProvider } from './src/lib/theme'
+
+export default defineConfig({
+  stories: 'stories',
+  css: 'src/styles/app.css',
+  adapter: react(),
+  wrap: ThemeProvider,
+  plugins: [controls()],
+  vite: { plugins: [] },
+})
+```
+
+| Key | Role | Required |
+| --- | --- | --- |
+| `stories` | root of the story files | yes |
+| `adapter` | framework adapter | yes |
+| `css` | style sheet loaded in the preview | no |
+| `wrap` | global wrapper, applied to every story | no |
+| `plugins` | Crypte plugins to enable | no |
+| `vite` | Vite plugins the project declares | no |
+
+Two keys are required, and an error names the one that is missing.
+
+`vite.plugins` exists for the cases where a framework needs an extra transform, such as Nuxt auto-imports. The project declares it. Crypte never guesses it.
+
+**Path aliases are read on their own**, from `compilerOptions.paths`. Nothing is declared in `crypte.config.ts`.
+
+- `tsconfig.json` is read first, then `jsconfig.json`. The first file that declares paths wins.
+- `extends` is followed, and each level is read where it is written, so a path stays relative to the file that declares it.
+- A missing `extends` target is common, for example `./.nuxt/tsconfig.json` before `nuxt prepare`. Crypte warns and carries on. Aliases are an improvement, not a condition to start.
+- Every file it looked at is watched, including one with no paths. Adding paths to it must trigger a reload.
+
+Path aliases apply to JavaScript and TypeScript alike. They do not apply inside style sheets: an `@import '@/vars.css'` does not resolve today.
+
+---
+
+## 2. Story format
+
+### 2.1 The shape
+
+```ts
+import { defineStories, story } from '@crypte/react'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import OrderSummary from '@/components/checkout/OrderSummary'
+
+export default defineStories(OrderSummary, {
+  wrap: TooltipProvider,
+  props: {
+    bannerLabel: 'Your order is confirmed',
+    title: 'Full plan and two modules',
+    benefits: ['Full history', 'Verified data', 'Claims'],
+  },
+  stories: {
+    'Default': {},
+    'With reference': { reference: 'REF-4821-KD' },
+    'From a listing': { sourceLabel: 'marketplace.example.com/l/123' },
+  },
+})
+```
+
+The component comes first. Every type is inferred from it: no type alias, no `satisfies`, no type import.
+
+### 2.2 The smallest case
+
+When every prop is optional:
+
+```ts
+export default defineStories(Badge)
+```
+
+A single story named `Default` is generated. Otherwise:
+
+```ts
+export default defineStories(Badge, {
+  stories: { 'Default': { children: 'New' } },
+})
+```
+
+### 2.3 Signature
+
+```ts
+function defineStories<C>(
+  component: C,
+  definition?: StoryDefinition<PropsOf<C>, AnyComponent>,
+): StoryModule<C>
+```
+
+`AnyComponent`, `PropsOf` and `StoryModule` belong to the adapter, not to the core. `AnyComponent` is the framework's component type, and it must not be the type of the story's own component: a wrapper has no reason to accept its props, and `wrap: TooltipProvider` would stop compiling on `defineStories(Badge, …)`.
+
+```ts
+interface StoryDefinition<P, C> {
+  props?: Partial<P>
+  stories?: Record<string, Partial<P> | Story<P>>
+  wrap?: Wrap<C>
+  details?: Partial<Record<keyof P, PropDetails>>
+  meta?: StoryMeta
+}
+```
+
+**`props`** carries what every story shares. Each story then declares only what differs. The merge is shallow, prop by prop.
+
+One consequence to know: two mutually exclusive props need an explicit reset. On `ProgressLoader`, a story that moves from `itemLabel` to `criteria` writes `itemLabel: null`. That is what a shallow merge does, and making it smarter would add magic.
+
+**Story keys are free strings.** Accents, spaces and capitals are allowed. What you write is what you see.
+
+Props can hold any JavaScript value, functions and elements included. **The preview imports the story module directly**, so nothing here is ever serialised. See section 4.1.
+
+### 2.4 The `story()` helper
+
+A story sometimes needs options next to its props: a forced width, an interaction, a plugin setting. The helper keeps them apart.
+
+```ts
+story(props, options)
+```
+
+```ts
+'Collapsed on mobile': story({ reference: 'REF-4821' }, { responsive: 'mobile' }),
+```
+
+```ts
+interface Story<P> {
+  props: Partial<P>
+  options?: StoryOptions
+}
+```
+
+The second argument is typed by the plugins you have installed, which is what gives autocompletion. **With no plugin installed, no option key is accepted at all**, so the example above needs the plugin that declares `responsive`. The common case has no options and never uses this helper.
+
+### 2.5 `wrap`
+
+`wrap` rebuilds the context an isolated component is missing. **It stacks components, and nothing else.** Three shapes:
+
+```ts
+wrap: TooltipProvider
+wrap: [ThemeProvider, TooltipProvider]
+wrap: [[ThemeProvider, { mode: 'dark' }], TooltipProvider]
+```
+
+```ts
+type Wrap<C> = C | readonly WrapEntry<C>[]
+type WrapEntry<C> = C | readonly [C, Record<string, unknown>]
+```
+
+In the array shape, **the first entry is the outermost**.
+
+All three are declarative, so they are portable: a Vue adapter reads them without a single character changing in the file.
+
+**There is no function shape.** In React a component *is* a function, so `wrap: TooltipProvider` and `wrap: (story) => …` would be the same type, and the adapter could not tell whether to instantiate what it gets or hand it an element that is already rendered. A computed value goes through props, where it is evaluated when the story file loads:
+
+```ts
+wrap: [[Foo, { bar: compute() }]]
+```
+
+Wrapping a bit of markup therefore needs a component rather than an anonymous function. That is one extra line, and every adapter can read it.
+
+**Any function passed to `wrap` is instantiated as a component.** Types cannot enforce this, since a React component is itself a function. It is a rule, and it makes the adapter predictable: writing `wrap: (story) => …` and expecting the rendered element gives a wrong render, not an ambiguity.
+
+The global `wrap` from `crypte.config.ts` wraps the file's `wrap`, which wraps the component.
+
+`wrap` nests, and does nothing else. Anything about lifecycle or watching props goes through a plugin's `preview` hooks, in section 6.
+
+### 2.6 `meta`
+
+Component metadata, meant for design-system use:
+
+```ts
+interface StoryMeta {
+  status?: 'draft' | 'stable' | 'deprecated'
+  owner?: string
+  figma?: string
+  description?: string
+}
+```
+
+`status` drives a badge in the sidebar and filtering. `owner` is displayed, and will later route comments. `figma` is a link in the docs panel. `description` completes the component's JSDoc.
+
+Every field is optional. The core reads none of them: they travel to the manifest and plugins consume them.
+
+### 2.7 Controlled components
+
+A controlled component, `selected` with `onSelect` or `value` with `onChange`, is not interactive in a story. Nobody holds the state.
+
+**That is the intended behaviour, not a limit to work around.** A design-system workshop documents states, not journeys. `Selected` and `Unselected` are two stories, each with its own visual baseline, each reachable by a link. Interactivity belongs to the `interactions` plugin, which plays a scenario.
+
+Testing the format on five real components produced no case where this answer was not enough. If one appears, it will be handled then. See section 7.
+
+---
+
+## 3. Prop details
+
+### 3.1 Two sources
+
+1. **Inference at build time.** The CLI reads the TypeScript props interface and the JSDoc next to it. On a well typed component this is enough almost every time.
+2. **Explicit declaration.** The `details` field of a story file.
+
+### 3.2 Merge rule
+
+**Details merge per prop, and field by field.** An explicit declaration replaces only the fields it names. Every other field still comes from inference.
+
+```ts
+details: {
+  price: { min: 0, max: 500, step: 10 },
+}
+```
+
+Here `price` keeps the type, the JSDoc description, the required flag and the default value that inference found. Only the bounds are added.
+
+The field is called `details` because it **completes**: you write what inference could not find, never the whole description of a prop.
+
+### 3.3 The shape of a prop's details
+
+```ts
+type PropKind =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'enum'
+  | 'object'
+  | 'array'
+  | 'function'
+  | 'node'
+  | 'unknown'
+
+// what you write in `details`
+interface PropDetails extends PluginPropDetails {
+  type?: PropKind
+  required?: boolean
+  default?: unknown
+  description?: string
+  options?: unknown[]
+}
+
+// what the manifest carries, once inference has run
+interface ResolvedPropDetails extends PropDetails {
+  type: PropKind
+  required: boolean
+}
+```
+
+There is no `name` field: `details` is keyed by prop name, so a name inside the value would repeat the key.
+
+**The core describes only what holds without any plugin:** what a prop is, whether it is required, its default, its description, its possible values. All of that serves documentation, which exists with no plugin installed.
+
+`PluginPropDetails` is an empty extension point. A plugin adds its own fields from its own package, through module augmentation, and no line of the core changes:
+
+```ts
+interface PluginPropDetails {}
+```
+
+```ts
+declare module '@crypte/core/protocol' {
+  interface PluginPropDetails {
+    min?: number
+    max?: number
+    step?: number
+    control?: ControlSpec | false // ControlSpec belongs to the plugin, not to the core
+  }
+}
+```
+
+Slider bounds and the `control` setting, which removes a prop from the editing panel without removing it from the documentation, belong to the `controls` plugin. **They mean nothing without it**, so the core does not know them. With the plugin absent, writing them is a compile error, which is what we want: nobody would read them.
+
+**An empty extension point is not enough to get that refusal.** TypeScript does not report excess properties against a type that has no property at all, so any object satisfies an empty interface. `PropDetails` escapes this because it inherits core fields and is therefore never empty. `StoryOptions`, made of nothing but the extension point, has to ask for it:
+
+```ts
+interface PluginStoryOptions {}
+
+type StoryOptions = [keyof PluginStoryOptions] extends [never]
+  ? Record<string, never>
+  : PluginStoryOptions
+```
+
+No key is accepted while the extension point is empty, and the usual excess-property check comes back as soon as a plugin fills it.
+
+When inference fails, on a project with no `tsconfig` or on a type too complex to read, the kind falls back to `unknown` and the prop stays documented. **A failed inference must never stop a story from rendering.**
+
+### 3.4 Pass-through DOM props
+
+A component typed `React.ComponentProps<"span">` or similar inherits several hundred DOM attributes. Every shadcn component does.
+
+**Rule: those props are not extracted.** Only `className` is, because it is used everywhere. The platform documents the rest, and nobody reads them in a props table.
+
+One rule, no extra field, and no collapsible group in the shell.
+
+### 3.5 Known limits of inference
+
+Some shapes cannot be resolved by reading syntax alone, and fall back to an explicit declaration.
+
+The common one is CVA: `VariantProps<typeof badgeVariants>` is derived from a function call at runtime. Resolving it would need a full type checker, which Oxc is not. Those options go in `details.options`.
+
+---
+
+## 4. Manifest
+
+### 4.1 Role
+
+Written by the CLI, read by the shell.
+
+**The manifest is not what renders.** The preview imports story modules directly, since they belong to its own Vite bundle. It therefore holds the real props, functions and elements included, and none of that crosses the channel.
+
+The manifest feeds the shell: navigation tree, search, props table, controls panel. It holds serialisable data only. A prop that cannot be serialised is not in it; `details` is enough to say that it exists and what it is.
+
+### 4.2 Typed entries
+
+```ts
+interface Manifest {
+  version: number
+  entries: ManifestEntry[]
+}
+
+type ManifestEntry = StoryEntry
+
+interface StoryEntry {
+  type: 'story'
+  id: string
+  path: string[]
+  name: string
+  component: ComponentRef
+  storyFile: string
+  options: Record<string, unknown>
+  details: Record<string, ResolvedPropDetails>
+  source: string
+  meta?: StoryMeta
+}
+
+interface ComponentRef {
+  name: string
+  file: string
+  export: string
+}
+
+const MANIFEST_VERSION = 1
+```
+
+`version` is a plain number rather than the literal type of `MANIFEST_VERSION`. Its job is to spot a manifest written by another version, and a frozen type would make that comparison impossible.
+
+Every entry carries a `type`. **One value is implemented: `"story"`.** `"page"` and `"tokens"` are reserved for design-system work and must not be implemented now. The reserve costs one field today and saves a migration later.
+
+```json
+{
+  "version": 1,
+  "entries": [
+    {
+      "type": "story",
+      "id": "checkout/ordersummary--with-reference",
+      "path": ["checkout", "OrderSummary"],
+      "name": "With reference",
+      "component": {
+        "name": "OrderSummary",
+        "file": "src/components/checkout/OrderSummary.tsx",
+        "export": "default"
+      },
+      "storyFile": "stories/checkout/OrderSummary.ts",
+      "options": {},
+      "details": {},
+      "source": "<OrderSummary reference=\"REF-4821\" />",
+      "meta": { "status": "stable" }
+    }
+  ]
+}
+```
+
+### 4.3 Stable identifiers
+
+```ts
+function normalizeSegment(input: string): string
+function storyId(path: string[], name: string): string
+```
+
+`storyId` applies `normalizeSegment` to the entry path and to the story name. Each is lowercased, stripped of latin accents, and stripped of everything that is not a letter, a digit or a mark.
+
+**Marks are kept**, and that is what separates `Всё` from `Все`: the same signs that carry a latin accent build whole letters elsewhere. Removing accents only on a latin base is the rule, not an implementation detail.
+
+**The result is not ASCII.** Non-latin scripts are kept, otherwise two distinct Russian or Japanese stories would collapse onto one identifier: `storyId(['Button'], 'Активная')` gives `button--активная`. Whoever puts it in a URL must encode it, and whoever makes it a baseline filename must check that the file system accepts it. The result is composed in NFC, so two identifiers that look the same are the same byte for byte.
+
+**This is stable data, not an implementation detail.** It is a URL, a baseline key for `visual-tests`, and the anchor of a comment. Renaming a story changes its `id` and breaks its baseline. That is accepted, and it must be documented to the user rather than worked around.
+
+### 4.4 Fields carried without reading them
+
+`meta`, `options` and `details` travel from the story file to the manifest untouched. The core does not interpret them; plugins do. A plugin can therefore add its own keys to `options` with no change to the core.
+
+### 4.5 Serialisation
+
+The manifest is written as JSON and read back as is. **Everything it holds must survive that round trip**: no function, no class instance, no `Date`, no `undefined` as a value.
+
+Types do not enforce this. `default`, `options`, and the contents of an entry's `options`, are typed `unknown`, because nothing can know in advance what a component or a plugin puts there. A function would compile, then vanish on write with no error at all, since `JSON.stringify` drops silently what it cannot represent.
+
+**So the CLI has to guarantee what it writes**, by leaving out or rewriting whatever is not serialisable. The likely case is a prop whose default value is a callback.
+
+---
+
+## 5. Channel protocol
+
+### 5.1 Principle
+
+The shell and the preview talk through `postMessage` only, with JSON-serialisable messages. **The shell structurally cannot reach React, Vue, or the component instance.**
+
+That constraint is what keeps the core framework-neutral. One exception here would undo the whole architecture.
+
+```ts
+const PROTOCOL_VERSION = 1
+type Overrides = Record<string, unknown>
+```
+
+The preview announces `PROTOCOL_VERSION` in its `ready` message. It is separate from `MANIFEST_VERSION`: the catalogue format and the message format move on their own.
+
+**It is 1, and the work that wrote this chapter is that version 1.** The counter moves at the first breaking change *after* publication, when a preview and a shell of different versions can actually meet.
+
+The channel never carries a story's props. It carries the id of the entry to render, and the **overrides** coming from controls. An override is always a primitive edited in a panel, so it is always serialisable.
+
+Each direction has its own type: `ShellMessage` goes to the iframe, `PreviewMessage` comes back.
+
+### 5.2 Shell to preview
+
+```ts
+type ShellMessage =
+  | { type: 'render'; id: string; overrides: Overrides }
+  | { type: 'update-overrides'; id: string; overrides: Overrides }
+  | { type: 'set-globals'; globals: Record<string, unknown> }
+  | MessagesOf<PluginShellMessages>
+```
+
+`render` mounts the entry that was asked for. `update-overrides` updates it without remounting. `set-globals` applies global settings such as a theme or a locale.
+
+**Only `render` has an effect today.** The other two are received and ignored. See section 8.
+
+### 5.3 Preview to shell
+
+```ts
+type PreviewMessage =
+  | { type: 'ready'; protocolVersion: number }
+  | { type: 'rendered'; id: string; durationMs: number }
+  | { type: 'error'; id: string; message: string; stack?: string }
+  | MessagesOf<PluginPreviewMessages>
+```
+
+`ready` says the preview is up. `rendered` reports a finished render and how long it took. `error` reports a render that threw, and the shell shows it without falling over.
+
+### 5.4 Rules
+
+- Every payload must survive a JSON round trip. No function, no class instance, no DOM node. `postMessage` enforces this by cloning: a function throws at send time.
+- Both sides send to an exact origin, never `'*'`, and both drop a message that comes from another origin or another window.
+- A render error comes back as `error` and must never take the shell down.
+- A plugin declares its messages from its own package, the same way it declares options and prop details:
+
+```ts
+interface PluginShellMessages {}
+interface PluginPreviewMessages {}
+```
+
+```ts
+declare module '@crypte/core/protocol' {
+  interface PluginShellMessages {
+    controls: PluginMessage<{ type: 'controls:open'; open: boolean }>
+  }
+}
+```
+
+While no plugin has declared anything, the union does not grow, and writing an unknown message is a compile error.
+
+```ts
+type PluginMessage<T extends { type: LiteralOnly<T['type']> }> = T
+```
+
+`PluginMessage` puts the constraint on its parameter, so a malformed message fails **on the line where it is declared**, with the reason in plain text. Two gaps remain: a plugin is free not to use it, and `skipLibCheck`, which is widespread, hides errors coming from a `.d.ts`. The protocol therefore filters on its own side: a value whose `type` field is missing or is not a literal is dropped from the union instead of joining it. Otherwise it would stop `message.type` from discriminating anything at all for the consumer.
+
+---
+
+## 6. Plugin contract
+
+> **Provisional.** This section is the only one that is not frozen. See 6.4.
+
+### 6.1 Shape
+
+A plugin is an object with a name and three optional surfaces.
+
+```ts
+interface CryptePlugin {
+  name: string
+  ui?: UIContribution
+  preview?: PreviewHooks
+  node?: NodeHooks
+}
+```
+
+| Surface | Runs in | Role |
+| --- | --- | --- |
+| `ui` | shell | panel, toolbar button |
+| `preview` | iframe | lifecycle around a render |
+| `node` | CLI | build step, command |
+
+`UIContribution` and `NodeHooks` are named here and not yet specified. They are written when the first plugin needs them.
+
+### 6.2 The golden rule
+
+**A `preview` hook never touches framework internals.** It gets lifecycle events and access to the iframe DOM, never a React tree or a Vue instance.
+
+```ts
+interface PreviewHooks {
+  beforeMount?(ctx: PreviewContext): void
+  afterMount?(ctx: PreviewContext): void
+  onPropsChange?(ctx: PreviewContext): void
+  beforeUnmount?(ctx: PreviewContext): void
+}
+
+interface PreviewContext {
+  id: string
+  props: Record<string, unknown>
+  options: Record<string, unknown>
+  root: HTMLElement
+  send(payload: unknown): void
+}
+```
+
+Without this rule every plugin would be rewritten for every framework, which would cancel the whole point of the architecture.
+
+Anything that needs a framework context, such as `ThemeProvider` or `QueryClientProvider`, belongs to `wrap`, not to a plugin.
+
+### 6.3 `ctx.props` can be changed before mount
+
+Inside `beforeMount`, a plugin may change `ctx.props`. That is the only moment props are mutable; everywhere else the context is read-only.
+
+This exists for one demonstrated case: a function prop the story author did not declare. `PricingCard` expects `onSelect`, the story omits it, the component gets `undefined` and breaks on the first click. The `actions` plugin fills those props with logging functions inside `beforeMount`, using `details` to know which ones are functions.
+
+The core knows nothing about this. With the `actions` plugin absent, the author declares the function themselves.
+
+### 6.4 How this contract becomes stable
+
+The contract counts as stable only once **two plugins with opposite needs** have used it:
+
+- `controls`, which writes into the story.
+- `a11y`, which only reads it.
+
+Until both exist, this section changes without procedure. After that, any change is a break.
+
+---
+
+## 7. Out of scope
+
+Left out on purpose. Some belong to a project brief, others wait for a demonstrated need.
+
+**Belongs to a project brief:**
+
+- How the sidebar, the search and the panels look and behave.
+- Caching and start-up work.
+- The storage format of `visual-tests` baselines.
+- Reading CVA options automatically, in the `docs` plugin.
+- A write API for `crypte serve`, such as comments or editing. Postponed.
+
+**Held in reserve, to add when a real case asks for it:**
+
+- `page` and `tokens` entries. The field exists, the implementation does not.
+- A `render` escape hatch on a story, to make a controlled component truly interactive. Left out of v1 for lack of a demonstrated case, see 2.7. Adding it later breaks nothing; shipping it now would create a use we could not take back.
+- Documenting pass-through DOM attributes, see 3.4.
+- Path aliases inside style sheets, see 1.5.
+
+---
+
+## 8. What is built today
+
+This document is a contract. This section is the only place that says what exists, so that a reader never has to guess.
+
+| Section | State |
+| --- | --- |
+| 1.5, project configuration | built, minus the CSS entry, which is loaded by the preview |
+| 1.5, path aliases | built |
+| 2 and 3, the types | built. `defineStories`, `story` and inference are not |
+| 4, the manifest types | built. Nothing writes a manifest yet |
+| 5, the channel | built and exercised on both sides |
+| 1.2, `crypte check` | not built |
+| 6, plugin contract | not built, and provisional |
+
+Two known gaps between this document and the code:
+
+- `update-overrides` and `set-globals` are part of the protocol and have no effect yet. The preview drops them.
+- The CLI does not yet guarantee the serialisation promised in 4.5, because nothing writes a manifest.
+
+---
+
+## 9. Version log
+
+**v1.0.** The whole document read against the code for the first time, once the protocol, the CLI configuration and the channel were built. Rewritten in English.
+
+| Before | After |
+| --- | --- |
+| a plugin had "three optional fields" | it has a required `name` and three optional surfaces |
+| `UIContribution` and `NodeHooks` were used and never defined | they are named as not specified yet, and section 6 says it is provisional |
+| the story options example compiled anywhere | it needs the plugin that declares the option, and the text says so |
+| aliases were "read from `tsconfig.json` or `jsconfig.json`" | the order, `extends`, the warning and the watch list are stated |
+| `PropDetails.type` was an inline union | it is `PropKind`, named once and reused |
+| interfaces were described in prose tables | they are code blocks, which a test can check field by field |
+| nothing said what was built | section 8 does, and it is the only section that talks about the code |
+
+`update-overrides` and `set-globals` stay in the protocol, and the preview still ignores them. The code is what is late here, not the document. Tracked in DCJ-214.
+
+**v0.9 and earlier.** Eight versions, in French, in `docs/internal/spec-journal.md`. Each one carries the reasoning that led to it, which is why it was kept rather than translated.
+
+| Version | Change |
+| --- | --- |
+| v0.9 | `wrap` stacks components only |
+| v0.8 | the `plugin` message removed from chapter 5, `Manifest.version` back to `number` |
+| v0.7 | three naming rules for the `protocol` folder, `PropDetails` and `ResolvedPropDetails` |
+| v0.6 | `ready` announces `protocolVersion`, `StoryOptions` refuses unknown keys |
+| v0.5 | the core no longer knows any plugin, `details` replaces `argTypes` |
+| v0.4 | package naming, the bare `crypte` name being refused by npm |
+| v0.3 | the `$fn` marker, the `group` field and the `render` escape hatch removed |
+| v0.2 | six fixes from testing the format on five real components |
+| v0.1 | first version, four contracts |
