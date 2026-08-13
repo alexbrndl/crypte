@@ -96,7 +96,7 @@ En ne gardant que ce qui change d'une version à l'autre, sur une hypothèse de 
 
 *Réserve sur la mesure :* le générateur pioche dans un vocabulaire restreint, donc les chiffres brotli qu'il produit sont trop optimistes et je ne les reporte pas. Les chiffres gzip et bruts sont, eux, conservateurs.
 
-*Chiffres révisés à la hausse* après la revue de la PR #25 : une comparaison morte confondait deux props tirées deux fois dans la même entrée, ce qui allégeait chaque manifeste d'environ 17 %. La conclusion ne change pas, elle se renforce.
+*Chiffres révisés à la hausse* après la revue de la PR #25 : une comparaison morte confondait deux props tirées deux fois dans la même entrée, ce qui allégeait chaque manifeste de 13 à 14 % selon la ligne. La conclusion ne change pas, elle se renforce.
 
 ### 3.2 Ce que je propose plutôt
 
