@@ -147,6 +147,12 @@ test('une panne de git laisse les ancrages non vérifiés, mais le dit', () => {
       }),
     ).toBeUndefined()
     expect(erreurs).toEqual([expect.stringContaining('bad revision')])
+
+    // Une liste vide dirait « le diff ne touche rien », donc ferait refuser
+    // chaque point ancré, alors que ce qui manque est un `git fetch`.
+    erreurs.length = 0
+    expect(changedFiles(() => '\n')).toBeUndefined()
+    expect(erreurs).toEqual([expect.stringContaining('origin/main')])
   } finally {
     console.error = dire
   }

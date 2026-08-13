@@ -102,7 +102,13 @@ function marked(number, run) {
 // dit : un contrôle éteint en silence est pire que pas de contrôle.
 export function changedFiles(run = git) {
   try {
-    return run(['diff', '--name-only', 'origin/main...HEAD']).split('\n').filter(Boolean)
+    // Une liste vide vaut « illisible », jamais « le diff ne touche rien » :
+    // sinon un `origin/main` non récupéré ferait refuser tous les points, en
+    // envoyant corriger le verdict quand c'est le dépôt qu'il faut mettre à jour.
+    const files = run(['diff', '--name-only', 'origin/main...HEAD']).split('\n').filter(Boolean)
+    if (files.length === 0) throw new Error('aucun fichier, `origin/main` est-il à jour ?')
+
+    return files
   } catch (error) {
     console.error(`Fichiers du diff illisibles, ancrages non vérifiés : ${error.message}`)
 

@@ -114,6 +114,16 @@ Quatre fois sur le lot 3, puis une fois sur le lot 0 decies, une commande a éch
 
 *Origine :* revue 12 du lot 2.
 
+### Le câblage réel de `changedFiles` n'est pas exécuté par les tests
+
+`changedFiles(run)` est éprouvé avec un lanceur injecté : la valeur par défaut, `git diff --name-only origin/main...HEAD`, ne s'exécute jamais en test. Une erreur d'arguments passerait au vert.
+
+*Pourquoi ce n'est pas fait ici :* il faut un dépôt jetable avec un `origin` et deux branches, pour couvrir une commande de trois arguments. Le même compromis vaut pour `publish`, dont l'appel `gh` réel n'est pas davantage exercé.
+
+*Ce qui l'atteste malgré tout :* la commande a tourné pour de bon à chaque publication de revue de cette pull request, trois fois.
+
+*Origine :* revue 3 de la PR #18.
+
 ### `post-review` vérifie le fichier d'un point, pas sa ligne
 
 L'API exige que `line` tombe dans une portion du diff, pas seulement dans un fichier qu'il touche. Le script vérifie l'appartenance du fichier, jamais celle de la ligne : un point ancré sur la ligne 400 d'un fichier dont le diff ne change que les dix premières est publié, et l'appel entier échoue en 422.
