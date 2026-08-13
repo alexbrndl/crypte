@@ -14,7 +14,11 @@ La règle est déjà écrite dans `CLAUDE.md` :
 
 Ce qu'il faut y ajouter, c'est le prix exact. `@crypte/core` n'a **aucune dépendance d'exécution** et déclare `vue` en peer optionnelle. Publier un composant Vue dans `core/ui` rend Vue et Reka publics.
 
-**Le prix n'est pas le poids.** Le shell utilise déjà Reka : un plugin qui prend sa primitive dans `core/ui` n'ajoute rien au paquet livré. L'argument des 59 Ko survit intact. Ce qui est cher, c'est la surface publique, qu'on ne peut plus retirer.
+**Le prix n'est pas le poids, à une condition.** Reka n'est installé nulle part aujourd'hui, vérifié : ni dans `apps/shell/package.json`, ni dans le lockfile. Le shell l'emploiera pour son arbre, sa palette et ses popovers, et c'est **ce jour-là** qu'un plugin prenant sa primitive dans `core/ui` cessera d'ajouter quoi que ce soit au paquet livré. Tant que le shell ne l'utilise pas, publier une primitive Reka ajoute bien une dépendance d'exécution.
+
+Le chiffre de 59 Ko d'`architecture.md` ne dit rien de ce budget : il mesure l'absence de React dans le bundle du shell, sur un arbre où Reka n'existe pas. Il est à remesurer après l'installation, pas à invoquer.
+
+Ce qui est cher et ne dépend d'aucune condition, c'est la surface publique, qu'on ne peut plus retirer.
 
 **Le danger, lui, est bien réel.** Si un plugin n'a pas de primitive publiée, il embarquera la sienne, donc sa propre copie de Reka, et on retombe sur la contrainte structurelle numéro 1 : deux instances du même module, contextes `provide` et `inject` dédoublés en silence. Ne rien publier n'est donc pas l'option prudente.
 

@@ -330,7 +330,23 @@ Une première version exemptait tous les `*.test.*`, au motif que leurs vraies d
 
 ---
 
-## 4 quater. La configuration d'un projet
+## 4 quater. La mesure du poids d'un manifeste
+
+`test/manifest-size.mjs` fabrique des manifestes synthétiques et affiche ce qu'ils pèsent, bruts et compressés, puis ce que coûterait d'en garder l'historique. Il n'assertionne rien et ne tourne pas en intégration continue : on le lance à la main et on lit ses chiffres.
+
+**Pourquoi il existe.** Les chiffres de la section 3 de `pistes-shell.md` viennent de lui, et ils fondent une décision : ne pas écrire de format d'historique, garder le manifeste complet hors de Git et ne commiter qu'une empreinte réduite. Sans le script, ces chiffres ne sont plus vérifiables et la décision devient une opinion.
+
+**Sa difficulté est la répétition.** Une première version tirait des entrées identiques : gzip écrasait la redondance et 30 Ko tombaient à 0,9 Ko, mesure sans valeur. D'où des vocabulaires séparés, qui donnent à deux entrées autant de différence que dans un vrai catalogue. La revue de la PR #25 a trouvé qu'il en restait à l'intérieur d'une entrée, une comparaison morte confondant deux props tirées deux fois, ce qui allégeait les manifestes d'environ 17 %.
+
+**Il est déterministe**, graine fixe : deux lancements donnent les mêmes chiffres, faute de quoi aucune mesure ne se compare à la précédente.
+
+*Brotli est retiré de la sortie.* Il annonçait 23 Ko là où gzip en donnait 242, ce qui n'est pas crédible sur un vocabulaire aussi restreint. Un chiffre invraisemblable finit cité comme s'il valait quelque chose.
+
+**Ce qui casse si on l'enlève.** Rien à l'exécution. Mais les quatre tableaux de `pistes-shell.md` deviennent des nombres sans source, et personne ne pourra les remesurer après un changement de format du manifeste.
+
+---
+
+## 4 quinquies. La configuration d'un projet
 
 **`crypte.config.ts` est chargé par `loadConfigFromFile`, la fonction publique de Vite.**
 

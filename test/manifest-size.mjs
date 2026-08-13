@@ -1,17 +1,5 @@
 // Ce que pèse un manifeste, et ce que coûterait d'en garder l'historique.
-// N'assertionne rien : se lance à la main, lit ses chiffres à l'œil.
-// Conclusions dans docs/internal/pistes-shell.md, section 3.
-//
-// Il fabrique des manifestes au lieu d'en mesurer de vrais, faute de projet
-// réel. C'est là qu'est la difficulté : une première version tirait des entrées
-// identiques, gzip écrasait la répétition, et 30 Ko tombaient à 0,9 Ko. La
-// mesure ne valait rien. D'où les vocabulaires séparés ci-dessous, qui donnent
-// à deux entrées autant de différence que dans un vrai catalogue.
-//
-// Brotli a été retiré de la sortie. Il annonçait 23 Ko là où gzip en donnait
-// 242, ce qui n'est pas crédible : le vocabulaire reste trop restreint, et sa
-// fenêtre de dictionnaire en profite bien plus que celle de gzip. Le chiffre
-// aurait fini cité comme s'il valait quelque chose.
+// N'assertionne rien, se lance à la main. Voir docs/internal/architecture.md.
 
 import { gzipSync } from 'node:zlib'
 
@@ -113,7 +101,11 @@ function makeEntry(i) {
   const details = {}
 
   for (let d = 0; d < detailCount; d++) {
-    const p = pick(props) + (d > props.length ? d : '')
+    // Suffixé dès qu'un nom est retiré deux fois, sinon les deux props se
+    // confondent dans `details` et l'entrée pèse moins qu'elle ne devrait.
+    // `d > props.length` ne se déclenchait jamais, `d` allant au plus à 11.
+    const tire = pick(props)
+    const p = tire in details ? `${tire}${d}` : tire
     details[p] = {
       type: pick(kinds),
       required: rnd() > 0.7,
