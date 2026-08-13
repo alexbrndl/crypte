@@ -14,9 +14,17 @@ git fetch origin main
 git diff --stat origin/main...HEAD
 ```
 
-**Une note se dépose uniquement si le diff change ce que reçoit l'utilisateur d'un paquet publié.** C'est-à-dire du code sous `packages/*/src/**`, ou un champ de `package.json` qui compte pour un consommateur : `exports`, `bin`, `dependencies`, `peerDependencies`, `engines`.
+**Une note se dépose uniquement si le diff change ce que reçoit l'utilisateur d'un paquet publié.** Quatre chemins, et c'est le même critère que celui du contrôle `require-changeset` :
 
-**Rien à déclarer**, et c'est le cas le plus fréquent : documentation, intégration continue, outillage, tests, configuration de développement, `apps/**` qui n'est jamais publié.
+- `packages/*/src/**`
+- `packages/*/package.json`
+- `packages/*/tsconfig.json` et `packages/*/vite.config.ts`, qui décident du contenu de `dist/`
+
+Les trois derniers comptent **en entier**, sans regarder quel champ a bougé. Distinguer `exports` de `scripts` demanderait de rapprocher deux versions du fichier pour un gain faible : une note de trop coûte quatre lignes, une note manquée publie une version fausse.
+
+Ce critère est exécutable, dans `test/changeset-check.mjs`. **Si tu hésites, lance-le** plutôt que de trancher à la lecture : `node test/changeset-check.mjs <numéro>`. Le divorce entre ce texte et ce code est exactement ce qui a produit un point bloquant sur la pull request qui a introduit le contrôle.
+
+**Rien à déclarer**, et c'est le cas le plus fréquent : documentation, intégration continue, outillage, tests, `packages/*/test/**`, `apps/**` qui n'est jamais publié.
 
 Dans ce cas, dis-le en une ligne et arrête-toi. Ne dépose pas de fichier. Un changelog rempli de « mise à jour de la documentation » ne se lit plus, et le mécanisme perd son intérêt.
 

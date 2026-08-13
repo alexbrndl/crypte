@@ -771,9 +771,13 @@ Dans `.claude/skills/changeset/`, lancé avant `/review`. Il décide d'abord **s
 
 **Pourquoi il existe.** La seule protection était la discipline de l'agent, et l'histoire du dépôt dit ce qu'elle vaut : une pull request a déjà été poussée sans être ouverte, faute d'avoir enchaîné une étape du flux. Une version publiée sans note ne se rattrape pas, un paquet publié ne se reprenant plus.
 
-**Le critère est mécanique**, dans `test/changeset-check.mjs` : un fichier sous `packages/*/src/**` ou un `packages/*/package.json`. Tout le reste, documentation, intégration continue, outillage, tests et `apps/**`, n'exige rien.
+**Le critère est mécanique**, dans `test/changeset-check.mjs` : `packages/*/src/**`, le `package.json` d'un paquet, et les deux fichiers qui décident du contenu de `dist/`, `tsconfig.json` et `vite.config.ts`. Tout le reste, documentation, intégration continue, outillage, tests et `apps/**`, n'exige rien.
 
-Le manifeste compte **en entier**, `scripts` et `devDependencies` compris, plutôt que par champ publié. Comparer champ par champ demanderait de lire les deux versions du fichier et de les rapprocher, pour une précision dont le gain est faible : une note de trop coûte un fichier de quatre lignes, une note manquée publie une version fausse.
+Ces trois fichiers comptent **en entier**, `scripts` et `devDependencies` compris, plutôt que par champ publié. Comparer champ par champ demanderait de lire les deux versions du fichier et de les rapprocher, pour une précision dont le gain est faible : une note de trop coûte un fichier de quatre lignes, une note manquée publie une version fausse. Retirer une entrée de `build.lib.entry` supprime une porte d'entrée publique sans toucher une seule ligne de `src/`.
+
+**Le même critère est écrit dans le skill `/changeset`**, qui décide au moment d'écrire la note. Les deux ont divergé le jour de leur écriture, le skill exemptant `devDependencies` que le contrôle exigeait : le flux répondait « rien à déclarer » puis échouait en intégration continue, sans issue conforme aux instructions du dépôt. Le skill renvoie désormais au script pour trancher un doute.
+
+**Une note ne compte que si elle est ajoutée.** Plusieurs notes attendent en permanence dans `.changeset/` jusqu'à la fusion de la pull request de version, et le formateur en touche une de temps en temps : accepter une note modifiée laisserait une pull request se déclarer conforme avec la note d'un autre lot.
 
 **Les mêmes deux exemptions que le contrôle de revue :** les brouillons, puisque le flux dépose la note pendant le brouillon, et les branches `changeset-release/*`, où le robot n'en dépose jamais.
 

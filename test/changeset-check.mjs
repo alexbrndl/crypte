@@ -7,10 +7,11 @@ import { execFileSync } from 'node:child_process'
 import { argv, env, exit } from 'node:process'
 import { pathToFileURL } from 'node:url'
 
-// Ce qu'un utilisateur reçoit : le code d'un paquet, et son manifeste. Un
-// `package.json` compte en entier, y compris `scripts` : demander une note de
-// trop coûte un fichier, en manquer une publie une version fausse.
-const PUBLISHED = /^packages\/[^/]+\/(src\/|package\.json$)/
+// Ce qu'un utilisateur reçoit : le code d'un paquet, son manifeste, et ce qui
+// décide du contenu de `dist/`, seul dossier publié. Chacun compte en entier :
+// demander une note de trop coûte un fichier, en manquer une publie une
+// version fausse.
+const PUBLISHED = /^packages\/[^/]+\/(src\/|(package\.json|tsconfig\.json|vite\.config\.ts)$)/
 
 // `README.md` documente le dossier, `config.json` le configure : ni l'un ni
 // l'autre n'est une note.
@@ -19,8 +20,12 @@ const NOTE = /^\.changeset\/(?!README\.md$)[^/]+\.md$/
 // Rend ce qui a été vu, et si la pull request peut passer.
 export function decide(files) {
   const published = files.filter((file) => PUBLISHED.test(file.filename)).map((f) => f.filename)
+
+  // Ajoutée, jamais modifiée : plusieurs notes attendent en permanence dans
+  // `.changeset/` sur `main`, et le formateur en touche une de temps en temps.
+  // Une note reformatée au passage vaudrait alors pour note de la pull request.
   const notes = files
-    .filter((file) => file.status !== 'removed' && NOTE.test(file.filename))
+    .filter((file) => file.status === 'added' && NOTE.test(file.filename))
     .map((f) => f.filename)
 
   return { published, notes, ok: published.length === 0 || notes.length > 0 }
@@ -30,8 +35,7 @@ function gh(args) {
   return execFileSync('gh', args, { stdio: 'pipe', encoding: 'utf8' }).trim()
 }
 
-// `--paginate` avec `--jq` filtre page par page et rend une ligne par page :
-// `--slurp` agrège, et le filtre passe en aval.
+// `--slurp` rend un tableau de pages, d'où le `flat()`.
 export function filesOf(number, repo, run = gh) {
   const pages = JSON.parse(
     run(['api', `repos/${repo}/pulls/${number}/files`, '--paginate', '--slurp']),

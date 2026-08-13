@@ -111,7 +111,22 @@ Trois conséquences qui valent la peine :
 2. Un renommage se voit dans un diff Git avant même que le shell en parle.
 3. `comments` obtient ce qui lui manquait : un commentaire s'ancre sur un identifiant **et** une empreinte, donc on sait si le commentaire porte encore sur la même chose.
 
-*Ce qui reste à trancher :* l'empreinte est-elle écrite à chaque build, ce qui salit tous les diffs, ou sur demande par une commande. Ma préférence va à la commande, avec le contrôle correspondant en intégration continue.
+### 3.3 Qui écrit l'empreinte
+
+Elle suit le régime d'un fichier de verrouillage, et pour la même raison : ce qui dépend de la discipline de l'utilisateur finit par ne pas être fait.
+
+- Le build écrit l'empreinte, sans qu'on la demande.
+- L'intégration continue échoue si l'empreinte commitée ne correspond pas à celle que le build produit, avec le message qui dit quoi lancer.
+
+La crainte de salir les diffs ne tient pas : l'empreinte est construite pour ne changer que quand quelque chose de significatif change. Ce qui apparaît dans le diff est donc exactement ce qu'une revue veut voir.
+
+### 3.4 La frise d'un composant
+
+L'empreinte versionnée donne mieux qu'une comparaison entre deux états : une frise par composant, où se rangent tous les événements qui le concernent. Version où une prop est apparue, passage de `draft` à `stable`, commentaire déposé, baseline reprise, story ajoutée ou retirée.
+
+Ce qui ordonne la frise est la **version**, pas la date. La date n'est qu'un repère de lecture, et elle est facultative : deux builds du même jour se distinguent par leur empreinte, pas par leur horodatage.
+
+C'est aussi ce qui donne un foyer à `comments`, qui n'en avait aucun : un commentaire est un événement de la frise, ancré sur un identifiant et une empreinte.
 
 ---
 
