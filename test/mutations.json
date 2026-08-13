@@ -74,8 +74,8 @@
   {
     "garantie": "Un nom retiré ne survit pas dans le code de la spécification",
     "fichier": "docs/contracts.md",
-    "avant": "  meta?: StoryMeta",
-    "apres": "  meta?: EntryMeta",
+    "avant": "  details?: Partial<Record<keyof P, PropDetails>>\n  meta?: StoryMeta",
+    "apres": "  details?: Partial<Record<keyof P, PropDetails>>\n  meta?: EntryMeta",
     "trouvee": "revue 9",
     "attendu": "figure encore dans le code de la spécification"
   },
