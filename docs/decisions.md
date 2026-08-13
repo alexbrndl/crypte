@@ -10,6 +10,24 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 ---
 
+## A line-comment change to published code needs no version note
+
+_2026-08-13_
+
+**Decided.** `require-changeset` reads the patch of each published file. When every changed line is a `//` comment or blank, the file does not ask for a note. A block comment still asks for one.
+
+**Rejected.** Writing a note for such a change, dropping the file from the criterion, and treating every comment alike.
+
+**Why.** The control asked for a note the first time it ran for real, on two comments where a documentation path had moved. A note would have added a changelog line that says nothing, which is what the `/changeset` skill exists to prevent. Dropping the file from the criterion would have lost the real case, where the code itself changes.
+
+The split between the two kinds of comment is measured, not assumed. A `//` comment is stripped from the published `.d.ts`. A `/** */` block placed on an exported type is emitted into it, so it does reach the user and it does deserve a note.
+
+A file with no patch still asks for a note. The API stops sending patches past a certain size, and blocking is the safe direction.
+
+**What would reopen it.** A build that stops emitting declarations from source, or one that starts keeping line comments in them. Both would move the line between what ships and what does not.
+
+---
+
 ## Public text is written in English
 
 _2026-08-13_

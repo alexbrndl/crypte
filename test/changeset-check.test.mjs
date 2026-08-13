@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { decide, filesOf } from './changeset-check.mjs'
+import { commentsOnly, decide, filesOf } from './changeset-check.mjs'
 
 function touche(...noms) {
   return noms.map((filename) => ({ filename, status: 'modified' }))
@@ -12,6 +12,37 @@ function ajoute(...noms) {
 test('du code publié sans note ne passe pas', () => {
   expect(decide(touche('packages/core/src/protocol/story.ts')).ok).toBe(false)
   expect(decide(touche('packages/cli/package.json')).ok).toBe(false)
+})
+
+// Le cas qui a fait échouer ce contrôle à son premier vrai usage : un chemin de
+// documentation corrigé dans deux commentaires de code publié.
+test('un fichier publié dont seuls les commentaires changent n’exige aucune note', () => {
+  const patch =
+    '@@ -25,7 +25,7 @@\n-// dans `resolve.alias`. Voir architecture.md.\n+// dans `resolve.alias`. Voir docs/internal/architecture.md.\n const PROTOCOL ='
+
+  expect(decide([{ filename: 'packages/cli/src/paths.ts', status: 'modified', patch }])).toEqual({
+    published: [],
+    notes: [],
+    ok: true,
+  })
+})
+
+test('ce qui compte comme un changement de commentaire', () => {
+  expect(commentsOnly('@@\n-// avant\n+// après\n')).toBe(true)
+  expect(commentsOnly('@@\n+\n-\n')).toBe(true)
+
+  // Mesuré : un bloc `/** */` sur un type exporté se retrouve dans le `.d.ts`
+  // publié, là où un `//` en est retiré. Il change donc ce que l'utilisateur
+  // reçoit, et il exige une note.
+  expect(commentsOnly('@@\n+/**\n+ * documente un type public\n+ */\n')).toBe(false)
+
+  expect(commentsOnly('@@\n-// avant\n+const x = 1\n')).toBe(false)
+  expect(commentsOnly('@@\n context inchangé\n')).toBe(false)
+
+  // Sans patch, l'API n'en fournissant pas au-delà d'une certaine taille, on
+  // exige la note : le sens sûr est de bloquer, pas de laisser passer.
+  expect(commentsOnly(undefined)).toBe(false)
+  expect(commentsOnly('')).toBe(false)
 })
 
 // Ces deux fichiers décident du contenu de `dist/`, seul dossier publié :
@@ -94,7 +125,7 @@ test('les pages de l’API sont aplaties, jamais concaténées', () => {
   ]
 
   expect(filesOf('18', 'alexbrndl/crypte', () => JSON.stringify(pages))).toEqual([
-    { filename: 'packages/core/src/a.ts', status: 'modified' },
-    { filename: '.changeset/note.md', status: 'added' },
+    { filename: 'packages/core/src/a.ts', status: 'modified', patch: '@@' },
+    { filename: '.changeset/note.md', status: 'added', patch: '@@' },
   ])
 })

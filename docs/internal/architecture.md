@@ -803,6 +803,12 @@ Ces trois fichiers comptent **en entier**, `scripts` et `devDependencies` compri
 
 **Les mêmes deux exemptions que le contrôle de revue :** les brouillons, puisque le flux dépose la note pendant le brouillon, et les branches `changeset-release/*`, où le robot n'en dépose jamais.
 
+**Un changement de commentaire de ligne n'exige rien.** Le contrôle lit le patch de chaque fichier publié : si toutes les lignes changées sont des `//` ou des lignes vides, il n'y a rien à déclarer.
+
+La frontière entre les deux sortes de commentaire est mesurée. Un `//` est retiré du `.d.ts` publié ; un bloc `/** */` posé sur un type exporté s'y retrouve, donc il atteint l'utilisateur et il demande une note. Un fichier sans patch en demande une aussi, l'API n'en fournissant pas au-delà d'une certaine taille.
+
+*Ce qui l'a provoqué :* à son premier usage réel, le contrôle a exigé une note pour deux commentaires où un chemin de documentation avait bougé. Écrire cette note aurait ajouté au changelog une ligne qui ne dit rien, c'est-à-dire exactement ce que le skill `/changeset` existe pour empêcher.
+
 **Il échoue en cas de panne**, plutôt que de laisser passer : une réponse d'API illisible fait tomber le script, donc le contrôle. C'est le sens sûr pour une barrière, à l'inverse de `post-review.mjs`, dont l'échec doit se distinguer d'un verdict mal formé parce qu'il commande un autre geste.
 
 **Ce qui casse si on l'enlève.** Rien immédiatement. Puis un lot change un contrat sans que le changelog le dise, et la version publiée annonce moins qu'elle ne change : c'est le consommateur qui l'apprend, à l'exécution.

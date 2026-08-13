@@ -318,5 +318,13 @@
     "apres": "Voir architecture.md.",
     "trouvee": "lot 0 terdecies",
     "attendu": "doc-links.test.mjs > hors de docs, un document est cité par son chemin"
+  },
+  {
+    "garantie": "Un bloc de documentation publié exige une note de version",
+    "fichier": "test/changeset-check.mjs",
+    "avant": "const COMMENT = /^\\s*\\/\\//",
+    "apres": "const COMMENT = /^\\s*(\\/\\/|\\/\\*|\\*)/",
+    "trouvee": "lot 0 terdecies",
+    "attendu": "changeset-check.test.mjs > ce qui compte comme un changement de commentaire"
   }
 ]
