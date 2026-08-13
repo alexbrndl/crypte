@@ -10,6 +10,28 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 ---
 
+## The manifest is a build artefact, and a small fingerprint is committed
+
+_2026-08-13_
+
+**Decided.** `crypte` writes two files. The full manifest is generated on every build and ignored by Git. A reduced fingerprint sits next to it and **is** committed: per entry, the identifier, the component file and export, the status, the sorted list of prop names, and a hash of the rest.
+
+**Rejected.** Committing the full manifest, and committing nothing at all.
+
+**Why.** Three features need the history of a catalogue: the "what changed" screen, a component's timeline, and a stable anchor for comments. Git is already a history, so writing a second one would be work for nothing.
+
+Committing the full manifest does not hold. Measured with `test/manifest-size.mjs`: 626 KB raw and 71 KB gzipped for 500 stories, so a hundred versions of such a project weigh 6.9 MB and five hundred weigh 34 MB. The file also changes on every build, including when nothing meaningful moved.
+
+Committing nothing loses the three features, and leaves nothing to compare a build against.
+
+The fingerprint measures 198 bytes per story, 97 KB raw for 500 stories, and it only changes when something meaningful does.
+
+**How it stays true.** Like a lockfile: the build writes it, and continuous integration fails when the committed one does not match, with a message saying what to run. Anything that depends on a person remembering ends up not being done.
+
+**What would reopen it.** A project whose fingerprint changes on every build anyway, which would mean the reduced form keeps something it should not. Or a manifest small enough for the raw file to be committed without noise, which the measurements do not suggest.
+
+---
+
 ## A line-comment change to published code needs no version note
 
 _2026-08-13_

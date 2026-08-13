@@ -28,6 +28,12 @@ _Sinon :_ une rupture de l'outillage, encore en version pré-1.0, se corrige dan
 
 ## Règles de travail
 
+**Relire l'issue avant d'ouvrir la branche.** Elle a peut-être été écrite avant plusieurs lots, et rien ne surveille le tracker : `spec.test.ts` empêche un nom retiré de survivre dans la spécification, pas dans une issue qu'on s'apprête à implémenter.
+
+Vérifier qu'elle ne cite aucun nom que le code ne porte plus, aucun chiffre qu'une mesure a corrigé, et aucun critère de fin qu'un autre lot a rendu impossible. Ce qui est périmé se corrige **dans l'issue**, pas dans la tête.
+
+Mesuré : au rafraîchissement du tracker de ce jour, trois issues sur quatre citaient des noms de contrats retirés. `DCJ-174` demandait de remplir `ArgType` et de fusionner avec le bloc `controls`, deux noms disparus depuis, et son titre les portait aussi.
+
 **Branches.** Toujours utiliser le nom de branche exact fourni par le tracker. C'est ce qui lie automatiquement la branche, la pull request et l'issue.
 
 **Commits.** Conventional commits, en anglais, à l'impératif.
