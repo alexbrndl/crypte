@@ -382,5 +382,21 @@
     "apres": "<!-- checked: chemins -->",
     "trouvee": "lot 0 septdecies",
     "attendu": "guide.test.ts > les exemples du guide > sont tous rattachés à un cas"
+  },
+  {
+    "garantie": "Un nom importé par le guide que le paquet n’exporte pas est vu",
+    "fichier": "docs/guide.md",
+    "avant": "import { createAdapter } from '@crypte/react'",
+    "apres": "import { react } from '@crypte/react'",
+    "trouvee": "revue de la PR #27",
+    "attendu": "guide.test.ts > les exemples du guide > n’importe que des noms que les paquets exportent"
+  },
+  {
+    "garantie": "Un marqueur introuvable ne rend plus le premier bloc du guide",
+    "fichier": "packages/cli/test/guide.test.ts",
+    "avant": "  expect(guide, `marqueur « ${marker} » absent du guide`).toContain(marker)\n",
+    "apres": "",
+    "trouvee": "revue de la PR #27",
+    "attendu": "guide.test.ts > les exemples du guide > refuse un marqueur qu’il ne trouve pas"
   }
 ]

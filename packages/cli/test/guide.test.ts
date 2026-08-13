@@ -21,12 +21,28 @@ afterAll(() => {
 // Le bloc qui suit `<!-- checked: nom -->`, avec sa langue.
 function example(name: string): { language: string; code: string } {
   const marker = `<!-- checked: ${name} -->`
+
+  // Le marqueur d'abord : `indexOf` rend -1 sur un marqueur absent, et la
+  // découpe qui suit ramenait alors le premier bloc du guide, langue comprise.
+  expect(guide, `marqueur « ${marker} » absent du guide`).toContain(marker)
+
   const after = guide.slice(guide.indexOf(marker) + marker.length)
   const found = after.match(/```(\w+)\n([\s\S]*?)```/)
 
   expect(found, `aucun bloc de code après « ${marker} »`).not.toBeNull()
 
   return { language: found?.[1] ?? '', code: found?.[2] ?? '' }
+}
+
+// Ce qu'un paquet du dépôt exporte vraiment, lu à la source.
+function exportsOf(pkg: string): string[] {
+  const name = pkg.replace('@crypte/', '')
+  const entry = name === 'cli' ? 'config.ts' : 'index.ts'
+  const source = readFileSync(join(here, '..', '..', name, 'src', entry), 'utf8')
+
+  return [...source.matchAll(/^export (?:type |interface |const |function )(\w+)/gm)].map(
+    (match) => match[1] as string,
+  )
 }
 
 function projectWith(files: Record<string, string>): string {
@@ -52,17 +68,47 @@ describe('les exemples du guide', () => {
     expect([...markers].sort()).toEqual(['aliases', 'config'])
   })
 
+  // `indexOf` rend -1 sur un marqueur absent, et la découpe ramenait alors le
+  // premier bloc du guide : l'extraction rendait le mauvais bloc en silence.
+  it('refuse un marqueur qu’il ne trouve pas', () => {
+    expect(() => example('inexistant')).toThrow(/marqueur/)
+  })
+
+  // Retirer les imports avant d'exécuter l'exemple laissait passer n'importe
+  // quel nom : le guide a montré `react()` pendant tout un tour, que
+  // `@crypte/react` n'exporte pas. Ce que le lecteur copie est vérifié ici.
+  it('n’importe que des noms que les paquets exportent', () => {
+    const { code } = example('config')
+    const imports = [...code.matchAll(/^import \{([^}]+)\} from '([^']+)'/gm)]
+
+    expect(imports.length, 'aucun import dans l’exemple').toBe(2)
+
+    for (const [, names = '', pkg = ''] of imports) {
+      const exported = exportsOf(pkg)
+      expect(exported.length, `aucun export lu dans ${pkg}`).toBeGreaterThan(0)
+
+      for (const name of names.split(',').map((one) => one.trim())) {
+        expect(exported, `${pkg} n’exporte pas ${name}`).toContain(name)
+      }
+    }
+  })
+
   it('la configuration est acceptée par le CLI', async () => {
     const { language, code } = example('config')
     expect(language).toBe('ts')
 
-    // Les deux imports du guide désignent des paquets qu'un projet installe, et
-    // le chargeur les résoudrait vraiment. On garde la forme de l'objet, qui est
-    // ce que le guide décrit, et l'adaptateur devient une valeur quelconque.
+    // Les imports désignent des paquets qu'un projet installe et que le dossier
+    // temporaire n'a pas. Leurs noms sont vérifiés par le cas ci-dessus ; ici on
+    // garde la forme de l'objet, qui est ce que le guide décrit.
     const source = code
       .replace(/^import .*\n/gm, '')
-      .replace('adapter: react(),', 'adapter: { name: "react" },')
+      .replace('adapter: createAdapter(),', 'adapter: { name: "react" },')
       .replace('export default defineConfig(', 'export default (')
+
+    // Une substitution muette laisserait le fichier tel quel, donc `import`
+    // resterait et l'erreur porterait sur le paquet, pas sur l'exemple.
+    expect(source).not.toContain('import')
+    expect(source).not.toContain('createAdapter')
 
     const root = projectWith({
       'crypte.config.ts': source,
@@ -71,7 +117,6 @@ describe('les exemples du guide', () => {
     const project = await loadProject(root)
 
     expect(project.config.stories).toBe('stories')
-    expect(project.config.adapter).toEqual({ name: 'react' })
     expect(project.config.css).toBe('src/styles/app.css')
   })
 

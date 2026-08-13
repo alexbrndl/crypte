@@ -14,11 +14,11 @@ Crypte reads one file at the root of your project, `crypte.config.ts`.
 
 ```ts
 import { defineConfig } from '@crypte/cli'
-import react from '@crypte/react'
+import { createAdapter } from '@crypte/react'
 
 export default defineConfig({
   stories: 'stories',
-  adapter: react(),
+  adapter: createAdapter(),
   css: 'src/styles/app.css',
 })
 ```
@@ -26,7 +26,7 @@ export default defineConfig({
 Two keys are required.
 
 - **`stories`** is the folder your story files live in, relative to the project root.
-- **`adapter`** is the adapter for your framework.
+- **`adapter`** is the adapter for your framework. `@crypte/react` exports `createAdapter` today; a shorter default export will come with the adapter's own lot.
 
 Everything else is optional: `css` for the style sheet the preview loads, `wrap` for a wrapper around every story, `plugins`, and `vite.plugins` for a transform your framework needs.
 
@@ -60,7 +60,7 @@ That file can be a `tsconfig.json` or a `jsconfig.json`. Crypte reads `tsconfig.
 Three things to know.
 
 - **`extends` is followed**, and each level is read where it is written, so a path stays relative to the file that declares it.
-- **A missing `extends` target is not fatal.** It happens on a fresh clone, or before `nuxt prepare`. Crypte warns and carries on without the aliases.
+- **A missing `extends` target is not fatal.** It happens on a fresh clone, or before `nuxt prepare`. Crypte moves on to the next file, and warns only if no file gave it any path at all.
 - **An alias cannot replace an installed package.** `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because Crypte resolves after Vite does. TypeScript would return your file here; Crypte returns the package.
 
 Aliases do not apply inside style sheets. An `@import '@/vars.css'` does not resolve yet.

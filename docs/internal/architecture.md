@@ -370,9 +370,13 @@ Une première version exemptait tous les `*.test.*`, au motif que leurs vraies d
 
 **Comment un bloc est rattaché.** Un commentaire HTML le précède, `<!-- checked: config -->`, et un cas porte le même nom. Le marqueur est explicite plutôt que positionnel : ajouter un paragraphe au-dessus d'un bloc ne doit pas changer ce qui est vérifié.
 
-Un cas à part compare **la liste des marqueurs à la liste attendue**. Sans lui, renommer un marqueur ferait passer l'exemple en silence : l'extraction échouerait, mais plus personne ne lirait le guide. Mesuré, c'est la seule des quatre mutations qui ne tombait pas d'elle-même.
+Un cas à part compare **la liste des marqueurs à la liste attendue**. Sans lui, renommer un marqueur ferait passer l'exemple en silence. Mesuré, c'est la seule des quatre mutations qui ne tombait pas d'elle-même.
+
+Un second garde va avec : `indexOf` rend `-1` sur un marqueur absent, et la découpe ramenait alors le **premier bloc du guide**, langue comprise. L'extraction ne signalait donc rien, elle rendait le mauvais bloc. Un cas exige maintenant qu'un marqueur inconnu lève.
 
 **Ce que le test change de l'exemple.** Les imports et l'appel à `defineConfig`, qui désignent des paquets qu'un projet installe et que le dossier temporaire n'a pas. La **forme de l'objet**, qui est ce que le guide décrit, est celle du guide, mot pour mot.
+
+Retirer les imports laissait cependant passer n'importe quel nom : le guide a montré `react()` pendant un tour entier, que `@crypte/react` n'exporte pas. Un cas confronte donc **chaque nom importé aux exports réels du paquet cité**, lus à la source. Et les substitutions sont vérifiées, une `String.replace` muette laissant sinon l'exemple intact sans le dire.
 
 **Le message d'erreur cité est vérifié aussi**, en provoquant l'erreur : le guide montre ce que le CLI dit vraiment, pas une paraphrase.
 
