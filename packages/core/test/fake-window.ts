@@ -1,8 +1,8 @@
 // Deux contextes qui s'envoient de vrais messages, sans DOM ni dépendance.
 //
-// Reproduit la seule règle du navigateur dont le canal dépend : un message n'est
-// livré que si `targetOrigin` désigne l'origine du destinataire. Voir
-// architecture.md.
+// Reproduit les deux règles du navigateur dont le canal dépend : un message
+// n'est livré que si `targetOrigin` désigne l'origine du destinataire, et il est
+// cloné, donc rien de non sérialisable ne traverse. Voir architecture.md.
 
 type Listener = (event: MessageEvent) => void
 
@@ -44,11 +44,17 @@ export function windowAt(origin: string): FakeWindow {
     deliver(event, targetOrigin) {
       // La règle du navigateur, et la raison d'être des deux `postMessage` du
       // canal : `'*'` ne refuse rien, une origine exacte refuse tout le reste.
-      if (targetOrigin !== '*' && targetOrigin !== origin) return
+      // Lue sur `self`, comme le canal la lit, et non sur la variable reçue à la
+      // construction : les deux divergeraient dès qu'un test change l'origine.
+      if (targetOrigin !== '*' && targetOrigin !== self.location.origin) return
 
-      // Copie : un écouteur qui se retire pendant la distribution ne doit pas
-      // décaler les autres.
-      for (const listener of [...listeners]) listener(event as unknown as MessageEvent)
+      // Le navigateur clone : une fonction, un noeud DOM ou une instance de
+      // composant lève ici plutôt que de traverser. C'est la promesse du canal.
+      const data = structuredClone(event.data)
+
+      // Copie de la liste : un écouteur qui se retire pendant la distribution ne
+      // doit pas décaler les autres.
+      for (const listener of [...listeners]) listener({ ...event, data } as unknown as MessageEvent)
     },
 
     listenerCount: () => listeners.size,

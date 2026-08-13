@@ -121,12 +121,24 @@ describe('ce qui est ignoré', () => {
     expect([rendus, recus]).toEqual([[], []])
   })
 
-  it('un message d’un type que la preview ne traite pas', () => {
+  it('un message sans type reconnaissable', () => {
     const { rendus } = monte()
 
-    envoie({ type: 'set-globals', globals: { theme: 'dark' } })
     envoie(undefined)
     envoie({ id: 'sans type' })
+    envoie({ type: 'zzz-inconnu' })
+
+    expect([rendus, recus]).toEqual([[], []])
+  })
+
+  // `update-overrides` et `set-globals` sont déclarés par la section 5.2 de la
+  // spécification et n'ont pas encore d'effet ici. Ce cas fixe l'état d'
+  // aujourd'hui, pas une règle : voir docs/suivi.md.
+  it('les deux messages du shell que la preview n’implémente pas encore', () => {
+    const { rendus } = monte()
+
+    envoie({ type: 'update-overrides', id: RENDER.id, overrides: { label: 'Autre' } })
+    envoie({ type: 'set-globals', globals: { theme: 'dark' } })
 
     expect([rendus, recus]).toEqual([[], []])
   })

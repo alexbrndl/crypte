@@ -855,13 +855,22 @@ Le shell ne charge pas React, et ce n'est pas une intention mais un fait mesurab
 
 `packages/core/test/fake-window.ts` monte deux contextes qui s'envoient de vrais messages, et `ui.test.ts` et `preview.test.ts` éprouvent les deux côtés du canal.
 
-**Pourquoi une simulation plutôt que jsdom.** La surface utilisée tient en cinq API : `addEventListener`, `removeEventListener`, `postMessage`, `location.origin` et `parent`. Une bibliothèque de DOM apporterait quelques mégaoctets et sa propre fidélité à `postMessage` pour ce que quarante lignes reproduisent exactement. `@crypte/core` n'a aucune dépendance, pas même de test, et c'est une propriété qu'on tient.
+**Pourquoi une simulation plutôt que jsdom.** La surface de DOM utilisée par le canal tient en six API : `addEventListener`, `removeEventListener`, `postMessage`, `location.origin`, `parent` et `contentWindow`. Une bibliothèque apporterait quelques mégaoctets, et sa propre fidélité à `postMessage`, pour ce que quarante lignes reproduisent exactement. **Aucune dépendance de DOM n'entre donc dans le noyau**, dont les seules dépendances de développement restent `vitest`, `typescript` et `@types/node`. `performance.now()`, appelé par la preview, vient du global de Node.
 
-**Ce que la simulation reproduit**, et c'est tout ce qui compte ici : un message n'est livré que si `targetOrigin` désigne l'origine du destinataire, `'*'` ne refusant rien. C'est cette règle qui rend les filtres observables. Sans elle, remplacer `window.location.origin` par `'*'` ne changerait rien au comportement observé, et le test resterait vert en ayant l'air de vérifier quelque chose.
+**Ce que la simulation reproduit**, et c'est tout ce dont le canal dépend :
 
-D'où la forme des cas : c'est **l'iframe d'une autre origine qui ne doit rien recevoir**, pas celle de la même origine qui doit recevoir. Le second cas passe avec `'*'`, le premier non.
+- un message n'est livré que si `targetOrigin` désigne l'origine du destinataire, `'*'` ne refusant rien ;
+- il est **cloné**, donc une fonction ou une instance de composant lève plutôt que de traverser.
 
-**Ce qui casse si on l'enlève.** Rien de visible, et c'est le problème : avant ces tests, remplacer `origin` par `'*'` dans la réponse de la preview laissait la suite entièrement verte, alors que le commentaire juste au-dessus en fait la raison de sûreté du canal. Les douze garanties sont désormais au catalogue de mutation.
+La première règle rend les filtres observables. Sans elle, remplacer `window.location.origin` par `'*'` ne changerait rien au comportement observé, et le test resterait vert en ayant l'air de vérifier quelque chose. D'où la forme des cas : c'est **l'iframe d'une autre origine qui ne doit rien recevoir**, pas celle de la même origine qui doit recevoir. Le second passe avec `'*'`, le premier non.
+
+La seconde est la promesse structurelle de la section 5.1 de la spécification : c'est `postMessage` qui interdit à un élément React de traverser, pas une convention. Une simulation qui passe la référence telle quelle laisserait écrire un test que le navigateur refuserait.
+
+**Les deux règles sont elles-mêmes au catalogue de mutation.** Si la simulation cesse de les tenir, les douze mutations du canal ne prouvent plus rien : c'est le seul endroit du dépôt où un outil de vérification est vérifié par un autre.
+
+**Ce qui casse si on l'enlève.** Rien de visible, et c'est le problème : avant ces tests, remplacer `origin` par `'*'` dans la réponse de la preview laissait la suite entièrement verte, alors que le commentaire juste au-dessus en fait la raison de sûreté du canal.
+
+**Un test branche les deux canaux l'un sur l'autre**, `channel.test.ts`, où aucun message n'est forgé. Les deux autres fichiers forgent une direction à la fois, ce qui laissait l'appariement des deux côtés affirmé et non éprouvé : le shell poste vers sa propre origine, la preview exige la sienne, et rien ne disait que ce sont bien les mêmes.
 
 *Ce que ça ne prouve pas :* qu'un vrai navigateur livre ces messages. La simulation vérifie la logique du canal, ses filtres et ses réponses, pas l'intégration. Le lot 5 fera tourner les deux côtés pour de bon.
 

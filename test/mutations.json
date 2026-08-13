@@ -216,11 +216,11 @@
     "trouvee": "lot 0 undecies"
   },
   {
-    "garantie": "La preview ne traite que les messages de type render",
+    "garantie": "La preview n'agit que sur un message de type render",
     "fichier": "packages/core/src/preview/index.ts",
     "avant": "    if (message?.type !== 'render') return\n",
     "apres": "",
-    "attendu": "preview.test.ts > ce qui est ignoré > un message d’un type que la preview ne traite pas",
+    "attendu": "preview.test.ts > ce qui est ignoré > un message sans type reconnaissable",
     "trouvee": "lot 0 undecies"
   },
   {
@@ -254,5 +254,45 @@
     "apres": "  return () => {}",
     "attendu": "preview.test.ts > ce qui est ignoré > tout, une fois désabonné",
     "trouvee": "lot 0 undecies"
+  },
+  {
+    "garantie": "Le shell survit à une iframe non chargée",
+    "fichier": "packages/core/src/ui/index.ts",
+    "avant": "frame.contentWindow?.postMessage",
+    "apres": "frame.contentWindow!.postMessage",
+    "trouvee": "revue de la PR #21",
+    "attendu": "ui.test.ts > envoi vers la preview > ne tombe pas quand l’iframe n’est pas chargée"
+  },
+  {
+    "garantie": "Le shell livre ce qu’on lui donne à envoyer",
+    "fichier": "packages/core/src/ui/index.ts",
+    "avant": "      frame.contentWindow?.postMessage(message, window.location.origin)\n",
+    "apres": "",
+    "trouvee": "revue de la PR #21",
+    "attendu": "ui.test.ts > envoi vers la preview > livre le message dans l’iframe"
+  },
+  {
+    "garantie": "La pile n'accompagne que les erreurs qui en ont une",
+    "fichier": "packages/core/src/preview/index.ts",
+    "avant": "stack: error instanceof Error ? error.stack : undefined",
+    "apres": "stack: String(error)",
+    "trouvee": "revue de la PR #21",
+    "attendu": "preview.test.ts > rendu > rend le message d’une exception qui n’est pas une Error"
+  },
+  {
+    "garantie": "La simulation refuse une livraison hors origine",
+    "fichier": "packages/core/test/fake-window.ts",
+    "avant": "      if (targetOrigin !== '*' && targetOrigin !== self.location.origin) return\n",
+    "apres": "",
+    "trouvee": "revue de la PR #21",
+    "attendu": "ui.test.ts > envoi vers la preview > ne livre rien à une iframe d’une autre origine"
+  },
+  {
+    "garantie": "La simulation clone, donc rien de non sérialisable ne traverse",
+    "fichier": "packages/core/test/fake-window.ts",
+    "avant": "const data = structuredClone(event.data)",
+    "apres": "const data = event.data",
+    "trouvee": "revue de la PR #21",
+    "attendu": "channel.test.ts > refuse de transporter ce qui n’est pas sérialisable"
   }
 ]
