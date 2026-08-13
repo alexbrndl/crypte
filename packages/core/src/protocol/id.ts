@@ -31,3 +31,5 @@ export function storyId(path: readonly string[], name: string): string {
   if (!suffix) return prefix
   return `${prefix}--${suffix}`
 }
+
+// Ligne temporaire : éprouve le contrôle require-changeset. À supprimer.
