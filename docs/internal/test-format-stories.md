@@ -1,5 +1,17 @@
 # Crypte, test du format sur cinq composants réels
 
+> **Document historique. Ne pas implémenter depuis ce fichier.**
+>
+> Il date d'avant la première ligne de code, et trois de ses six corrections ont été annulées depuis. `docs/contracts.md` fait foi, et son journal des versions dit ce qui a changé.
+>
+> | Ce que ce document propose | Ce que les contrats disent aujourd'hui |
+> | -- | -- |
+> | le marqueur `{ "$fn": … }` en 2.1 | retiré en v0.3 : la preview importe les modules de stories, les props ne traversent pas le canal |
+> | le groupe repliable « Attributs HTML » en 2.2 | remplacé en 3.4 : ces props ne sont pas extraites du tout, seule `className` l'est |
+> | le message `plugin` cité en 2.1 | remplacé en v0.7 par `PluginShellMessages` et `PluginPreviewMessages` |
+>
+> Ce qui garde sa valeur est le **constat** : les frictions rencontrées en écrivant cinq fichiers de stories à la main, et le fait que le format tienne sur quatre composants sur cinq. C'est pour ça qu'il est conservé.
+
 > Exercice préalable à toute implémentation. Cinq fichiers de stories écrits à la main contre des composants du projet de référence existants, sans une ligne de code Crypte. Objectif : trouver les frictions tant que les corriger coûte zéro.
 
 **Résultat : le format tient sur quatre composants sur cinq. Six corrections à apporter à la spécification, dont une bloquante.**
