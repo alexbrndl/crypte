@@ -27,6 +27,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `.vite-hooks/pre-commit` | lance `vp staged` | Git, avant chaque commit |
 | `test/mutation-check.mjs` | casse chaque garantie, attend un test rouge | `pnpm run mutations`, la CI |
 | `test/mutations.json` | catalogue des garanties, une par constat de revue | le script ci-dessus |
+| `test/manifest-size.mjs` | ce que pèse un manifeste, et le coût d'en garder l'historique | personne, lancé à la main |
 | `test/post-review.mjs` | publie un verdict de revue, et vérifie qu'il y est arrivé | `/review` |
 | `test/post-review.test.mjs` | ce que le script refuse de publier | — |
 | `test/changeset-check.mjs` | décide si une pull request doit porter une note | `require-changeset.yml` |
@@ -114,5 +115,6 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `plugins.md` | catalogue des plugins et phases | la planification |
 | `suivi.md` | points de revue arbitrés, non corrigés | la revue, qui ne les re-signale plus |
 | `pistes-shell.md` | propositions issues de l'exploration d'interface, non arbitrées | qui ouvrira les lots du shell |
+| `placement-ui.md` | ce qui est public dans `core/ui`, ce qui reste dans le shell, et le prix | les lots 7 à 9, la bibliothèque Figma |
 | `spec-journal.md` | l'historique des versions de la spécification, v0.1 à v0.9 | qui cherche pourquoi un contrat a changé |
 | `test-format-stories.md` | test du format sur cinq composants réels | historique |

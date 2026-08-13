@@ -76,25 +76,27 @@ Manifeste synthétique aux entrées variées, calqué sur le corpus réel, huit 
 
 | Stories | Brut | gzip |
 | -- | -- | -- |
-| 23 | 24 Ko | 3,8 Ko |
-| 100 | 113 Ko | 13,5 Ko |
-| 500 | 556 Ko | 62 Ko |
-| 2000 | 2,2 Mo | 242 Ko |
+| 23 | 28 Ko | 4,2 Ko |
+| 100 | 128 Ko | 15,4 Ko |
+| 500 | 626 Ko | 71 Ko |
+| 2000 | 2,4 Mo | 278 Ko |
 
-Soit environ 1,1 Ko par story en brut. Conserver l'historique complet, une copie entière par version :
+Soit environ 1,3 Ko par story en brut. Conserver l'historique complet, une copie entière par version :
 
 | Versions, projet à 500 stories | Poids cumulé, gzip |
 | -- | -- |
-| 20 | 1,2 Mo |
-| 100 | 6,0 Mo |
-| 500 | 30 Mo |
-| 2000 | 120 Mo |
+| 20 | 1,4 Mo |
+| 100 | 6,9 Mo |
+| 500 | 34 Mo |
+| 2000 | 138 Mo |
 
 **Conclusion : garder des copies entières ne tient pas.** Au-delà d'une cinquantaine de versions le dossier devient plus lourd que le code qu'il décrit.
 
-En ne gardant que ce qui change d'une version à l'autre, sur une hypothèse de deux pour cent d'entrées modifiées par build, une version coûte 2,2 Ko au lieu de 62 Ko, et deux mille versions tiennent dans 4,2 Mo. Le delta est donc la seule forme viable.
+En ne gardant que ce qui change d'une version à l'autre, sur une hypothèse de deux pour cent d'entrées modifiées par build, une version coûte 2,3 Ko au lieu de 71 Ko, et deux mille versions tiennent dans 4,6 Mo. Le delta est donc la seule forme viable.
 
 *Réserve sur la mesure :* le générateur pioche dans un vocabulaire restreint, donc les chiffres brotli qu'il produit sont trop optimistes et je ne les reporte pas. Les chiffres gzip et bruts sont, eux, conservateurs.
+
+*Chiffres révisés à la hausse* après la revue de la PR #25 : une comparaison morte confondait deux props tirées deux fois dans la même entrée, ce qui allégeait chaque manifeste de 13 à 14 % selon la ligne. La conclusion ne change pas, elle se renforce.
 
 ### 3.2 Ce que je propose plutôt
 
@@ -103,7 +105,7 @@ Ne pas écrire de format d'historique. Git en est déjà un, et il fait de la co
 Deux fichiers plutôt qu'un :
 
 - **Le manifeste complet**, produit à chaque build, ignoré par Git. C'est un artefact, il n'a pas à être versionné.
-- **Une empreinte réduite**, commitée. Par entrée : l'identifiant, le fichier et l'export du composant, le statut, la liste triée des noms de props, et une empreinte du reste. Mesuré : 189 octets par story, soit 92 Ko brut et 6 Ko gzip pour cinq cents stories, et surtout un fichier qui **ne change que quand quelque chose de significatif change**.
+- **Une empreinte réduite**, commitée. Par entrée : l'identifiant, le fichier et l'export du composant, le statut, la liste triée des noms de props, et une empreinte du reste. Mesuré : 198 octets par story, soit 97 Ko brut et 6,6 Ko gzip pour cinq cents stories, et surtout un fichier qui **ne change que quand quelque chose de significatif change**.
 
 Trois conséquences qui valent la peine :
 
