@@ -19,6 +19,10 @@ test('du code publié sans note ne passe pas', () => {
 test('ce qui décide du contenu de dist exige une note', () => {
   expect(decide(touche('packages/core/vite.config.ts')).ok).toBe(false)
   expect(decide(touche('packages/react/tsconfig.json')).ok).toBe(false)
+
+  // Les trois paquets ne font que l'étendre : c'est là que `target` et
+  // `verbatimModuleSyntax` sont écrits, donc là que les `.d.ts` se décident.
+  expect(decide(touche('tsconfig.base.json')).ok).toBe(false)
 })
 
 test('du code publié avec une note passe', () => {
@@ -43,7 +47,7 @@ test('ce qui n’est pas publié ne demande aucune note', () => {
     'apps/shell/vite.config.ts',
     'packages/core/test/protocol/story.test.ts',
     'packages/cli/test/fixture/jsconfig.json',
-    'tsconfig.base.json',
+    'tsconfig.json',
     'CLAUDE.md',
   )
 
@@ -66,7 +70,7 @@ test('les fichiers du dossier .changeset ne sont pas tous des notes', () => {
 test('seule une note ajoutée compte', () => {
   const publie = touche('packages/react/src/index.ts')
 
-  for (const status of ['removed', 'modified', 'renamed', 'changed', 'unchanged']) {
+  for (const status of ['removed', 'modified', 'renamed', 'copied', 'changed', 'unchanged']) {
     const note = { filename: '.changeset/lot-2-protocole.md', status }
 
     expect(decide([...publie, note])).toEqual({

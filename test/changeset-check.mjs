@@ -8,10 +8,12 @@ import { argv, env, exit } from 'node:process'
 import { pathToFileURL } from 'node:url'
 
 // Ce qu'un utilisateur reçoit : le code d'un paquet, son manifeste, et ce qui
-// décide du contenu de `dist/`, seul dossier publié. Chacun compte en entier :
-// demander une note de trop coûte un fichier, en manquer une publie une
-// version fausse.
-const PUBLISHED = /^packages\/[^/]+\/(src\/|(package\.json|tsconfig\.json|vite\.config\.ts)$)/
+// décide du contenu de `dist/`, seul dossier publié. La base des `tsconfig` en
+// fait partie : les trois paquets ne font que l'étendre, et elle change leurs
+// `.d.ts`. Chacun compte en entier : demander une note de trop coûte un
+// fichier, en manquer une publie une version fausse.
+const PUBLISHED =
+  /^(packages\/[^/]+\/(src\/|(package\.json|tsconfig\.json|vite\.config\.ts)$)|tsconfig\.base\.json$)/
 
 // `README.md` documente le dossier, `config.json` le configure : ni l'un ni
 // l'autre n'est une note.

@@ -771,7 +771,7 @@ Dans `.claude/skills/changeset/`, lancé avant `/review`. Il décide d'abord **s
 
 **Pourquoi il existe.** La seule protection était la discipline de l'agent, et l'histoire du dépôt dit ce qu'elle vaut : une pull request a déjà été poussée sans être ouverte, faute d'avoir enchaîné une étape du flux. Une version publiée sans note ne se rattrape pas, un paquet publié ne se reprenant plus.
 
-**Le critère est mécanique**, dans `test/changeset-check.mjs` : `packages/*/src/**`, le `package.json` d'un paquet, et les deux fichiers qui décident du contenu de `dist/`, `tsconfig.json` et `vite.config.ts`. Tout le reste, documentation, intégration continue, outillage, tests et `apps/**`, n'exige rien.
+**Le critère est mécanique**, dans `test/changeset-check.mjs` : `packages/*/src/**`, le `package.json` d'un paquet, les deux fichiers qui décident du contenu de `dist/`, `tsconfig.json` et `vite.config.ts`, et `tsconfig.base.json` à la racine. Ce dernier compte parce que les trois paquets ne font que l'étendre : `target` et `verbatimModuleSyntax` y sont écrits une seule fois et décident des `.d.ts` publiés partout. Tout le reste, documentation, intégration continue, outillage, tests et `apps/**`, n'exige rien.
 
 Ces trois fichiers comptent **en entier**, `scripts` et `devDependencies` compris, plutôt que par champ publié. Comparer champ par champ demanderait de lire les deux versions du fichier et de les rapprocher, pour une précision dont le gain est faible : une note de trop coûte un fichier de quatre lignes, une note manquée publie une version fausse. Retirer une entrée de `build.lib.entry` supprime une porte d'entrée publique sans toucher une seule ligne de `src/`.
 
