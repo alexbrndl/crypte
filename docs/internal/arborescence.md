@@ -31,6 +31,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/post-review.test.mjs` | ce que le script refuse de publier | — |
 | `test/changeset-check.mjs` | décide si une pull request doit porter une note | `require-changeset.yml` |
 | `test/changeset-check.test.mjs` | ce qui exige une note, et ce qui n'en exige pas | — |
+| `test/doc-links.test.mjs` | tout document cité existe, et hors de `docs/` il est cité par son chemin | — |
 | `.changeset/config.json` | mode fixe, générateur de changelog | Changesets |
 | `.claude/skills/review/SKILL.md` | prompt de revue | `/review` |
 | `.claude/skills/explore/SKILL.md` | méthode de découverte avant revue | `/explore` |
@@ -97,7 +98,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `src/Badge.tsx` | composant codé en dur, faute de découverte | `preview.tsx` |
 | `src/env.d.ts` | déclarations pour Vite et les fichiers `.vue` | le compilateur |
 
-## `docs` — public, en anglais
+## `docs` — public, en anglais à terme
 
 | Fichier | Contient | Consommé par |
 | -- | -- | -- |

@@ -312,7 +312,9 @@ Le verdict ne pouvait pas être « n'est gardée par rien » : celui-là ne dép
 
 **Deux règles.** Un document cité existe, par son chemin ou par son nom de fichier. Et **hors de `docs/`, il est cité par son chemin** : un nom nu se retrouve par son seul nom de fichier, donc il survit à un déplacement, ce qui est exactement ce qu'on ne veut pas.
 
-**Ce qu'il ne lit pas.** Les fichiers de test et les fixtures, qui fabriquent des chemins inexistants et dont c'est le travail. Leurs vraies dépendances échouent d'elles-mêmes : `spec.test.ts` lit la spécification, donc un déplacement le fait rougir sans l'aide de personne.
+**Ce qu'il lit d'un fichier de code.** Ses commentaires, et rien d'autre. Une citation y vit ; les chemins fabriqués vivent dans des chaînes, qu'un test, une fixture ou le catalogue de mutation écrivent par construction. Séparer sur la nature de la ligne évite d'exempter des fichiers entiers.
+
+Une première version exemptait tous les `*.test.*`, au motif que leurs vraies dépendances échouent d'elles-mêmes. C'est vrai d'un chemin lu à l'exécution, faux d'une citation en commentaire : six renvois réécrits par ce même lot n'étaient surveillés par rien. Constat de la revue de la PR #23.
 
 **Ce qui casse si on l'enlève.** Rien immédiatement. Puis un document est renommé, la moitié des renvois pointent dans le vide, et on ne le découvre qu'en suivant un lien mort.
 

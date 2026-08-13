@@ -34,13 +34,15 @@ vp run ready
 packages/core     @crypte/core    noyau, trois entrées : protocol, ui, preview
 packages/cli      @crypte/cli     binaire `crypte`
 packages/react    @crypte/react   adaptateur React
-docs/                             documents publics, en anglais
+docs/                             documents publics
 docs/internal/                    notes du mainteneur, en français
 ```
 
 `docs/spec-contrats.md` fait foi pour le format de story, le manifeste, le protocole et le contrat de plugin. `docs/internal/architecture.md` détaille le rôle de chaque fichier et ce qui casse en son absence.
 
-**Les notes de conception sont en français**, et elles le restent. Ce que vous lisez pour utiliser Crypte ou pour proposer une modification est en anglais ; ce qui est écrit pour le mainteneur ne l'est pas, parce que ce sont des règles précises dont une traduction approximative perdrait plus qu'elle n'apporterait. Le choix et ce qui le rouvrirait sont dans `docs/decisions.md`.
+**Les notes de conception resteront en français**, quand tout le reste passera à l'anglais. Ce que vous lisez pour utiliser Crypte ou pour proposer une modification est destiné à l'anglais ; ce qui est écrit pour le mainteneur non, parce que ce sont des règles précises dont une traduction approximative perdrait plus qu'elle n'apporterait.
+
+La bascule est en cours et ce fichier n'y est pas encore passé : aujourd'hui, seul `docs/decisions.md` est en anglais. Le choix, ce qui a été écarté et ce qui le rouvrirait sont dans `docs/decisions.md`.
 
 ## Format des modules
 
