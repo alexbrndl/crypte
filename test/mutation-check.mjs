@@ -46,6 +46,18 @@ function run(command, args) {
 
 const vp = process.env.VP_BIN ?? 'vp'
 
+// Ce qui a rougi, en trois lignes : les échecs nommés, sinon la fin de la sortie.
+function sample(output) {
+  const named = output
+    .split('\n')
+    .filter((line) => /\bFAIL\b|error:|✕|×/.test(line))
+    .slice(0, 3)
+
+  return named.length > 0
+    ? named.join('\n    ')
+    : output.trim().split('\n').slice(-3).join('\n    ')
+}
+
 // Contrôle positif, avant tout le reste. Sans lui, un binaire introuvable rend
 // « échec » à chaque appel, donc toute mutation paraît vue, et le script annonce
 // que tout est gardé sans avoir rien lancé. Mesuré : c'était le cas.
@@ -106,7 +118,11 @@ for (const mutation of mutations) {
       failures.push(`${mutation.garantie} (${mutation.trouvee}) n'est gardée par rien`)
     else if (!byTheRightOne)
       failures.push(
-        `${mutation.garantie} : vue par autre chose que « ${mutation.attendu} », son gardien est muet`,
+        `${mutation.garantie} : vue par autre chose que « ${mutation.attendu} », son gardien est muet\n` +
+          // Sans ces lignes, un verdict AILLEURS ne se diagnostique pas : il dit
+          // ce qui manque, jamais ce qui a rougi à la place. Mesuré, un tel
+          // verdict n'est apparu qu'en intégration continue.
+          `    à la place : ${sample(`${tests.output}${check.output}`)}`,
       )
   } finally {
     writeFileSync(path, original)
