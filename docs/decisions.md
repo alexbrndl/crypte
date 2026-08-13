@@ -24,7 +24,7 @@ Notes written for the maintainer stay in French: `architecture.md`, `suivi.md`, 
 
 Test names are a third case, tracked in DCJ-210. There are 183 of them, and 18 are quoted by `test/mutations.json`, so renaming one without the other turns a guarantee mute.
 
-**What would reopen it.** An outside contributor. Published source already points at `architecture.md` 29 times: English code that refers to a French document does not hold for long.
+**What would reopen it.** An outside contributor. Published source points at `architecture.md` twice today, and the tests of the packages eight more times: English code that sends its reader to a French document does not hold for long.
 
 ---
 
