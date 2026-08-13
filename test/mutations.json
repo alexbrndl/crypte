@@ -350,5 +350,13 @@
     "apres": "// L'erreur que le CLI montre à l'utilisateur, sans trace de pile.",
     "trouvee": "lot 0 quindecies",
     "attendu": "published-english.test.mjs > le code publié ne contient pas de français"
+  },
+  {
+    "garantie": "Une phrase française entre accents graves ne passe pas pour un exemple",
+    "fichier": "test/published-english.test.mjs",
+    "avant": "const QUOTED = /`[^`\\s]*`/g",
+    "apres": "const QUOTED = /`[^`]*`/g",
+    "trouvee": "revue 2 de la PR #26",
+    "attendu": "published-english.test.mjs > un exemple cité n’est pas du français, une phrase citée en est"
   }
 ]

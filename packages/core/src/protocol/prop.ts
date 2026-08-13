@@ -2,7 +2,8 @@
 // the manifest carries once inference has run.
 
 // What you write in `details`. Every field is optional: you only fill in what
-// inference could not find.
+// inference could not find. Its own fields are also what makes TypeScript
+// refuse an unknown key, see section 3.3 of docs/contracts.md.
 export interface PropDetails extends PluginPropDetails {
   type?: PropKind
   required?: boolean

@@ -16,9 +16,22 @@ const FRENCH = /[àâäçéèêëîïôöùûüÿœæ]/i
 // l'intérieur : une phrase entière entre accents graves passerait sinon entière.
 const QUOTED = /`[^`\s]*`/g
 
+export function isFrench(line) {
+  return FRENCH.test(line.replace(QUOTED, ''))
+}
+
 const sources = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' })
   .split('\n')
   .filter((path) => PUBLISHED.test(path))
+
+test('un exemple cité n’est pas du français, une phrase citée en est', () => {
+  expect(isFrench('// `é` becomes `e`, not a dash. The same marks build `й`.')).toBe(false)
+  expect(isFrench('// Marks stay, otherwise `が` becomes `か`.')).toBe(false)
+
+  // Le cas qui passait quand l'exception portait sur toute la portée.
+  expect(isFrench('// Rappel : `le résolveur retombe sur la résolution normale`.')).toBe(true)
+  expect(isFrench("// L'erreur montrée à l'utilisateur.")).toBe(true)
+})
 
 test('le code publié ne contient pas de français', () => {
   expect(sources.length, 'aucune source publiée trouvée').toBeGreaterThan(5)
@@ -29,7 +42,7 @@ test('le code publié ne contient pas de français', () => {
     const lines = readFileSync(join(root, path), 'utf8').split('\n')
 
     lines.forEach((line, index) => {
-      if (FRENCH.test(line.replace(QUOTED, ''))) found.push(`${path}:${index + 1} ${line.trim()}`)
+      if (isFrench(line)) found.push(`${path}:${index + 1} ${line.trim()}`)
     })
   }
 
