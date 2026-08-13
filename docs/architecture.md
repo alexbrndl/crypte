@@ -292,6 +292,12 @@ La seule méthode qui ait fonctionné à chaque fois est de casser ce que le tes
 
 *Une construction en échec interrompt le tour* plutôt que de laisser les tests lire les artefacts précédents, ce qui accuserait une garantie pourtant gardée.
 
+**Il compare sur une sortie sans couleurs.** En intégration continue, vitest colorise, et le `>` qui sépare le fichier du nom de test se retrouve enveloppé de codes d'échappement : `channel.test.ts > un aller-retour` n'apparaît alors jamais tel quel. Trois entrées ont été déclarées **vues par autre chose que leur gardien**, vertes en local et rouges en CI. Le contrôle retire donc les couleurs avant de chercher.
+
+Le verdict ne pouvait pas être « n'est gardée par rien » : celui-là ne dépend que des codes de sortie, que la colorisation ne change pas. Seule la comparaison au gardien attendu lit du texte, donc elle seule était exposée.
+
+*Ce que ça a appris :* un verdict « vue par autre chose » ne disait pas ce qui avait rougi à la place, donc ne se diagnostiquait pas. Il en donne maintenant les trois premières lignes, et c'est ce qui a permis de voir les codes d'échappement.
+
 **Il exige que ce soit le bon gardien qui rougisse.** Chaque entrée nomme ce qui doit apparaître dans la sortie d'échec. Sans cela, une mutation vue par un test sans rapport laisserait croire que la garantie tient, alors que celui qui la porte est muet : c'est « un test passe pour la mauvaise raison » transposé à l'outil censé le détecter. À l'ajout de ce contrôle, deux entrées sur neuf se sont révélées mal attribuées.
 
 **Ce qu'il ne couvre pas.** Seulement les garanties qu'on a pensé à y mettre : il empêche un défaut trouvé de revenir, il n'en trouve pas de nouveau. Le contrôle de la spécification, lui, vérifie qu'un nom est **mentionné**, pas qu'il est décrit : un type cité en passant lui suffit.
@@ -850,6 +856,31 @@ Le shell ne charge pas React, et ce n'est pas une intention mais un fait mesurab
 **Les deux côtés vérifient l'origine.** Les messages sont émis vers `window.location.origin` et non `'*'`, et chaque écouteur rejette ce qui ne vient pas de l'origine attendue et de la fenêtre attendue. Shell et preview étant servis par le même serveur, la contrainte ne coûte rien.
 
 *Ce qui casse si on l'enlève :* avec `'*'`, toute page ayant ouvert la preview en iframe reçoit les messages et peut lui en envoyer. Sur un outil de développement qui rend du code arbitraire, c'est une porte ouverte gratuite.
+
+### Les deux fenêtres simulées
+
+`packages/core/test/fake-window.ts` monte deux contextes qui s'envoient de vrais messages, et `ui.test.ts` et `preview.test.ts` éprouvent les deux côtés du canal.
+
+**Pourquoi une simulation plutôt que jsdom.** La surface de DOM utilisée par le canal tient en six API : `addEventListener`, `removeEventListener`, `postMessage`, `location.origin`, `parent` et `contentWindow`. Une bibliothèque apporterait quelques mégaoctets, et sa propre fidélité à `postMessage`, pour ce que quarante lignes reproduisent exactement. **Aucune dépendance de DOM n'entre donc dans le noyau**, dont les seules dépendances de développement restent `vitest`, `typescript` et `@types/node`. `performance.now()`, appelé par la preview, vient du global de Node.
+
+**Ce que la simulation reproduit**, et c'est tout ce dont le canal dépend :
+
+- un message n'est livré que si `targetOrigin` désigne l'origine du destinataire, `'*'` ne refusant rien ;
+- il est **cloné**, donc une fonction ou une instance de composant lève plutôt que de traverser.
+
+La première règle rend les filtres observables. Sans elle, remplacer `window.location.origin` par `'*'` ne changerait rien au comportement observé, et le test resterait vert en ayant l'air de vérifier quelque chose. D'où la forme des cas : c'est **l'iframe d'une autre origine qui ne doit rien recevoir**, pas celle de la même origine qui doit recevoir. Le second passe avec `'*'`, le premier non.
+
+La seconde est la promesse structurelle de la section 5.1 de la spécification : c'est `postMessage` qui interdit à un élément React de traverser, pas une convention. Une simulation qui passe la référence telle quelle laisserait écrire un test que le navigateur refuserait.
+
+Une troisième règle vient de la même exigence : **un écouteur s'exécute dans la fenêtre qui reçoit**, donc `window` bascule le temps de chaque distribution. Sans ce passage, les deux canaux d'un même test liraient le même `parent` et la même origine, et leur appariement serait vrai par accident.
+
+**Ces règles sont elles-mêmes au catalogue de mutation.** Si la simulation cesse de les tenir, les mutations du canal ne prouvent plus rien : c'est le seul endroit du dépôt où un outil de vérification est lui-même vérifié.
+
+**Ce qui casse si on l'enlève.** Rien de visible, et c'est le problème : avant ces tests, remplacer `origin` par `'*'` dans la réponse de la preview laissait la suite entièrement verte, alors que le commentaire juste au-dessus en fait la raison de sûreté du canal.
+
+**Un test branche les deux canaux l'un sur l'autre**, `channel.test.ts`, où aucun message n'est forgé. Les deux autres fichiers forgent une direction à la fois, ce qui laissait l'appariement des deux côtés affirmé et non éprouvé : le shell poste vers sa propre origine, la preview exige la sienne, et rien ne disait que ce sont bien les mêmes.
+
+*Ce que ça ne prouve pas :* qu'un vrai navigateur livre ces messages. La simulation vérifie la logique du canal, ses filtres et ses réponses, pas l'intégration. Le lot 5 fera tourner les deux côtés pour de bon.
 
 ---
 

@@ -46,6 +46,22 @@ function run(command, args) {
 
 const vp = process.env.VP_BIN ?? 'vp'
 
+// `\e[2m > \e[22m` n'est pas ` > `. Voir architecture.md. Construite depuis un
+// code, une séquence d'échappement en littéral étant refusée par le lint.
+const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[\\d;]*m`, 'g')
+
+function plain(output) {
+  return output.replace(ANSI, '')
+}
+
+// Ce qui a rougi, en trois lignes : les échecs nommés, sinon la fin de la sortie.
+function sample(output) {
+  const lines = plain(output).trim().split('\n')
+  const named = lines.filter((line) => /\bFAIL\b|error:|✕|×/.test(line)).slice(0, 3)
+
+  return (named.length > 0 ? named : lines.slice(-3)).join('\n    ')
+}
+
 // Contrôle positif, avant tout le reste. Sans lui, un binaire introuvable rend
 // « échec » à chaque appel, donc toute mutation paraît vue, et le script annonce
 // que tout est gardé sans avoir rien lancé. Mesuré : c'était le cas.
@@ -93,7 +109,7 @@ for (const mutation of mutations) {
     // Qu'une vérification rougisse ne suffit pas : ce doit être celle qui porte
     // la garantie. Sans ce contrôle, une mutation vue par un test sans rapport
     // laisserait croire que la garantie tient, alors que son gardien est muet.
-    const byTheRightOne = `${tests.output}${check.output}`.includes(mutation.attendu)
+    const byTheRightOne = plain(`${tests.output}${check.output}`).includes(mutation.attendu)
 
     const verdict = !built.ok ? 'CASSÉ' : !noticed ? 'MANQUÉ' : byTheRightOne ? 'vu   ' : 'AILLEURS'
     console.log(`${verdict}  ${mutation.garantie}`)
@@ -106,7 +122,9 @@ for (const mutation of mutations) {
       failures.push(`${mutation.garantie} (${mutation.trouvee}) n'est gardée par rien`)
     else if (!byTheRightOne)
       failures.push(
-        `${mutation.garantie} : vue par autre chose que « ${mutation.attendu} », son gardien est muet`,
+        // Sans l'extrait, ce verdict dit ce qui manque, jamais ce qui a rougi.
+        `${mutation.garantie} : vue par autre chose que « ${mutation.attendu} », son gardien est muet\n` +
+          `    à la place : ${sample(`${tests.output}${check.output}`)}`,
       )
   } finally {
     writeFileSync(path, original)

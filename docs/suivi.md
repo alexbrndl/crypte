@@ -12,17 +12,15 @@ Une ligne disparaît quand le point est traité, pas avant. Les niveaux sont dé
 
 ## Important
 
-### Le canal n'a aucun test d'exécution
+### La preview n'implémente ni `update-overrides` ni `set-globals`
 
-`createShellChannel` et `createPreviewChannel` ne sont exercés par aucun test. Le filtrage sur `event.origin` et `event.source`, le refus de `'*'` dans `postMessage`, les réponses `ready`, `rendered` et `error` : rien n'est gardé.
+La section 5.2 de la spécification déclare trois messages du shell vers la preview. Un seul a un effet : `render`. Les deux autres sont reçus et ignorés.
 
-*Mesuré :* remplacer `origin` par `'*'` dans `reply` laisse les 76 tests verts, alors que le commentaire juste au-dessus en fait la raison de sûreté du canal.
+*Ce que ça donne :* un test fixe l'état d'aujourd'hui, et le catalogue de mutation surveille que la preview n'agit que sur `render`. Implémenter les deux messages restants demandera donc de mettre à jour cette entrée, ce qui est voulu : elle dit ce que le code fait, pas ce qu'il devrait faire.
 
-*Pourquoi ce n'est pas fait ici :* il faut un environnement DOM et deux fenêtres simulées, donc une configuration de test que le dépôt n'a pas encore. C'est un lot en soi.
+*Pourquoi ce n'est pas fait ici :* `update-overrides` suppose un panneau qui édite des valeurs, `set-globals` un thème ou une locale à appliquer. Ni l'un ni l'autre n'existe avant le lot 8.
 
-*Origine :* revue 12 du lot 2.
-
----
+*Origine :* revue de la PR #21.
 
 ### `Wrap` reste assignable depuis une fonction quand le composant en est une
 

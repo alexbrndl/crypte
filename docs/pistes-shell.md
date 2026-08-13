@@ -158,6 +158,9 @@ Elles relèvent de la PRD du shell, pas des contrats, mais elles ont été tranc
 | L'arbre a trois niveaux, pas deux | Une entrée porte `path` et `name`, donc dossier, composant, story. |
 | L'identifiant va dans un paramètre de requête | Un segment de chemin oblige à réécrire vers `index.html`, ce qu'un serveur de fichiers statique ne fait pas. |
 | Copier le lien est une action de premier plan | C'est ce qu'on colle dans une pull request. Elle ne mérite pas une icône discrète. |
+| Pas de barre supérieure | Une fois le lien passé dans la toolbar et les changements passés dans la navigation, il n'y restait que la marque et la recherche. Elles descendent en tête de la colonne de navigation, et l'écran gagne une zone en moins et 44 px. |
+| La toolbar couvre le canvas et les panneaux | Les deux décrivent la même entrée, donc ils partagent la bande qui la nomme et qui porte les actions sur elle. |
+| Une destination n'est pas une action | « Ce qui a changé » ouvre un mode, donc sa place est dans la colonne de navigation, avec tout ce vers quoi on navigue, et non parmi les boutons. |
 
 ---
 
