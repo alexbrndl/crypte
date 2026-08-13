@@ -46,9 +46,20 @@ function run(command, args) {
 
 const vp = process.env.VP_BIN ?? 'vp'
 
+// Les couleurs de terminal. En intégration continue, vitest colorise, et le
+// `>` qui sépare le fichier du nom de test se retrouve enveloppé de codes : le
+// nom attendu n'apparaît alors jamais tel quel. Construite depuis un code plutôt
+// qu'écrite en toutes lettres, une séquence d'échappement en littéral étant
+// refusée par le lint.
+const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[\\d;]*m`, 'g')
+
+function plain(output) {
+  return output.replace(ANSI, '')
+}
+
 // Ce qui a rougi, en trois lignes : les échecs nommés, sinon la fin de la sortie.
 function sample(output) {
-  const named = output
+  const named = plain(output)
     .split('\n')
     .filter((line) => /\bFAIL\b|error:|✕|×/.test(line))
     .slice(0, 3)
@@ -105,7 +116,7 @@ for (const mutation of mutations) {
     // Qu'une vérification rougisse ne suffit pas : ce doit être celle qui porte
     // la garantie. Sans ce contrôle, une mutation vue par un test sans rapport
     // laisserait croire que la garantie tient, alors que son gardien est muet.
-    const byTheRightOne = `${tests.output}${check.output}`.includes(mutation.attendu)
+    const byTheRightOne = plain(`${tests.output}${check.output}`).includes(mutation.attendu)
 
     const verdict = !built.ok ? 'CASSÉ' : !noticed ? 'MANQUÉ' : byTheRightOne ? 'vu   ' : 'AILLEURS'
     console.log(`${verdict}  ${mutation.garantie}`)
