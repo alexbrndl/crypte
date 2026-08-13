@@ -8,7 +8,7 @@
 > | -- | -- |
 > | le marqueur `{ "$fn": … }` en 2.1 | retiré en v0.3 : la preview importe les modules de stories, les props ne traversent pas le canal |
 > | le groupe repliable « Attributs HTML » en 2.2 | remplacé en 3.4 : ces props ne sont pas extraites du tout, seule `className` l'est |
-> | le message `plugin` cité en 2.1 | remplacé en v0.7 par `PluginShellMessages` et `PluginPreviewMessages` |
+> | le message `plugin` cité en 2.1 | remplacé en v0.7 par `PluginShellMessages` et `PluginPreviewMessages`, et sa description retirée du chapitre 5 en v0.8 |
 >
 > Ce qui garde sa valeur est le **constat** : les frictions rencontrées en écrivant cinq fichiers de stories à la main, et le fait que le format tienne sur quatre composants sur cinq. C'est pour ça qu'il est conservé.
 

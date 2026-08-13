@@ -692,8 +692,8 @@ Three known gaps between this document and the code:
 | Version | Change |
 | --- | --- |
 | v0.9 | `wrap` stacks components only |
-| v0.8 | the `plugin` message removed from chapter 5, `Manifest.version` back to `number` |
-| v0.7 | three naming rules for the `protocol` folder, `PropDetails` and `ResolvedPropDetails` |
+| v0.8 | chapter 5 stopped describing the `plugin` message it no longer had, `Manifest.version` back to `number` |
+| v0.7 | three naming rules for the `protocol` folder, `PropDetails` and `ResolvedPropDetails`, and the `plugin` message replaced by the two extension points |
 | v0.6 | `ready` announces `protocolVersion`, `StoryOptions` refuses unknown keys |
 | v0.5 | the core no longer knows any plugin, `details` replaces `argTypes` |
 | v0.4 | package naming, the bare `crypte` name being refused by npm |
