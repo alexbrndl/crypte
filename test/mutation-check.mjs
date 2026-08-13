@@ -56,7 +56,7 @@ function plain(output) {
 
 // Ce qui a rougi, en trois lignes : les échecs nommés, sinon la fin de la sortie.
 function sample(output) {
-  const lines = plain(output).split('\n')
+  const lines = plain(output).trim().split('\n')
   const named = lines.filter((line) => /\bFAIL\b|error:|✕|×/.test(line)).slice(0, 3)
 
   return (named.length > 0 ? named : lines.slice(-3)).join('\n    ')
