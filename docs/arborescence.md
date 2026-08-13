@@ -21,6 +21,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `.github/workflows/ci.yml` | format, lint, types, build, tests | chaque pull request et push |
 | `.github/workflows/version.yml` | maintien de la PR de version | chaque fusion sur `main` |
 | `.github/workflows/require-review.yml` | contrôle de présence d'une revue | chaque pull request |
+| `.github/workflows/require-changeset.yml` | contrôle de présence d'une note de version | chaque pull request |
 | `.github/workflows/ts7-readiness.yml` | sonde mensuelle sur `vue-tsc` | personne, ouvre une issue |
 | `.github/dependabot.yml` | veille sur les actions GitHub | Dependabot |
 | `.vite-hooks/pre-commit` | lance `vp staged` | Git, avant chaque commit |
@@ -28,6 +29,8 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/mutations.json` | catalogue des garanties, une par constat de revue | le script ci-dessus |
 | `test/post-review.mjs` | publie un verdict de revue, et vérifie qu'il y est arrivé | `/review` |
 | `test/post-review.test.mjs` | ce que le script refuse de publier | — |
+| `test/changeset-check.mjs` | décide si une pull request doit porter une note | `require-changeset.yml` |
+| `test/changeset-check.test.mjs` | ce qui exige une note, et ce qui n'en exige pas | — |
 | `.changeset/config.json` | mode fixe, générateur de changelog | Changesets |
 | `.claude/skills/review/SKILL.md` | prompt de revue | `/review` |
 | `.claude/skills/explore/SKILL.md` | méthode de découverte avant revue | `/explore` |

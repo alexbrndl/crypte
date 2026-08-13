@@ -765,6 +765,24 @@ Dans `.claude/skills/changeset/`, lancé avant `/review`. Il décide d'abord **s
 
 *Ce qui casse si on l'enlève :* rien mécaniquement, mais un changelog rempli de « mise à jour de la documentation » ne se lit plus, et le mécanisme perd son seul intérêt.
 
+### Le contrôle de présence d'une note
+
+`require-changeset.yml` échoue quand une pull request change un paquet publié sans déposer de note. Il n'écrit rien et ne juge rien : la note est produite en local par `/changeset`, comme la revue par `/review`.
+
+**Pourquoi il existe.** La seule protection était la discipline de l'agent, et l'histoire du dépôt dit ce qu'elle vaut : une pull request a déjà été poussée sans être ouverte, faute d'avoir enchaîné une étape du flux. Une version publiée sans note ne se rattrape pas, un paquet publié ne se reprenant plus.
+
+**Le critère est mécanique**, dans `test/changeset-check.mjs` : un fichier sous `packages/*/src/**` ou un `packages/*/package.json`. Tout le reste, documentation, intégration continue, outillage, tests et `apps/**`, n'exige rien.
+
+Le manifeste compte **en entier**, `scripts` et `devDependencies` compris, plutôt que par champ publié. Comparer champ par champ demanderait de lire les deux versions du fichier et de les rapprocher, pour une précision dont le gain est faible : une note de trop coûte un fichier de quatre lignes, une note manquée publie une version fausse.
+
+**Les mêmes deux exemptions que le contrôle de revue :** les brouillons, puisque le flux dépose la note pendant le brouillon, et les branches `changeset-release/*`, où le robot n'en dépose jamais.
+
+**Ce qui casse si on l'enlève.** Rien immédiatement. Puis un lot change un contrat sans que le changelog le dise, et la version publiée annonce moins qu'elle ne change : c'est le consommateur qui l'apprend, à l'exécution.
+
+*Éprouvé dans les deux sens avant livraison*, ce que le dépôt exige de tout contrôle : sur la PR #17, qui touche six fichiers publiés et porte une note, il passe ; sur la PR #18, outillage seul, il n'exige rien ; et avec un faux `gh` rendant un fichier publié sans note, il sort en 1. Un contrôle qui ne sait que dire oui est indiscernable d'un contrôle correct, et le dépôt en a compté quatre.
+
+*Hors périmètre :* l'ajouter aux contrôles exigés du ruleset. Comme pour la revue, le juger sur quelques lots avant de le rendre bloquant.
+
 ### Deux points d'intégration
 
 **La pull request de version est exemptée du contrôle de revue.** Elle est ouverte par un robot depuis une branche `changeset-release/*`, où personne ne peut lancer `/review`. Sans cette exemption, elle serait bloquée définitivement le jour où le contrôle deviendra exigé.
