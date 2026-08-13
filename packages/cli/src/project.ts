@@ -1,5 +1,5 @@
-// Ce que le CLI sait d'un projet : sa configuration, ses alias, et la
-// configuration Vite qui en découle.
+// What the CLI knows about a project: its configuration, its aliases, and the
+// Vite configuration that follows from them.
 
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -16,27 +16,27 @@ export { ConfigError }
 export interface Project {
   root: string
   config: CrypteConfig
-  // Lus au chargement, pour ne pas relire les mêmes fichiers deux fois.
+  // Read once at load time, so the same files are not read twice.
   paths: ProjectPaths | undefined
-  // Les fichiers dont la configuration dépend, pour la relire quand ils
-  // changent : `crypte.config.ts` et ce dont il dépend, plus la configuration
-  // TypeScript d'où viennent les chemins.
+  // The files the configuration depends on, to read it again when they change:
+  // `crypte.config.ts` and what it imports, plus the TypeScript configuration
+  // the paths come from.
   watch: string[]
 }
 
 export async function loadProject(input: string): Promise<Project> {
-  // Normalisé une fois ici : un `crypte dev ./demo` passerait sinon un chemin
-  // relatif à tout ce qui suit, et les chemins produits le resteraient.
+  // Normalised once here: a `crypte dev ./demo` would otherwise hand a relative
+  // path to everything downstream, and the paths produced would stay relative.
   const root = resolve(input)
   const file = join(root, CONFIG_FILE)
   if (!existsSync(file)) {
-    throw new ConfigError(`Aucun ${CONFIG_FILE} à la racine du projet (${root}).`)
+    throw new ConfigError(`No ${CONFIG_FILE} at the root of the project (${root}).`)
   }
 
-  // Le chargeur de Vite, plutôt qu'une brique de plus : il transpile le fichier
-  // et rend les dépendances à surveiller. Il lève sur un module sans export par
-  // défaut, avec un message qui parle de configuration Vite : le rattraper est
-  // la seule façon de nommer le vrai fichier en cause.
+  // Vite's loader rather than one more moving part: it transpiles the file and
+  // returns the dependencies to watch. It throws on a module with no default
+  // export, with a message about Vite configuration: catching it is the only
+  // way to name the file that is actually at fault.
   let loaded: Awaited<ReturnType<typeof loadConfigFromFile>>
   try {
     loaded = await loadConfigFromFile(
@@ -46,75 +46,73 @@ export async function loadProject(input: string): Promise<Project> {
       'silent',
     )
   } catch (cause) {
-    throw new ConfigError(`${CONFIG_FILE} n'a pas pu être chargé : ${(cause as Error).message}`, {
+    throw new ConfigError(`${CONFIG_FILE} could not be loaded: ${(cause as Error).message}`, {
       cause,
     })
   }
 
-  // Jamais nul ici : Vite ne rend `null` que lorsqu'il doit chercher le fichier
-  // lui-même, et on lui en donne toujours un.
+  // Never null here: Vite returns `null` only when it has to find the file
+  // itself, and we always give it one.
   const config = loaded?.config as unknown as CrypteConfig
   assertUsable(config)
 
-  // Les fichiers lus sont rendus même sans chemins : ajouter un `paths` à un
-  // `tsconfig.json` existant doit provoquer une relecture.
+  // The files read come back even with no paths: adding `paths` to an existing
+  // `tsconfig.json` has to trigger a reload.
   const { paths, files } = await readProjectPaths(root)
   const watch = [...(loaded?.dependencies ?? []).map((dep) => resolve(root, dep)), ...files]
 
   return { root, config, paths, watch }
 }
 
-// Deux champs seulement sont obligatoires, et l'erreur les nomme : la
-// section 1.5 en fait le minimum de configuration du produit.
+// Two fields only are required, and the error names them: section 1.5 makes
+// them the product's minimum configuration.
 function assertUsable(config: CrypteConfig): void {
   if (typeof config?.stories !== 'string' || config.stories === '') {
-    throw new ConfigError(
-      `${CONFIG_FILE} doit déclarer \`stories\`, la racine des fichiers de stories.`,
-    )
+    throw new ConfigError(`${CONFIG_FILE} must declare \`stories\`, the root of the story files.`)
   }
 
   if (config.adapter == null) {
-    throw new ConfigError(`${CONFIG_FILE} doit déclarer \`adapter\`, celui de son framework.`)
+    throw new ConfigError(`${CONFIG_FILE} must declare \`adapter\`, the one for its framework.`)
   }
 
-  // Les champs facultatifs aussi : mal typés, ils lèvent plus loin une erreur
-  // qui ne nomme ni le fichier ni le champ, sur un spread ou un `resolve`.
+  // The optional fields too: badly typed, they throw further down on a spread
+  // or a `resolve`, with an error naming neither the file nor the field.
   if (config.css !== undefined && typeof config.css !== 'string') {
-    throw new ConfigError(`${CONFIG_FILE} : \`css\` doit être un chemin.`)
+    throw new ConfigError(`${CONFIG_FILE}: \`css\` must be a path.`)
   }
 
-  for (const [champ, valeur] of [
+  for (const [field, value] of [
     ['plugins', config.plugins],
     ['vite.plugins', config.vite?.plugins],
   ] as const) {
-    if (valeur !== undefined && !Array.isArray(valeur)) {
-      throw new ConfigError(`${CONFIG_FILE} : \`${champ}\` doit être un tableau.`)
+    if (value !== undefined && !Array.isArray(value)) {
+      throw new ConfigError(`${CONFIG_FILE}: \`${field}\` must be an array.`)
     }
   }
 }
 
-// La configuration Vite du projet, montée depuis la sienne. Rien n'en est
-// deviné : les alias viennent de sa configuration TypeScript, les plugins de ce
-// qu'il déclare, et son `vite.config` n'est jamais lu.
+// The project's Vite configuration, built from its own. Nothing is guessed:
+// aliases come from its TypeScript configuration, plugins from what it
+// declares, and its `vite.config` is never read.
 export function viteConfigOf(project: Project): InlineConfig {
   const { root, config, paths } = project
 
   return {
     root,
     configFile: false,
-    // Le résolveur d'abord, les plugins du projet ensuite : le premier ne
-    // capture que ce qu'il résout vraiment, son repli laissant passer le reste,
-    // donc le placer devant ne prive personne. Un plugin qui veut la main avant
-    // lui déclare `enforce: 'pre'`, ce que Vite honore.
+    // The resolver first, the project's plugins after: the first one only
+    // catches what it truly resolves, its fallback letting the rest through, so
+    // putting it in front takes nothing from anyone. A plugin that wants to run
+    // before it declares `enforce: 'pre'`, which Vite honours.
     //
-    // L'ensemble passe après les résolveurs internes de Vite, si bien qu'un
-    // chemin remplaçant un paquet installé reste sans effet. C'est ce même ordre
-    // qui empêche un motif fourre-tout de détourner les imports relatifs.
+    // The whole set runs after Vite's own resolvers, so a path meant to replace
+    // an installed package has no effect. That same order is what stops a
+    // catch-all pattern from hijacking relative imports.
     plugins: [...(paths ? [pathsPlugin(paths)] : []), ...(config.vite?.plugins ?? [])],
   }
 }
 
-// L'entrée CSS déclarée, en chemin absolu, ou rien si le projet n'en a pas.
+// The declared CSS entry, as an absolute path, or nothing if there is none.
 export function cssEntryOf(project: Project): string | undefined {
   const { css } = project.config
   if (!css) return undefined

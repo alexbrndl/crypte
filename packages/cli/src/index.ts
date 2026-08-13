@@ -9,5 +9,5 @@ switch (command) {
     console.log('0.0.0')
     break
   default:
-    console.log(`crypte — protocole v${PROTOCOL_VERSION}, aucune commande implémentée`)
+    console.log(`crypte — protocol v${PROTOCOL_VERSION}, no command implemented yet`)
 }

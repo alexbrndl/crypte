@@ -1,5 +1,5 @@
-// L'erreur que le CLI montre à l'utilisateur, sans trace de pile.
-// La cause d'origine est conservée : elle ne s'affiche pas, mais reste
-// atteignable pour qui cherche d'où vient une panne trois niveaux plus bas.
+// The error the CLI shows a user, with no stack trace.
+// The original cause is kept: it is not printed, but it stays reachable for
+// whoever looks for where a failure three levels down came from.
 
 export class ConfigError extends Error {}

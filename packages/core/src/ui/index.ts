@@ -1,8 +1,8 @@
-// Côté shell du canal.
+// The shell side of the channel.
 
 import type { PreviewMessage, ShellMessage } from '../protocol/channel'
 
-// Marqueur lu par test/isolation.test.ts
+// Marker read by test/isolation.test.ts
 export const UI_MARKER = '__crypte_ui__'
 
 export interface ShellChannel {
@@ -10,12 +10,12 @@ export interface ShellChannel {
   onMessage(handler: (message: PreviewMessage) => void): () => void
 }
 
-// Ne manipule que des messages sérialisables, d'où l'agnosticisme du shell.
+// Handles serialisable messages only, which is what keeps the shell neutral.
 export function createShellChannel(frame: HTMLIFrameElement): ShellChannel {
   return {
     send(message) {
-      // Jamais '*' : le message partirait vers toute page ayant pris la place
-      // de l'iframe.
+      // Never '*': the message would go to any page that took the iframe's
+      // place.
       frame.contentWindow?.postMessage(message, window.location.origin)
     },
     onMessage(handler) {

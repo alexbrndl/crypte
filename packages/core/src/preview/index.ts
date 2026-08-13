@@ -1,18 +1,18 @@
-// Côté iframe du canal.
+// The iframe side of the channel.
 
 import { PROTOCOL_VERSION, type PreviewMessage, type ShellMessage } from '../protocol/channel'
 
-// Marqueur lu par test/isolation.test.ts
+// Marker read by test/isolation.test.ts
 export const PREVIEW_MARKER = '__crypte_preview__'
 
 export interface PreviewHandlers {
   render(id: string, overrides: Record<string, unknown>): void
 }
 
-// Ne sait rien du framework de rendu : c'est l'adaptateur qui s'en charge.
+// Knows nothing of the rendering framework: the adapter handles that.
 export function createPreviewChannel(handlers: PreviewHandlers): () => void {
-  // Jamais '*' : toute page ayant ouvert cette preview en iframe pourrait lire
-  // les messages et en envoyer.
+  // Never '*': any page that opened this preview in an iframe could read the
+  // messages and send its own.
   const origin = window.location.origin
   const reply = (message: PreviewMessage) => window.parent.postMessage(message, origin)
 

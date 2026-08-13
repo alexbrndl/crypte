@@ -314,8 +314,8 @@
   {
     "garantie": "Hors de docs, un nom de document sans chemin est vu",
     "fichier": "packages/core/src/protocol/story.ts",
-    "avant": "Voir docs/internal/architecture.md.",
-    "apres": "Voir architecture.md.",
+    "avant": "See docs/internal/architecture.md.",
+    "apres": "See architecture.md.",
     "trouvee": "lot 0 terdecies",
     "attendu": "doc-links.test.mjs > hors de docs, un document est cité par son chemin"
   },
@@ -342,5 +342,13 @@
     "apres": "interface ComponentReference {",
     "trouvee": "lot 0 quaterdecies",
     "attendu": "aucun bloc de code ne déclare ComponentRef"
+  },
+  {
+    "garantie": "Une phrase française dans le code publié est vue",
+    "fichier": "packages/cli/src/errors.ts",
+    "avant": "// The error the CLI shows a user, with no stack trace.",
+    "apres": "// L'erreur que le CLI montre à l'utilisateur, sans trace de pile.",
+    "trouvee": "lot 0 quindecies",
+    "attendu": "published-english.test.mjs > le code publié ne contient pas de français"
   }
 ]

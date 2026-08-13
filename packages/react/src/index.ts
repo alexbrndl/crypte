@@ -19,9 +19,9 @@ export function createAdapter(): Adapter {
   let root: Root | null = null
 
   return {
-    // flushSync force le rendu à se terminer avant le retour. Sans lui, React commite
-    // plus tard : une erreur du composant échapperait au try/catch de l'appelant, et
-    // le message `rendered` partirait avant que quoi que ce soit ne soit à l'écran.
+    // `flushSync` makes the render finish before returning. Without it React
+    // commits later: a component error would escape the caller's try/catch, and
+    // the `rendered` message would leave before anything is on screen.
     mount(container, component, props) {
       root ??= createRoot(container)
       const target = root

@@ -102,16 +102,6 @@ Quatre fois sur le lot 3, puis une fois sur le lot 0 decies, une commande a éch
 
 *Origine :* revue 7 de la PR #17.
 
-### La documentation publique s'annonce en anglais et l'est à moitié
-
-`CONTRIBUTING.md` et `arborescence.md` étiquettent `docs/` comme public et anglais. Ses deux documents le sont depuis la convergence, `contracts.md` et `decisions.md`. Les deux autres documents publics sont à la racine, `README.md` et `CONTRIBUTING.md`, tous deux encore en français.
-
-*Ce qui a été fait :* les deux étiquettes disent que la bascule est en cours, et `decisions.md` nomme l'issue qui la termine.
-
-*Pourquoi ce n'est pas fait ici :* `README.md` et `CONTRIBUTING.md` sont le lot `DCJ-209`. Le README est par ailleurs faux sur l'état du projet, donc c'est une réécriture, pas une traduction.
-
-*Origine :* revue de la PR #23.
-
 ### `commentsOnly` accepte des commentaires qui ne sont pas inertes
 
 Le contrôle de note de version exempte toute ligne commençant par `//`. Or `/// <reference types="…" />` est recopiée dans les déclarations émises, et `// @ts-expect-error` ou `// eslint-disable-next-line` changent ce qui compile.

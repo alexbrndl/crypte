@@ -346,7 +346,21 @@ Une première version exemptait tous les `*.test.*`, au motif que leurs vraies d
 
 ---
 
-## 4 quinquies. La configuration d'un projet
+## 4 quinquies. Le code publié en anglais
+
+`test/published-english.test.mjs` refuse un caractère accentué dans `packages/*/src`, hors de ce qui est cité entre accents graves.
+
+**Pourquoi.** L'anglais n'en porte aucun, donc une seule ligne revenue au français se voit. Ce qu'un utilisateur ou un contributeur lit est en anglais depuis le lot 0 quindecies ; les notes de conception restent en français, dans `docs/internal/`. Voir `docs/decisions.md`.
+
+**L'exception des accents graves n'est pas un contournement.** `id.ts` documente la normalisation des identifiants avec ses propres exemples, « `é` devient `e` », « `が` ne devient pas `か` » : ce sont les données du problème, pas de la prose française. Sans cette exception, le contrôle serait faux dès sa première exécution, et on l'aurait désarmé.
+
+**Ce qui casse si on l'enlève.** Rien tout de suite. Puis un commentaire français entre dans un fichier publié, personne ne le voit passer en revue, et la surface publique redevient bilingue par endroits.
+
+*Ce qu'il ne couvre pas :* une phrase anglaise mal écrite, et le français sans accent. Il attrape un retour de langue, pas une faute de style.
+
+---
+
+## 4 sexies. La configuration d'un projet
 
 **`crypte.config.ts` est chargé par `loadConfigFromFile`, la fonction publique de Vite.**
 

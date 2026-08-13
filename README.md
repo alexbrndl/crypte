@@ -1,42 +1,44 @@
 # Crypte
 
-Atelier de composants et design system, pensé léger et multi-framework.
+A component workshop for design systems, built to stay light and to work with more than one framework.
 
-Un noyau agnostique, un adaptateur par framework, et des plugins que l'on installe à la carte. Rien de ce qui n'est pas installé n'est chargé.
+A framework-neutral core, one adapter per framework, and plugins you add one at a time. Nothing you have not installed is ever loaded.
 
-> **Statut : conception.** Aucune implémentation à ce jour. Les contrats sont spécifiés, le format de story a été éprouvé sur cinq composants réels.
+> **Status: in progress.** The contracts are frozen, the CLI reads a project's configuration and resolves its path aliases, and the channel between the shell and the preview is built and tested. **No command runs yet**, and nothing is published to npm. Section 8 of [`docs/contracts.md`](docs/contracts.md) says exactly what exists.
 
-## Pourquoi
+## Why
 
-Storybook est mature mais lourd : configuration coûteuse, démarrage lent, et une majorité de fonctionnalités jamais utilisées. Les alternatives légères sont rapides parce qu'elles se limitent à un seul framework.
+Storybook is mature but heavy: the configuration costs time, the start-up is slow, and most of what it can do goes unused. The light alternatives are fast because they serve a single framework.
 
-Crypte prend le pari inverse : une architecture en couches dès le départ, pour rester léger sans renoncer au multi-framework.
+Crypte takes the other bet: layers from the start, so that it stays light without giving up on more than one framework.
 
-## Principes
+## Principles
 
-**Ne jamais lire le `vite.config` d'un projet.** Crypte lit uniquement des formats standards, indépendants de tout framework, et ce que le projet lui déclare explicitement. C'est ce qui rend la promesse multi-projets tenable.
+**Never read a project's `vite.config`.** Crypte reads standard, framework-neutral formats, plus what the project declares to it. That is what makes the promise hold across projects.
 
-**Ne couvrir que ce qui est démontré par l'usage.** Un mécanisme ajouté par précaution crée un usage qu'on ne peut plus reprendre. Un mécanisme ajouté après un besoin réel ne casse rien.
+**Only cover what real use has shown.** A mechanism added just in case creates a use you can no longer take back. A mechanism added after a real need breaks nothing.
 
-**Le shell ne connaît aucun framework.** Il dialogue avec la preview par `postMessage`. Cette frontière est la garantie d'agnosticisme du noyau ; aucune exception n'y sera introduite.
+**The shell knows no framework.** It talks to the preview through `postMessage`. That boundary is what keeps the core neutral, and no exception will be made to it.
 
 ## Documentation
 
-| Document | Contenu |
-|---|---|
-| [`docs/contracts.md`](docs/contracts.md) | Format de story, manifeste, protocole du canal, contrat de plugin |
-| [`docs/internal/test-format-stories.md`](docs/internal/test-format-stories.md) | Test du format sur cinq composants réels, frictions relevées |
-| [`docs/internal/plugins.md`](docs/internal/plugins.md) | Catalogue des plugins, nommage, phases |
+| Document | Contents |
+| --- | --- |
+| [`docs/contracts.md`](docs/contracts.md) | story format, manifest, channel protocol, plugin contract, and what is built |
+| [`docs/decisions.md`](docs/decisions.md) | what we chose, what we turned down, and what would reopen it |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | install, checks, and how a change gets in |
 
-## Feuille de route
+Design notes live in `docs/internal/` and are written in French. See `docs/decisions.md` for why.
 
-**Phase 1.** Noyau, adaptateur React, plugin `controls`, adaptateur Vue, build statique déployé en continu.
+## Roadmap
+
+**Phase 1.** Core, React adapter, `controls` plugin, Vue adapter, static build deployed on every change.
 
 **Phase 2.** `visual-tests`, `docs`, `source`, `responsive`, `theme`, `actions`.
 
-**Phase 3.** `crypte serve` : commentaires et édition des guidelines, avec écriture en pull request.
+**Phase 3.** `crypte serve`: comments and guideline editing, writing back through a pull request.
 
-Chaque plugin est un projet distinct, avec sa propre PRD et ses issues.
+Each plugin is its own project, with its own brief and issues.
 
 ## Licence
 
