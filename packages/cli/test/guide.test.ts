@@ -109,6 +109,7 @@ describe('les exemples du guide', () => {
     // resterait et l'erreur porterait sur le paquet, pas sur l'exemple.
     expect(source).not.toContain('import')
     expect(source).not.toContain('createAdapter')
+    expect(source).not.toContain('defineConfig')
 
     const root = projectWith({
       'crypte.config.ts': source,
