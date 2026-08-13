@@ -18,7 +18,9 @@ const LEVEL = /^\*\*(Bloquant|Important|Observation)\.\*\*/
 const BLOCKING = /^\*\*Bloquant\.\*\*/
 
 // Rend la liste des raisons de refuser le verdict, vide s'il est publiable.
-export function validate(review) {
+// `changed` est la liste des fichiers du diff, quand on l'a : l'API refuse le
+// tout en 422 pour un seul point ancré ailleurs.
+export function validate(review, changed) {
   const problems = []
   const { body, event, comments } = review ?? {}
   const points = Array.isArray(comments) ? comments : []
@@ -34,8 +36,14 @@ export function validate(review) {
   if (event !== 'COMMENT') problems.push('`event` doit valoir COMMENT')
 
   points.forEach((point, index) => {
-    if (!LEVEL.test(point?.body ?? ''))
-      problems.push(`le point ${index + 1} n'ouvre pas sur son niveau`)
+    const où = `le point ${index + 1}`
+
+    if (!LEVEL.test(point?.body ?? '')) problems.push(`${où} n'ouvre pas sur son niveau`)
+    if (!point?.path) problems.push(`${où} n'est ancré sur aucun fichier`)
+    else if (changed && !changed.includes(point.path))
+      problems.push(`${où} est ancré sur ${point.path}, que le diff ne touche pas`)
+    if (!Number.isInteger(point?.line) || point.line < 1)
+      problems.push(`${où} n'est ancré sur aucune ligne`)
   })
 
   const declared = typeof body === 'string' ? body.match(DECLARED) : null
@@ -56,8 +64,10 @@ export function validate(review) {
   return problems
 }
 
+// `stdio: 'pipe'` : sans lui, la stderr de `gh` part au terminal **et** dans
+// `error.stderr`, donc un échec s'affiche deux fois.
 function gh(args) {
-  return execFileSync('gh', args, { encoding: 'utf8' }).trim()
+  return execFileSync('gh', args, { stdio: 'pipe', encoding: 'utf8' }).trim()
 }
 
 // Le compte rendu par `gh`. Un `NaN` passerait toutes les comparaisons qui
@@ -69,8 +79,8 @@ export function readCount(output) {
   return Number(output)
 }
 
-function marked(number) {
-  const count = gh([
+function marked(number, run) {
+  const count = run([
     'pr',
     'view',
     number,
@@ -81,6 +91,27 @@ function marked(number) {
   ])
 
   return readCount(count)
+}
+
+// Publie, puis vérifie que le compte a bougé. Lève si la revue n'est pas
+// arrivée. `run` est injectable pour que ce contrôle soit lui-même éprouvé :
+// c'est la garantie que ce script existe pour tenir.
+export function publish(file, given, run = gh) {
+  const repo = run(['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner'])
+  const number = given ?? run(['pr', 'view', '--json', 'number', '--jq', '.number'])
+  const before = marked(number, run)
+
+  run(['api', `repos/${repo}/pulls/${number}/reviews`, '--input', file])
+
+  // Le compte, pas le code de sortie de `gh` : ce qui compte est la présence sur
+  // la pull request, puisque c'est elle que lit le contrôle.
+  const after = marked(number, run)
+  if (after <= before)
+    throw new Error(
+      `toujours ${after} revue(s) marquée(s) sur #${number}, la publication n'a rien donné`,
+    )
+
+  return { number, before, after }
 }
 
 function main([file, given]) {
@@ -98,7 +129,22 @@ function main([file, given]) {
     exit(1)
   }
 
-  const problems = validate(review)
+  // Les fichiers du diff, quand git répond : un point ancré ailleurs fait
+  // refuser le tout en 422, donc au code 2, dont le geste n'est pas celui qui
+  // corrige.
+  let changed
+  try {
+    changed = execFileSync('git', ['diff', '--name-only', 'origin/main...HEAD'], {
+      stdio: 'pipe',
+      encoding: 'utf8',
+    })
+      .split('\n')
+      .filter(Boolean)
+  } catch {
+    changed = undefined
+  }
+
+  const problems = validate(review, changed)
   if (problems.length > 0) {
     console.error(`Verdict refusé, ${problems.length} raison(s) :`)
     for (const problem of problems) console.error(`  ${problem}`)
@@ -109,24 +155,12 @@ function main([file, given]) {
   // introuvable et un refus de l'API se traitent pareil, la revue n'est pas
   // arrivée. Sans ce cadre, une exception sortirait en 1, le code du verdict
   // refusé.
-  let number = given
   try {
-    const repo = gh(['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner'])
-    number ??= gh(['pr', 'view', '--json', 'number', '--jq', '.number'])
-    const before = marked(number)
-
-    gh(['api', `repos/${repo}/pulls/${number}/reviews`, '--input', file])
-
-    // Le compte, pas le code de sortie de `gh` : ce qui compte est la présence
-    // sur la pull request, puisque c'est elle que lit le contrôle.
-    const after = marked(number)
-    if (after <= before)
-      throw new Error(`toujours ${after} revue(s) marquée(s), la publication n'a rien donné`)
-
+    const { number, before, after } = publish(file, given)
     console.log(`Revue publiée sur #${number} : ${before} → ${after} revue(s) marquée(s).`)
   } catch (error) {
     console.error(`${error.stdout ?? ''}${error.stderr ?? ''}${error.message}`)
-    console.error(`La revue n'est pas sur la pull request ${number ? `#${number}` : 'courante'}.`)
+    console.error("La revue n'est pas sur la pull request.")
     exit(2)
   }
 }

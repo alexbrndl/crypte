@@ -597,9 +597,13 @@ Le lot 2 a demandé neuf revues et cinquante-trois constats. Quatre mesures en s
 
 Deux corrections avaient été tentées sans rien changer : demander au sous-agent de publier avant de rendre compte, sa tâche s'achevant quand il rend son texte ; puis déplacer la responsabilité sur l'orchestrateur, ce qui reste une règle écrite.
 
-**Ce qu'il vérifie.** Le marqueur seul sur la première ligne, `event` à `COMMENT`, un niveau en tête de chaque point ancré, et un compte de bloquants égal au nombre de points ancrés qui en portent le niveau. Cette dernière condition n'est pas cosmétique : un bloquant laissé dans le corps de la revue n'est pas résolvable, donc ne bloque rien.
+**Ce qu'il vérifie.** Le marqueur seul sur la première ligne, `event` à `COMMENT`, un niveau en tête de chaque point, un fichier et une ligne pour chacun, ce fichier appartenant au diff, et un compte de bloquants égal au nombre de points ancrés qui en portent le niveau.
+
+Les deux dernières conditions ne sont pas cosmétiques. Un bloquant laissé dans le corps de la revue n'est pas résolvable, donc ne bloque rien. Et un seul point ancré hors du diff fait refuser l'appel entier en 422 : sans ce contrôle, l'échec sortirait en code 2, celui dont le geste est de recommencer, alors que ce qu'il faut est corriger le fichier.
 
 Puis il compte les revues marquées **avant et après** l'appel, et échoue si le nombre n'a pas bougé. C'est la présence sur la pull request qui fait foi, pas le code de sortie de `gh` : une réponse d'API acceptée mais sans effet passerait sinon pour un succès.
+
+**Le lanceur est injectable.** `publish(fichier, numéro, run)` reçoit ce qui appelle `gh`, ce qui rend testable la garantie même du script. Sans cette couture, inverser la comparaison des deux comptes laissait la suite verte, exactement le défaut que ce script existe pour empêcher : constaté en revue de la pull request qui l'introduit.
 
 Deux codes de sortie, parce qu'ils appellent deux gestes différents : **1**, le verdict est refusé, corrige le fichier ; **2**, la revue n'est pas arrivée, recommence. Tout ce qui parle à GitHub sort en 2, y compris une pull request introuvable, sans quoi une exception sortirait en 1 et se lirait comme un verdict mal formé.
 

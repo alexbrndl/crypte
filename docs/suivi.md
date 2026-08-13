@@ -114,6 +114,14 @@ Quatre fois sur le lot 3, puis une fois sur le lot 0 decies, une commande a éch
 
 *Origine :* revue 12 du lot 2.
 
+### `post-review` vérifie le fichier d'un point, pas sa ligne
+
+L'API exige que `line` tombe dans une portion du diff, pas seulement dans un fichier qu'il touche. Le script vérifie l'appartenance du fichier, jamais celle de la ligne : un point ancré sur la ligne 400 d'un fichier dont le diff ne change que les dix premières est publié, et l'appel entier échoue en 422.
+
+*Pourquoi ce n'est pas fait ici :* il faut analyser les en-têtes de section du diff pour reconstruire les lignes admissibles, ce qui est un lot en soi. Le fichier est le cas le plus fréquent, et il est couvert.
+
+*Origine :* exploration du lot 0 decies, après la revue de la PR #18.
+
 ### La relance du contrôle de revue reste écrite à la main
 
 `post-review.mjs` publie le verdict, mais `require-review.yml` ne réagit qu'à l'ouverture d'une pull request et aux nouvelles poussées : le contrôle reste rouge jusqu'à une relance, que la section 7 du skill fait en deux commandes.
