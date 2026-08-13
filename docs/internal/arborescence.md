@@ -79,6 +79,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `src/paths.ts` | le résolveur qui les applique | `project.ts` |
 | `src/errors.ts` | l'erreur montrée à l'utilisateur | `project.ts`, `config-paths.ts` |
 | `test/fixture/` | projet imité, aux contraintes réelles | `test/project.test.ts` |
+| `test/guide.test.ts` | exécute les exemples de `docs/guide.md` | — |
 
 ## `packages/react` — `@crypte/react`
 
@@ -106,6 +107,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | -- | -- | -- |
 | `contracts.md` | les quatre contrats, fait foi | toutes les PRD |
 | `decisions.md` | ce qu'on a choisi, écarté, et ce qui rouvrirait le choix | qui se demande pourquoi |
+| `guide.md` | comment installer Crypte sur un projet, en anglais | l'utilisateur, le futur site |
 
 ## `docs/internal` — notes du mainteneur, en français
 

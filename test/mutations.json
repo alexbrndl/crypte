@@ -358,5 +358,45 @@
     "apres": "const QUOTED = /`[^`]*`/g",
     "trouvee": "revue 2 de la PR #26",
     "attendu": "published-english.test.mjs > un exemple cité n’est pas du français, une phrase citée en est"
+  },
+  {
+    "garantie": "Un exemple de configuration faux dans le guide est vu",
+    "fichier": "docs/guide.md",
+    "avant": "  stories: 'stories',",
+    "apres": "  stories: 'histoires',",
+    "trouvee": "lot 0 septdecies",
+    "attendu": "guide.test.ts > les exemples du guide > la configuration est acceptée par le CLI"
+  },
+  {
+    "garantie": "Un message cité par le guide que le CLI ne produit pas est vu",
+    "fichier": "docs/guide.md",
+    "avant": "crypte.config.ts must declare `stories`, the root of the story files.",
+    "apres": "crypte.config.ts needs a `stories` key.",
+    "trouvee": "lot 0 septdecies",
+    "attendu": "guide.test.ts > les exemples du guide > le message cité est bien celui que le CLI produit"
+  },
+  {
+    "garantie": "Un marqueur de vérification renommé dans le guide est vu",
+    "fichier": "docs/guide.md",
+    "avant": "<!-- checked: aliases -->",
+    "apres": "<!-- checked: chemins -->",
+    "trouvee": "lot 0 septdecies",
+    "attendu": "guide.test.ts > les exemples du guide > sont tous rattachés à un cas"
+  },
+  {
+    "garantie": "Un nom importé par le guide que le paquet n’exporte pas est vu",
+    "fichier": "docs/guide.md",
+    "avant": "import { createAdapter } from '@crypte/react'",
+    "apres": "import { react } from '@crypte/react'",
+    "trouvee": "revue de la PR #27",
+    "attendu": "guide.test.ts > les exemples du guide > n’importe que des noms que les paquets exportent"
+  },
+  {
+    "garantie": "Un marqueur introuvable ne rend plus le premier bloc du guide",
+    "fichier": "packages/cli/test/guide.test.ts",
+    "avant": "  expect(guide, `marqueur « ${marker} » absent du guide`).toContain(marker)\n",
+    "apres": "",
+    "trouvee": "revue de la PR #27",
+    "attendu": "guide.test.ts > les exemples du guide > refuse un marqueur qu’il ne trouve pas"
   }
 ]

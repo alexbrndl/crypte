@@ -362,7 +362,31 @@ Une première version exemptait tous les `*.test.*`, au motif que leurs vraies d
 
 ---
 
-## 4 sexies. La configuration d'un projet
+## 4 sexies. Les exemples du guide
+
+`packages/cli/test/guide.test.ts` lit `docs/guide.md`, en extrait les blocs de code marqués, et les exécute contre le CLI.
+
+**Pourquoi.** Un exemple faux dans une documentation vaut moins que pas d'exemple : il apprend à ne plus les lire. Le guide serait sinon la troisième source de vérité qui ment, après la spécification et le code, et c'est le défaut que toute cette passe de documentation existe pour supprimer.
+
+**Comment un bloc est rattaché.** Un commentaire HTML le précède, `<!-- checked: config -->`, et un cas porte le même nom. Le marqueur est explicite plutôt que positionnel : ajouter un paragraphe au-dessus d'un bloc ne doit pas changer ce qui est vérifié.
+
+Un cas à part compare **la liste des marqueurs à la liste attendue**. Sans lui, renommer un marqueur ferait passer l'exemple en silence. Mesuré, c'est la seule des quatre mutations qui ne tombait pas d'elle-même.
+
+Un second garde va avec : `indexOf` rend `-1` sur un marqueur absent, et la découpe ramenait alors le **premier bloc du guide**, langue comprise. L'extraction ne signalait donc rien, elle rendait le mauvais bloc. Un cas exige maintenant qu'un marqueur inconnu lève.
+
+**Ce que le test change de l'exemple.** Les imports et l'appel à `defineConfig`, qui désignent des paquets qu'un projet installe et que le dossier temporaire n'a pas. La **forme de l'objet**, qui est ce que le guide décrit, est celle du guide, mot pour mot.
+
+Retirer les imports laissait cependant passer n'importe quel nom : le guide a montré `react()` pendant un tour entier, que `@crypte/react` n'exporte pas. Un cas confronte donc **chaque nom importé aux exports réels du paquet cité**, lus à la source. Et les substitutions sont vérifiées, une `String.replace` muette laissant sinon l'exemple intact sans le dire.
+
+**Le message d'erreur cité est vérifié aussi**, en provoquant l'erreur : le guide montre ce que le CLI dit vraiment, pas une paraphrase.
+
+**Ce qui casse si on l'enlève.** Le guide se met à décrire un produit qui a changé, et personne ne s'en aperçoit avant qu'un utilisateur ne suive une page fausse.
+
+*Ce qu'il ne couvre pas :* les sections « pas encore ». Elles ne décrivent rien qui tourne, donc il n'y a rien à exécuter, et c'est leur mise à jour qui reste une affaire de discipline.
+
+---
+
+## 4 septies. La configuration d'un projet
 
 **`crypte.config.ts` est chargé par `loadConfigFromFile`, la fonction publique de Vite.**
 

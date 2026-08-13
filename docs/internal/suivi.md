@@ -102,6 +102,16 @@ Quatre fois sur le lot 3, puis une fois sur le lot 0 decies, une commande a éch
 
 *Origine :* revue 7 de la PR #17.
 
+### `exportsOf` devine l'entrée d'un paquet plutôt que de la lire
+
+Le contrôle des exemples du guide code en dur l'entrée de chaque paquet, `config.ts` pour le CLI et `index.ts` pour les autres, et ne reconnaît que quatre formes d'export. Un exemple qui citerait `@crypte/core/protocol` échouerait sur un fichier introuvable, avec un message sans rapport avec la garantie.
+
+*Pourquoi ce n'est pas fait ici :* lire le champ `exports` du manifeste demande de résoudre des sous-chemins, pour deux paquets cités par un seul exemple. L'échec est bruyant, donc rien ne passe en silence.
+
+*Même angle mort* que celui déjà consigné pour `spec.test.ts`, qui ne lit pas non plus toutes les formes d'export.
+
+*Origine :* revue 2 de la PR #27.
+
 ### `commentsOnly` accepte des commentaires qui ne sont pas inertes
 
 Le contrôle de note de version exempte toute ligne commençant par `//`. Or `/// <reference types="…" />` est recopiée dans les déclarations émises, et `// @ts-expect-error` ou `// eslint-disable-next-line` changent ce qui compile.
