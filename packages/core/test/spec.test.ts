@@ -49,8 +49,9 @@ const NOT_OURS = new Set(['ControlSpec', 'PropsOf', 'StoryModule'])
 const BLOCKS = /```[\s\S]*?```/g
 const normativeBlocks = normative.match(BLOCKS) ?? []
 
-// Le corps d'une interface dans un bloc de documentation, accolades comprises,
-// ou rien si le bloc ne la déclare pas.
+// Le corps d'une interface dans un bloc de documentation, ou rien si le bloc ne
+// la déclare pas. `[^}]*` s'arrête à la première accolade fermante : un champ
+// écrit après un objet inline serait annoncé absent, ce qui se voit.
 function bodyOf(block: string, name: string): string | undefined {
   return block.match(new RegExp(`interface\\s+${name}\\b[^{]*\\{([^}]*)\\}`))?.[1]
 }
