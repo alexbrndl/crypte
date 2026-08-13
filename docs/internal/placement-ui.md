@@ -74,13 +74,17 @@ Les tokens, en variables CSS, sont publics aussi. C'est la surface au meilleur r
 
 Aucun plugin ne les dessine, donc rien ne justifie de les rendre publics.
 
-L'arbre avec ses intertitres, son guide vertical et son échelle d'états. Le filtre de statut. La palette. Le fil d'Ariane. La toolbar elle-même, dont les plugins ne remplissent que des emplacements. Le canvas. La barre d'état. Les trois modes et leurs transitions. La page composant. Le mode changements. La frise des événements. La cascade des props. Les états nu, d'attente, d'erreur et de premier lancement.
+L'arbre avec ses intertitres, son guide vertical et son échelle d'états. Le filtre de statut. La palette. Le fil d'Ariane. La toolbar elle-même, dont les plugins ne remplissent que des emplacements. Le canvas. La barre d'état. Les trois modes et leurs transitions. La page composant. Le mode changements. La cascade des props. Les états nu, d'attente, d'erreur et de premier lancement.
 
 ### 3.3 Reste dans son plugin
 
 Un seul consommateur chacun, donc pas de promotion.
 
 Le fil de commentaires de `comments`. Les commandes de lecture de `interactions`. La jauge de taux de `coverage`, que `visual-tests` ne rattrape pas puisqu'il n'a pas de surface `ui`. La vue à deux volets de `diff`. La grille de vignettes de `grid`.
+
+**La frise des événements appartient à `comments`**, pas au noyau. Un commentaire est un événement du composant au même titre qu'un changement de version : les séparer en deux plugins obligeait l'un à lire les données de l'autre, ce que le contrat ne prévoit pas. `comments` contribue donc à deux zones, le panneau pour les fils et la zone `page` pour la frise.
+
+Il en découle une dégradation à prévoir : `comments` dépend de `crypte serve`, puisqu'un site statique ne peut rien écrire, alors que la frise ne lit qu'une empreinte déjà commise. **La frise doit fonctionner sans le serveur**, sinon un déploiement statique la perd sans raison.
 
 ---
 
