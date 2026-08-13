@@ -765,6 +765,32 @@ Dans `.claude/skills/changeset/`, lancé avant `/review`. Il décide d'abord **s
 
 *Ce qui casse si on l'enlève :* rien mécaniquement, mais un changelog rempli de « mise à jour de la documentation » ne se lit plus, et le mécanisme perd son seul intérêt.
 
+### Le contrôle de présence d'une note
+
+`require-changeset.yml` échoue quand une pull request change un paquet publié sans déposer de note. Il n'écrit rien et ne juge rien : la note est produite en local par `/changeset`, comme la revue par `/review`.
+
+**Pourquoi il existe.** La seule protection était la discipline de l'agent, et l'histoire du dépôt dit ce qu'elle vaut : une pull request a déjà été poussée sans être ouverte, faute d'avoir enchaîné une étape du flux. Une version publiée sans note ne se rattrape pas, un paquet publié ne se reprenant plus.
+
+**Le critère est mécanique**, dans `test/changeset-check.mjs` : `packages/*/src/**`, le `package.json` d'un paquet, les deux fichiers qui décident du contenu de `dist/`, `tsconfig.json` et `vite.config.ts`, et `tsconfig.base.json` à la racine. Ce dernier compte parce que les trois paquets ne font que l'étendre : `target` et `verbatimModuleSyntax` y sont écrits une seule fois et décident des `.d.ts` publiés partout. Tout le reste, documentation, intégration continue, outillage, tests et `apps/**`, n'exige rien.
+
+Ces trois fichiers comptent **en entier**, `scripts` et `devDependencies` compris, plutôt que par champ publié. Comparer champ par champ demanderait de lire les deux versions du fichier et de les rapprocher, pour une précision dont le gain est faible : une note de trop coûte un fichier de quatre lignes, une note manquée publie une version fausse. Retirer une entrée de `build.lib.entry` supprime une porte d'entrée publique sans toucher une seule ligne de `src/`.
+
+**Le même critère est écrit dans le skill `/changeset`**, qui décide au moment d'écrire la note. Les deux ont divergé le jour de leur écriture, le skill exemptant `devDependencies` que le contrôle exigeait : le flux répondait « rien à déclarer » puis échouait en intégration continue, sans issue conforme aux instructions du dépôt. Le skill renvoie désormais au script pour trancher un doute.
+
+**Une note ne compte que si elle est ajoutée.** Plusieurs notes attendent en permanence dans `.changeset/` jusqu'à la fusion de la pull request de version, et le formateur en touche une de temps en temps : accepter une note modifiée laisserait une pull request se déclarer conforme avec la note d'un autre lot.
+
+**Les mêmes deux exemptions que le contrôle de revue :** les brouillons, puisque le flux dépose la note pendant le brouillon, et les branches `changeset-release/*`, où le robot n'en dépose jamais.
+
+**Il échoue en cas de panne**, plutôt que de laisser passer : une réponse d'API illisible fait tomber le script, donc le contrôle. C'est le sens sûr pour une barrière, à l'inverse de `post-review.mjs`, dont l'échec doit se distinguer d'un verdict mal formé parce qu'il commande un autre geste.
+
+**Ce qui casse si on l'enlève.** Rien immédiatement. Puis un lot change un contrat sans que le changelog le dise, et la version publiée annonce moins qu'elle ne change : c'est le consommateur qui l'apprend, à l'exécution.
+
+**Éprouvé dans les deux sens avant livraison**, sur une pull request jetable et par le workflow lui-même, pas seulement par les tests : sans note il échoue en nommant le fichier publié, avec une note il passe en nommant la note. Les deux lancements sont les 31688105015 et 31688169680.
+
+Cette vérification n'est pas une formalité. Une sortie « aucun fichier publié touché » est **exactement celle qu'un script qui ne lit rien produirait**, et le dépôt compte quatre contrôles qui sont passés au vert sans rien vérifier. Seul l'échec provoqué distingue les deux.
+
+*Hors périmètre :* l'ajouter aux contrôles exigés du ruleset. Comme pour la revue, le juger sur quelques lots avant de le rendre bloquant.
+
 ### Deux points d'intégration
 
 **La pull request de version est exemptée du contrôle de revue.** Elle est ouverte par un robot depuis une branche `changeset-release/*`, où personne ne peut lancer `/review`. Sans cette exemption, elle serait bloquée définitivement le jour où le contrôle deviendra exigé.

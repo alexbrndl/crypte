@@ -114,6 +114,14 @@ Quatre fois sur le lot 3, puis une fois sur le lot 0 decies, une commande a éch
 
 *Origine :* revue 12 du lot 2.
 
+### Un fichier publié déplacé hors de `src/` n'exige aucune note
+
+L'API des fichiers d'une pull request rend un renommage sous son seul nouveau nom, et `filesOf` ne garde pas `previous_filename`. Déplacer `packages/core/src/id.ts` vers `packages/core/scripts/` retire donc une porte d'entrée publique sans qu'aucune note soit exigée.
+
+*Pourquoi ce n'est pas fait ici :* le cas demande de lire un troisième champ et de le croiser avec le même motif, pour une situation qu'aucun lot n'a produite. En pratique, un fichier de `src/` sorti de là force à toucher le barrel, qui est dans `src/`.
+
+*Origine :* revue de la PR #19.
+
 ### Le câblage réel de `changedFiles` n'est pas exécuté par les tests
 
 `changedFiles(run)` est éprouvé avec un lanceur injecté : la valeur par défaut, `git diff --name-only origin/main...HEAD`, ne s'exécute jamais en test. Une erreur d'arguments passerait au vert.

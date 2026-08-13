@@ -1,0 +1,43 @@
+name: Require changeset
+
+# Ce workflow n'écrit aucune note de version. Il vérifie qu'une pull request
+# touchant un paquet publié en dépose une. La note est écrite en local par le
+# skill /changeset. Voir docs/architecture.md.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  has-changeset:
+    # Mêmes exemptions que le contrôle de revue : le flux dépose la note pendant
+    # le brouillon, et la pull request de version est ouverte par un robot, qui
+    # n'en dépose jamais.
+    if: >-
+      github.event.pull_request.draft == false &&
+      !startsWith(github.head_ref, 'changeset-release/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Le script n'a aucune dépendance : Node et gh sont fournis par le runner,
+      # donc ni installation ni construction.
+      - name: Chercher la note de version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          # Par l'environnement, jamais interpolé dans la commande : la règle vaut
+          # pour tout `github.event`, même un nombre.
+          PR: ${{ github.event.pull_request.number }}
+        # Sans numéro, sur workflow_dispatch, le script le retrouve depuis la
+        # branche : `gh pr view` a besoin du dépôt cloné, d'où le checkout.
+        run: node test/changeset-check.mjs $PR
