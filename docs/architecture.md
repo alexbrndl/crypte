@@ -851,6 +851,20 @@ Le shell ne charge pas React, et ce n'est pas une intention mais un fait mesurab
 
 *Ce qui casse si on l'enlève :* avec `'*'`, toute page ayant ouvert la preview en iframe reçoit les messages et peut lui en envoyer. Sur un outil de développement qui rend du code arbitraire, c'est une porte ouverte gratuite.
 
+### Les deux fenêtres simulées
+
+`packages/core/test/fake-window.ts` monte deux contextes qui s'envoient de vrais messages, et `ui.test.ts` et `preview.test.ts` éprouvent les deux côtés du canal.
+
+**Pourquoi une simulation plutôt que jsdom.** La surface utilisée tient en cinq API : `addEventListener`, `removeEventListener`, `postMessage`, `location.origin` et `parent`. Une bibliothèque de DOM apporterait quelques mégaoctets et sa propre fidélité à `postMessage` pour ce que quarante lignes reproduisent exactement. `@crypte/core` n'a aucune dépendance, pas même de test, et c'est une propriété qu'on tient.
+
+**Ce que la simulation reproduit**, et c'est tout ce qui compte ici : un message n'est livré que si `targetOrigin` désigne l'origine du destinataire, `'*'` ne refusant rien. C'est cette règle qui rend les filtres observables. Sans elle, remplacer `window.location.origin` par `'*'` ne changerait rien au comportement observé, et le test resterait vert en ayant l'air de vérifier quelque chose.
+
+D'où la forme des cas : c'est **l'iframe d'une autre origine qui ne doit rien recevoir**, pas celle de la même origine qui doit recevoir. Le second cas passe avec `'*'`, le premier non.
+
+**Ce qui casse si on l'enlève.** Rien de visible, et c'est le problème : avant ces tests, remplacer `origin` par `'*'` dans la réponse de la preview laissait la suite entièrement verte, alors que le commentaire juste au-dessus en fait la raison de sûreté du canal. Les douze garanties sont désormais au catalogue de mutation.
+
+*Ce que ça ne prouve pas :* qu'un vrai navigateur livre ces messages. La simulation vérifie la logique du canal, ses filtres et ses réponses, pas l'intégration. Le lot 5 fera tourner les deux côtés pour de bon.
+
 ---
 
 ## 11. La vérification de types

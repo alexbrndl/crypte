@@ -55,6 +55,9 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/protocol/story.test.ts` | points d'extension et format de story | — |
 | `test/protocol/manifest.test.ts` | conformité du catalogue à la spécification | — |
 | `test/protocol/channel.test.ts` | formes des messages | — |
+| `test/fake-window.ts` | deux contextes qui s'envoient de vrais messages | les deux tests ci-dessous |
+| `test/ui.test.ts` | filtres et désabonnement du côté shell | — |
+| `test/preview.test.ts` | filtres, réponses et désabonnement du côté preview | — |
 | `test/no-plugin.test.ts` | lance la compilation ci-dessous | — |
 | `test/no-plugin/cases.ts` | ce que le noyau refuse installé seul | — |
 | `test/no-plugin/tsconfig.json` | programme sans la simulation de plugin | `no-plugin.test.ts` |

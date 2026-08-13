@@ -12,18 +12,6 @@ Une ligne disparaît quand le point est traité, pas avant. Les niveaux sont dé
 
 ## Important
 
-### Le canal n'a aucun test d'exécution
-
-`createShellChannel` et `createPreviewChannel` ne sont exercés par aucun test. Le filtrage sur `event.origin` et `event.source`, le refus de `'*'` dans `postMessage`, les réponses `ready`, `rendered` et `error` : rien n'est gardé.
-
-*Mesuré :* remplacer `origin` par `'*'` dans `reply` laisse les 76 tests verts, alors que le commentaire juste au-dessus en fait la raison de sûreté du canal.
-
-*Pourquoi ce n'est pas fait ici :* il faut un environnement DOM et deux fenêtres simulées, donc une configuration de test que le dépôt n'a pas encore. C'est un lot en soi.
-
-*Origine :* revue 12 du lot 2.
-
----
-
 ### `Wrap` reste assignable depuis une fonction quand le composant en est une
 
 Le retrait de la branche fonction de l'union ne suffit pas côté React, où un composant *est* une fonction : `wrap: (story) => …` compile toujours. La section 2.5 en fait donc une règle, toute fonction reçue est instanciée comme composant, et le comportement devient prévisible plutôt qu'ambigu.
