@@ -158,5 +158,101 @@
     "apres": "    plugins: [...(config.vite?.plugins ?? []), ...(paths ? [pathsPlugin(paths)] : [])],",
     "trouvee": "exploration du lot 3",
     "attendu": "applique les chemins avant les plugins du projet"
+  },
+  {
+    "garantie": "Le shell n'envoie jamais vers une autre origine",
+    "fichier": "packages/core/src/ui/index.ts",
+    "avant": "frame.contentWindow?.postMessage(message, window.location.origin)",
+    "apres": "frame.contentWindow?.postMessage(message, '*')",
+    "attendu": "ui.test.ts > envoi vers la preview > ne livre rien à une iframe d’une autre origine",
+    "trouvee": "lot 0 undecies"
+  },
+  {
+    "garantie": "Le shell ignore un message venu d'une autre origine",
+    "fichier": "packages/core/src/ui/index.ts",
+    "avant": "        if (event.origin !== window.location.origin) return\n",
+    "apres": "",
+    "attendu": "ui.test.ts > réception depuis la preview > ignore un message d’une autre origine",
+    "trouvee": "lot 0 undecies"
+  },
+  {
+    "garantie": "Le shell ignore un message venu d'une autre fenêtre",
+    "fichier": "packages/core/src/ui/index.ts",
+    "avant": "        if (event.source !== frame.contentWindow) return\n",
+    "apres": "",
+    "attendu": "ui.test.ts > réception depuis la preview > ignore un message d’une autre fenêtre",
+    "trouvee": "lot 0 undecies"
+  },
+  {
+    "garantie": "Le shell rend un désabonnement qui désabonne",
+    "fichier": "packages/core/src/ui/index.ts",
+    "avant": "return () => window.removeEventListener('message', listener)",
+    "apres": "return () => {}",
+    "attendu": "ui.test.ts > réception depuis la preview > se désabonne",
+    "trouvee": "lot 0 undecies"
+  },
+  {
+    "garantie": "La preview ne répond jamais vers une autre origine",
+    "fichier": "packages/core/src/preview/index.ts",
+    "avant": "window.parent.postMessage(message, origin)",
+    "apres": "window.parent.postMessage(message, '*')",
+    "attendu": "preview.test.ts > annonce > n’annonce rien à un parent d’une autre origine",
+    "trouvee": "lot 0 undecies"
+  },
+  {
+    "garantie": "La preview ignore un message venu d'une autre origine",
+    "fichier": "packages/core/src/preview/index.ts",
+    "avant": "    if (event.origin !== origin) return\n",
+    "apres": "",
+    "attendu": "preview.test.ts > ce qui est ignoré > un message d’une autre origine",
+    "trouvee": "lot 0 undecies"
+  },
+  {
+    "garantie": "La preview ignore un message venu d'une autre fenêtre que son parent",
+    "fichier": "packages/core/src/preview/index.ts",
+    "avant": "    if (event.source !== window.parent) return\n",
+    "apres": "",
+    "attendu": "preview.test.ts > ce qui est ignoré > un message d’une autre fenêtre que le parent",
+    "trouvee": "lot 0 undecies"
+  },
+  {
+    "garantie": "La preview ne traite que les messages de type render",
+    "fichier": "packages/core/src/preview/index.ts",
+    "avant": "    if (message?.type !== 'render') return\n",
+    "apres": "",
+    "attendu": "preview.test.ts > ce qui est ignoré > un message d’un type que la preview ne traite pas",
+    "trouvee": "lot 0 undecies"
+  },
+  {
+    "garantie": "La preview annonce sa version de protocole au montage",
+    "fichier": "packages/core/src/preview/index.ts",
+    "avant": "  reply({ type: 'ready', protocolVersion: PROTOCOL_VERSION })\n",
+    "apres": "",
+    "attendu": "preview.test.ts > annonce > dit ready au montage, avec la version du protocole",
+    "trouvee": "lot 0 undecies"
+  },
+  {
+    "garantie": "La preview mesure la durée du rendu",
+    "fichier": "packages/core/src/preview/index.ts",
+    "avant": "durationMs: performance.now() - startedAt",
+    "apres": "durationMs: -1",
+    "attendu": "preview.test.ts > rendu > rend, puis répond avec une durée",
+    "trouvee": "lot 0 undecies"
+  },
+  {
+    "garantie": "La preview rend le message de l'exception, quelle que soit sa forme",
+    "fichier": "packages/core/src/preview/index.ts",
+    "avant": "error instanceof Error ? error.message : String(error)",
+    "apres": "'erreur'",
+    "attendu": "preview.test.ts > rendu > répond error plutôt que de laisser filer l’exception",
+    "trouvee": "lot 0 undecies"
+  },
+  {
+    "garantie": "La preview rend un désabonnement qui désabonne",
+    "fichier": "packages/core/src/preview/index.ts",
+    "avant": "  return () => window.removeEventListener('message', listener)",
+    "apres": "  return () => {}",
+    "attendu": "preview.test.ts > ce qui est ignoré > tout, une fois désabonné",
+    "trouvee": "lot 0 undecies"
   }
 ]
