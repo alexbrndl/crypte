@@ -304,7 +304,23 @@ Le verdict ne pouvait pas être « n'est gardée par rien » : celui-là ne dép
 
 ---
 
-## 4 ter. La configuration d'un projet
+## 4 ter. Les documents cités
+
+`test/doc-links.test.mjs` vérifie que tout fichier `.md` cité quelque part existe.
+
+**Pourquoi il existe.** Une référence en prose devenue fausse ne fait rougir aucun test. Le passage à `docs/internal/` en a cassé une quarantaine d'un coup, dont deux dans du code publié : sans ce contrôle, elles seraient parties sur `main` sans un mot.
+
+**Deux règles.** Un document cité existe, par son chemin ou par son nom de fichier. Et **hors de `docs/`, il est cité par son chemin** : un nom nu se retrouve par son seul nom de fichier, donc il survit à un déplacement, ce qui est exactement ce qu'on ne veut pas.
+
+**Ce qu'il ne lit pas.** Les fichiers de test et les fixtures, qui fabriquent des chemins inexistants et dont c'est le travail. Leurs vraies dépendances échouent d'elles-mêmes : `spec.test.ts` lit la spécification, donc un déplacement le fait rougir sans l'aide de personne.
+
+**Ce qui casse si on l'enlève.** Rien immédiatement. Puis un document est renommé, la moitié des renvois pointent dans le vide, et on ne le découvre qu'en suivant un lien mort.
+
+*Éprouvé dans les deux sens :* le contrôle a été écrit avant le déplacement, vu passer sur l'arbre intact, puis vu rougir sur les quarante références cassées par le `git mv`.
+
+---
+
+## 4 quater. La configuration d'un projet
 
 **`crypte.config.ts` est chargé par `loadConfigFromFile`, la fonction publique de Vite.**
 

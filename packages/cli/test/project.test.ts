@@ -10,7 +10,7 @@ import { ConfigError, cssEntryOf, loadProject, viteConfigOf } from '../src/proje
 
 // La fixture reproduit les contraintes d'un projet réel : alias `@/`, pas de
 // `tsconfig.json` mais un `jsconfig.json` à commentaires, des fichiers `.jsx`,
-// et un import d'asset. Voir architecture.md.
+// et un import d'asset. Voir docs/internal/architecture.md.
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), 'fixture')
 

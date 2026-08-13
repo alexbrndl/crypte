@@ -97,15 +97,20 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `src/Badge.tsx` | composant codé en dur, faute de découverte | `preview.tsx` |
 | `src/env.d.ts` | déclarations pour Vite et les fichiers `.vue` | le compilateur |
 
-## `docs`
+## `docs` — public, en anglais
 
 | Fichier | Contient | Consommé par |
 | -- | -- | -- |
 | `spec-contrats.md` | les quatre contrats, fait foi | toutes les PRD |
+| `decisions.md` | ce qu'on a choisi, écarté, et ce qui rouvrirait le choix | qui se demande pourquoi |
+
+## `docs/internal` — notes du mainteneur, en français
+
+| Fichier | Contient | Consommé par |
+| -- | -- | -- |
 | `architecture.md` | rôle de chaque mécanisme et ce qui casse sans lui | qui modifie le dépôt |
 | `arborescence.md` | ce fichier | qui cherche où se trouve quoi |
 | `plugins.md` | catalogue des plugins et phases | la planification |
-| `decisions.md` | ce qu'on a choisi, écarté, et ce qui rouvrirait le choix | qui se demande pourquoi |
 | `suivi.md` | points de revue arbitrés, non corrigés | la revue, qui ne les re-signale plus |
 | `pistes-shell.md` | propositions issues de l'exploration d'interface, non arbitrées | qui ouvrira les lots du shell |
 | `test-format-stories.md` | test du format sur cinq composants réels | historique |

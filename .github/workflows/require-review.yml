@@ -1,7 +1,7 @@
 name: Require review
 
 # Ce workflow ne produit aucune revue. Il vérifie seulement qu'une revue existe.
-# La revue est produite en local par le skill /review. Voir docs/architecture.md.
+# La revue est produite en local par le skill /review. Voir docs/internal/architecture.md.
 
 on:
   pull_request:

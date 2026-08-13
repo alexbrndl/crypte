@@ -61,7 +61,7 @@ Pour chaque garantie que le code, un commentaire ou la documentation annonce : c
 En fin d'exploration, trois listes :
 
 - **Corrigé** : ce que l'exploration a trouvé et que tu as réparé.
-- **Consigné** : ce qui reste, dans `docs/suivi.md`, avec sa mesure.
+- **Consigné** : ce qui reste, dans `docs/internal/suivi.md`, avec sa mesure.
 - **Non couvert** : les cases sans cas, avec la raison.
 
 Puis seulement, `/review`.

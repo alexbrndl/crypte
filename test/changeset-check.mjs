@@ -1,7 +1,7 @@
 // Une pull request qui change un paquet publié dépose sa note de version.
 //
 // Le contrôle ne juge pas le contenu de la note : il vérifie qu'elle existe.
-// Voir architecture.md.
+// Voir docs/internal/architecture.md.
 
 import { execFileSync } from 'node:child_process'
 import { argv, env, exit } from 'node:process'

@@ -2,7 +2,7 @@ name: Require changeset
 
 # Ce workflow n'écrit aucune note de version. Il vérifie qu'une pull request
 # touchant un paquet publié en dépose une. La note est écrite en local par le
-# skill /changeset. Voir docs/architecture.md.
+# skill /changeset. Voir docs/internal/architecture.md.
 
 on:
   pull_request:

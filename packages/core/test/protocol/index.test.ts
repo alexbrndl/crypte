@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 // La porte d'entrée réexporte-t-elle tout ? Un nom oublié disparaît de l'API
-// publique sans que rien d'autre ne bronche. Voir architecture.md.
+// publique sans que rien d'autre ne bronche. Voir docs/internal/architecture.md.
 
 const here = dirname(fileURLToPath(import.meta.url))
 const protocol = join(here, '..', '..', 'src', 'protocol')

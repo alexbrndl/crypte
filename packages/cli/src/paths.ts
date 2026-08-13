@@ -25,7 +25,7 @@ const INSTALLED = /[\\/]node_modules[\\/]/
 // Un plugin plutôt que des `resolve.alias` : un alias réécrit sans condition, là
 // où TypeScript essaie la cible et retombe sur la résolution normale quand elle
 // n'existe pas. Ce repli est toute la différence, et il n'a pas d'équivalent
-// dans `resolve.alias`. Voir architecture.md.
+// dans `resolve.alias`. Voir docs/internal/architecture.md.
 export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
   // TypeScript départage deux motifs par la longueur de leur préfixe fixe, et
   // un motif sans joker l'emporte sur tous. Sans cet ordre, `@/*` gagne sur

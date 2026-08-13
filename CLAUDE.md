@@ -1,6 +1,6 @@
 # Instructions pour les agents
 
-Lire `docs/architecture.md` avant toute modification de structure, et `docs/spec-contrats.md` avant toute question de format, de manifeste, de protocole ou de plugin.
+Lire `docs/internal/architecture.md` avant toute modification de structure, et `docs/spec-contrats.md` avant toute question de format, de manifeste, de protocole ou de plugin.
 
 ---
 
@@ -94,7 +94,7 @@ Ce n'est pas une précaution théorique : la seconde revue du lot 1 a trouvé qu
 
 **Quand s'arrêter.** La boucle se termine quand **aucun point bloquant** ne reste, pas quand la revue est vide. Un dépôt vivant produit toujours des points, donc attendre le silence garantit une boucle sans fin : le lot 2 a pris onze tours de cette façon, dont les trois derniers sur des outils ajoutés en cours de route.
 
-Les niveaux sont définis dans le skill `/review`. Ce qui reste, important ou observation, va dans `docs/suivi.md` **dans le même diff**, avec ce qui a été mesuré et pourquoi ce n'est pas fait ici.
+Les niveaux sont définis dans le skill `/review`. Ce qui reste, important ou observation, va dans `docs/internal/suivi.md` **dans le même diff**, avec ce qui a été mesuré et pourquoi ce n'est pas fait ici.
 
 Un fichier plutôt qu'une issue : la trace reste dans le dépôt, elle suit le code, et la revue la lit, donc un point arbitré cesse de revenir à chaque tour.
 
@@ -141,13 +141,13 @@ C'est la même erreur qu'un test qui passe pour la mauvaise raison : une observa
 
 **Une ligne, ou rien.** Un en-tête de module tient en une ligne, un commentaire aussi. Deux au maximum, et c'est déjà un signe.
 
-Ce qui ne tient pas en une ligne va dans `docs/architecture.md`, et le commentaire y renvoie d'un mot. Le fichier reste lisible, l'explication reste écrite quelque part.
+Ce qui ne tient pas en une ligne va dans `docs/internal/architecture.md`, et le commentaire y renvoie d'un mot. Le fichier reste lisible, l'explication reste écrite quelque part.
 
 Écrire **le fait, pas le raisonnement.** Un exemple concret vaut mieux qu'une justification : `« button-- pour tout nom cyrillique »` se comprend, `« la normalisation restreinte à l'alphabet latin provoquait une perte de segments »` ne se comprend pas.
 
 Et quand l'explication ne passe pas en une ligne, se demander d'abord si le problème n'est pas le nom ou le code. Un commentaire long est souvent un mauvais nom qui se rattrape.
 
-`docs/arborescence.md` tient la même information en une ligne par fichier, pour qui cherche où se trouve quoi sans ouvrir les fichiers. Le mettre à jour quand un fichier apparaît ou disparaît.
+`docs/internal/arborescence.md` tient la même information en une ligne par fichier, pour qui cherche où se trouve quoi sans ouvrir les fichiers. Le mettre à jour quand un fichier apparaît ou disparaît.
 
 **Ordre d'un fichier.** Le type principal en premier, ses pièces ensuite, le point d'extension en dernier. Les types sont résolus au niveau du module : un type peut en mentionner un autre déclaré plus bas, donc l'ordre ne sert que la lecture.
 
@@ -161,7 +161,7 @@ Les tests vivent dans `test/`, jamais à côté de la source. Règle unique, san
 
 ## Pièces mobiles
 
-Toute pull request qui ajoute une **pièce mobile** met à jour `docs/architecture.md`.
+Toute pull request qui ajoute une **pièce mobile** met à jour `docs/internal/architecture.md`.
 
 Une pièce mobile est un workflow, un script, une configuration qui encode une décision, ou un test dont l'assertion n'est pas évidente.
 

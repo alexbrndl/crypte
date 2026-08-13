@@ -161,16 +161,39 @@ Elles relèvent de la PRD du shell, pas des contrats, mais elles ont été tranc
 | Pas de barre supérieure | Une fois le lien passé dans la toolbar et les changements passés dans la navigation, il n'y restait que la marque et la recherche. Elles descendent en tête de la colonne de navigation, et l'écran gagne une zone en moins et 44 px. |
 | La toolbar couvre le canvas et les panneaux | Les deux décrivent la même entrée, donc ils partagent la bande qui la nomme et qui porte les actions sur elle. |
 | Une destination n'est pas une action | « Ce qui a changé » ouvre un mode, donc sa place est dans la colonne de navigation, avec tout ce vers quoi on navigue, et non parmi les boutons. |
+| Même grammaire, matériaux différents | Les deux colonnes partagent trois actes : nommer un groupe, plier un élément, choisir une ligne. Mais la navigation dépense son remplissage pour les états, survol, focus, entrée courante, donc sa structure se dit par l'indentation, le chevron, la graisse et un guide vertical. La colonne de panneaux n'a aucun état courant, donc son remplissage est libre et la bande grise y dit « ceci se plie sur place ». |
+| La bande n'existe que dans les panneaux | Conséquence de la ligne précédente, et elle est voulue : un clic sur une bande ne mène jamais nulle part, un clic dans la navigation mène toujours quelque part. Le même dessin ne porte donc jamais deux conséquences. |
 
 ---
 
-## 6. Ce qui reste ouvert
+## 6. Ce qui est tranché, et ce qui reste à mesurer
 
-**La question la plus coûteuse à retarder :** le shell a-t-il un écran « composant » en plus de l'écran « story » ?
+### 6.1 Tranché : oui, le shell a un écran composant
 
-Elle commande quatre choses à la fois. Si `path` est un simple préfixe d'arbre ou une entité de première classe. Où s'affichent `meta.status`, `owner` et `description`, qui n'ont aujourd'hui aucun endroit où exister. Si l'URL a un ou deux niveaux. Et si `grid`, `docs`, `coverage` et `comments` se brancheront sur une surface existante ou devront chacun en inventer une.
+C'était la question la plus coûteuse à retarder, et elle est décidée. `path` devient une entité de première classe, `meta.status`, `owner` et `description` s'affichent sur la page composant, l'URL a deux niveaux, et `grid`, `docs`, `coverage` et `comments` se brancheront sur cette surface au lieu d'en inventer chacun une.
 
-Elle coûte une décision aujourd'hui, et une migration d'URL plus une surface publique de plus si elle est prise après publication.
+Ce que la décision engage : une surface publique de plus à tenir, et un schéma d'URL à ne plus changer après publication.
+
+### 6.2 Trois chiffres estimés qu'il faut mesurer
+
+Ils sont aujourd'hui de première main, et deux d'entre eux servent d'argument de vente. Les mesurer demande un squelette de shell, pas une meilleure estimation.
+
+| Chiffre | État |
+| -- | -- |
+| Poids ajouté au shell par la direction retenue | Estimé « +18 à 25 Ko » lors de la comparaison des quatre pistes. Périmé : la palette, la page composant, le mode changements et la frise sont arrivés depuis. Vraisemblablement 35 à 50 Ko. |
+| Poids de chaque plugin | Affiché en barre d'état, mesuré par personne. |
+| Temps de démarrage | Affiché en barre d'état, jamais mesuré. |
+
+### 6.3 Une correction au tableau comparatif
+
+Le tableau reprochait à la piste C ses douze primitives Reka. La direction retenue en mobilise treize, une fois comptés `Dialog` pour la palette, `ToggleGroup` pour le filtre de statut et `Collapsible` pour la cascade.
+
+La conclusion tient, mais pour une autre raison que celle écrite : les treize primitives de la direction retenue sont disponibles telles quelles, alors que le coût de C était un glisser-déposer entre zones qu'aucune primitive ne couvre.
+
+### 6.4 Deux vérifications qui ne se font pas sur une maquette
+
+- **La compression à 1280 de la page composant et du mode changements.** Leurs tables ont quatre colonnes et des identifiants longs, non garantis ASCII. Se juge avec du contenu réel.
+- **L'accessibilité de ce qui n'est pas fourni par Reka** : le guide vertical de l'arbre, la bande des panneaux, l'échelle des états, et la valeur barrée de la cascade, qui ne dit rien à un lecteur d'écran. Se juge avec un lecteur d'écran.
 
 ---
 

@@ -106,7 +106,7 @@ Si tu trouves un point bloquant portant sur une **entrée jamais éprouvée**, d
 1. **Les quatre contraintes structurelles de `CLAUDE.md`.** Une dépendance interne embarquée en copie, un composant placé dans `core/ui` sans qu'un plugin réel le demande, un import de `vite-plus` dans du code publié, une entrée de `core` qui en tire une autre.
 2. **Les contrats de `docs/spec-contrats.md`**, s'ils sont concernés. Ils font foi et ne se rediscutent pas ici.
 3. **Les contradictions internes.** Une décision consignée dans la documentation et prise à l'envers dans le code, un mécanisme rendu inopérant par un autre changement, un test qui ne peut plus échouer.
-4. **La règle de documentation.** Le diff ajoute-t-il une pièce mobile, un workflow, un script, une configuration qui encode une décision, un test dont l'assertion n'est pas évidente ? Si oui, `docs/architecture.md` doit être mis à jour dans le même diff, avec les trois questions dont la troisième, « ce qui casse si on l'enlève ».
+4. **La règle de documentation.** Le diff ajoute-t-il une pièce mobile, un workflow, un script, une configuration qui encode une décision, un test dont l'assertion n'est pas évidente ? Si oui, `docs/internal/architecture.md` doit être mis à jour dans le même diff, avec les trois questions dont la troisième, « ce qui casse si on l'enlève ».
 
 **Ce qui n'est pas recherché.** Le style, le nommage, le formatage, la structure des fichiers : `vp check` s'en occupe déjà. Les arbitrages non plus, publier maintenant ou plus tard, telle bibliothèque plutôt qu'une autre : ce sont des décisions humaines, pas des écarts.
 
@@ -124,9 +124,9 @@ Sans niveau, tout point se traite comme un empêchement, et la boucle ne se ferm
 
 En cas d'hésitation entre deux niveaux, prendre le plus bas et dire pourquoi : c'est celui qui a un coût, l'autre n'en a pas.
 
-**Le critère d'arrêt de la boucle est là.** La pull request sort du brouillon quand aucun bloquant ne reste, pas quand la revue est vide. Les points restants sont consignés dans `docs/suivi.md`, dans le même diff.
+**Le critère d'arrêt de la boucle est là.** La pull request sort du brouillon quand aucun bloquant ne reste, pas quand la revue est vide. Les points restants sont consignés dans `docs/internal/suivi.md`, dans le même diff.
 
-**Lis `docs/suivi.md` et `docs/decisions.md` avant de rédiger.** Ce qui y figure est arbitré : le re-signaler n'apprend rien. Le second porte les choix et ce qui les rouvrirait ; un constat qui montre qu'une décision est devenue fausse est en revanche recevable, et c'est même ce qu'on attend de lui. Si un point du fichier est devenu bloquant, c'est en revanche un constat à part entière, et il faut dire ce qui a changé.
+**Lis `docs/internal/suivi.md` et `docs/decisions.md` avant de rédiger.** Ce qui y figure est arbitré : le re-signaler n'apprend rien. Le second porte les choix et ce qui les rouvrirait ; un constat qui montre qu'une décision est devenue fausse est en revanche recevable, et c'est même ce qu'on attend de lui. Si un point du fichier est devenu bloquant, c'est en revanche un constat à part entière, et il faut dire ce qui a changé.
 
 ## 6. Le format du verdict
 

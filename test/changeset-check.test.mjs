@@ -40,7 +40,7 @@ test('du code publié avec une note passe', () => {
 
 test('ce qui n’est pas publié ne demande aucune note', () => {
   const ailleurs = touche(
-    'docs/architecture.md',
+    'docs/internal/architecture.md',
     '.github/workflows/ci.yml',
     'test/post-review.mjs',
     'apps/shell/src/App.vue',

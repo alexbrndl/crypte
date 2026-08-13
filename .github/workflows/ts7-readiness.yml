@@ -2,7 +2,7 @@ name: TypeScript 7 readiness
 
 # Le catalogue est épinglé en TypeScript 6 parce que vue-tsc ne fonctionne pas
 # avec la 7. Ce workflow teste cette contrainte une fois par mois et ouvre une
-# issue le jour où elle tombe. Voir docs/architecture.md.
+# issue le jour où elle tombe. Voir docs/internal/architecture.md.
 
 on:
   schedule:
@@ -143,6 +143,6 @@ jobs:
           gh issue create --repo "$REPO" --title "$title" --body \
           'Le contrôle mensuel a réussi : `vue-tsc` détecte désormais les erreurs de types sous TypeScript 7.
 
-          Le catalogue de `pnpm-workspace.yaml` peut repasser en 7, et la section correspondante de `docs/architecture.md` être supprimée.
+          Le catalogue de `pnpm-workspace.yaml` peut repasser en 7, et la section correspondante de `docs/internal/architecture.md` être supprimée.
 
           Vérifier au passage que `vp check`, `vp run -r typecheck` et `vp run -r pack` passent toujours, la génération des déclarations utilisant le TypeScript embarqué par Vite+.'
