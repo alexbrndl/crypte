@@ -81,7 +81,7 @@ git diff origin/main...HEAD
 
 Un résumé de mémoire ne vaut rien ici : ce qui est recherché, ce sont les écarts entre ce qu'on croit avoir fait et ce que le diff contient.
 
-Lis ensuite `CLAUDE.md` et, si le diff touche au format de story, au manifeste, au protocole ou aux plugins, `docs/spec-contrats.md`.
+Lis ensuite `CLAUDE.md` et, si le diff touche au format de story, au manifeste, au protocole ou aux plugins, `docs/contracts.md`.
 
 ## 3. Ce que le dépôt vérifie déjà
 
@@ -104,7 +104,7 @@ Si tu trouves un point bloquant portant sur une **entrée jamais éprouvée**, d
 **Ce qui est recherché**, dans cet ordre :
 
 1. **Les quatre contraintes structurelles de `CLAUDE.md`.** Une dépendance interne embarquée en copie, un composant placé dans `core/ui` sans qu'un plugin réel le demande, un import de `vite-plus` dans du code publié, une entrée de `core` qui en tire une autre.
-2. **Les contrats de `docs/spec-contrats.md`**, s'ils sont concernés. Ils font foi et ne se rediscutent pas ici.
+2. **Les contrats de `docs/contracts.md`**, s'ils sont concernés. Ils font foi et ne se rediscutent pas ici.
 3. **Les contradictions internes.** Une décision consignée dans la documentation et prise à l'envers dans le code, un mécanisme rendu inopérant par un autre changement, un test qui ne peut plus échouer.
 4. **La règle de documentation.** Le diff ajoute-t-il une pièce mobile, un workflow, un script, une configuration qui encode une décision, un test dont l'assertion n'est pas évidente ? Si oui, `docs/internal/architecture.md` doit être mis à jour dans le même diff, avec les trois questions dont la troisième, « ce qui casse si on l'enlève ».
 

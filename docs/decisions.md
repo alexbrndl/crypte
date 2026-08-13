@@ -34,7 +34,7 @@ _2026-08-13_
 
 **Decided.** Everything a user or a contributor reads goes to English: `README.md`, `CONTRIBUTING.md`, the contracts, the user guide, this file, the error messages of the CLI, and the comments in published source.
 
-Only this file has moved so far. The rest is DCJ-209, and until it lands, a French document sits under a heading that says English.
+`docs/` has moved. `README.md`, `CONTRIBUTING.md` and what the binary prints are still French, and until DCJ-209 lands, a French document sits under a heading that says English.
 
 Notes written for the maintainer stay in French: `architecture.md`, `suivi.md`, `arborescence.md`, the planning documents, `CLAUDE.md`, and the skills under `.claude/`.
 

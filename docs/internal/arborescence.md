@@ -102,7 +102,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 
 | Fichier | Contient | Consommé par |
 | -- | -- | -- |
-| `spec-contrats.md` | les quatre contrats, fait foi | toutes les PRD |
+| `contracts.md` | les quatre contrats, fait foi | toutes les PRD |
 | `decisions.md` | ce qu'on a choisi, écarté, et ce qui rouvrirait le choix | qui se demande pourquoi |
 
 ## `docs/internal` — notes du mainteneur, en français
@@ -114,4 +114,5 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `plugins.md` | catalogue des plugins et phases | la planification |
 | `suivi.md` | points de revue arbitrés, non corrigés | la revue, qui ne les re-signale plus |
 | `pistes-shell.md` | propositions issues de l'exploration d'interface, non arbitrées | qui ouvrira les lots du shell |
+| `spec-journal.md` | l'historique des versions de la spécification, v0.1 à v0.9 | qui cherche pourquoi un contrat a changé |
 | `test-format-stories.md` | test du format sur cinq composants réels | historique |

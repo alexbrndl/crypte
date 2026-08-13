@@ -10,7 +10,7 @@
 
 Quand aucune convention ne domine, le nom est choisi pour être transparent plutôt que court.
 
-**Tout est scopé sous `@crypte`.** Le nom nu `crypte` est refusé par npm, jugé trop proche de `crypto` (voir `spec-contrats.md`, journal v0.4).
+**Tout est scopé sous `@crypte`.** Le nom nu `crypte` est refusé par npm, jugé trop proche de `crypto` (voir `contracts.md`, journal v0.4).
 
 ---
 
@@ -29,7 +29,7 @@ Quand aucune convention ne domine, le nom est choisi pour être transparent plut
 
 ## Les quinze plugins
 
-Chaque plugin est un projet distinct, avec sa propre PRD et ses issues. Les surfaces correspondent au contrat défini en section 6 de `spec-contrats.md`.
+Chaque plugin est un projet distinct, avec sa propre PRD et ses issues. Les surfaces correspondent au contrat défini en section 6 de `contracts.md`.
 
 ### Phase 1 — Isoler
 
