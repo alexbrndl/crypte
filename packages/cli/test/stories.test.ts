@@ -284,6 +284,28 @@ describe('la lecture des stories', () => {
     expect(skipped).toMatch(/computed at runtime/)
   })
 
+  // Les quatre formes du bloc. Le premier tour n'avait fermé que la dernière,
+  // donc `stories: {}` et `stories: shared` redonnaient l'entrée fantôme.
+  it('ne replie pas sur Default quand le bloc n’est pas lisible', () => {
+    const cases = [
+      ['stories: {}', /empty/],
+      ['stories: shared', /not an object literal/],
+    ] as const
+
+    for (const [written, reason] of cases) {
+      const source = [
+        "import { A } from '../a'",
+        "import { shared } from '../shared'",
+        `export default defineStories(A, { ${written} })`,
+      ].join('\n')
+
+      const { entries, skipped } = fileWith('A.ts', source)
+
+      expect(entries, written).toEqual([])
+      expect(skipped, written).toMatch(reason)
+    }
+  })
+
   it('replie sur Default quand le fichier ne déclare pas de bloc stories', () => {
     const source = [
       "import { A } from '../a'",

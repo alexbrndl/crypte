@@ -90,7 +90,7 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
         ...(meta ? { meta } : {}),
       } satisfies StoryEntry
     }),
-    ...(named.lost.length > 0 ? { skipped: `stories left out: ${named.lost.join(', ')}` } : {}),
+    ...(named.reason ? { skipped: named.reason } : {}),
   }
 }
 
@@ -99,17 +99,29 @@ const STORY_SHAPE = new Set(['props', 'options'])
 
 // The stories the file names, in the order it writes them.
 //
-// `declares` says whether the file names any story at all, which is not the
-// same as producing one: a key computed at runtime and a spread both name
-// stories this reader cannot read. Every one of them is counted, because a
-// story silently missing from a catalogue looks like a story nobody wrote.
+// `declares` is the presence of the block, and nothing else. It never depends
+// on what came out, because that is what the single `Default` turns on: a file
+// carrying a block it cannot read still names stories, and inventing one for it
+// would give an identifier that becomes a URL and a baseline key.
+//
+// So the block has four shapes, and every one that loses a story says so. A
+// story missing from a catalogue in silence looks like a story nobody wrote.
 function listed(stories: Node | null, helper: string) {
   const found: { name: string; own: Map<string, Node>; options: Node | undefined }[] = []
   const lost: string[] = []
 
-  if (stories?.type !== 'ObjectExpression') return { stories: found, lost, declares: false }
+  if (stories === null) return { stories: found, declares: false, reason: undefined }
+
+  // `stories: shared` is allowed by section 2.3, and holds names only the
+  // running file would know.
+  if (stories.type !== 'ObjectExpression') {
+    return { stories: found, declares: true, reason: 'the stories block is not an object literal' }
+  }
 
   const properties = stories['properties'] as Node[]
+  if (properties.length === 0) {
+    return { stories: found, declares: true, reason: 'the stories block is empty' }
+  }
 
   for (const property of properties) {
     if (property.type !== 'Property') {
@@ -128,7 +140,11 @@ function listed(stories: Node | null, helper: string) {
     found.push({ name: keyOf(property['key'] as Node), ...declaredBy(value, helper) })
   }
 
-  return { stories: found, lost, declares: properties.length > 0 }
+  return {
+    stories: found,
+    declares: true,
+    reason: lost.length > 0 ? `stories left out: ${lost.join(', ')}` : undefined,
+  }
 }
 
 // Three forms carry the same thing. A bare object is the props. `story(props,

@@ -590,5 +590,21 @@
     "apres": "  for (const extension of RESOLVED) {\n    if (isFile(candidate + extension)) return candidate + extension\n    const index = join(candidate, `index${extension}`)\n    if (isFile(index)) return index\n  }",
     "trouvee": "revue de la PR #30",
     "attendu": "manifest.test.ts > le catalogue > préfère un fichier à un dossier portant un index"
+  },
+  {
+    "garantie": "Un bloc de stories illisible ne rend pas Default",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  if (stories.type !== 'ObjectExpression') {\n    return { stories: found, declares: true, reason: 'the stories block is not an object literal' }\n  }",
+    "apres": "  if (stories.type !== 'ObjectExpression') {\n    return { stories: found, declares: false, reason: undefined }\n  }",
+    "trouvee": "revue 3 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand le bloc n’est pas lisible"
+  },
+  {
+    "garantie": "Un bloc de stories vide ne rend pas Default",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  if (properties.length === 0) {\n    return { stories: found, declares: true, reason: 'the stories block is empty' }\n  }",
+    "apres": "  if (properties.length === 0) {\n    return { stories: found, declares: false, reason: undefined }\n  }",
+    "trouvee": "revue 3 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand le bloc n’est pas lisible"
   }
 ]

@@ -97,9 +97,9 @@ export function storyFiles(folder: string): string[] {
 // component here and another one in the preview, on a project holding both
 // `Card.ts` and `Card.js`.
 //
-// `.vue` is last and is ours: Vite gets it from a plugin, and no plugin runs
-// here. A Vue project therefore resolves its components, and a project holding
-// both `Card.js` and `Card.vue` gets the same file the preview would.
+// `.vue` is last and is ours: it is not in that documented default. A Vue
+// project resolves its components thanks to it, and putting it last keeps every
+// extension Vite does list ahead of it.
 const RESOLVED = ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json', '.vue']
 
 // The story names its component with the identifier the project writes, alias
