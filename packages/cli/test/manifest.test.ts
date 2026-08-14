@@ -203,19 +203,20 @@ describe('le catalogue', () => {
     expect(manifest.entries[0]?.component.file).toBe('src/Card.js')
   })
 
-  // Chaque fichier avant tout `index`, sans quoi `Card/index.tsx` gagnait
-  // contre `Card.js`.
+  // Chaque fichier avant tout `index`, l'ordre de Node. L'extension du fichier
+  // vient ici après celle de l'index dans la liste : sans ce cas, l'entrelacement
+  // rendait la même réponse et la garantie ne tenait rien.
   it('préfère un fichier à un dossier portant un index', async () => {
     const root = projectWith({
       'crypte.config.ts': CONFIG,
-      'src/Card.js': 'export const Card = () => null\n',
-      'src/Card/index.tsx': 'export const Card = () => null\n',
+      'src/Card.ts': 'export const Card = () => null\n',
+      'src/Card/index.js': 'export const Card = () => null\n',
       'stories/Card.js': "import { Card } from '../src/Card'\nexport default defineStories(Card)\n",
     })
 
     const { manifest } = buildCatalogue(await loadProject(root))
 
-    expect(manifest.entries[0]?.component.file).toBe('src/Card.js')
+    expect(manifest.entries[0]?.component.file).toBe('src/Card.ts')
   })
 
   it('écrit un JSON relu tel quel', async () => {
