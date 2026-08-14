@@ -211,3 +211,29 @@ Le troisième, la colonne « props propres » de la page composant, veut les seu
 *Pourquoi ce n'est pas fait ici :* le catalogue de mutations casse du code et lit le rouge d'un test ; il ne sait pas exprimer « ce changement doit produire une erreur de type ». Le garder demanderait un second mécanisme, du genre d'un fichier de type attendu en échec, pour une protection d'une seule fonction.
 
 *Origine :* auto-review du lot 4.
+
+### Arrêt explicite : la limite de la lecture statique d'un fichier de story
+
+**Ce qui est arrêté.** La boucle de revue du lot 4, après cinq tours et huit constats. Les cinq derniers commits corrigent tous la même question, et le rythme ne ralentissait pas.
+
+**La question, une fois pour toutes.** Un fichier de story est lu sans être exécuté, donc le lecteur rencontre des valeurs qu'il ne peut pas connaître. La règle est unique : **ce qui ne se lit pas sans exécuter le fichier est laissé de côté et signalé, jamais deviné.** Un nom faux entre dans un identifiant, une URL, une clé de baseline et un chiffre de couverture, et il ment sans se signaler ; un nom manquant se voit.
+
+**Les sept formes trouvées**, dans l'ordre où elles sont apparues :
+
+| Forme | Ce que le lecteur en fait |
+| -- | -- |
+| une clé de prop calculée | la prop est laissée de côté |
+| une clé de story calculée | la story est écartée, et comptée |
+| un spread dans un bloc de props | les noms apportés sont laissés de côté |
+| un spread dans le bloc `stories` | la story apportée est comptée, et celles qui la précèdent sont écartées |
+| un bloc `stories` non littéral, ou vide | aucune entrée, avec la raison |
+| une définition non littérale, ou dont un spread suit la clé lue | aucune entrée, avec la raison |
+| une clé écrite deux fois | la dernière gagne, comme à l'exécution |
+
+**Ce qui reste non éprouvé.** Rien ne garantit qu'il n'existe pas une huitième forme. Un `Object.assign`, une définition construite par un appel, une clé issue d'un `as const` importé : chacune rendrait une valeur indécidable par un chemin que ce lecteur ne regarde pas.
+
+**Pourquoi arrêter quand même.** Depuis la revue 5, la réponse est structurelle et non plus au cas par cas. `StoriesRead` porte le « je ne sais pas » dans le type, `produced` est le seul endroit qui décide, et une variante nouvelle non traitée ne compile pas. Les trois derniers constats n'étaient pas des trous dans cette structure : c'étaient des endroits où une règle déjà écrite n'était pas encore appliquée. Une huitième forme se corrigera donc en une ligne, et le compilateur refusera de l'ignorer.
+
+**Point de contrôle.** À la première utilisation de Crypte sur un projet réel, relire cette table contre ce que ce projet écrit vraiment. C'est un usage qui apportera la huitième forme, pas une relecture de plus.
+
+*Origine :* lot 4, arrêt décidé après la revue 5 de la PR #30.
