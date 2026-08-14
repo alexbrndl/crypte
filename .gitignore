@@ -15,3 +15,6 @@ coverage/
 !.vscode/extensions.json
 
 .claude/worktrees/
+
+# Written by the build, never committed: see docs/decisions.md
+.crypte/

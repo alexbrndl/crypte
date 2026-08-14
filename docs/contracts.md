@@ -38,7 +38,9 @@ stories/checkout/OrderSummary.ts
 
 A story file carries **the exact name of its component**. The sidebar tree comes from the path relative to the stories root. No title is ever declared.
 
-The default extension is `.ts`. A structured `children` prop forces `.tsx`, which is common on composed components such as `Tabs` or `Card`. Both extensions are accepted.
+**A story is written in the language of its project.** Four extensions are read: `.ts`, `.tsx`, `.js` and `.jsx`. A TypeScript project writes `.ts`, and a project with no TypeScript writes `.js`, the same way it writes its components.
+
+The `x` form carries JSX. A structured `children` prop forces it, which is common on composed components such as `Tabs` or `Card`. Everything else fits in the plain form.
 
 ### 1.2 `crypte check`
 
@@ -409,6 +411,7 @@ interface StoryEntry {
   storyFile: string
   options: Record<string, unknown>
   details: Record<string, ResolvedPropDetails>
+  props: string[]
   source: string
   meta?: StoryMeta
 }
@@ -425,6 +428,10 @@ const MANIFEST_VERSION = 1
 `version` is a plain number rather than the literal type of `MANIFEST_VERSION`. Its job is to spot a manifest written by another version, and a frozen type would make that comparison impossible.
 
 Every entry carries a `type`. **One value is implemented: `"story"`.** `"page"` and `"tokens"` are reserved for design-system work and must not be implemented now. The reserve costs one field today and saves a migration later.
+
+`props` and `source` are read from the story file, not declared in it. `props` lists the names the story passes to the component, from the shared block and its own, sorted, with no value attached: a prop set to a function is still a prop the story exercises, and prop coverage counts it. `source` rebuilds the call from the text the user wrote, so an expression the CLI cannot evaluate still reads the way they typed it.
+
+**A prop spread with `...` is in neither field.** Its names cannot be read without running the file, and guessing them would put wrong names in a coverage figure.
 
 ```json
 {
@@ -443,7 +450,8 @@ Every entry carries a `type`. **One value is implemented: `"story"`.** `"page"` 
       "storyFile": "stories/checkout/OrderSummary.ts",
       "options": {},
       "details": {},
-      "source": "<OrderSummary reference=\"REF-4821\" />",
+      "props": ["benefits", "reference", "title"],
+      "source": "<OrderSummary title=\"Full plan\" benefits={['Full history']} reference=\"REF-4821\" />",
       "meta": { "status": "stable" }
     }
   ]
@@ -654,10 +662,11 @@ This document is a contract. This section is the only place that says what exist
 
 | Section | State |
 | --- | --- |
+| 1.1, story files | discovered and read, in the four extensions. The tree, the identifiers and the call code come out of them |
 | 1.5, project configuration | the config is read, and the CSS entry is turned into an absolute path. Nothing loads that style sheet yet |
 | 1.5, path aliases | built |
 | 2 and 3, the types | built. `defineStories`, `story` and inference are not |
-| 4, the manifest types | built. Nothing writes a manifest yet |
+| 4, the manifest | built. The CLI writes `.crypte/manifest.json`, with `details` and `options` left empty |
 | 5, the channel | built and exercised on both sides |
 | 6, plugin contract | not built, and provisional |
 
@@ -667,7 +676,8 @@ Three known gaps between this document and the code:
 
 - `update-overrides` and `set-globals` are part of the protocol and have no effect yet. The preview drops them.
 - A path alias cannot replace an installed package. `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because the resolver runs after Vite's own. TypeScript would return the replacement file.
-- The CLI does not yet guarantee the serialisation promised in 4.5, because nothing writes a manifest.
+- `details` and `options` are written empty. Prop details need the adapter, and options need the plugin contract of section 6.
+- The CLI does not yet guarantee the serialisation promised in 4.5. What it writes today is read from source text and is serialisable by construction, so the guarantee is not exercised.
 
 ---
 

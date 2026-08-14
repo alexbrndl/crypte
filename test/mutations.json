@@ -398,5 +398,61 @@
     "apres": "",
     "trouvee": "revue de la PR #27",
     "attendu": "guide.test.ts > les exemples du guide > refuse un marqueur qu’il ne trouve pas"
+  },
+  {
+    "garantie": "Les props communes comptent dans chaque story",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "      const props = new Map([...shared, ...story.own])",
+    "apres": "      const props = new Map([...story.own])",
+    "trouvee": "lot 4",
+    "attendu": "stories.test.ts > la lecture des stories > mêle les props communes et celles de la story"
+  },
+  {
+    "garantie": "Le parseur choisit sa langue sur le nom du fichier",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  const parsed = parseSync(file, source)",
+    "apres": "  const parsed = parseSync('story.js', source)",
+    "trouvee": "lot 4",
+    "attendu": "stories.test.ts > la lecture des stories > accepte la syntaxe TypeScript dans un .tsx"
+  },
+  {
+    "garantie": "Un projet JavaScript écrit ses stories en JavaScript",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "export const STORY_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx']",
+    "apres": "export const STORY_EXTENSIONS = ['.ts', '.tsx']",
+    "trouvee": "lot 4",
+    "attendu": "manifest.test.ts > le catalogue > ne ramasse que les quatre extensions"
+  },
+  {
+    "garantie": "Un spread n'apporte aucun nom de prop inventé",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    if (property.type !== 'Property') continue\n\n    const key = property['key'] as Node",
+    "apres": "    const key = property['key'] as Node",
+    "trouvee": "lot 4",
+    "attendu": "stories.test.ts > la lecture des stories > laisse de côté les props qu’un spread apporte"
+  },
+  {
+    "garantie": "Un fichier illisible est signalé, pas avalé",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    return { entries: [], skipped: parsed.errors[0]?.message ?? 'the file could not be parsed' }",
+    "apres": "    return { entries: [] }",
+    "trouvee": "lot 4",
+    "attendu": "manifest.test.ts > le catalogue > signale un fichier illisible sans perdre les autres"
+  },
+  {
+    "garantie": "Deux stories ne partagent jamais un identifiant",
+    "fichier": "packages/cli/src/manifest.ts",
+    "avant": "    if (first) {\n      throw new ConfigError(",
+    "apres": "    if (false) {\n      throw new ConfigError(",
+    "trouvee": "lot 4",
+    "attendu": "manifest.test.ts > le catalogue > refuse deux stories qui tombent sur le même identifiant"
+  },
+  {
+    "garantie": "Le dossier est parcouru dans un ordre stable",
+    "fichier": "packages/cli/src/manifest.ts",
+    "avant": "    a.name.localeCompare(b.name, 'en'),",
+    "apres": "    b.name.localeCompare(a.name, 'en'),",
+    "trouvee": "lot 4",
+    "attendu": "manifest.test.ts > le catalogue > parcourt le dossier dans un ordre stable"
   }
 ]

@@ -10,6 +10,46 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 ---
 
+## A story file is written in the language of its project
+
+_2026-08-14_
+
+**Decided.** Four extensions are read: `.ts`, `.tsx`, `.js` and `.jsx`. A project without TypeScript writes its stories in JavaScript.
+
+**Rejected.** Keeping the two TypeScript extensions and asking a JavaScript project to write TypeScript anyway.
+
+**Why.** Section 1.1 named `.ts` and `.tsx` only, which contradicted the work of lot 3: the CLI reads `jsconfig.json` and resolves the aliases of a project that has no TypeScript at all. Telling that same project to write its stories in a language its editor and its build are not set up for undoes the point.
+
+The test fixture is exactly that project, and writing the contradiction into it is what surfaced this.
+
+It costs nothing to read. `parseSync` picks its language from the file name, so the four extensions are one array, and the two JavaScript ones are the cheaper parse.
+
+**What would reopen it.** Nothing likely. Narrowing back would take away a language a project already writes.
+
+---
+
+## The story parser comes from Vite, with no new dependency
+
+_2026-08-14_
+
+**Decided.** The CLI parses story files with `parseSync`, re-exported by `vite`, which is Oxc's own parser. `vite` is already a declared dependency of `@crypte/cli`, so nothing is added.
+
+**Rejected.** Adding `oxc-parser` directly, reaching for `rolldown` behind Vite's back, and using `@babel/parser`, which is installed but only as somebody else's transitive dependency.
+
+**Why.** Measured, in this order.
+
+`parseAst`, also exported by Vite, reads JavaScript only: it fails on `as const` and on a generic arrow in a `.tsx`. Story files are `.ts` and `.tsx`, so it is the wrong tool despite the familiar name.
+
+`parseSync` takes the filename, so it picks the language from the extension. On a `.tsx` file holding JSX, a generic arrow and an `as const`, it reports zero errors.
+
+It **returns** its errors instead of throwing. One broken story file must not stop a catalogue from being written, and a parser that throws would make that harder than it needs to be.
+
+`rolldown` is not resolvable from `@crypte/cli` under pnpm, being a transitive dependency of Vite. Importing it would mean declaring it, which is one more version to keep in step with Vite's own.
+
+**What would reopen it.** Vite dropping `parseSync` from its public exports, or the parser turning out to be slower than reading the files. Both would be measured before moving.
+
+---
+
 ## The manifest is a build artefact, and a small fingerprint is committed
 
 _2026-08-13_
