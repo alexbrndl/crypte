@@ -250,7 +250,7 @@ L'empreinte commitée de la fixture est le seul instance du régime de verrouill
 
 *Origine :* revue de la PR #31.
 
-### Le contrôle de mutation reste à six minutes en intégration continue
+### Le contrôle de mutation reste à sept minutes en intégration continue
 
 `DCJ-216` visait moins de trois minutes. Chronométré : 4 min 10 s pour 90 garanties avant, **2 min 21 s pour 92 après**, soit 1,8 fois moins en local. Le rapport local sur distant mesuré sur ce dépôt est d'environ 2,9, donc le contrôle tient aux alentours de sept minutes en intégration continue, pas trois.
 

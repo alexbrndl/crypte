@@ -740,11 +740,19 @@
     "attendu": "mutations.test.mjs > le catalogue de mutations > la voie rapide du contrôle > ne prend pas un filtre sans correspondance pour un rouge"
   },
   {
-    "garantie": "La voie rapide exige le cas attendu, pas n'importe quel rouge",
+    "garantie": "La voie rapide ne conclut pas sur un fichier qui passe",
     "fichier": "test/mutation-check.mjs",
     "avant": "  if (quick === undefined || quick.ok) return false",
     "apres": "  if (quick === undefined) return false",
     "trouvee": "revue de la PR #32",
     "attendu": "mutations.test.mjs > le catalogue de mutations > la voie rapide du contrôle > ne conclut pas sur un fichier qui passe"
+  },
+  {
+    "garantie": "La voie rapide exige le cas attendu, pas n'importe quel rouge du fichier",
+    "fichier": "test/mutation-check.mjs",
+    "avant": "  return !output.includes(NO_FILE) && output.includes(attendu)",
+    "apres": "  return !output.includes(NO_FILE)",
+    "trouvee": "revue 2 de la PR #32",
+    "attendu": "mutations.test.mjs > le catalogue de mutations > la voie rapide du contrôle > ne conclut pas quand un autre cas du fichier a rougi"
   }
 ]

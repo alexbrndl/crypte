@@ -316,7 +316,7 @@ Le verdict ne pouvait pas être « n'est gardée par rien » : celui-là ne dép
 
 *Pourquoi ça existe :* le catalogue cite du code par son texte, donc toute refonte le périme en silence. Le contrôle de mutation le dit, mais il coûte quatre minutes ; ces cas le disent en une seconde, avant le commit.
 
-**Deux voies, et la rapide sert quatre-vingt-trois fois sur quatre-vingt-dix.**
+**Deux voies, et quatre-vingt-quatre garanties sur quatre-vingt-treize portent une cible.**
 
 *La voie rapide* lance le seul fichier de test que la garantie nomme. Si ce fichier rougit et que le cas attendu apparaît dans sa sortie, c'est fini : ni suite complète, ni `vp check`. La raison tient en une phrase : si le cas attendu rougit, la garantie est tenue quoi qu'en dise le lint.
 
@@ -334,13 +334,13 @@ Le verdict ne pouvait pas être « n'est gardée par rien » : celui-là ne dép
 
 *Le script est une fonction gardée*, comme `changeset-check.mjs` et `post-review.mjs` : sans ça, importer le module pour en tester une fonction lancerait les quatre-vingt-douze mutations.
 
-*Chronométré en local.* **4 min 10 s pour 90 garanties avant, 2 min 21 s pour 92 après**, soit 1,8 fois moins. Le compte de cibles cité plus haut est celui des garanties qui en portent une, pas de celles qui concluent.
+*Chronométré en local.* **4 min 10 s pour 90 garanties avant, 2 min 21 s pour 92 après**, soit 1,8 fois moins. Les quatre-vingt-quatre cités plus haut sont les garanties qui **portent** une cible, pas celles qui concluent : un gardien peut rougir sur un autre cas de son fichier, et la voie lente reprend alors la main.
 
-Le calcul par mutation : `pack` 30 ms partout, puis 0,9 s sur la voie rapide contre 3,7 s sur la lente, `test` et `check` compris. Les seize cibles lancées seules par le contrôle positif coûtent 24 s de ce total, et c'est ce qu'achète la fermeture du trou décrit ci-dessous.
+Le calcul par mutation : `pack` 30 ms partout, puis 0,9 s sur la voie rapide contre 3,7 s sur la lente, `test` et `check` compris. Les seize cibles distinctes lancées seules par le contrôle positif coûtent 24 s de ce total, et c'est ce qu'achète la fermeture du trou décrit ci-dessous.
 
 Le plancher est le démarrage de vitest, environ 0,7 s par lancement, donc plus d'une minute pour quatre-vingt-douze garanties quoi qu'on fasse d'autre.
 
-En intégration continue, l'observation d'avant était pauvre : le job a été **annulé à 10 min** sans finir, puis a mis 12 min 2 une fois le délai relevé à 30. Le rapport local sur distant est donc d'environ 2,9, ce qui place le contrôle accéléré aux alentours de 6 min. `DCJ-216` visait moins de 3 min : ce n'est pas atteint, et ça demanderait de muter en mémoire plutôt qu'un processus par garantie.
+En intégration continue, l'observation d'avant était pauvre : le job a été **annulé à 10 min** sans finir, puis a mis 12 min 2 une fois le délai relevé à 30. Le rapport local sur distant est donc d'environ 2,9, ce qui place le contrôle accéléré aux alentours de 7 min. `DCJ-216` visait moins de 3 min : ce n'est pas atteint, et ça demanderait de muter en mémoire plutôt qu'un processus par garantie.
 
 *Ce qui casse si on l'enlève :* une garantie dont le motif a disparu ne casse plus rien, donc elle ne surveille plus rien, et le catalogue continue d'annoncer son compte. Mesuré sur le lot 4 : cinq refontes, sept motifs périmés. Les cinq premiers ont coûté un contrôle complet chacun ; les deux derniers ont été vus par ce test, en quelques millisecondes.
 
