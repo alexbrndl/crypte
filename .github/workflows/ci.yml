@@ -16,7 +16,10 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 30 et non 10 à cause du contrôle de mutation, qui rejoue la suite une fois
+    # par garantie. Chronométré à 86 garanties : 4 min 13 s en local, et ici le
+    # travail était annulé à 10 min sans finir. Voir docs/internal/architecture.md.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:

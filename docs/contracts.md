@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.0, reference document. A project brief points here instead of restating these shapes.
+> Version 1.1, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -38,7 +38,9 @@ stories/checkout/OrderSummary.ts
 
 A story file carries **the exact name of its component**. The sidebar tree comes from the path relative to the stories root. No title is ever declared.
 
-The default extension is `.ts`. A structured `children` prop forces `.tsx`, which is common on composed components such as `Tabs` or `Card`. Both extensions are accepted.
+**A story is written in the language of its project.** Four extensions are read: `.ts`, `.tsx`, `.js` and `.jsx`. A TypeScript project writes `.ts`, and a project with no TypeScript writes `.js`, the same way it writes its components.
+
+The `x` form carries JSX. A structured `children` prop forces it, which is common on composed components such as `Tabs` or `Card`. Everything else fits in the plain form.
 
 ### 1.2 `crypte check`
 
@@ -215,6 +217,14 @@ interface Story<P> {
 ```
 
 The second argument is typed by the plugins you have installed, which is what gives autocompletion. **With no plugin installed, no option key is accepted at all**, so the example above needs the plugin that declares `responsive`. The common case has no options and never uses this helper.
+
+The same thing can be written by hand, since the union accepts either shape:
+
+```ts
+'Collapsed on mobile': { props: { reference: 'REF-4821' }, options: { responsive: 'mobile' } },
+```
+
+**The two shapes are told apart by their keys**, which is the only thing that separates them: an object declaring `props`, and at most `options`, is a `Story`. A component whose props are exactly `props`, or `props` and `options`, is therefore read the wrong way. Renaming one of them is the way out, and no other reading is possible without running the file.
 
 ### 2.5 `wrap`
 
@@ -409,6 +419,7 @@ interface StoryEntry {
   storyFile: string
   options: Record<string, unknown>
   details: Record<string, ResolvedPropDetails>
+  props: string[]
   source: string
   meta?: StoryMeta
 }
@@ -425,6 +436,12 @@ const MANIFEST_VERSION = 1
 `version` is a plain number rather than the literal type of `MANIFEST_VERSION`. Its job is to spot a manifest written by another version, and a frozen type would make that comparison impossible.
 
 Every entry carries a `type`. **One value is implemented: `"story"`.** `"page"` and `"tokens"` are reserved for design-system work and must not be implemented now. The reserve costs one field today and saves a migration later.
+
+`props` and `source` are read from the story file, not declared in it. `props` lists the names the story passes to the component, from the shared block and its own, sorted, with no value attached: a prop set to a function is still a prop the story exercises, and prop coverage counts it. `source` rebuilds the call from the text the user wrote, so an expression the CLI cannot evaluate still reads the way they typed it.
+
+**A prop spread with `...` is in neither field**, and neither is a key computed at runtime. Their names cannot be read without running the file, and guessing them would put wrong names in a coverage figure.
+
+**A story key computed at runtime produces no entry at all.** A story name is a URL, a baseline key and the anchor of a comment, so a wrong one costs more than a missing one. The CLI reports what it dropped.
 
 ```json
 {
@@ -443,7 +460,8 @@ Every entry carries a `type`. **One value is implemented: `"story"`.** `"page"` 
       "storyFile": "stories/checkout/OrderSummary.ts",
       "options": {},
       "details": {},
-      "source": "<OrderSummary reference=\"REF-4821\" />",
+      "props": ["benefits", "reference", "title"],
+      "source": "<OrderSummary title=\"Full plan\" benefits={['Full history']} reference=\"REF-4821\" />",
       "meta": { "status": "stable" }
     }
   ]
@@ -654,24 +672,35 @@ This document is a contract. This section is the only place that says what exist
 
 | Section | State |
 | --- | --- |
+| 1.1, story files | discovered and read, in the four extensions. The tree, the identifiers and the call code come out of them |
 | 1.5, project configuration | the config is read, and the CSS entry is turned into an absolute path. Nothing loads that style sheet yet |
 | 1.5, path aliases | built |
 | 2 and 3, the types | built. `defineStories`, `story` and inference are not |
-| 4, the manifest types | built. Nothing writes a manifest yet |
+| 4, the manifest | built, and produced from a project. `details` is written empty, and no command calls the producer yet |
 | 5, the channel | built and exercised on both sides |
 | 6, plugin contract | not built, and provisional |
 
-**No command is built.** The `crypte` binary answers `--version` and nothing else, `crypte dev` and `crypte check` included.
+**No command is built.** The `crypte` binary answers `--version` and nothing else, `crypte dev` and `crypte check` included. So the manifest is produced by code that nothing runs yet: `crypte dev` is what will write `.crypte/manifest.json` to disk.
 
-Three known gaps between this document and the code:
+Five known gaps between this document and the code:
 
 - `update-overrides` and `set-globals` are part of the protocol and have no effect yet. The preview drops them.
 - A path alias cannot replace an installed package. `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because the resolver runs after Vite's own. TypeScript would return the replacement file.
-- The CLI does not yet guarantee the serialisation promised in 4.5, because nothing writes a manifest.
+- `details` is written empty. Section 4.4 says it travels from the story file untouched, but the manifest carries the **resolved** form, whose `type` and `required` come from an adapter's inference and not from what the author wrote. `meta` and `options` do travel today.
+- The CLI does not yet guarantee the serialisation promised in 4.5. What it writes today is read from source text and is serialisable by construction, so the guarantee is not exercised.
+- `component.file` is resolved without Vite. The producer runs before any server exists, so it applies the project's `paths` and tries the usual extensions, with no plugin and no `exports` field. A component reached through a plugin keeps the identifier the story wrote.
 
 ---
 
 ## 9. Version log
+
+**v1.1.** The manifest producer written, which is what turned three of these lines from a contract into a measurement.
+
+| Before | After |
+| --- | --- |
+| stories were `.ts` or `.tsx` | four extensions, so a project with no TypeScript writes its stories the way it writes its components |
+| an entry said what the component's props were, never what a story set | `props` carries the names each story passes, and prop coverage has something to count |
+| `source` was a field with an example and no rule | it is rebuilt from the text the author wrote, and section 4.2 says what a spread does to it |
 
 **v1.0.** The whole document read against the code for the first time, once the protocol, the CLI configuration and the channel were built. Rewritten in English.
 

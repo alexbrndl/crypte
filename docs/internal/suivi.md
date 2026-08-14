@@ -173,3 +173,67 @@ Le champ est ajouté au manifeste publié pour qu'un bundler consommateur puisse
 *Conséquence :* le jour où un module du protocole acquiert un effet de bord au chargement, les bundlers des consommateurs le supprimeront sans avertissement.
 
 *Origine :* revue 12 du lot 2.
+
+### La colonne « props propres » de DCJ-192 n'est pas servie
+
+`StoryEntry.props` porte les props que la story passe vraiment au composant, bloc commun compris. C'est ce dont ont besoin deux des trois consommateurs cités par l'issue, la couverture de props et la recherche par prop.
+
+Le troisième, la colonne « props propres » de la page composant, veut les seules props que la story ajoute au bloc commun. **Cette information n'est pas récupérable depuis la liste fusionnée** : l'intersection des listes d'un fichier ne rend pas le bloc commun, puisqu'une story peut reposer une prop qu'il déclare déjà.
+
+*Pourquoi ce n'est pas fait ici :* c'est un second champ dans le contrat du manifeste, pour un écran qui vient d'une exploration d'interface et qui n'est pas construit. Le champ est additif, donc il s'ajoutera sans changer `MANIFEST_VERSION` le jour où l'écran existe.
+
+*Origine :* lot 4, en repassant sur DCJ-192.
+
+### Le code d'appel écrit `children` comme un attribut
+
+`source` rend `<OrderSummary children={<span>Neuf</span>} />`. C'est du JSX valide et fidèle à ce que la story déclare, mais personne n'écrit `children` de cette façon à la main : la forme attendue est `<OrderSummary>{...}</OrderSummary>`.
+
+*Pourquoi ce n'est pas fait ici :* le champ sert à lire et à copier, et les deux formes se copient. Le jour où un écran l'affiche pour de bon, c'est lui qui dira laquelle est lisible.
+
+*Origine :* lot 4, à la lecture du manifeste produit sur la fixture.
+
+### `MANIFEST_VERSION` reste à 1 alors qu'un champ requis s'ajoute
+
+`StoryEntry.props` est un champ **requis**, pas additif, et la version du manifeste ne bouge pas. La section 4.2 dit que le rôle de `version` est de reconnaître un manifeste écrit par une autre version : avec ce lot, `1` désigne deux formes.
+
+*Pourquoi ce n'est pas un défaut aujourd'hui :* aucun manifeste n'a jamais été écrit. Aucune commande n'appelle le producteur, aucun paquet n'est publié, donc il n'existe nulle part un fichier de version 1 à l'ancienne forme.
+
+*La règle à partir de maintenant :* dès la première version publiée qui écrit un manifeste, ajouter un champ requis impose d'incrémenter `MANIFEST_VERSION`. Le raisonnement « champ additif, donc pas de changement de version » ne couvre que les champs optionnels.
+
+*Origine :* revue de la PR #30.
+
+### L'exhaustivité de `produced` n'est gardée que par le compilateur
+
+`StoriesRead` a trois variantes et `produced` les traite dans un `switch`. Ajouter une quatrième variante sans la traiter donne `TS2366`, mesuré, parce que la fin d'une fonction à type de retour déclaré redevient atteignable.
+
+*Ce qui n'est pas gardé :* rien n'empêche de remplacer le `switch` par une chaîne de ternaires, qui compile sans exiger l'exhaustivité. Les 81 garanties de mutation resteraient vertes et la protection disparaîtrait en silence.
+
+*Pourquoi ce n'est pas fait ici :* le catalogue de mutations casse du code et lit le rouge d'un test ; il ne sait pas exprimer « ce changement doit produire une erreur de type ». Le garder demanderait un second mécanisme, du genre d'un fichier de type attendu en échec, pour une protection d'une seule fonction.
+
+*Origine :* auto-review du lot 4.
+
+### Arrêt explicite : la limite de la lecture statique d'un fichier de story
+
+**Ce qui est arrêté.** La boucle de revue du lot 4, après cinq tours et huit constats. Les cinq derniers commits corrigent tous la même question, et le rythme ne ralentissait pas.
+
+**La question, une fois pour toutes.** Un fichier de story est lu sans être exécuté, donc le lecteur rencontre des valeurs qu'il ne peut pas connaître. La règle est unique : **ce qui ne se lit pas sans exécuter le fichier est laissé de côté et signalé, jamais deviné.** Un nom faux entre dans un identifiant, une URL, une clé de baseline et un chiffre de couverture, et il ment sans se signaler ; un nom manquant se voit.
+
+**Les sept formes trouvées**, dans l'ordre où elles sont apparues :
+
+| Forme | Ce que le lecteur en fait |
+| -- | -- |
+| une clé de prop calculée | la prop est laissée de côté |
+| une clé de story calculée | la story est écartée, et comptée |
+| un spread dans un bloc de props | les noms apportés sont laissés de côté |
+| un spread dans le bloc `stories` | la story apportée est comptée, et celles qui la précèdent sont écartées |
+| un bloc `stories` non littéral, ou vide | aucune entrée, avec la raison |
+| une définition non littérale, ou dont un spread suit la clé lue | aucune entrée, avec la raison |
+| une clé écrite deux fois | la dernière gagne, comme à l'exécution |
+
+**Ce qui reste non éprouvé.** Rien ne garantit qu'il n'existe pas une huitième forme. Un `Object.assign`, une définition construite par un appel, une clé issue d'un `as const` importé : chacune rendrait une valeur indécidable par un chemin que ce lecteur ne regarde pas.
+
+**Pourquoi arrêter quand même.** Depuis la revue 5, la réponse est structurelle et non plus au cas par cas. `StoriesRead` porte le « je ne sais pas » dans le type, `produced` est le seul endroit qui décide, et une variante nouvelle non traitée ne compile pas. Les trois derniers constats n'étaient pas des trous dans cette structure : c'étaient des endroits où une règle déjà écrite n'était pas encore appliquée. Une huitième forme se corrigera donc en une ligne, et le compilateur refusera de l'ignorer.
+
+**Point de contrôle.** À la première utilisation de Crypte sur un projet réel, relire cette table contre ce que ce projet écrit vraiment. C'est un usage qui apportera la huitième forme, pas une relecture de plus.
+
+*Origine :* lot 4, arrêt décidé après la revue 5 de la PR #30.

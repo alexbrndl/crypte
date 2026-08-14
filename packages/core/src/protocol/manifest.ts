@@ -30,6 +30,10 @@ export interface StoryEntry {
   options: Record<string, unknown>
   // Keyed by prop name, hence no `name` field in the value.
   details: Record<string, ResolvedPropDetails>
+  // The props this story passes to the component, from the shared block and its
+  // own, sorted. Names only: a value that cannot be serialised is still a prop
+  // the story exercises, and coverage counts it.
+  props: string[]
   source: string
   meta?: StoryMeta
 }

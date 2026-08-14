@@ -398,5 +398,293 @@
     "apres": "",
     "trouvee": "revue de la PR #27",
     "attendu": "guide.test.ts > les exemples du guide > refuse un marqueur qu’il ne trouve pas"
+  },
+  {
+    "garantie": "Les props communes comptent dans chaque story",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "      const props = new Map([...shared, ...story.own])",
+    "apres": "      const props = new Map([...story.own])",
+    "trouvee": "lot 4",
+    "attendu": "stories.test.ts > la lecture des stories > mêle les props communes et celles de la story"
+  },
+  {
+    "garantie": "Le parseur choisit sa langue sur le nom du fichier",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  const parsed = parseSync(file, source)",
+    "apres": "  const parsed = parseSync('story.js', source)",
+    "trouvee": "lot 4",
+    "attendu": "stories.test.ts > la lecture des stories > accepte la syntaxe TypeScript dans un .tsx"
+  },
+  {
+    "garantie": "Un projet JavaScript écrit ses stories en JavaScript",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "export const STORY_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx']",
+    "apres": "export const STORY_EXTENSIONS = ['.ts', '.tsx']",
+    "trouvee": "lot 4",
+    "attendu": "manifest.test.ts > le catalogue > ne ramasse que les quatre extensions"
+  },
+  {
+    "garantie": "Un spread n'apporte aucun nom de prop inventé",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    if (property.type !== 'Property' || property['computed'] === true) continue\n\n    const value = index < lastSpread ? undefined : (property['value'] as Node)",
+    "apres": "    if (property['computed'] === true) continue\n\n    const value = index < lastSpread ? undefined : (property['value'] as Node)",
+    "trouvee": "lot 4",
+    "attendu": "stories.test.ts > la lecture des stories > laisse de côté les props qu’un spread apporte"
+  },
+  {
+    "garantie": "Un fichier illisible est signalé, pas avalé",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    return { entries: [], skipped: parsed.errors[0]?.message ?? 'the file could not be parsed' }",
+    "apres": "    return { entries: [] }",
+    "trouvee": "lot 4",
+    "attendu": "manifest.test.ts > le catalogue > signale un fichier illisible sans perdre les autres"
+  },
+  {
+    "garantie": "Deux stories ne partagent jamais un identifiant",
+    "fichier": "packages/cli/src/manifest.ts",
+    "avant": "    if (first) {\n      throw new ConfigError(",
+    "apres": "    if (false) {\n      throw new ConfigError(",
+    "trouvee": "lot 4",
+    "attendu": "manifest.test.ts > le catalogue > refuse deux stories qui tombent sur le même identifiant"
+  },
+  {
+    "garantie": "Le dossier est parcouru dans un ordre stable",
+    "fichier": "packages/cli/src/manifest.ts",
+    "avant": "    a.name.localeCompare(b.name, 'en'),",
+    "apres": "    b.name.localeCompare(a.name, 'en'),",
+    "trouvee": "lot 4",
+    "attendu": "manifest.test.ts > le catalogue > parcourt le dossier dans un ordre stable"
+  },
+  {
+    "garantie": "Le composant est rendu comme un chemin de fichier, pas comme un identifiant",
+    "fichier": "packages/cli/src/manifest.ts",
+    "avant": "  return found ? posix(relative(project.root, found)) : specifier",
+    "apres": "  return specifier",
+    "trouvee": "lot 4",
+    "attendu": "manifest.test.ts > le catalogue > résout le composant en chemin de projet"
+  },
+  {
+    "garantie": "Un composant introuvable ne rend pas un chemin inventé",
+    "fichier": "packages/cli/src/manifest.ts",
+    "avant": "  if (extname(candidate) && isFile(candidate)) return candidate",
+    "apres": "  return candidate",
+    "trouvee": "lot 4",
+    "attendu": "manifest.test.ts > le catalogue > garde l’identifiant quand aucun fichier ne répond"
+  },
+  {
+    "garantie": "Le meta du fichier arrive dans le manifeste",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  const meta = shadowed(definition, 'meta') ? undefined : record(propertyOf(definition, 'meta'))",
+    "apres": "  const meta = undefined",
+    "trouvee": "lot 4",
+    "attendu": "stories.test.ts > la lecture des stories > porte le meta du fichier sur chacune de ses stories"
+  },
+  {
+    "garantie": "Le second argument de story() arrive dans le manifeste",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    return { own: propsOf(args[0] ?? null), options: args[1] }",
+    "apres": "    return { own: propsOf(args[0] ?? null), options: undefined }",
+    "trouvee": "lot 4",
+    "attendu": "stories.test.ts > la lecture des stories > porte les options du second argument de story()"
+  },
+  {
+    "garantie": "Une valeur qui ne survit pas au JSON fait tomber sa clé",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "        const key = property['key'] as Node\n        const read = literalOf(property['value'] as Node)\n        if (!read) return undefined",
+    "apres": "        const key = property['key'] as Node\n        const read = literalOf(property['value'] as Node) ?? { value: null }",
+    "trouvee": "lot 4",
+    "attendu": "stories.test.ts > la lecture des stories > laisse tomber un meta dont une valeur ne survit pas au JSON"
+  },
+  {
+    "garantie": "Un composant non importé fait sauter le fichier, pas le catalogue",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  if (!component) {\n    return { entries: [], skipped: `${name} is not imported by a form this reader can follow` }\n  }",
+    "apres": "  if (!component) {\n    throw new Error(`${name} is not imported`)\n  }",
+    "trouvee": "revue de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > passe un fichier dont le composant n’est pas importé"
+  },
+  {
+    "garantie": "Un import d'espace de noms ne nomme aucun export",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "      if (imported['kind'] === 'Name') {\n        return { name, file, export: (imported['name'] as string) ?? name }\n      }\n\n      return undefined",
+    "apres": "      return { name, file, export: (imported['name'] as string) ?? name }",
+    "trouvee": "revue de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > passe un composant lié par un import d’espace de noms"
+  },
+  {
+    "garantie": "Chaque entrée possède son propre objet de composant",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "        component: { ...component },",
+    "apres": "        component,",
+    "trouvee": "revue de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > donne à chaque entrée son propre objet de composant"
+  },
+  {
+    "garantie": "Une clé de story calculée n'invente pas un nom de story",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    if (property['computed'] === true) {\n      lost.push('one whose key is computed at runtime')\n      continue\n    }",
+    "apres": "",
+    "trouvee": "revue de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > laisse tomber une story dont la clé est calculée"
+  },
+  {
+    "garantie": "Une clé de prop calculée n'invente pas un nom de prop",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    if (property.type !== 'Property' || property['computed'] === true) continue\n\n    const value = index < lastSpread ? undefined : (property['value'] as Node)",
+    "apres": "    if (property.type !== 'Property') continue\n\n    const value = index < lastSpread ? undefined : (property['value'] as Node)",
+    "trouvee": "revue de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > laisse de côté une prop dont la clé est calculée"
+  },
+  {
+    "garantie": "L'appel d'une autre fonction n'est pas pris pour le helper",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    if (callee?.type !== 'Identifier' || callee['name'] !== helper) {",
+    "apres": "    if (callee?.type !== 'Identifier') {",
+    "trouvee": "revue de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > ne prend pas l’appel d’une autre fonction pour le helper"
+  },
+  {
+    "garantie": "Un Story écrit à la main est lu comme tel",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  const shaped = asStoryLiteral(value)\n  if (shaped) return { own: propsOf(shaped.props), options: shaped.options ?? undefined }",
+    "apres": "",
+    "trouvee": "revue de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > lit un Story écrit à la main comme le helper l’écrirait"
+  },
+  {
+    "garantie": "Un bloc dont la clé est entre guillemets est trouvé",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  const found = (object['properties'] as Node[]).findLast(\n    (property) =>\n      property.type === 'Property' &&\n      property['computed'] !== true &&\n      keyOf(property['key'] as Node) === name,\n  )",
+    "apres": "  const found = (object['properties'] as Node[]).findLast(\n    (property) =>\n      property.type === 'Property' &&\n      property['computed'] !== true &&\n      (property['key'] as Node)['name'] === name,\n  )",
+    "trouvee": "revue de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > trouve un bloc dont la clé est entre guillemets"
+  },
+  {
+    "garantie": "Un spread dans le bloc stories est signalé, pas avalé",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    if (property.type !== 'Property') {\n      lost.push('one brought by a spread')\n      continue\n    }",
+    "apres": "    if (property.type !== 'Property') continue",
+    "trouvee": "revue de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > signale les stories qu’un spread emporte"
+  },
+  {
+    "garantie": "Les extensions sont essayées dans l'ordre de Vite",
+    "fichier": "packages/cli/src/manifest.ts",
+    "avant": "const RESOLVED = ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json', '.vue']",
+    "apres": "const RESOLVED = ['.tsx', '.ts', '.jsx', '.js', '.vue', '.mjs', '.mts', '.json']",
+    "trouvee": "revue de la PR #30",
+    "attendu": "manifest.test.ts > le catalogue > résout dans l’ordre d’extensions de Vite"
+  },
+  {
+    "garantie": "Un fichier gagne contre un dossier portant un index",
+    "fichier": "packages/cli/src/manifest.ts",
+    "avant": "  for (const extension of RESOLVED) {\n    if (isFile(candidate + extension)) return candidate + extension\n  }\n\n  for (const extension of RESOLVED) {\n    const index = join(candidate, `index${extension}`)\n    if (isFile(index)) return index\n  }",
+    "apres": "  for (const extension of RESOLVED) {\n    if (isFile(candidate + extension)) return candidate + extension\n    const index = join(candidate, `index${extension}`)\n    if (isFile(index)) return index\n  }",
+    "trouvee": "revue de la PR #30",
+    "attendu": "manifest.test.ts > le catalogue > préfère un fichier à un dossier portant un index"
+  },
+  {
+    "garantie": "Un fichier sans bloc de stories reçoit son Default",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    case 'noBlock':\n      return { stories: [{ name: ONLY_STORY, own: new Map(), options: undefined }] }",
+    "apres": "    case 'noBlock':\n      return { stories: [] }",
+    "trouvee": "revue 4 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > replie sur Default quand le fichier ne déclare pas de bloc stories"
+  },
+  {
+    "garantie": "Un bloc inexploitable ne reçoit jamais de Default",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    case 'unusable':\n      return { stories: [], reason: read.reason }",
+    "apres": "    case 'unusable':\n      return { stories: [{ name: ONLY_STORY, own: new Map(), options: undefined }], reason: read.reason }",
+    "trouvee": "revue 4 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand le bloc n’est pas lisible"
+  },
+  {
+    "garantie": "La définition est lue avant de croire un bloc absent",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  if (definition !== undefined && definition.type !== 'ObjectExpression') {\n    return { kind: 'unusable', reason: 'the definition is not an object literal' }\n  }",
+    "apres": "",
+    "trouvee": "revue 4 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand la définition n’est pas lisible"
+  },
+  {
+    "garantie": "La position d'un spread décide si une clé est lisible",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  if (shadowed(definition, 'stories')) {\n    return { kind: 'unusable', reason: 'a spread in the definition decides the stories' }\n  }",
+    "apres": "  if (shadowed(definition, 'stories') && propertyOf(definition, 'stories') === null) {\n    return { kind: 'unusable', reason: 'a spread in the definition decides the stories' }\n  }",
+    "trouvee": "revue 4 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand la définition n’est pas lisible"
+  },
+  {
+    "garantie": "Un bloc de stories qui n'est pas un littéral est inexploitable",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  if (block.type !== 'ObjectExpression') {\n    return { kind: 'unusable', reason: 'the stories block is not an object literal' }\n  }",
+    "apres": "  if (block.type !== 'ObjectExpression') {\n    return { kind: 'noBlock' }\n  }",
+    "trouvee": "revue 4 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand le bloc n’est pas lisible"
+  },
+  {
+    "garantie": "Un bloc de stories vide est inexploitable",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  if (properties.length === 0) {\n    return { kind: 'unusable', reason: 'the stories block names no story' }\n  }",
+    "apres": "  if (properties.length === 0) {\n    return { kind: 'noBlock' }\n  }",
+    "trouvee": "revue 4 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand le bloc n’est pas lisible"
+  },
+  {
+    "garantie": "Un bloc dont aucune clé n'est lisible est inexploitable",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  if (stories.length === 0) {\n    return { kind: 'unusable', reason: `no story this reader can name: ${lost.join(', ')}` }\n  }",
+    "apres": "  if (stories.length === 0) {\n    return { kind: 'these', stories, reason: undefined }\n  }",
+    "trouvee": "revue 4 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand le fichier nomme des stories illisibles"
+  },
+  {
+    "garantie": "Un spread peut remplacer les props et le meta écrits",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  const shared = shadowed(definition, 'props')\n    ? new Map<string, Node>()\n    : propsOf(propertyOf(definition, 'props'))",
+    "apres": "  const shared = propsOf(propertyOf(definition, 'props'))",
+    "trouvee": "auto-review du lot 4",
+    "attendu": "stories.test.ts > la lecture des stories > ne lit pas les props ni le meta qu’un spread peut remplacer"
+  },
+  {
+    "garantie": "Un spread plus loin dans le bloc emporte les stories qu'il suit",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    if (index < lastSpread) {\n      lost.push('one a later spread may replace')\n      continue\n    }",
+    "apres": "",
+    "trouvee": "revue 5 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > laisse de côté une story qu’un spread plus loin peut remplacer"
+  },
+  {
+    "garantie": "Une clé écrite deux fois garde sa dernière valeur",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  const found = (object['properties'] as Node[]).findLast(",
+    "apres": "  const found = (object['properties'] as Node[]).find(",
+    "trouvee": "revue 5 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > garde la dernière valeur d’une clé écrite deux fois"
+  },
+  {
+    "garantie": "Une story écrite deux fois garde sa dernière valeur",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    named.set(name, { name, ...declaredBy(property['value'] as Node, helper) })",
+    "apres": "    if (!named.has(name)) named.set(name, { name, ...declaredBy(property['value'] as Node, helper) })",
+    "trouvee": "revue 5 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > garde la dernière valeur d’une clé écrite deux fois"
+  },
+  {
+    "garantie": "Une clé réécrite après un spread reste lisible",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  const at = properties.findLastIndex(",
+    "apres": "  const at = properties.findIndex(",
+    "trouvee": "revue 6 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > lit une clé réécrite après un spread"
+  },
+  {
+    "garantie": "Le code d'appel ne montre pas une valeur qu'un spread peut remplacer",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    const value = index < lastSpread ? undefined : (property['value'] as Node)",
+    "apres": "    const value = property['value'] as Node",
+    "trouvee": "revue 6 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > garde le nom mais pas la valeur qu’un spread interne peut remplacer"
   }
 ]

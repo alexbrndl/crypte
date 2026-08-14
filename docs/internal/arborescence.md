@@ -32,6 +32,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/post-review.test.mjs` | ce que le script refuse de publier | — |
 | `test/changeset-check.mjs` | décide si une pull request doit porter une note | `require-changeset.yml` |
 | `test/changeset-check.test.mjs` | ce qui exige une note, et ce qui n'en exige pas | — |
+| `test/mutations.test.mjs` | les motifs du catalogue de mutations ne sont pas périmés | — |
 | `test/doc-links.test.mjs` | tout document cité existe, et hors de `docs/` il est cité par son chemin | — |
 | `test/published-english.test.mjs` | aucune phrase française dans le code publié | — |
 | `.changeset/config.json` | mode fixe, générateur de changelog | Changesets |
@@ -78,7 +79,13 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `src/config-paths.ts` | où le projet déclare ses chemins | `project.ts` |
 | `src/paths.ts` | le résolveur qui les applique | `project.ts` |
 | `src/errors.ts` | l'erreur montrée à l'utilisateur | `project.ts`, `config-paths.ts` |
+| `src/stories.ts` | lecture d'un fichier de story, sans l'exécuter | `manifest.ts` |
+| `src/manifest.ts` | parcours du dossier, résolution, écriture du catalogue | le futur serveur |
 | `test/fixture/` | projet imité, aux contraintes réelles | `test/project.test.ts` |
+| `test/fixture/stories/` | les premiers fichiers de story du dépôt | `test/stories.test.ts`, `test/manifest*.test.ts` |
+| `test/stories.test.ts` | ce que la lecture d'un fichier refuse de deviner | — |
+| `test/manifest.test.ts` | parcours, résolution, collisions d'identifiants | — |
+| `test/manifest-shape.test.ts` | fige la forme du manifeste, champ pour champ | — |
 | `test/guide.test.ts` | exécute les exemples de `docs/guide.md` | — |
 
 ## `packages/react` — `@crypte/react`

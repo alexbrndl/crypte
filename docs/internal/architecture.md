@@ -310,6 +310,26 @@ Le verdict ne pouvait pas être « n'est gardée par rien » : celui-là ne dép
 
 ---
 
+## 4 bis bis. Le catalogue de mutations se périme
+
+`test/mutations.test.mjs` vérifie que chaque motif `avant` apparaît **exactement une fois** dans son fichier, que la mutation change vraiment le code, et que chaque garantie nomme un test attendu et une origine.
+
+*Pourquoi ça existe :* le catalogue cite du code par son texte, donc toute refonte le périme en silence. Le contrôle de mutation le dit, mais il coûte quatre minutes ; ces cas le disent en une seconde, avant le commit.
+
+*Son coût croît avec le catalogue.* Chronométré à 86 garanties : **4 min 13 s** en local. Par mutation, `pack` 30 ms, `test` 2264 ms, `check` 1416 ms, soit 3,7 s mesurés isolément ; la déduction 3,7 × 86 donnait 5,3 min, donc elle surestime d'un quart, et c'est le chronomètre qui compte.
+
+En intégration continue, l'observation est plus pauvre : le job a été **annulé à 10 min** sans finir, sur un job qui enchaîne aussi `install`, `pack`, `check`, `typecheck` et `test`. Ce qui est établi est donc « plus de 10 minutes », pas un facteur. Le délai est passé à 30 min pour cette raison. Un lancement ciblé sur le seul fichier de test attendu ramènerait chaque mutation à 0,8 s : c'est `DCJ-216`.
+
+*Ce qui casse si on l'enlève :* une garantie dont le motif a disparu ne casse plus rien, donc elle ne surveille plus rien, et le catalogue continue d'annoncer son compte. Mesuré sur le lot 4 : cinq refontes, sept motifs périmés. Les cinq premiers ont coûté un contrôle complet chacun ; les deux derniers ont été vus par ce test, en quelques millisecondes.
+
+Trois modes de péremption, et les deux derniers sont les sournois.
+
+Le motif **disparaît**, et le contrôle le signale clairement. Ou le motif devient **ambigu**, parce qu'un second endroit du fichier porte le même texte : `shadowed` a réutilisé le test de clé de `propertyOf`, et le motif court s'est mis à correspondre deux fois. Ou le **cas attendu** est renommé, et la garantie n'attend plus rien : c'est ce que `DCJ-210` s'apprête à faire sur 183 noms de tests.
+
+Le troisième ne se vérifie que sur les entrées qui nomment un fichier de test, une soixantaine sur 86. `attendu` est du texte libre par construction, le contrôle le cherchant comme sous-chaîne dans la sortie : les autres nomment un titre de cas, un code d'erreur TypeScript ou une fixture, et rien de structurel ne s'y vérifie.
+
+---
+
 ## 4 ter. Les documents cités
 
 `test/doc-links.test.mjs` vérifie que tout fichier `.md` cité quelque part existe.
@@ -441,6 +461,96 @@ Quatre tours de revue ont été consacrés à approximer ce repli par des règle
 **La fixture reproduit un projet réel** plutôt qu'un cas d'école : alias `@/`, un `jsconfig.json` commenté sans `tsconfig.json`, des fichiers `.jsx`, un import d'asset. Elle est exclue du lint : son `baseUrl` est refusé par TypeScript 7, et c'est précisément ce qu'un projet existant contient.
 
 *Ce qui casse si on l'enlève :* la résolution n'est plus éprouvée que sur des cas choisis pour passer. Le lot existe pour lever ce risque avant qu'il ne coûte cher.
+
+---
+
+## 4 octies. La lecture des stories et le manifeste
+
+**Un fichier de story est analysé, jamais exécuté.**
+
+*Pourquoi :* indexer sans charger le framework est plus rapide et plus robuste. La conséquence est assumée et cohérente avec la section 4.1 des contrats : les valeurs de props ne sont pas résolues, et le manifeste ne les transporte pas de toute façon, puisque la preview importe les modules directement.
+
+*Le parseur est `parseSync`, réexporté par `vite`,* donc aucune dépendance ajoutée. Le raisonnement complet et les mesures sont dans `docs/decisions.md`.
+
+**Le producteur est séparé en deux, et la coupure a une raison.**
+
+`stories.ts` lit un fichier et n'a besoin de rien d'autre que son texte. `manifest.ts` parcourt le dossier, résout les composants et écrit, ce qui demande le projet. Un fichier de story se teste donc sans monter un projet, ce dont les cas TypeScript profitent : ils tiennent dans un dossier jetable.
+
+**Un fichier illisible est signalé et sauté, jamais fatal.**
+
+*Ce qui casse si on l'enlève :* une story en cours d'écriture coûte le catalogue entier, donc l'application complète. Le producteur rend la raison, et c'est à l'appelant de la dire ; un catalogue qui avale ses erreurs ressemble à un projet sans stories.
+
+*Mesuré à la revue de la PR #30 :* la règle valait pour une erreur de syntaxe et pas pour un composant non importé, qui levait. Un projet avec un fichier en cours d'édition et dix fichiers valides ne produisait aucun manifeste. L'asymétrie était l'inverse de celle qui est écrite ici.
+
+**Ce que le lecteur refuse de deviner, et ce que ça lui coûte.**
+
+Trois choses ne se lisent pas sans exécuter le fichier : un spread, une clé calculée, et l'appel d'une fonction qui n'est pas le helper. Dans les trois cas, le nom est laissé de côté plutôt qu'inventé.
+
+*Pourquoi c'est le bon sens de l'erreur.* Un nom de prop faux entre dans un chiffre de couverture et dans la recherche par prop, donc il ment sans jamais se signaler. Un nom manquant, lui, se voit. Pour une clé de story c'est pire encore : le nom devient une URL, une clé de baseline visuelle et l'ancre d'un commentaire, donc la story entière est écartée et le compte est remonté.
+
+*Le helper est reconnu par sa liaison, pas par son nom.* `import { story as s }` est suivi, et `make({ a: 1 })` n'est plus pris pour lui. Sans ça, le premier argument de n'importe quel appel passait pour des props.
+
+*Et ce qui est écarté est compté.* Une story perdue en silence ressemble à une story que personne n'a écrite, donc chaque clé illisible, calculée ou apportée par un spread, remonte dans la raison du fichier.
+
+**Le repli sur `Default` appartient au fichier qui ne nomme aucune story.**
+
+*Mesuré à la revue de la PR #30 :* le repli se déclenchait aussi quand le bloc `stories` existait et ne rendait rien de lisible. Un fichier dont la seule clé était calculée produisait donc une entrée que son auteur n'avait jamais écrite, avec un identifiant devenant une URL, une clé de baseline et l'ancre d'un commentaire, et des props entrant dans le chiffre de couverture. La condition porte donc sur la seule présence du bloc, jamais sur ce qui en sort.
+
+*Trois tours ont été nécessaires, et l'axe explique pourquoi.* Le bloc a quatre formes : absent, non littéral, littéral vide, littéral dont une partie est illisible. Le premier tour n'a fermé que la dernière, et `properties.length > 0` faisait encore dépendre le repli du contenu : `stories: {}` et `stories: shared` redonnaient l'entrée fantôme.
+
+Le tour suivant a trouvé le même défaut **un cran plus haut** : les formes du bloc étaient vérifiées, celles de l'objet qui le contient jamais. `defineStories(A, config)` ne se lit pas, et `defineStories(A, { ...base })` peut nommer dix stories qu'un `stories` absent ne dément pas. Un `stories` manquant ne prouve donc quelque chose que si la définition est un littéral sans spread.
+
+Fermer une classe de valeurs ne ferme pas l'axe tant que les autres ne sont pas nommées, et fermer un axe ne dit rien de celui du niveau au-dessus.
+
+**La forme du défaut, et ce qui l'a fermé.** Les quatre constats sont le même : une question à trois réponses écrasée dans un booléen. « Ce fichier déclare-t-il des stories ? » admet oui, non, et *je ne sais pas lire*, et le troisième tombait du côté « non », celui qui invente une entrée. Comme le « je ne sais pas » n'existait pas dans le type, chaque forme nouvelle y tombait en silence, sans que rien ne prévienne.
+
+La décision était en plus prise à deux endroits, `listed` et son appelant, donc chaque cas devait être pensé deux fois.
+
+`readStories` rend maintenant `StoriesRead`, trois variantes dont `unusable` porte la raison, et `produced` est le seul endroit qui décide. *Mesuré :* ajouter une quatrième variante sans la traiter donne `TS2366`, « Function lacks ending return statement », parce que la fin d'une fonction à type de retour déclaré redevient atteignable. Le silence est donc devenu impossible, ce qui est la seule chose qui distingue cette structure de la précédente.
+
+**Un spread ne fait pas qu'ajouter une clé, il remplace celle qui le précède.**
+
+*Mesuré :* `{ stories: écrite, ...base }` rend celle de `base`, et `{ ...base, stories: écrite }` rend celle qui est écrite. C'est le dernier qui gagne, donc c'est la **position** du spread qui décide, pas sa seule présence.
+
+`shadowed(objet, nom)` répond à cette question, et l'astuce de son écriture est que `findIndex` rend `-1` sur une clé absente : tout spread est alors « après » elle, ce qui est exactement le bon verdict. La même règle s'applique à `props` et à `meta`, lus de la même façon.
+
+*Ce qui casse si on l'enlève :* `defineStories(A, { stories: { Une: {} }, ...base })` produit la story `Une` alors que `base` en nomme dix autres, et une liste de props fausse ment dans un chiffre de couverture.
+
+*La même règle vaut un cran plus bas*, à l'intérieur du bloc : `stories: { Avant: {}, ...base, Apres: {} }` ne garde que `Apres`, puisque `base` peut remplacer tout ce qui le précède. Appliquer la règle à la définition sans l'appliquer au bloc a été le constat de la revue 5.
+
+*Et une clé écrite deux fois suit la même logique* : l'exécution garde la dernière, donc `propertyOf` lit par `findLast` et les stories sont collectées dans une `Map`. Aucun spread dans ce cas, donc rien ne prévenait.
+
+**L'ordre des extensions est celui de Vite, et il est vérifié à la source.**
+
+`resolve.extensions` vaut `['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json']` par défaut dans `vite@8.2.1`, lu dans ses propres types. `.vue` est ajouté en dernier et nous appartient : il n'est pas dans cette liste, et le mettre en queue laisse passer devant lui toutes les extensions que Vite énumère.
+
+*Ce qui casse si on l'enlève :* sur un projet portant `Card.ts` et `Card.js` côte à côte, cas courant quand une sortie de build voisine sa source, la preview importe l'un et le catalogue écrit l'autre. La page composant ouvre alors un fichier qui n'est pas celui qui rend. C'est la divergence que l'export de `ordered` ferme sur l'axe des motifs, laissée ouverte sur l'axe des extensions pendant un tour.
+
+Chaque fichier est essayé avant tout `index`, sinon `Card/index.tsx` gagnait contre `Card.js`.
+
+**Les deux formes d'une story ne se distinguent que par leurs clés.**
+
+La section 2.3 des contrats type `Partial<P> | Story<P>`, donc `{ props: …, options: … }` s'écrit à la main. Un objet qui déclare `props`, et au plus `options`, est lu comme un `Story`. L'ambiguïté est celle de l'union elle-même : un composant dont les props sont exactement `props` et `options` est lu de travers, et aucune autre lecture n'est possible sans exécuter le fichier.
+
+**Deux stories qui tombent sur le même identifiant arrêtent la construction.**
+
+`storyId` replie la casse et les accents, donc « Avec référence » et « avec reference » rendent la même chaîne. Cet identifiant est une URL, une clé de baseline visuelle et l'ancre d'un commentaire : trancher en silence perdrait une story et, plus tard, écraserait une baseline. Le message nomme les deux fichiers et les deux noms.
+
+**Le dossier est parcouru dans un ordre trié à chaque niveau.**
+
+`readdirSync` n'a pas d'ordre propre. Sans le tri, deux machines écrivent deux manifestes différents pour le même dossier, et l'empreinte réduite de `DCJ-197` changerait sans raison.
+
+**`meta` et `options` sont lus comme des données, jamais comme du code.**
+
+La section 4.4 des contrats dit qu'ils voyagent du fichier au manifeste sans être interprétés. Ce sont des littéraux écrits par l'auteur, donc l'analyse statique les lit. `details` ne voyage pas encore : le manifeste porte la forme résolue, dont `type` et `required` viennent de l'inférence d'un adaptateur.
+
+*Ce qui est refusé, et pourquoi.* Une valeur que JSON ne sait pas porter fait tomber la clé entière : une date, une fonction, une expression régulière, un identifiant importé, un spread. `JSON.stringify` laisse tomber en silence ce qu'il ne sait pas représenter, donc écrire la clé quand même mettrait dans le manifeste une valeur qui disparaît à l'écriture. C'est la garantie de la section 4.5, tenue à la lecture plutôt qu'à l'écriture.
+
+*Un élément illisible fait tomber tout le tableau*, alors qu'il ne fait tomber que sa clé dans un objet. Sauter l'élément décalerait tous les suivants, ce qui change la donnée au lieu de la perdre.
+
+**`component.file` est résolu sans Vite.**
+
+Le producteur tourne avant qu'un serveur existe, donc il applique les motifs `paths` du projet et essaie les extensions usuelles, sans plugin ni champ `exports`. L'ordre des motifs est celui de `pathsPlugin`, exporté et partagé : deux ordres feraient résoudre un composant d'une façon pour la preview et d'une autre pour le catalogue. Quand rien ne répond, l'identifiant écrit par la story est rendu tel quel, parce qu'un chemin inventé ferait ouvrir un fichier qui n'existe pas.
 
 ---
 

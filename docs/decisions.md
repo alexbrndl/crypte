@@ -10,6 +10,68 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 ---
 
+## What the reader cannot read is said, at two levels, and never blocks
+
+_2026-08-14_
+
+**Decided.** When the CLI cannot read something in a story file, it says so in the shell, at one of two levels, and it never stops the user from working.
+
+**An error** when the story does not exist for Crypte: it is missing from the sidebar, so the message has to be visible without being looked for. **A warning** when the story is there and renders but its page is incomplete, typically a props table missing the names a spread carries.
+
+**Rejected.** Refusing the file, which costs a whole catalogue for one story being written. Saying nothing, which is what makes a story vanish in silence. And a single level, which would either shout about an incomplete props table or hide a missing story.
+
+**Why.** Measured: the documented format of section 2.1, imported fixtures included, reads with no reservation at all. A `plan: planPro` yields the `plan` prop and a `source` of `plan={planPro}`. So none of this touches a user who follows the guide.
+
+Past that, three cases exist and only two of them are the user's doing. The format can be broken, which is an error. Some code is legitimate JavaScript this reader cannot follow without running the file, `props: { ...baseProps, title }` being the ordinary case, and section 1.3 encourages exactly that kind of sharing. And `stories: {}` is somebody's deliberate empty file.
+
+**So the wording of the middle case matters more than the level.** It has to say that the tool cannot read it, never that the author got it wrong. A message that blames the user for a limitation of static analysis teaches them to ignore every message after it.
+
+**What it costs.** The reason is attached to a file today. An error can stay that way, since there is no entry to hang it on. A warning has to travel per entry, which is one optional field in `StoryEntry`. Tracked in DCJ-217.
+
+**What would reopen it.** A reader that runs the file, which would remove the middle case entirely and leave only errors. Nothing suggests going there: not running the file is what makes indexing fast and robust.
+
+---
+
+## A story file is written in the language of its project
+
+_2026-08-14_
+
+**Decided.** Four extensions are read: `.ts`, `.tsx`, `.js` and `.jsx`. A project without TypeScript writes its stories in JavaScript.
+
+**Rejected.** Keeping the two TypeScript extensions and asking a JavaScript project to write TypeScript anyway.
+
+**Why.** Section 1.1 named `.ts` and `.tsx` only, which contradicted the work of lot 3: the CLI reads `jsconfig.json` and resolves the aliases of a project that has no TypeScript at all. Telling that same project to write its stories in a language its editor and its build are not set up for undoes the point.
+
+The test fixture is exactly that project, and writing the contradiction into it is what surfaced this.
+
+It costs nothing to read. `parseSync` picks its language from the file name, so the four extensions are one array, and the two JavaScript ones are the cheaper parse.
+
+**What would reopen it.** Nothing likely. Narrowing back would take away a language a project already writes.
+
+---
+
+## The story parser comes from Vite, with no new dependency
+
+_2026-08-14_
+
+**Decided.** The CLI parses story files with `parseSync`, re-exported by `vite`, which is Oxc's own parser. `vite` is already a declared dependency of `@crypte/cli`, so nothing is added.
+
+**Rejected.** Adding `oxc-parser` directly, reaching for `rolldown` behind Vite's back, and using `@babel/parser`, which is installed but only as somebody else's transitive dependency.
+
+**Why.** Measured, in this order.
+
+`parseAst`, also exported by Vite, reads JavaScript only: it fails on `as const` and on a generic arrow in a `.tsx`. Story files are `.ts` and `.tsx`, so it is the wrong tool despite the familiar name.
+
+`parseSync` takes the filename, so it picks the language from the extension. On a `.tsx` file holding JSX, a generic arrow and an `as const`, it reports zero errors.
+
+It **returns** its errors instead of throwing. One broken story file must not stop a catalogue from being written, and a parser that throws would make that harder than it needs to be.
+
+`rolldown` is not resolvable from `@crypte/cli` under pnpm, being a transitive dependency of Vite. Importing it would mean declaring it, which is one more version to keep in step with Vite's own.
+
+**What would reopen it.** Vite dropping `parseSync` from its public exports, or the parser turning out to be slower than reading the files. Both would be measured before moving.
+
+---
+
 ## The manifest is a build artefact, and a small fingerprint is committed
 
 _2026-08-13_

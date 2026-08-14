@@ -21,6 +21,7 @@ describe('Manifest', () => {
           storyFile: 'stories/checkout/OrderSummary.ts',
           options: {},
           details: {},
+          props: ['benefits', 'reference', 'title'],
           source: '<OrderSummary reference="REF-4821…" />',
           meta: { status: 'stable' },
         },
@@ -47,6 +48,7 @@ describe('Manifest', () => {
       storyFile: 'stories/Badge.ts',
       options: {},
       details: {},
+      props: [],
       source: '<Badge />',
     } satisfies StoryEntry
 
@@ -66,6 +68,7 @@ describe('Manifest', () => {
       storyFile: 'stories/Badge.ts',
       options: {},
       details: {},
+      props: [],
       source: '<Badge />',
     } satisfies StoryEntry
     expect(reserved).toBeDefined()
