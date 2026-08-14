@@ -288,7 +288,7 @@ describe('la lecture des stories', () => {
   // donc `stories: {}` et `stories: shared` redonnaient l'entrée fantôme.
   it('ne replie pas sur Default quand le bloc n’est pas lisible', () => {
     const cases = [
-      ['stories: {}', /empty/],
+      ['stories: {}', /names no story/],
       ['stories: shared', /not an object literal/],
     ] as const
 
@@ -304,6 +304,42 @@ describe('la lecture des stories', () => {
       expect(entries, written).toEqual([])
       expect(skipped, written).toMatch(reason)
     }
+  })
+
+  // Un cran au-dessus du bloc : c'est l'objet qui le contient qui n'est pas
+  // lisible, et un `stories` absent ne prouve alors rien du tout.
+  it('ne replie pas sur Default quand la définition n’est pas lisible', () => {
+    const cases = [
+      ['config', /definition is not an object literal/],
+      ['{ ...base }', /spreads an object/],
+    ] as const
+
+    for (const [written, reason] of cases) {
+      const source = [
+        "import { A } from '../a'",
+        "import { base, config } from '../base'",
+        `export default defineStories(A, ${written})`,
+      ].join('\n')
+
+      const { entries, skipped } = fileWith('A.ts', source)
+
+      expect(entries, written).toEqual([])
+      expect(skipped, written).toMatch(reason)
+    }
+  })
+
+  // Le spread ne rend opaque que ce qui manque : un bloc écrit reste lu.
+  it('lit le bloc stories qu’une définition à spread déclare quand même', () => {
+    const source = [
+      "import { A } from '../a'",
+      "import { base } from '../base'",
+      'export default defineStories(A, { ...base, stories: { Une: { a: 1 } } })',
+    ].join('\n')
+
+    const { entries, skipped } = fileWith('A.ts', source)
+
+    expect(entries.map((entry) => entry.name)).toEqual(['Une'])
+    expect(skipped).toBeUndefined()
   })
 
   it('replie sur Default quand le fichier ne déclare pas de bloc stories', () => {

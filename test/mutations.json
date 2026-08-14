@@ -602,9 +602,25 @@
   {
     "garantie": "Un bloc de stories vide ne rend pas Default",
     "fichier": "packages/cli/src/stories.ts",
-    "avant": "  if (properties.length === 0) {\n    return { stories: found, declares: true, reason: 'the stories block is empty' }\n  }",
+    "avant": "  if (properties.length === 0) {\n    return { stories: found, declares: true, reason: 'the stories block names no story' }\n  }",
     "apres": "  if (properties.length === 0) {\n    return { stories: found, declares: false, reason: undefined }\n  }",
     "trouvee": "revue 3 de la PR #30",
     "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand le bloc n’est pas lisible"
+  },
+  {
+    "garantie": "Une définition qui n'est pas un littéral ne rend pas Default",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  if (definition !== undefined && definition.type !== 'ObjectExpression') {\n    return { entries: [], skipped: 'the definition is not an object literal' }\n  }",
+    "apres": "",
+    "trouvee": "revue 4 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand la définition n’est pas lisible"
+  },
+  {
+    "garantie": "Un spread dans la définition rend le bloc absent indécidable",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  const opaque = !named.declares && spreads(definition)",
+    "apres": "  const opaque = false",
+    "trouvee": "revue 4 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand la définition n’est pas lisible"
   }
 ]

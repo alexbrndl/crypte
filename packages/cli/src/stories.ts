@@ -19,10 +19,10 @@ interface Node {
   [key: string]: unknown
 }
 
-// What one story file produced, and what it could not read. Nothing here is
-// ever fatal: one story must not cost the whole catalogue, so a file that
-// cannot be read gives no entry and a reason, and a file whose stories are
-// only partly readable gives both.
+// What one story file produced, and why it produced no more. Nothing here is
+// ever fatal: one story must not cost the whole catalogue. A file may give no
+// entry and a reason, entries and a reason, or entries alone. The reason covers
+// what could not be read and what the file simply does not name.
 export interface StoryFileRead {
   entries: StoryEntry[]
   skipped?: string
@@ -50,6 +50,13 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
     return { entries: [], skipped: `${name} is not imported by a form this reader can follow` }
   }
 
+  // Checked here and not in `listed`: an absent block and a block this reader
+  // cannot see through both come back as `null`, and only the first one earns
+  // the single `Default`. `defineStories(A, config)` names nothing readable.
+  if (definition !== undefined && definition.type !== 'ObjectExpression') {
+    return { entries: [], skipped: 'the definition is not an object literal' }
+  }
+
   const path = pathOf(file, storiesRoot)
   const storyFile = posix(relative(root, file))
   const shared = propsOf(propertyOf(definition, 'props'))
@@ -64,13 +71,22 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
   const helper = boundTo(parsed.module, 'story') ?? 'story'
   const named = listed(propertyOf(definition, 'stories'), helper)
 
+  // A spread in the definition can carry the block, so its absence proves
+  // nothing: `defineStories(A, { ...base })` may well name ten stories.
+  const opaque = !named.declares && spreads(definition)
+
   // The single `Default` belongs to a file that names no story, and only to
   // that file: section 2.2. A file whose keys are all unreadable names stories,
   // so falling back here would invent an entry its author never wrote, with an
   // identifier that becomes a URL and a baseline key.
-  const stories = named.declares
-    ? named.stories
-    : [{ name: ONLY_STORY, own: new Map<string, Node>(), options: undefined }]
+  const stories =
+    named.declares || opaque
+      ? named.stories
+      : [{ name: ONLY_STORY, own: new Map<string, Node>(), options: undefined }]
+
+  const reason =
+    named.reason ??
+    (opaque ? 'the definition spreads an object, which may hold stories' : undefined)
 
   return {
     entries: stories.map((story) => {
@@ -90,7 +106,7 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
         ...(meta ? { meta } : {}),
       } satisfies StoryEntry
     }),
-    ...(named.reason ? { skipped: named.reason } : {}),
+    ...(reason ? { skipped: reason } : {}),
   }
 }
 
@@ -118,9 +134,11 @@ function listed(stories: Node | null, helper: string) {
     return { stories: found, declares: true, reason: 'the stories block is not an object literal' }
   }
 
+  // Readable, and it names nothing. Not a failure to read, so the reason says
+  // so: an author who writes `stories: {}` gets no entry and knows why.
   const properties = stories['properties'] as Node[]
   if (properties.length === 0) {
-    return { stories: found, declares: true, reason: 'the stories block is empty' }
+    return { stories: found, declares: true, reason: 'the stories block names no story' }
   }
 
   for (const property of properties) {
@@ -190,6 +208,14 @@ function asStoryLiteral(value: Node): { props: Node | null; options: Node | null
   return declaresProps
     ? { props: propertyOf(value, 'props'), options: propertyOf(value, 'options') }
     : undefined
+}
+
+// A spread makes every absent key undecidable: what it brings is only known by
+// running the file.
+function spreads(object: Node | undefined): boolean {
+  if (object?.type !== 'ObjectExpression') return false
+
+  return (object['properties'] as Node[]).some((property) => property.type !== 'Property')
 }
 
 // The name a non-computed key carries, quoted or bare.

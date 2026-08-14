@@ -476,7 +476,11 @@ Trois choses ne se lisent pas sans exécuter le fichier : un spread, une clé ca
 
 *Mesuré à la revue de la PR #30 :* le repli se déclenchait aussi quand le bloc `stories` existait et ne rendait rien de lisible. Un fichier dont la seule clé était calculée produisait donc une entrée que son auteur n'avait jamais écrite, avec un identifiant devenant une URL, une clé de baseline et l'ancre d'un commentaire, et des props entrant dans le chiffre de couverture. La condition porte donc sur la seule présence du bloc, jamais sur ce qui en sort.
 
-*Deux tours ont été nécessaires, et l'axe explique pourquoi.* Le bloc a quatre formes : absent, non littéral, littéral vide, littéral dont une partie est illisible. Le premier tour n'a fermé que la dernière, et `properties.length > 0` faisait encore dépendre le repli du contenu : `stories: {}` et `stories: shared` redonnaient l'entrée fantôme. Fermer une classe de valeurs ne ferme pas l'axe tant que les autres ne sont pas nommées.
+*Trois tours ont été nécessaires, et l'axe explique pourquoi.* Le bloc a quatre formes : absent, non littéral, littéral vide, littéral dont une partie est illisible. Le premier tour n'a fermé que la dernière, et `properties.length > 0` faisait encore dépendre le repli du contenu : `stories: {}` et `stories: shared` redonnaient l'entrée fantôme.
+
+Le tour suivant a trouvé le même défaut **un cran plus haut** : les formes du bloc étaient vérifiées, celles de l'objet qui le contient jamais. `defineStories(A, config)` ne se lit pas, et `defineStories(A, { ...base })` peut nommer dix stories qu'un `stories` absent ne dément pas. Un `stories` manquant ne prouve donc quelque chose que si la définition est un littéral sans spread.
+
+Fermer une classe de valeurs ne ferme pas l'axe tant que les autres ne sont pas nommées, et fermer un axe ne dit rien de celui du niveau au-dessus.
 
 **L'ordre des extensions est celui de Vite, et il est vérifié à la source.**
 
