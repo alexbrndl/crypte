@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "badge--default",
+      "component": "src/components/Badge.jsx#Badge",
+      "status": "none",
+      "props": [],
+      "rest": "edc39190bd91eb29"
+    },
+    {
+      "id": "checkout/ordersummary--par-defaut",
+      "component": "src/components/checkout/OrderSummary.jsx#default",
+      "status": "stable",
+      "props": ["benefits", "title"],
+      "rest": "c5f987704be10c1b"
+    },
+    {
+      "id": "checkout/ordersummary--avec-reference",
+      "component": "src/components/checkout/OrderSummary.jsx#default",
+      "status": "stable",
+      "props": ["benefits", "reference", "title"],
+      "rest": "8cd2faa25ce6ff4f"
+    },
+    {
+      "id": "checkout/ordersummary--replie-sur-mobile",
+      "component": "src/components/checkout/OrderSummary.jsx#default",
+      "status": "stable",
+      "props": ["benefits", "children", "reference", "title"],
+      "rest": "586c6f0bb9c976c6"
+    }
+  ]
+}

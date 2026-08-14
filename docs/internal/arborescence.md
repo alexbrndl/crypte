@@ -81,11 +81,14 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `src/errors.ts` | l'erreur montrée à l'utilisateur | `project.ts`, `config-paths.ts` |
 | `src/stories.ts` | lecture d'un fichier de story, sans l'exécuter | `manifest.ts` |
 | `src/manifest.ts` | parcours du dossier, résolution, écriture du catalogue | le futur serveur |
+| `src/fingerprint.ts` | la forme réduite du catalogue, commitée | la suite de tests, le futur serveur |
 | `test/fixture/` | projet imité, aux contraintes réelles | `test/project.test.ts` |
 | `test/fixture/stories/` | les premiers fichiers de story du dépôt | `test/stories.test.ts`, `test/manifest*.test.ts` |
 | `test/stories.test.ts` | ce que la lecture d'un fichier refuse de deviner | — |
 | `test/manifest.test.ts` | parcours, résolution, collisions d'identifiants | — |
 | `test/manifest-shape.test.ts` | fige la forme du manifeste, champ pour champ | — |
+| `test/fingerprint.test.ts` | ce que l'empreinte garde, replie, et ignore ; écrit celle de la fixture | — |
+| `test/fixture/.crypte/fingerprint.json` | l'empreinte commitée de la fixture, sous régime de verrouillage | `git diff --exit-code` en CI |
 | `test/guide.test.ts` | exécute les exemples de `docs/guide.md` | — |
 
 ## `packages/react` — `@crypte/react`

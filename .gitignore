@@ -18,5 +18,7 @@ coverage/
 
 # The manifest by name, not the folder: the fingerprint sits beside it and is
 # committed, and Git ignores a negation inside an excluded folder.
-# See docs/decisions.md.
-.crypte/manifest.json
+#
+# `**/` because a pattern holding a slash is anchored to this file's directory,
+# and the test fixture is a project of its own further down. See docs/decisions.md.
+**/.crypte/manifest.json

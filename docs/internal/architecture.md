@@ -554,6 +554,28 @@ Le producteur tourne avant qu'un serveur existe, donc il applique les motifs `pa
 
 ---
 
+## 4 nonies. L'empreinte du catalogue, et son régime de verrouillage
+
+**Deux fichiers dans `.crypte/`.** Le manifeste, artefact ignoré par Git, et l'empreinte, commitée. La décision et ses mesures sont dans `docs/decisions.md` ; la section 4.6 des contrats dit lequel des deux fait foi.
+
+**Ce que l'empreinte garde à découvert, et pourquoi.** L'identifiant, le composant sous la forme `fichier#export`, le statut, et les noms de props triés. Ce sont les seules choses qu'on veut lire dans un diff sans outil. Tout le reste est replié dans un condensé de seize caractères : ce qu'il contient n'intéresse personne, seul compte le fait qu'il bouge quand l'entrée bouge.
+
+*Le condensé trie les clés à toute profondeur.* `JSON.stringify` garde l'ordre d'insertion, donc sans tri l'empreinte changeait quand le producteur écrivait les mêmes champs dans un autre ordre, et le contrôle rougissait sur un changement qui n'en était pas un.
+
+*Une story sans `meta` reçoit le statut `none`.* Sans lui, ajouter `status: 'draft'` à une story ne changerait rien dans l'empreinte, alors que c'est exactement ce qu'elle sert à suivre.
+
+*Le champ `props` de l'entrée, jamais une reconstitution depuis `details`.* Les deux listes diffèrent : `details` est la surface du composant, `props` ce que cette story pose. Dérivée de `details`, l'empreinte ne bougeait pas quand une story changeait de props sans que son composant change.
+
+**Le régime de verrouillage réutilise un mécanisme déjà là.** La suite de tests écrit l'empreinte de la fixture, et l'étape `git diff --exit-code` de l'intégration continue échoue si le fichier commité ne correspond plus. C'est la même étape qui garde les réexports générés.
+
+*Pourquoi pas un script dédié :* il faudrait exécuter le producteur, écrit en TypeScript et non exposé par le paquet, dont les entrées publiques sont `defineConfig` et le contrat de configuration. Mesuré : `vp node` s'appuie sur le typage effacé de Node, qui exige une extension explicite sur chaque import relatif, y compris ceux **à l'intérieur** des sources. Les ajouter partout pour un script serait payer le confort d'un outil dans du code publié.
+
+*Ce qui casse si on l'enlève :* le producteur change, l'empreinte reste, et l'historique du catalogue décrit un état qui n'existe plus. Personne ne s'en aperçoit, puisque rien ne lit ce fichier aujourd'hui.
+
+**Lire et comparer ne sont pas ici.** Le module n'écrit que. Dire à un projet que son empreinte est en retard est le travail de `crypte check`, section 1.2 des contrats, et l'écrire maintenant serait deux fonctions que seuls des tests appellent.
+
+---
+
 ## 5. Décisions encodées dans la configuration
 
 Ces réglages ont l'air anodins et ne le sont pas. Chacun a été mis là pour une raison précise, et chacun est le genre de ligne qu'on supprime en croyant nettoyer.
