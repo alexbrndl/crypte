@@ -50,13 +50,6 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
     return { entries: [], skipped: `${name} is not imported by a form this reader can follow` }
   }
 
-  // Checked here and not in `listed`: an absent block and a block this reader
-  // cannot see through both come back as `null`, and only the first one earns
-  // the single `Default`. `defineStories(A, config)` names nothing readable.
-  if (definition !== undefined && definition.type !== 'ObjectExpression') {
-    return { entries: [], skipped: 'the definition is not an object literal' }
-  }
-
   const path = pathOf(file, storiesRoot)
   const storyFile = posix(relative(root, file))
   const shared = propsOf(propertyOf(definition, 'props'))
@@ -69,24 +62,7 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
   // The helper can be imported under another name, and any other call is
   // somebody else's function whose arguments say nothing about props.
   const helper = boundTo(parsed.module, 'story') ?? 'story'
-  const named = listed(propertyOf(definition, 'stories'), helper)
-
-  // A spread in the definition can carry the block, so its absence proves
-  // nothing: `defineStories(A, { ...base })` may well name ten stories.
-  const opaque = !named.declares && spreads(definition)
-
-  // The single `Default` belongs to a file that names no story, and only to
-  // that file: section 2.2. A file whose keys are all unreadable names stories,
-  // so falling back here would invent an entry its author never wrote, with an
-  // identifier that becomes a URL and a baseline key.
-  const stories =
-    named.declares || opaque
-      ? named.stories
-      : [{ name: ONLY_STORY, own: new Map<string, Node>(), options: undefined }]
-
-  const reason =
-    named.reason ??
-    (opaque ? 'the definition spreads an object, which may hold stories' : undefined)
+  const { stories, reason } = produced(readStories(definition, helper))
 
   return {
     entries: stories.map((story) => {
@@ -113,33 +89,69 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
 // The keys a `Story` literal carries, and nothing else: section 2.3.
 const STORY_SHAPE = new Set(['props', 'options'])
 
-// The stories the file names, in the order it writes them.
-//
-// `declares` is the presence of the block, and nothing else. It never depends
-// on what came out, because that is what the single `Default` turns on: a file
-// carrying a block it cannot read still names stories, and inventing one for it
-// would give an identifier that becomes a URL and a baseline key.
-//
-// So the block has four shapes, and every one that loses a story says so. A
-// story missing from a catalogue in silence looks like a story nobody wrote.
-function listed(stories: Node | null, helper: string) {
-  const found: { name: string; own: Map<string, Node>; options: Node | undefined }[] = []
-  const lost: string[] = []
+interface Declared {
+  name: string
+  own: Map<string, Node>
+  options: Node | undefined
+}
 
-  if (stories === null) return { stories: found, declares: false, reason: undefined }
+// What a file says about its stories. Three answers, never two: this reader can
+// also fail to know, and that answer is the one four review rounds kept losing.
+//
+// `noBlock` is the only one that earns the single `Default` of section 2.2.
+// Squeezed into a boolean, every shape it could not read fell on that side and
+// invented a story its author never wrote, with an identifier that becomes a
+// URL and a baseline key. Here a new shape has to pick one of the three.
+type StoriesRead =
+  | { kind: 'noBlock' }
+  | { kind: 'these'; stories: Declared[]; reason?: string }
+  | { kind: 'unusable'; reason: string }
+
+// The one place that decides. A fourth kind stops compiling here, because the
+// end of a function with a declared return type becomes reachable.
+function produced(read: StoriesRead): { stories: Declared[]; reason?: string } {
+  switch (read.kind) {
+    case 'noBlock':
+      return { stories: [{ name: ONLY_STORY, own: new Map(), options: undefined }] }
+    case 'these':
+      return { stories: read.stories, reason: read.reason }
+    case 'unusable':
+      return { stories: [], reason: read.reason }
+  }
+}
+
+// The stories the file names, in the order it writes them.
+function readStories(definition: Node | undefined, helper: string): StoriesRead {
+  // The definition first: `defineStories(A, config)` holds nothing this reader
+  // can follow, so the absence of a block below would prove nothing.
+  if (definition !== undefined && definition.type !== 'ObjectExpression') {
+    return { kind: 'unusable', reason: 'the definition is not an object literal' }
+  }
+
+  const block = propertyOf(definition, 'stories')
+
+  if (block === null) {
+    // `defineStories(A, { ...base })` may well name ten stories.
+    return spreads(definition)
+      ? { kind: 'unusable', reason: 'the definition spreads an object, which may hold stories' }
+      : { kind: 'noBlock' }
+  }
 
   // `stories: shared` is allowed by section 2.3, and holds names only the
   // running file would know.
-  if (stories.type !== 'ObjectExpression') {
-    return { stories: found, declares: true, reason: 'the stories block is not an object literal' }
+  if (block.type !== 'ObjectExpression') {
+    return { kind: 'unusable', reason: 'the stories block is not an object literal' }
   }
 
   // Readable, and it names nothing. Not a failure to read, so the reason says
   // so: an author who writes `stories: {}` gets no entry and knows why.
-  const properties = stories['properties'] as Node[]
+  const properties = block['properties'] as Node[]
   if (properties.length === 0) {
-    return { stories: found, declares: true, reason: 'the stories block names no story' }
+    return { kind: 'unusable', reason: 'the stories block names no story' }
   }
+
+  const stories: Declared[] = []
+  const lost: string[] = []
 
   for (const property of properties) {
     if (property.type !== 'Property') {
@@ -155,13 +167,17 @@ function listed(stories: Node | null, helper: string) {
     }
 
     const value = property['value'] as Node
-    found.push({ name: keyOf(property['key'] as Node), ...declaredBy(value, helper) })
+    stories.push({ name: keyOf(property['key'] as Node), ...declaredBy(value, helper) })
+  }
+
+  if (stories.length === 0) {
+    return { kind: 'unusable', reason: `no story this reader can name: ${lost.join(', ')}` }
   }
 
   return {
-    stories: found,
-    declares: true,
-    reason: lost.length > 0 ? `stories left out: ${lost.join(', ')}` : undefined,
+    kind: 'these',
+    stories,
+    ...(lost.length > 0 ? { reason: `stories left out: ${lost.join(', ')}` } : {}),
   }
 }
 

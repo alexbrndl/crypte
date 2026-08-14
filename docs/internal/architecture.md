@@ -482,6 +482,12 @@ Le tour suivant a trouvé le même défaut **un cran plus haut** : les formes du
 
 Fermer une classe de valeurs ne ferme pas l'axe tant que les autres ne sont pas nommées, et fermer un axe ne dit rien de celui du niveau au-dessus.
 
+**La forme du défaut, et ce qui l'a fermé.** Les quatre constats sont le même : une question à trois réponses écrasée dans un booléen. « Ce fichier déclare-t-il des stories ? » admet oui, non, et *je ne sais pas lire*, et le troisième tombait du côté « non », celui qui invente une entrée. Comme le « je ne sais pas » n'existait pas dans le type, chaque forme nouvelle y tombait en silence, sans que rien ne prévienne.
+
+La décision était en plus prise à deux endroits, `listed` et son appelant, donc chaque cas devait être pensé deux fois.
+
+`readStories` rend maintenant `StoriesRead`, trois variantes dont `unusable` porte la raison, et `produced` est le seul endroit qui décide. *Mesuré :* ajouter une quatrième variante sans la traiter donne `TS2366`, « Function lacks ending return statement », parce que la fin d'une fonction à type de retour déclaré redevient atteignable. Le silence est donc devenu impossible, ce qui est la seule chose qui distingue cette structure de la précédente.
+
 **L'ordre des extensions est celui de Vite, et il est vérifié à la source.**
 
 `resolve.extensions` vaut `['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json']` par défaut dans `vite@8.2.1`, lu dans ses propres types. `.vue` est ajouté en dernier et nous appartient : il n'est pas dans cette liste, et le mettre en queue laisse passer devant lui toutes les extensions que Vite énumère.

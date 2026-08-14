@@ -560,14 +560,6 @@
     "attendu": "stories.test.ts > la lecture des stories > trouve un bloc dont la clé est entre guillemets"
   },
   {
-    "garantie": "Default n'est rendu qu'au fichier qui ne nomme aucune story",
-    "fichier": "packages/cli/src/stories.ts",
-    "avant": "  const stories = named.declares\n    ? named.stories\n    : [{ name: ONLY_STORY, own: new Map<string, Node>(), options: undefined }]",
-    "apres": "  const stories =\n    named.stories.length > 0\n      ? named.stories\n      : [{ name: ONLY_STORY, own: new Map<string, Node>(), options: undefined }]",
-    "trouvee": "revue de la PR #30",
-    "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand le fichier nomme des stories illisibles"
-  },
-  {
     "garantie": "Un spread dans le bloc stories est signalé, pas avalé",
     "fichier": "packages/cli/src/stories.ts",
     "avant": "    if (property.type !== 'Property') {\n      lost.push('one brought by a spread')\n      continue\n    }",
@@ -592,35 +584,59 @@
     "attendu": "manifest.test.ts > le catalogue > préfère un fichier à un dossier portant un index"
   },
   {
-    "garantie": "Un bloc de stories illisible ne rend pas Default",
+    "garantie": "Un fichier sans bloc de stories reçoit son Default",
     "fichier": "packages/cli/src/stories.ts",
-    "avant": "  if (stories.type !== 'ObjectExpression') {\n    return { stories: found, declares: true, reason: 'the stories block is not an object literal' }\n  }",
-    "apres": "  if (stories.type !== 'ObjectExpression') {\n    return { stories: found, declares: false, reason: undefined }\n  }",
-    "trouvee": "revue 3 de la PR #30",
+    "avant": "    case 'noBlock':\n      return { stories: [{ name: ONLY_STORY, own: new Map(), options: undefined }] }",
+    "apres": "    case 'noBlock':\n      return { stories: [] }",
+    "trouvee": "revue 4 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > replie sur Default quand le fichier ne déclare pas de bloc stories"
+  },
+  {
+    "garantie": "Un bloc inexploitable ne reçoit jamais de Default",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    case 'unusable':\n      return { stories: [], reason: read.reason }",
+    "apres": "    case 'unusable':\n      return { stories: [{ name: ONLY_STORY, own: new Map(), options: undefined }], reason: read.reason }",
+    "trouvee": "revue 4 de la PR #30",
     "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand le bloc n’est pas lisible"
   },
   {
-    "garantie": "Un bloc de stories vide ne rend pas Default",
+    "garantie": "La définition est lue avant de croire un bloc absent",
     "fichier": "packages/cli/src/stories.ts",
-    "avant": "  if (properties.length === 0) {\n    return { stories: found, declares: true, reason: 'the stories block names no story' }\n  }",
-    "apres": "  if (properties.length === 0) {\n    return { stories: found, declares: false, reason: undefined }\n  }",
-    "trouvee": "revue 3 de la PR #30",
-    "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand le bloc n’est pas lisible"
-  },
-  {
-    "garantie": "Une définition qui n'est pas un littéral ne rend pas Default",
-    "fichier": "packages/cli/src/stories.ts",
-    "avant": "  if (definition !== undefined && definition.type !== 'ObjectExpression') {\n    return { entries: [], skipped: 'the definition is not an object literal' }\n  }",
+    "avant": "  if (definition !== undefined && definition.type !== 'ObjectExpression') {\n    return { kind: 'unusable', reason: 'the definition is not an object literal' }\n  }",
     "apres": "",
     "trouvee": "revue 4 de la PR #30",
     "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand la définition n’est pas lisible"
   },
   {
-    "garantie": "Un spread dans la définition rend le bloc absent indécidable",
+    "garantie": "Un spread dans la définition rend un bloc absent indécidable",
     "fichier": "packages/cli/src/stories.ts",
-    "avant": "  const opaque = !named.declares && spreads(definition)",
-    "apres": "  const opaque = false",
+    "avant": "    return spreads(definition)\n      ? { kind: 'unusable', reason: 'the definition spreads an object, which may hold stories' }\n      : { kind: 'noBlock' }",
+    "apres": "    return { kind: 'noBlock' }",
     "trouvee": "revue 4 de la PR #30",
     "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand la définition n’est pas lisible"
+  },
+  {
+    "garantie": "Un bloc de stories qui n'est pas un littéral est inexploitable",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  if (block.type !== 'ObjectExpression') {\n    return { kind: 'unusable', reason: 'the stories block is not an object literal' }\n  }",
+    "apres": "  if (block.type !== 'ObjectExpression') {\n    return { kind: 'noBlock' }\n  }",
+    "trouvee": "revue 4 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand le bloc n’est pas lisible"
+  },
+  {
+    "garantie": "Un bloc de stories vide est inexploitable",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  if (properties.length === 0) {\n    return { kind: 'unusable', reason: 'the stories block names no story' }\n  }",
+    "apres": "  if (properties.length === 0) {\n    return { kind: 'noBlock' }\n  }",
+    "trouvee": "revue 4 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand le bloc n’est pas lisible"
+  },
+  {
+    "garantie": "Un bloc dont aucune clé n'est lisible est inexploitable",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  if (stories.length === 0) {\n    return { kind: 'unusable', reason: `no story this reader can name: ${lost.join(', ')}` }\n  }",
+    "apres": "",
+    "trouvee": "revue 4 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand le fichier nomme des stories illisibles"
   }
 ]
