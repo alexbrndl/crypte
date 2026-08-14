@@ -21,8 +21,7 @@
     "avant": "NonNullable<T[K]> extends { type: infer Kind }",
     "apres": "T[K] extends { type: infer Kind }",
     "trouvee": "revue 8",
-    "attendu": "viewport:set",
-    "dans": "channel.test.ts"
+    "attendu": "viewport:set"
   },
   {
     "garantie": "undefined n'est pas un message du canal",
@@ -30,8 +29,7 @@
     "avant": "  [K in keyof T]-?: NonNullable<T[K]> extends { type: infer Kind }",
     "apres": "  [K in keyof T]: NonNullable<T[K]> extends { type: infer Kind }",
     "trouvee": "revue 10",
-    "attendu": "n’admet pas undefined comme message",
-    "dans": "channel.test.ts"
+    "attendu": "n’admet pas undefined comme message"
   },
   {
     "garantie": "La version du manifeste reste comparable",
@@ -732,5 +730,21 @@
     "apres": "const SHOWN = new Set(['id', 'props', 'meta', 'component'])",
     "trouvee": "lot 4 ter",
     "attendu": "fingerprint.test.ts > l’empreinte réduite > replie dans une empreinte tout ce qu’elle ne montre pas"
+  },
+  {
+    "garantie": "La voie rapide ne conclut pas sur un filtre sans correspondance",
+    "fichier": "test/mutation-check.mjs",
+    "avant": "  return !output.includes(NO_FILE) && output.includes(attendu)",
+    "apres": "  return output.includes(attendu)",
+    "trouvee": "revue de la PR #32",
+    "attendu": "mutations.test.mjs > le catalogue de mutations > la voie rapide du contrôle > ne prend pas un filtre sans correspondance pour un rouge"
+  },
+  {
+    "garantie": "La voie rapide exige le cas attendu, pas n'importe quel rouge",
+    "fichier": "test/mutation-check.mjs",
+    "avant": "  if (quick === undefined || quick.ok) return false",
+    "apres": "  if (quick === undefined) return false",
+    "trouvee": "revue de la PR #32",
+    "attendu": "mutations.test.mjs > le catalogue de mutations > la voie rapide du contrôle > ne conclut pas sur un fichier qui passe"
   }
 ]

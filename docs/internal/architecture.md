@@ -322,13 +322,19 @@ Le verdict ne pouvait pas être « n'est gardée par rien » : celui-là ne dép
 
 *La voie lente* ne sert plus qu'aux garanties dont la voie rapide n'a pas conclu, et c'est là que se décide « vue ailleurs ». Ce diagnostic vaut son prix : il a attrapé une mutation vue par la colorisation de vitest, et une autre vue par le formateur parce qu'elle laissait une indentation fausse.
 
-*Deux garde-fous.* Un filtre qui ne correspond à rien fait sortir vitest en échec, ce qui se lirait comme une mutation vue : le script reconnaît son message pour retomber sur la voie lente. Et sept garanties ne nomment aucun fichier, dont quatre citent un code d'erreur TypeScript que seul `vp check` attrape : elles vont directement en voie lente.
+*Deux garde-fous.* Un filtre qui ne correspond à rien fait sortir vitest en échec, ce qui se lirait comme une mutation vue : le script reconnaît son message pour retomber sur la voie lente. Et neuf garanties ne nomment aucun fichier, dont quatre citent un code d'erreur TypeScript que seul `vp check` attrape : elles vont directement en voie lente.
+
+*Un gardien purement compilatoire ne reçoit pas de cible.* `vp test` ne vérifie pas les types, donc un `satisfies` ou un `@ts-expect-error` ne fait jamais rougir son fichier : lui donner une cible ferait payer la voie rapide **en plus** de la voie lente. Deux garanties du canal sont dans ce cas.
 
 *Le champ `dans`* nomme le fichier quand `attendu` cite un titre sans lui. Préfixer `attendu` ne marcherait pas : il est cherché comme sous-chaîne dans une sortie où vitest écrit `fichier > describe > cas`.
 
-*Le seul mode d'échec de ce raccourci a été mesuré.* Une garantie dont le cas attendu ne rougit pas doit rester signalée, jamais conclue « vu » par la voie rapide. Sonde : une entrée réelle dont `attendu` pointe vers un cas d'un autre fichier, qui passe. Verdict rendu, `AILLEURS`, avec la raison nommée. La voie rapide ne conclut que si le cas attendu apparaît **et** que le fichier a rougi.
+*Le seul mode d'échec de ce raccourci est gardé par des cas, pas par une sonde.* Une garantie dont le cas attendu ne rougit pas doit rester signalée, jamais conclue « vu ». La décision vit dans `concludes`, exportée, et `mutations.test.mjs` la couvre : fichier qui passe, filtre sans correspondance, autre cas du même fichier qui a rougi. Deux garanties du catalogue la cassent pour vérifier que ces cas rougissent. Une sonde avait d'abord mesuré la même chose une fois, mais une mesure ponctuelle ne survit pas au remaniement suivant.
 
-*Chronométré, 90 garanties, en local.* **4 min 10 s avant, 1 min 57 s après**, soit 2,1 fois moins. Le calcul par mutation : `pack` 30 ms partout, puis 0,9 s sur la voie rapide contre 3,7 s sur la lente, `test` et `check` compris. Le plancher est désormais le démarrage de vitest, environ 0,7 s par lancement, donc 63 s pour 90 garanties quoi qu'on fasse d'autre.
+*Le contrôle positif lance aussi chaque cible seule.* La voie rapide ajoute une précondition que la suite entière ne couvre pas : un fichier devenu dépendant de l'ordre rougirait sans mutation, son cas attendu apparaîtrait dans sa sortie, et toutes les garanties qui le nomment seraient conclues « vu » sur un gardien muet. C'est la panne même pour laquelle ce contrôle positif existe. Une quinzaine de démarrages de vitest, contre les soixante secondes de plancher déjà assumées.
+
+*Le script est une fonction gardée*, comme `changeset-check.mjs` et `post-review.mjs` : sans ça, importer le module pour en tester une fonction lancerait les quatre-vingt-douze mutations.
+
+*Chronométré, 90 garanties, en local.* **4 min 10 s avant, 1 min 57 s après**, soit 2,1 fois moins. Le compte cité est celui des garanties qui portent une cible, pas de celles qui concluent. Le calcul par mutation : `pack` 30 ms partout, puis 0,9 s sur la voie rapide contre 3,7 s sur la lente, `test` et `check` compris. Le plancher est désormais le démarrage de vitest, environ 0,7 s par lancement, donc 63 s pour 90 garanties quoi qu'on fasse d'autre.
 
 En intégration continue, l'observation d'avant était pauvre : le job a été **annulé à 10 min** sans finir, puis a mis 12 min 2 une fois le délai relevé à 30. Le rapport local sur distant est donc d'environ 2,9, ce qui place le contrôle accéléré aux alentours de 6 min. `DCJ-216` visait moins de 3 min : ce n'est pas atteint, et ça demanderait de muter en mémoire plutôt qu'un processus par garantie.
 
