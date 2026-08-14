@@ -572,6 +572,14 @@ Le producteur tourne avant qu'un serveur existe, donc il applique les motifs `pa
 
 *Ce qui casse si on l'enlève :* le producteur change, l'empreinte reste, et l'historique du catalogue décrit un état qui n'existe plus. Personne ne s'en aperçoit, puisque rien ne lit ce fichier aujourd'hui.
 
+*Mesuré dans les trois sens.* Une empreinte périmée commitée : la suite la réécrit et `git diff --exit-code` rougit. Une empreinte à jour : l'arbre reste propre après `vp test`. Et l'exclusion de formatage retirée : `vp check` rougit, donc elle n'a pas besoin d'une garantie à elle.
+
+**Le formateur ne touche pas à `.crypte/`, et il a fallu le lui dire.**
+
+Deux mécanismes se disputaient la forme du fichier. `vp check --fix`, lancé par le hook de pré-commit sur les fichiers indexés, compactait les tableaux de props sur une ligne. L'écriture suivante les dépliait, `JSON.stringify` avec deux espaces d'indentation ne compactant rien. L'arbre n'était donc jamais propre deux commandes de suite, et le contrôle de mutation échouait sur son propre contrôle positif.
+
+*La règle générale :* un fichier généré et commité ne doit pas être reformaté par un outil qui ne le produit pas. Le dépôt appliquait déjà ça à `docs/**` et à `README.md`, pour une raison différente.
+
 **Lire et comparer ne sont pas ici.** Le module n'écrit que. Dire à un projet que son empreinte est en retard est le travail de `crypte check`, section 1.2 des contrats, et l'écrire maintenant serait deux fonctions que seuls des tests appellent.
 
 ---
