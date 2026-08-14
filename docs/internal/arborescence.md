@@ -32,6 +32,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/post-review.test.mjs` | ce que le script refuse de publier | — |
 | `test/changeset-check.mjs` | décide si une pull request doit porter une note | `require-changeset.yml` |
 | `test/changeset-check.test.mjs` | ce qui exige une note, et ce qui n'en exige pas | — |
+| `test/mutations.test.mjs` | les motifs du catalogue de mutations ne sont pas périmés | — |
 | `test/doc-links.test.mjs` | tout document cité existe, et hors de `docs/` il est cité par son chemin | — |
 | `test/published-english.test.mjs` | aucune phrase française dans le code publié | — |
 | `.changeset/config.json` | mode fixe, générateur de changelog | Changesets |

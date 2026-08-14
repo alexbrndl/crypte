@@ -310,6 +310,18 @@ Le verdict ne pouvait pas être « n'est gardée par rien » : celui-là ne dép
 
 ---
 
+## 4 bis bis. Le catalogue de mutations se périme
+
+`test/mutations.test.mjs` vérifie que chaque motif `avant` apparaît **exactement une fois** dans son fichier, que la mutation change vraiment le code, et que chaque garantie nomme un test attendu et une origine.
+
+*Pourquoi ça existe :* le catalogue cite du code par son texte, donc toute refonte le périme en silence. Le contrôle de mutation le dit, mais il coûte quatre minutes ; ces cas le disent en une seconde, avant le commit.
+
+*Ce qui casse si on l'enlève :* une garantie dont le motif a disparu ne casse plus rien, donc elle ne surveille plus rien, et le catalogue continue d'annoncer son compte. Mesuré sur le lot 4 : trois refontes, cinq motifs périmés, chacun appris par un contrôle complet.
+
+Deux modes de péremption, et le second est le sournois. Le motif **disparaît**, et le contrôle le signale clairement. Ou le motif devient **ambigu**, parce qu'un second endroit du fichier porte le même texte : `shadowed` a réutilisé le test de clé de `propertyOf`, et le motif court s'est mis à correspondre deux fois.
+
+---
+
 ## 4 ter. Les documents cités
 
 `test/doc-links.test.mjs` vérifie que tout fichier `.md` cité quelque part existe.

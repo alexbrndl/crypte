@@ -474,7 +474,7 @@
   {
     "garantie": "Le meta du fichier arrive dans le manifeste",
     "fichier": "packages/cli/src/stories.ts",
-    "avant": "  const meta = record(propertyOf(definition, 'meta'))",
+    "avant": "  const meta = shadowed(definition, 'meta') ? undefined : record(propertyOf(definition, 'meta'))",
     "apres": "  const meta = undefined",
     "trouvee": "lot 4",
     "attendu": "stories.test.ts > la lecture des stories > porte le meta du fichier sur chacune de ses stories"
@@ -554,8 +554,8 @@
   {
     "garantie": "Un bloc dont la clé est entre guillemets est trouvé",
     "fichier": "packages/cli/src/stories.ts",
-    "avant": "      keyOf(property['key'] as Node) === name,",
-    "apres": "      (property['key'] as Node)['name'] === name,",
+    "avant": "  const found = (object['properties'] as Node[]).find(\n    (property) =>\n      property.type === 'Property' &&\n      property['computed'] !== true &&\n      keyOf(property['key'] as Node) === name,\n  )",
+    "apres": "  const found = (object['properties'] as Node[]).find(\n    (property) =>\n      property.type === 'Property' &&\n      property['computed'] !== true &&\n      (property['key'] as Node)['name'] === name,\n  )",
     "trouvee": "revue de la PR #30",
     "attendu": "stories.test.ts > la lecture des stories > trouve un bloc dont la clé est entre guillemets"
   },
