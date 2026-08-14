@@ -340,7 +340,7 @@ Le calcul par mutation : `pack` 30 ms partout, puis 0,9 s sur la voie rapide con
 
 Le plancher est le démarrage de vitest, environ 0,7 s par lancement, donc plus d'une minute pour quatre-vingt-douze garanties quoi qu'on fasse d'autre.
 
-En intégration continue, l'observation d'avant était pauvre : le job a été **annulé à 10 min** sans finir, puis a mis 12 min 2 une fois le délai relevé à 30. Le rapport local sur distant est donc d'environ 2,9, ce qui place le contrôle accéléré aux alentours de 7 min. `DCJ-216` visait moins de 3 min : ce n'est pas atteint, et ça demanderait de muter en mémoire plutôt qu'un processus par garantie.
+En intégration continue, mesuré sur le job entier, `install` et construction comprises : **12 min 2 avant, 5 min 45 après**. L'extrapolation faite depuis le rapport local sur distant annonçait 7 min et était donc pessimiste, ce qui est la raison de citer la mesure et non le calcul. `DCJ-216` visait moins de 3 min : ce n'est pas atteint, et ça demanderait de muter en mémoire plutôt qu'un processus par garantie. Le délai du job est redescendu de 30 à 20 min, qui laisse le double du temps observé.
 
 *Ce qui casse si on l'enlève :* une garantie dont le motif a disparu ne casse plus rien, donc elle ne surveille plus rien, et le catalogue continue d'annoncer son compte. Mesuré sur le lot 4 : cinq refontes, sept motifs périmés. Les cinq premiers ont coûté un contrôle complet chacun ; les deux derniers ont été vus par ce test, en quelques millisecondes.
 
