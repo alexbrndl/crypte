@@ -98,6 +98,20 @@ describe('l’empreinte réduite', () => {
     )
   })
 
+  // Les clés du premier niveau arrivent déjà triées par `digestOf`, donc c'est
+  // sur un objet imbriqué que le tri de `stable` se mesure. Sans ce cas, retirer
+  // ce tri ne faisait rougir personne.
+  it('ne dépend pas de l’ordre des clés d’un objet imbriqué', () => {
+    const alphabetical = fingerprintOf(
+      one({ details: { label: { type: 'string', required: true, description: 'x' } } }),
+    )
+    const shuffled = fingerprintOf(
+      one({ details: { label: { description: 'x', required: true, type: 'string' } } }),
+    )
+
+    expect(same(alphabetical, shuffled)).toBe(true)
+  })
+
   it('suit la version du manifeste', () => {
     expect(fingerprintOf({ version: 2, entries: [] }).version).toBe(2)
   })

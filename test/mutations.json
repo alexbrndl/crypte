@@ -704,12 +704,12 @@
     "attendu": "fingerprint.test.ts > l’empreinte réduite > trie les props, donc réordonner un fichier ne change rien"
   },
   {
-    "garantie": "Le condensé ne dépend pas de l'ordre d'écriture des champs",
+    "garantie": "Le condensé trie les clés à toute profondeur",
     "fichier": "packages/cli/src/fingerprint.ts",
     "avant": "    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))",
-    "apres": "",
+    "apres": "    .sort(() => 0)",
     "trouvee": "lot 4 ter",
-    "attendu": "fingerprint.test.ts > l’empreinte réduite > ne dépend pas de l’ordre où les champs sont écrits"
+    "attendu": "fingerprint.test.ts > l’empreinte réduite > ne dépend pas de l’ordre des clés d’un objet imbriqué"
   },
   {
     "garantie": "Ce que l'empreinte ne montre pas est replié dans le condensé",
