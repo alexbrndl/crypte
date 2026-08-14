@@ -77,22 +77,22 @@ Manifeste synthétique aux entrées variées, calqué sur le corpus réel, huit 
 | Stories | Brut | gzip |
 | -- | -- | -- |
 | 23 | 34,1 Ko | 5,2 Ko |
-| 100 | 140,1 Ko | 17,7 Ko |
-| 500 | 706,2 Ko | 83,2 Ko |
-| 2000 | 2,8 Mo | 327,6 Ko |
+| 100 | 140,1 Ko | 17,8 Ko |
+| 500 | 706,2 Ko | 83,9 Ko |
+| 2000 | 2,8 Mo | 330,5 Ko |
 
 Soit environ 1,4 Ko par story en brut. Conserver l'historique complet, une copie entière par version :
 
 | Versions, projet à 500 stories | Poids cumulé, gzip |
 | -- | -- |
 | 20 | 1,6 Mo |
-| 100 | 8,1 Mo |
-| 500 | 40,6 Mo |
-| 2000 | 162,5 Mo |
+| 100 | 8,2 Mo |
+| 500 | 41,0 Mo |
+| 2000 | 163,8 Mo |
 
 **Conclusion : garder des copies entières ne tient pas.** Au-delà d'une cinquantaine de versions le dossier devient plus lourd que le code qu'il décrit.
 
-En ne gardant que ce qui change d'une version à l'autre, sur une hypothèse de deux pour cent d'entrées modifiées par build, une version coûte 1,7 Ko au lieu de 83,2 Ko, et deux mille versions tiennent dans 3,4 Mo. Le delta est donc la seule forme viable.
+En ne gardant que ce qui change d'une version à l'autre, sur une hypothèse de deux pour cent d'entrées modifiées par build, une version coûte 1,7 Ko au lieu de 83,9 Ko, et deux mille versions tiennent dans 3,3 Mo. Le delta est donc la seule forme viable.
 
 *Réserve sur la mesure :* le générateur pioche dans un vocabulaire restreint, donc les chiffres brotli qu'il produit sont trop optimistes et je ne les reporte pas. Les chiffres gzip et bruts sont, eux, conservateurs.
 
@@ -107,9 +107,11 @@ Ne pas écrire de format d'historique. Git en est déjà un, et il fait de la co
 Deux fichiers plutôt qu'un :
 
 - **Le manifeste complet**, produit à chaque build, ignoré par Git. C'est un artefact, il n'a pas à être versionné.
-- **Une empreinte réduite**, commitée. Par entrée : l'identifiant, le fichier et l'export du composant, le statut, la liste triée des noms de props, et une empreinte du reste. Mesuré : 170 octets par story, soit 82,8 Ko brut et 6,1 Ko gzip pour cinq cents stories, et surtout un fichier qui **ne change que quand quelque chose de significatif change**.
+- **Une empreinte réduite**, commitée. Par entrée : l'identifiant, le fichier et l'export du composant, le statut, la liste triée des noms de props, et une empreinte du reste. Mesuré : 268 octets par story, soit 130,9 Ko brut et 9,4 Ko gzip pour cinq cents stories, et surtout un fichier qui **ne change que quand quelque chose de significatif change**, à une nuance près : réordonner un bloc de props change `source`, donc le condensé, alors que le rendu est identique.
 
-  *Plus léger que les 198 octets d'abord annoncés*, parce que la liste versionnée est celle des props que la story **pose**, un à six noms, et non la surface entière du composant, trois à douze. Les deux avaient été confondues, et l'empreinte s'en trouvait alourdie tout en ne bougeant pas quand une story changeait de props sans que son composant change.
+  *Le chiffre a bougé deux fois, et les deux fois parce que la mesure ne portait pas sur la forme réelle.* D'abord 198 octets, la liste versionnée étant celle du composant et non celle des props posées. Puis 170, le générateur écrivant les props en chaîne, un condensé décimal et un JSON sans indentation, là où le producteur écrit un tableau, seize caractères hexadécimaux et deux espaces d'indentation. 268 est mesuré sur la forme que `writeFingerprint` écrit vraiment, ce que la fixture commitée confirme à 261 octets par entrée.
+
+  *Le rapport entre les deux fichiers est donc de 5,4 et non de 8,5.* La conclusion tient, avec moins de marge qu'annoncé.
 
 Trois conséquences qui valent la peine :
 

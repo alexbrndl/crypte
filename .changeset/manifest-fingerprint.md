@@ -8,4 +8,4 @@ The manifest is a build artefact and Git ignores it. The fingerprint is committe
 
 The digest sorts its keys at every depth, so writing the same fields in another order changes nothing. A story with no `meta` gets the status `none`, so adding `status: 'draft'` shows up as the change it is. The prop names come from the entry's own `props`, not from the component's declared surface: a story that changes which props it sets now moves the fingerprint even when its component does not.
 
-Measured again for this release, with the shape lot 4 actually writes: 706 KB raw for 500 stories, and 170 bytes per story for the fingerprint.
+Measured on the shape the writer actually produces, indentation included: 706 KB raw for 500 stories, and 268 bytes per story for the fingerprint.

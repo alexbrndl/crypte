@@ -148,17 +148,22 @@ if (!run(vp, ['run', '-r', 'pack']).ok) {
 // comme une source non restaurée. Un dernier passage sur les sources intactes la
 // remet à sa valeur, ce qui vaut mieux que de retirer ces fichiers du contrôle :
 // celui-ci reste ainsi le seul juge de ce que le script a laissé derrière lui.
-if (!run(vp, ['test']).ok) {
-  console.error('\nLa suite échoue sur les sources restaurées : le script a laissé quelque chose.')
-  process.exit(1)
-}
+const restored = run(vp, ['test'])
 
 // Ce script écrit dans les sources. Qu'il les restaure toutes est sa condition
 // d'emploi, et personne d'autre ne la vérifie : en intégration continue il passe
 // après le `git diff`, donc un fichier laissé muté ne serait vu de personne.
+// Le contrôle d'arbre d'abord, même si la suite ci-dessus a échoué : un fichier
+// laissé derrière est la cause la plus probable de cet échec, et le taire pour
+// annoncer « la suite échoue » désignerait le symptôme.
 const left = execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' })
 if (left.trim()) {
   console.error(`\nDes sources sont restées modifiées :\n${left}`)
+  process.exit(1)
+}
+
+if (!restored.ok) {
+  console.error('\nLa suite échoue sur les sources restaurées, arbre propre par ailleurs.')
   process.exit(1)
 }
 

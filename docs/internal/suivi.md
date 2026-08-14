@@ -237,3 +237,15 @@ Le troisième, la colonne « props propres » de la page composant, veut les seu
 **Point de contrôle.** À la première utilisation de Crypte sur un projet réel, relire cette table contre ce que ce projet écrit vraiment. C'est un usage qui apportera la huitième forme, pas une relecture de plus.
 
 *Origine :* lot 4, arrêt décidé après la revue 5 de la PR #30.
+
+### La portée du verrou de l'empreinte est plus étroite que le mécanisme
+
+L'empreinte commitée de la fixture est le seul instance du régime de verrouillage dans le dépôt, et la fixture exerce peu : quatre entrées, deux composants, `options` et `details` vides partout, `status` limité à `none` et `stable`, un seul export nommé.
+
+*Conséquence :* une modification du producteur qui ne toucherait que `options` ou `details` ne ferait bouger ni ce fichier ni l'intégration continue, alors que ces deux champs sont repliés dans le condensé. Les tests unitaires de `fingerprint.test.ts` les couvrent, eux, mais pas le verrou.
+
+*Pourquoi ce n'est pas élargi ici :* `details` est écrit vide par décision arbitrée, tant qu'aucun adaptateur ne fait l'inférence, et `options` demande un plugin installé pour être typé. Élargir la fixture maintenant lui ferait porter des valeurs qu'aucun projet réel n'écrirait encore.
+
+*Ce qui l'élargira tout seul :* le lot 5 et l'adaptateur, qui remplissent `details`, puis le premier plugin, qui remplit `options`.
+
+*Origine :* revue de la PR #31.

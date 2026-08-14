@@ -560,11 +560,15 @@ Le producteur tourne avant qu'un serveur existe, donc il applique les motifs `pa
 
 **Ce que l'empreinte garde à découvert, et pourquoi.** L'identifiant, le composant sous la forme `fichier#export`, le statut, et les noms de props triés. Ce sont les seules choses qu'on veut lire dans un diff sans outil. Tout le reste est replié dans un condensé de seize caractères : ce qu'il contient n'intéresse personne, seul compte le fait qu'il bouge quand l'entrée bouge.
 
+*Deux champs sont montrés en partie et repliés en entier*, `component` et `meta` : on lit `fichier#export` et le statut à découvert, et l'objet complet part quand même dans le condensé. Sans ça, `component.name` n'était ni montré ni replié, et un champ ajouté à `ComponentRef` ne se serait vu nulle part. La liste `SHOWN` ne nomme donc que ce qui est intégralement montré.
+
 *Le condensé trie les clés à toute profondeur.* `JSON.stringify` garde l'ordre d'insertion, donc sans tri l'empreinte changeait quand le producteur écrivait les mêmes champs dans un autre ordre, et le contrôle rougissait sur un changement qui n'en était pas un.
 
 *Une story sans `meta` reçoit le statut `none`.* Sans lui, ajouter `status: 'draft'` à une story ne changerait rien dans l'empreinte, alors que c'est exactement ce qu'elle sert à suivre.
 
 *Le champ `props` de l'entrée, jamais une reconstitution depuis `details`.* Les deux listes diffèrent : `details` est la surface du composant, `props` ce que cette story pose. Dérivée de `details`, l'empreinte ne bougeait pas quand une story changeait de props sans que son composant change.
+
+*Le tri des props ici est une défense, pas la garantie du producteur*, qui trie déjà. Cette fonction accepte n'importe quel manifeste, y compris un lu depuis un fichier écrit par quelqu'un d'autre. Et réordonner un bloc de props dans un fichier de story change `source`, donc le condensé, alors que le rendu est identique : c'est la seule entorse connue au « ne change que quand quelque chose de significatif change ».
 
 **Le régime de verrouillage réutilise un mécanisme déjà là.** La suite de tests écrit l'empreinte de la fixture, et l'étape `git diff --exit-code` de l'intégration continue échoue si le fichier commité ne correspond plus. C'est la même étape qui garde les réexports générés.
 

@@ -27,9 +27,14 @@ export interface Fingerprint {
   entries: FingerprintEntry[]
 }
 
-// The fields the fingerprint keeps in the open. Everything not listed goes into
-// `rest`, so a field added to `StoryEntry` is folded in rather than forgotten.
-const KEPT = new Set(['id', 'component', 'props', 'meta'])
+// The fields the fingerprint shows on its own. Everything else goes into `rest`,
+// so a field added anywhere is folded in rather than forgotten.
+//
+// `component` and `meta` are not listed: only a part of each is shown, `file`
+// with `export` for one and `status` for the other, so the whole object still
+// has to travel. Excluding `component` left `ComponentRef.name` in neither, and
+// nothing would have shown a field added beside it.
+const SHOWN = new Set(['id', 'props'])
 
 export function fingerprintOf(manifest: Manifest): Fingerprint {
   return {
@@ -40,6 +45,8 @@ export function fingerprintOf(manifest: Manifest): Fingerprint {
       // A story with no `meta` still has a status in the fingerprint, otherwise
       // adding `status: 'draft'` would read as a change of nothing.
       status: entry.meta?.status ?? 'none',
+      // Sorted here too, not only by the producer: this function takes any
+      // manifest, including one read from a file somebody else wrote.
       props: [...entry.props].sort(),
       rest: digestOf(entry),
     })),
@@ -53,12 +60,8 @@ function digestOf(entry: StoryEntry): string {
   const rest: Record<string, unknown> = {}
 
   for (const key of Object.keys(entry)) {
-    if (!KEPT.has(key)) rest[key] = entry[key as keyof StoryEntry]
+    if (!SHOWN.has(key)) rest[key] = entry[key as keyof StoryEntry]
   }
-
-  // `meta` is kept for its status only, so the rest of it still has to travel.
-  const { status: _status, ...meta } = entry.meta ?? {}
-  if (Object.keys(meta).length > 0) rest['meta'] = meta
 
   return createHash('sha256').update(stable(rest)).digest('hex').slice(0, 16)
 }

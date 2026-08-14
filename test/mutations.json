@@ -696,12 +696,12 @@
     "attendu": "fingerprint.test.ts > l’empreinte réduite > donne un statut à une story qui n’en déclare aucun"
   },
   {
-    "garantie": "Les props de l'empreinte sont triées",
+    "garantie": "L'empreinte trie les props d'un manifeste venu d'ailleurs",
     "fichier": "packages/cli/src/fingerprint.ts",
     "avant": "      props: [...entry.props].sort(),",
     "apres": "      props: [...entry.props],",
     "trouvee": "lot 4 ter",
-    "attendu": "fingerprint.test.ts > l’empreinte réduite > trie les props, donc réordonner un fichier ne change rien"
+    "attendu": "fingerprint.test.ts > l’empreinte réduite > trie les props d’un manifeste qui ne l’aurait pas fait"
   },
   {
     "garantie": "Le condensé trie les clés à toute profondeur",
@@ -714,8 +714,8 @@
   {
     "garantie": "Ce que l'empreinte ne montre pas est replié dans le condensé",
     "fichier": "packages/cli/src/fingerprint.ts",
-    "avant": "const KEPT = new Set(['id', 'component', 'props', 'meta'])",
-    "apres": "const KEPT = new Set(['id', 'component', 'props', 'meta', 'source', 'storyFile', 'name', 'options', 'details'])",
+    "avant": "const SHOWN = new Set(['id', 'props'])",
+    "apres": "const SHOWN = new Set(['id', 'props', 'meta', 'component'])",
     "trouvee": "lot 4 ter",
     "attendu": "fingerprint.test.ts > l’empreinte réduite > replie dans une empreinte tout ce qu’elle ne montre pas"
   }

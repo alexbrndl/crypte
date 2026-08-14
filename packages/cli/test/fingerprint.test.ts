@@ -53,7 +53,10 @@ describe('l’empreinte réduite', () => {
     expect(fingerprintOf(one({ meta: { status: 'draft' } })).entries[0]?.status).toBe('draft')
   })
 
-  it('trie les props, donc réordonner un fichier ne change rien', () => {
+  // Le producteur trie déjà, donc ce tri est une défense pour un manifeste venu
+  // d'ailleurs. Réordonner un bloc de props dans un fichier de story change en
+  // revanche `source`, donc le condensé : le nom de ce cas l'affirmait à tort.
+  it('trie les props d’un manifeste qui ne l’aurait pas fait', () => {
     const a = fingerprintOf(one({ props: ['a', 'b'] }))
     const b = fingerprintOf(one({ props: ['b', 'a'] }))
 
@@ -62,18 +65,30 @@ describe('l’empreinte réduite', () => {
 
   // Ce qui n'est pas à découvert doit quand même bouger l'empreinte, sinon un
   // changement de code d'appel passerait inaperçu.
+  //
+  // Chaque cas ne change **que** le champ replié qu'il vise, statut compris : le
+  // premier jet comparait une entrée sans `meta` à une entrée `status: 'stable'`,
+  // donc la comparaison échouait sur le champ à découvert et le repliement de
+  // `meta` n'était gardé par rien.
   it('replie dans une empreinte tout ce qu’elle ne montre pas', () => {
-    const before = fingerprintOf(one())
+    const stable = { status: 'stable' } as const
+    const before = fingerprintOf(one({ meta: stable }))
 
     for (const over of [
       { source: '<Badge label="autre" />' },
       { storyFile: 'stories/autre.ts' },
       { name: 'Autre' },
+      { type: 'story', path: ['badge'] },
       { options: { responsive: 'mobile' } },
       { details: { label: { type: 'string', required: true } } },
-      { meta: { status: 'stable', owner: 'design' } },
+      { component: { name: 'Autre', file: 'src/Badge.tsx', export: 'default' } },
+      { meta: { ...stable, owner: 'design' } },
+      { meta: { ...stable, figma: 'https://figma.com/x' } },
+      { meta: { ...stable, description: 'une note' } },
     ] satisfies Partial<StoryEntry>[]) {
-      expect(same(before, fingerprintOf(one(over))), JSON.stringify(over)).toBe(false)
+      const after = fingerprintOf(one({ meta: stable, ...over }))
+
+      expect(same(before, after), JSON.stringify(over)).toBe(false)
     }
   })
 

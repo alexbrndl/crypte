@@ -6,7 +6,7 @@
       "component": "src/components/Badge.jsx#Badge",
       "status": "none",
       "props": [],
-      "rest": "edc39190bd91eb29"
+      "rest": "bcdd55984ff0c69c"
     },
     {
       "id": "checkout/ordersummary--par-defaut",
@@ -16,7 +16,7 @@
         "benefits",
         "title"
       ],
-      "rest": "c5f987704be10c1b"
+      "rest": "d4c2eac0da9896b8"
     },
     {
       "id": "checkout/ordersummary--avec-reference",
@@ -27,7 +27,7 @@
         "reference",
         "title"
       ],
-      "rest": "8cd2faa25ce6ff4f"
+      "rest": "722eb76611fb65f9"
     },
     {
       "id": "checkout/ordersummary--replie-sur-mobile",
@@ -39,7 +39,7 @@
         "reference",
         "title"
       ],
-      "rest": "586c6f0bb9c976c6"
+      "rest": "06c87a0cbfa02929"
     }
   ]
 }

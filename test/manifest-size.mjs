@@ -1,6 +1,7 @@
 // Ce que pèse un manifeste, et ce que coûterait d'en garder l'historique.
 // N'assertionne rien, se lance à la main. Voir docs/internal/architecture.md.
 
+import { createHash } from 'node:crypto'
 import { gzipSync } from 'node:zlib'
 
 const folders = [
@@ -190,11 +191,16 @@ const lock = {
     // deux listes différentes, et c'est celle des props posées qui doit être
     // versionnée. Dérivée de `details`, l'empreinte ne bougeait pas quand une
     // story changeait de props sans que le composant change.
-    props: e.props.join(','),
-    hash: String((JSON.stringify(e.details).length * 2654435761) % 4294967296),
+    props: e.props,
+    // Seize caractères hexadécimaux, comme `fingerprint.ts` : un condensé plus
+    // court ou décimal rendait l'empreinte plus légère qu'elle ne l'est.
+    rest: createHash('sha256').update(JSON.stringify(e)).digest('hex').slice(0, 16),
   })),
 }
-const lockJson = JSON.stringify(lock)
+// Indentée et terminée par un saut de ligne, comme le producteur l'écrit. Sans
+// ça la mesure portait sur une forme que rien n'écrit : 170 octets par story au
+// lieu de 268, mesuré à la revue de la PR #31.
+const lockJson = `${JSON.stringify(lock, null, 2)}\n`
 console.log(
   `empreinte réduite, 500 entrées : ${(Buffer.byteLength(lockJson) / 1024).toFixed(1)} Ko brut, ${(gzipSync(lockJson).length / 1024).toFixed(1)} Ko gzip`,
 )
