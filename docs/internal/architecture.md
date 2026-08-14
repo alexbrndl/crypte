@@ -316,9 +316,31 @@ Le verdict ne pouvait pas être « n'est gardée par rien » : celui-là ne dép
 
 *Pourquoi ça existe :* le catalogue cite du code par son texte, donc toute refonte le périme en silence. Le contrôle de mutation le dit, mais il coûte quatre minutes ; ces cas le disent en une seconde, avant le commit.
 
-*Son coût croît avec le catalogue.* Chronométré à 86 garanties : **4 min 13 s** en local. Par mutation, `pack` 30 ms, `test` 2264 ms, `check` 1416 ms, soit 3,7 s mesurés isolément ; la déduction 3,7 × 86 donnait 5,3 min, donc elle surestime d'un quart, et c'est le chronomètre qui compte.
+**Deux voies, et quatre-vingt-quatre garanties sur quatre-vingt-treize portent une cible.**
 
-En intégration continue, l'observation est plus pauvre : le job a été **annulé à 10 min** sans finir, sur un job qui enchaîne aussi `install`, `pack`, `check`, `typecheck` et `test`. Ce qui est établi est donc « plus de 10 minutes », pas un facteur. Le délai est passé à 30 min pour cette raison. Un lancement ciblé sur le seul fichier de test attendu ramènerait chaque mutation à 0,8 s : c'est `DCJ-216`.
+*La voie rapide* lance le seul fichier de test que la garantie nomme. Si ce fichier rougit et que le cas attendu apparaît dans sa sortie, c'est fini : ni suite complète, ni `vp check`. La raison tient en une phrase : si le cas attendu rougit, la garantie est tenue quoi qu'en dise le lint.
+
+*La voie lente* ne sert plus qu'aux garanties dont la voie rapide n'a pas conclu, et c'est là que se décide « vue ailleurs ». Ce diagnostic vaut son prix : il a attrapé une mutation vue par la colorisation de vitest, et une autre vue par le formateur parce qu'elle laissait une indentation fausse.
+
+*Deux garde-fous.* Un filtre qui ne correspond à rien fait sortir vitest en échec, ce qui se lirait comme une mutation vue : le script reconnaît son message pour retomber sur la voie lente. Et neuf garanties ne nomment aucun fichier, dont quatre citent un code d'erreur TypeScript que seul `vp check` attrape : elles vont directement en voie lente.
+
+*Un gardien purement compilatoire ne reçoit pas de cible.* `vp test` ne vérifie pas les types, donc un `satisfies` ou un `@ts-expect-error` ne fait jamais rougir son fichier : lui donner une cible ferait payer la voie rapide **en plus** de la voie lente. Deux garanties du canal sont dans ce cas.
+
+*Le champ `dans`* nomme le fichier quand `attendu` cite un titre sans lui. Préfixer `attendu` ne marcherait pas : il est cherché comme sous-chaîne dans une sortie où vitest écrit `fichier > describe > cas`.
+
+*Le seul mode d'échec de ce raccourci est gardé par des cas, pas par une sonde.* Une garantie dont le cas attendu ne rougit pas doit rester signalée, jamais conclue « vu ». La décision vit dans `concludes`, exportée, et `mutations.test.mjs` la couvre : fichier qui passe, filtre sans correspondance, autre cas du même fichier qui a rougi. Deux garanties du catalogue la cassent pour vérifier que ces cas rougissent. Une sonde avait d'abord mesuré la même chose une fois, mais une mesure ponctuelle ne survit pas au remaniement suivant.
+
+*Le contrôle positif lance aussi chaque cible seule.* La voie rapide ajoute une précondition que la suite entière ne couvre pas : un fichier devenu dépendant de l'ordre rougirait sans mutation, son cas attendu apparaîtrait dans sa sortie, et toutes les garanties qui le nomment seraient conclues « vu » sur un gardien muet. C'est la panne même pour laquelle ce contrôle positif existe. Une quinzaine de démarrages de vitest, contre les soixante secondes de plancher déjà assumées.
+
+*Le script est une fonction gardée*, comme `changeset-check.mjs` et `post-review.mjs` : sans ça, importer le module pour en tester une fonction lancerait les quatre-vingt-douze mutations.
+
+*Chronométré en local.* **4 min 10 s pour 90 garanties avant, 2 min 21 s pour 92 après**, soit 1,8 fois moins. Les quatre-vingt-quatre cités plus haut sont les garanties qui **portent** une cible, pas celles qui concluent : un gardien peut rougir sur un autre cas de son fichier, et la voie lente reprend alors la main.
+
+Le calcul par mutation : `pack` 30 ms partout, puis 0,9 s sur la voie rapide contre 3,7 s sur la lente, `test` et `check` compris. Les seize cibles distinctes lancées seules par le contrôle positif coûtent 24 s de ce total, et c'est ce qu'achète la fermeture du trou décrit ci-dessous.
+
+Le plancher est le démarrage de vitest, environ 0,7 s par lancement, donc plus d'une minute pour quatre-vingt-douze garanties quoi qu'on fasse d'autre.
+
+En intégration continue, mesuré sur le job entier, `install` et construction comprises : **12 min 2 avant, 5 min 45 après**. L'extrapolation faite depuis le rapport local sur distant annonçait 7 min et était donc pessimiste, ce qui est la raison de citer la mesure et non le calcul. `DCJ-216` visait moins de 3 min : ce n'est pas atteint, et ça demanderait de muter en mémoire plutôt qu'un processus par garantie. Le délai du job est redescendu de 30 à 20 min, qui laisse le double du temps observé.
 
 *Ce qui casse si on l'enlève :* une garantie dont le motif a disparu ne casse plus rien, donc elle ne surveille plus rien, et le catalogue continue d'annoncer son compte. Mesuré sur le lot 4 : cinq refontes, sept motifs périmés. Les cinq premiers ont coûté un contrôle complet chacun ; les deux derniers ont été vus par ce test, en quelques millisecondes.
 

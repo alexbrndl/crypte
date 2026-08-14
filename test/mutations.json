@@ -45,7 +45,8 @@
     "avant": "const LATIN_DIACRITICS = /([a-z])[\\u0300-\\u036f]+/gi",
     "apres": "const LATIN_DIACRITICS = /()[\\u0300-\\u036f]+/g",
     "trouvee": "revue 5",
-    "attendu": "garde les marques des écritures non latines"
+    "attendu": "garde les marques des écritures non latines",
+    "dans": "id.test.ts"
   },
   {
     "garantie": "Le suivi des imports relie une entrée à son chunk",
@@ -53,7 +54,8 @@
     "avant": "const RELATIVE_IMPORT = new RegExp(RELATIVE_IMPORT_SOURCE, 'g')",
     "apres": "const RELATIVE_IMPORT = /jamais-de-correspondance/g",
     "trouvee": "revue 4",
-    "attendu": "atteint un fichier que l"
+    "attendu": "atteint un fichier que l",
+    "dans": "isolation.test.ts"
   },
   {
     "garantie": "La porte d'entrée réexporte tout ce que les modules déclarent",
@@ -69,7 +71,8 @@
     "avant": "export type { PropDetails, ResolvedPropDetails, PropKind, PluginPropDetails } from './prop'",
     "apres": "export type { PropDetails, ResolvedPropDetails, PropKind, PluginPropDetails as PluginPropFields } from './prop'",
     "trouvee": "revue 9",
-    "attendu": "fusionne à travers les types publiés"
+    "attendu": "fusionne à travers les types publiés",
+    "dans": "no-plugin.test.ts"
   },
   {
     "garantie": "Un nom retiré ne survit pas dans le code de la spécification",
@@ -77,7 +80,8 @@
     "avant": "  details?: Partial<Record<keyof P, PropDetails>>\n  meta?: StoryMeta",
     "apres": "  details?: Partial<Record<keyof P, PropDetails>>\n  meta?: EntryMeta",
     "trouvee": "revue 9",
-    "attendu": "figure encore dans le code de la spécification"
+    "attendu": "figure encore dans le code de la spécification",
+    "dans": "spec.test.ts"
   },
   {
     "garantie": "l'union de wrap n'a pas de branche fonction",
@@ -93,7 +97,8 @@
     "avant": "const CONFIG_NAMES = ['tsconfig.json', 'jsconfig.json']",
     "apres": "const CONFIG_NAMES: string[] = []",
     "trouvee": "DCJ-167",
-    "attendu": "jsconfig.json commenté"
+    "attendu": "jsconfig.json commenté",
+    "dans": "project.test.ts"
   },
   {
     "garantie": "la remontée s'arrête à la racine du projet",
@@ -101,7 +106,8 @@
     "avant": "{ configName, root }",
     "apres": "{ configName }",
     "trouvee": "DCJ-167",
-    "attendu": "ne rend rien quand le projet n"
+    "attendu": "ne rend rien quand le projet n",
+    "dans": "project.test.ts"
   },
   {
     "garantie": "une configuration incomplète est refusée en nommant le champ",
@@ -109,7 +115,8 @@
     "avant": "  assertUsable(config)",
     "apres": "  void config",
     "trouvee": "DCJ-167",
-    "attendu": "en nommant le champ"
+    "attendu": "en nommant le champ",
+    "dans": "project.test.ts"
   },
   {
     "garantie": "le motif le plus spécifique l'emporte",
@@ -125,7 +132,8 @@
     "avant": "        if (found) return found\n      }",
     "apres": "        if (found) return found\n        return { id: candidate }\n      }",
     "trouvee": "revue 3 de la PR #17",
-    "attendu": "ne se rabat pas sur un autre motif"
+    "attendu": "ne se rabat pas sur un autre motif",
+    "dans": "project.test.ts"
   },
   {
     "garantie": "les chemins ne s'appliquent qu'aux identifiants nus",
@@ -133,7 +141,8 @@
     "avant": "      if (!isBareSpecifier(source)) return null",
     "apres": "      if (false) return null",
     "trouvee": "revue 6 de la PR #17",
-    "attendu": "ne détourne pas un import relatif cassé"
+    "attendu": "ne détourne pas un import relatif cassé",
+    "dans": "project.test.ts"
   },
   {
     "garantie": "un seul motif est retenu, comme chez TypeScript",
@@ -141,7 +150,8 @@
     "avant": "  for (const [pattern, targets] of ordered) {",
     "apres": "  for (const [pattern, targets] of [...ordered].reverse()) {",
     "trouvee": "revue 7 de la PR #17",
-    "attendu": "ne se rabat pas sur un autre motif"
+    "attendu": "ne se rabat pas sur un autre motif",
+    "dans": "project.test.ts"
   },
   {
     "garantie": "les chemins ne valent que pour les fichiers du projet",
@@ -149,7 +159,8 @@
     "avant": "      if (importer && INSTALLED.test(importer)) return null",
     "apres": "      if (false) return null",
     "trouvee": "revue 8 de la PR #17",
-    "attendu": "n’applique pas les chemins à un fichier installé"
+    "attendu": "n’applique pas les chemins à un fichier installé",
+    "dans": "project.test.ts"
   },
   {
     "garantie": "les chemins passent avant les plugins déclarés par le projet",
@@ -157,7 +168,8 @@
     "avant": "    plugins: [...(paths ? [pathsPlugin(paths)] : []), ...(config.vite?.plugins ?? [])],",
     "apres": "    plugins: [...(config.vite?.plugins ?? []), ...(paths ? [pathsPlugin(paths)] : [])],",
     "trouvee": "exploration du lot 3",
-    "attendu": "applique les chemins avant les plugins du projet"
+    "attendu": "applique les chemins avant les plugins du projet",
+    "dans": "project.test.ts"
   },
   {
     "garantie": "Le shell n'envoie jamais vers une autre origine",
@@ -718,5 +730,29 @@
     "apres": "const SHOWN = new Set(['id', 'props', 'meta', 'component'])",
     "trouvee": "lot 4 ter",
     "attendu": "fingerprint.test.ts > l’empreinte réduite > replie dans une empreinte tout ce qu’elle ne montre pas"
+  },
+  {
+    "garantie": "La voie rapide ne conclut pas sur un filtre sans correspondance",
+    "fichier": "test/mutation-check.mjs",
+    "avant": "  return !output.includes(NO_FILE) && output.includes(attendu)",
+    "apres": "  return output.includes(attendu)",
+    "trouvee": "revue de la PR #32",
+    "attendu": "mutations.test.mjs > le catalogue de mutations > la voie rapide du contrôle > ne prend pas un filtre sans correspondance pour un rouge"
+  },
+  {
+    "garantie": "La voie rapide ne conclut pas sur un fichier qui passe",
+    "fichier": "test/mutation-check.mjs",
+    "avant": "  if (quick === undefined || quick.ok) return false",
+    "apres": "  if (quick === undefined) return false",
+    "trouvee": "revue de la PR #32",
+    "attendu": "mutations.test.mjs > le catalogue de mutations > la voie rapide du contrôle > ne conclut pas sur un fichier qui passe"
+  },
+  {
+    "garantie": "La voie rapide exige le cas attendu, pas n'importe quel rouge du fichier",
+    "fichier": "test/mutation-check.mjs",
+    "avant": "  return !output.includes(NO_FILE) && output.includes(attendu)",
+    "apres": "  return !output.includes(NO_FILE)",
+    "trouvee": "revue 2 de la PR #32",
+    "attendu": "mutations.test.mjs > le catalogue de mutations > la voie rapide du contrôle > ne conclut pas quand un autre cas du fichier a rougi"
   }
 ]
