@@ -78,7 +78,9 @@ describe('l’empreinte réduite', () => {
       { source: '<Badge label="autre" />' },
       { storyFile: 'stories/autre.ts' },
       { name: 'Autre' },
-      { type: 'story', path: ['badge'] },
+      // `type` n'est pas de la liste : c'est un littéral unique, donc il ne peut
+      // pas varier sans un cast, et le reposer ici n'éprouvait que `path`.
+      { path: ['badge'] },
       { options: { responsive: 'mobile' } },
       { details: { label: { type: 'string', required: true } } },
       { component: { name: 'Autre', file: 'src/Badge.tsx', export: 'default' } },
