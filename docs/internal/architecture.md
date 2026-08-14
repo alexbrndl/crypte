@@ -316,6 +316,8 @@ Le verdict ne pouvait pas être « n'est gardée par rien » : celui-là ne dép
 
 *Pourquoi ça existe :* le catalogue cite du code par son texte, donc toute refonte le périme en silence. Le contrôle de mutation le dit, mais il coûte quatre minutes ; ces cas le disent en une seconde, avant le commit.
 
+*Son coût croît avec le catalogue.* Mesuré à 84 garanties : `pack` 30 ms, `test` 2264 ms, `check` 1416 ms par mutation, soit 3,7 s, donc 5 min en local et le double en intégration continue, qui tourne sur 4 threads. Le délai du job est à 30 min pour cette raison, et non à 10. Un lancement ciblé sur le seul fichier de test attendu ramènerait chaque mutation à 0,8 s : c'est `DCJ-216`.
+
 *Ce qui casse si on l'enlève :* une garantie dont le motif a disparu ne casse plus rien, donc elle ne surveille plus rien, et le catalogue continue d'annoncer son compte. Mesuré sur le lot 4 : trois refontes, cinq motifs périmés, chacun appris par un contrôle complet.
 
 Deux modes de péremption, et le second est le sournois. Le motif **disparaît**, et le contrôle le signale clairement. Ou le motif devient **ambigu**, parce qu'un second endroit du fichier porte le même texte : `shadowed` a réutilisé le test de clé de `propertyOf`, et le motif court s'est mis à correspondre deux fois.
