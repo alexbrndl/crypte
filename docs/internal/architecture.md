@@ -316,9 +316,19 @@ Le verdict ne pouvait pas être « n'est gardée par rien » : celui-là ne dép
 
 *Pourquoi ça existe :* le catalogue cite du code par son texte, donc toute refonte le périme en silence. Le contrôle de mutation le dit, mais il coûte quatre minutes ; ces cas le disent en une seconde, avant le commit.
 
-*Son coût croît avec le catalogue.* Chronométré à 86 garanties : **4 min 13 s** en local. Par mutation, `pack` 30 ms, `test` 2264 ms, `check` 1416 ms, soit 3,7 s mesurés isolément ; la déduction 3,7 × 86 donnait 5,3 min, donc elle surestime d'un quart, et c'est le chronomètre qui compte.
+**Deux voies, et la rapide sert quatre-vingt-trois fois sur quatre-vingt-dix.**
 
-En intégration continue, l'observation est plus pauvre : le job a été **annulé à 10 min** sans finir, sur un job qui enchaîne aussi `install`, `pack`, `check`, `typecheck` et `test`. Ce qui est établi est donc « plus de 10 minutes », pas un facteur. Le délai est passé à 30 min pour cette raison. Un lancement ciblé sur le seul fichier de test attendu ramènerait chaque mutation à 0,8 s : c'est `DCJ-216`.
+*La voie rapide* lance le seul fichier de test que la garantie nomme. Si ce fichier rougit et que le cas attendu apparaît dans sa sortie, c'est fini : ni suite complète, ni `vp check`. La raison tient en une phrase : si le cas attendu rougit, la garantie est tenue quoi qu'en dise le lint.
+
+*La voie lente* ne sert plus qu'aux garanties dont la voie rapide n'a pas conclu, et c'est là que se décide « vue ailleurs ». Ce diagnostic vaut son prix : il a attrapé une mutation vue par la colorisation de vitest, et une autre vue par le formateur parce qu'elle laissait une indentation fausse.
+
+*Deux garde-fous.* Un filtre qui ne correspond à rien fait sortir vitest en échec, ce qui se lirait comme une mutation vue : le script reconnaît son message pour retomber sur la voie lente. Et sept garanties ne nomment aucun fichier, dont quatre citent un code d'erreur TypeScript que seul `vp check` attrape : elles vont directement en voie lente.
+
+*Le champ `dans`* nomme le fichier quand `attendu` cite un titre sans lui. Préfixer `attendu` ne marcherait pas : il est cherché comme sous-chaîne dans une sortie où vitest écrit `fichier > describe > cas`.
+
+*Chronométré, 90 garanties, en local.* **4 min 10 s avant, 1 min 57 s après**, soit 2,1 fois moins. Le calcul par mutation : `pack` 30 ms partout, puis 0,9 s sur la voie rapide contre 3,7 s sur la lente, `test` et `check` compris. Le plancher est désormais le démarrage de vitest, environ 0,7 s par lancement, donc 63 s pour 90 garanties quoi qu'on fasse d'autre.
+
+En intégration continue, l'observation d'avant était pauvre : le job a été **annulé à 10 min** sans finir, puis a mis 12 min 2 une fois le délai relevé à 30. Le rapport local sur distant est donc d'environ 2,9, ce qui place le contrôle accéléré aux alentours de 6 min. `DCJ-216` visait moins de 3 min : ce n'est pas atteint, et ça demanderait de muter en mémoire plutôt qu'un processus par garantie.
 
 *Ce qui casse si on l'enlève :* une garantie dont le motif a disparu ne casse plus rien, donc elle ne surveille plus rien, et le catalogue continue d'annoncer son compte. Mesuré sur le lot 4 : cinq refontes, sept motifs périmés. Les cinq premiers ont coûté un contrôle complet chacun ; les deux derniers ont été vus par ce test, en quelques millisecondes.
 

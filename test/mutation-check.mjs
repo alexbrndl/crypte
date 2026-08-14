@@ -54,6 +54,23 @@ function plain(output) {
   return output.replace(ANSI, '')
 }
 
+// Le fichier que `attendu` nomme, quand il en nomme un : une garantie sur cinq
+// désigne un titre de cas, un code d'erreur TypeScript ou une fixture, et rien
+// n'y permet de cibler un fichier. Voir docs/internal/architecture.md.
+const NAMES_A_FILE = /^([\w.-]+\.test\.(?:ts|mjs)) > /
+
+// Un filtre qui ne correspond à rien fait sortir vitest en échec, ce qui se lit
+// comme une mutation vue. Le reconnaître pour retomber sur la voie lente.
+const NO_FILE = 'No test files found'
+
+// `dans` quand la garantie le porte, sinon le premier segment de `attendu`. Le
+// champ existe pour les cas dont `attendu` cite un titre sans son fichier : la
+// sortie de vitest écrit `fichier > describe > cas`, donc préfixer `attendu`
+// casserait la comparaison au lieu de la cibler.
+function targetOf(mutation) {
+  return mutation.dans ?? NAMES_A_FILE.exec(String(mutation.attendu))?.[1]
+}
+
 // Ce qui a rougi, en trois lignes : les échecs nommés, sinon la fin de la sortie.
 function sample(output) {
   const lines = plain(output).trim().split('\n')
@@ -102,14 +119,36 @@ for (const mutation of mutations) {
     // Une construction en échec laisserait les tests lire les artefacts
     // précédents, et le verdict accuserait une garantie pourtant gardée.
     const built = run(vp, ['run', '-r', 'pack'])
-    const tests = built.ok ? run(vp, ['test']) : { ok: false, output: built.output }
-    const check = run(vp, ['check'])
+
+    // Voie rapide : le seul fichier que la garantie nomme. Mesuré, il coûte
+    // 748 ms là où la suite entière en coûte 2264, et la quasi-totalité des
+    // mutations s'arrête ici. `vp check` n'a pas à tourner dans ce cas : si le
+    // cas attendu rougit, la garantie est tenue, quoi qu'en dise le lint.
+    const target = targetOf(mutation)
+    const quick = built.ok && target ? run(vp, ['test', target]) : undefined
+    const quickConcluded =
+      quick !== undefined &&
+      !quick.ok &&
+      !plain(quick.output).includes(NO_FILE) &&
+      plain(quick.output).includes(mutation.attendu)
+
+    // Voie lente : seulement quand la voie rapide n'a pas conclu. C'est là que se
+    // décide « vue ailleurs », et ce diagnostic vaut son prix : il a attrapé une
+    // mutation vue par la colorisation de vitest, et une autre vue par le
+    // formateur parce qu'elle laissait une indentation fausse.
+    const tests = quickConcluded
+      ? quick
+      : built.ok
+        ? run(vp, ['test'])
+        : { ok: false, output: built.output }
+    const check = quickConcluded ? { ok: false, output: '' } : run(vp, ['check'])
     const noticed = !tests.ok || !check.ok
 
     // Qu'une vérification rougisse ne suffit pas : ce doit être celle qui porte
     // la garantie. Sans ce contrôle, une mutation vue par un test sans rapport
     // laisserait croire que la garantie tient, alors que son gardien est muet.
-    const byTheRightOne = plain(`${tests.output}${check.output}`).includes(mutation.attendu)
+    const byTheRightOne =
+      quickConcluded || plain(`${tests.output}${check.output}`).includes(mutation.attendu)
 
     const verdict = !built.ok ? 'CASSÉ' : !noticed ? 'MANQUÉ' : byTheRightOne ? 'vu   ' : 'AILLEURS'
     console.log(`${verdict}  ${mutation.garantie}`)

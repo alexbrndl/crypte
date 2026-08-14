@@ -63,15 +63,15 @@ describe('le catalogue de mutations', () => {
   // renommer un test, ou son fichier, laisse une garantie qui n'attend plus rien.
   // C'est exactement ce que DCJ-210 s'apprête à faire sur 183 noms de tests.
   it('attend un cas qui existe vraiment', () => {
-    const named = mutations.filter(({ attendu }) => NAMES_A_FILE.test(attendu))
+    const named = mutations.filter(({ attendu, dans }) => dans || NAMES_A_FILE.test(attendu))
 
     // Sans ce compte, une expression qui ne correspond plus à rien viderait la
     // boucle et le cas passerait sans rien vérifier.
     expect(named.length, 'aucune garantie ne nomme son fichier de test').toBeGreaterThan(50)
 
-    for (const { garantie, attendu } of named) {
+    for (const { garantie, attendu, dans } of named) {
       const segments = attendu.split(' > ')
-      const file = segments[0]
+      const file = dans ?? segments[0]
       const title = segments.at(-1)
 
       // Le nom de base peut désigner plusieurs fichiers, `ui.test.ts` en vise
