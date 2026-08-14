@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Manifest, StoryEntry } from '@crypte/core/protocol'
 import { describe, expect, it } from 'vitest'
-import { fingerprintOf, writeFingerprint } from '../src/fingerprint'
+import { FINGERPRINT, fingerprintOf, writeFingerprint } from '../src/fingerprint'
 import { buildCatalogue } from '../src/manifest'
 import { loadProject } from '../src/project'
 
@@ -129,6 +129,7 @@ describe('l’empreinte de la fixture', () => {
     const file = writeFingerprint(fixture, built)
 
     expect(built.entries).toHaveLength(manifest.entries.length)
+    expect(file).toBe(join(fixture, FINGERPRINT))
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual(built)
   })
 })

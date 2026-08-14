@@ -46,13 +46,13 @@ export function fingerprintOf(manifest: Manifest): Fingerprint {
   }
 }
 
-// Sorted keys, so the same entry gives the same digest whatever order the
-// producer wrote it in. `JSON.stringify` keeps insertion order otherwise, and
-// the fingerprint would change on a reordering that changes nothing.
+// Everything the fingerprint does not show, folded into one value. The order the
+// producer wrote the fields in does not matter: `stable` sorts, and it is the
+// only place that does.
 function digestOf(entry: StoryEntry): string {
   const rest: Record<string, unknown> = {}
 
-  for (const key of Object.keys(entry).sort()) {
+  for (const key of Object.keys(entry)) {
     if (!KEPT.has(key)) rest[key] = entry[key as keyof StoryEntry]
   }
 
@@ -63,7 +63,9 @@ function digestOf(entry: StoryEntry): string {
   return createHash('sha256').update(stable(rest)).digest('hex').slice(0, 16)
 }
 
-// A JSON form whose object keys are sorted at every depth.
+// A JSON form whose object keys are sorted at every depth. `JSON.stringify`
+// keeps insertion order, so without this the digest changed when the producer
+// wrote the same fields in another order.
 function stable(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null'
   if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`
