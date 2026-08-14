@@ -497,6 +497,21 @@ Types do not enforce this. `default`, `options`, and the contents of an entry's 
 
 **So the CLI has to guarantee what it writes**, by leaving out or rewriting whatever is not serialisable. The likely case is a prop whose default value is a callback.
 
+### 4.6 Two files, and which one is the truth
+
+The CLI writes two files side by side in `.crypte/`.
+
+| File | Committed | Role |
+| --- | --- | --- |
+| `manifest.json` | no | what the shell reads |
+| `fingerprint.json` | yes | what a build produced, kept in the repository's history |
+
+**The manifest is the truth.** It is regenerated from the story files on every build, so when the two disagree it is the fingerprint that is out of date, never the other way round.
+
+The fingerprint is not a smaller manifest and nothing reads it to render. It exists so that Git holds the history of a catalogue: per entry, the identifier, the component as `file#export`, the status, the sorted prop names, and one digest folding everything else. That is enough to say what changed between two versions, and small enough to commit on every build. The reasoning and the measurements are in [`decisions.md`](decisions.md).
+
+**A missing or stale fingerprint is never fatal to a build.** It is a record, so the build writes it and moves on. Telling a project that its record is behind is the job of `crypte check`.
+
 ---
 
 ## 5. Channel protocol
@@ -677,6 +692,7 @@ This document is a contract. This section is the only place that says what exist
 | 1.5, path aliases | built |
 | 2 and 3, the types | built. `defineStories`, `story` and inference are not |
 | 4, the manifest | built, and produced from a project. `details` is written empty, and no command calls the producer yet |
+| 4.6, the fingerprint | built. Written by the test suite for the test fixture, since no command exists to write it for a real project |
 | 5, the channel | built and exercised on both sides |
 | 6, plugin contract | not built, and provisional |
 

@@ -554,6 +554,46 @@ Le producteur tourne avant qu'un serveur existe, donc il applique les motifs `pa
 
 ---
 
+## 4 nonies. L'empreinte du catalogue, et son régime de verrouillage
+
+**Deux fichiers dans `.crypte/`.** Le manifeste, artefact ignoré par Git, et l'empreinte, commitée. La décision et ses mesures sont dans `docs/decisions.md` ; la section 4.6 des contrats dit lequel des deux fait foi.
+
+**Ce que l'empreinte garde à découvert, et pourquoi.** L'identifiant, le composant sous la forme `fichier#export`, le statut, et les noms de props triés. Ce sont les seules choses qu'on veut lire dans un diff sans outil. Tout le reste est replié dans un condensé de seize caractères : ce qu'il contient n'intéresse personne, seul compte le fait qu'il bouge quand l'entrée bouge.
+
+*Deux champs sont montrés en partie et repliés en entier*, `component` et `meta` : on lit `fichier#export` et le statut à découvert, et l'objet complet part quand même dans le condensé. Sans ça, `component.name` n'était ni montré ni replié, et un champ ajouté à `ComponentRef` ne se serait vu nulle part. La liste `SHOWN` ne nomme donc que ce qui est intégralement montré.
+
+*Le condensé trie les clés à toute profondeur.* `JSON.stringify` garde l'ordre d'insertion, donc sans tri l'empreinte changeait quand le producteur écrivait les mêmes champs dans un autre ordre, et le contrôle rougissait sur un changement qui n'en était pas un.
+
+*Une story sans `meta` reçoit le statut `none`.* Sans lui, ajouter `status: 'draft'` à une story ne changerait rien dans l'empreinte, alors que c'est exactement ce qu'elle sert à suivre.
+
+*Le champ `props` de l'entrée, jamais une reconstitution depuis `details`.* Les deux listes diffèrent : `details` est la surface du composant, `props` ce que cette story pose. Dérivée de `details`, l'empreinte ne bougeait pas quand une story changeait de props sans que son composant change.
+
+*Le tri des props ici est une défense, pas la garantie du producteur*, qui trie déjà. Cette fonction accepte n'importe quel manifeste, y compris un lu depuis un fichier écrit par quelqu'un d'autre. Et réordonner un bloc de props dans un fichier de story change `source`, donc le condensé, alors que le rendu est identique : c'est la seule entorse connue au « ne change que quand quelque chose de significatif change ».
+
+**Le régime de verrouillage réutilise un mécanisme déjà là.** La suite de tests écrit l'empreinte de la fixture, et l'étape `git diff --exit-code` de l'intégration continue échoue si le fichier commité ne correspond plus. C'est la même étape qui garde les réexports générés.
+
+*Pourquoi pas un script dédié :* il faudrait exécuter le producteur, écrit en TypeScript et non exposé par le paquet, dont les entrées publiques sont `defineConfig` et le contrat de configuration. Mesuré : `vp node` s'appuie sur le typage effacé de Node, qui exige une extension explicite sur chaque import relatif, y compris ceux **à l'intérieur** des sources. Les ajouter partout pour un script serait payer le confort d'un outil dans du code publié.
+
+*Ce qui casse si on l'enlève :* le producteur change, l'empreinte reste, et l'historique du catalogue décrit un état qui n'existe plus. Personne ne s'en aperçoit, puisque rien ne lit ce fichier aujourd'hui.
+
+*Mesuré dans les trois sens.* Une empreinte périmée commitée : la suite la réécrit et `git diff --exit-code` rougit. Une empreinte à jour : l'arbre reste propre après `vp test`. Et l'exclusion de formatage retirée : `vp check` rougit, donc elle n'a pas besoin d'une garantie à elle.
+
+**Le formateur ne touche pas à `.crypte/`, et il a fallu le lui dire.**
+
+Deux mécanismes se disputaient la forme du fichier. `vp check --fix`, lancé par le hook de pré-commit sur les fichiers indexés, compactait les tableaux de props sur une ligne. L'écriture suivante les dépliait, `JSON.stringify` avec deux espaces d'indentation ne compactant rien. L'arbre n'était donc jamais propre deux commandes de suite, et le contrôle de mutation échouait sur son propre contrôle positif.
+
+*La règle générale :* un fichier généré et commité ne doit pas être reformaté par un outil qui ne le produit pas. Le dépôt appliquait déjà ça à `docs/**` et à `README.md`, pour une raison différente.
+
+**Le contrôle de mutation rejoue la suite une dernière fois.**
+
+Le même conflit s'est présenté un cran plus loin. Le contrôle mute une source, lance la suite, et exige à la fin que l'arbre soit propre : c'est sa condition d'emploi, et personne d'autre ne la vérifie. Or la suite écrit l'empreinte, qui diverge quand elle est produite depuis une source mutée, donc le contrôle la voyait comme une source non restaurée.
+
+*Le passage final sur les sources intactes la remet à sa valeur*, plutôt que de retirer ces fichiers du contrôle. Affaiblir la vérification aurait coûté plus que les deux secondes que coûte ce passage : elle est le seul juge de ce que le script laisse derrière lui.
+
+**Lire et comparer ne sont pas ici.** Le module n'écrit que. Dire à un projet que son empreinte est en retard est le travail de `crypte check`, section 1.2 des contrats, et l'écrire maintenant serait deux fonctions que seuls des tests appellent.
+
+---
+
 ## 5. Décisions encodées dans la configuration
 
 Ces réglages ont l'air anodins et ne le sont pas. Chacun a été mis là pour une raison précise, et chacun est le genre de ligne qu'on supprime en croyant nettoyer.

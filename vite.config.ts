@@ -27,7 +27,11 @@ export default defineConfig({
     ],
   },
   fmt: {
-    ignorePatterns: ['dist/**', 'docs/**', 'README.md'],
+    // `**/.crypte/**` : l'empreinte est écrite par la suite et commitée, donc
+    // deux mécanismes se disputaient sa forme. Le formateur compactait ses
+    // tableaux au commit, l'écriture les dépliait au test suivant, et l'arbre
+    // n'était jamais propre. Voir docs/internal/architecture.md.
+    ignorePatterns: ['dist/**', 'docs/**', 'README.md', '**/.crypte/**'],
     singleQuote: true,
     semi: false,
   },

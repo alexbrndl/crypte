@@ -686,5 +686,37 @@
     "apres": "    const value = property['value'] as Node",
     "trouvee": "revue 6 de la PR #30",
     "attendu": "stories.test.ts > la lecture des stories > garde le nom mais pas la valeur qu’un spread interne peut remplacer"
+  },
+  {
+    "garantie": "Une story sans meta reçoit un statut dans l'empreinte",
+    "fichier": "packages/cli/src/fingerprint.ts",
+    "avant": "      status: entry.meta?.status ?? 'none',",
+    "apres": "      status: entry.meta?.status ?? '',",
+    "trouvee": "lot 4 ter",
+    "attendu": "fingerprint.test.ts > l’empreinte réduite > donne un statut à une story qui n’en déclare aucun"
+  },
+  {
+    "garantie": "L'empreinte trie les props d'un manifeste venu d'ailleurs",
+    "fichier": "packages/cli/src/fingerprint.ts",
+    "avant": "      props: [...entry.props].sort(),",
+    "apres": "      props: [...entry.props],",
+    "trouvee": "lot 4 ter",
+    "attendu": "fingerprint.test.ts > l’empreinte réduite > trie les props d’un manifeste qui ne l’aurait pas fait"
+  },
+  {
+    "garantie": "Le condensé trie les clés à toute profondeur",
+    "fichier": "packages/cli/src/fingerprint.ts",
+    "avant": "    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))",
+    "apres": "    .sort(() => 0)",
+    "trouvee": "lot 4 ter",
+    "attendu": "fingerprint.test.ts > l’empreinte réduite > ne dépend pas de l’ordre des clés d’un objet imbriqué"
+  },
+  {
+    "garantie": "Ce que l'empreinte ne montre pas est replié dans le condensé",
+    "fichier": "packages/cli/src/fingerprint.ts",
+    "avant": "const SHOWN = new Set(['id', 'props'])",
+    "apres": "const SHOWN = new Set(['id', 'props', 'meta', 'component'])",
+    "trouvee": "lot 4 ter",
+    "attendu": "fingerprint.test.ts > l’empreinte réduite > replie dans une empreinte tout ce qu’elle ne montre pas"
   }
 ]

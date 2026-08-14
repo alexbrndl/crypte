@@ -1,6 +1,7 @@
 // Ce que pèse un manifeste, et ce que coûterait d'en garder l'historique.
 // N'assertionne rien, se lance à la main. Voir docs/internal/architecture.md.
 
+import { createHash } from 'node:crypto'
 import { gzipSync } from 'node:zlib'
 
 const folders = [
@@ -114,6 +115,13 @@ function makeEntry(i) {
     if (rnd() > 0.6) details[p].default = rnd() > 0.5 ? '' : 0
   }
 
+  // `details` est la surface du composant, `props` ce que **cette** story pose :
+  // un sous-ensemble, puisqu'une story n'exerce presque jamais tout. Les deux
+  // listes confondues, l'empreinte pèserait plus qu'elle ne doit et ne bougerait
+  // pas quand une story change de props.
+  const surface = Object.keys(details)
+  const set = surface.slice(0, 1 + Math.floor(rnd() * Math.min(6, surface.length)))
+
   return {
     type: 'story',
     id: `${folder}/${comp.toLowerCase()}--${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
@@ -123,7 +131,10 @@ function makeEntry(i) {
     storyFile: `stories/${folder}/${comp}.ts`,
     options: {},
     details,
-    source: `<${comp} ${pick(props)}="${phrase(2)}" />`,
+    props: [...set].sort(),
+    // Le code d'appel porte les props posées, comme celui que le CLI reconstruit
+    // du texte de l'auteur : un seul nom sous-estimait le champ d'un facteur cinq.
+    source: `<${comp}${set.map((prop) => ` ${prop}="${phrase(2)}"`).join('')} />`,
     meta: {
       status: pick(['draft', 'stable', 'deprecated']),
       owner: pick(['design-system', 'funnel', 'growth']),
@@ -176,11 +187,20 @@ const lock = {
     id: e.id,
     component: `${e.component.file}#${e.component.export}`,
     status: e.meta.status,
-    props: Object.keys(e.details).sort().join(','),
-    hash: String((JSON.stringify(e.details).length * 2654435761) % 4294967296),
+    // Le champ de l'entrée, pas une reconstitution depuis `details` : ce sont
+    // deux listes différentes, et c'est celle des props posées qui doit être
+    // versionnée. Dérivée de `details`, l'empreinte ne bougeait pas quand une
+    // story changeait de props sans que le composant change.
+    props: e.props,
+    // Seize caractères hexadécimaux, comme `fingerprint.ts` : un condensé plus
+    // court ou décimal rendait l'empreinte plus légère qu'elle ne l'est.
+    rest: createHash('sha256').update(JSON.stringify(e)).digest('hex').slice(0, 16),
   })),
 }
-const lockJson = JSON.stringify(lock)
+// Indentée et terminée par un saut de ligne, comme le producteur l'écrit. Sans
+// ça la mesure portait sur une forme que rien n'écrit : 170 octets par story au
+// lieu de 268, mesuré à la revue de la PR #31.
+const lockJson = `${JSON.stringify(lock, null, 2)}\n`
 console.log(
   `empreinte réduite, 500 entrées : ${(Buffer.byteLength(lockJson) / 1024).toFixed(1)} Ko brut, ${(gzipSync(lockJson).length / 1024).toFixed(1)} Ko gzip`,
 )
