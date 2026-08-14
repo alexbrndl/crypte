@@ -265,6 +265,54 @@ describe('la lecture des stories', () => {
     expect(skipped).toMatch(/computed at runtime/)
   })
 
+  // Le repli sur `Default` appartient au fichier qui ne nomme aucune story. Un
+  // fichier dont les clés sont toutes illisibles en nomme, donc replier
+  // inventait une entrée que l'auteur n'a jamais écrite, avec un identifiant
+  // qui devient une URL et une clé de baseline.
+  it('ne replie pas sur Default quand le fichier nomme des stories illisibles', () => {
+    const source = [
+      "import { A } from '../a'",
+      'export default defineStories(A, {',
+      '  props: { shared: 1 },',
+      '  stories: { [key]: { a: 1 } },',
+      '})',
+    ].join('\n')
+
+    const { entries, skipped } = fileWith('A.ts', source)
+
+    expect(entries).toEqual([])
+    expect(skipped).toMatch(/computed at runtime/)
+  })
+
+  it('replie sur Default quand le fichier ne déclare pas de bloc stories', () => {
+    const source = [
+      "import { A } from '../a'",
+      'export default defineStories(A, { props: { shared: 1 } })',
+    ].join('\n')
+
+    const { entries, skipped } = fileWith('A.ts', source)
+
+    expect(entries.map((entry) => entry.name)).toEqual(['Default'])
+    expect(skipped).toBeUndefined()
+  })
+
+  // Le nom n'est pas inventé, ce qui est juste, mais la perte était muette :
+  // l'auteur voyait un catalogue amputé et aucun message.
+  it('signale les stories qu’un spread emporte', () => {
+    const source = [
+      "import { A } from '../a'",
+      "import { common } from '../common'",
+      'export default defineStories(A, {',
+      '  stories: { ...common, Une: { a: 1 } },',
+      '})',
+    ].join('\n')
+
+    const { entries, skipped } = fileWith('A.ts', source)
+
+    expect(entries.map((entry) => entry.name)).toEqual(['Une'])
+    expect(skipped).toMatch(/spread/)
+  })
+
   it('laisse de côté une prop dont la clé est calculée', () => {
     const source = [
       "import { A } from '../a'",

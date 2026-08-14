@@ -62,11 +62,15 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
   // The helper can be imported under another name, and any other call is
   // somebody else's function whose arguments say nothing about props.
   const helper = boundTo(parsed.module, 'story') ?? 'story'
-  const { stories: declared, dropped } = listed(propertyOf(definition, 'stories'), helper)
-  const stories =
-    declared.length > 0
-      ? declared
-      : [{ name: ONLY_STORY, own: new Map<string, Node>(), options: undefined }]
+  const named = listed(propertyOf(definition, 'stories'), helper)
+
+  // The single `Default` belongs to a file that names no story, and only to
+  // that file: section 2.2. A file whose keys are all unreadable names stories,
+  // so falling back here would invent an entry its author never wrote, with an
+  // identifier that becomes a URL and a baseline key.
+  const stories = named.declares
+    ? named.stories
+    : [{ name: ONLY_STORY, own: new Map<string, Node>(), options: undefined }]
 
   return {
     entries: stories.map((story) => {
@@ -86,30 +90,37 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
         ...(meta ? { meta } : {}),
       } satisfies StoryEntry
     }),
-    ...(dropped > 0
-      ? {
-          skipped: `${dropped} story key${dropped > 1 ? 's' : ''} computed at runtime, which this reader cannot name`,
-        }
-      : {}),
+    ...(named.lost.length > 0 ? { skipped: `stories left out: ${named.lost.join(', ')}` } : {}),
   }
 }
 
 // The keys a `Story` literal carries, and nothing else: section 2.3.
 const STORY_SHAPE = new Set(['props', 'options'])
 
-// The stories the file names, in the order it writes them. A key computed at
-// runtime is dropped rather than guessed: a story name is a URL, a baseline key
-// and a comment anchor, so a wrong one costs more than a missing one.
+// The stories the file names, in the order it writes them.
+//
+// `declares` says whether the file names any story at all, which is not the
+// same as producing one: a key computed at runtime and a spread both name
+// stories this reader cannot read. Every one of them is counted, because a
+// story silently missing from a catalogue looks like a story nobody wrote.
 function listed(stories: Node | null, helper: string) {
   const found: { name: string; own: Map<string, Node>; options: Node | undefined }[] = []
-  let dropped = 0
+  const lost: string[] = []
 
-  if (stories?.type !== 'ObjectExpression') return { stories: found, dropped }
+  if (stories?.type !== 'ObjectExpression') return { stories: found, lost, declares: false }
 
-  for (const property of stories['properties'] as Node[]) {
-    if (property.type !== 'Property') continue
+  const properties = stories['properties'] as Node[]
+
+  for (const property of properties) {
+    if (property.type !== 'Property') {
+      lost.push('one brought by a spread')
+      continue
+    }
+
+    // A name is a URL, a baseline key and the anchor of a comment, so a wrong
+    // one costs more than a missing one.
     if (property['computed'] === true) {
-      dropped += 1
+      lost.push('one whose key is computed at runtime')
       continue
     }
 
@@ -117,7 +128,7 @@ function listed(stories: Node | null, helper: string) {
     found.push({ name: keyOf(property['key'] as Node), ...declaredBy(value, helper) })
   }
 
-  return { stories: found, dropped }
+  return { stories: found, lost, declares: properties.length > 0 }
 }
 
 // Three forms carry the same thing. A bare object is the props. `story(props,

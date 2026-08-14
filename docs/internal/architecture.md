@@ -470,6 +470,20 @@ Trois choses ne se lisent pas sans exécuter le fichier : un spread, une clé ca
 
 *Le helper est reconnu par sa liaison, pas par son nom.* `import { story as s }` est suivi, et `make({ a: 1 })` n'est plus pris pour lui. Sans ça, le premier argument de n'importe quel appel passait pour des props.
 
+*Et ce qui est écarté est compté.* Une story perdue en silence ressemble à une story que personne n'a écrite, donc chaque clé illisible, calculée ou apportée par un spread, remonte dans la raison du fichier.
+
+**Le repli sur `Default` appartient au fichier qui ne nomme aucune story.**
+
+*Mesuré à la revue de la PR #30 :* le repli se déclenchait aussi quand le bloc `stories` existait et ne rendait rien de lisible. Un fichier dont la seule clé était calculée produisait donc une entrée que son auteur n'avait jamais écrite, avec un identifiant devenant une URL, une clé de baseline et l'ancre d'un commentaire, et des props entrant dans le chiffre de couverture. La condition porte donc sur la présence du bloc, pas sur ce qui en est sorti.
+
+**L'ordre des extensions est celui de Vite, et il est vérifié à la source.**
+
+`resolve.extensions` vaut `['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json']` par défaut dans `vite@8.2.1`, lu dans ses propres types. `.vue` est ajouté en dernier et nous appartient : Vite le tient d'un plugin, et aucun plugin ne tourne ici.
+
+*Ce qui casse si on l'enlève :* sur un projet portant `Card.ts` et `Card.js` côte à côte, cas courant quand une sortie de build voisine sa source, la preview importe l'un et le catalogue écrit l'autre. La page composant ouvre alors un fichier qui n'est pas celui qui rend. C'est la divergence que l'export de `ordered` ferme sur l'axe des motifs, laissée ouverte sur l'axe des extensions pendant un tour.
+
+Chaque fichier est essayé avant tout `index`, sinon `Card/index.tsx` gagnait contre `Card.js`.
+
 **Les deux formes d'une story ne se distinguent que par leurs clés.**
 
 La section 2.3 des contrats type `Partial<P> | Story<P>`, donc `{ props: …, options: … }` s'écrit à la main. Un objet qui déclare `props`, et au plus `options`, est lu comme un `Story`. L'ambiguïté est celle de l'union elle-même : un composant dont les props sont exactement `props` et `options` est lu de travers, et aucune autre lecture n'est possible sans exécuter le fichier.

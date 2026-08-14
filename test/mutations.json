@@ -522,7 +522,7 @@
   {
     "garantie": "Une clé de story calculée n'invente pas un nom de story",
     "fichier": "packages/cli/src/stories.ts",
-    "avant": "    if (property['computed'] === true) {\n      dropped += 1\n      continue\n    }",
+    "avant": "    if (property['computed'] === true) {\n      lost.push('one whose key is computed at runtime')\n      continue\n    }",
     "apres": "",
     "trouvee": "revue de la PR #30",
     "attendu": "stories.test.ts > la lecture des stories > laisse tomber une story dont la clé est calculée"
@@ -558,5 +558,37 @@
     "apres": "      (property['key'] as Node)['name'] === name,",
     "trouvee": "revue de la PR #30",
     "attendu": "stories.test.ts > la lecture des stories > trouve un bloc dont la clé est entre guillemets"
+  },
+  {
+    "garantie": "Default n'est rendu qu'au fichier qui ne nomme aucune story",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  const stories = named.declares\n    ? named.stories\n    : [{ name: ONLY_STORY, own: new Map<string, Node>(), options: undefined }]",
+    "apres": "  const stories =\n    named.stories.length > 0\n      ? named.stories\n      : [{ name: ONLY_STORY, own: new Map<string, Node>(), options: undefined }]",
+    "trouvee": "revue de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand le fichier nomme des stories illisibles"
+  },
+  {
+    "garantie": "Un spread dans le bloc stories est signalé, pas avalé",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    if (property.type !== 'Property') {\n      lost.push('one brought by a spread')\n      continue\n    }",
+    "apres": "    if (property.type !== 'Property') continue",
+    "trouvee": "revue de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > signale les stories qu’un spread emporte"
+  },
+  {
+    "garantie": "Les extensions sont essayées dans l'ordre de Vite",
+    "fichier": "packages/cli/src/manifest.ts",
+    "avant": "const RESOLVED = ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json', '.vue']",
+    "apres": "const RESOLVED = ['.tsx', '.ts', '.jsx', '.js', '.vue', '.mjs', '.mts', '.json']",
+    "trouvee": "revue de la PR #30",
+    "attendu": "manifest.test.ts > le catalogue > résout dans l’ordre d’extensions de Vite"
+  },
+  {
+    "garantie": "Un fichier gagne contre un dossier portant un index",
+    "fichier": "packages/cli/src/manifest.ts",
+    "avant": "  for (const extension of RESOLVED) {\n    if (isFile(candidate + extension)) return candidate + extension\n  }\n\n  for (const extension of RESOLVED) {\n    const index = join(candidate, `index${extension}`)\n    if (isFile(index)) return index\n  }",
+    "apres": "  for (const extension of RESOLVED) {\n    if (isFile(candidate + extension)) return candidate + extension\n    const index = join(candidate, `index${extension}`)\n    if (isFile(index)) return index\n  }",
+    "trouvee": "revue de la PR #30",
+    "attendu": "manifest.test.ts > le catalogue > préfère un fichier à un dossier portant un index"
   }
 ]

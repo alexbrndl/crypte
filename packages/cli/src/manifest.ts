@@ -18,8 +18,9 @@ const SKIPPED_FOLDERS = new Set(['node_modules', '.git', 'dist'])
 
 export interface Catalogue {
   manifest: Manifest
-  // Story files that produced nothing, with the reason. The caller reports
-  // them: a build that swallows them looks like a project with no stories.
+  // What a story file could not produce, with the reason, whether it produced
+  // nothing at all or only part of its stories. The caller reports it: a build
+  // that swallows this looks like a project with fewer stories than it has.
   skipped: { file: string; reason: string }[]
 }
 
@@ -91,9 +92,15 @@ export function storyFiles(folder: string): string[] {
   return found
 }
 
-// The extensions tried on a target that carries none, in the order Vite tries
-// them. A project writing `.vue` gets it, since the story names its own file.
-const RESOLVED = ['.tsx', '.ts', '.jsx', '.js', '.vue', '.mjs', '.mts', '.json']
+// The extensions tried on a target that carries none, in `resolve.extensions`
+// order, which vite@8.2.1 documents as its default. Any other order resolves a
+// component here and another one in the preview, on a project holding both
+// `Card.ts` and `Card.js`.
+//
+// `.vue` is last and is ours: Vite gets it from a plugin, and no plugin runs
+// here. A Vue project therefore resolves its components, and a project holding
+// both `Card.js` and `Card.vue` gets the same file the preview would.
+const RESOLVED = ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json', '.vue']
 
 // The story names its component with the identifier the project writes, alias
 // included. Section 4.2 promises a file, so the identifier is turned into one.
@@ -129,12 +136,19 @@ function candidates(specifier: string, storyFile: string, project: Project): str
 
 // A target with no extension is a file to complete, or a folder holding an
 // `index`. Both are what an import of a component looks like.
+//
+// Every file before any `index`, the order Node and Vite use. Interleaving the
+// two made `Card/index.tsx` win over `Card.js`.
 function probe(candidate: string): string | undefined {
   if (extname(candidate) && isFile(candidate)) return candidate
 
   for (const extension of RESOLVED) {
     if (isFile(candidate + extension)) return candidate + extension
-    if (isFile(join(candidate, `index${extension}`))) return join(candidate, `index${extension}`)
+  }
+
+  for (const extension of RESOLVED) {
+    const index = join(candidate, `index${extension}`)
+    if (isFile(index)) return index
   }
 
   return undefined

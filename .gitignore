@@ -16,5 +16,7 @@ coverage/
 
 .claude/worktrees/
 
-# Written by the build, never committed: see docs/decisions.md
-.crypte/
+# The manifest by name, not the folder: the fingerprint sits beside it and is
+# committed, and Git ignores a negation inside an excluded folder.
+# See docs/decisions.md.
+.crypte/manifest.json

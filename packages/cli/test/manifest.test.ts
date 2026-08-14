@@ -187,6 +187,37 @@ describe('le catalogue', () => {
     ])
   })
 
+  // L'ordre des extensions doit être celui que vite@8.2.1 documente pour
+  // `resolve.extensions`. Tout autre ordre fait résoudre un composant ici et un
+  // autre dans la preview, sur un projet qui porte les deux fichiers.
+  it('résout dans l’ordre d’extensions de Vite', async () => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      'src/Card.js': 'export const Card = () => null\n',
+      'src/Card.ts': 'export const Card = () => null\n',
+      'stories/Card.js': "import { Card } from '../src/Card'\nexport default defineStories(Card)\n",
+    })
+
+    const { manifest } = buildCatalogue(await loadProject(root))
+
+    expect(manifest.entries[0]?.component.file).toBe('src/Card.js')
+  })
+
+  // Chaque fichier avant tout `index`, sans quoi `Card/index.tsx` gagnait
+  // contre `Card.js`.
+  it('préfère un fichier à un dossier portant un index', async () => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      'src/Card.js': 'export const Card = () => null\n',
+      'src/Card/index.tsx': 'export const Card = () => null\n',
+      'stories/Card.js': "import { Card } from '../src/Card'\nexport default defineStories(Card)\n",
+    })
+
+    const { manifest } = buildCatalogue(await loadProject(root))
+
+    expect(manifest.entries[0]?.component.file).toBe('src/Card.js')
+  })
+
   it('écrit un JSON relu tel quel', async () => {
     const project = await loadProject(fixture)
     const root = projectWith({})
