@@ -407,6 +407,45 @@ describe('la lecture des stories', () => {
     expect(entries[0]?.props).toEqual(['own', 'second'])
   })
 
+  // `shadowed` visait la première occurrence, `propertyOf` lit la dernière. Sur
+  // une clé écrite de part et d'autre d'un spread, le bloc était jeté alors que
+  // la valeur qui gagne n'est précédée d'aucun spread.
+  it('lit une clé réécrite après un spread', () => {
+    const source = [
+      "import { A } from '../a'",
+      "import { base } from '../base'",
+      'export default defineStories(A, {',
+      '  props: { x: 1 },',
+      '  ...base,',
+      '  props: { y: 2 },',
+      '  stories: { Une: {} },',
+      '})',
+    ].join('\n')
+
+    const { entries } = fileWith('A.ts', source)
+
+    expect(entries[0]?.props).toEqual(['y'])
+    expect(entries[0]?.source).toBe('<A y={2} />')
+  })
+
+  // Le nom reste certain, le littéral le pose quoi que porte le spread. La
+  // valeur ne l'est pas, donc elle ne part pas dans le code d'appel.
+  it('garde le nom mais pas la valeur qu’un spread interne peut remplacer', () => {
+    const source = [
+      "import { A } from '../a'",
+      "import { base } from '../base'",
+      'export default defineStories(A, {',
+      "  props: { title: 'écrite', ...base, kept: 2 },",
+      '  stories: { Une: {} },',
+      '})',
+    ].join('\n')
+
+    const { entries } = fileWith('A.ts', source)
+
+    expect(entries[0]?.props).toEqual(['kept', 'title'])
+    expect(entries[0]?.source).toBe('<A kept={2} />')
+  })
+
   // `props` et `meta` se lisent de la même façon, donc ils courent le même
   // risque : une liste de props fausse ment dans un chiffre de couverture.
   it('ne lit pas les props ni le meta qu’un spread peut remplacer', () => {

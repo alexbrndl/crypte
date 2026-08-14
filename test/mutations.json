@@ -426,8 +426,8 @@
   {
     "garantie": "Un spread n'apporte aucun nom de prop inventé",
     "fichier": "packages/cli/src/stories.ts",
-    "avant": "    if (property.type !== 'Property' || property['computed'] === true) continue\n\n    props.set(keyOf(property['key'] as Node), property['value'] as Node)",
-    "apres": "    if (property['computed'] === true) continue\n\n    props.set(keyOf(property['key'] as Node), property['value'] as Node)",
+    "avant": "    if (property.type !== 'Property' || property['computed'] === true) continue\n\n    const value = index < lastSpread ? undefined : (property['value'] as Node)",
+    "apres": "    if (property['computed'] === true) continue\n\n    const value = index < lastSpread ? undefined : (property['value'] as Node)",
     "trouvee": "lot 4",
     "attendu": "stories.test.ts > la lecture des stories > laisse de côté les props qu’un spread apporte"
   },
@@ -530,8 +530,8 @@
   {
     "garantie": "Une clé de prop calculée n'invente pas un nom de prop",
     "fichier": "packages/cli/src/stories.ts",
-    "avant": "    if (property.type !== 'Property' || property['computed'] === true) continue\n\n    props.set(keyOf(property['key'] as Node), property['value'] as Node)",
-    "apres": "    if (property.type !== 'Property') continue\n\n    props.set(keyOf(property['key'] as Node), property['value'] as Node)",
+    "avant": "    if (property.type !== 'Property' || property['computed'] === true) continue\n\n    const value = index < lastSpread ? undefined : (property['value'] as Node)",
+    "apres": "    if (property.type !== 'Property') continue\n\n    const value = index < lastSpread ? undefined : (property['value'] as Node)",
     "trouvee": "revue de la PR #30",
     "attendu": "stories.test.ts > la lecture des stories > laisse de côté une prop dont la clé est calculée"
   },
@@ -670,5 +670,21 @@
     "apres": "    if (!named.has(name)) named.set(name, { name, ...declaredBy(property['value'] as Node, helper) })",
     "trouvee": "revue 5 de la PR #30",
     "attendu": "stories.test.ts > la lecture des stories > garde la dernière valeur d’une clé écrite deux fois"
+  },
+  {
+    "garantie": "Une clé réécrite après un spread reste lisible",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  const at = properties.findLastIndex(",
+    "apres": "  const at = properties.findIndex(",
+    "trouvee": "revue 6 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > lit une clé réécrite après un spread"
+  },
+  {
+    "garantie": "Le code d'appel ne montre pas une valeur qu'un spread peut remplacer",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    const value = index < lastSpread ? undefined : (property['value'] as Node)",
+    "apres": "    const value = property['value'] as Node",
+    "trouvee": "revue 6 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > garde le nom mais pas la valeur qu’un spread interne peut remplacer"
   }
 ]

@@ -316,11 +316,17 @@ Le verdict ne pouvait pas être « n'est gardée par rien » : celui-là ne dép
 
 *Pourquoi ça existe :* le catalogue cite du code par son texte, donc toute refonte le périme en silence. Le contrôle de mutation le dit, mais il coûte quatre minutes ; ces cas le disent en une seconde, avant le commit.
 
-*Son coût croît avec le catalogue.* Mesuré à 84 garanties : `pack` 30 ms, `test` 2264 ms, `check` 1416 ms par mutation, soit 3,7 s, donc 5 min en local et le double en intégration continue, qui tourne sur 4 threads. Le délai du job est à 30 min pour cette raison, et non à 10. Un lancement ciblé sur le seul fichier de test attendu ramènerait chaque mutation à 0,8 s : c'est `DCJ-216`.
+*Son coût croît avec le catalogue.* Chronométré à 86 garanties : **4 min 13 s** en local. Par mutation, `pack` 30 ms, `test` 2264 ms, `check` 1416 ms, soit 3,7 s mesurés isolément ; la déduction 3,7 × 86 donnait 5,3 min, donc elle surestime d'un quart, et c'est le chronomètre qui compte.
 
-*Ce qui casse si on l'enlève :* une garantie dont le motif a disparu ne casse plus rien, donc elle ne surveille plus rien, et le catalogue continue d'annoncer son compte. Mesuré sur le lot 4 : trois refontes, cinq motifs périmés, chacun appris par un contrôle complet.
+En intégration continue, l'observation est plus pauvre : le job a été **annulé à 10 min** sans finir, sur un job qui enchaîne aussi `install`, `pack`, `check`, `typecheck` et `test`. Ce qui est établi est donc « plus de 10 minutes », pas un facteur. Le délai est passé à 30 min pour cette raison. Un lancement ciblé sur le seul fichier de test attendu ramènerait chaque mutation à 0,8 s : c'est `DCJ-216`.
 
-Deux modes de péremption, et le second est le sournois. Le motif **disparaît**, et le contrôle le signale clairement. Ou le motif devient **ambigu**, parce qu'un second endroit du fichier porte le même texte : `shadowed` a réutilisé le test de clé de `propertyOf`, et le motif court s'est mis à correspondre deux fois.
+*Ce qui casse si on l'enlève :* une garantie dont le motif a disparu ne casse plus rien, donc elle ne surveille plus rien, et le catalogue continue d'annoncer son compte. Mesuré sur le lot 4 : cinq refontes, sept motifs périmés. Les cinq premiers ont coûté un contrôle complet chacun ; les deux derniers ont été vus par ce test, en quelques millisecondes.
+
+Trois modes de péremption, et les deux derniers sont les sournois.
+
+Le motif **disparaît**, et le contrôle le signale clairement. Ou le motif devient **ambigu**, parce qu'un second endroit du fichier porte le même texte : `shadowed` a réutilisé le test de clé de `propertyOf`, et le motif court s'est mis à correspondre deux fois. Ou le **cas attendu** est renommé, et la garantie n'attend plus rien : c'est ce que `DCJ-210` s'apprête à faire sur 183 noms de tests.
+
+Le troisième ne se vérifie que sur les entrées qui nomment un fichier de test, une soixantaine sur 86. `attendu` est du texte libre par construction, le contrôle le cherchant comme sous-chaîne dans la sortie : les autres nomment un titre de cas, un code d'erreur TypeScript ou une fixture, et rien de structurel ne s'y vérifie.
 
 ---
 

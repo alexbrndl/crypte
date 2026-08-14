@@ -95,7 +95,9 @@ const STORY_SHAPE = new Set(['props', 'options'])
 
 interface Declared {
   name: string
-  own: Map<string, Node>
+  // A value is `undefined` when a spread of the same object may replace it: the
+  // name is certain, the value is not. See `propsOf`.
+  own: Map<string, Node | undefined>
   options: Node | undefined
 }
 
@@ -207,7 +209,7 @@ function declaredBy(value: Node, helper: string) {
   if (value.type === 'CallExpression') {
     const callee = value['callee'] as Node
     if (callee?.type !== 'Identifier' || callee['name'] !== helper) {
-      return { own: new Map<string, Node>(), options: undefined }
+      return { own: new Map<string, Node | undefined>(), options: undefined }
     }
 
     const args = value['arguments'] as Node[]
@@ -247,12 +249,16 @@ function asStoryLiteral(value: Node): { props: Node | null; options: Node | null
 
 // Whether a spread decides the value of a key rather than the file. True when a
 // spread follows the key, and true for any spread when the key is absent, since
-// `findIndex` gives -1 and every position is then after it.
+// `findLastIndex` gives -1 and every position is then after it.
+//
+// The **last** occurrence, the one `propertyOf` reads: on
+// `{ props: a, ...base, props: b }` the spread precedes the value that wins, so
+// it decides nothing.
 function shadowed(object: Node | undefined, name: string): boolean {
   if (object?.type !== 'ObjectExpression') return false
 
   const properties = object['properties'] as Node[]
-  const at = properties.findIndex(
+  const at = properties.findLastIndex(
     (property) =>
       property.type === 'Property' &&
       property['computed'] !== true &&
@@ -310,18 +316,26 @@ function propertyOf(object: Node | undefined, name: string): Node | null {
   return (found?.['value'] as Node | undefined) ?? null
 }
 
-// The props an object literal writes, kept in order and paired with their
-// value. A spread and a key computed at runtime both carry names we cannot read
-// without running the file, so they are left out rather than guessed: a wrong
-// name would enter a coverage figure and a prop search.
-function propsOf(object: Node | null): Map<string, Node> {
-  const props = new Map<string, Node>()
+// The props an object literal writes, kept in order and paired with their value.
+// A spread and a key computed at runtime both carry names we cannot read without
+// running the file, so they are left out rather than guessed: a wrong name would
+// enter a coverage figure and a prop search.
+//
+// A value is `undefined` when a spread of the same object follows it. The name is
+// certain, since the literal sets it whatever the spread holds, but the value is
+// not, so it is left out of the call code rather than shown wrong.
+function propsOf(object: Node | null): Map<string, Node | undefined> {
+  const props = new Map<string, Node | undefined>()
   if (object?.type !== 'ObjectExpression') return props
 
-  for (const property of object['properties'] as Node[]) {
+  const properties = object['properties'] as Node[]
+  const lastSpread = properties.findLastIndex((property) => property.type !== 'Property')
+
+  for (const [index, property] of properties.entries()) {
     if (property.type !== 'Property' || property['computed'] === true) continue
 
-    props.set(keyOf(property['key'] as Node), property['value'] as Node)
+    const value = index < lastSpread ? undefined : (property['value'] as Node)
+    props.set(keyOf(property['key'] as Node), value)
   }
 
   return props
@@ -329,8 +343,12 @@ function propsOf(object: Node | null): Map<string, Node> {
 
 // The call the user would have written by hand, rebuilt from their own text so
 // that an expression we cannot evaluate still reads as they wrote it.
-function callOf(name: string, props: Map<string, Node>, source: string): string {
+function callOf(name: string, props: Map<string, Node | undefined>, source: string): string {
   const written = [...props].map(([prop, value]) => {
+    // A value a spread may replace: the prop is set, its value is unknown, and
+    // showing the written one would put in the snippet what the run does not have.
+    if (value === undefined) return ''
+
     const raw = source.slice(value.start, value.end)
 
     if (value.type === 'Literal' && typeof value['value'] === 'string') {

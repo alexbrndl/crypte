@@ -17,9 +17,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     # 30 et non 10 à cause du contrôle de mutation, qui rejoue la suite une fois
-    # par garantie. Mesuré à 84 garanties : 3,7 s chacune en local, soit 5 min,
-    # et l'intégration continue tourne sur 4 threads au lieu de 10. À 10 min le
-    # travail était annulé en cours. Voir docs/internal/architecture.md.
+    # par garantie. Chronométré à 86 garanties : 4 min 13 s en local, et ici le
+    # travail était annulé à 10 min sans finir. Voir docs/internal/architecture.md.
     timeout-minutes: 30
     strategy:
       fail-fast: false
