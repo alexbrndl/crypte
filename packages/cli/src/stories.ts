@@ -156,12 +156,23 @@ function readStories(definition: Node | undefined, helper: string): StoriesRead 
     return { kind: 'unusable', reason: 'the stories block names no story' }
   }
 
-  const stories: Declared[] = []
+  // The same rule one level down: a spread replaces the keys it follows, so
+  // nothing written before the last one can be trusted.
+  const lastSpread = properties.findLastIndex((property) => property.type !== 'Property')
+
+  // Keyed by name so a name written twice keeps its last value, the way the
+  // object literal does. A Map keeps the first position, as the literal does.
+  const named = new Map<string, Declared>()
   const lost: string[] = []
 
-  for (const property of properties) {
+  for (const [index, property] of properties.entries()) {
     if (property.type !== 'Property') {
       lost.push('one brought by a spread')
+      continue
+    }
+
+    if (index < lastSpread) {
+      lost.push('one a later spread may replace')
       continue
     }
 
@@ -172,9 +183,11 @@ function readStories(definition: Node | undefined, helper: string): StoriesRead 
       continue
     }
 
-    const value = property['value'] as Node
-    stories.push({ name: keyOf(property['key'] as Node), ...declaredBy(value, helper) })
+    const name = keyOf(property['key'] as Node)
+    named.set(name, { name, ...declaredBy(property['value'] as Node, helper) })
   }
+
+  const stories = [...named.values()]
 
   if (stories.length === 0) {
     return { kind: 'unusable', reason: `no story this reader can name: ${lost.join(', ')}` }
@@ -285,7 +298,9 @@ function defineStoriesCall(body: Node[]): Node | undefined {
 function propertyOf(object: Node | undefined, name: string): Node | null {
   if (object?.type !== 'ObjectExpression') return null
 
-  const found = (object['properties'] as Node[]).find(
+  // The last one, not the first: a key written twice keeps its last value at
+  // runtime, and `find` would read the one the file discards.
+  const found = (object['properties'] as Node[]).findLast(
     (property) =>
       property.type === 'Property' &&
       property['computed'] !== true &&

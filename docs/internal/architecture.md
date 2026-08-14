@@ -508,6 +508,10 @@ La décision était en plus prise à deux endroits, `listed` et son appelant, do
 
 *Ce qui casse si on l'enlève :* `defineStories(A, { stories: { Une: {} }, ...base })` produit la story `Une` alors que `base` en nomme dix autres, et une liste de props fausse ment dans un chiffre de couverture.
 
+*La même règle vaut un cran plus bas*, à l'intérieur du bloc : `stories: { Avant: {}, ...base, Apres: {} }` ne garde que `Apres`, puisque `base` peut remplacer tout ce qui le précède. Appliquer la règle à la définition sans l'appliquer au bloc a été le constat de la revue 5.
+
+*Et une clé écrite deux fois suit la même logique* : l'exécution garde la dernière, donc `propertyOf` lit par `findLast` et les stories sont collectées dans une `Map`. Aucun spread dans ce cas, donc rien ne prévenait.
+
 **L'ordre des extensions est celui de Vite, et il est vérifié à la source.**
 
 `resolve.extensions` vaut `['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json']` par défaut dans `vite@8.2.1`, lu dans ses propres types. `.vue` est ajouté en dernier et nous appartient : il n'est pas dans cette liste, et le mettre en queue laisse passer devant lui toutes les extensions que Vite énumère.

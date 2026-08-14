@@ -374,6 +374,39 @@ describe('la lecture des stories', () => {
     expect(skipped).toMatch(/spread/)
   })
 
+  // La même règle un cran plus bas : un spread emporte les clés qu'il suit.
+  it('laisse de côté une story qu’un spread plus loin peut remplacer', () => {
+    const source = [
+      "import { A } from '../a'",
+      "import { base } from '../base'",
+      'export default defineStories(A, {',
+      '  stories: { Avant: { a: 1 }, ...base, Apres: { b: 2 } },',
+      '})',
+    ].join('\n')
+
+    const { entries, skipped } = fileWith('A.ts', source)
+
+    expect(entries.map((entry) => entry.name)).toEqual(['Apres'])
+    expect(skipped).toMatch(/a later spread may replace/)
+  })
+
+  // `find` prenait la première, l'exécution garde la dernière.
+  it('garde la dernière valeur d’une clé écrite deux fois', () => {
+    const source = [
+      "import { A } from '../a'",
+      'export default defineStories(A, {',
+      '  props: { first: 1 },',
+      '  props: { second: 2 },',
+      '  stories: { Une: {}, Une: { own: 3 } },',
+      '})',
+    ].join('\n')
+
+    const { entries } = fileWith('A.ts', source)
+
+    expect(entries.map((entry) => entry.name)).toEqual(['Une'])
+    expect(entries[0]?.props).toEqual(['own', 'second'])
+  })
+
   // `props` et `meta` se lisent de la même façon, donc ils courent le même
   // risque : une liste de props fausse ment dans un chiffre de couverture.
   it('ne lit pas les props ni le meta qu’un spread peut remplacer', () => {

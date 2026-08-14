@@ -554,8 +554,8 @@
   {
     "garantie": "Un bloc dont la clé est entre guillemets est trouvé",
     "fichier": "packages/cli/src/stories.ts",
-    "avant": "  const found = (object['properties'] as Node[]).find(\n    (property) =>\n      property.type === 'Property' &&\n      property['computed'] !== true &&\n      keyOf(property['key'] as Node) === name,\n  )",
-    "apres": "  const found = (object['properties'] as Node[]).find(\n    (property) =>\n      property.type === 'Property' &&\n      property['computed'] !== true &&\n      (property['key'] as Node)['name'] === name,\n  )",
+    "avant": "  const found = (object['properties'] as Node[]).findLast(\n    (property) =>\n      property.type === 'Property' &&\n      property['computed'] !== true &&\n      keyOf(property['key'] as Node) === name,\n  )",
+    "apres": "  const found = (object['properties'] as Node[]).findLast(\n    (property) =>\n      property.type === 'Property' &&\n      property['computed'] !== true &&\n      (property['key'] as Node)['name'] === name,\n  )",
     "trouvee": "revue de la PR #30",
     "attendu": "stories.test.ts > la lecture des stories > trouve un bloc dont la clé est entre guillemets"
   },
@@ -646,5 +646,29 @@
     "apres": "  const shared = propsOf(propertyOf(definition, 'props'))",
     "trouvee": "auto-review du lot 4",
     "attendu": "stories.test.ts > la lecture des stories > ne lit pas les props ni le meta qu’un spread peut remplacer"
+  },
+  {
+    "garantie": "Un spread plus loin dans le bloc emporte les stories qu'il suit",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    if (index < lastSpread) {\n      lost.push('one a later spread may replace')\n      continue\n    }",
+    "apres": "",
+    "trouvee": "revue 5 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > laisse de côté une story qu’un spread plus loin peut remplacer"
+  },
+  {
+    "garantie": "Une clé écrite deux fois garde sa dernière valeur",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  const found = (object['properties'] as Node[]).findLast(",
+    "apres": "  const found = (object['properties'] as Node[]).find(",
+    "trouvee": "revue 5 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > garde la dernière valeur d’une clé écrite deux fois"
+  },
+  {
+    "garantie": "Une story écrite deux fois garde sa dernière valeur",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    named.set(name, { name, ...declaredBy(property['value'] as Node, helper) })",
+    "apres": "    if (!named.has(name)) named.set(name, { name, ...declaredBy(property['value'] as Node, helper) })",
+    "trouvee": "revue 5 de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > garde la dernière valeur d’une clé écrite deux fois"
   }
 ]
