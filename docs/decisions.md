@@ -10,6 +10,28 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 ---
 
+## What the reader cannot read is said, at two levels, and never blocks
+
+_2026-08-14_
+
+**Decided.** When the CLI cannot read something in a story file, it says so in the shell, at one of two levels, and it never stops the user from working.
+
+**An error** when the story does not exist for Crypte: it is missing from the sidebar, so the message has to be visible without being looked for. **A warning** when the story is there and renders but its page is incomplete, typically a props table missing the names a spread carries.
+
+**Rejected.** Refusing the file, which costs a whole catalogue for one story being written. Saying nothing, which is what makes a story vanish in silence. And a single level, which would either shout about an incomplete props table or hide a missing story.
+
+**Why.** Measured: the documented format of section 2.1, imported fixtures included, reads with no reservation at all. A `plan: planPro` yields the `plan` prop and a `source` of `plan={planPro}`. So none of this touches a user who follows the guide.
+
+Past that, three cases exist and only two of them are the user's doing. The format can be broken, which is an error. Some code is legitimate JavaScript this reader cannot follow without running the file, `props: { ...baseProps, title }` being the ordinary case, and section 1.3 encourages exactly that kind of sharing. And `stories: {}` is somebody's deliberate empty file.
+
+**So the wording of the middle case matters more than the level.** It has to say that the tool cannot read it, never that the author got it wrong. A message that blames the user for a limitation of static analysis teaches them to ignore every message after it.
+
+**What it costs.** The reason is attached to a file today. An error can stay that way, since there is no entry to hang it on. A warning has to travel per entry, which is one optional field in `StoryEntry`. Tracked in DCJ-217.
+
+**What would reopen it.** A reader that runs the file, which would remove the middle case entirely and leave only errors. Nothing suggests going there: not running the file is what makes indexing fast and robust.
+
+---
+
 ## A story file is written in the language of its project
 
 _2026-08-14_
