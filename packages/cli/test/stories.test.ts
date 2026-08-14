@@ -148,6 +148,16 @@ describe('la lecture des stories', () => {
     expect(fileWith('A.ts', source).entries[0]?.props).toEqual(['label'])
   })
 
+  // Les entrées d'un fichier partageaient un seul objet `component`. Muter le
+  // champ d'une entrée les mutait toutes, et la résolution recevait au second
+  // passage son propre résultat.
+  it('donne à chaque entrée son propre objet de composant', () => {
+    const { entries } = entriesOf(join(stories, 'checkout', 'OrderSummary.jsx'), fixture, stories)
+
+    expect(entries[0]?.component).not.toBe(entries[1]?.component)
+    expect(entries[0]?.component).toEqual(entries[1]?.component)
+  })
+
   // Section 4.4 : `meta` et `options` voyagent du fichier au manifeste sans
   // être interprétés. `details` attend l'adaptateur, lui.
   it('porte le meta du fichier sur chacune de ses stories', () => {
@@ -212,9 +222,117 @@ describe('la lecture des stories', () => {
     }
   })
 
-  it('refuse un composant qui n’est pas importé', () => {
-    const source = 'export default defineStories(A)\n'
+  // Une référence manquante était fatale, là où une erreur de syntaxe ne
+  // l'était pas : l'asymétrie était l'inverse de celle qui est documentée.
+  it('passe un fichier dont le composant n’est pas importé', () => {
+    const { entries, skipped } = fileWith('A.ts', 'export default defineStories(A)\n')
 
-    expect(() => fileWith('A.ts', source)).toThrow(/without importing it/)
+    expect(entries).toEqual([])
+    expect(skipped).toMatch(/not imported/)
+  })
+
+  // Un espace de noms ne nomme aucun export, donc `export: 'A'` désignerait un
+  // export qui n'existe pas.
+  it('passe un composant lié par un import d’espace de noms', () => {
+    const source = "import * as A from '../a'\nexport default defineStories(A)\n"
+
+    expect(fileWith('A.ts', source).skipped).toMatch(/not imported/)
+  })
+
+  it('garde le nom d’origine d’un composant renommé à l’import', () => {
+    const source = "import { Origin as A } from '../a'\nexport default defineStories(A)\n"
+
+    expect(fileWith('A.ts', source).entries[0]?.component).toEqual({
+      name: 'A',
+      file: '../a',
+      export: 'Origin',
+    })
+  })
+
+  // Un nom de story est une URL, une clé de baseline et l'ancre d'un
+  // commentaire : prendre le nom de la variable donnerait les trois faux.
+  it('laisse tomber une story dont la clé est calculée', () => {
+    const source = [
+      "import { A } from '../a'",
+      'export default defineStories(A, {',
+      '  stories: { [key]: { a: 1 }, Vraie: { b: 2 } },',
+      '})',
+    ].join('\n')
+
+    const { entries, skipped } = fileWith('A.ts', source)
+
+    expect(entries.map((entry) => entry.name)).toEqual(['Vraie'])
+    expect(skipped).toMatch(/computed at runtime/)
+  })
+
+  it('laisse de côté une prop dont la clé est calculée', () => {
+    const source = [
+      "import { A } from '../a'",
+      'export default defineStories(A, {',
+      '  stories: { Une: { [key]: 1, label: 2 } },',
+      '})',
+    ].join('\n')
+
+    const { entries } = fileWith('A.ts', source)
+
+    expect(entries[0]?.props).toEqual(['label'])
+    expect(entries[0]?.source).toBe('<A label={2} />')
+  })
+
+  // La section 2.3 type `Partial<P> | Story<P>` : la seconde forme s'écrit à la
+  // main, sans passer par le helper.
+  it('lit un Story écrit à la main comme le helper l’écrirait', () => {
+    const source = [
+      "import { A } from '../a'",
+      'export default defineStories(A, {',
+      '  stories: { Une: { props: { a: 1 }, options: { b: 2 } } },',
+      '})',
+    ].join('\n')
+
+    const { entries } = fileWith('A.ts', source)
+
+    expect(entries[0]?.props).toEqual(['a'])
+    expect(entries[0]?.options).toEqual({ b: 2 })
+  })
+
+  // N'importe quel appel était traité comme le helper, donc son premier
+  // argument passait pour des props.
+  it('ne prend pas l’appel d’une autre fonction pour le helper', () => {
+    const source = [
+      "import { A } from '../a'",
+      "import { make } from '../make'",
+      'export default defineStories(A, {',
+      '  stories: { Une: make({ a: 1 }) },',
+      '})',
+    ].join('\n')
+
+    expect(fileWith('A.ts', source).entries[0]?.props).toEqual([])
+  })
+
+  it('suit le helper renommé à l’import', () => {
+    const source = [
+      "import { A } from '../a'",
+      "import { story as s } from '@crypte/react'",
+      'export default defineStories(A, {',
+      '  stories: { Une: s({ a: 1 }, { b: 2 }) },',
+      '})',
+    ].join('\n')
+
+    const { entries } = fileWith('A.ts', source)
+
+    expect(entries[0]?.props).toEqual(['a'])
+    expect(entries[0]?.options).toEqual({ b: 2 })
+  })
+
+  it('trouve un bloc dont la clé est entre guillemets', () => {
+    const source = [
+      "import { A } from '../a'",
+      "export default defineStories(A, { 'meta': { status: 'stable' }, 'props': { a: 1 } })",
+    ].join('\n')
+
+    const { entries } = fileWith('A.ts', source)
+
+    expect(entries[0]?.meta).toEqual({ status: 'stable' })
+    expect(entries[0]?.props).toEqual(['a'])
   })
 })

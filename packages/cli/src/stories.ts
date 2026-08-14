@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs'
 import { relative, sep } from 'node:path'
 import { storyId, type StoryEntry } from '@crypte/core/protocol'
 import { parseSync } from 'vite'
-import { ConfigError } from './errors'
 
 // The four extensions a project can write. A project without TypeScript writes
 // its stories in JavaScript: see docs/decisions.md.
@@ -20,8 +19,10 @@ interface Node {
   [key: string]: unknown
 }
 
-// What one story file produced, or the reason it produced nothing. A broken
-// file is skipped, never fatal: one story must not cost the whole catalogue.
+// What one story file produced, and what it could not read. Nothing here is
+// ever fatal: one story must not cost the whole catalogue, so a file that
+// cannot be read gives no entry and a reason, and a file whose stories are
+// only partly readable gives both.
 export interface StoryFileRead {
   entries: StoryEntry[]
   skipped?: string
@@ -44,8 +45,12 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
   }
 
   const name = target['name'] as string
+  const component = componentRef(parsed.module, name)
+  if (!component) {
+    return { entries: [], skipped: `${name} is not imported by a form this reader can follow` }
+  }
+
   const path = pathOf(file, storiesRoot)
-  const component = componentRef(parsed.module, name, root, file)
   const storyFile = posix(relative(root, file))
   const shared = propsOf(propertyOf(definition, 'props'))
 
@@ -54,7 +59,10 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
   // from an adapter's inference and not from the file.
   const meta = record(propertyOf(definition, 'meta'))
 
-  const declared = listed(propertyOf(definition, 'stories'), source)
+  // The helper can be imported under another name, and any other call is
+  // somebody else's function whose arguments say nothing about props.
+  const helper = boundTo(parsed.module, 'story') ?? 'story'
+  const { stories: declared, dropped } = listed(propertyOf(definition, 'stories'), helper)
   const stories =
     declared.length > 0
       ? declared
@@ -69,7 +77,7 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
         id: storyId(path, story.name),
         path,
         name: story.name,
-        component,
+        component: { ...component },
         storyFile,
         options: record(story.options) ?? {},
         details: {},
@@ -78,36 +86,103 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
         ...(meta ? { meta } : {}),
       } satisfies StoryEntry
     }),
+    ...(dropped > 0
+      ? {
+          skipped: `${dropped} story key${dropped > 1 ? 's' : ''} computed at runtime, which this reader cannot name`,
+        }
+      : {}),
   }
 }
 
-// The stories the file names, in the order it writes them.
-function listed(stories: Node | null, source: string) {
-  if (stories?.type !== 'ObjectExpression') return []
+// The keys a `Story` literal carries, and nothing else: section 2.3.
+const STORY_SHAPE = new Set(['props', 'options'])
 
-  return (stories['properties'] as Node[])
-    .filter((property) => property.type === 'Property')
-    .map((property) => {
-      const key = property['key'] as Node
-      const value = property['value'] as Node
+// The stories the file names, in the order it writes them. A key computed at
+// runtime is dropped rather than guessed: a story name is a URL, a baseline key
+// and a comment anchor, so a wrong one costs more than a missing one.
+function listed(stories: Node | null, helper: string) {
+  const found: { name: string; own: Map<string, Node>; options: Node | undefined }[] = []
+  let dropped = 0
 
-      // A story is either a bare props object or a `story(props, options)`
-      // call. The helper belongs to the adapter: its first argument holds the
-      // props, its second the options, which travel untouched.
-      const call = value.type === 'CallExpression' ? (value['arguments'] as Node[]) : undefined
-      const own = call ? (call[0] ?? null) : value
+  if (stories?.type !== 'ObjectExpression') return { stories: found, dropped }
 
-      return { name: nameOf(key, source), own: propsOf(own), options: call?.[1] }
-    })
+  for (const property of stories['properties'] as Node[]) {
+    if (property.type !== 'Property') continue
+    if (property['computed'] === true) {
+      dropped += 1
+      continue
+    }
+
+    const value = property['value'] as Node
+    found.push({ name: keyOf(property['key'] as Node), ...declaredBy(value, helper) })
+  }
+
+  return { stories: found, dropped }
 }
 
-// A key is a quoted string, a bare identifier, or something computed we cannot
-// read without running the file. The last case keeps its own text.
-function nameOf(key: Node, source: string): string {
-  if (key.type === 'Literal') return String(key['value'])
-  if (key.type === 'Identifier') return key['name'] as string
+// Three forms carry the same thing. A bare object is the props. `story(props,
+// options)` keeps the two apart. The literal `{ props, options }` is what the
+// helper returns, and section 2.3 accepts it written by hand.
+function declaredBy(value: Node, helper: string) {
+  if (value.type === 'CallExpression') {
+    const callee = value['callee'] as Node
+    if (callee?.type !== 'Identifier' || callee['name'] !== helper) {
+      return { own: new Map<string, Node>(), options: undefined }
+    }
 
-  return source.slice(key.start, key.end)
+    const args = value['arguments'] as Node[]
+    return { own: propsOf(args[0] ?? null), options: args[1] }
+  }
+
+  const shaped = asStoryLiteral(value)
+  if (shaped) return { own: propsOf(shaped.props), options: shaped.options ?? undefined }
+
+  return { own: propsOf(value), options: undefined }
+}
+
+// A `Story` written by hand rather than through the helper. Recognised by its
+// shape, since nothing else can tell it from a props block: it declares `props`
+// and, at most, `options`. A component whose only prop is called `props` is
+// therefore read as a `Story`, which is the ambiguity of the union itself.
+function asStoryLiteral(value: Node): { props: Node | null; options: Node | null } | undefined {
+  if (value.type !== 'ObjectExpression') return undefined
+
+  const properties = value['properties'] as Node[]
+  if (properties.length === 0) return undefined
+
+  let declaresProps = false
+
+  for (const property of properties) {
+    if (property.type !== 'Property' || property['computed'] === true) return undefined
+
+    const key = keyOf(property['key'] as Node)
+    if (!STORY_SHAPE.has(key)) return undefined
+    if (key === 'props') declaresProps = true
+  }
+
+  return declaresProps
+    ? { props: propertyOf(value, 'props'), options: propertyOf(value, 'options') }
+    : undefined
+}
+
+// The name a non-computed key carries, quoted or bare.
+function keyOf(key: Node): string {
+  return key.type === 'Identifier' ? (key['name'] as string) : String(key['value'])
+}
+
+// The local name an import binds to an exported one, so a helper renamed on
+// import is still recognised.
+function boundTo(module: unknown, exported: string): string | undefined {
+  for (const one of (module as { staticImports?: Node[] })?.staticImports ?? []) {
+    for (const entry of (one['entries'] as Node[]) ?? []) {
+      const imported = entry['importName'] as Node
+      if (imported['kind'] === 'Name' && imported['name'] === exported) {
+        return (entry['localName'] as Node)['value'] as string
+      }
+    }
+  }
+
+  return undefined
 }
 
 // `export default defineStories(…)`, and nothing else. A named export is not a
@@ -121,30 +196,33 @@ function defineStoriesCall(body: Node[]): Node | undefined {
   return callee?.type === 'Identifier' && callee['name'] === 'defineStories' ? call : undefined
 }
 
+// A key can be quoted, so `{ 'meta': … }` has to be found too. A computed key
+// is never a match: nothing says what it holds without running the file.
 function propertyOf(object: Node | undefined, name: string): Node | null {
   if (object?.type !== 'ObjectExpression') return null
 
   const found = (object['properties'] as Node[]).find(
     (property) =>
-      property.type === 'Property' && (property['key'] as Node | undefined)?.['name'] === name,
+      property.type === 'Property' &&
+      property['computed'] !== true &&
+      keyOf(property['key'] as Node) === name,
   )
 
   return (found?.['value'] as Node | undefined) ?? null
 }
 
 // The props an object literal writes, kept in order and paired with their
-// value. A spread carries names we cannot read without running the file, so it
-// is left out rather than guessed.
+// value. A spread and a key computed at runtime both carry names we cannot read
+// without running the file, so they are left out rather than guessed: a wrong
+// name would enter a coverage figure and a prop search.
 function propsOf(object: Node | null): Map<string, Node> {
   const props = new Map<string, Node>()
   if (object?.type !== 'ObjectExpression') return props
 
   for (const property of object['properties'] as Node[]) {
-    if (property.type !== 'Property') continue
+    if (property.type !== 'Property' || property['computed'] === true) continue
 
-    const key = property['key'] as Node
-    const name = key.type === 'Identifier' ? (key['name'] as string) : String(key['value'])
-    props.set(name, property['value'] as Node)
+    props.set(keyOf(property['key'] as Node), property['value'] as Node)
   }
 
   return props
@@ -249,7 +327,10 @@ function literalOf(node: Node | null | undefined): { value: unknown } | undefine
 }
 
 // Where the component comes from, read from the import that binds its name.
-function componentRef(module: unknown, name: string, root: string, file: string) {
+// `undefined` when no import binds it, or when the binding is a namespace
+// object, which names no export at all. Both give a file the reader skips: a
+// component it cannot place is worse in the manifest than absent from it.
+function componentRef(module: unknown, name: string) {
   const imports = (module as { staticImports?: Node[] })?.staticImports ?? []
 
   for (const one of imports) {
@@ -257,15 +338,18 @@ function componentRef(module: unknown, name: string, root: string, file: string)
       if ((entry['localName'] as Node | undefined)?.['value'] !== name) continue
 
       const imported = entry['importName'] as Node
-      return {
-        name,
-        file: (one['moduleRequest'] as Node)['value'] as string,
-        export: imported['kind'] === 'Default' ? 'default' : ((imported['name'] as string) ?? name),
+      const file = (one['moduleRequest'] as Node)['value'] as string
+
+      if (imported['kind'] === 'Default') return { name, file, export: 'default' }
+      if (imported['kind'] === 'Name') {
+        return { name, file, export: (imported['name'] as string) ?? name }
       }
+
+      return undefined
     }
   }
 
-  throw new ConfigError(`${posix(relative(root, file))} uses ${name} without importing it.`)
+  return undefined
 }
 
 // The tree comes from the path, with no title declared anywhere: section 1.1.

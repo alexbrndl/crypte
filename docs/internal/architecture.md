@@ -460,6 +460,20 @@ Quatre tours de revue ont été consacrés à approximer ce repli par des règle
 
 *Ce qui casse si on l'enlève :* une story en cours d'écriture coûte le catalogue entier, donc l'application complète. Le producteur rend la raison, et c'est à l'appelant de la dire ; un catalogue qui avale ses erreurs ressemble à un projet sans stories.
 
+*Mesuré à la revue de la PR #30 :* la règle valait pour une erreur de syntaxe et pas pour un composant non importé, qui levait. Un projet avec un fichier en cours d'édition et dix fichiers valides ne produisait aucun manifeste. L'asymétrie était l'inverse de celle qui est écrite ici.
+
+**Ce que le lecteur refuse de deviner, et ce que ça lui coûte.**
+
+Trois choses ne se lisent pas sans exécuter le fichier : un spread, une clé calculée, et l'appel d'une fonction qui n'est pas le helper. Dans les trois cas, le nom est laissé de côté plutôt qu'inventé.
+
+*Pourquoi c'est le bon sens de l'erreur.* Un nom de prop faux entre dans un chiffre de couverture et dans la recherche par prop, donc il ment sans jamais se signaler. Un nom manquant, lui, se voit. Pour une clé de story c'est pire encore : le nom devient une URL, une clé de baseline visuelle et l'ancre d'un commentaire, donc la story entière est écartée et le compte est remonté.
+
+*Le helper est reconnu par sa liaison, pas par son nom.* `import { story as s }` est suivi, et `make({ a: 1 })` n'est plus pris pour lui. Sans ça, le premier argument de n'importe quel appel passait pour des props.
+
+**Les deux formes d'une story ne se distinguent que par leurs clés.**
+
+La section 2.3 des contrats type `Partial<P> | Story<P>`, donc `{ props: …, options: … }` s'écrit à la main. Un objet qui déclare `props`, et au plus `options`, est lu comme un `Story`. L'ambiguïté est celle de l'union elle-même : un composant dont les props sont exactement `props` et `options` est lu de travers, et aucune autre lecture n'est possible sans exécuter le fichier.
+
 **Deux stories qui tombent sur le même identifiant arrêtent la construction.**
 
 `storyId` replie la casse et les accents, donc « Avec référence » et « avec reference » rendent la même chaîne. Cet identifiant est une URL, une clé de baseline visuelle et l'ancre d'un commentaire : trancher en silence perdrait une story et, plus tard, écraserait une baseline. Le message nomme les deux fichiers et les deux noms.

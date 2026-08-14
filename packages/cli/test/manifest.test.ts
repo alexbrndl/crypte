@@ -161,6 +161,32 @@ describe('le catalogue', () => {
     expect(manifest.entries[0]?.component.file).toBe('../src/Card')
   })
 
+  // La résolution tournait une fois par story, sur un objet de composant
+  // partagé. Au second passage elle recevait son propre résultat, un chemin
+  // relatif à la racine, qui est un identifiant « bare » et repassait par les
+  // motifs : les deux entrées finissaient sur `lib/src/Card.jsx`.
+  it('résout le composant une fois par fichier, pas une fois par story', async () => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      'jsconfig.json': '{ "compilerOptions": { "baseUrl": ".", "paths": { "*": ["./lib/*"] } } }',
+      'src/Card.jsx': 'export const Card = () => null\n',
+      'lib/src/Card.jsx': 'export const Card = () => null\n',
+      'stories/Card.js': [
+        "import { Card } from '../src/Card'",
+        'export default defineStories(Card, {',
+        '  stories: { Une: {}, Deux: {} },',
+        '})',
+      ].join('\n'),
+    })
+
+    const { manifest } = buildCatalogue(await loadProject(root))
+
+    expect(manifest.entries.map((entry) => entry.component.file)).toEqual([
+      'src/Card.jsx',
+      'src/Card.jsx',
+    ])
+  })
+
   it('écrit un JSON relu tel quel', async () => {
     const project = await loadProject(fixture)
     const root = projectWith({})

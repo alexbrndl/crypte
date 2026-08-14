@@ -218,6 +218,14 @@ interface Story<P> {
 
 The second argument is typed by the plugins you have installed, which is what gives autocompletion. **With no plugin installed, no option key is accepted at all**, so the example above needs the plugin that declares `responsive`. The common case has no options and never uses this helper.
 
+The same thing can be written by hand, since the union accepts either shape:
+
+```ts
+'Collapsed on mobile': { props: { reference: 'REF-4821' }, options: { responsive: 'mobile' } },
+```
+
+**The two shapes are told apart by their keys**, which is the only thing that separates them: an object declaring `props`, and at most `options`, is a `Story`. A component whose props are exactly `props`, or `props` and `options`, is therefore read the wrong way. Renaming one of them is the way out, and no other reading is possible without running the file.
+
 ### 2.5 `wrap`
 
 `wrap` rebuilds the context an isolated component is missing. **It stacks components, and nothing else.** Three shapes:
@@ -431,7 +439,9 @@ Every entry carries a `type`. **One value is implemented: `"story"`.** `"page"` 
 
 `props` and `source` are read from the story file, not declared in it. `props` lists the names the story passes to the component, from the shared block and its own, sorted, with no value attached: a prop set to a function is still a prop the story exercises, and prop coverage counts it. `source` rebuilds the call from the text the user wrote, so an expression the CLI cannot evaluate still reads the way they typed it.
 
-**A prop spread with `...` is in neither field.** Its names cannot be read without running the file, and guessing them would put wrong names in a coverage figure.
+**A prop spread with `...` is in neither field**, and neither is a key computed at runtime. Their names cannot be read without running the file, and guessing them would put wrong names in a coverage figure.
+
+**A story key computed at runtime produces no entry at all.** A story name is a URL, a baseline key and the anchor of a comment, so a wrong one costs more than a missing one. The CLI reports what it dropped.
 
 ```json
 {

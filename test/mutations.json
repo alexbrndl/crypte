@@ -494,5 +494,69 @@
     "apres": "        const key = property['key'] as Node\n        const read = literalOf(property['value'] as Node) ?? { value: null }",
     "trouvee": "lot 4",
     "attendu": "stories.test.ts > la lecture des stories > laisse tomber un meta dont une valeur ne survit pas au JSON"
+  },
+  {
+    "garantie": "Un composant non importé fait sauter le fichier, pas le catalogue",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  if (!component) {\n    return { entries: [], skipped: `${name} is not imported by a form this reader can follow` }\n  }",
+    "apres": "  if (!component) {\n    throw new Error(`${name} is not imported`)\n  }",
+    "trouvee": "revue de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > passe un fichier dont le composant n’est pas importé"
+  },
+  {
+    "garantie": "Un import d'espace de noms ne nomme aucun export",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "      if (imported['kind'] === 'Name') {\n        return { name, file, export: (imported['name'] as string) ?? name }\n      }\n\n      return undefined",
+    "apres": "      return { name, file, export: (imported['name'] as string) ?? name }",
+    "trouvee": "revue de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > passe un composant lié par un import d’espace de noms"
+  },
+  {
+    "garantie": "Chaque entrée possède son propre objet de composant",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "        component: { ...component },",
+    "apres": "        component,",
+    "trouvee": "revue de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > donne à chaque entrée son propre objet de composant"
+  },
+  {
+    "garantie": "Une clé de story calculée n'invente pas un nom de story",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    if (property['computed'] === true) {\n      dropped += 1\n      continue\n    }",
+    "apres": "",
+    "trouvee": "revue de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > laisse tomber une story dont la clé est calculée"
+  },
+  {
+    "garantie": "Une clé de prop calculée n'invente pas un nom de prop",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    if (property.type !== 'Property' || property['computed'] === true) continue\n\n    props.set(keyOf(property['key'] as Node), property['value'] as Node)",
+    "apres": "    if (property.type !== 'Property') continue\n\n    props.set(keyOf(property['key'] as Node), property['value'] as Node)",
+    "trouvee": "revue de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > laisse de côté une prop dont la clé est calculée"
+  },
+  {
+    "garantie": "L'appel d'une autre fonction n'est pas pris pour le helper",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "    if (callee?.type !== 'Identifier' || callee['name'] !== helper) {",
+    "apres": "    if (callee?.type !== 'Identifier') {",
+    "trouvee": "revue de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > ne prend pas l’appel d’une autre fonction pour le helper"
+  },
+  {
+    "garantie": "Un Story écrit à la main est lu comme tel",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  const shaped = asStoryLiteral(value)\n  if (shaped) return { own: propsOf(shaped.props), options: shaped.options ?? undefined }",
+    "apres": "",
+    "trouvee": "revue de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > lit un Story écrit à la main comme le helper l’écrirait"
+  },
+  {
+    "garantie": "Un bloc dont la clé est entre guillemets est trouvé",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "      keyOf(property['key'] as Node) === name,",
+    "apres": "      (property['key'] as Node)['name'] === name,",
+    "trouvee": "revue de la PR #30",
+    "attendu": "stories.test.ts > la lecture des stories > trouve un bloc dont la clé est entre guillemets"
   }
 ]

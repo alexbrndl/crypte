@@ -40,8 +40,19 @@ export function buildCatalogue(project: Project): Catalogue {
     if (read.skipped)
       skipped.push({ file: posix(relative(project.root, file)), reason: read.skipped })
 
+    // Once per file, not once per story: every entry of a file names the same
+    // component, and each resolution probes the file system.
+    //
+    // It is also the second guard against handing the resolver its own output.
+    // A project-relative path is a bare identifier too, so it would go back
+    // through the `paths` patterns and could land on another file. The first
+    // guard is in `entriesOf`, where each entry owns its `component`.
+    const resolved = read.entries[0]
+      ? componentFile(read.entries[0].component.file, file, project)
+      : undefined
+
     for (const entry of read.entries) {
-      entry.component.file = componentFile(entry.component.file, file, project)
+      if (resolved !== undefined) entry.component = { ...entry.component, file: resolved }
       entries.push(entry)
     }
   }
