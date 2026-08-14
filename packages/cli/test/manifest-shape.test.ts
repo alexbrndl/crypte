@@ -40,6 +40,7 @@ const EXPECTED: Manifest = {
       options: {},
       details: {},
       props: ['benefits', 'title'],
+      meta: { status: 'stable', owner: 'checkout' },
       source:
         "<OrderSummary title=\"Formule complète\" benefits={['Historique complet', 'Données vérifiées']} />",
     },
@@ -57,6 +58,7 @@ const EXPECTED: Manifest = {
       options: {},
       details: {},
       props: ['benefits', 'reference', 'title'],
+      meta: { status: 'stable', owner: 'checkout' },
       source:
         '<OrderSummary title="Formule complète" benefits={[\'Historique complet\', \'Données vérifiées\']} reference="REF-4821-KD" />',
     },
@@ -71,9 +73,10 @@ const EXPECTED: Manifest = {
         export: 'default',
       },
       storyFile: 'stories/checkout/OrderSummary.jsx',
-      options: {},
+      options: { responsive: 'mobile' },
       details: {},
       props: ['benefits', 'children', 'reference', 'title'],
+      meta: { status: 'stable', owner: 'checkout' },
       source:
         '<OrderSummary title="Formule complète" benefits={[\'Historique complet\', \'Données vérifiées\']} reference="REF-4821" children={<span>Neuf</span>} />',
     },

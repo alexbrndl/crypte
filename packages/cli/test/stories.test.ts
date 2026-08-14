@@ -148,6 +148,70 @@ describe('la lecture des stories', () => {
     expect(fileWith('A.ts', source).entries[0]?.props).toEqual(['label'])
   })
 
+  // Section 4.4 : `meta` et `options` voyagent du fichier au manifeste sans
+  // être interprétés. `details` attend l'adaptateur, lui.
+  it('porte le meta du fichier sur chacune de ses stories', () => {
+    const { entries } = entriesOf(join(stories, 'checkout', 'OrderSummary.jsx'), fixture, stories)
+
+    for (const entry of entries) {
+      expect(entry.meta).toEqual({ status: 'stable', owner: 'checkout' })
+    }
+  })
+
+  it('ne pose pas de meta quand le fichier n’en déclare aucun', () => {
+    const { entries } = entriesOf(join(stories, 'Badge.js'), fixture, stories)
+
+    expect('meta' in (entries[0] ?? {})).toBe(false)
+  })
+
+  it('porte les options du second argument de story()', () => {
+    const { entries } = entriesOf(join(stories, 'checkout', 'OrderSummary.jsx'), fixture, stories)
+
+    expect(entries.map((entry) => entry.options)).toEqual([{}, {}, { responsive: 'mobile' }])
+  })
+
+  it('lit les valeurs que JSON sait porter', () => {
+    const source = [
+      "import { A } from '../a'",
+      'export default defineStories(A, {',
+      "  meta: { status: 'stable', count: -2, ok: true, nothing: null, tags: ['a', 'b'] },",
+      '})',
+    ].join('\n')
+
+    expect(fileWith('A.ts', source).entries[0]?.meta).toEqual({
+      status: 'stable',
+      count: -2,
+      ok: true,
+      nothing: null,
+      tags: ['a', 'b'],
+    })
+  })
+
+  // `JSON.stringify` laisse tomber en silence ce qu'il ne sait pas représenter.
+  // Écrire la clé quand même mettrait dans le manifeste une valeur qui
+  // disparaît à l'écriture : section 4.5.
+  it('laisse tomber un meta dont une valeur ne survit pas au JSON', () => {
+    const cases = [
+      'meta: { at: new Date() }',
+      'meta: { on: () => null }',
+      'meta: { owner: someName }',
+      'meta: { pattern: /a/ }',
+      'meta: { ...base }',
+      'meta: { deep: { fn: () => null } }',
+      "meta: { list: ['a', someName] }",
+    ]
+
+    for (const written of cases) {
+      const source = [
+        "import { A } from '../a'",
+        "import { base, someName } from '../base'",
+        `export default defineStories(A, { ${written} })`,
+      ].join('\n')
+
+      expect(fileWith('A.ts', source).entries[0]?.meta, written).toBeUndefined()
+    }
+  })
+
   it('refuse un composant qui n’est pas importé', () => {
     const source = 'export default defineStories(A)\n'
 

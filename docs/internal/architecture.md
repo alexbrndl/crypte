@@ -468,6 +468,14 @@ Quatre tours de revue ont été consacrés à approximer ce repli par des règle
 
 `readdirSync` n'a pas d'ordre propre. Sans le tri, deux machines écrivent deux manifestes différents pour le même dossier, et l'empreinte réduite de `DCJ-197` changerait sans raison.
 
+**`meta` et `options` sont lus comme des données, jamais comme du code.**
+
+La section 4.4 des contrats dit qu'ils voyagent du fichier au manifeste sans être interprétés. Ce sont des littéraux écrits par l'auteur, donc l'analyse statique les lit. `details` ne voyage pas encore : le manifeste porte la forme résolue, dont `type` et `required` viennent de l'inférence d'un adaptateur.
+
+*Ce qui est refusé, et pourquoi.* Une valeur que JSON ne sait pas porter fait tomber la clé entière : une date, une fonction, une expression régulière, un identifiant importé, un spread. `JSON.stringify` laisse tomber en silence ce qu'il ne sait pas représenter, donc écrire la clé quand même mettrait dans le manifeste une valeur qui disparaît à l'écriture. C'est la garantie de la section 4.5, tenue à la lecture plutôt qu'à l'écriture.
+
+*Un élément illisible fait tomber tout le tableau*, alors qu'il ne fait tomber que sa clé dans un objet. Sauter l'élément décalerait tous les suivants, ce qui change la donnée au lieu de la perdre.
+
 **`component.file` est résolu sans Vite.**
 
 Le producteur tourne avant qu'un serveur existe, donc il applique les motifs `paths` du projet et essaie les extensions usuelles, sans plugin ni champ `exports`. L'ordre des motifs est celui de `pathsPlugin`, exporté et partagé : deux ordres feraient résoudre un composant d'une façon pour la preview et d'une autre pour le catalogue. Quand rien ne répond, l'identifiant écrit par la story est rendu tel quel, parce qu'un chemin inventé ferait ouvrir un fichier qui n'existe pas.

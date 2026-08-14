@@ -49,9 +49,16 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
   const storyFile = posix(relative(root, file))
   const shared = propsOf(propertyOf(definition, 'props'))
 
+  // `meta` travels untouched: section 4.4. `details` does not travel yet, since
+  // the manifest carries the resolved form, whose `type` and `required` come
+  // from an adapter's inference and not from the file.
+  const meta = record(propertyOf(definition, 'meta'))
+
   const declared = listed(propertyOf(definition, 'stories'), source)
   const stories =
-    declared.length > 0 ? declared : [{ name: ONLY_STORY, own: new Map<string, Node>() }]
+    declared.length > 0
+      ? declared
+      : [{ name: ONLY_STORY, own: new Map<string, Node>(), options: undefined }]
 
   return {
     entries: stories.map((story) => {
@@ -64,10 +71,11 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
         name: story.name,
         component,
         storyFile,
-        options: {},
+        options: record(story.options) ?? {},
         details: {},
         props: [...props.keys()].sort(),
         source: callOf(name, props, source),
+        ...(meta ? { meta } : {}),
       } satisfies StoryEntry
     }),
   }
@@ -84,12 +92,12 @@ function listed(stories: Node | null, source: string) {
       const value = property['value'] as Node
 
       // A story is either a bare props object or a `story(props, options)`
-      // call. The helper belongs to the adapter, and only its first argument
-      // holds props.
-      const own =
-        value.type === 'CallExpression' ? ((value['arguments'] as Node[])[0] ?? null) : value
+      // call. The helper belongs to the adapter: its first argument holds the
+      // props, its second the options, which travel untouched.
+      const call = value.type === 'CallExpression' ? (value['arguments'] as Node[]) : undefined
+      const own = call ? (call[0] ?? null) : value
 
-      return { name: nameOf(key, source), own: propsOf(own) }
+      return { name: nameOf(key, source), own: propsOf(own), options: call?.[1] }
     })
 }
 
@@ -160,6 +168,84 @@ function callOf(name: string, props: Map<string, Node>, source: string): string 
   })
 
   return `<${name}${written.join('')} />`
+}
+
+// An object written in the file, read as data. `undefined` when it is not an
+// object literal at all, which is what an identifier or a call gives.
+function record(node: Node | null | undefined): Record<string, unknown> | undefined {
+  if (node?.type !== 'ObjectExpression') return undefined
+
+  const read = literalOf(node)
+  return read ? (read.value as Record<string, unknown>) : undefined
+}
+
+// The value an expression writes, when it is one JSON can hold. Anything else
+// gives `undefined`, and the key that carried it is left out rather than
+// guessed: section 4.5 promises that everything in the manifest survives a JSON
+// round trip, and `JSON.stringify` drops what it cannot represent in silence.
+//
+// Wrapped in an object so that a literal `null` and "not a literal" stay apart.
+function literalOf(node: Node | null | undefined): { value: unknown } | undefined {
+  if (!node) return undefined
+
+  switch (node.type) {
+    case 'Literal': {
+      // A regular expression is a `Literal` too, and it does not survive JSON.
+      if ('regex' in node) return undefined
+      const value = node['value']
+      return typeof value === 'bigint' ? undefined : { value }
+    }
+
+    // `` `stable` `` is written by nobody, but `${}`-free templates cost one line.
+    case 'TemplateLiteral': {
+      const parts = node['quasis'] as Node[]
+      if ((node['expressions'] as Node[]).length > 0 || parts.length !== 1) return undefined
+      return { value: (parts[0]?.['value'] as { cooked?: string })?.cooked ?? '' }
+    }
+
+    // `-1` is a unary expression, not a negative literal.
+    case 'UnaryExpression': {
+      if (node['operator'] !== '-') return undefined
+      const inner = literalOf(node['argument'] as Node)
+      return typeof inner?.value === 'number' ? { value: -inner.value } : undefined
+    }
+
+    case 'ArrayExpression': {
+      const values: unknown[] = []
+
+      // One unreadable element drops the whole array. Skipping it would shift
+      // every index after it, which changes the data instead of losing it.
+      for (const element of node['elements'] as (Node | null)[]) {
+        const read = literalOf(element)
+        if (!read) return undefined
+        values.push(read.value)
+      }
+
+      return { value: values }
+    }
+
+    case 'ObjectExpression': {
+      const value: Record<string, unknown> = {}
+
+      for (const property of node['properties'] as Node[]) {
+        // A spread, a method, or a computed key: none of them can be read
+        // without running the file.
+        if (property.type !== 'Property' || property['computed'] === true) return undefined
+
+        const key = property['key'] as Node
+        const read = literalOf(property['value'] as Node)
+        if (!read) return undefined
+
+        value[key.type === 'Identifier' ? (key['name'] as string) : String(key['value'])] =
+          read.value
+      }
+
+      return { value }
+    }
+
+    default:
+      return undefined
+  }
 }
 
 // Where the component comes from, read from the import that binds its name.

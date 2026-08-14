@@ -470,5 +470,29 @@
     "apres": "  return candidate",
     "trouvee": "lot 4",
     "attendu": "manifest.test.ts > le catalogue > garde l’identifiant quand aucun fichier ne répond"
+  },
+  {
+    "garantie": "Le meta du fichier arrive dans le manifeste",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  const meta = record(propertyOf(definition, 'meta'))",
+    "apres": "  const meta = undefined",
+    "trouvee": "lot 4",
+    "attendu": "stories.test.ts > la lecture des stories > porte le meta du fichier sur chacune de ses stories"
+  },
+  {
+    "garantie": "Le second argument de story() arrive dans le manifeste",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "      return { name: nameOf(key, source), own: propsOf(own), options: call?.[1] }",
+    "apres": "      return { name: nameOf(key, source), own: propsOf(own), options: undefined }",
+    "trouvee": "lot 4",
+    "attendu": "stories.test.ts > la lecture des stories > porte les options du second argument de story()"
+  },
+  {
+    "garantie": "Une valeur qui ne survit pas au JSON fait tomber sa clé",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "        const key = property['key'] as Node\n        const read = literalOf(property['value'] as Node)\n        if (!read) return undefined",
+    "apres": "        const key = property['key'] as Node\n        const read = literalOf(property['value'] as Node) ?? { value: null }",
+    "trouvee": "lot 4",
+    "attendu": "stories.test.ts > la lecture des stories > laisse tomber un meta dont une valeur ne survit pas au JSON"
   }
 ]

@@ -666,7 +666,7 @@ This document is a contract. This section is the only place that says what exist
 | 1.5, project configuration | the config is read, and the CSS entry is turned into an absolute path. Nothing loads that style sheet yet |
 | 1.5, path aliases | built |
 | 2 and 3, the types | built. `defineStories`, `story` and inference are not |
-| 4, the manifest | built, and produced from a project. `details` and `options` are written empty, and no command calls the producer yet |
+| 4, the manifest | built, and produced from a project. `details` is written empty, and no command calls the producer yet |
 | 5, the channel | built and exercised on both sides |
 | 6, plugin contract | not built, and provisional |
 
@@ -676,7 +676,7 @@ Five known gaps between this document and the code:
 
 - `update-overrides` and `set-globals` are part of the protocol and have no effect yet. The preview drops them.
 - A path alias cannot replace an installed package. `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because the resolver runs after Vite's own. TypeScript would return the replacement file.
-- `details` and `options` are written empty. Prop details need the adapter, and options need the plugin contract of section 6.
+- `details` is written empty. Section 4.4 says it travels from the story file untouched, but the manifest carries the **resolved** form, whose `type` and `required` come from an adapter's inference and not from what the author wrote. `meta` and `options` do travel today.
 - The CLI does not yet guarantee the serialisation promised in 4.5. What it writes today is read from source text and is serialisable by construction, so the guarantee is not exercised.
 - `component.file` is resolved without Vite. The producer runs before any server exists, so it applies the project's `paths` and tries the usual extensions, with no plugin and no `exports` field. A component reached through a plugin keeps the identifier the story wrote.
 
