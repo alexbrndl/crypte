@@ -454,5 +454,21 @@
     "apres": "    b.name.localeCompare(a.name, 'en'),",
     "trouvee": "lot 4",
     "attendu": "manifest.test.ts > le catalogue > parcourt le dossier dans un ordre stable"
+  },
+  {
+    "garantie": "Le composant est rendu comme un chemin de fichier, pas comme un identifiant",
+    "fichier": "packages/cli/src/manifest.ts",
+    "avant": "  return found ? posix(relative(project.root, found)) : specifier",
+    "apres": "  return specifier",
+    "trouvee": "lot 4",
+    "attendu": "manifest.test.ts > le catalogue > résout le composant en chemin de projet"
+  },
+  {
+    "garantie": "Un composant introuvable ne rend pas un chemin inventé",
+    "fichier": "packages/cli/src/manifest.ts",
+    "avant": "  if (extname(candidate) && isFile(candidate)) return candidate",
+    "apres": "  return candidate",
+    "trouvee": "lot 4",
+    "attendu": "manifest.test.ts > le catalogue > garde l’identifiant quand aucun fichier ne répond"
   }
 ]

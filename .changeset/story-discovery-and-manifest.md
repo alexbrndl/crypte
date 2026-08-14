@@ -7,6 +7,6 @@ Crypte discovers stories and writes a manifest.
 
 The CLI walks the story folder, reads each file without running it, and writes `.crypte/manifest.json`. It reads four extensions, `.ts`, `.tsx`, `.js` and `.jsx`, so a project with no TypeScript writes its stories the way it writes its components.
 
-Each story yields the sidebar path, its stable identifier, where its component comes from, and the call code rebuilt from the text the author wrote. A file that fails to parse is reported and skipped, never fatal. Two stories that land on the same identifier stop the build and are named.
+Each story yields the sidebar path, its stable identifier, the file its component lives in, and the call code rebuilt from the text the author wrote. The component is resolved through the project's own path aliases, so `@/components/Badge` is written down as `src/components/Badge.jsx`. A file that fails to parse is reported and skipped, never fatal. Two stories that land on the same identifier stop the build and are named.
 
 `StoryEntry` carries a new required field, `props`: the prop names the story passes to the component, from the shared block and its own, sorted. A manifest written before this version has to be written again.

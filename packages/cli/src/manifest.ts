@@ -1,10 +1,11 @@
 // Walking the story folder and writing the catalogue the shell reads.
 // See section 4 of docs/contracts.md.
 
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
-import { extname, join, relative } from 'node:path'
+import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { dirname, extname, join, relative, resolve } from 'node:path'
 import { MANIFEST_VERSION, type Manifest, type StoryEntry } from '@crypte/core/protocol'
 import { ConfigError } from './errors'
+import { best, isBareSpecifier, ordered } from './paths'
 import { entriesOf, STORY_EXTENSIONS } from './stories'
 import type { Project } from './project'
 
@@ -38,7 +39,11 @@ export function buildCatalogue(project: Project): Catalogue {
 
     if (read.skipped)
       skipped.push({ file: posix(relative(project.root, file)), reason: read.skipped })
-    entries.push(...read.entries)
+
+    for (const entry of read.entries) {
+      entry.component.file = componentFile(entry.component.file, file, project)
+      entries.push(entry)
+    }
   }
 
   assertDistinct(entries)
@@ -73,6 +78,59 @@ export function storyFiles(folder: string): string[] {
   }
 
   return found
+}
+
+// The extensions tried on a target that carries none, in the order Vite tries
+// them. A project writing `.vue` gets it, since the story names its own file.
+const RESOLVED = ['.tsx', '.ts', '.jsx', '.js', '.vue', '.mjs', '.mts', '.json']
+
+// The story names its component with the identifier the project writes, alias
+// included. Section 4.2 promises a file, so the identifier is turned into one.
+//
+// This is not Vite's resolver: it runs with no plugin and no `exports` field,
+// because the manifest is written before any server exists. It covers what a
+// component import looks like, and hands back the identifier untouched when it
+// finds nothing. `crypte check` is what will report the orphan case.
+export function componentFile(specifier: string, storyFile: string, project: Project): string {
+  const found = candidates(specifier, storyFile, project)
+    .map(probe)
+    .find((file) => file !== undefined)
+
+  return found ? posix(relative(project.root, found)) : specifier
+}
+
+function candidates(specifier: string, storyFile: string, project: Project): string[] {
+  if (!isBareSpecifier(specifier)) return [resolve(dirname(storyFile), specifier)]
+
+  const paths = project.paths
+  if (!paths) return []
+
+  const matched = best(ordered(paths.paths), specifier)
+  if (!matched) return []
+
+  return matched.targets.map((target) =>
+    resolve(
+      paths.base,
+      target.replace('*', () => matched.captured),
+    ),
+  )
+}
+
+// A target with no extension is a file to complete, or a folder holding an
+// `index`. Both are what an import of a component looks like.
+function probe(candidate: string): string | undefined {
+  if (extname(candidate) && isFile(candidate)) return candidate
+
+  for (const extension of RESOLVED) {
+    if (isFile(candidate + extension)) return candidate + extension
+    if (isFile(join(candidate, `index${extension}`))) return join(candidate, `index${extension}`)
+  }
+
+  return undefined
+}
+
+function isFile(path: string): boolean {
+  return existsSync(path) && statSync(path).isFile()
 }
 
 // Two stories can carry different names and land on the same identifier, since

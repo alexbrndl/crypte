@@ -22,21 +22,29 @@ const VIRTUAL = '\0'
 // An installed file, so foreign to the project and to its paths.
 const INSTALLED = /[\\/]node_modules[\\/]/
 
-// A plugin rather than `resolve.alias`: an alias rewrites unconditionally,
-// where TypeScript tries the target and falls back to normal resolution when it
-// does not exist. That fallback is the whole difference, and `resolve.alias`
-// has no equivalent. See docs/internal/architecture.md.
-export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
-  // TypeScript picks between two patterns by the length of their fixed prefix,
-  // and a pattern with no wildcard beats every other. Without this order, `@/*`
-  // wins over `@/lib/*` as soon as both targets exist.
-  const ordered = Object.entries(paths).sort(([a], [b]) => {
+// TypeScript picks between two patterns by the length of their fixed prefix,
+// and a pattern with no wildcard beats every other. Without this order, `@/*`
+// wins over `@/lib/*` as soon as both targets exist.
+//
+// Exported because the manifest producer ranks the same patterns, and two
+// orders would make a component resolve one way for the preview and another
+// way in the catalogue.
+export function ordered(paths: Record<string, string[]>): [string, string[]][] {
+  return Object.entries(paths).sort(([a], [b]) => {
     const byPrefix = prefixOf(b).length - prefixOf(a).length
     if (byPrefix !== 0) return byPrefix
 
     // At equal prefix, the one with no wildcard wins: `#app` before `#app*`.
     return Number(a.includes('*')) - Number(b.includes('*'))
   })
+}
+
+// A plugin rather than `resolve.alias`: an alias rewrites unconditionally,
+// where TypeScript tries the target and falls back to normal resolution when it
+// does not exist. That fallback is the whole difference, and `resolve.alias`
+// has no equivalent. See docs/internal/architecture.md.
+export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
+  const ranked = ordered(paths)
 
   return {
     name: 'crypte:paths',
@@ -55,7 +63,7 @@ export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
       // One pattern only, the best ranked that matches. TypeScript tries its
       // substitutions then falls back to Node resolution, never to another
       // pattern: moving on would resolve here what the editor calls missing.
-      const matched = best(ordered, source)
+      const matched = best(ranked, source)
       if (!matched) return null
 
       const { targets, captured } = matched
@@ -86,7 +94,7 @@ export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
 
 // The first pattern of the ordered list that matches, with what it captures.
 // Returned together so `capture` runs once per pattern.
-function best(
+export function best(
   ordered: [string, string[]][],
   source: string,
 ): { targets: string[]; captured: string } | undefined {

@@ -124,6 +124,43 @@ describe('le catalogue', () => {
     )
   })
 
+  // La section 4.2 promet un fichier, pas l'identifiant que la story écrit.
+  it('résout le composant en chemin de projet', async () => {
+    const { manifest } = buildCatalogue(await loadProject(fixture))
+
+    expect(manifest.entries.map((entry) => entry.component.file)).toEqual([
+      'src/components/Badge.jsx',
+      'src/components/checkout/OrderSummary.jsx',
+      'src/components/checkout/OrderSummary.jsx',
+      'src/components/checkout/OrderSummary.jsx',
+    ])
+  })
+
+  it('résout aussi un import relatif', async () => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      'src/Card.jsx': 'export const Card = () => null\n',
+      'stories/Card.js': "import { Card } from '../src/Card'\nexport default defineStories(Card)\n",
+    })
+
+    const { manifest } = buildCatalogue(await loadProject(root))
+
+    expect(manifest.entries[0]?.component.file).toBe('src/Card.jsx')
+  })
+
+  // Rendre un chemin inventé serait pire que rendre l'identifiant : un écran
+  // ouvrirait un fichier qui n'existe pas. `crypte check` dira l'orpheline.
+  it('garde l’identifiant quand aucun fichier ne répond', async () => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      'stories/Card.js': "import { Card } from '../src/Card'\nexport default defineStories(Card)\n",
+    })
+
+    const { manifest } = buildCatalogue(await loadProject(root))
+
+    expect(manifest.entries[0]?.component.file).toBe('../src/Card')
+  })
+
   it('écrit un JSON relu tel quel', async () => {
     const project = await loadProject(fixture)
     const root = projectWith({})

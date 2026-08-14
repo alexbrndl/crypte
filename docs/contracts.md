@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.0, reference document. A project brief points here instead of restating these shapes.
+> Version 1.1, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -666,22 +666,31 @@ This document is a contract. This section is the only place that says what exist
 | 1.5, project configuration | the config is read, and the CSS entry is turned into an absolute path. Nothing loads that style sheet yet |
 | 1.5, path aliases | built |
 | 2 and 3, the types | built. `defineStories`, `story` and inference are not |
-| 4, the manifest | built. The CLI writes `.crypte/manifest.json`, with `details` and `options` left empty |
+| 4, the manifest | built, and produced from a project. `details` and `options` are written empty, and no command calls the producer yet |
 | 5, the channel | built and exercised on both sides |
 | 6, plugin contract | not built, and provisional |
 
-**No command is built.** The `crypte` binary answers `--version` and nothing else, `crypte dev` and `crypte check` included.
+**No command is built.** The `crypte` binary answers `--version` and nothing else, `crypte dev` and `crypte check` included. So the manifest is produced by code that nothing runs yet: `crypte dev` is what will write `.crypte/manifest.json` to disk.
 
-Three known gaps between this document and the code:
+Five known gaps between this document and the code:
 
 - `update-overrides` and `set-globals` are part of the protocol and have no effect yet. The preview drops them.
 - A path alias cannot replace an installed package. `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because the resolver runs after Vite's own. TypeScript would return the replacement file.
 - `details` and `options` are written empty. Prop details need the adapter, and options need the plugin contract of section 6.
 - The CLI does not yet guarantee the serialisation promised in 4.5. What it writes today is read from source text and is serialisable by construction, so the guarantee is not exercised.
+- `component.file` is resolved without Vite. The producer runs before any server exists, so it applies the project's `paths` and tries the usual extensions, with no plugin and no `exports` field. A component reached through a plugin keeps the identifier the story wrote.
 
 ---
 
 ## 9. Version log
+
+**v1.1.** The manifest producer written, which is what turned three of these lines from a contract into a measurement.
+
+| Before | After |
+| --- | --- |
+| stories were `.ts` or `.tsx` | four extensions, so a project with no TypeScript writes its stories the way it writes its components |
+| an entry said what the component's props were, never what a story set | `props` carries the names each story passes, and prop coverage has something to count |
+| `source` was a field with an example and no rule | it is rebuilt from the text the author wrote, and section 4.2 says what a spread does to it |
 
 **v1.0.** The whole document read against the code for the first time, once the protocol, the CLI configuration and the channel were built. Rewritten in English.
 

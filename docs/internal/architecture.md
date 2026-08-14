@@ -444,6 +444,36 @@ Quatre tours de revue ont été consacrés à approximer ce repli par des règle
 
 ---
 
+## 4 octies. La lecture des stories et le manifeste
+
+**Un fichier de story est analysé, jamais exécuté.**
+
+*Pourquoi :* indexer sans charger le framework est plus rapide et plus robuste. La conséquence est assumée et cohérente avec la section 4.1 des contrats : les valeurs de props ne sont pas résolues, et le manifeste ne les transporte pas de toute façon, puisque la preview importe les modules directement.
+
+*Le parseur est `parseSync`, réexporté par `vite`,* donc aucune dépendance ajoutée. Le raisonnement complet et les mesures sont dans `docs/decisions.md`.
+
+**Le producteur est séparé en deux, et la coupure a une raison.**
+
+`stories.ts` lit un fichier et n'a besoin de rien d'autre que son texte. `manifest.ts` parcourt le dossier, résout les composants et écrit, ce qui demande le projet. Un fichier de story se teste donc sans monter un projet, ce dont les cas TypeScript profitent : ils tiennent dans un dossier jetable.
+
+**Un fichier illisible est signalé et sauté, jamais fatal.**
+
+*Ce qui casse si on l'enlève :* une story en cours d'écriture coûte le catalogue entier, donc l'application complète. Le producteur rend la raison, et c'est à l'appelant de la dire ; un catalogue qui avale ses erreurs ressemble à un projet sans stories.
+
+**Deux stories qui tombent sur le même identifiant arrêtent la construction.**
+
+`storyId` replie la casse et les accents, donc « Avec référence » et « avec reference » rendent la même chaîne. Cet identifiant est une URL, une clé de baseline visuelle et l'ancre d'un commentaire : trancher en silence perdrait une story et, plus tard, écraserait une baseline. Le message nomme les deux fichiers et les deux noms.
+
+**Le dossier est parcouru dans un ordre trié à chaque niveau.**
+
+`readdirSync` n'a pas d'ordre propre. Sans le tri, deux machines écrivent deux manifestes différents pour le même dossier, et l'empreinte réduite de `DCJ-197` changerait sans raison.
+
+**`component.file` est résolu sans Vite.**
+
+Le producteur tourne avant qu'un serveur existe, donc il applique les motifs `paths` du projet et essaie les extensions usuelles, sans plugin ni champ `exports`. L'ordre des motifs est celui de `pathsPlugin`, exporté et partagé : deux ordres feraient résoudre un composant d'une façon pour la preview et d'une autre pour le catalogue. Quand rien ne répond, l'identifiant écrit par la story est rendu tel quel, parce qu'un chemin inventé ferait ouvrir un fichier qui n'existe pas.
+
+---
+
 ## 5. Décisions encodées dans la configuration
 
 Ces réglages ont l'air anodins et ne le sont pas. Chacun a été mis là pour une raison précise, et chacun est le genre de ligne qu'on supprime en croyant nettoyer.
