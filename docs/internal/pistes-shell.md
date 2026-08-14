@@ -76,27 +76,29 @@ Manifeste synthétique aux entrées variées, calqué sur le corpus réel, huit 
 
 | Stories | Brut | gzip |
 | -- | -- | -- |
-| 23 | 28 Ko | 4,2 Ko |
-| 100 | 128 Ko | 15,4 Ko |
-| 500 | 626 Ko | 71 Ko |
-| 2000 | 2,4 Mo | 278 Ko |
+| 23 | 34,1 Ko | 5,2 Ko |
+| 100 | 140,1 Ko | 17,7 Ko |
+| 500 | 706,2 Ko | 83,2 Ko |
+| 2000 | 2,8 Mo | 327,6 Ko |
 
-Soit environ 1,3 Ko par story en brut. Conserver l'historique complet, une copie entière par version :
+Soit environ 1,4 Ko par story en brut. Conserver l'historique complet, une copie entière par version :
 
 | Versions, projet à 500 stories | Poids cumulé, gzip |
 | -- | -- |
-| 20 | 1,4 Mo |
-| 100 | 6,9 Mo |
-| 500 | 34 Mo |
-| 2000 | 138 Mo |
+| 20 | 1,6 Mo |
+| 100 | 8,1 Mo |
+| 500 | 40,6 Mo |
+| 2000 | 162,5 Mo |
 
 **Conclusion : garder des copies entières ne tient pas.** Au-delà d'une cinquantaine de versions le dossier devient plus lourd que le code qu'il décrit.
 
-En ne gardant que ce qui change d'une version à l'autre, sur une hypothèse de deux pour cent d'entrées modifiées par build, une version coûte 2,3 Ko au lieu de 71 Ko, et deux mille versions tiennent dans 4,6 Mo. Le delta est donc la seule forme viable.
+En ne gardant que ce qui change d'une version à l'autre, sur une hypothèse de deux pour cent d'entrées modifiées par build, une version coûte 1,7 Ko au lieu de 83,2 Ko, et deux mille versions tiennent dans 3,4 Mo. Le delta est donc la seule forme viable.
 
 *Réserve sur la mesure :* le générateur pioche dans un vocabulaire restreint, donc les chiffres brotli qu'il produit sont trop optimistes et je ne les reporte pas. Les chiffres gzip et bruts sont, eux, conservateurs.
 
 *Chiffres révisés à la hausse* après la revue de la PR #25 : une comparaison morte confondait deux props tirées deux fois dans la même entrée, ce qui allégeait chaque manifeste de 13 à 14 % selon la ligne. La conclusion ne change pas, elle se renforce.
+
+*Révisés une seconde fois au lot 4 ter*, le générateur ignorant deux choses que le lot 4 a livrées. Le champ `props` d'abord, absent de ses entrées. Et le code d'appel ensuite, qui ne portait qu'un seul nom de prop là où le CLI le reconstruit du texte de l'auteur, donc avec tous. D'où un manifeste 13 % plus lourd que ce qui était écrit ici.
 
 ### 3.2 Ce que je propose plutôt
 
@@ -105,7 +107,9 @@ Ne pas écrire de format d'historique. Git en est déjà un, et il fait de la co
 Deux fichiers plutôt qu'un :
 
 - **Le manifeste complet**, produit à chaque build, ignoré par Git. C'est un artefact, il n'a pas à être versionné.
-- **Une empreinte réduite**, commitée. Par entrée : l'identifiant, le fichier et l'export du composant, le statut, la liste triée des noms de props, et une empreinte du reste. Mesuré : 198 octets par story, soit 97 Ko brut et 6,6 Ko gzip pour cinq cents stories, et surtout un fichier qui **ne change que quand quelque chose de significatif change**.
+- **Une empreinte réduite**, commitée. Par entrée : l'identifiant, le fichier et l'export du composant, le statut, la liste triée des noms de props, et une empreinte du reste. Mesuré : 170 octets par story, soit 82,8 Ko brut et 6,1 Ko gzip pour cinq cents stories, et surtout un fichier qui **ne change que quand quelque chose de significatif change**.
+
+  *Plus léger que les 198 octets d'abord annoncés*, parce que la liste versionnée est celle des props que la story **pose**, un à six noms, et non la surface entière du composant, trois à douze. Les deux avaient été confondues, et l'empreinte s'en trouvait alourdie tout en ne bougeant pas quand une story changeait de props sans que son composant change.
 
 Trois conséquences qui valent la peine :
 

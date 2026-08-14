@@ -82,11 +82,13 @@ _2026-08-13_
 
 **Why.** Three features need the history of a catalogue: the "what changed" screen, a component's timeline, and a stable anchor for comments. Git is already a history, so writing a second one would be work for nothing.
 
-Committing the full manifest does not hold. Measured with `test/manifest-size.mjs`: 626 KB raw and 71 KB gzipped for 500 stories, so a hundred versions of such a project weigh 6.9 MB and five hundred weigh 34 MB. The file also changes on every build, including when nothing meaningful moved.
+Committing the full manifest does not hold. Measured with `test/manifest-size.mjs`: 706 KB raw and 83 KB gzipped for 500 stories, so a hundred versions of such a project weigh 8.1 MB and five hundred weigh 40.6 MB. The file also changes on every build, including when nothing meaningful moved.
 
 Committing nothing loses the three features, and leaves nothing to compare a build against.
 
-The fingerprint measures 198 bytes per story, 97 KB raw for 500 stories, and it only changes when something meaningful does.
+The fingerprint measures 170 bytes per story, 83 KB raw for 500 stories, and it only changes when something meaningful does.
+
+**These figures were remeasured at lot 4 ter**, once the entry carried `props` for real. The manifest came out 13 % heavier and the fingerprint 14 % lighter: the script had been deriving the prop list from the component's whole surface instead of what the story sets. The gap between the two files therefore widened, from 6.5× to 8.5×, so the decision holds on better numbers than the ones it was made on.
 
 **How it stays true.** Like a lockfile: the build writes it, and continuous integration fails when the committed one does not match, with a message saying what to run. Anything that depends on a person remembering ends up not being done.
 
