@@ -326,6 +326,8 @@ Le verdict ne pouvait pas être « n'est gardée par rien » : celui-là ne dép
 
 *Le champ `dans`* nomme le fichier quand `attendu` cite un titre sans lui. Préfixer `attendu` ne marcherait pas : il est cherché comme sous-chaîne dans une sortie où vitest écrit `fichier > describe > cas`.
 
+*Le seul mode d'échec de ce raccourci a été mesuré.* Une garantie dont le cas attendu ne rougit pas doit rester signalée, jamais conclue « vu » par la voie rapide. Sonde : une entrée réelle dont `attendu` pointe vers un cas d'un autre fichier, qui passe. Verdict rendu, `AILLEURS`, avec la raison nommée. La voie rapide ne conclut que si le cas attendu apparaît **et** que le fichier a rougi.
+
 *Chronométré, 90 garanties, en local.* **4 min 10 s avant, 1 min 57 s après**, soit 2,1 fois moins. Le calcul par mutation : `pack` 30 ms partout, puis 0,9 s sur la voie rapide contre 3,7 s sur la lente, `test` et `check` compris. Le plancher est désormais le démarrage de vitest, environ 0,7 s par lancement, donc 63 s pour 90 garanties quoi qu'on fasse d'autre.
 
 En intégration continue, l'observation d'avant était pauvre : le job a été **annulé à 10 min** sans finir, puis a mis 12 min 2 une fois le délai relevé à 30. Le rapport local sur distant est donc d'environ 2,9, ce qui place le contrôle accéléré aux alentours de 6 min. `DCJ-216` visait moins de 3 min : ce n'est pas atteint, et ça demanderait de muter en mémoire plutôt qu'un processus par garantie.
