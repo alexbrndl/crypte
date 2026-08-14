@@ -334,7 +334,11 @@ Le verdict ne pouvait pas être « n'est gardée par rien » : celui-là ne dép
 
 *Le script est une fonction gardée*, comme `changeset-check.mjs` et `post-review.mjs` : sans ça, importer le module pour en tester une fonction lancerait les quatre-vingt-douze mutations.
 
-*Chronométré, 90 garanties, en local.* **4 min 10 s avant, 1 min 57 s après**, soit 2,1 fois moins. Le compte cité est celui des garanties qui portent une cible, pas de celles qui concluent. Le calcul par mutation : `pack` 30 ms partout, puis 0,9 s sur la voie rapide contre 3,7 s sur la lente, `test` et `check` compris. Le plancher est désormais le démarrage de vitest, environ 0,7 s par lancement, donc 63 s pour 90 garanties quoi qu'on fasse d'autre.
+*Chronométré en local.* **4 min 10 s pour 90 garanties avant, 2 min 21 s pour 92 après**, soit 1,8 fois moins. Le compte de cibles cité plus haut est celui des garanties qui en portent une, pas de celles qui concluent.
+
+Le calcul par mutation : `pack` 30 ms partout, puis 0,9 s sur la voie rapide contre 3,7 s sur la lente, `test` et `check` compris. Les seize cibles lancées seules par le contrôle positif coûtent 24 s de ce total, et c'est ce qu'achète la fermeture du trou décrit ci-dessous.
+
+Le plancher est le démarrage de vitest, environ 0,7 s par lancement, donc plus d'une minute pour quatre-vingt-douze garanties quoi qu'on fasse d'autre.
 
 En intégration continue, l'observation d'avant était pauvre : le job a été **annulé à 10 min** sans finir, puis a mis 12 min 2 une fois le délai relevé à 30. Le rapport local sur distant est donc d'environ 2,9, ce qui place le contrôle accéléré aux alentours de 6 min. `DCJ-216` visait moins de 3 min : ce n'est pas atteint, et ça demanderait de muter en mémoire plutôt qu'un processus par garantie.
 

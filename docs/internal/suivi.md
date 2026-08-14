@@ -252,12 +252,12 @@ L'empreinte commitée de la fixture est le seul instance du régime de verrouill
 
 ### Le contrôle de mutation reste à six minutes en intégration continue
 
-`DCJ-216` visait moins de trois minutes. Chronométré : 4 min 10 s avant, **1 min 57 s après**, soit 2,1 fois moins en local. Le rapport local sur distant mesuré sur ce dépôt est d'environ 2,9, donc le contrôle tient aux alentours de six minutes en intégration continue, pas trois.
+`DCJ-216` visait moins de trois minutes. Chronométré : 4 min 10 s pour 90 garanties avant, **2 min 21 s pour 92 après**, soit 1,8 fois moins en local. Le rapport local sur distant mesuré sur ce dépôt est d'environ 2,9, donc le contrôle tient aux alentours de sept minutes en intégration continue, pas trois.
 
-*Où passe le temps qui reste :* quatre-vingt-trois garanties sur quatre-vingt-dix passent par la voie rapide, à 0,9 s chacune, dont environ 0,7 s de démarrage de vitest. Ce démarrage est un plancher : quatre-vingt-dix lancements en coûtent soixante-trois secondes quoi qu'on fasse du reste.
+*Où passe le temps qui reste :* la plupart des garanties passent par la voie rapide, à 0,9 s chacune, dont environ 0,7 s de démarrage de vitest. Ce démarrage est un plancher : quatre-vingt-douze lancements en coûtent plus d'une minute quoi qu'on fasse du reste. S'y ajoutent 24 s de contrôle positif, qui lance chaque cible seule.
 
 *Ce qui le lèverait :* muter en mémoire, un seul processus vitest rejouant la suite après chaque écriture, au lieu d'un processus par garantie. C'est un autre mécanisme, pas un réglage de celui-ci.
 
-*Pourquoi s'arrêter là :* le gain de 2,1 est acquis et le coût par garantie ajoutée passe de 3,7 s à 0,9 s, donc le catalogue peut tripler avant de retrouver le temps d'avant. Le délai du job reste à 30 min, qui couvre largement.
+*Pourquoi s'arrêter là :* le gain de 1,8 est acquis et le coût par garantie ajoutée passe de 3,7 s à 0,9 s, donc le catalogue peut tripler avant de retrouver le temps d'avant. Le délai du job reste à 30 min, qui couvre largement.
 
 *Origine :* mesures de DCJ-216.
