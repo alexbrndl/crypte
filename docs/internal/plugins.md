@@ -27,7 +27,7 @@ Quand aucune convention ne domine, le nom est choisi pour être transparent plut
 
 ---
 
-## Les quinze plugins
+## Les dix-sept plugins
 
 Chaque plugin est un projet distinct, avec sa propre PRD et ses issues. Les surfaces correspondent au contrat défini en section 6 de `contracts.md`.
 
@@ -60,8 +60,9 @@ Un seul plugin en phase 1, volontairement. Il sert à éprouver le contrat de pl
 | Paquet | Rôle | Surfaces |
 |---|---|---|
 | `@crypte/comments` | Commentaires et review sur les stories | ui, node |
+| `@crypte/coverage` | Props jamais exercées par une story, et usage réel des composants | node, ui |
 
-Dépend de `crypte serve`, qui n'est pas un plugin mais une commande du CLI : un site statique ne peut rien écrire. Un commentaire porte une URL libre, ce qui permet de le lier à un ticket sans que Crypte connaisse Linear, Jira ou GitHub.
+`comments` dépend de `crypte serve`, qui n'est pas un plugin mais une commande du CLI : un site statique ne peut rien écrire. Un commentaire porte une URL libre, ce qui permet de le lier à un ticket sans que Crypte connaisse Linear, Jira ou GitHub.
 
 ### Plus tard
 
@@ -73,10 +74,13 @@ Dépend de `crypte serve`, qui n'est pas un plugin mais une commande du CLI : un
 | `@crypte/rtl` | Sens de lecture inversé | ui, preview |
 | `@crypte/inspect` | Marges, contours, mesures | ui, preview |
 | `@crypte/grid` | Variantes côte à côte | ui |
+| `@crypte/diff` | Deux stories d'un même composant côte à côte, avec ce qui diffère | ui |
 
 `inspect` fusionne ce que Storybook sépare en `measure` et `outline`. Deux réglages du même panneau.
 
 `grid` mérite une mention : c'est lui qui rend au design system la vue d'ensemble qu'un format de story à deux niveaux aurait apportée. Le nœud parent de la sidebar affiche les stories côte à côte ; cliquer sur une feuille isole. Il peut même regrouper des stories de composants différents, ce qu'un format hiérarchique n'aurait pas permis.
+
+`diff` monte deux previews à la demande, ce qui est très différent d'en monter sept par défaut. Il partage sa mécanique avec `grid` et sort après lui.
 
 ---
 
@@ -88,7 +92,8 @@ Dépend de `crypte serve`, qui n'est pas un plugin mais une commande du CLI : un
 | `crypte check` | Commande du CLI, vérifie stories orphelines et composants sans story |
 | `crypte init` | Commande du CLI, initialise un projet existant |
 | `crypte serve` | Commande du CLI, sert l'instance éditable et l'écriture en pull request |
-| Sidebar, recherche, panneaux, thème de l'interface | Noyau (`@crypte/core/ui`) |
+| Arbre, recherche, palette, cadre des panneaux, thème de l'interface | `apps/shell`, privé |
+| Les primitives qu'au moins deux plugins dessinent | Noyau (`@crypte/core/ui`), voir `placement-ui.md` |
 | `wrap`, décorateurs | Format de story, résolu par l'adaptateur |
 
 ---
