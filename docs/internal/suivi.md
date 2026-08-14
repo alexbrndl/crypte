@@ -201,3 +201,13 @@ Le troisième, la colonne « props propres » de la page composant, veut les seu
 *La règle à partir de maintenant :* dès la première version publiée qui écrit un manifeste, ajouter un champ requis impose d'incrémenter `MANIFEST_VERSION`. Le raisonnement « champ additif, donc pas de changement de version » ne couvre que les champs optionnels.
 
 *Origine :* revue de la PR #30.
+
+### L'exhaustivité de `produced` n'est gardée que par le compilateur
+
+`StoriesRead` a trois variantes et `produced` les traite dans un `switch`. Ajouter une quatrième variante sans la traiter donne `TS2366`, mesuré, parce que la fin d'une fonction à type de retour déclaré redevient atteignable.
+
+*Ce qui n'est pas gardé :* rien n'empêche de remplacer le `switch` par une chaîne de ternaires, qui compile sans exiger l'exhaustivité. Les 81 garanties de mutation resteraient vertes et la protection disparaîtrait en silence.
+
+*Pourquoi ce n'est pas fait ici :* le catalogue de mutations casse du code et lit le rouge d'un test ; il ne sait pas exprimer « ce changement doit produire une erreur de type ». Le garder demanderait un second mécanisme, du genre d'un fichier de type attendu en échec, pour une protection d'une seule fonction.
+
+*Origine :* auto-review du lot 4.

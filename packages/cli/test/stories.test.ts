@@ -311,7 +311,10 @@ describe('la lecture des stories', () => {
   it('ne replie pas sur Default quand la définition n’est pas lisible', () => {
     const cases = [
       ['config', /definition is not an object literal/],
-      ['{ ...base }', /spreads an object/],
+      ['{ ...base }', /a spread in the definition decides the stories/],
+      // Mesuré : `{ stories: écrite, ...base }` rend celle de `base`. Le spread
+      // ne fait pas qu'ajouter une clé, il remplace celle qui la précède.
+      ['{ stories: { Une: { a: 1 } }, ...base }', /a spread in the definition decides the stories/],
     ] as const
 
     for (const [written, reason] of cases) {
@@ -328,7 +331,7 @@ describe('la lecture des stories', () => {
     }
   })
 
-  // Le spread ne rend opaque que ce qui manque : un bloc écrit reste lu.
+  // Un spread placé avant la clé ne décide de rien : la clé écrite gagne.
   it('lit le bloc stories qu’une définition à spread déclare quand même', () => {
     const source = [
       "import { A } from '../a'",
@@ -369,6 +372,26 @@ describe('la lecture des stories', () => {
 
     expect(entries.map((entry) => entry.name)).toEqual(['Une'])
     expect(skipped).toMatch(/spread/)
+  })
+
+  // `props` et `meta` se lisent de la même façon, donc ils courent le même
+  // risque : une liste de props fausse ment dans un chiffre de couverture.
+  it('ne lit pas les props ni le meta qu’un spread peut remplacer', () => {
+    const source = [
+      "import { A } from '../a'",
+      "import { base } from '../base'",
+      'export default defineStories(A, {',
+      '  props: { shared: 1 },',
+      "  meta: { status: 'stable' },",
+      '  ...base,',
+      '  stories: { Une: { a: 1 } },',
+      '})',
+    ].join('\n')
+
+    const { entries } = fileWith('A.ts', source)
+
+    expect(entries[0]?.props).toEqual(['a'])
+    expect(entries[0]?.meta).toBeUndefined()
   })
 
   it('laisse de côté une prop dont la clé est calculée', () => {

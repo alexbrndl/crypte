@@ -608,10 +608,10 @@
     "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand la définition n’est pas lisible"
   },
   {
-    "garantie": "Un spread dans la définition rend un bloc absent indécidable",
+    "garantie": "La position d'un spread décide si une clé est lisible",
     "fichier": "packages/cli/src/stories.ts",
-    "avant": "    return spreads(definition)\n      ? { kind: 'unusable', reason: 'the definition spreads an object, which may hold stories' }\n      : { kind: 'noBlock' }",
-    "apres": "    return { kind: 'noBlock' }",
+    "avant": "  if (shadowed(definition, 'stories')) {\n    return { kind: 'unusable', reason: 'a spread in the definition decides the stories' }\n  }",
+    "apres": "  if (shadowed(definition, 'stories') && propertyOf(definition, 'stories') === null) {\n    return { kind: 'unusable', reason: 'a spread in the definition decides the stories' }\n  }",
     "trouvee": "revue 4 de la PR #30",
     "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand la définition n’est pas lisible"
   },
@@ -635,8 +635,16 @@
     "garantie": "Un bloc dont aucune clé n'est lisible est inexploitable",
     "fichier": "packages/cli/src/stories.ts",
     "avant": "  if (stories.length === 0) {\n    return { kind: 'unusable', reason: `no story this reader can name: ${lost.join(', ')}` }\n  }",
-    "apres": "",
+    "apres": "  if (stories.length === 0) {\n    return { kind: 'these', stories, reason: undefined }\n  }",
     "trouvee": "revue 4 de la PR #30",
     "attendu": "stories.test.ts > la lecture des stories > ne replie pas sur Default quand le fichier nomme des stories illisibles"
+  },
+  {
+    "garantie": "Un spread peut remplacer les props et le meta écrits",
+    "fichier": "packages/cli/src/stories.ts",
+    "avant": "  const shared = shadowed(definition, 'props')\n    ? new Map<string, Node>()\n    : propsOf(propertyOf(definition, 'props'))",
+    "apres": "  const shared = propsOf(propertyOf(definition, 'props'))",
+    "trouvee": "auto-review du lot 4",
+    "attendu": "stories.test.ts > la lecture des stories > ne lit pas les props ni le meta qu’un spread peut remplacer"
   }
 ]

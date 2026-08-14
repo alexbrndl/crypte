@@ -52,12 +52,16 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
 
   const path = pathOf(file, storiesRoot)
   const storyFile = posix(relative(root, file))
-  const shared = propsOf(propertyOf(definition, 'props'))
+
+  // Read only what a spread does not decide, the same rule the stories follow.
+  const shared = shadowed(definition, 'props')
+    ? new Map<string, Node>()
+    : propsOf(propertyOf(definition, 'props'))
 
   // `meta` travels untouched: section 4.4. `details` does not travel yet, since
   // the manifest carries the resolved form, whose `type` and `required` come
   // from an adapter's inference and not from the file.
-  const meta = record(propertyOf(definition, 'meta'))
+  const meta = shadowed(definition, 'meta') ? undefined : record(propertyOf(definition, 'meta'))
 
   // The helper can be imported under another name, and any other call is
   // somebody else's function whose arguments say nothing about props.
@@ -128,14 +132,16 @@ function readStories(definition: Node | undefined, helper: string): StoriesRead 
     return { kind: 'unusable', reason: 'the definition is not an object literal' }
   }
 
-  const block = propertyOf(definition, 'stories')
-
-  if (block === null) {
-    // `defineStories(A, { ...base })` may well name ten stories.
-    return spreads(definition)
-      ? { kind: 'unusable', reason: 'the definition spreads an object, which may hold stories' }
-      : { kind: 'noBlock' }
+  // A spread does not only add a key, it replaces one already written when it
+  // comes after it. Measured: `{ stories: written, ...base }` gives base's.
+  // So `defineStories(A, { ...base })` may name ten stories, and
+  // `defineStories(A, { stories: …, ...base })` hands the answer to `base`.
+  if (shadowed(definition, 'stories')) {
+    return { kind: 'unusable', reason: 'a spread in the definition decides the stories' }
   }
+
+  const block = propertyOf(definition, 'stories')
+  if (block === null) return { kind: 'noBlock' }
 
   // `stories: shared` is allowed by section 2.3, and holds names only the
   // running file would know.
@@ -226,12 +232,21 @@ function asStoryLiteral(value: Node): { props: Node | null; options: Node | null
     : undefined
 }
 
-// A spread makes every absent key undecidable: what it brings is only known by
-// running the file.
-function spreads(object: Node | undefined): boolean {
+// Whether a spread decides the value of a key rather than the file. True when a
+// spread follows the key, and true for any spread when the key is absent, since
+// `findIndex` gives -1 and every position is then after it.
+function shadowed(object: Node | undefined, name: string): boolean {
   if (object?.type !== 'ObjectExpression') return false
 
-  return (object['properties'] as Node[]).some((property) => property.type !== 'Property')
+  const properties = object['properties'] as Node[]
+  const at = properties.findIndex(
+    (property) =>
+      property.type === 'Property' &&
+      property['computed'] !== true &&
+      keyOf(property['key'] as Node) === name,
+  )
+
+  return properties.some((property, index) => property.type !== 'Property' && index > at)
 }
 
 // The name a non-computed key carries, quoted or bare.

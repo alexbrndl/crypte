@@ -488,6 +488,14 @@ La décision était en plus prise à deux endroits, `listed` et son appelant, do
 
 `readStories` rend maintenant `StoriesRead`, trois variantes dont `unusable` porte la raison, et `produced` est le seul endroit qui décide. *Mesuré :* ajouter une quatrième variante sans la traiter donne `TS2366`, « Function lacks ending return statement », parce que la fin d'une fonction à type de retour déclaré redevient atteignable. Le silence est donc devenu impossible, ce qui est la seule chose qui distingue cette structure de la précédente.
 
+**Un spread ne fait pas qu'ajouter une clé, il remplace celle qui le précède.**
+
+*Mesuré :* `{ stories: écrite, ...base }` rend celle de `base`, et `{ ...base, stories: écrite }` rend celle qui est écrite. C'est le dernier qui gagne, donc c'est la **position** du spread qui décide, pas sa seule présence.
+
+`shadowed(objet, nom)` répond à cette question, et l'astuce de son écriture est que `findIndex` rend `-1` sur une clé absente : tout spread est alors « après » elle, ce qui est exactement le bon verdict. La même règle s'applique à `props` et à `meta`, lus de la même façon.
+
+*Ce qui casse si on l'enlève :* `defineStories(A, { stories: { Une: {} }, ...base })` produit la story `Une` alors que `base` en nomme dix autres, et une liste de props fausse ment dans un chiffre de couverture.
+
 **L'ordre des extensions est celui de Vite, et il est vérifié à la source.**
 
 `resolve.extensions` vaut `['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json']` par défaut dans `vite@8.2.1`, lu dans ses propres types. `.vue` est ajouté en dernier et nous appartient : il n'est pas dans cette liste, et le mettre en queue laisse passer devant lui toutes les extensions que Vite énumère.
