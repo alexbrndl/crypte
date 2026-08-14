@@ -580,6 +580,12 @@ Deux mécanismes se disputaient la forme du fichier. `vp check --fix`, lancé pa
 
 *La règle générale :* un fichier généré et commité ne doit pas être reformaté par un outil qui ne le produit pas. Le dépôt appliquait déjà ça à `docs/**` et à `README.md`, pour une raison différente.
 
+**Le contrôle de mutation rejoue la suite une dernière fois.**
+
+Le même conflit s'est présenté un cran plus loin. Le contrôle mute une source, lance la suite, et exige à la fin que l'arbre soit propre : c'est sa condition d'emploi, et personne d'autre ne la vérifie. Or la suite écrit l'empreinte, qui diverge quand elle est produite depuis une source mutée, donc le contrôle la voyait comme une source non restaurée.
+
+*Le passage final sur les sources intactes la remet à sa valeur*, plutôt que de retirer ces fichiers du contrôle. Affaiblir la vérification aurait coûté plus que les deux secondes que coûte ce passage : elle est le seul juge de ce que le script laisse derrière lui.
+
 **Lire et comparer ne sont pas ici.** Le module n'écrit que. Dire à un projet que son empreinte est en retard est le travail de `crypte check`, section 1.2 des contrats, et l'écrire maintenant serait deux fonctions que seuls des tests appellent.
 
 ---

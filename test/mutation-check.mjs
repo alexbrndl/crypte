@@ -143,6 +143,16 @@ if (!run(vp, ['run', '-r', 'pack']).ok) {
   process.exit(1)
 }
 
+// La suite écrit aussi des fichiers commités, l'empreinte de la fixture. Écrite
+// depuis une source mutée elle diverge, et le contrôle ci-dessous la verrait
+// comme une source non restaurée. Un dernier passage sur les sources intactes la
+// remet à sa valeur, ce qui vaut mieux que de retirer ces fichiers du contrôle :
+// celui-ci reste ainsi le seul juge de ce que le script a laissé derrière lui.
+if (!run(vp, ['test']).ok) {
+  console.error('\nLa suite échoue sur les sources restaurées : le script a laissé quelque chose.')
+  process.exit(1)
+}
+
 // Ce script écrit dans les sources. Qu'il les restaure toutes est sa condition
 // d'emploi, et personne d'autre ne la vérifie : en intégration continue il passe
 // après le `git diff`, donc un fichier laissé muté ne serait vu de personne.
