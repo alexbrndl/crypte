@@ -248,13 +248,42 @@ function declared(body: Node[]): Set<string> {
     if (
       one.type === 'FunctionDeclaration' ||
       one.type === 'ClassDeclaration' ||
-      one.type === 'TSEnumDeclaration'
+      one.type === 'TSEnumDeclaration' ||
+      one.type === 'TSModuleDeclaration'
     ) {
       for (const name of bindings(one['id'] as Node | undefined)) found.add(name)
     }
   }
 
+  hoisted(body, found)
+
   return found
+}
+
+// A `var` belongs to the file or to the function, never to the block it sits
+// in: `{ var runtime = 'react' }` declares `runtime` for everything after it.
+// Read statement by statement, it looked undeclared and the name left pending
+// towards the browser. Measured.
+function hoisted(node: unknown, found: Set<string>): void {
+  if (node === null || typeof node !== 'object') return
+
+  if (Array.isArray(node)) {
+    for (const item of node) hoisted(item, found)
+    return
+  }
+
+  const inner = node as Node
+
+  // A function's own `var` is its own, so the walk stops at its edge.
+  if (FUNCTIONS.has(inner.type)) return
+
+  if (inner.type === 'VariableDeclaration' && inner['kind'] === 'var') {
+    for (const declarator of (inner['declarations'] as Node[]) ?? []) {
+      for (const name of bindings(declarator['id'] as Node | undefined)) found.add(name)
+    }
+  }
+
+  for (const held of Object.values(inner)) hoisted(held, found)
 }
 
 // The names a binding introduces. `const { a, b: [c] = [] } = …` declares three,
@@ -283,14 +312,11 @@ function bindings(node: Node | undefined): string[] {
   return []
 }
 
+const FUNCTIONS = new Set(['ArrowFunctionExpression', 'FunctionExpression', 'FunctionDeclaration'])
+
 // The node types that carry their own names, so that a parameter shadowing a
 // name of the file does not make the expression look like it uses that name.
-const CARRIES = new Set([
-  'ArrowFunctionExpression',
-  'FunctionExpression',
-  'FunctionDeclaration',
-  'CatchClause',
-])
+const CARRIES = new Set([...FUNCTIONS, 'CatchClause'])
 
 // The names an expression takes from outside itself. A string is not one, and
 // neither is a name that only sits where a name cannot be read: the key of an

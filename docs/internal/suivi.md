@@ -290,10 +290,14 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 
 *Ce que ça revient à faire :* un résolveur de portées écrit à la main sur la grammaire JS/TS. Énumérer toutes les formes de liaison est le travail d'un résolveur complet, pas d'une fonction de trente lignes.
 
-*Ce qui n'est pas couvert, connu à ce jour :* les liaisons d'une boucle (`for (const opts of list)`), un bloc imbriqué dans un corps de fonction, un `var` remonté depuis un bloc au niveau du fichier, le nom d'une expression de classe.
+*Les deux sens ne coûtent pas la même chose, et c'est ce qui décide.* Un **faux accepté** émet un nom pendant et rend un cadre vide sans message, ce que ce contrôle existe pour éviter. Un **faux refusé** écarte une configuration valide avec un message explicite, que l'auteur contourne en important la valeur.
 
-*Pourquoi on arrête quand même, et c'est le point à lire avant de rouvrir :* les deux sens ne coûtent pas la même chose. Un **faux accepté** émet un nom pendant et rend un cadre vide sans message, ce que ce contrôle existe pour éviter ; il est fermé pour les formes qu'un `crypte.config.ts` peut porter, `export default function` étant exclu par la forme même du fichier. Un **faux refusé** écarte une configuration valide avec un message explicite, que l'auteur contourne en important la valeur. Ce qui reste est entièrement du second côté.
+*Ce qui reste ouvert est du second côté, et seulement de celui-là :* une liaison de boucle (`for (const opts of list)`), un bloc imbriqué dans un corps de fonction, le nom d'une expression de classe. Chacun refuse une configuration valide, aucun n'en laisse passer une cassée.
 
-*Ce qui rouvrirait :* un cas du premier côté, c'est-à-dire une forme de déclaration qui passe le contrôle et laisse un nom pendant dans l'entrée. Ou assez de faux refus rapportés pour que le message cesse de suffire.
+*Ce qui était du premier côté a été fermé plutôt que consigné :* les formes de déclaration, y compris un `var` écrit dans un bloc et remonté au fichier, un espace de noms, une énumération, et les motifs de déstructuration. `export default function` est exclu par la forme même du fichier, puisque `adapterExpression` exige que l'export par défaut soit l'objet littéral.
+
+*Ce qui rouvrirait :* une forme de déclaration qui passe le contrôle et laisse un nom pendant dans l'entrée, c'est-à-dire un cas du premier côté. Ou assez de faux refus rapportés pour que le message cesse de suffire.
+
+*Ce qui a déjà rouvert :* la première version de cette entrée rangeait le `var` remonté du côté bénin. Il était du côté grave, mesuré, et la revue l'a repris. Un axe non couvert se vérifie avant d'être classé.
 
 *Origine :* revues 2 à 5 de la PR #33, quatre tours ayant chacun rendu un axe d'entrée de plus.

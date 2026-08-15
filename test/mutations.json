@@ -906,5 +906,29 @@
     "apres": "",
     "trouvee": "revue 5 du lot 5a",
     "attendu": "adapter.test.ts > la source de l’adaptateur > accepte un nom qu’un corps de fonction déclare pour lui-même"
+  },
+  {
+    "garantie": "Un `var` écrit dans un bloc est déclaré par le fichier",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "  hoisted(body, found)",
+    "apres": "",
+    "trouvee": "revue 6 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déclare en `var` dans un bloc"
+  },
+  {
+    "garantie": "Le `var` d'une fonction ne remonte pas au fichier",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "  if (FUNCTIONS.has(inner.type)) return",
+    "apres": "",
+    "trouvee": "revue 6 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > accepte un nom importé qu’une fonction du fichier redéclare en `var`"
+  },
+  {
+    "garantie": "Un espace de noms déclare un nom comme une variable",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "      one.type === 'TSModuleDeclaration'",
+    "apres": "      one.type === 'RienDuTout'",
+    "trouvee": "revue 6 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déclare en espace de noms"
   }
 ]

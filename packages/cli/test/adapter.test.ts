@@ -162,8 +162,8 @@ describe('la source de l’adaptateur', () => {
       'export default { adapter: createAdapter({ runtime }) }',
     ].join('\n')
 
-    // Le nom compte : `mode` est déclaré par le même motif, donc un message qui
-    // le cite laisserait passer un reste que personne ne lit.
+    // Le nom cité, pas seulement le jet : `mode` est déclaré par le même motif,
+    // et une lecture qui s'arrêterait à lui laisserait le reste passer.
     expect(() => adapterSource(project(source))).toThrow('(`runtime`)')
   })
 
@@ -210,6 +210,47 @@ describe('la source de l’adaptateur', () => {
     )
 
     expect(read.imports).toEqual(["import { createAdapter } from '@crypte/react'"])
+  })
+
+  // Un `var` appartient au fichier, pas au bloc où il est écrit. Lu instruction
+  // par instruction il paraissait absent, et le nom partait pendant.
+  it('refuse un nom que le fichier déclare en `var` dans un bloc', () => {
+    const source = [
+      "import { createAdapter } from '@crypte/react'",
+      "{ var runtime = 'react' }",
+      'export default { adapter: createAdapter({ runtime }) }',
+    ].join('\n')
+
+    expect(() => adapterSource(project(source))).toThrow('(`runtime`)')
+  })
+
+  it('refuse un nom que le fichier déclare en espace de noms', () => {
+    const source = [
+      "import { createAdapter } from '@crypte/react'",
+      'namespace Runtime {',
+      "  export const React = 'react'",
+      '}',
+      'export default { adapter: createAdapter({ runtime: Runtime.React }) }',
+    ].join('\n')
+
+    expect(() => adapterSource(project(source))).toThrow('(`Runtime`)')
+  })
+
+  // Le `var` d'une fonction lui appartient : le remonter au fichier ferait
+  // refuser un nom importé qui s'écrit pareil.
+  it('accepte un nom importé qu’une fonction du fichier redéclare en `var`', () => {
+    const read = adapterSource(
+      project(
+        [
+          "import { createAdapter } from '@crypte/react'",
+          "import { runtime } from './runtime'",
+          "function make() { var runtime = 'vue'; return runtime }",
+          'export default { adapter: createAdapter({ runtime }) }',
+        ].join('\n'),
+      ),
+    )
+
+    expect(read.imports).toContain("import { runtime } from './runtime'")
   })
 
   // Un global n'est pas un nom que le fichier calcule : le refuser refuserait
