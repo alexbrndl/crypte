@@ -63,11 +63,10 @@ describe('l’écran', () => {
     // rougissait pour une raison qui n'est pas la sienne. Mesuré sous le
     // contrôle de mutation.
     await page.goto(origin)
-    await expect
-      .poll(() => page.frameLocator('iframe[title="preview"]').locator('#root').textContent(), {
-        timeout: 120_000,
-      })
-      .toBe('Nouveau')
+    await page
+      .frameLocator('iframe[title="preview"]')
+      .getByText('Nouveau')
+      .waitFor({ timeout: 120_000 })
   }, 300_000)
 
   afterAll(async () => {
