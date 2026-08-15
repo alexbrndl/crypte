@@ -32,6 +32,19 @@ function run(command, args) {
 
 const vp = process.env.VP_BIN ?? 'vp'
 
+// La source mutée du moment. Le `finally` de la boucle restaure sur une
+// exception, jamais sur un signal : un contrôle tué par un délai laissait donc
+// un fichier muté dans l'arbre, prêt à être commité. Mesuré.
+let inFlight
+
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.on(signal, () => {
+    if (inFlight) writeFileSync(inFlight.path, inFlight.original)
+    console.error(`\nInterrompu par ${signal}. La source mutée a été restaurée.`)
+    process.exit(1)
+  })
+}
+
 // `\e[2m > \e[22m` n'est pas ` > `. Voir docs/internal/architecture.md. Construite depuis un
 // code, une séquence d'échappement en littéral étant refusée par le lint.
 const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[\\d;]*m`, 'g')
@@ -161,6 +174,7 @@ function main() {
 
     // Le remplacement passe par une fonction : la forme chaîne interpréterait
     // `$&` et `$1` dans le texte, qui y écriraient ce que personne n'a écrit.
+    inFlight = { path, original }
     writeFileSync(
       path,
       original.replace(mutation.avant, () => mutation.apres),
@@ -222,6 +236,7 @@ function main() {
         )
     } finally {
       writeFileSync(path, original)
+      inFlight = undefined
       // `dist` reste issu de la source mutée, et git ne le voit pas puisqu'il est
       // ignoré. Reconstruire ici plutôt qu'après la boucle : une exception ou une
       // interruption laisserait sinon des bundles qui ne suivent aucune source.
