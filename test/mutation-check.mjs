@@ -104,8 +104,16 @@ function main() {
   // « échec » à chaque appel, donc toute mutation paraît vue, et le script annonce
   // que tout est gardé sans avoir rien lancé. Mesuré : c'était le cas.
   console.log('contrôle positif : la suite passe-t-elle sur le code intact ?')
-  if (!run(vp, ['run', '-r', 'pack']).ok || !run(vp, ['test']).ok || !run(vp, ['check']).ok) {
+  // Avec la sortie de celui qui a échoué, et son nom : sans ça le message dit
+  // qu'une des trois commandes est rouge sans dire laquelle, et le seul moyen de
+  // savoir est de relancer les trois à la main.
+  for (const args of [['run', '-r', 'pack'], ['test'], ['check']]) {
+    const result = run(vp, args)
+    if (result.ok) continue
+
     console.error(`\nLa suite échoue déjà sans mutation. Corrige-la, ou vérifie \`${vp}\`.`)
+    console.error(`\`${vp} ${args.join(' ')}\` :`)
+    console.error(plain(result.output).split('\n').slice(-40).join('\n'))
     process.exit(1)
   }
 
