@@ -892,14 +892,6 @@
     "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déclare avec une valeur par défaut"
   },
   {
-    "garantie": "Une énumération déclare un nom comme une variable",
-    "fichier": "packages/cli/src/serve.ts",
-    "avant": "      one.type === 'TSEnumDeclaration'",
-    "apres": "      one.type === 'RienDuTout'",
-    "trouvee": "revue 5 du lot 5a",
-    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déclare en énumération"
-  },
-  {
     "garantie": "Ce qu'un corps de fonction déclare lui appartient",
     "fichier": "packages/cli/src/serve.ts",
     "avant": "        for (const name of declared((body['body'] as Node[]) ?? [])) inside.add(name)",
@@ -924,11 +916,19 @@
     "attendu": "adapter.test.ts > la source de l’adaptateur > accepte un nom importé qu’une fonction du fichier redéclare en `var`"
   },
   {
-    "garantie": "Un espace de noms déclare un nom comme une variable",
+    "garantie": "Toute déclaration nommée du fichier déclare son nom",
     "fichier": "packages/cli/src/serve.ts",
-    "avant": "      one.type === 'TSModuleDeclaration'",
-    "apres": "      one.type === 'RienDuTout'",
-    "trouvee": "revue 6 du lot 5a",
-    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déclare en espace de noms"
+    "avant": "    for (const name of bindings(one['id'] as Node | undefined)) found.add(name)",
+    "apres": "",
+    "trouvee": "revue 7 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déclare en énumération"
+  },
+  {
+    "garantie": "Une déclaration de variable du fichier déclare ses noms",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "    for (const declarator of (one['declarations'] as Node[]) ?? []) {\n      for (const name of bindings(declarator['id'] as Node | undefined)) found.add(name)\n    }",
+    "apres": "",
+    "trouvee": "revue 7 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier calcule lui-même"
   }
 ]

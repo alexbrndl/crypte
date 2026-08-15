@@ -253,6 +253,29 @@ describe('la source de l’adaptateur', () => {
     expect(read.imports).toContain("import { runtime } from './runtime'")
   })
 
+  // `import x = require(…)` déclare un nom sans passer par les imports que le
+  // lecteur collecte : accepté, il partait pendant vers le navigateur.
+  it('refuse un nom que le fichier déclare par `import =`', () => {
+    const source = [
+      "import { createAdapter } from '@crypte/react'",
+      "import runtime = require('./runtime')",
+      'export default { adapter: createAdapter({ runtime }) }',
+    ].join('\n')
+
+    expect(() => adapterSource(project(source))).toThrow('(`runtime`)')
+  })
+
+  it('refuse un nom que le fichier aliase par `import =`', () => {
+    const source = [
+      "import { createAdapter } from '@crypte/react'",
+      "import * as deep from './deep'",
+      'import Runtime = deep.Runtime',
+      'export default { adapter: createAdapter({ runtime: Runtime.React }) }',
+    ].join('\n')
+
+    expect(() => adapterSource(project(source))).toThrow('(`Runtime`)')
+  })
+
   // Un global n'est pas un nom que le fichier calcule : le refuser refuserait
   // `process.env`, que Vite remplace.
   it('accepte un global que le fichier ne déclare pas', () => {

@@ -288,16 +288,16 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 
 `adapterSource` refuse un nom que le fichier déclare, parce qu'un tel nom repart dans l'expression émise sans rien qui le déclare : `ReferenceError` au chargement, donc avant l'ouverture du canal, donc un cadre vide sans rien à dire. Pour trancher, il lit les noms que le fichier déclare et retire ceux que l'expression porte elle-même.
 
-*Ce que ça revient à faire :* un résolveur de portées écrit à la main sur la grammaire JS/TS. Énumérer toutes les formes de liaison est le travail d'un résolveur complet, pas d'une fonction de trente lignes.
+*Ce que ça revient à faire :* un résolveur de portées écrit à la main sur la grammaire JS/TS. Les formes de **déclaration** sont couvertes par une lecture de la forme, voir plus bas ; ce sont les formes de **liaison locale** qui restent partielles, et les énumérer toutes est le travail d'un résolveur complet.
 
 *Les deux sens ne coûtent pas la même chose, et c'est ce qui décide.* Un **faux accepté** émet un nom pendant et rend un cadre vide sans message, ce que ce contrôle existe pour éviter. Un **faux refusé** écarte une configuration valide avec un message explicite, que l'auteur contourne en important la valeur.
 
 *Ce qui reste ouvert est du second côté, et seulement de celui-là :* une liaison de boucle (`for (const opts of list)`), un bloc imbriqué dans un corps de fonction, le nom d'une expression de classe. Chacun refuse une configuration valide, aucun n'en laisse passer une cassée.
 
-*Ce qui était du premier côté a été fermé plutôt que consigné :* les formes de déclaration, y compris un `var` écrit dans un bloc et remonté au fichier, un espace de noms, une énumération, et les motifs de déstructuration. `export default function` est exclu par la forme même du fichier, puisque `adapterExpression` exige que l'export par défaut soit l'objet littéral.
+*Le premier côté n'est plus une énumération.* `declared` a d'abord nommé les types de nœuds qui déclarent : `VariableDeclaration`, puis `FunctionDeclaration` et `ClassDeclaration`, puis `TSEnumDeclaration`, puis `TSModuleDeclaration`, puis `TSImportEqualsDeclaration`. Une par revue, chacune acceptée tant qu'elle n'était pas nommée, et la grammaire TypeScript continue d'en ajouter. La liste a donc été remplacée par une lecture de la forme : toute déclaration porte son nom dans `id` ou dans `declarations`, et rien d'autre au niveau d'un module n'en porte. Une forme nouvelle est couverte sans qu'on ait à la connaître.
 
-*Ce qui rouvrirait :* une forme de déclaration qui passe le contrôle et laisse un nom pendant dans l'entrée, c'est-à-dire un cas du premier côté. Ou assez de faux refus rapportés pour que le message cesse de suffire.
+*Ce qui rouvrirait :* un nœud qui lie un nom sans le porter dans `id` ni dans `declarations`. Ou assez de faux refus rapportés pour que le message cesse de suffire.
 
-*Ce qui a déjà rouvert :* la première version de cette entrée rangeait le `var` remonté du côté bénin. Il était du côté grave, mesuré, et la revue l'a repris. Un axe non couvert se vérifie avant d'être classé.
+*Ce qui a déjà rouvert, deux fois :* la première version de cette entrée rangeait le `var` remonté du côté bénin, mesuré du côté grave. La deuxième déclarait le premier côté fermé alors que `import x = require(…)` passait encore. Les deux fois, la liste était l'erreur, pas la ligne manquante.
 
 *Origine :* revues 2 à 5 de la PR #33, quatre tours ayant chacun rendu un axe d'entrée de plus.

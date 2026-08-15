@@ -239,19 +239,16 @@ function declared(body: Node[]): Set<string> {
         ? ((node['declaration'] as Node | undefined) ?? node)
         : node
 
-    if (one.type === 'VariableDeclaration') {
-      for (const declarator of (one['declarations'] as Node[]) ?? []) {
-        for (const name of bindings(declarator['id'] as Node | undefined)) found.add(name)
-      }
-    }
+    // Read from the shape, not from a list of node types. The list was the bug:
+    // it named `VariableDeclaration`, then `FunctionDeclaration` and
+    // `ClassDeclaration`, then `TSEnumDeclaration`, then `TSModuleDeclaration`,
+    // then `TSImportEqualsDeclaration`, one per review, each accepted until
+    // named. Every form that binds a name carries it in `id` or `declarations`,
+    // and nothing else at the top level of a module does.
+    for (const name of bindings(one['id'] as Node | undefined)) found.add(name)
 
-    if (
-      one.type === 'FunctionDeclaration' ||
-      one.type === 'ClassDeclaration' ||
-      one.type === 'TSEnumDeclaration' ||
-      one.type === 'TSModuleDeclaration'
-    ) {
-      for (const name of bindings(one['id'] as Node | undefined)) found.add(name)
+    for (const declarator of (one['declarations'] as Node[]) ?? []) {
+      for (const name of bindings(declarator['id'] as Node | undefined)) found.add(name)
     }
   }
 
