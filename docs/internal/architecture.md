@@ -294,7 +294,11 @@ La seule méthode qui ait fonctionné à chaque fois est de casser ce que le tes
 
 **Trois précautions.** Il refuse de tourner sur un arbre non propre, sinon une interruption laisserait des sources mutées sans que git puisse dire lesquelles. Il reconstruit les artefacts en sortant, le test d'isolation les lisant. Et il vérifie lui-même qu'il n'a rien laissé de modifié : en intégration continue il passe après le `git diff --exit-code`, donc personne d'autre ne le ferait.
 
-*Ce qu'il ne fait pas :* rattraper un signal. Une version antérieure enregistrait un gestionnaire pour `SIGINT`, ce qui ne servait à rien et nuisait : la boucle étant synchrone, le gestionnaire ne s'exécutait jamais, et l'enregistrer suffisait à désactiver l'interruption par défaut, donc à rendre le script impossible à arrêter au clavier. La restauration tient dans le `finally` de chaque tour, et une interruption laisse une source mutée que `git status` montre.
+*La mort brutale est rattrapée par un journal, pas par un signal.* Le script écrit `test/.mutation-inflight.json` avant de muter, avec le chemin et le contenu d'origine, et le retire en restaurant. L'exécution suivante le lit, restaure, et le dit.
+
+*Pourquoi pas un gestionnaire de signal.* La boucle est synchrone : `execFileSync` bloque presque tout le temps, donc le gestionnaire ne s'exécute jamais. L'enregistrer nuit même, puisque cela désactive l'interruption par défaut et rend le script impossible à arrêter au clavier. C'était déjà écrit ici, et une version l'a réessayé quand même avant de le mesurer : tué par `pkill`, le fichier restait muté.
+
+*Ce qui casse si on l'enlève.* Un contrôle tué par un délai laisse une source mutée dans l'arbre. Le contrôle d'arbre propre la signale au prochain lancement, mais entre les deux, un `git add -A` la commite. **Mesuré au lot 5b, sur ce dépôt : `if (false) return null` est arrivé dans un commit de cette façon**, et n'a été vu qu'en comparant le fichier restauré à `HEAD`.
 
 *Une construction en échec interrompt le tour* plutôt que de laisser les tests lire les artefacts précédents, ce qui accuserait une garantie pourtant gardée.
 
