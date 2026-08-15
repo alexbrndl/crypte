@@ -128,7 +128,7 @@ Distinct de `packages/cli/test/fixture`, qui n'a ni `package.json` ni React et n
 | `index.html` | page du shell, la seule qu'il porte | le navigateur |
 | `src/main.ts` | montage de l'application Vue | `index.html` |
 | `src/App.vue` | arbre des stories, sélection, panneau d'erreur | `main.ts` |
-| `src/recover.ts` | où retombe la sélection quand l'identifiant affiché disparaît | `App.vue` |
+| `src/recover.ts` | où retombe la sélection, ce que le shell en retient, et ce qu'il dit d'un catalogue illisible | `App.vue` |
 | `test/recover.test.ts` | les cas de ce repli | — |
 | `src/env.d.ts` | déclarations pour Vite et les fichiers `.vue` | le compilateur |
 

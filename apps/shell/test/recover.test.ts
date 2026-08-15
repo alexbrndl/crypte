@@ -1,6 +1,6 @@
 import type { StoryEntry } from '@crypte/core/protocol'
 import { describe, expect, it } from 'vitest'
-import { recovered } from '../src/recover'
+import { landing, recovered, unreadable } from '../src/recover'
 
 // Où retombe la sélection quand le catalogue change sous elle. Perdre sa place à
 // chaque frappe est pire que ne pas recharger du tout, d'où un repli plutôt
@@ -71,7 +71,60 @@ describe('la sélection après un changement de catalogue', () => {
     expect(recovered('effacée', [defaut, alerte], [defaut, alerte, autre])).toBeNull()
   })
 
+  // Un catalogue vide n'a rien perdu. Confondu avec une sélection perdue, il ne
+  // se sélectionnait plus jamais tout seul une fois la première story écrite.
+  it('reprend la première story après un catalogue vide', () => {
+    expect(recovered(null, [], [defaut, alerte])).toBe(defaut.id)
+  })
+
   it('rend rien quand le catalogue est devenu vide', () => {
     expect(recovered(alerte, [defaut, alerte], [])).toBeNull()
+  })
+})
+
+// Ce que le shell devient, et pas seulement où il retombe : la distinction
+// entre « rien n'a jamais été affiché » et « la sélection vient d'être perdue »
+// se décide ici, hors d'un rendu Vue.
+describe('l’atterrissage après un rafraîchissement', () => {
+  it('n’efface rien sur un catalogue vide', () => {
+    expect(landing(null, [], [])).toEqual({ id: null, shown: null, status: undefined })
+  })
+
+  // Le bloquant du tour 2 : marqué effacé, un projet sans story ne se
+  // sélectionnait plus jamais tout seul une fois la première écrite.
+  it('reprend la main dès qu’une première story arrive', () => {
+    const vide = landing(null, [], [])
+
+    expect(landing(vide.shown, [], [defaut]).id).toBe(defaut.id)
+  })
+
+  it('efface et le dit quand la sélection est perdue', () => {
+    expect(landing(alerte, [defaut, alerte, autre], [autre])).toEqual({
+      id: null,
+      shown: 'effacée',
+      status: 'la story affichée a disparu',
+    })
+  })
+
+  it('ne redit rien tant que la sélection tient', () => {
+    expect(landing(alerte, [defaut, alerte], [defaut, alerte])).toEqual({
+      id: alerte.id,
+      shown: alerte,
+      status: undefined,
+    })
+  })
+})
+
+describe('un catalogue illisible', () => {
+  it('dit ce qui a empêché de le lire', () => {
+    expect(unreadable(new Error('Unexpected end of JSON input'))).toBe(
+      'catalogue illisible : Unexpected end of JSON input',
+    )
+  })
+
+  // Un rejet qui n'est pas une erreur reste lisible plutôt que de rendre
+  // « [object Object] ».
+  it('rend lisible ce qui n’est pas une erreur', () => {
+    expect(unreadable(503)).toBe('catalogue illisible : 503')
   })
 })

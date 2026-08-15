@@ -2,7 +2,7 @@
 import type { Manifest, StoryEntry } from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/ui'
 import { computed, onMounted, ref, useTemplateRef } from 'vue'
-import { recovered } from './recover'
+import { landing, unreadable, type Shown } from './recover'
 
 // Le shell ne connaît aucun framework : il lit un manifeste et parle par le
 // canal. C'est ce qui lui permet d'être construit à l'avance et livré dans le
@@ -19,7 +19,7 @@ const status = ref('chargement du catalogue')
 // L'entrée affichée, pas seulement son identifiant : celui-ci vient du chemin et
 // du nom, donc renommer une story le change et la sélection ne se retrouve plus.
 // Son fichier et son rang y survivent.
-let shown: StoryEntry | null | 'effacée' = null
+let shown: Shown = null
 
 // Une erreur de rendu s'affiche, elle ne se glisse pas dans une ligne d'état :
 // une story qui ne rend rien laisse un cadre vide, et un cadre vide sans
@@ -61,7 +61,7 @@ async function refresh() {
   try {
     manifest = (await fetch(MANIFEST).then((answer) => answer.json())) as Manifest
   } catch (error) {
-    status.value = `catalogue illisible : ${error instanceof Error ? error.message : String(error)}`
+    status.value = unreadable(error)
     return
   }
 
@@ -70,15 +70,16 @@ async function refresh() {
   entries.value = manifest.entries
   status.value = `${manifest.entries.length} stories`
 
-  const id = recovered(shown, before, manifest.entries)
-  if (id === null) {
+  const next = landing(shown, before, manifest.entries)
+  shown = next.shown
+  if (next.status) status.value = next.status
+
+  if (next.id === null) {
     current.value = null
-    shown = 'effacée'
-    if (manifest.entries.length > 0) status.value = 'la story affichée a disparu'
     return
   }
 
-  show(id)
+  show(next.id)
 }
 
 onMounted(() => {

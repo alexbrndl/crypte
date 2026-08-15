@@ -1042,5 +1042,21 @@
     "apres": "    failed = undefined\n\n    const now = lines(next)\n    for (const line of now) if (!said.has(line)) log(line)\n    said = new Set([...said, ...now])",
     "trouvee": "revue 1 du lot 5b",
     "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > redit ce qu’un fichier réparé casse à nouveau"
+  },
+  {
+    "garantie": "Un catalogue vide n'est pas une sélection perdue",
+    "fichier": "apps/shell/src/recover.ts",
+    "avant": "  if (after.length === 0) return { id: null, shown, status: undefined }",
+    "apres": "",
+    "trouvee": "revue 2 du lot 5b",
+    "attendu": "recover.test.ts > l’atterrissage après un rafraîchissement > reprend la main dès qu’une première story arrive"
+  },
+  {
+    "garantie": "Un catalogue illisible se dit plutôt que de figer l'arbre en silence",
+    "fichier": "apps/shell/src/recover.ts",
+    "avant": "  return `catalogue illisible : ${error instanceof Error ? error.message : String(error)}`",
+    "apres": "  return `catalogue illisible : ${String(error)}`",
+    "trouvee": "revue 2 du lot 5b",
+    "attendu": "recover.test.ts > un catalogue illisible > dit ce qui a empêché de le lire"
   }
 ]

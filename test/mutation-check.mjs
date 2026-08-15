@@ -63,7 +63,10 @@ function recoverInFlight() {
   // Git, donc rien ne signale sa présence : restaurer sans regarder écrasait ce
   // que l'auteur avait écrit depuis, éventuellement des jours plus tard. C'est
   // la panne que `CLAUDE.md` décrit sous « Annuler une modification de test ».
-  if (readFileSync(read.path, 'utf8') !== read.mutated) {
+  // Un journal d'une version antérieure n'a pas de texte muté. Le comparer
+  // rendrait toujours faux, donc le script dirait « rien n'a été touché » sur
+  // une source restée mutée, et supprimerait ce qui permettait de la restaurer.
+  if (read.mutated !== undefined && readFileSync(read.path, 'utf8') !== read.mutated) {
     rmSync(INFLIGHT)
     console.log(
       `Journal du contrôle précédent périmé : ${relative(root, read.path)} a changé depuis, rien n'a été touché.`,

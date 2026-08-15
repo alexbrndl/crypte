@@ -16,10 +16,12 @@ import { startDev, type Started } from '../src/dev'
 // navigateur en parallèle se privaient l'un l'autre et les trois cas d'édition
 // tombaient ensemble une fois sur deux. Mesuré.
 //
-// Les délais sont larges parce que la charge est réelle, pas parce qu'on espère.
-// Sous le contrôle de mutation, un `vp run -r pack` précède la suite et deux
-// serveurs réoptimisent leurs dépendances en même temps : le premier rendu
-// dépassait alors soixante secondes.
+// Le préchauffage porte le délai large, les cas non. Sous le contrôle de
+// mutation, un `vp run -r pack` précède la suite et deux serveurs réoptimisent
+// leurs dépendances en même temps : le premier rendu dépassait alors soixante
+// secondes, les suivants non. Mis à cent vingt secondes partout, un cas qui doit
+// rougir coûtait ce délai entier, et le contrôle passait de sept minutes à
+// plusieurs heures. Mesuré.
 //
 // Sur une copie du projet de démonstration, dans l'espace de travail : les cas
 // d'édition écrivent des fichiers, et le projet est commité. La copie garde ses
@@ -88,11 +90,11 @@ describe('l’écran', () => {
   it('affiche l’arbre des stories', async () => {
     await page.goto(origin)
 
-    await expect.poll(() => page.getByRole('button').count(), { timeout: 120_000 }).toBe(4)
+    await expect.poll(() => page.getByRole('button').count(), { timeout: 30_000 }).toBe(4)
     await expect
       .poll(() => page.getByRole('heading', { level: 2 }).allTextContents())
       .toEqual(['Badge', 'Boom'])
-  }, 120_000)
+  }, 60_000)
 
   // Le rendu se lit dans l'iframe, pas dans la page du shell : c'est là que la
   // preview monte, avec l'adaptateur et le React du projet.
@@ -102,22 +104,22 @@ describe('l’écran', () => {
     const preview = page.frameLocator('iframe[title="preview"]')
 
     await expect
-      .poll(() => preview.locator('#root').textContent(), { timeout: 120_000 })
+      .poll(() => preview.locator('#root').textContent(), { timeout: 30_000 })
       .toBe('Nouveau')
-  }, 120_000)
+  }, 60_000)
 
   it('change de story au clic', async () => {
     await page.goto(origin)
 
     const preview = page.frameLocator('iframe[title="preview"]')
     await expect
-      .poll(() => preview.locator('#root').textContent(), { timeout: 120_000 })
+      .poll(() => preview.locator('#root').textContent(), { timeout: 30_000 })
       .toBe('Nouveau')
 
     await page.getByRole('button', { name: 'Libellé long' }).click()
 
     await expect.poll(() => preview.locator('#root').textContent()).toBe('Vérification en cours')
-  }, 120_000)
+  }, 60_000)
 
   // Une story qui échoue laisse un cadre vide, et un cadre vide sans message
   // ressemble à un outil cassé. L'erreur remonte donc dans l'interface, pas
@@ -127,7 +129,7 @@ describe('l’écran', () => {
 
     const preview = page.frameLocator('iframe[title="preview"]')
     await expect
-      .poll(() => preview.locator('#root').textContent(), { timeout: 120_000 })
+      .poll(() => preview.locator('#root').textContent(), { timeout: 30_000 })
       .toBe('Nouveau')
 
     await page.getByRole('button', { name: 'Échoue au rendu' }).click()
@@ -139,7 +141,7 @@ describe('l’écran', () => {
     // Le cadre de la story d'avant ne doit plus être visible : le laisser
     // ferait croire que celle-ci a rendu.
     await expect.poll(() => page.locator('iframe[title="preview"]').isVisible()).toBe(false)
-  }, 120_000)
+  }, 60_000)
 
   // Reparti d'une page fraîche et passé par l'état d'erreur : sans ça, ses deux
   // assertions sont déjà vraies au chargement, donc le cas resterait vert même
@@ -148,7 +150,7 @@ describe('l’écran', () => {
     await page.goto(origin)
 
     await page.getByRole('button', { name: 'Échoue au rendu' }).click()
-    await expect.poll(() => page.getByRole('alert').isVisible(), { timeout: 120_000 }).toBe(true)
+    await expect.poll(() => page.getByRole('alert').isVisible(), { timeout: 30_000 }).toBe(true)
 
     await page.getByRole('button', { name: 'Par défaut' }).click()
 
@@ -156,7 +158,7 @@ describe('l’écran', () => {
     await expect
       .poll(() => page.frameLocator('iframe[title="preview"]').locator('#root').textContent())
       .toBe('Nouveau')
-  }, 120_000)
+  }, 60_000)
 
   // Les cas d'édition viennent après, dans cet ordre : chacun laisse la copie
   // modifiée, et les cas ci-dessus attendent le projet tel qu'il est commité.
@@ -168,7 +170,7 @@ describe('l’écran', () => {
 
     const preview = page.frameLocator('iframe[title="preview"]')
     await expect
-      .poll(() => preview.locator('#root').textContent(), { timeout: 120_000 })
+      .poll(() => preview.locator('#root').textContent(), { timeout: 30_000 })
       .toBe('Nouveau')
 
     await page.getByRole('button', { name: 'Libellé long' }).click()
@@ -180,7 +182,7 @@ describe('l’écran', () => {
     const before = navigations
 
     await expect
-      .poll(() => preview.locator('#root').textContent(), { timeout: 120_000 })
+      .poll(() => preview.locator('#root').textContent(), { timeout: 30_000 })
       .toBe('Vérification en cours !')
 
     // La story affichée n'a pas changé : c'est tout l'enjeu, un rechargement qui
@@ -190,7 +192,7 @@ describe('l’écran', () => {
       .toBe('true')
 
     expect(navigations).toBe(before)
-  }, 300_000)
+  }, 120_000)
 
   // Le fichier de story n'exporte aucun composant, donc Fast Refresh ne s'en
   // saisit pas : sans le chemin chaud de l'entrée, Vite ne trouve personne pour
@@ -203,7 +205,7 @@ describe('l’écran', () => {
     // ce qu'il rend porte donc sa marque.
     const preview = page.frameLocator('iframe[title="preview"]')
     await expect
-      .poll(() => preview.locator('#root').textContent(), { timeout: 120_000 })
+      .poll(() => preview.locator('#root').textContent(), { timeout: 30_000 })
       .toContain('Nouveau')
 
     const before = navigations
@@ -211,15 +213,15 @@ describe('l’écran', () => {
     writeFileSync(file, readFileSync(file, 'utf8').replace("'Nouveau'", "'Renouvelé'"))
 
     await expect
-      .poll(() => preview.locator('#root').textContent(), { timeout: 120_000 })
+      .poll(() => preview.locator('#root').textContent(), { timeout: 30_000 })
       .toContain('Renouvelé')
 
     expect(navigations).toBe(before)
-  }, 300_000)
+  }, 120_000)
 
   it('fait apparaître dans l’arbre une story ajoutée', async () => {
     await page.goto(origin)
-    await expect.poll(() => page.getByRole('button').count(), { timeout: 120_000 }).toBe(4)
+    await expect.poll(() => page.getByRole('button').count(), { timeout: 30_000 }).toBe(4)
 
     writeFileSync(
       join(root, 'stories', 'Tardive.tsx'),
@@ -232,7 +234,7 @@ describe('l’écran', () => {
     )
 
     await expect
-      .poll(() => page.getByRole('heading', { level: 2 }).allTextContents(), { timeout: 120_000 })
+      .poll(() => page.getByRole('heading', { level: 2 }).allTextContents(), { timeout: 30_000 })
       .toContain('Tardive')
 
     // Et elle rend. L'arbre vient du manifeste, le rendu vient de l'entrée
@@ -244,15 +246,15 @@ describe('l’écran', () => {
     // Mesuré. La page fraîche éprouve la même chose, l'entrée étant regénérée.
     await page.goto(origin)
     await expect
-      .poll(() => page.getByRole('button', { name: 'Default' }).count(), { timeout: 120_000 })
+      .poll(() => page.getByRole('button', { name: 'Default' }).count(), { timeout: 30_000 })
       .toBe(1)
 
     await page.getByRole('button', { name: 'Default' }).click()
 
     await expect
       .poll(() => page.frameLocator('iframe[title="preview"]').locator('#root').textContent(), {
-        timeout: 120_000,
+        timeout: 30_000,
       })
       .toContain('Tardive')
-  }, 300_000)
+  }, 120_000)
 })

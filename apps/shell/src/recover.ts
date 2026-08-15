@@ -3,6 +3,34 @@
 
 import type { StoryEntry } from '@crypte/core/protocol'
 
+// Ce qu'un catalogue illisible laisse à l'écran. Un arbre qui se fige sans un
+// mot ressemble à un outil qui a cessé de suivre, ce que le panneau d'erreur
+// défend déjà pour un rendu raté.
+export function unreadable(error: unknown): string {
+  return `catalogue illisible : ${error instanceof Error ? error.message : String(error)}`
+}
+
+// Ce que le shell devient après un rafraîchissement : la story à afficher, ce
+// qu'il faut retenir de l'affichée, et ce qu'il y a à dire. Sorti du composant
+// parce que la distinction « rien n'a jamais été affiché » / « la sélection
+// vient d'être perdue » ne s'éprouve pas depuis un rendu Vue.
+export function landing(
+  shown: Shown,
+  before: readonly StoryEntry[],
+  after: readonly StoryEntry[],
+): { id: string | null; shown: Shown; status: string | undefined } {
+  const id = recovered(shown, before, after)
+  if (id !== null) return { id, shown, status: undefined }
+
+  // Un catalogue vide n'a rien perdu. Marqué comme une sélection perdue, il ne
+  // se sélectionnait plus jamais tout seul une fois la première story écrite.
+  if (after.length === 0) return { id: null, shown, status: undefined }
+
+  return { id: null, shown: 'effacée', status: 'la story affichée a disparu' }
+}
+
+export type Shown = StoryEntry | null | 'effacée'
+
 // L'identifiant vient du chemin et du nom, donc renommer une story le change et
 // la sélection ne se retrouve plus. Le fichier et le rang dans ce fichier y
 // survivent : sur un renommage sur place, ils désignent la story renommée.
@@ -10,7 +38,7 @@ import type { StoryEntry } from '@crypte/core/protocol'
 // Perdre la place à chaque frappe est pire que ne pas recharger du tout, d'où un
 // repli plutôt qu'une sélection vide.
 export function recovered(
-  shown: StoryEntry | null | 'effacée',
+  shown: Shown,
   before: readonly StoryEntry[],
   after: readonly StoryEntry[],
 ): string | null {
