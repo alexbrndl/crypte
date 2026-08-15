@@ -309,3 +309,17 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 *Ce qui a déjà rouvert, trois fois :* la première version de cette entrée rangeait le `var` remonté du côté bénin, mesuré du côté grave. La deuxième déclarait le premier côté fermé alors que `import x = require(…)` passait. La troisième l'a fermé au niveau des nœuds, et il s'est rouvert un cran plus bas, sur les formes de motif. Les trois fois, la liste était l'erreur, pas la ligne manquante.
 
 *Origine :* revues 2 à 5 de la PR #33, quatre tours ayant chacun rendu un axe d'entrée de plus.
+
+### Le contrôle de mutation rougit par intermittence sur des cas qui démarrent un serveur
+
+Trois fois dans la même session, `pnpm run mutations` a échoué sur une de ses trois barrières (contrôle positif d'ensemble, contrôle positif par cible, suite sur sources restaurées) alors que la même commande lancée seule juste après passait. Les cas concernés démarrent tous un serveur Vite : `project.test.ts > échoue sans le résolveur`, et la suite entière au moment où `screen.test.ts` ouvre Chromium.
+
+*Ce que ça coûte :* le contrôle sert de barrière avant de pousser. Un rouge qui ne se reproduit pas apprend à relancer plutôt qu'à lire, ce qui est exactement l'inverse de ce qu'on lui demande.
+
+*Ce qui a été fait ici :* les deux messages qui disaient « ça échoue » sans dire quoi affichent maintenant la sortie de la commande fautive et la nomment. C'était le vrai coût : deux diagnostics à l'aveugle avant d'avoir cette information.
+
+*Ce qui n'est pas fait :* isoler la cause. Les candidats sont un port encore tenu par un serveur de la mutation précédente, et la charge du contrôle qui allonge le démarrage au-delà de la patience d'un cas. Les distinguer demande de fixer un port et de rejouer, ou d'instrumenter les temps de démarrage.
+
+*Ce qui le trancherait :* faire échouer le contrôle en boucle sur la seule cible `project.test.ts` et regarder si le rouge suit le port ou la charge.
+
+*Origine :* lot 5a, trois occurrences mesurées.
