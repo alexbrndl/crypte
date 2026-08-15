@@ -62,11 +62,16 @@ describe('l’écran', () => {
     // premier montage de React : sous charge, le premier cas payait les trois et
     // rougissait pour une raison qui n'est pas la sienne. Mesuré sous le
     // contrôle de mutation.
+    //
+    // Il patiente, il n'affirme rien. Affirmant, il volait son échec au cas qui
+    // le porte : casser le service des fichiers du shell faisait tomber le
+    // fichier entier ici, et deux garanties ont désigné le mauvais gardien.
     await page.goto(origin)
     await page
       .frameLocator('iframe[title="preview"]')
       .getByText('Nouveau')
       .waitFor({ timeout: 120_000 })
+      .catch(() => undefined)
   }, 300_000)
 
   afterAll(async () => {
