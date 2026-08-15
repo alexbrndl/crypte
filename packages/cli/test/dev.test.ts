@@ -56,6 +56,16 @@ describe('crypte dev', () => {
     expect(body).toContain(PREVIEW_ENTRY)
   })
 
+  // Le projet a sa propre `index.html`, comme tout vrai projet. Sans
+  // `appType: 'custom'`, le repli de Vite la sert pour toute URL inconnue, donc
+  // une faute de frappe rendrait la page de l'application au lieu d'un 404.
+  it('ne sert jamais la page du projet à la place d’une route inconnue', async () => {
+    const { status, body } = await get('/pas-une-route')
+
+    expect(status).toBe(404)
+    expect(body).not.toContain('la page du projet')
+  })
+
   it('sert le catalogue depuis la mémoire, pas depuis le fichier écrit', async () => {
     const { status, body } = await get(MANIFEST_ROUTE)
 

@@ -764,12 +764,12 @@
     "attendu": "screen.test.ts > l’écran > affiche l’arbre des stories"
   },
   {
-    "garantie": "Le repli de Vite ne détourne pas les routes du CLI",
+    "garantie": "Le repli de Vite ne sert pas la page du projet",
     "fichier": "packages/cli/src/serve.ts",
     "avant": "        appType: 'custom',",
     "apres": "        appType: 'spa',",
     "trouvee": "lot 5a",
-    "attendu": "dev.test.ts > crypte dev > sert le catalogue depuis la mémoire, pas depuis le fichier écrit"
+    "attendu": "dev.test.ts > crypte dev > ne sert jamais la page du projet à la place d’une route inconnue"
   },
   {
     "garantie": "Le canal vient du CLI et non du projet de l'utilisateur",

@@ -636,6 +636,8 @@ La section 1.4 des contrats dit que l'utilisateur installe deux paquets et que `
 
 *Le repli de Vite.* `appType` vaut `spa` par défaut, ce qui réécrit toute URL inconnue en `/index.html`. Le middleware tournant après lui voyait donc `/index.html` pour tout, et `/preview.html` comme la route du manifeste recevaient la page du shell. Le serveur est en `appType: 'custom'` : les deux pages sont servies ici et il n'y a rien à deviner.
 
+*Ce que `custom` protège encore, une fois le middleware passé devant.* Plus nos routes, qui sont prises avant le repli, mais les autres : sur un projet qui a sa propre `index.html`, et tout vrai projet en a une, `spa` la sert pour n'importe quelle faute de frappe. L'utilisateur reçoit alors sa page d'application là où il attendait un 404. C'est pour éprouver ça que la fixture et le projet de démonstration en portent une, ajoutée quand la garantie s'est révélée muette sans elle.
+
 *Les fichiers du shell.* Servir sa page ne suffit pas : son bundle répondait 404, Vite étant enraciné dans le projet qui ne connaît pas `/assets/…`. Écran blanc, et quatre routes à 200. D'où `sirv` sur le dossier copié.
 
 *Le module virtuel.* Sans le marqueur `\0` de Rollup, l'entrée est prise pour un chemin de fichier et ses imports se résolvent six niveaux au-dessus du projet.

@@ -110,6 +110,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | Fichier | Contient | Consommé par |
 | -- | -- | -- |
 | `crypte.config.ts` | un vrai adaptateur React, un alias `@/`, une entrée CSS | `crypte dev` |
+| `index.html` | la page du projet, que Crypte ne doit jamais servir | le repli de Vite, s'il était actif |
 | `src/components/Badge.tsx` | composant d'exemple, deux props documentées | `stories/Badge.tsx` |
 | `src/components/Boom.tsx` | composant qui échoue exprès | `stories/Boom.tsx` |
 | `stories/` | quatre stories, dont une qui ne rend jamais | le catalogue |
