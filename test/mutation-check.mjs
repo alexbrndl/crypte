@@ -9,8 +9,8 @@
 // trouvé une fois ne peut plus revenir sans être vu.
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { dirname, join, relative } from 'node:path'
 import { argv } from 'node:process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -32,17 +32,23 @@ function run(command, args) {
 
 const vp = process.env.VP_BIN ?? 'vp'
 
-// La source mutée du moment. Le `finally` de la boucle restaure sur une
-// exception, jamais sur un signal : un contrôle tué par un délai laissait donc
-// un fichier muté dans l'arbre, prêt à être commité. Mesuré.
-let inFlight
+// La source mutée du moment, écrite sur le disque avant de muter. Le `finally`
+// de la boucle restaure sur une exception, et un gestionnaire de signal ne
+// suffit pas : `execFileSync` bloque la boucle d'événements pendant presque tout
+// le contrôle, donc le signal n'est jamais servi. Mesuré, un fichier muté est
+// resté dans l'arbre après un `pkill`.
+//
+// Ce journal survit à n'importe quelle mort, y compris `SIGKILL` : la prochaine
+// exécution restaure et le dit.
+const INFLIGHT = join(root, 'test', '.mutation-inflight.json')
 
-for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
-  process.on(signal, () => {
-    if (inFlight) writeFileSync(inFlight.path, inFlight.original)
-    console.error(`\nInterrompu par ${signal}. La source mutée a été restaurée.`)
-    process.exit(1)
-  })
+function recoverInFlight() {
+  if (!existsSync(INFLIGHT)) return
+
+  const { path, original } = JSON.parse(readFileSync(INFLIGHT, 'utf8'))
+  writeFileSync(path, original)
+  rmSync(INFLIGHT)
+  console.log(`Contrôle précédent interrompu : ${relative(root, path)} a été restauré.`)
 }
 
 // `\e[2m > \e[22m` n'est pas ` > `. Voir docs/internal/architecture.md. Construite depuis un
@@ -104,6 +110,11 @@ function main() {
     console.error('Catalogue vide : ce contrôle n’aurait rien à vérifier.')
     process.exit(1)
   }
+
+  // Avant le contrôle d'arbre propre : une source laissée mutée par une exécution
+  // tuée est exactement ce qui salit l'arbre, et refuser de partir sans la
+  // restaurer demanderait à l'utilisateur de deviner ce que le script a fait.
+  recoverInFlight()
 
   // Un arbre sale rendrait la restauration ambiguë, et une interruption laisserait
   // des sources mutées sans que git puisse dire lesquelles.
@@ -174,7 +185,7 @@ function main() {
 
     // Le remplacement passe par une fonction : la forme chaîne interpréterait
     // `$&` et `$1` dans le texte, qui y écriraient ce que personne n'a écrit.
-    inFlight = { path, original }
+    writeFileSync(INFLIGHT, JSON.stringify({ path, original }))
     writeFileSync(
       path,
       original.replace(mutation.avant, () => mutation.apres),
@@ -236,7 +247,7 @@ function main() {
         )
     } finally {
       writeFileSync(path, original)
-      inFlight = undefined
+      rmSync(INFLIGHT, { force: true })
       // `dist` reste issu de la source mutée, et git ne le voit pas puisqu'il est
       // ignoré. Reconstruire ici plutôt qu'après la boucle : une exception ou une
       // interruption laisserait sinon des bundles qui ne suivent aucune source.

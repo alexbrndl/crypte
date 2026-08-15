@@ -26,3 +26,4 @@ coverage/
 # Copies de la fixture écrites par les cas de rechargement.
 packages/cli/test/tmp-hot-*/
 apps/tmp-demo-*/
+test/.mutation-inflight.json
