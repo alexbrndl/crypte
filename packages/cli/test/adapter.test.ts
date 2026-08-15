@@ -154,6 +154,62 @@ describe('la source de l’adaptateur', () => {
     expect(read.expression).toBe('createAdapter({ pick: (opts) => opts.runtime })')
   })
 
+  it('refuse un nom que le fichier tire d’un reste', () => {
+    const source = [
+      "import { createAdapter } from '@crypte/react'",
+      "import { opts } from './opts'",
+      'const { mode, ...runtime } = opts',
+      'export default { adapter: createAdapter({ runtime, mode }) }',
+    ].join('\n')
+
+    expect(() => adapterSource(project(source))).toThrow('a value it builds itself')
+  })
+
+  it('refuse un nom que le fichier déclare avec une valeur par défaut', () => {
+    const source = [
+      "import { createAdapter } from '@crypte/react'",
+      "import { opts } from './opts'",
+      "const { runtime = 'react' } = opts",
+      'export default { adapter: createAdapter({ runtime }) }',
+    ].join('\n')
+
+    expect(() => adapterSource(project(source))).toThrow('a value it builds itself')
+  })
+
+  // Une énumération déclare un nom comme les autres, et le manquer relâchait un
+  // nom pendant vers le navigateur plutôt que d'écarter une configuration.
+  it('refuse un nom que le fichier déclare en énumération', () => {
+    const source = [
+      "import { createAdapter } from '@crypte/react'",
+      'enum Runtime {',
+      "  React = 'react',",
+      '}',
+      'export default { adapter: createAdapter({ runtime: Runtime.React }) }',
+    ].join('\n')
+
+    expect(() => adapterSource(project(source))).toThrow('a value it builds itself')
+  })
+
+  // Ce qu'un corps de fonction déclare lui appartient, au même titre que ses
+  // paramètres.
+  it('accepte un nom qu’un corps de fonction déclare pour lui-même', () => {
+    const read = adapterSource(
+      project(
+        [
+          "import { createAdapter } from '@crypte/react'",
+          "const runtime = 'react'",
+          'export default {',
+          '  adapter: createAdapter({',
+          "    pick: () => { const runtime = 'vue'; return runtime },",
+          '  }),',
+          '}',
+        ].join('\n'),
+      ),
+    )
+
+    expect(read.imports).toEqual(["import { createAdapter } from '@crypte/react'"])
+  })
+
   // Un global n'est pas un nom que le fichier calcule : le refuser refuserait
   // `process.env`, que Vite remplace.
   it('accepte un global que le fichier ne déclare pas', () => {

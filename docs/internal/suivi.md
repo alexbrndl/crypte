@@ -283,3 +283,17 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 *Ce qui l'atténue :* le cas demande un fichier que le lecteur analyse sans erreur et que le navigateur refuse de charger, ce qui est plus rare que les fichiers écartés, eux désormais exclus.
 
 *Origine :* revue de la PR #33.
+
+### La lecture des portées de `crypte.config.ts` est partielle, et on s'arrête là
+
+`adapterSource` refuse un nom que le fichier déclare, parce qu'un tel nom repart dans l'expression émise sans rien qui le déclare : `ReferenceError` au chargement, donc avant l'ouverture du canal, donc un cadre vide sans rien à dire. Pour trancher, il lit les noms que le fichier déclare et retire ceux que l'expression porte elle-même.
+
+*Ce que ça revient à faire :* un résolveur de portées écrit à la main sur la grammaire JS/TS. Énumérer toutes les formes de liaison est le travail d'un résolveur complet, pas d'une fonction de trente lignes.
+
+*Ce qui n'est pas couvert, connu à ce jour :* les liaisons d'une boucle (`for (const opts of list)`), un bloc imbriqué dans un corps de fonction, un `var` remonté depuis un bloc au niveau du fichier, le nom d'une expression de classe.
+
+*Pourquoi on arrête quand même, et c'est le point à lire avant de rouvrir :* les deux sens ne coûtent pas la même chose. Un **faux accepté** émet un nom pendant et rend un cadre vide sans message, ce que ce contrôle existe pour éviter ; il est fermé pour les formes qu'un `crypte.config.ts` peut porter, `export default function` étant exclu par la forme même du fichier. Un **faux refusé** écarte une configuration valide avec un message explicite, que l'auteur contourne en important la valeur. Ce qui reste est entièrement du second côté.
+
+*Ce qui rouvrirait :* un cas du premier côté, c'est-à-dire une forme de déclaration qui passe le contrôle et laisse un nom pendant dans l'entrée. Ou assez de faux refus rapportés pour que le message cesse de suffire.
+
+*Origine :* revues 2 à 5 de la PR #33, quatre tours ayant chacun rendu un axe d'entrée de plus.

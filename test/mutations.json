@@ -874,5 +874,37 @@
     "apres": "    const inside = bound",
     "trouvee": "revue 4 du lot 5a",
     "attendu": "adapter.test.ts > la source de l’adaptateur > accepte un paramètre qui porte le nom d’une déclaration du fichier"
+  },
+  {
+    "garantie": "Un nom tiré d'un reste est déclaré comme un autre",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "  if (node.type === 'RestElement') return bindings(node['argument'] as Node | undefined)",
+    "apres": "",
+    "trouvee": "revue 5 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier tire d’un reste"
+  },
+  {
+    "garantie": "Un nom déclaré avec une valeur par défaut est déclaré comme un autre",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "  if (node.type === 'AssignmentPattern') return bindings(node['left'] as Node | undefined)",
+    "apres": "",
+    "trouvee": "revue 5 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déclare avec une valeur par défaut"
+  },
+  {
+    "garantie": "Une énumération déclare un nom comme une variable",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "      one.type === 'TSEnumDeclaration'",
+    "apres": "      one.type === 'RienDuTout'",
+    "trouvee": "revue 5 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déclare en énumération"
+  },
+  {
+    "garantie": "Ce qu'un corps de fonction déclare lui appartient",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "        for (const name of declared((body['body'] as Node[]) ?? [])) inside.add(name)",
+    "apres": "",
+    "trouvee": "revue 5 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > accepte un nom qu’un corps de fonction déclare pour lui-même"
   }
 ]
