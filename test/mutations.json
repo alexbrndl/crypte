@@ -798,7 +798,7 @@
   {
     "garantie": "Un adaptateur que le fichier calcule est refusé plutôt qu'émis",
     "fichier": "packages/cli/src/serve.ts",
-    "avant": "  if (value.type === 'Identifier' && !locals.has(value['name'] as string)) {",
+    "avant": "  if (built !== undefined) {",
     "apres": "  if (false) {",
     "trouvee": "revue 2 du lot 5a",
     "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier calcule lui-même"
@@ -814,9 +814,33 @@
   {
     "garantie": "Une clé d'objet non calculée ne désigne pas une variable",
     "fichier": "packages/cli/src/serve.ts",
-    "avant": "      if (key === 'key' && inner['computed'] !== true) continue",
-    "apres": "",
+    "avant": "          ? 'key'",
+    "apres": "          ? 'rien'",
     "trouvee": "revue 2 du lot 5a",
     "attendu": "adapter.test.ts > la source de l’adaptateur > ne retient pas un import dont le nom n’est qu’une clé d’objet"
+  },
+  {
+    "garantie": "Un nom que le fichier calcule est refusé même imbriqué",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "  const own = declared(parsed.program.body as unknown as Node[])",
+    "apres": "  const own = new Set([value.type === 'Identifier' ? (value['name'] as string) : ''])",
+    "trouvee": "revue 3 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier calcule, même imbriqué dans l’expression"
+  },
+  {
+    "garantie": "Un global n'est pas pris pour un nom que le fichier calcule",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "  const built = [...names].find((name) => own.has(name))",
+    "apres": "  const built = [...names].find((name) => !locals.has(name))",
+    "trouvee": "revue 3 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > accepte un global que le fichier ne déclare pas"
+  },
+  {
+    "garantie": "La propriété d'un accès non calculé ne désigne pas une variable",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "            ? 'property'",
+    "apres": "            ? 'rien'",
+    "trouvee": "revue 3 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > ne retient pas un import dont le nom n’est que la propriété d’un accès"
   }
 ]

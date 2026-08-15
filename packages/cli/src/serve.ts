@@ -189,13 +189,22 @@ export function adapterSource(project: Project): { imports: string[]; expression
     }
   }
 
-  // A bare name is something this file computed, which the browser cannot
-  // reach. `{ adapter }` written short is the same thing, and it emitted
-  // `const adapter = adapter`: a ReferenceError at load time, so before the
-  // channel opens, so an empty frame with nothing to say. Measured.
-  if (value.type === 'Identifier' && !locals.has(value['name'] as string)) {
+  const names = referenced(value)
+
+  // A name this file declares is something it computed, which the browser
+  // cannot reach: only the expression and its imports travel. `{ adapter }`
+  // written short emitted `const adapter = adapter`, and `const runtime =
+  // 'react'` used as `createAdapter({ runtime })` emitted the same kind of
+  // dangling name: a ReferenceError at load time, so before the channel opens,
+  // so an empty frame with nothing to say. Measured, both.
+  //
+  // Declared here rather than anywhere: a name that is neither declared nor
+  // imported is a global, and refusing those would refuse `process.env`.
+  const own = declared(parsed.program.body as unknown as Node[])
+  const built = [...names].find((name) => own.has(name))
+  if (built !== undefined) {
     throw new ConfigError(
-      `crypte.config.ts hands \`adapter\` a value it builds itself (\`${value['name'] as string}\`). ` +
+      `crypte.config.ts hands \`adapter\` a value it builds itself (\`${built}\`). ` +
         'Write the adapter in place, or import it: the preview reads this file, it never runs it.',
     )
   }
@@ -206,7 +215,7 @@ export function adapterSource(project: Project): { imports: string[]; expression
   // '@vitejs/plugin-react'` into the browser: the very thing reading rather
   // than importing exists to avoid. Measured.
   const needed = new Set<Node>()
-  for (const name of referenced(value)) {
+  for (const name of names) {
     const one = locals.get(name)
     if (one) needed.add(one)
   }
@@ -216,8 +225,32 @@ export function adapterSource(project: Project): { imports: string[]; expression
   return { imports, expression: source.slice(value.start, value.end) }
 }
 
-// The identifiers an expression really refers to. The name of a property is not
-// one unless it is computed, and a string is not one at all, which is the point.
+// The names this file declares at its top level. Everything else an expression
+// mentions is either imported or global.
+function declared(body: Node[]): Set<string> {
+  const found = new Set<string>()
+
+  for (const node of body) {
+    if (node.type === 'VariableDeclaration') {
+      for (const one of (node['declarations'] as Node[]) ?? []) {
+        const id = one['id'] as Node | undefined
+        if (id?.type === 'Identifier') found.add(id['name'] as string)
+      }
+    }
+
+    if (node.type === 'FunctionDeclaration' || node.type === 'ClassDeclaration') {
+      const id = node['id'] as Node | undefined
+      if (id?.type === 'Identifier') found.add(id['name'] as string)
+    }
+  }
+
+  return found
+}
+
+// The identifiers an expression really refers to. A string is not one, and
+// neither is a name that only sits where a name cannot be read: the key of an
+// object written `{ react: true }`, the property of an access written
+// `opts.react`. Both made `@vitejs/plugin-react` travel. Measured.
 function referenced(node: Node): Set<string> {
   const found = new Set<string>()
 
@@ -235,8 +268,17 @@ function referenced(node: Node): Set<string> {
       return
     }
 
+    const fixed =
+      inner['computed'] === true
+        ? undefined
+        : inner.type === 'Property'
+          ? 'key'
+          : inner.type === 'MemberExpression'
+            ? 'property'
+            : undefined
+
     for (const [key, held] of Object.entries(inner)) {
-      if (key === 'key' && inner['computed'] !== true) continue
+      if (key === fixed) continue
       if (key === 'typeAnnotation') continue
       walk(held)
     }

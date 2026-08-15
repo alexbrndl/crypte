@@ -630,9 +630,11 @@ L'entrée générée fait `import config from '/crypte.config.ts'` et lit `confi
 
 *Ce que l'entrée reprend du fichier, et pourquoi si peu.* Le fichier est lu, jamais exécuté : la section 1.5 des contrats y autorise `vite: { plugins: [react()] }`, donc l'exécuter chargerait un plugin Vite dans le navigateur, qui demande `node:module`. L'entrée reprend l'expression de `adapter` et **les seuls imports qu'elle nomme vraiment**.
 
-*Ce « vraiment » est le point.* La première version testait les mots du texte de l'expression. `createAdapter({ runtime: 'react' })` faisait alors retenir `import react from '@vitejs/plugin-react'`, c'est-à-dire précisément ce que lire au lieu d'importer existe pour éviter. Les noms sont donc lus dans l'arbre : une clé d'objet non calculée n'en est pas un, une chaîne non plus.
+*Ce « vraiment » est le point.* La première version testait les mots du texte de l'expression. `createAdapter({ runtime: 'react' })` faisait alors retenir `import react from '@vitejs/plugin-react'`, c'est-à-dire précisément ce que lire au lieu d'importer existe pour éviter. Les noms sont donc lus dans l'arbre, et un nom ne compte que là où l'endroit en fait un : ni une chaîne, ni la clé de `{ react: true }`, ni la propriété de `opts.react`. Écrits calculés, `{ [key]: … }` et `opts[key]`, ils redeviennent des noms et leur import part avec eux.
 
-*Un nom nu est refusé.* `const adapter = createAdapter()` puis `export default { adapter }` émettait `const adapter = adapter`, donc une `ReferenceError` au chargement, donc avant l'ouverture du canal, donc un cadre vide sans rien à dire. `crypte dev` s'arrête maintenant sur un message qui dit d'écrire l'adaptateur sur place ou de l'importer. Un nom **importé** reste accepté : son import part avec lui.
+*Un nom que le fichier déclare est refusé.* `const adapter = createAdapter()` puis `export default { adapter }` émettait `const adapter = adapter`, et `const runtime = 'react'` passé en `createAdapter({ runtime })` émettait le même nom pendant : une `ReferenceError` au chargement, donc avant l'ouverture du canal, donc un cadre vide sans rien à dire. `crypte dev` s'arrête maintenant sur un message qui dit d'écrire l'adaptateur sur place ou de l'importer.
+
+*Déclaré ici, et pas simplement inconnu.* Un nom ni déclaré ni importé est un global, et les refuser refuserait `process.env`, que Vite remplace. Un nom **importé** reste accepté : son import part avec lui.
 
 **Le canal vient du CLI, jamais du projet.**
 
