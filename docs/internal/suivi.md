@@ -325,3 +325,19 @@ Quatre occurrences dans la même session : trois sous `pnpm run mutations`, sur 
 *Ce qui le trancherait :* boucler sur ce seul fichier jusqu'au rouge en capturant l'erreur, puis rejouer avec une racine propre par serveur pour voir si le rouge suit le cache.
 
 *Origine :* lot 5a, quatre occurrences mesurées.
+
+### Deux points laissés ouverts à la sortie du brouillon du lot 5a
+
+**Le saut de `typeAnnotation` dans la collecte des noms liés n'est gardé par rien.** `serve.ts` en porte deux : celui de la lecture des noms référencés est catalogué, celui de la lecture des liaisons ne l'est pas. Retirer le second laisse la suite verte, parce que le premier écarte déjà l'identifiant avant qu'il compte.
+
+*Pourquoi ce n'est pas corrigé ici :* la ligne n'est pas morte, elle est redondante avec l'autre. Elle redevient seule si la lecture des noms référencés change, et c'est précisément le jour où personne ne s'en apercevra. La garder sans garantie est un pari assumé ; la retirer aussi.
+
+*Ce qui le trancherait :* trouver une forme où une annotation atteint la lecture des liaisons sans passer par l'autre. Rien n'en a produit sur cette pull request.
+
+**L'installation de Chromium en CI coûte 95 Mo par exécution et par version de Node.** Elle n'est pas mise en cache, et son chemin `node_modules/playwright/cli.js` suppose le hissage à la racine du dépôt.
+
+*Pourquoi ce n'est pas traité ici :* le mode d'échec du chemin est un rouge bruyant et immédiat, pas un silence. Le coût est réel mais il tient dans le budget de 20 minutes du job, mesuré à 9 min 11 sur Node 24.
+
+*Ce qui le lèverait :* `actions/cache` sur `~/.cache/ms-playwright`, clé sur la version de Playwright du catalogue.
+
+*Origine :* revue 12 de la PR #33.
