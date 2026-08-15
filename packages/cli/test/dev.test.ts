@@ -1,0 +1,107 @@
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { startDev, type Started } from '../src/dev'
+import {
+  MANIFEST_ROUTE,
+  PREVIEW_ENTRY,
+  PREVIEW_PAGE,
+  previewEntry,
+  storiesGlob,
+} from '../src/serve'
+
+// Ce que `crypte dev` sert vraiment, mesuré sur un serveur qui écoute.
+// Voir docs/internal/architecture.md.
+
+const fixture = join(dirname(fileURLToPath(import.meta.url)), 'fixture')
+
+describe('crypte dev', () => {
+  let started: Started
+  let origin: string
+
+  beforeAll(async () => {
+    started = await startDev(fixture)
+    await started.server.listen()
+
+    const address = started.server.httpServer?.address()
+    if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
+
+    origin = `http://localhost:${address.port}`
+  }, 30_000)
+
+  afterAll(async () => {
+    await started?.server.close()
+  })
+
+  const get = async (path: string) => {
+    const answer = await fetch(`${origin}${path}`)
+
+    return { status: answer.status, body: await answer.text() }
+  }
+
+  it('sert le shell préconstruit à la racine', async () => {
+    const { status, body } = await get('/')
+
+    expect(status).toBe(200)
+    expect(body).toContain('<div id="app">')
+  })
+
+  // La page de la preview appartient au CLI, pas au projet : l'écrire dans le
+  // projet y laisserait un fichier que personne n'a demandé.
+  it('sert une page de preview dont le seul script est son entrée', async () => {
+    const { status, body } = await get(PREVIEW_PAGE)
+
+    expect(status).toBe(200)
+    expect(body).toContain('<div id="root">')
+    expect(body).toContain(PREVIEW_ENTRY)
+  })
+
+  it('sert le catalogue depuis la mémoire, pas depuis le fichier écrit', async () => {
+    const { status, body } = await get(MANIFEST_ROUTE)
+
+    expect(status).toBe(200)
+    expect(JSON.parse(body)).toEqual(started.catalogue.manifest)
+  })
+
+  // L'entrée passe par le pipeline du projet : ce qui sort n'est plus la source
+  // écrite, et c'est la preuve que la preview est compilée chez l'utilisateur.
+  it('compile l’entrée de la preview avec le Vite du projet', async () => {
+    const { status, body } = await get(PREVIEW_ENTRY)
+
+    expect(status).toBe(200)
+    expect(body).toContain('createPreviewChannel')
+    expect(body).not.toContain('import.meta.glob')
+  })
+})
+
+describe('l’entrée de la preview', () => {
+  it('globe le dossier de stories déclaré, dans les quatre extensions', () => {
+    expect(storiesGlob({ config: { stories: 'stories' } } as never)).toBe(
+      '/stories/**/*.{ts,tsx,js,jsx}',
+    )
+  })
+
+  // L'adaptateur vient de la configuration du projet, jamais d'un nom de paquet
+  // deviné depuis `adapter.name` : envelopper un adaptateur casserait la devinette.
+  it('importe l’adaptateur depuis la configuration du projet', () => {
+    const source = previewEntry({
+      root: fixture,
+      config: { stories: 'stories', adapter: { name: 'fixture' } },
+    } as never)
+
+    expect(source).toContain("import config from '/crypte.config.ts'")
+    expect(source).toContain('config.adapter.mount(')
+    expect(source).not.toContain('@crypte/fixture')
+  })
+
+  it('charge la feuille de style déclarée, et rien quand il n’y en a pas', () => {
+    const withCss = previewEntry({
+      root: fixture,
+      config: { stories: 'stories', css: 'src/styles/app.css' },
+    } as never)
+    const without = previewEntry({ root: fixture, config: { stories: 'stories' } } as never)
+
+    expect(withCss).toContain('app.css')
+    expect(without).not.toContain('app.css')
+  })
+})

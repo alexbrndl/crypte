@@ -17,7 +17,7 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "pack": "vp pack"
+    "pack": "vp pack && node scripts/copy-shell.mjs"
   },
   "dependencies": {
     "@crypte/core": "workspace:*",
@@ -25,6 +25,7 @@
     "vite": "catalog:"
   },
   "devDependencies": {
+    "@crypte/shell": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

@@ -35,3 +35,12 @@ export function createAdapter(): Adapter {
     },
   }
 }
+
+export {
+  defineStories,
+  propsOfStory,
+  story,
+  type AnyComponent,
+  type PropsOf,
+  type StoryModule,
+} from './stories'
