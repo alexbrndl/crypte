@@ -807,7 +807,7 @@
     "garantie": "Une chaîne de l'expression ne fait pas retenir un import",
     "fichier": "packages/cli/src/serve.ts",
     "avant": "    if (inner.type === 'Identifier') {\n      found.add(inner['name'] as string)\n      return\n    }",
-    "apres": "    if (inner.type === 'Identifier' || inner.type === 'StringLiteral') {\n      found.add((inner['name'] ?? inner['value']) as string)\n      return\n    }",
+    "apres": "    if (inner.type === 'Identifier' || inner.type === 'Literal') {\n      found.add(String(inner['name'] ?? inner['value']))\n      return\n    }",
     "trouvee": "revue 2 du lot 5a",
     "attendu": "adapter.test.ts > la source de l’adaptateur > ne retient pas un import dont le nom n’apparaît que dans une chaîne"
   },
