@@ -806,8 +806,8 @@
   {
     "garantie": "Une chaîne de l'expression ne fait pas retenir un import",
     "fichier": "packages/cli/src/serve.ts",
-    "avant": "    if (inner.type === 'Identifier') {\n      const name = inner['name'] as string\n      if (!bound.has(name)) found.add(name)\n      return\n    }",
-    "apres": "    if (inner.type === 'Identifier' || inner.type === 'Literal') {\n      const name = String(inner['name'] ?? inner['value'])\n      if (!bound.has(name)) found.add(name)\n      return\n    }",
+    "avant": "    if (inner.type === 'Identifier') {\n      const name = inner['name'] as string\n      if (!bound.has(name)) found.add(name)\n    }",
+    "apres": "    if (inner.type === 'Identifier' || inner.type === 'Literal') {\n      const name = String(inner['name'] ?? inner['value'])\n      if (!bound.has(name)) found.add(name)\n    }",
     "trouvee": "revue 2 du lot 5a",
     "attendu": "adapter.test.ts > la source de l’adaptateur > ne retient pas un import dont le nom n’apparaît que dans une chaîne"
   },
@@ -922,5 +922,13 @@
     "apres": "      if (key === 'key' && inner['computed'] !== true) continue",
     "trouvee": "revue 9 du lot 5a",
     "attendu": "adapter.test.ts > la source de l’adaptateur > retient l’import qu’une clé calculée de paramètre nomme"
+  },
+  {
+    "garantie": "Ce qu'un identifiant porte est parcouru, pas laissé",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "      if (!bound.has(name)) found.add(name)\n    }\n",
+    "apres": "      if (!bound.has(name)) found.add(name)\n      return\n    }\n",
+    "trouvee": "revue 10 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > retient l’import qu’un décorateur de paramètre nomme"
   }
 ]

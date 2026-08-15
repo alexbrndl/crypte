@@ -335,6 +335,24 @@ describe('la source de l’adaptateur', () => {
     expect(() => adapterSource(project(source))).toThrow('(`mode`)')
   })
 
+  // Un décorateur pend à l'identifiant qu'il décore : s'arrêter sur celui-ci
+  // laissait le nom du décorateur derrière, donc son import ne partait pas.
+  it('retient l’import qu’un décorateur de paramètre nomme', () => {
+    const read = adapterSource(
+      project(
+        [
+          "import { createAdapter } from '@crypte/react'",
+          "import { field } from './field'",
+          'export default {',
+          '  adapter: createAdapter({ pick: class { constructor(@field() x) { void x } } }),',
+          '}',
+        ].join('\n'),
+      ),
+    )
+
+    expect(read.imports).toContain("import { field } from './field'")
+  })
+
   // Un global n'est pas un nom que le fichier calcule : le refuser refuserait
   // `process.env`, que Vite remplace.
   it('accepte un global que le fichier ne déclare pas', () => {
