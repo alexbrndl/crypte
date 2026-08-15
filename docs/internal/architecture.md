@@ -698,7 +698,15 @@ Un module de story rend `{ component, definition }`, jamais un composant seul. M
 
 **Où retombe la sélection quand l'identifiant affiché disparaît.** L'identifiant vient du chemin et du nom, donc renommer une story le change. Le repli est le même rang dans le même fichier, ce qui, sur un renommage sur place, désigne la story renommée. Retomber sur la première story du fichier enverrait sur `Par défaut` quelqu'un qui renommait `Avertissement`. Fichier disparu, rien de sélectionné : proposer une story d'ailleurs enverrait sur un composant que personne n'a ouvert.
 
-**L'empreinte est écrite au démarrage seulement.** C'est un fichier de verrouillage commité. La réécrire à chaque sauvegarde salirait l'arbre de travail pendant qu'on tape, y compris sur les états intermédiaires d'un renommage. Le manifeste, lui, est ignoré par Git et suit.
+**Ce que la reconstruction avale, elle le dit.** Un fichier de story que le lecteur cesse de lire disparaît de l'arbre et l'écran se recharge : sans une ligne, l'auteur voit sa story partir sans savoir pourquoi. C'est le silence que le lot 4 a fermé, et que l'édition rouvrait. Une reconstruction qui lève le dit aussi, sinon l'arbre cesse de bouger sans explication.
+
+*Dit une fois.* Le catalogue ne peut pas servir de mémoire pour ça : un fichier écarté ne change pas la forme, donc le catalogue retenu ne bougeait pas et la même ligne repartait à chaque frappe. Mesuré. La liste de ce qui a été dit est donc tenue à part.
+
+**La forme décide du rechargement, jamais de la fraîcheur.** Le catalogue retenu est remplacé à chaque reconstruction réussie ; seule la décision de recharger le cadre regarde la forme. Rendre la main avant le remplacement servait les props d'avant l'édition, alors que la route les lit en direct. Mesuré.
+
+**Un changement de `crypte.config.ts` donne une ligne, pas un rechargement.** Relire la configuration veut dire reconstruire le serveur, puisque les plugins du projet en viennent. Hors de ce lot, donc, et le silence est remplacé par une instruction : relancer.
+
+**L'empreinte est écrite au démarrage seulement.** C'est un fichier de verrouillage commité. La réécrire à chaque sauvegarde salirait l'arbre de travail pendant qu'on tape, y compris sur les états intermédiaires d'un renommage. Le manifeste sur le disque suit la même règle : il est ignoré par Git, mais personne ne le lit pendant `crypte dev`, la route servant depuis la mémoire.
 
 **Le serveur a son propre cache de dépendances**, `node_modules/.crypte`. Sans lui il partage `node_modules/.vite` avec le `vite dev` du projet : deux serveurs aux plugins et aux entrées différents écrivant le même `_metadata.json`.
 

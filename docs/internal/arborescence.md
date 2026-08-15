@@ -91,10 +91,9 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/manifest.test.ts` | parcours, résolution, collisions d'identifiants | — |
 | `test/manifest-shape.test.ts` | fige la forme du manifeste, champ pour champ | — |
 | `test/dev.test.ts` | ce que le serveur sert vraiment, sur un serveur qui écoute | — |
-| `test/screen.test.ts` | ce que l'utilisateur voit, dans Chromium | — |
+| `test/screen.test.ts` | ce que l'utilisateur voit, dans Chromium, lecture puis édition | — |
 | `test/adapter.test.ts` | ce que l'entrée reprend de `crypte.config.ts`, et ce qu'elle refuse | — |
 | `test/hot.test.ts` | le catalogue pendant que le serveur tourne, sur une copie de la fixture | — |
-| `test/hot-screen.test.ts` | l'écran pendant qu'on édite, sur une copie de la démonstration | — |
 | `test/shell-copy.test.ts` | la copie du shell n'est pas plus vieille que ses sources | — |
 | `test/fingerprint.test.ts` | ce que l'empreinte garde, replie, et ignore ; écrit celle de la fixture | — |
 | `test/fixture/.crypte/fingerprint.json` | l'empreinte commitée de la fixture, sous régime de verrouillage | `git diff --exit-code` en CI |

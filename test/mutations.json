@@ -953,13 +953,13 @@
     "avant": "    const module = server.moduleGraph.getModuleById(PREVIEW_ENTRY_ID)\n    if (module) server.moduleGraph.invalidateModule(module)",
     "apres": "",
     "trouvee": "lot 5b",
-    "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > réécrit l’entrée de la preview après un ajout"
+    "attendu": "screen.test.ts > l’écran > fait apparaître dans l’arbre une story ajoutée"
   },
   {
     "garantie": "Une reconstruction qui échoue garde le catalogue précédent",
     "fichier": "packages/cli/src/dev.ts",
-    "avant": "      // catalogue is the difference between a save that flickers and a server\n      // that stops.\n      return",
-    "apres": "      // catalogue is the difference between a save that flickers and a server\n      // that stops.\n      next = { manifest: { ...held.catalogue.manifest, entries: [] }, skipped: [] }",
+    "avant": "      log(`the catalogue could not be rebuilt, keeping the last good one: ${reason(error)}`)\n      return",
+    "apres": "      log(`the catalogue could not be rebuilt, keeping the last good one: ${reason(error)}`)\n      next = { manifest: { ...held.catalogue.manifest, entries: [] }, skipped: [] }",
     "trouvee": "lot 5b",
     "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > garde le catalogue quand la reconstruction échoue"
   },
@@ -969,7 +969,7 @@
     "avant": "  if (files.length === 0) return []",
     "apres": "  if (files.length >= 0) return []",
     "trouvee": "lot 5b",
-    "attendu": "hot-screen.test.ts > l’écran pendant qu’on édite > rafraîchit les props d’une story sans recharger le cadre"
+    "attendu": "screen.test.ts > l’écran > rafraîchit les props d’une story sans recharger le cadre"
   },
   {
     "garantie": "Le serveur de preview a son propre cache de dépendances",
@@ -986,5 +986,29 @@
     "apres": "  const rank = 0",
     "trouvee": "lot 5b",
     "attendu": "recover.test.ts > la sélection après un changement de catalogue > suit un renommage sur place, par le rang dans le fichier"
+  },
+  {
+    "garantie": "Le catalogue servi reste à jour même quand l'arbre ne bouge pas",
+    "fichier": "packages/cli/src/dev.ts",
+    "avant": "    const same = shape(next) === shape(held.catalogue)\n    held.catalogue = next\n\n    if (same) return",
+    "apres": "    if (shape(next) === shape(held.catalogue)) return\n    held.catalogue = next",
+    "trouvee": "lot 5b",
+    "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > sert les props à jour même quand l’arbre ne bouge pas"
+  },
+  {
+    "garantie": "Une reconstruction qui échoue le dit",
+    "fichier": "packages/cli/src/dev.ts",
+    "avant": "      log(`the catalogue could not be rebuilt, keeping the last good one: ${reason(error)}`)",
+    "apres": "",
+    "trouvee": "lot 5b",
+    "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > dit qu’une reconstruction a échoué"
+  },
+  {
+    "garantie": "Ce qu'un fichier de story a cessé de produire est dit une fois",
+    "fichier": "packages/cli/src/dev.ts",
+    "avant": "      if (said.has(line)) continue",
+    "apres": "",
+    "trouvee": "lot 5b",
+    "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > ne répète pas ce qu’il a déjà dit"
   }
 ]

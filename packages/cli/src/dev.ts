@@ -1,7 +1,7 @@
 // `crypte dev`: reads the project, writes the catalogue, serves both pages, and
 // keeps them in step with the files. See docs/internal/architecture.md.
 
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 import { createServer, type ViteDevServer } from 'vite'
 import { fingerprintOf, writeFingerprint } from './fingerprint'
 import { buildCatalogue, writeCatalogue, type Catalogue } from './manifest'
@@ -26,7 +26,10 @@ export interface Held {
 // Assembled from the pieces the earlier lots left: `loadProject` for the
 // configuration and the aliases, `buildCatalogue` for the stories, and the
 // serve plugin for the two pages.
-export async function startDev(input: string): Promise<Started> {
+export async function startDev(
+  input: string,
+  log: (line: string) => void = () => {},
+): Promise<Started> {
   const project = await loadProject(input)
   const held: Held = { catalogue: buildCatalogue(project) }
 
@@ -46,7 +49,8 @@ export async function startDev(input: string): Promise<Started> {
     plugins: [...(config.plugins ?? []), servePlugin(project, () => held.catalogue)],
   })
 
-  watchStories(server, project, held)
+  watchStories(server, project, held, log)
+  watchConfig(server, project, log)
 
   return { server, project, held, written }
 }
@@ -62,8 +66,18 @@ function shape(catalogue: Catalogue): string {
 
 // A story file changed: read the catalogue again, and reload the preview when
 // what it reads changed. A component is Vite's business, not ours.
-function watchStories(server: ViteDevServer, project: Project, held: Held): void {
+function watchStories(
+  server: ViteDevServer,
+  project: Project,
+  held: Held,
+  log: (line: string) => void,
+): void {
   const stories = join(project.root, project.config.stories)
+
+  // What was already said, held apart from the catalogue: a skipped file leaves
+  // the shape untouched, so comparing catalogues repeated the same line on every
+  // keystroke. Measured.
+  const said = new Set<string>()
 
   const rebuild = (file: string): void => {
     if (!file.startsWith(stories)) return
@@ -71,17 +85,36 @@ function watchStories(server: ViteDevServer, project: Project, held: Held): void
     let next: Catalogue
     try {
       next = buildCatalogue(project)
-    } catch {
+    } catch (error) {
       // A half-written file is an ordinary state while typing: two stories
       // briefly share a name, an import is half deleted. Keeping the last good
       // catalogue is the difference between a save that flickers and a server
       // that stops.
+      //
+      // Said, though. Swallowed, it leaves an author in front of a tree that
+      // stopped moving with no idea their file is the reason.
+      log(`the catalogue could not be rebuilt, keeping the last good one: ${reason(error)}`)
       return
     }
 
-    if (shape(next) === shape(held.catalogue)) return
+    // What a story file stopped producing, and why. Only what is new: repeating
+    // the whole list on every keystroke would bury it.
+    for (const { file: from, reason: why } of next.skipped) {
+      const line = `  ${from} : ${why}`
+      if (said.has(line)) continue
 
+      said.add(line)
+      log(line)
+    }
+
+    // Held first, reloaded second. The shape decides whether the frame reloads,
+    // never whether the catalogue is current: editing a story's props leaves the
+    // shape untouched, and returning here served the props from before the edit.
+    // Measured.
+    const same = shape(next) === shape(held.catalogue)
     held.catalogue = next
+
+    if (same) return
 
     // The entry names its imports one by one, so a file added or removed makes
     // it a different module. Vite has no reason to know that: nothing imports
@@ -95,6 +128,21 @@ function watchStories(server: ViteDevServer, project: Project, held: Held): void
   for (const event of ['add', 'change', 'unlink'] as const) {
     server.watcher.on(event, rebuild)
   }
+}
+
+// `crypte.config.ts` and what it imports. Reloading it means rebuilding the
+// server, since the project's own plugins come from there: out of this lot, and
+// a line is what turns a silence into an instruction.
+function watchConfig(server: ViteDevServer, project: Project, log: (line: string) => void): void {
+  const watched = new Set(project.watch)
+
+  server.watcher.on('change', (file) => {
+    if (watched.has(file)) log(`${relative(project.root, file)} changed, restart \`crypte dev\``)
+  })
+}
+
+function reason(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 // The two artefacts, and what stopped them. Reported rather than thrown: the
@@ -118,7 +166,7 @@ export function reported(catalogue: Catalogue): string[] {
 }
 
 export async function dev(input: string, log = console.log): Promise<ViteDevServer> {
-  const { server, held, written } = await startDev(input)
+  const { server, held, written } = await startDev(input, log)
 
   await server.listen()
 

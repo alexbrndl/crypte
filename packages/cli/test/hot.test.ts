@@ -1,4 +1,4 @@
-import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Manifest } from '@crypte/core/protocol'
@@ -19,12 +19,13 @@ describe('le catalogue pendant que le serveur tourne', () => {
   let started: Started
   let origin: string
   let root: string
+  const lines: string[] = []
 
   beforeAll(async () => {
     root = mkdtempSync(join(fixture, '..', 'tmp-hot-'))
     cpSync(fixture, root, { recursive: true })
 
-    started = await startDev(root)
+    started = await startDev(root, (line) => lines.push(line))
     await started.server.listen()
 
     const address = started.server.httpServer?.address()
@@ -38,6 +39,13 @@ describe('le catalogue pendant que le serveur tourne', () => {
     if (root) rmSync(root, { recursive: true, force: true })
   })
 
+  const story = (component: string) =>
+    [
+      `import { ${component} } from '@/components/Badge'`,
+      '',
+      `export default defineStories(${component})`,
+    ].join('\n')
+
   async function names(): Promise<string[]> {
     const manifest = (await fetch(`${origin}${MANIFEST_ROUTE}`).then((answer) =>
       answer.json(),
@@ -46,16 +54,88 @@ describe('le catalogue pendant que le serveur tourne', () => {
     return manifest.entries.map((entry) => entry.id)
   }
 
-  const story = (component: string) =>
-    [
-      `import { ${component} } from '@/components/Badge'`,
-      '',
-      `export default defineStories(${component})`,
-    ].join('\n')
-
   it('sert le catalogue du démarrage', async () => {
     expect(await names()).toContain('badge--default')
   })
+
+  // La forme décide du rechargement, jamais de la fraîcheur du catalogue :
+  // éditer les props d'une story ne change pas l'arbre, et rendre la main ici
+  // servait les props d'avant l'édition. Mesuré.
+  it('sert les props à jour même quand l’arbre ne bouge pas', async () => {
+    const file = join(root, 'stories', 'Badge.js')
+    const before = readFileSync(file, 'utf8')
+
+    writeFileSync(
+      file,
+      before.replace(
+        'defineStories(Badge)',
+        "defineStories(Badge, { props: { tone: 'warning' } })",
+      ),
+    )
+
+    await expect
+      .poll(
+        async () => {
+          const manifest = (await fetch(`${origin}${MANIFEST_ROUTE}`).then((answer) =>
+            answer.json(),
+          )) as Manifest
+
+          return manifest.entries.find((entry) => entry.id === 'badge--default')?.props ?? []
+        },
+        { timeout: 10_000 },
+      )
+      .toContain('tone')
+
+    writeFileSync(file, before)
+  }, 20_000)
+
+  // À partir d'ici les cas écrivent, et l'ordre compte : chaque écriture laisse
+  // une reconstruction en cours, qui peut atterrir pendant le cas suivant. Ceux
+  // qui lisent le catalogue tel qu'il est au démarrage passent donc devant.
+
+  // Un fichier que le lecteur cesse de lire disparaît de l'arbre, et l'écran se
+  // recharge : sans une ligne, l'auteur voit sa story partir sans savoir
+  // pourquoi. C'est le silence que le lot 4 a fermé, rouvert par l'édition.
+  it('dit ce qu’un fichier de story a cessé de produire', async () => {
+    writeFileSync(join(root, 'stories', 'Muette.js'), 'export default 12')
+
+    await expect
+      .poll(() => lines.filter((line) => line.includes('Muette.js')), { timeout: 10_000 })
+      .not.toEqual([])
+
+    rmSync(join(root, 'stories', 'Muette.js'))
+  }, 20_000)
+
+  // Répétée à chaque frappe, la liste entière enterrerait ce qui vient
+  // d'apparaître.
+  it('ne répète pas ce qu’il a déjà dit', async () => {
+    writeFileSync(join(root, 'stories', 'Muette.js'), 'export default 12')
+    await expect
+      .poll(() => lines.filter((line) => line.includes('Muette.js')).length, { timeout: 10_000 })
+      .toBe(1)
+
+    writeFileSync(join(root, 'stories', 'Autre.js'), story('Badge'))
+    await expect.poll(names, { timeout: 10_000 }).toContain('autre--default')
+
+    expect(lines.filter((line) => line.includes('Muette.js'))).toHaveLength(1)
+
+    rmSync(join(root, 'stories', 'Muette.js'))
+    rmSync(join(root, 'stories', 'Autre.js'))
+  }, 30_000)
+
+  // Reconstruire lève ici, donc rien ne remplace le catalogue : le dire est la
+  // différence entre un arbre qui ne bouge plus et un arbre qui explique.
+  it('dit qu’une reconstruction a échoué', async () => {
+    writeFileSync(join(root, 'stories', 'Badge.jsx'), story('Badge'))
+
+    await expect
+      .poll(() => lines.filter((line) => line.includes('keeping the last good one')), {
+        timeout: 10_000,
+      })
+      .not.toEqual([])
+
+    rmSync(join(root, 'stories', 'Badge.jsx'))
+  }, 20_000)
 
   // La route lit le catalogue à chaque requête. Capturé au démarrage, il
   // laisserait le shell sur l'arbre d'il y a une heure.
