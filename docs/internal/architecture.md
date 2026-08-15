@@ -674,6 +674,10 @@ Un module de story rend `{ component, definition }`, jamais un composant seul. M
 
 *Le coût.* Chromium pèse 95 Mo au téléchargement, et les cinq cas prennent une quinzaine de secondes. Les lots 5b et 5c en ont besoin autant : le rechargement à chaud et l'affichage des erreurs ne se vérifient pas autrement.
 
+*Le navigateur s'installe dans la CI, en une étape à part.* `vp node node_modules/playwright/cli.js install --with-deps chromium`, avant `vp test`. Installer le paquet ne télécharge pas le navigateur : `chromium.launch()` échoue alors sur un exécutable absent, et c'est **le fichier entier qui tombe**, pas un cas. Mesuré sur cette pull request : 349 cas au vert, `screen.test.ts` rouge, CI rouge.
+
+*Ce qui casse si on l'enlève :* le seul contrôle qui voit ce que l'utilisateur voit ne s'exécute plus nulle part que sur la machine de développement, où le navigateur est déjà là. Le vert local et le rouge distant ne portent alors plus sur le même ensemble de cas.
+
 ---
 
 ## 5. Décisions encodées dans la configuration

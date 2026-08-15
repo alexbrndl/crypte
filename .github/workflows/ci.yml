@@ -39,6 +39,10 @@ jobs:
       # vp check ne lit pas les composants monofichiers Vue : leur contenu, template
       # compris, n'est vérifié que par vue-tsc. Voir docs/internal/architecture.md.
       - run: vp run -r typecheck
+      # Le navigateur des cas d'écran. Sans lui `chromium.launch()` échoue sur
+      # un exécutable absent, et le seul contrôle qui voit ce que l'utilisateur
+      # voit tombe. Voir docs/internal/architecture.md.
+      - run: vp node node_modules/playwright/cli.js install --with-deps chromium
       - run: vp test
       # Deux choses sont écrites par la suite et commitées : les réexports
       # générés, et l'empreinte de la fixture. Le régime est celui d'un fichier
