@@ -350,9 +350,8 @@ function referenced(node: Node): Set<string> {
 
     const inner = current as Node
 
-    // Named, then walked through rather than left: a decorator hangs off the
-    // identifier it decorates, and stopping here dropped the import that
-    // `constructor(@field() x)` needed, so `field` went out dangling. Measured.
+    // Named, then walked through: `constructor(@field() x)` hangs `field` off
+    // the identifier, and stopping here left its import behind.
     if (inner.type === 'Identifier') {
       const name = inner['name'] as string
       if (!bound.has(name)) found.add(name)

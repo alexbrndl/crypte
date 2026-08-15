@@ -353,6 +353,22 @@ describe('la source de l’adaptateur', () => {
     expect(read.imports).toContain("import { field } from './field'")
   })
 
+  // Une annotation de type ne s'exécute pas : retenir son import ferait charger
+  // au navigateur un module que rien n'y appelle.
+  it('ne retient pas l’import qu’une annotation de type nomme', () => {
+    const read = adapterSource(
+      project(
+        [
+          "import { createAdapter } from '@crypte/react'",
+          "import type { Options } from './options'",
+          'export default { adapter: createAdapter({ pick: (opts: Options) => opts }) }',
+        ].join('\n'),
+      ),
+    )
+
+    expect(read.imports).toEqual(["import { createAdapter } from '@crypte/react'"])
+  })
+
   // Un global n'est pas un nom que le fichier calcule : le refuser refuserait
   // `process.env`, que Vite remplace.
   it('accepte un global que le fichier ne déclare pas', () => {

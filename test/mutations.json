@@ -930,5 +930,13 @@
     "apres": "      if (!bound.has(name)) found.add(name)\n      return\n    }\n",
     "trouvee": "revue 10 du lot 5a",
     "attendu": "adapter.test.ts > la source de l’adaptateur > retient l’import qu’un décorateur de paramètre nomme"
+  },
+  {
+    "garantie": "Une annotation de type ne fait pas retenir un import",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "      if (key === fixed) continue\n      if (key === 'typeAnnotation') continue",
+    "apres": "      if (key === fixed) continue",
+    "trouvee": "revue 11 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > ne retient pas l’import qu’une annotation de type nomme"
   }
 ]

@@ -310,16 +310,18 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 
 *Origine :* revues 2 à 5 de la PR #33, quatre tours ayant chacun rendu un axe d'entrée de plus.
 
-### Le contrôle de mutation rougit par intermittence sur des cas qui démarrent un serveur
+### `project.test.ts > échoue sans le résolveur` rougit par intermittence
 
-Trois fois dans la même session, `pnpm run mutations` a échoué sur une de ses trois barrières (contrôle positif d'ensemble, contrôle positif par cible, suite sur sources restaurées) alors que la même commande lancée seule juste après passait. Les cas concernés démarrent tous un serveur Vite : `project.test.ts > échoue sans le résolveur`, et la suite entière au moment où `screen.test.ts` ouvre Chromium.
+Quatre occurrences dans la même session : trois sous `pnpm run mutations`, sur l'une de ses trois barrières, et **une sous un `vp test` ordinaire**. Chaque fois, la même commande relancée passe. `screen.test.ts` a rougi une fois de la même façon.
 
-*Ce que ça coûte :* le contrôle sert de barrière avant de pousser. Un rouge qui ne se reproduit pas apprend à relancer plutôt qu'à lire, ce qui est exactement l'inverse de ce qu'on lui demande.
+*Ce que la mesure a écarté :* la charge du contrôle de mutation n'est pas nécessaire, puisque le rouge est apparu sans lui. Le fichier lancé seul passe, et six passes complètes d'affilée passent également, donc la fréquence est de l'ordre de un sur sept sans être reproductible à la demande.
 
-*Ce qui a été fait ici :* les deux messages qui disaient « ça échoue » sans dire quoi affichent maintenant la sortie de la commande fautive et la nomment. C'était le vrai coût : deux diagnostics à l'aveugle avant d'avoir cette information.
+*Ce qui n'est pas établi :* la cause. Le cas est un contrôle négatif qui démarre un second serveur Vite sur **la même racine** que le cas précédent, donc sur le même cache de dépendances ; c'est un candidat, pas une cause, et rien ne l'a isolé.
 
-*Ce qui n'est pas fait :* isoler la cause. Les candidats sont un port encore tenu par un serveur de la mutation précédente, et la charge du contrôle qui allonge le démarrage au-delà de la patience d'un cas. Les distinguer demande de fixer un port et de rejouer, ou d'instrumenter les temps de démarrage.
+*Ce que ça coûte :* ces deux contrôles servent de barrière avant de pousser. Un rouge qui ne se reproduit pas apprend à relancer plutôt qu'à lire, ce qui est l'inverse de ce qu'on leur demande.
 
-*Ce qui le trancherait :* faire échouer le contrôle en boucle sur la seule cible `project.test.ts` et regarder si le rouge suit le port ou la charge.
+*Ce qui a été fait ici :* les deux messages du contrôle qui disaient « ça échoue » sans dire quoi nomment maintenant la commande fautive et affichent sa sortie. C'était le vrai coût : deux diagnostics à l'aveugle avant d'avoir cette information.
 
-*Origine :* lot 5a, trois occurrences mesurées.
+*Ce qui le trancherait :* boucler sur ce seul fichier jusqu'au rouge en capturant l'erreur, puis rejouer avec une racine propre par serveur pour voir si le rouge suit le cache.
+
+*Origine :* lot 5a, quatre occurrences mesurées.
