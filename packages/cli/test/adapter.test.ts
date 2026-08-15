@@ -157,12 +157,14 @@ describe('la source de l’adaptateur', () => {
   it('refuse un nom que le fichier tire d’un reste', () => {
     const source = [
       "import { createAdapter } from '@crypte/react'",
-      "import { opts } from './opts'",
-      'const { mode, ...runtime } = opts',
-      'export default { adapter: createAdapter({ runtime, mode }) }',
+      "import { list } from './list'",
+      'const [mode, ...runtime] = list',
+      'export default { adapter: createAdapter({ runtime }) }',
     ].join('\n')
 
-    expect(() => adapterSource(project(source))).toThrow('a value it builds itself')
+    // Le nom compte : `mode` est déclaré par le même motif, donc un message qui
+    // le cite laisserait passer un reste que personne ne lit.
+    expect(() => adapterSource(project(source))).toThrow('(`runtime`)')
   })
 
   it('refuse un nom que le fichier déclare avec une valeur par défaut', () => {
