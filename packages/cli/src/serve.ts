@@ -225,47 +225,109 @@ export function adapterSource(project: Project): { imports: string[]; expression
   return { imports, expression: source.slice(value.start, value.end) }
 }
 
-// The names this file declares at its top level. Everything else an expression
-// mentions is either imported or global.
+// The names a list of statements declares. Used on the file, where everything
+// else an expression mentions is either imported or global, and on a block
+// inside the expression, where the same names are the expression's own.
 function declared(body: Node[]): Set<string> {
   const found = new Set<string>()
 
   for (const node of body) {
-    if (node.type === 'VariableDeclaration') {
-      for (const one of (node['declarations'] as Node[]) ?? []) {
-        const id = one['id'] as Node | undefined
-        if (id?.type === 'Identifier') found.add(id['name'] as string)
+    // `export const runtime = …` holds its declaration one level deeper, and
+    // reading only the top level made it look undeclared. Measured.
+    const one =
+      node.type === 'ExportNamedDeclaration'
+        ? ((node['declaration'] as Node | undefined) ?? node)
+        : node
+
+    if (one.type === 'VariableDeclaration') {
+      for (const declarator of (one['declarations'] as Node[]) ?? []) {
+        for (const name of bindings(declarator['id'] as Node | undefined)) found.add(name)
       }
     }
 
-    if (node.type === 'FunctionDeclaration' || node.type === 'ClassDeclaration') {
-      const id = node['id'] as Node | undefined
-      if (id?.type === 'Identifier') found.add(id['name'] as string)
+    if (
+      one.type === 'FunctionDeclaration' ||
+      one.type === 'ClassDeclaration' ||
+      one.type === 'TSEnumDeclaration'
+    ) {
+      for (const name of bindings(one['id'] as Node | undefined)) found.add(name)
     }
   }
 
   return found
 }
 
-// The identifiers an expression really refers to. A string is not one, and
+// The names a binding introduces. `const { a, b: [c] = [] } = …` declares three,
+// and reading only the plain `Identifier` case saw none of them. Measured.
+function bindings(node: Node | undefined): string[] {
+  if (node === undefined) return []
+
+  if (node.type === 'Identifier') return [node['name'] as string]
+
+  if (node.type === 'ObjectPattern') {
+    return ((node['properties'] as Node[]) ?? []).flatMap((one) =>
+      bindings((one['value'] ?? one['argument']) as Node | undefined),
+    )
+  }
+
+  if (node.type === 'ArrayPattern') {
+    return ((node['elements'] as (Node | null)[]) ?? []).flatMap((one) =>
+      bindings(one ?? undefined),
+    )
+  }
+
+  // The right side of a default is an expression, not a binding.
+  if (node.type === 'AssignmentPattern') return bindings(node['left'] as Node | undefined)
+  if (node.type === 'RestElement') return bindings(node['argument'] as Node | undefined)
+
+  return []
+}
+
+// The node types that carry their own names, so that a parameter shadowing a
+// name of the file does not make the expression look like it uses that name.
+const CARRIES = new Set([
+  'ArrowFunctionExpression',
+  'FunctionExpression',
+  'FunctionDeclaration',
+  'CatchClause',
+])
+
+// The names an expression takes from outside itself. A string is not one, and
 // neither is a name that only sits where a name cannot be read: the key of an
 // object written `{ react: true }`, the property of an access written
 // `opts.react`. Both made `@vitejs/plugin-react` travel. Measured.
 function referenced(node: Node): Set<string> {
   const found = new Set<string>()
 
-  const walk = (current: unknown): void => {
+  const walk = (current: unknown, bound: Set<string>): void => {
     if (current === null || typeof current !== 'object') return
 
     if (Array.isArray(current)) {
-      for (const item of current) walk(item)
+      for (const item of current) walk(item, bound)
       return
     }
 
     const inner = current as Node
     if (inner.type === 'Identifier') {
-      found.add(inner['name'] as string)
+      const name = inner['name'] as string
+      if (!bound.has(name)) found.add(name)
       return
+    }
+
+    // `(opts) => opts.react` names nothing of the file, even where the file
+    // declares `opts`: the expression brings that name with it.
+    const inside = CARRIES.has(inner.type) ? new Set(bound) : bound
+    if (inside !== bound) {
+      for (const param of (inner['params'] as Node[]) ?? []) {
+        for (const name of bindings(param)) inside.add(name)
+      }
+
+      for (const name of bindings(inner['param'] as Node | undefined)) inside.add(name)
+
+      const body = inner['body'] as Node | undefined
+      if (body?.type === 'BlockStatement') {
+        for (const name of declared((body['body'] as Node[]) ?? [])) inside.add(name)
+      }
     }
 
     const fixed =
@@ -280,11 +342,11 @@ function referenced(node: Node): Set<string> {
     for (const [key, held] of Object.entries(inner)) {
       if (key === fixed) continue
       if (key === 'typeAnnotation') continue
-      walk(held)
+      walk(held, inside)
     }
   }
 
-  walk(node)
+  walk(node, new Set())
 
   return found
 }

@@ -806,8 +806,8 @@
   {
     "garantie": "Une chaîne de l'expression ne fait pas retenir un import",
     "fichier": "packages/cli/src/serve.ts",
-    "avant": "    if (inner.type === 'Identifier') {\n      found.add(inner['name'] as string)\n      return\n    }",
-    "apres": "    if (inner.type === 'Identifier' || inner.type === 'Literal') {\n      found.add(String(inner['name'] ?? inner['value']))\n      return\n    }",
+    "avant": "    if (inner.type === 'Identifier') {\n      const name = inner['name'] as string\n      if (!bound.has(name)) found.add(name)\n      return\n    }",
+    "apres": "    if (inner.type === 'Identifier' || inner.type === 'Literal') {\n      const name = String(inner['name'] ?? inner['value'])\n      if (!bound.has(name)) found.add(name)\n      return\n    }",
     "trouvee": "revue 2 du lot 5a",
     "attendu": "adapter.test.ts > la source de l’adaptateur > ne retient pas un import dont le nom n’apparaît que dans une chaîne"
   },
@@ -842,5 +842,37 @@
     "apres": "            ? 'rien'",
     "trouvee": "revue 3 du lot 5a",
     "attendu": "adapter.test.ts > la source de l’adaptateur > ne retient pas un import dont le nom n’est que la propriété d’un accès"
+  },
+  {
+    "garantie": "Un nom exporté est déclaré comme un autre",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "        ? ((node['declaration'] as Node | undefined) ?? node)",
+    "apres": "        ? node",
+    "trouvee": "revue 4 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déclare et exporte"
+  },
+  {
+    "garantie": "Un nom déstructuré d'un objet est déclaré comme un autre",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "  if (node.type === 'ObjectPattern') {",
+    "apres": "  if (false) {",
+    "trouvee": "revue 4 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déstructure"
+  },
+  {
+    "garantie": "Un nom déstructuré d'un tableau est déclaré comme un autre",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "  if (node.type === 'ArrayPattern') {",
+    "apres": "  if (false) {",
+    "trouvee": "revue 4 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déclare dans un tableau"
+  },
+  {
+    "garantie": "Un paramètre de fonction ne désigne pas un nom du fichier",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "    const inside = CARRIES.has(inner.type) ? new Set(bound) : bound",
+    "apres": "    const inside = bound",
+    "trouvee": "revue 4 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > accepte un paramètre qui porte le nom d’une déclaration du fichier"
   }
 ]

@@ -636,6 +636,10 @@ L'entrée générée fait `import config from '/crypte.config.ts'` et lit `confi
 
 *Déclaré ici, et pas simplement inconnu.* Un nom ni déclaré ni importé est un global, et les refuser refuserait `process.env`, que Vite remplace. Un nom **importé** reste accepté : son import part avec lui.
 
+*Déclaré compte trois formes, pas une.* `export const runtime = …` porte sa déclaration un cran plus bas dans l'arbre, `const { runtime } = opts` et `const [runtime] = list` n'ont pas d'identifiant simple à lire. Les trois échappaient à un `VariableDeclaration` lu au seul niveau du fichier.
+
+*Et l'expression garde ses propres noms.* `createAdapter({ pick: (opts) => opts.runtime })` ne nomme pas le `opts` du fichier : le paramètre le masque, et la comparaison sans cette distinction refusait une configuration valide. Un paramètre, ce qu'une déstructuration en tire, et ce qu'un bloc déclare sont donc retirés avant la comparaison.
+
 **Le canal vient du CLI, jamais du projet.**
 
 La section 1.4 des contrats dit que l'utilisateur installe deux paquets et que `@crypte/core` n'en est pas. L'entrée l'importerait pourtant, donc le plugin pose un alias vers le chemin que le CLI résout lui-même. Sans ça, la preview demande au projet un paquet que personne n'a déclaré.

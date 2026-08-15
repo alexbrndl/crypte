@@ -104,6 +104,56 @@ describe('la source de l’adaptateur', () => {
     expect(() => adapterSource(project(source))).toThrow('a value it builds itself')
   })
 
+  // `export const` porte sa déclaration un cran plus bas dans l'arbre, et la
+  // lire au seul niveau du fichier la rendait invisible.
+  it('refuse un nom que le fichier déclare et exporte', () => {
+    const source = [
+      "import { createAdapter } from '@crypte/react'",
+      "export const runtime = 'react'",
+      'export default { adapter: createAdapter({ runtime }) }',
+    ].join('\n')
+
+    expect(() => adapterSource(project(source))).toThrow('a value it builds itself')
+  })
+
+  it('refuse un nom que le fichier déstructure', () => {
+    const source = [
+      "import { createAdapter } from '@crypte/react'",
+      "import { opts } from './opts'",
+      'const { runtime } = opts',
+      'export default { adapter: createAdapter({ runtime }) }',
+    ].join('\n')
+
+    expect(() => adapterSource(project(source))).toThrow('a value it builds itself')
+  })
+
+  it('refuse un nom que le fichier déclare dans un tableau', () => {
+    const source = [
+      "import { createAdapter } from '@crypte/react'",
+      "import { list } from './list'",
+      'const [runtime] = list',
+      'export default { adapter: createAdapter({ runtime }) }',
+    ].join('\n')
+
+    expect(() => adapterSource(project(source))).toThrow('a value it builds itself')
+  })
+
+  // Un paramètre porte son propre nom : l'expression l'emmène avec elle, donc
+  // il ne désigne pas celui du fichier même quand les deux s'écrivent pareil.
+  it('accepte un paramètre qui porte le nom d’une déclaration du fichier', () => {
+    const read = adapterSource(
+      project(
+        [
+          "import { createAdapter } from '@crypte/react'",
+          "const opts = { runtime: 'react' }",
+          'export default { adapter: createAdapter({ pick: (opts) => opts.runtime }) }',
+        ].join('\n'),
+      ),
+    )
+
+    expect(read.expression).toBe('createAdapter({ pick: (opts) => opts.runtime })')
+  })
+
   // Un global n'est pas un nom que le fichier calcule : le refuser refuserait
   // `process.env`, que Vite remplace.
   it('accepte un global que le fichier ne déclare pas', () => {
