@@ -1031,7 +1031,7 @@
     "garantie": "Une sélection perdue ne se remplace pas toute seule",
     "fichier": "apps/shell/src/recover.ts",
     "avant": "  if (shown === 'effacée') return null",
-    "apres": "",
+    "apres": "  if (shown === 'effacée') return after[0]?.id ?? null",
     "trouvee": "revue 1 du lot 5b",
     "attendu": "recover.test.ts > la sélection après un changement de catalogue > ne propose rien après une sélection perdue"
   },

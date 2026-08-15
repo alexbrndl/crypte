@@ -92,7 +92,7 @@ describe('l’écran', () => {
     await expect
       .poll(() => page.getByRole('heading', { level: 2 }).allTextContents())
       .toEqual(['Badge', 'Boom'])
-  })
+  }, 120_000)
 
   // Le rendu se lit dans l'iframe, pas dans la page du shell : c'est là que la
   // preview monte, avec l'adaptateur et le React du projet.
@@ -104,7 +104,7 @@ describe('l’écran', () => {
     await expect
       .poll(() => preview.locator('#root').textContent(), { timeout: 120_000 })
       .toBe('Nouveau')
-  })
+  }, 120_000)
 
   it('change de story au clic', async () => {
     await page.goto(origin)
@@ -117,7 +117,7 @@ describe('l’écran', () => {
     await page.getByRole('button', { name: 'Libellé long' }).click()
 
     await expect.poll(() => preview.locator('#root').textContent()).toBe('Vérification en cours')
-  })
+  }, 120_000)
 
   // Une story qui échoue laisse un cadre vide, et un cadre vide sans message
   // ressemble à un outil cassé. L'erreur remonte donc dans l'interface, pas
@@ -139,7 +139,7 @@ describe('l’écran', () => {
     // Le cadre de la story d'avant ne doit plus être visible : le laisser
     // ferait croire que celle-ci a rendu.
     await expect.poll(() => page.locator('iframe[title="preview"]').isVisible()).toBe(false)
-  })
+  }, 120_000)
 
   // Reparti d'une page fraîche et passé par l'état d'erreur : sans ça, ses deux
   // assertions sont déjà vraies au chargement, donc le cas resterait vert même
@@ -156,7 +156,7 @@ describe('l’écran', () => {
     await expect
       .poll(() => page.frameLocator('iframe[title="preview"]').locator('#root').textContent())
       .toBe('Nouveau')
-  })
+  }, 120_000)
 
   // Les cas d'édition viennent après, dans cet ordre : chacun laisse la copie
   // modifiée, et les cas ci-dessus attendent le projet tel qu'il est commité.
@@ -215,48 +215,6 @@ describe('l’écran', () => {
       .toContain('Renouvelé')
 
     expect(navigations).toBe(before)
-  }, 300_000)
-
-  // L'axe que l'exploration a manqué : une édition qui casse le rendu, puis une
-  // qui le répare. Le rejeu à chaud est un second chemin de rendu, et dessiner
-  // hors du canal laissait l'erreur dans le callback de mise à jour : rien ne
-  // remontait, le shell gardait l'ancienne sortie et son statut « rendu ».
-  it('efface puis remet l’erreur au fil des éditions, sans clic', async () => {
-    await page.goto(origin)
-
-    const preview = page.frameLocator('iframe[title="preview"]')
-    await expect
-      .poll(() => preview.locator('#root').textContent(), { timeout: 120_000 })
-      .toContain('Renouvelé')
-
-    await page.getByRole('button', { name: 'Échoue au rendu' }).click()
-
-    const alert = page.getByRole('alert')
-    await expect.poll(() => alert.isVisible(), { timeout: 120_000 }).toBe(true)
-
-    // Le fichier de story, pas le composant : Fast Refresh reprend seul les
-    // composants, donc le rejeu du canal ne les voit jamais. Mesuré.
-    const file = join(root, 'stories', 'Boom.tsx')
-    const sain = readFileSync(file, 'utf8')
-
-    const before = navigations
-    writeFileSync(file, sain.replace("reason: 'ce", "broken: false, reason: 'ce"))
-
-    // Le panneau se ferme sans qu'on touche à rien : parce que le rejeu rend
-    // compte, pas parce que l'utilisateur a recliqué.
-    await expect.poll(() => page.getByRole('alert').count(), { timeout: 120_000 }).toBe(0)
-    await expect
-      .poll(() => preview.locator('#root').textContent(), { timeout: 120_000 })
-      .toContain('réparé')
-
-    // Sans rechargement : c'est le rejeu qui a rendu compte, pas une preview
-    // repartie de zéro que le shell aurait redemandée.
-    expect(navigations).toBe(before)
-
-    // Et il revient : l'erreur repart par le même chemin.
-    writeFileSync(file, sain)
-
-    await expect.poll(() => alert.isVisible(), { timeout: 120_000 }).toBe(true)
   }, 300_000)
 
   it('fait apparaître dans l’arbre une story ajoutée', async () => {

@@ -369,3 +369,17 @@ Quatre occurrences dans la même session : trois sous `pnpm run mutations`, sur 
 *Ce qui le rendrait observable :* compter les reconstructions, donc exposer un compteur qui n'existe que pour les tests. Le coût du défaut ne le justifie pas.
 
 *Origine :* exploration du lot 5b.
+
+### Le compte rendu d'un rejeu à chaud n'est gardé qu'au niveau du canal
+
+`createPreviewChannel` retient la dernière demande et rend un `again()` qui redessine **avec** son `rendered` ou son `error`. C'est ce qui ferme le point bloquant de la revue du lot 5b : dessiner depuis l'entrée générée laissait une édition ratée jeter dans le callback de mise à jour, sans rien remonter au shell.
+
+*Ce qui le garde :* trois cas unitaires dans `packages/core/test/preview.test.ts`, et une garantie du catalogue qui remplace `draw(asked)` par un appel direct au gestionnaire.
+
+*Ce qui ne le garde pas, et pourquoi c'est écrit ici :* un cas navigateur a été écrit, qui casse puis répare une story et regarde le panneau d'erreur s'ouvrir et se fermer sans clic. Éprouvé contre une version du canal privée de son compte rendu, **bundle reconstruit et vérifié**, il passe quand même. Il coûtait deux minutes de navigateur et ne distinguait rien : retiré.
+
+*Ce qui n'est pas expliqué :* ce qui referme le panneau dans ce cas-là, puisque ni rechargement du cadre ni `rendered` ne sont en jeu. La question reste ouverte et vaut d'être reprise si un défaut de cette zone remonte.
+
+*Ce que le rejeu ne couvre pas :* un composant. Fast Refresh de React en fait une frontière, donc la mise à jour s'y arrête et l'entrée générée n'est jamais rappelée.
+
+*Origine :* revue 1 du lot 5b.
