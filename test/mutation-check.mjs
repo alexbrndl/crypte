@@ -43,7 +43,7 @@ function plain(output) {
 // Le fichier que `attendu` nomme, quand il en nomme un : une garantie sur cinq
 // désigne un titre de cas, un code d'erreur TypeScript ou une fixture, et rien
 // n'y permet de cibler un fichier. Voir docs/internal/architecture.md.
-export const NAMES_A_FILE = /^([\w.-]+\.test\.(?:ts|mjs)) > /
+export const NAMES_A_FILE = /^([\w.-]+\.test\.(?:tsx?|mjs)) > /
 
 // Un filtre qui ne correspond à rien fait sortir vitest en échec, ce qui se lit
 // comme une mutation vue. Le reconnaître pour retomber sur la voie lente.

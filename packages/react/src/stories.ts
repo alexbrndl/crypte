@@ -41,14 +41,3 @@ export function defineStories<C extends ComponentType<never>>(
 export function story<P>(props: Partial<P>, options?: StoryOptions): Story<P> {
   return options === undefined ? { props } : { props, options }
 }
-
-// The props a named story passes to the component: the shared block first, its
-// own on top. The merge is shallow, prop by prop, which is what makes two
-// mutually exclusive props need an explicit reset.
-export function propsOfStory<C>(module: StoryModule<C>, name: string): PropsOf<C> {
-  const { props = {}, stories = {} } = module.definition
-  const declared = stories[name]
-  const own = declared === undefined ? {} : 'props' in declared ? declared.props : declared
-
-  return { ...props, ...own } as PropsOf<C>
-}

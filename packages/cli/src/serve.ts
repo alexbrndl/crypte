@@ -4,6 +4,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import sirv from 'sirv'
 import type { Plugin } from 'vite'
 import { ConfigError } from './errors'
 import { cssEntryOf, type Project } from './project'
@@ -87,6 +88,11 @@ export function servePlugin(project: Project, manifest: string): Plugin {
     },
 
     configureServer(server) {
+      // The shell's own files, `/assets/…`, served from where they were copied.
+      // Without this the page loads and its bundle answers 404: Vite is rooted
+      // in the project, which knows nothing of them. Measured, blank screen.
+      server.middlewares.use(sirv(shell, { dev: true, etag: true }))
+
       // Before Vite's own middlewares rather than after. The fallback above is
       // gone, but the order is still where these routes are claimed.
       server.middlewares.use((request, response, next) => {
@@ -167,7 +173,7 @@ export function previewEntry(project: Project): string {
   const css = cssEntryOf(project)
 
   return [
-    "import { createPreviewChannel } from '@crypte/core/preview'",
+    "import { createPreviewChannel, propsOfStory } from '@crypte/core/preview'",
     "import config from '/crypte.config.ts'",
     ...(css ? [`import ${JSON.stringify(css)}`] : []),
     '',
@@ -189,7 +195,16 @@ export function previewEntry(project: Project): string {
     '    const module = modules[`/${entry.storyFile}`]',
     '    if (!module) throw new Error(`no module for ${entry.storyFile}`)',
     '',
-    '    config.adapter.mount(container, module.default, overrides)',
+    '    // The module holds the component and its definition, never a component',
+    '    // on its own: mounting `module.default` handed React an object, and the',
+    '    // story rendered nothing. Measured in a browser.',
+    '    const { component, definition } = module.default',
+    '',
+    '    config.adapter.mount(',
+    '      container,',
+    '      component,',
+    '      propsOfStory(definition, entry.name, overrides),',
+    '    )',
     '  },',
     '})',
   ].join('\n')

@@ -21,12 +21,14 @@
   },
   "dependencies": {
     "@crypte/core": "workspace:*",
+    "sirv": "^3.0.0",
     "tsconfck": "catalog:",
     "vite": "catalog:"
   },
   "devDependencies": {
     "@crypte/shell": "workspace:*",
     "@types/node": "catalog:",
+    "playwright": "^1.56.0",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },

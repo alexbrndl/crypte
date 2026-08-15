@@ -80,13 +80,18 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `src/paths.ts` | le résolveur qui les applique | `project.ts` |
 | `src/errors.ts` | l'erreur montrée à l'utilisateur | `project.ts`, `config-paths.ts` |
 | `src/stories.ts` | lecture d'un fichier de story, sans l'exécuter | `manifest.ts` |
-| `src/manifest.ts` | parcours du dossier, résolution, écriture du catalogue | le futur serveur |
+| `src/manifest.ts` | parcours du dossier, résolution, écriture du catalogue | `dev.ts` |
+| `src/dev.ts` | `crypte dev` : catalogue, empreinte, serveur | `index.ts` |
+| `src/serve.ts` | les deux pages servies, et l'entrée de la preview | `dev.ts` |
+| `scripts/copy-shell.mjs` | copie le shell construit dans `dist/shell` | le script `pack` |
 | `src/fingerprint.ts` | la forme réduite du catalogue, commitée | la suite de tests, le futur serveur |
 | `test/fixture/` | projet imité, aux contraintes réelles | `test/project.test.ts` |
 | `test/fixture/stories/` | les premiers fichiers de story du dépôt | `test/stories.test.ts`, `test/manifest*.test.ts` |
 | `test/stories.test.ts` | ce que la lecture d'un fichier refuse de deviner | — |
 | `test/manifest.test.ts` | parcours, résolution, collisions d'identifiants | — |
 | `test/manifest-shape.test.ts` | fige la forme du manifeste, champ pour champ | — |
+| `test/dev.test.ts` | ce que le serveur sert vraiment, sur un serveur qui écoute | — |
+| `test/screen.test.ts` | ce que l'utilisateur voit, dans Chromium | — |
 | `test/fingerprint.test.ts` | ce que l'empreinte garde, replie, et ignore ; écrit celle de la fixture | — |
 | `test/fixture/.crypte/fingerprint.json` | l'empreinte commitée de la fixture, sous régime de verrouillage | `git diff --exit-code` en CI |
 | `test/guide.test.ts` | exécute les exemples de `docs/guide.md` | — |
@@ -96,19 +101,31 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | Fichier | Contient | Consommé par |
 | -- | -- | -- |
 | `src/index.ts` | adaptateur, montage React | la page de preview |
+| `src/stories.ts` | `defineStories`, `story`, et les types qu'ils inferent | un fichier de story |
 | `test/public-augmentation.ts` | augmentation par la porte d'entrée publique | `core/test/no-plugin.test.ts` |
 | `test/tsconfig.json` | programme du test ci-dessus | idem |
+
+## `apps/demo` — privé, le projet témoin qui rend
+
+| Fichier | Contient | Consommé par |
+| -- | -- | -- |
+| `crypte.config.ts` | un vrai adaptateur React, un alias `@/`, une entrée CSS | `crypte dev` |
+| `src/components/Badge.tsx` | composant d'exemple, deux props documentées | `stories/Badge.tsx` |
+| `src/components/Boom.tsx` | composant qui échoue exprès | `stories/Boom.tsx` |
+| `stories/` | quatre stories, dont une qui ne rend jamais | le catalogue |
+| `.crypte/fingerprint.json` | son empreinte, commitée sous régime de verrouillage | `git diff --exit-code` |
+
+Distinct de `packages/cli/test/fixture`, qui n'a ni `package.json` ni React et n'en aura pas : elle éprouve la lecture d'un projet **sans** TypeScript ni dépendances déclarées, ce qu'aucun autre projet du dépôt ne fait.
 
 ## `apps/shell` — privé, jamais publié
 
 | Fichier | Contient | Consommé par |
 | -- | -- | -- |
-| `index.html` | page du shell | le navigateur |
-| `preview.html` | page de la preview, chargée en iframe | le navigateur |
+| `index.html` | page du shell, la seule qu'il porte | le navigateur |
 | `src/main.ts` | montage de l'application Vue | `index.html` |
-| `src/App.vue` | interface du shell | `main.ts` |
-| `src/preview.tsx` | branchement canal et adaptateur | `preview.html` |
-| `src/Badge.tsx` | composant codé en dur, faute de découverte | `preview.tsx` |
+| `src/App.vue` | arbre des stories, sélection, panneau d'erreur | `main.ts` |
+
+Construit à l'avance et copié dans `packages/cli/dist/shell`. La page de la preview n'est plus ici : elle est servie par le CLI et compilée par le Vite du projet, faute de quoi elle imposerait Vue et React à un projet qui n'en veut pas. Voir `docs/decisions.md`.
 | `src/env.d.ts` | déclarations pour Vite et les fichiers `.vue` | le compilateur |
 
 ## `docs` — public, en anglais à terme

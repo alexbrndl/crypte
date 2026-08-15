@@ -28,6 +28,15 @@
         "label"
       ],
       "rest": "fa5f3c697224c590"
+    },
+    {
+      "id": "boom--echoue-au-rendu",
+      "component": "src/components/Boom.tsx#Boom",
+      "status": "draft",
+      "props": [
+        "reason"
+      ],
+      "rest": "10a9de85cbdc3031"
     }
   ]
 }

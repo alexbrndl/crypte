@@ -15,6 +15,11 @@ const entries = ref<StoryEntry[]>([])
 const current = ref<string | null>(null)
 const status = ref('chargement du catalogue')
 
+// Une erreur de rendu s'affiche, elle ne se glisse pas dans une ligne d'état :
+// une story qui ne rend rien laisse un cadre vide, et un cadre vide sans
+// message ressemble à un outil cassé.
+const failure = ref<{ id: string; message: string; stack?: string } | null>(null)
+
 let channel: ReturnType<typeof createShellChannel> | null = null
 let ready = false
 
@@ -33,6 +38,7 @@ const groups = computed(() => {
 
 function show(id: string) {
   current.value = id
+  failure.value = null
   // Rien ne part avant que la preview ait dit `ready` : un message envoyé à une
   // iframe qui n'écoute pas encore est perdu sans trace.
   if (ready) channel?.send({ type: 'render', id, overrides: {} })
@@ -47,9 +53,14 @@ onMounted(async () => {
         status.value = `preview prête, protocole v${message.protocolVersion}`
         if (current.value) show(current.value)
       }
-      if (message.type === 'rendered')
+      if (message.type === 'rendered') {
+        failure.value = null
         status.value = `${message.id} rendu en ${message.durationMs.toFixed(1)} ms`
-      if (message.type === 'error') status.value = `erreur : ${message.message}`
+      }
+      if (message.type === 'error') {
+        failure.value = { id: message.id, message: message.message, stack: message.stack }
+        status.value = 'erreur de rendu'
+      }
     })
   }
 
@@ -81,7 +92,15 @@ onMounted(async () => {
       <p v-if="entries.length === 0">aucune story</p>
     </nav>
     <div>
-      <iframe ref="frame" src="/preview.html" title="preview"></iframe>
+      <!-- L'erreur couvre la preview plutôt que de l'accompagner : ce qui reste
+           affiché dessous appartient à la story d'avant, et le laisser voir
+           ferait croire que celle-ci a rendu. -->
+      <div v-if="failure" class="failure" role="alert">
+        <h2>{{ failure.id }} n'a pas pu être rendue</h2>
+        <p>{{ failure.message }}</p>
+        <pre v-if="failure.stack">{{ failure.stack }}</pre>
+      </div>
+      <iframe v-show="!failure" ref="frame" src="/preview.html" title="preview"></iframe>
       <p>{{ status }}</p>
     </div>
   </main>
@@ -114,5 +133,19 @@ iframe {
   width: 100%;
   height: 70vh;
   border: 1px solid #e5e7eb;
+}
+
+.failure {
+  border: 1px solid #fca5a5;
+  background: #fef2f2;
+  padding: 12px 16px;
+  min-height: 70vh;
+  box-sizing: border-box;
+}
+
+.failure pre {
+  white-space: pre-wrap;
+  font-size: 12px;
+  color: #7f1d1d;
 }
 </style>

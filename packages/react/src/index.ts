@@ -17,17 +17,30 @@ export interface Adapter {
 
 export function createAdapter(): Adapter {
   let root: Root | null = null
+  let caught: unknown
 
   return {
     // `flushSync` makes the render finish before returning. Without it React
     // commits later: a component error would escape the caller's try/catch, and
     // the `rendered` message would leave before anything is on screen.
+    //
+    // `onUncaughtError` and the rethrow are what actually surface the error.
+    // Measured in a browser: React 19 reports a component that throws as an
+    // unhandled error and does **not** rethrow to the caller, so `mount`
+    // returned as if it had rendered and the preview announced `rendered`.
     mount(container, component, props) {
-      root ??= createRoot(container)
+      caught = undefined
+      root ??= createRoot(container, {
+        onUncaughtError(error) {
+          caught = error
+        },
+      })
       const target = root
       flushSync(() => {
         target.render(createElement(component, props))
       })
+
+      if (caught !== undefined) throw caught
     },
     unmount() {
       root?.unmount()
@@ -36,11 +49,4 @@ export function createAdapter(): Adapter {
   }
 }
 
-export {
-  defineStories,
-  propsOfStory,
-  story,
-  type AnyComponent,
-  type PropsOf,
-  type StoryModule,
-} from './stories'
+export { defineStories, story, type AnyComponent, type PropsOf, type StoryModule } from './stories'

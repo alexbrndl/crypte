@@ -754,5 +754,45 @@
     "apres": "  return !output.includes(NO_FILE)",
     "trouvee": "revue 2 de la PR #32",
     "attendu": "mutations.test.mjs > le catalogue de mutations > la voie rapide du contrôle > ne conclut pas quand un autre cas du fichier a rougi"
+  },
+  {
+    "garantie": "Les fichiers du shell sont servis, pas seulement sa page",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "      server.middlewares.use(sirv(shell, { dev: true, etag: true }))",
+    "apres": "",
+    "trouvee": "lot 5a",
+    "attendu": "screen.test.ts > l’écran > affiche l’arbre des stories"
+  },
+  {
+    "garantie": "Le repli de Vite ne détourne pas les routes du CLI",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "        appType: 'custom',",
+    "apres": "        appType: 'spa',",
+    "trouvee": "lot 5a",
+    "attendu": "dev.test.ts > crypte dev > sert le catalogue depuis la mémoire, pas depuis le fichier écrit"
+  },
+  {
+    "garantie": "Le canal vient du CLI et non du projet de l'utilisateur",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "        resolve: { alias: { '@crypte/core/preview': channelPath() } },",
+    "apres": "",
+    "trouvee": "lot 5a",
+    "attendu": "screen.test.ts > l’écran > rend la première story dans la preview"
+  },
+  {
+    "garantie": "Une erreur de rendu de React remonte à l'appelant",
+    "fichier": "packages/react/src/index.ts",
+    "avant": "      if (caught !== undefined) throw caught",
+    "apres": "",
+    "trouvee": "lot 5a",
+    "attendu": "screen.test.ts > l’écran > montre l’erreur d’une story qui ne rend pas"
+  },
+  {
+    "garantie": "Les props d'une story sont fusionnées sous les surcharges",
+    "fichier": "packages/core/src/preview/index.ts",
+    "avant": "  return { ...definition.props, ...own, ...overrides }",
+    "apres": "  return { ...own, ...definition.props, ...overrides }",
+    "trouvee": "lot 5a",
+    "attendu": "props.test.ts > les props d’une story nommée > met les props communes sous celles de la story"
   }
 ]

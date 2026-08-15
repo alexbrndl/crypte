@@ -688,21 +688,23 @@ This document is a contract. This section is the only place that says what exist
 | Section | State |
 | --- | --- |
 | 1.1, story files | discovered and read, in the four extensions. The tree, the identifiers and the call code come out of them |
-| 1.5, project configuration | the config is read, and the CSS entry is turned into an absolute path. Nothing loads that style sheet yet |
+| 1.5, project configuration | the config is read, and the declared style sheet is loaded by the preview |
 | 1.5, path aliases | built |
-| 2 and 3, the types | built. `defineStories`, `story` and inference are not |
-| 4, the manifest | built, and produced from a project. `details` is written empty, and no command calls the producer yet |
-| 4.6, the fingerprint | built. Written by the test suite for the test fixture, since no command exists to write it for a real project |
+| 2 and 3, the types | built, and `defineStories` and `story` with them. Inference is not: `details` is still written empty |
+| 4, the manifest | built, and written by `crypte dev` at start-up |
+| 4.6, the fingerprint | built, and written beside the manifest by `crypte dev` |
 | 5, the channel | built and exercised on both sides |
 | 6, plugin contract | not built, and provisional |
 
-**No command is built.** The `crypte` binary answers `--version` and nothing else, `crypte dev` and `crypte check` included. So the manifest is produced by code that nothing runs yet: `crypte dev` is what will write `.crypte/manifest.json` to disk.
+**`crypte dev` is built, `crypte check` is not.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled by the project's own Vite. A story renders, switching story works, and a story that throws shows its error instead of an empty frame.
 
-Five known gaps between this document and the code:
+Seven known gaps between this document and the code:
 
 - `update-overrides` and `set-globals` are part of the protocol and have no effect yet. The preview drops them.
 - A path alias cannot replace an installed package. `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because the resolver runs after Vite's own. TypeScript would return the replacement file.
 - `details` is written empty. Section 4.4 says it travels from the story file untouched, but the manifest carries the **resolved** form, whose `type` and `required` come from an adapter's inference and not from what the author wrote. `meta` and `options` do travel today.
+- What a story file cannot be read from is reported in the server's output, one line per file, and not yet in the shell. The in-app version, with its two levels, is DCJ-217.
+- Nothing reloads. Editing a component or a story needs a restart until DCJ-218.
 - The CLI does not yet guarantee the serialisation promised in 4.5. What it writes today is read from source text and is serialisable by construction, so the guarantee is not exercised.
 - `component.file` is resolved without Vite. The producer runs before any server exists, so it applies the project's `paths` and tries the usual extensions, with no plugin and no `exports` field. A component reached through a plugin keeps the identifier the story wrote.
 
