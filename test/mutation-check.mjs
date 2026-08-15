@@ -45,10 +45,23 @@ const INFLIGHT = join(root, 'test', '.mutation-inflight.json')
 function recoverInFlight() {
   if (!existsSync(INFLIGHT)) return
 
-  const { path, original } = JSON.parse(readFileSync(INFLIGHT, 'utf8'))
-  writeFileSync(path, original)
+  let read
+  try {
+    read = JSON.parse(readFileSync(INFLIGHT, 'utf8'))
+  } catch {
+    // Tué au milieu de l'écriture du journal : la source n'a alors pas encore
+    // été mutée, puisque le journal est écrit avant. Le dire et repartir vaut
+    // mieux qu'une trace brute sur un fichier que personne ne connaît.
+    rmSync(INFLIGHT)
+    console.log(
+      "Journal du contrôle précédent illisible, ignoré : la source n'avait pas été mutée.",
+    )
+    return
+  }
+
+  writeFileSync(read.path, read.original)
   rmSync(INFLIGHT)
-  console.log(`Contrôle précédent interrompu : ${relative(root, path)} a été restauré.`)
+  console.log(`Contrôle précédent interrompu : ${relative(root, read.path)} a été restauré.`)
 }
 
 // `\e[2m > \e[22m` n'est pas ` > `. Voir docs/internal/architecture.md. Construite depuis un

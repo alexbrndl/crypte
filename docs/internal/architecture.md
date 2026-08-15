@@ -708,6 +708,8 @@ Un module de story rend `{ component, definition }`, jamais un composant seul. M
 
 **La forme décide du rechargement, jamais de la fraîcheur.** Le catalogue retenu est remplacé à chaque reconstruction réussie ; seule la décision de recharger le cadre regarde la forme. Rendre la main avant le remplacement servait les props d'avant l'édition, alors que la route les lit en direct. Mesuré.
 
+**Le filtre du surveillant compare deux formes du même chemin, séparateur compris.** Chokidar suit les liens et rend le chemin réel, que `loadProject` ne résout pas : sur une racine derrière un lien symbolique, aucun événement ne passait le filtre et **le rechargement était mort sans un mot**. Trouvé en explorant, pas en relisant. Le séparateur au bout ferme l'autre côté : sans lui, un dossier `stories-old` voisin déclencherait des reconstructions qui ne le concernent pas.
+
 **Un changement de `crypte.config.ts` donne une ligne, pas un rechargement.** Relire la configuration veut dire reconstruire le serveur, puisque les plugins du projet en viennent. Hors de ce lot, donc, et le silence est remplacé par une instruction : relancer.
 
 **L'empreinte est écrite au démarrage seulement.** C'est un fichier de verrouillage commité. La réécrire à chaque sauvegarde salirait l'arbre de travail pendant qu'on tape, y compris sur les états intermédiaires d'un renommage. Le manifeste sur le disque suit la même règle : il est ignoré par Git, mais personne ne le lit pendant `crypte dev`, la route servant depuis la mémoire.

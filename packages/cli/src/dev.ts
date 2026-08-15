@@ -1,7 +1,8 @@
 // `crypte dev`: reads the project, writes the catalogue, serves both pages, and
 // keeps them in step with the files. See docs/internal/architecture.md.
 
-import { join, relative } from 'node:path'
+import { join, relative, sep } from 'node:path'
+import { realpathSync } from 'node:fs'
 import { createServer, type ViteDevServer } from 'vite'
 import { fingerprintOf, writeFingerprint } from './fingerprint'
 import { buildCatalogue, writeCatalogue, type Catalogue } from './manifest'
@@ -72,7 +73,11 @@ function watchStories(
   held: Held,
   log: (line: string) => void,
 ): void {
-  const stories = join(project.root, project.config.stories)
+  // Both forms of the same folder, separator included. Chokidar follows links
+  // and reports the real path, which `loadProject` does not resolve: behind a
+  // symlinked root no event passed the filter and reloading was dead without a
+  // word. Measured. Without the separator a sibling `stories-old` would rebuild.
+  const roots = watched(join(project.root, project.config.stories) + sep)
 
   // What was already said, held apart from the catalogue: a skipped file leaves
   // the shape untouched, so comparing catalogues repeated the same line on every
@@ -80,7 +85,7 @@ function watchStories(
   const said = new Set<string>()
 
   const rebuild = (file: string): void => {
-    if (!file.startsWith(stories)) return
+    if (!roots.some((one) => file.startsWith(one))) return
 
     let next: Catalogue
     try {
@@ -134,11 +139,24 @@ function watchStories(
 // server, since the project's own plugins come from there: out of this lot, and
 // a line is what turns a silence into an instruction.
 function watchConfig(server: ViteDevServer, project: Project, log: (line: string) => void): void {
-  const watched = new Set(project.watch)
+  const files = new Set(project.watch.flatMap((file) => watched(file)))
 
   server.watcher.on('change', (file) => {
-    if (watched.has(file)) log(`${relative(project.root, file)} changed, restart \`crypte dev\``)
+    if (files.has(file)) log(`${relative(project.root, file)} changed, restart \`crypte dev\``)
   })
+}
+
+// A path as written and as the file system really names it. The two differ as
+// soon as a symlink is on the way, and the watcher reports the second.
+function watched(path: string): string[] {
+  try {
+    const real = realpathSync(path.endsWith(sep) ? path.slice(0, -1) : path)
+
+    return [path, path.endsWith(sep) ? real + sep : real]
+  } catch {
+    // Not there yet, or gone: the written form is all there is.
+    return [path]
+  }
 }
 
 function reason(error: unknown): string {

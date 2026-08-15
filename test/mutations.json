@@ -1010,5 +1010,21 @@
     "apres": "",
     "trouvee": "lot 5b",
     "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > ne répète pas ce qu’il a déjà dit"
+  },
+  {
+    "garantie": "Une racine derrière un lien symbolique est surveillée",
+    "fichier": "packages/cli/src/dev.ts",
+    "avant": "    return [path, path.endsWith(sep) ? real + sep : real]",
+    "apres": "    return [path]",
+    "trouvee": "exploration du lot 5b",
+    "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > reconstruit sur une racine derrière un lien symbolique"
+  },
+  {
+    "garantie": "Un dossier voisin de celui des stories n'est pas surveillé",
+    "fichier": "packages/cli/src/dev.ts",
+    "avant": "  const roots = watched(join(project.root, project.config.stories) + sep)",
+    "apres": "  const roots = watched(join(project.root, project.config.stories))",
+    "trouvee": "exploration du lot 5b",
+    "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > ignore un dossier voisin du dossier des stories"
   }
 ]

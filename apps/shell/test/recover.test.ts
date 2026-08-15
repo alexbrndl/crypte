@@ -55,6 +55,15 @@ describe('la sélection après un changement de catalogue', () => {
     expect(recovered(alerte, [defaut, alerte, autre], [autre])).toBeNull()
   })
 
+  // L'affichée peut ne pas être dans le catalogue d'avant : un premier
+  // rafraîchissement échoué laisse une sélection sans liste. Le rang vaut alors
+  // -1, et prendre la dernière du fichier vaut mieux que ne rien rendre.
+  it('retombe sur la dernière du fichier quand l’affichée n’était pas dans la liste', () => {
+    const renommee = entry('badge--alerte', 'Alerte', 'stories/Badge.tsx')
+
+    expect(recovered(alerte, [], [defaut, renommee])).toBe(renommee.id)
+  })
+
   it('rend rien quand le catalogue est devenu vide', () => {
     expect(recovered(alerte, [defaut, alerte], [])).toBeNull()
   })
