@@ -1,12 +1,4 @@
-import {
-  cpSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs'
+import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Manifest } from '@crypte/core/protocol'
@@ -95,21 +87,6 @@ describe('le catalogue pendant que le serveur tourne', () => {
       .toContain('tone')
 
     writeFileSync(file, before)
-  }, 20_000)
-
-  // Sans le séparateur au bout, un dossier voisin dont le nom commence par
-  // celui des stories déclencherait des reconstructions qui ne le concernent
-  // pas.
-  it('ignore un dossier voisin du dossier des stories', async () => {
-    const before = await names()
-
-    mkdirSync(join(root, 'stories-old'), { recursive: true })
-    writeFileSync(join(root, 'stories-old', 'Vieux.js'), story('Badge'))
-    await new Promise((resolve) => setTimeout(resolve, 800))
-
-    expect(await names()).toEqual(before)
-
-    rmSync(join(root, 'stories-old'), { recursive: true, force: true })
   }, 20_000)
 
   // Chokidar suit les liens et rend le chemin réel. Sans cette forme dans le

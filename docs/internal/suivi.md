@@ -357,3 +357,15 @@ Quatre occurrences dans la même session : trois sous `pnpm run mutations`, sur 
 *Ce qui le lèverait :* une copie par exécution dans un dossier unique nettoyé au démarrage de la suite, plutôt qu'à la fin de chaque fichier.
 
 *Origine :* lot 5b.
+
+### Le séparateur en fin de préfixe du surveillant n'est gardé par rien
+
+`watchStories` compare le chemin d'un événement au dossier des stories, séparateur compris. Sans ce séparateur, un dossier voisin nommé `stories-old` passe le filtre.
+
+*Ce que ça coûte alors :* une reconstruction du catalogue par sauvegarde dans ce dossier voisin. Rien de plus : `buildCatalogue` ne lit que le dossier des stories, donc le manifeste est identique, la forme aussi, et ni le shell ni la preview ne voient quoi que ce soit.
+
+*Pourquoi il n'y a ni cas ni garantie :* la différence n'est pas observable de l'extérieur. Un premier cas a été écrit puis retiré, parce qu'il affirmait que le catalogue ne changeait pas, ce qui est vrai avec ou sans le séparateur : un test qui ne peut pas échouer.
+
+*Ce qui le rendrait observable :* compter les reconstructions, donc exposer un compteur qui n'existe que pour les tests. Le coût du défaut ne le justifie pas.
+
+*Origine :* exploration du lot 5b.
