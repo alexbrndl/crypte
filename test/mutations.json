@@ -754,5 +754,189 @@
     "apres": "  return !output.includes(NO_FILE)",
     "trouvee": "revue 2 de la PR #32",
     "attendu": "mutations.test.mjs > le catalogue de mutations > la voie rapide du contrôle > ne conclut pas quand un autre cas du fichier a rougi"
+  },
+  {
+    "garantie": "Les fichiers du shell sont servis, pas seulement sa page",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "      server.middlewares.use(sirv(shell, { dev: true, etag: true }))",
+    "apres": "",
+    "trouvee": "lot 5a",
+    "attendu": "screen.test.ts > l’écran > affiche l’arbre des stories"
+  },
+  {
+    "garantie": "Le repli de Vite ne sert pas la page du projet",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "        appType: 'custom',",
+    "apres": "        appType: 'spa',",
+    "trouvee": "lot 5a",
+    "attendu": "dev.test.ts > crypte dev > ne sert jamais la page du projet à la place d’une route inconnue"
+  },
+  {
+    "garantie": "Le canal vient du CLI et non du projet de l'utilisateur",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "        resolve: { alias: { '@crypte/core/preview': channelPath() } },",
+    "apres": "",
+    "trouvee": "lot 5a",
+    "attendu": "screen.test.ts > l’écran > rend la première story dans la preview"
+  },
+  {
+    "garantie": "Une erreur de rendu de React remonte à l'appelant",
+    "fichier": "packages/react/src/index.ts",
+    "avant": "      if (caught !== undefined) throw caught",
+    "apres": "",
+    "trouvee": "lot 5a",
+    "attendu": "screen.test.ts > l’écran > montre l’erreur d’une story qui ne rend pas"
+  },
+  {
+    "garantie": "Les props d'une story sont fusionnées sous les surcharges",
+    "fichier": "packages/core/src/preview/index.ts",
+    "avant": "  return { ...definition.props, ...own, ...overrides }",
+    "apres": "  return { ...own, ...definition.props, ...overrides }",
+    "trouvee": "lot 5a",
+    "attendu": "props.test.ts > les props d’une story nommée > met les props communes sous celles de la story"
+  },
+  {
+    "garantie": "Un adaptateur que le fichier calcule est refusé plutôt qu'émis",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "  if (built !== undefined) {",
+    "apres": "  if (false) {",
+    "trouvee": "revue 2 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier calcule lui-même"
+  },
+  {
+    "garantie": "Une chaîne de l'expression ne fait pas retenir un import",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "    if (inner.type === 'Identifier') {\n      const name = inner['name'] as string\n      if (!bound.has(name)) found.add(name)\n    }",
+    "apres": "    if (inner.type === 'Identifier' || inner.type === 'Literal') {\n      const name = String(inner['name'] ?? inner['value'])\n      if (!bound.has(name)) found.add(name)\n    }",
+    "trouvee": "revue 2 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > ne retient pas un import dont le nom n’apparaît que dans une chaîne"
+  },
+  {
+    "garantie": "Une clé d'objet non calculée ne désigne pas une variable",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "          ? 'key'",
+    "apres": "          ? 'rien'",
+    "trouvee": "revue 2 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > ne retient pas un import dont le nom n’est qu’une clé d’objet"
+  },
+  {
+    "garantie": "Un nom que le fichier calcule est refusé même imbriqué",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "  const own = declared(parsed.program.body as unknown as Node[])",
+    "apres": "  const own = new Set([value.type === 'Identifier' ? (value['name'] as string) : ''])",
+    "trouvee": "revue 3 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier calcule, même imbriqué dans l’expression"
+  },
+  {
+    "garantie": "Un global n'est pas pris pour un nom que le fichier calcule",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "  const built = [...names].find((name) => own.has(name))",
+    "apres": "  const built = [...names].find((name) => !locals.has(name))",
+    "trouvee": "revue 3 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > accepte un global que le fichier ne déclare pas"
+  },
+  {
+    "garantie": "La propriété d'un accès non calculé ne désigne pas une variable",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "            ? 'property'",
+    "apres": "            ? 'rien'",
+    "trouvee": "revue 3 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > ne retient pas un import dont le nom n’est que la propriété d’un accès"
+  },
+  {
+    "garantie": "Un nom exporté est déclaré comme un autre",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "        ? ((node['declaration'] as Node | undefined) ?? node)",
+    "apres": "        ? node",
+    "trouvee": "revue 4 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déclare et exporte"
+  },
+  {
+    "garantie": "Un paramètre de fonction ne désigne pas un nom du fichier",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "    const inside = CARRIES.has(inner.type) ? new Set(bound) : bound",
+    "apres": "    const inside = bound",
+    "trouvee": "revue 4 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > accepte un paramètre qui porte le nom d’une déclaration du fichier"
+  },
+  {
+    "garantie": "Ce qu'un corps de fonction déclare lui appartient",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "        for (const name of declared((body['body'] as Node[]) ?? [])) inside.add(name)",
+    "apres": "",
+    "trouvee": "revue 5 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > accepte un nom qu’un corps de fonction déclare pour lui-même"
+  },
+  {
+    "garantie": "Un `var` écrit dans un bloc est déclaré par le fichier",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "  hoisted(body, found)",
+    "apres": "",
+    "trouvee": "revue 6 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déclare en `var` dans un bloc"
+  },
+  {
+    "garantie": "Le `var` d'une fonction ne remonte pas au fichier",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "  if (FUNCTIONS.has(inner.type)) return",
+    "apres": "",
+    "trouvee": "revue 6 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > accepte un nom importé qu’une fonction du fichier redéclare en `var`"
+  },
+  {
+    "garantie": "Toute déclaration nommée du fichier déclare son nom",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "    for (const name of bindings(one['id'] as Node | undefined)) found.add(name)",
+    "apres": "",
+    "trouvee": "revue 7 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déclare en énumération"
+  },
+  {
+    "garantie": "Une déclaration de variable du fichier déclare ses noms",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "    for (const declarator of (one['declarations'] as Node[]) ?? []) {\n      for (const name of bindings(declarator['id'] as Node | undefined)) found.add(name)\n    }",
+    "apres": "",
+    "trouvee": "revue 7 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier calcule lui-même"
+  },
+  {
+    "garantie": "Une liaison déclare tous les noms que sa forme porte",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "      found.push(inner['name'] as string)",
+    "apres": "",
+    "trouvee": "revue 8 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déstructure"
+  },
+  {
+    "garantie": "La valeur par défaut d'un paramètre n'est pas une liaison",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "      if (key === 'right' && inner.type === 'AssignmentPattern') continue",
+    "apres": "",
+    "trouvee": "revue 8 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > retient l’import qu’une valeur par défaut de paramètre nomme"
+  },
+  {
+    "garantie": "Une clé de motif n'est jamais une liaison",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "      if (key === 'key' && inner.type === 'Property') continue",
+    "apres": "      if (key === 'key' && inner['computed'] !== true) continue",
+    "trouvee": "revue 9 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > retient l’import qu’une clé calculée de paramètre nomme"
+  },
+  {
+    "garantie": "Ce qu'un identifiant porte est parcouru, pas laissé",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "      if (!bound.has(name)) found.add(name)\n    }\n",
+    "apres": "      if (!bound.has(name)) found.add(name)\n      return\n    }\n",
+    "trouvee": "revue 10 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > retient l’import qu’un décorateur de paramètre nomme"
+  },
+  {
+    "garantie": "Une annotation de type ne fait pas retenir un import",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "      if (key === fixed) continue\n      if (key === 'typeAnnotation') continue",
+    "apres": "      if (key === fixed) continue",
+    "trouvee": "revue 11 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > ne retient pas l’import qu’une annotation de type nomme"
   }
 ]

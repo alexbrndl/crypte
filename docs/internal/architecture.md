@@ -616,6 +616,70 @@ Le même conflit s'est présenté un cran plus loin. Le contrôle mute une sourc
 
 ---
 
+## 4 decies. Les deux pages de `crypte dev`
+
+**Le shell est préconstruit et copié, la preview est compilée chez l'utilisateur.** La décision et ses raisons sont dans `docs/decisions.md`. Ce qui suit est comment elle tient.
+
+*Le shell ne connaît aucun framework.* Il lit un manifeste et parle par le canal, donc il se construit à l'avance. Il ne dépend plus ni de React ni du plugin React depuis ce lot : c'est ce qui rend la copie possible.
+
+*La preview ne peut pas être préconstruite.* Elle importe l'adaptateur que l'utilisateur a installé et ses modules de stories, donc elle appartient à son bundle, ce que la section 4.1 des contrats impose déjà.
+
+**L'adaptateur vient de la configuration du projet, jamais d'un nom.**
+
+L'entrée générée fait `import config from '/crypte.config.ts'` et lit `config.adapter`. Déduire un paquet depuis `adapter.name` casserait dès qu'on enveloppe un adaptateur, et la configuration porte déjà la vraie valeur.
+
+*Ce que l'entrée reprend du fichier, et pourquoi si peu.* Le fichier est lu, jamais exécuté : la section 1.5 des contrats y autorise `vite: { plugins: [react()] }`, donc l'exécuter chargerait un plugin Vite dans le navigateur, qui demande `node:module`. L'entrée reprend l'expression de `adapter` et **les seuls imports qu'elle nomme vraiment**.
+
+*Ce « vraiment » est le point.* La première version testait les mots du texte de l'expression. `createAdapter({ runtime: 'react' })` faisait alors retenir `import react from '@vitejs/plugin-react'`, c'est-à-dire précisément ce que lire au lieu d'importer existe pour éviter. Les noms sont donc lus dans l'arbre, et un nom ne compte que là où l'endroit en fait un : ni une chaîne, ni la clé de `{ react: true }`, ni la propriété de `opts.react`. Écrits calculés, `{ [key]: … }` et `opts[key]`, ils redeviennent des noms et leur import part avec eux.
+
+*Un nom que le fichier déclare est refusé.* `const adapter = createAdapter()` puis `export default { adapter }` émettait `const adapter = adapter`, et `const runtime = 'react'` passé en `createAdapter({ runtime })` émettait le même nom pendant : une `ReferenceError` au chargement, donc avant l'ouverture du canal, donc un cadre vide sans rien à dire. `crypte dev` s'arrête maintenant sur un message qui dit d'écrire l'adaptateur sur place ou de l'importer.
+
+*Déclaré ici, et pas simplement inconnu.* Un nom ni déclaré ni importé est un global, et les refuser refuserait `process.env`, que Vite remplace. Un nom **importé** reste accepté : son import part avec lui.
+
+*Déclaré compte trois formes, pas une.* `export const runtime = …` porte sa déclaration un cran plus bas dans l'arbre, `const { runtime } = opts` et `const [runtime] = list` n'ont pas d'identifiant simple à lire. Les trois échappaient à un `VariableDeclaration` lu au seul niveau du fichier.
+
+*Et l'expression garde ses propres noms.* `createAdapter({ pick: (opts) => opts.runtime })` ne nomme pas le `opts` du fichier : le paramètre le masque, et la comparaison sans cette distinction refusait une configuration valide. Un paramètre, ce qu'une déstructuration en tire, et ce qu'un bloc déclare sont donc retirés avant la comparaison.
+
+**Le canal vient du CLI, jamais du projet.**
+
+La section 1.4 des contrats dit que l'utilisateur installe deux paquets et que `@crypte/core` n'en est pas. L'entrée l'importerait pourtant, donc le plugin pose un alias vers le chemin que le CLI résout lui-même. Sans ça, la preview demande au projet un paquet que personne n'a déclaré.
+
+**Trois choses ont été trouvées en mesurant, pas en relisant.**
+
+*Le repli de Vite.* `appType` vaut `spa` par défaut, ce qui réécrit toute URL inconnue en `/index.html`. Le middleware tournant après lui voyait donc `/index.html` pour tout, et `/preview.html` comme la route du manifeste recevaient la page du shell. Le serveur est en `appType: 'custom'` : les deux pages sont servies ici et il n'y a rien à deviner.
+
+*Ce que `custom` protège encore, une fois le middleware passé devant.* Plus nos routes, qui sont prises avant le repli, mais les autres : sur un projet qui a sa propre `index.html`, et tout vrai projet en a une, `spa` la sert pour n'importe quelle faute de frappe. L'utilisateur reçoit alors sa page d'application là où il attendait un 404. C'est pour éprouver ça que la fixture et le projet de démonstration en portent une, ajoutée quand la garantie s'est révélée muette sans elle.
+
+*Les fichiers du shell.* Servir sa page ne suffit pas : son bundle répondait 404, Vite étant enraciné dans le projet qui ne connaît pas `/assets/…`. Écran blanc, et quatre routes à 200. D'où `sirv` sur le dossier copié.
+
+*Le module virtuel.* Sans le marqueur `\0` de Rollup, l'entrée est prise pour un chemin de fichier et ses imports se résolvent six niveaux au-dessus du projet.
+
+**Ce que l'entrée monte, et ce qu'elle passe.**
+
+Un module de story rend `{ component, definition }`, jamais un composant seul. Monter `module.default` a donné à React un objet, et la story ne rendait rien. Les props viennent de `propsOfStory`, dans le noyau : le bloc commun d'abord, celles de la story ensuite, les surcharges du shell en dernier, à plat.
+
+*Cette fusion est dans le noyau et pas dans un adaptateur* parce qu'elle ne fait que mêler des objets simples. Deux adaptateurs la refaisant chacun divergeraient le jour où l'un apprend quelque chose.
+
+---
+
+## 4 undecies. Ce qu'un navigateur vérifie que rien d'autre ne voit
+
+`packages/cli/test/screen.test.ts` démarre le serveur, ouvre Chromium par Playwright, et regarde l'écran.
+
+*Pourquoi ça existe.* Les autres cas prouvent que les routes répondent. Une route à 200 ne dit pas qu'une story s'affiche : au moment où ces cinq cas ont été écrits, les quatre routes répondaient 200 et la page était blanche.
+
+*Ce qu'ils ont trouvé le premier jour.* Le bundle du shell en 404, et surtout **React 19 qui ne relance pas à l'appelant l'erreur d'un composant**. `flushSync` fait finir le rendu, mais l'erreur part en « unhandled » : `mount` rendait la main comme si tout allait bien et la preview annonçait `rendered`. L'adaptateur passe donc `onUncaughtError` à `createRoot` et relance.
+
+*Ce qui casse si on l'enlève :* le seul juge de ce que l'utilisateur voit redevient l'utilisateur.
+
+*Le coût.* Chromium pèse 95 Mo au téléchargement, et les cinq cas prennent une quinzaine de secondes. Les lots 5b et 5c en ont besoin autant : le rechargement à chaud et l'affichage des erreurs ne se vérifient pas autrement.
+
+*Le navigateur s'installe dans la CI, en une étape à part.* `vp node node_modules/playwright/cli.js install --with-deps chromium`, avant `vp test`. Installer le paquet ne télécharge pas le navigateur : `chromium.launch()` échoue alors sur un exécutable absent, et c'est **le fichier entier qui tombe**, pas un cas. Mesuré sur cette pull request : 349 cas au vert, `screen.test.ts` rouge, CI rouge.
+
+*Ce qui casse si on l'enlève :* le seul contrôle qui voit ce que l'utilisateur voit ne s'exécute plus nulle part que sur la machine de développement, où le navigateur est déjà là. Le vert local et le rouge distant ne portent alors plus sur le même ensemble de cas.
+
+---
+
 ## 5. Décisions encodées dans la configuration
 
 Ces réglages ont l'air anodins et ne le sont pas. Chacun a été mis là pour une raison précise, et chacun est le genre de ligne qu'on supprime en croyant nettoyer.

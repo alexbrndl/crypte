@@ -24,7 +24,7 @@ function sourceOf(file) {
 // `readdirSync` récursif plutôt que `globSync`, stable seulement à partir de
 // Node 24 alors que l'intégration continue passe aussi par Node 22.
 const testFiles = readdirSync(root, { recursive: true, withFileTypes: true })
-  .filter((entry) => entry.isFile() && /\.test\.(ts|mjs)$/.test(entry.name))
+  .filter((entry) => entry.isFile() && /\.test\.(ts|tsx|mjs)$/.test(entry.name))
   .map((entry) => relative(root, join(entry.parentPath, entry.name)))
   .filter((path) => !path.startsWith('node_modules/'))
 

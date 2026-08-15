@@ -12,6 +12,9 @@ import { loadProject } from '../src/project'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const fixture = join(here, 'fixture')
+// Le seul projet du dépôt qui porte de vraies stories et un vrai adaptateur :
+// son empreinte verrouille donc le producteur contre autre chose qu'une fixture.
+const demo = join(here, '..', '..', '..', 'apps', 'demo')
 
 const entry: StoryEntry = {
   type: 'story',
@@ -141,12 +144,14 @@ describe('l’empreinte de la fixture', () => {
   // qui change sans que le fichier soit recommité fait donc rougir la CI, et le
   // moyen de la réparer est de lancer la suite.
   it('est écrite à côté du manifeste', async () => {
-    const { manifest } = buildCatalogue(await loadProject(fixture))
-    const built = fingerprintOf(manifest)
-    const file = writeFingerprint(fixture, built)
+    for (const root of [fixture, demo]) {
+      const { manifest } = buildCatalogue(await loadProject(root))
+      const built = fingerprintOf(manifest)
+      const file = writeFingerprint(root, built)
 
-    expect(built.entries).toHaveLength(manifest.entries.length)
-    expect(file).toBe(join(fixture, FINGERPRINT))
-    expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual(built)
+      expect(built.entries, root).toHaveLength(manifest.entries.length)
+      expect(file, root).toBe(join(root, FINGERPRINT))
+      expect(JSON.parse(readFileSync(file, 'utf8')), root).toEqual(built)
+    }
   })
 })

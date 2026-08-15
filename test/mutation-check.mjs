@@ -43,7 +43,7 @@ function plain(output) {
 // Le fichier que `attendu` nomme, quand il en nomme un : une garantie sur cinq
 // désigne un titre de cas, un code d'erreur TypeScript ou une fixture, et rien
 // n'y permet de cibler un fichier. Voir docs/internal/architecture.md.
-export const NAMES_A_FILE = /^([\w.-]+\.test\.(?:ts|mjs)) > /
+export const NAMES_A_FILE = /^([\w.-]+\.test\.(?:tsx?|mjs)) > /
 
 // Un filtre qui ne correspond à rien fait sortir vitest en échec, ce qui se lit
 // comme une mutation vue. Le reconnaître pour retomber sur la voie lente.
@@ -104,8 +104,16 @@ function main() {
   // « échec » à chaque appel, donc toute mutation paraît vue, et le script annonce
   // que tout est gardé sans avoir rien lancé. Mesuré : c'était le cas.
   console.log('contrôle positif : la suite passe-t-elle sur le code intact ?')
-  if (!run(vp, ['run', '-r', 'pack']).ok || !run(vp, ['test']).ok || !run(vp, ['check']).ok) {
+  // Avec la sortie de celui qui a échoué, et son nom : sans ça le message dit
+  // qu'une des trois commandes est rouge sans dire laquelle, et le seul moyen de
+  // savoir est de relancer les trois à la main.
+  for (const args of [['run', '-r', 'pack'], ['test'], ['check']]) {
+    const result = run(vp, args)
+    if (result.ok) continue
+
     console.error(`\nLa suite échoue déjà sans mutation. Corrige-la, ou vérifie \`${vp}\`.`)
+    console.error(`\`${vp} ${args.join(' ')}\` :`)
+    console.error(plain(result.output).split('\n').slice(-40).join('\n'))
     process.exit(1)
   }
 
@@ -249,7 +257,11 @@ function main() {
   }
 
   if (!restored.ok) {
+    // Avec sa sortie : sans elle, le message dit qu'il y a un problème et laisse
+    // relancer la suite à la main pour savoir lequel, ce qui coûte le temps du
+    // contrôle entier quand l'échec ne se reproduit pas.
     console.error('\nLa suite échoue sur les sources restaurées, arbre propre par ailleurs.')
+    console.error(plain(restored.output).split('\n').slice(-40).join('\n'))
     process.exit(1)
   }
 

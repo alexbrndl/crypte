@@ -39,6 +39,10 @@ jobs:
       # vp check ne lit pas les composants monofichiers Vue : leur contenu, template
       # compris, n'est vérifié que par vue-tsc. Voir docs/internal/architecture.md.
       - run: vp run -r typecheck
+      # Le navigateur des cas d'écran. Sans lui `chromium.launch()` échoue sur
+      # un exécutable absent, et le seul contrôle qui voit ce que l'utilisateur
+      # voit tombe. Voir docs/internal/architecture.md.
+      - run: vp node node_modules/playwright/cli.js install --with-deps chromium
       - run: vp test
       # Deux choses sont écrites par la suite et commitées : les réexports
       # générés, et l'empreinte de la fixture. Le régime est celui d'un fichier
@@ -50,7 +54,7 @@ jobs:
       # verrou s'éteindrait sans bruit.
       - name: Generated files are up to date
         run: |
-          git ls-files --error-unmatch packages/cli/test/fixture/.crypte/fingerprint.json
+          git ls-files --error-unmatch packages/cli/test/fixture/.crypte/fingerprint.json apps/demo/.crypte/fingerprint.json
           git diff --exit-code
       # Casse chaque garantie et vérifie que le bon test s'en aperçoit. Après le
       # git diff, parce qu'il modifie les sources et les restaure. Sur une seule

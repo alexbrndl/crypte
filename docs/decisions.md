@@ -10,6 +10,28 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 ---
 
+## The shell ships prebuilt inside the CLI, the preview is built in the project
+
+_2026-08-14_
+
+**Decided.** The two pages `crypte dev` serves do not come from the same place.
+
+The **shell** is built ahead of time and copied into `packages/cli/dist` when the CLI is packed. `@crypte/shell` stays private. 260 KB in the package, and the user installs nothing more.
+
+The **preview** is compiled by the project's own Vite server, from an entry the CLI hands it. It has to be: it imports the adapter the user installed and the story modules of the project, so it belongs to their bundle and their framework.
+
+**Rejected.** Publishing `@crypte/shell` as a package the CLI depends on, and shipping the shell's sources for the project's Vite to compile.
+
+**Why.** A published shell would be a third package to version and to keep in step, and section 1.4 promises the user installs two. Shipping its sources is worse: the shell is a Vue application, so compiling it in the project would force Vue and its plugin onto a project that never asked for either.
+
+The split is not a compromise, it follows from section 4.1. The preview imports story modules directly, in its own bundle, which is what lets a story pass a function or an element as a prop. Nothing of that can be prebuilt. The shell, on the other hand, knows no framework: it reads a manifest and talks over the channel.
+
+**What it costs.** The shell has to be built before the CLI is packed, and nothing enforces that order today. A `crypte dev` shipped without its assets would fail at the worst moment, so the build order needs a control, not a convention.
+
+**What would reopen it.** A shell that stops being framework-agnostic, or a user who needs to replace it. Neither is on the table: it is not a public API, and that is precisely why it can ship prebuilt.
+
+---
+
 ## What the reader cannot read is said, at two levels, and never blocks
 
 _2026-08-14_

@@ -261,3 +261,83 @@ L'empreinte commitée de la fixture est le seul instance du régime de verrouill
 *Pourquoi s'arrêter là :* le gain de 1,8 est acquis et le coût par garantie ajoutée passe de 3,7 s à 0,9 s, donc le catalogue peut tripler avant de retrouver le temps d'avant. Le délai du job reste à 30 min, qui couvre largement.
 
 *Origine :* mesures de DCJ-216.
+
+### Les cas d'écran rougissent au premier lancement après une installation
+
+`packages/cli/test/screen.test.ts` démarre un serveur puis ouvre Chromium. Un `beforeAll` demande l'entrée de la preview avant d'ouvrir le navigateur, ce qui force Vite à transformer et à optimiser : sans ce préchauffage, le premier rendu attendait cette optimisation et les cas rougissaient pour une raison qui n'était pas la leur.
+
+*Ce qui reste :* après un `vp install` qui relie Playwright, ou un changement de configuration du projet témoin, le premier lancement peut encore dépasser la patience des cas. Le second passe. Vu deux fois au lot 5a.
+
+*Pourquoi ce n'est pas traité ici :* la cause est un travail réel du serveur, pas une course, donc la réponse est d'attendre plus longtemps, ce qui rallonge la suite pour tout le monde. Le préchauffage couvre le cas courant.
+
+*Ce qui le trancherait :* mesurer combien de temps prend cette première optimisation, et décider entre un délai plus long au premier cas et un préchauffage qui va jusqu'au premier rendu.
+
+*Origine :* lot 5a.
+
+### Un fichier de story gardé mais cassé à l'exécution abat encore la preview
+
+L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un fichier que le lecteur a écarté ne la fait plus échouer. Mais un fichier **gardé** dont une dépendance manque à l'exécution reste importé statiquement : son échec survient au chargement, donc avant `createPreviewChannel`, donc le shell n'obtient jamais `ready` et ne peut rien afficher.
+
+*Pourquoi ce n'est pas fait ici :* le corriger demande d'importer chaque module à la demande, donc de rendre `render` asynchrone dans `PreviewHandlers`, ce qui touche le contrat du canal et la mesure de durée qu'il porte.
+
+*Ce qui l'atténue :* le cas demande un fichier que le lecteur analyse sans erreur et que le navigateur refuse de charger, ce qui est plus rare que les fichiers écartés, eux désormais exclus.
+
+*Origine :* revue de la PR #33.
+
+### La lecture des portées de `crypte.config.ts` est partielle, et on s'arrête là
+
+`adapterSource` refuse un nom que le fichier déclare, parce qu'un tel nom repart dans l'expression émise sans rien qui le déclare : `ReferenceError` au chargement, donc avant l'ouverture du canal, donc un cadre vide sans rien à dire. Pour trancher, il lit les noms que le fichier déclare et retire ceux que l'expression porte elle-même.
+
+*Ce que ça revient à faire :* un résolveur de portées écrit à la main sur la grammaire JS/TS. Les formes de **déclaration** sont couvertes par une lecture de la forme, voir plus bas ; ce sont les formes de **liaison locale** qui restent partielles, et les énumérer toutes est le travail d'un résolveur complet.
+
+*Les deux sens ne coûtent pas la même chose, et c'est ce qui décide.* Un **faux accepté** émet un nom pendant et rend un cadre vide sans message, ce que ce contrôle existe pour éviter. Un **faux refusé** écarte une configuration valide avec un message explicite, que l'auteur contourne en important la valeur.
+
+*Ce qui reste ouvert est du second côté, et seulement de celui-là :* une liaison de boucle (`for (const opts of list)`), un bloc imbriqué dans un corps de fonction, le nom d'une expression de classe. Chacun refuse une configuration valide, aucun n'en laisse passer une cassée.
+
+*Le premier côté n'est plus une énumération, à deux niveaux.* Le code a d'abord nommé les types de nœuds qui déclarent, puis les formes de motif qui lient : `VariableDeclaration`, puis `FunctionDeclaration` et `ClassDeclaration`, puis `TSEnumDeclaration`, puis `TSModuleDeclaration`, puis `TSImportEqualsDeclaration`, puis le nom qualifié de `namespace runtime.deep`. Une par revue, chacune acceptée tant qu'elle n'était pas nommée. Les deux listes sont remplacées par une lecture de la forme : une déclaration porte son nom dans `id` ou dans `declarations`, et une liaison porte les siens dans les identifiants de sa forme, valeurs par défaut exceptées.
+
+*Attention : la tolérance n'est pas la même dans les deux sens où cette lecture sert.* Pour `declared`, un nom de trop refuse une configuration valide avec un message, donc c'est le côté bénin. Pour les noms qu'une fonction de l'expression porte elle-même, un nom de trop est pris pour local, donc son import ne part pas, donc le nom part pendant : c'est le côté grave. Il n'y a donc pas de direction sûre à choisir, et ce qui n'est pas une liaison est écarté plutôt que toléré.
+
+*Une seule sur-lecture subsiste, et elle est confinée :* `namespace runtime.deep` fait lire `runtime` et `deep`, dont un seul est lié. Un nom qualifié ne peut pas apparaître en position de paramètre, donc cette sur-lecture ne touche que `declared`.
+
+*Ce raisonnement a été pris à l'envers une fois :* l'argument « lire un nom de trop est le côté sûr » a servi à laisser une clé calculée de motif se lire comme une liaison, ce qui avalait l'import qu'elle nommait.
+
+*Un troisième endroit portait la même erreur :* la lecture des noms référencés s'arrêtait sur un identifiant sans regarder ce qui y pend. Un décorateur de paramètre, `constructor(@field() x)`, restait donc dans l'expression sans que son import parte. Un identifiant est maintenant nommé puis traversé.
+
+*Ce qui rouvrirait :* un nœud qui lie un nom sans le porter dans `id` ni dans `declarations`, ou une forme d'`id` dont le nom lié n'est pas un identifiant de sa propre forme. Ou assez de faux refus rapportés pour que le message cesse de suffire.
+
+*Ce qui a déjà rouvert, trois fois :* la première version de cette entrée rangeait le `var` remonté du côté bénin, mesuré du côté grave. La deuxième déclarait le premier côté fermé alors que `import x = require(…)` passait. La troisième l'a fermé au niveau des nœuds, et il s'est rouvert un cran plus bas, sur les formes de motif. Les trois fois, la liste était l'erreur, pas la ligne manquante.
+
+*Origine :* revues 2 à 5 de la PR #33, quatre tours ayant chacun rendu un axe d'entrée de plus.
+
+### `project.test.ts > échoue sans le résolveur` rougit par intermittence
+
+Quatre occurrences dans la même session : trois sous `pnpm run mutations`, sur l'une de ses trois barrières, et **une sous un `vp test` ordinaire**. Chaque fois, la même commande relancée passe. `screen.test.ts` a rougi une fois de la même façon.
+
+*Ce que la mesure a écarté :* la charge du contrôle de mutation n'est pas nécessaire, puisque le rouge est apparu sans lui. Le fichier lancé seul passe, et six passes complètes d'affilée passent également, donc la fréquence est de l'ordre de un sur sept sans être reproductible à la demande.
+
+*Ce qui n'est pas établi :* la cause. Le cas est un contrôle négatif qui démarre un second serveur Vite sur **la même racine** que le cas précédent, donc sur le même cache de dépendances ; c'est un candidat, pas une cause, et rien ne l'a isolé.
+
+*Ce que ça coûte :* ces deux contrôles servent de barrière avant de pousser. Un rouge qui ne se reproduit pas apprend à relancer plutôt qu'à lire, ce qui est l'inverse de ce qu'on leur demande.
+
+*Ce qui a été fait ici :* les deux messages du contrôle qui disaient « ça échoue » sans dire quoi nomment maintenant la commande fautive et affichent sa sortie. C'était le vrai coût : deux diagnostics à l'aveugle avant d'avoir cette information.
+
+*Ce qui le trancherait :* boucler sur ce seul fichier jusqu'au rouge en capturant l'erreur, puis rejouer avec une racine propre par serveur pour voir si le rouge suit le cache.
+
+*Origine :* lot 5a, quatre occurrences mesurées.
+
+### Deux points laissés ouverts à la sortie du brouillon du lot 5a
+
+**Le saut de `typeAnnotation` dans la collecte des noms liés n'est gardé par rien.** `serve.ts` en porte deux : celui de la lecture des noms référencés est catalogué, celui de la lecture des liaisons ne l'est pas. Retirer le second laisse la suite verte, parce que le premier écarte déjà l'identifiant avant qu'il compte.
+
+*Pourquoi ce n'est pas corrigé ici :* la ligne n'est pas morte, elle est redondante avec l'autre. Elle redevient seule si la lecture des noms référencés change, et c'est précisément le jour où personne ne s'en apercevra. La garder sans garantie est un pari assumé ; la retirer aussi.
+
+*Ce qui le trancherait :* trouver une forme où une annotation atteint la lecture des liaisons sans passer par l'autre. Rien n'en a produit sur cette pull request.
+
+**L'installation de Chromium en CI coûte 95 Mo par exécution et par version de Node.** Elle n'est pas mise en cache, et son chemin `node_modules/playwright/cli.js` suppose le hissage à la racine du dépôt.
+
+*Pourquoi ce n'est pas traité ici :* le mode d'échec du chemin est un rouge bruyant et immédiat, pas un silence. Le coût est réel mais il tient dans le budget de 20 minutes du job, mesuré à 9 min 11 sur Node 24.
+
+*Ce qui le lèverait :* `actions/cache` sur `~/.cache/ms-playwright`, clé sur la version de Playwright du catalogue.
+
+*Origine :* revue 12 de la PR #33.

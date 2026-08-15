@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "badge--par-defaut",
+      "component": "src/components/Badge.tsx#Badge",
+      "status": "stable",
+      "props": [
+        "label"
+      ],
+      "rest": "1670454ddc20c121"
+    },
+    {
+      "id": "badge--avertissement",
+      "component": "src/components/Badge.tsx#Badge",
+      "status": "stable",
+      "props": [
+        "label",
+        "tone"
+      ],
+      "rest": "1b8f1e664f75f54a"
+    },
+    {
+      "id": "badge--libelle-long",
+      "component": "src/components/Badge.tsx#Badge",
+      "status": "stable",
+      "props": [
+        "label"
+      ],
+      "rest": "fa5f3c697224c590"
+    },
+    {
+      "id": "boom--echoue-au-rendu",
+      "component": "src/components/Boom.tsx#Boom",
+      "status": "draft",
+      "props": [
+        "reason"
+      ],
+      "rest": "10a9de85cbdc3031"
+    }
+  ]
+}
