@@ -65,7 +65,7 @@ describe('crypte dev', () => {
     const { status, body } = await get(MANIFEST_ROUTE)
 
     expect(status).toBe(200)
-    expect(JSON.parse(body)).toEqual(started.catalogue.manifest)
+    expect(JSON.parse(body)).toEqual(started.held.catalogue.manifest)
   })
 
   // L'entrée passe par le pipeline du projet : ce qui sort n'est plus la source

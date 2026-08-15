@@ -680,6 +680,44 @@ Un module de story rend `{ component, definition }`, jamais un composant seul. M
 
 ---
 
+## 4 duodecies. Ce qui suit les fichiers pendant que le serveur tourne
+
+**Le catalogue est lu à chaque requête, jamais capturé.** `servePlugin` reçoit une fonction, pas une valeur. Capturé au démarrage, il laisserait le shell sur l'arbre d'il y a une heure, et l'entrée de la preview importerait la liste de fichiers du même instant.
+
+**Deux granularités, parce qu'elles n'ont pas le même coût.**
+
+*Un composant, ou les props d'une story.* Rien à faire côté serveur. Le module de la story est accepté par l'entrée générée, qui rejoue le dernier rendu. Sans ce chemin, Vite ne trouve personne pour accepter et recharge le cadre, ce qui remonte tout l'arbre pour une lettre. Mesuré : le nombre de navigations du cadre passe de 2 à 3 sur le même cas.
+
+*Un fichier de story ajouté, retiré ou renommé.* L'entrée nomme ses imports un par un, donc c'est un autre module. Le module virtuel est invalidé et la preview reçoit un rechargement complet. Rien n'importe l'entrée, donc rien ne propage jusqu'à elle : Vite n'a aucun moyen de le savoir seul.
+
+**Ce qui déclenche le second, et ce qui ne le déclenche pas.** La comparaison porte sur l'identifiant, le nom, le chemin et le fichier de chaque entrée, pas sur le manifeste entier. Éditer les props d'une story reste donc une mise à jour à chaud, alors que le manifeste, lui, a changé.
+
+**Une reconstruction qui lève garde le catalogue précédent.** Deux stories partagent brièvement un nom pendant qu'on convertit un fichier, et `assertDistinct` lève. C'est la différence entre une sauvegarde qui clignote et un serveur qui s'arrête.
+
+**Le shell se rafraîchit sur `ready`, sans message de plus.** Ce message est aussi ce que dit une preview rechargée, donc le shell relit le manifeste à ce moment-là. Le protocole n'a pas bougé, et le shell n'a pas de client Vite : il est préconstruit et servi par `sirv`.
+
+**Où retombe la sélection quand l'identifiant affiché disparaît.** L'identifiant vient du chemin et du nom, donc renommer une story le change. Le repli est le même rang dans le même fichier, ce qui, sur un renommage sur place, désigne la story renommée. Retomber sur la première story du fichier enverrait sur `Par défaut` quelqu'un qui renommait `Avertissement`. Fichier disparu, rien de sélectionné : proposer une story d'ailleurs enverrait sur un composant que personne n'a ouvert.
+
+**L'empreinte est écrite au démarrage seulement.** C'est un fichier de verrouillage commité. La réécrire à chaque sauvegarde salirait l'arbre de travail pendant qu'on tape, y compris sur les états intermédiaires d'un renommage. Le manifeste, lui, est ignoré par Git et suit.
+
+**Le serveur a son propre cache de dépendances**, `node_modules/.crypte`. Sans lui il partage `node_modules/.vite` avec le `vite dev` du projet : deux serveurs aux plugins et aux entrées différents écrivant le même `_metadata.json`.
+
+*Ce qui casse si on l'enlève :* l'outil demande un redémarrage à chaque story ajoutée, ce qui est le reproche fait à sa catégorie entière.
+
+---
+
+## 4 terdecies. Le piège de la copie du shell
+
+`packages/cli/test/shell-copy.test.ts` compare la date du plus récent fichier de `apps/shell/src` à celle de la copie dans `packages/cli/dist/shell`.
+
+*Pourquoi ça existe.* Le shell servi est préconstruit et copié. Éditer ses sources sans reconstruire laisse tous les cas navigateur juger la version d'avant, **et ils passent**. Mesuré au lot 5b : une correction du shell était en place, le cas échouait, et le shell servi ne la portait pas.
+
+*Ce qui casse si on l'enlève :* le seul contrôle qui voit ce que l'utilisateur voit devient vert sur du code qui n'est pas celui qu'on vient d'écrire. C'est un vert pour la mauvaise raison, le mode d'échec le plus coûteux du dépôt.
+
+*Ce qu'il ne couvre pas :* une reconstruction qui échoue à mi-chemin et laisse une copie récente mais fausse. `vp run -r pack` échoue bruyamment dans ce cas.
+
+---
+
 ## 5. Décisions encodées dans la configuration
 
 Ces réglages ont l'air anodins et ne le sont pas. Chacun a été mis là pour une raison précise, et chacun est le genre de ligne qu'on supprime en croyant nettoyer.

@@ -742,3 +742,19 @@ describe('résolution réelle par un serveur Vite', () => {
     }
   })
 })
+
+// Deux serveurs sur la même racine, celui de crypte et le `vite dev` du projet,
+// écriraient le même `_metadata.json` de dépendances optimisées.
+describe('le dossier de cache', () => {
+  it('est propre à crypte, dans les node_modules du projet', async () => {
+    const config = viteConfigOf(await loadProject(fixture))
+
+    expect(config.cacheDir).toBe(join(fixture, 'node_modules', '.crypte'))
+  })
+
+  it('n’est pas celui que le projet utilise pour son propre serveur', async () => {
+    const config = viteConfigOf(await loadProject(fixture))
+
+    expect(config.cacheDir).not.toBe(join(fixture, 'node_modules', '.vite'))
+  })
+})

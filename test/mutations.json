@@ -938,5 +938,53 @@
     "apres": "      if (key === fixed) continue",
     "trouvee": "revue 11 du lot 5a",
     "attendu": "adapter.test.ts > la source de l’adaptateur > ne retient pas l’import qu’une annotation de type nomme"
+  },
+  {
+    "garantie": "Le catalogue est lu à chaque requête, pas capturé au démarrage",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "          response.end(JSON.stringify(current().manifest))",
+    "apres": "          response.end(JSON.stringify(captured.manifest))",
+    "trouvee": "lot 5b",
+    "attendu": "TS2304"
+  },
+  {
+    "garantie": "L'entrée de la preview est invalidée quand la liste des fichiers change",
+    "fichier": "packages/cli/src/dev.ts",
+    "avant": "    const module = server.moduleGraph.getModuleById(PREVIEW_ENTRY_ID)\n    if (module) server.moduleGraph.invalidateModule(module)",
+    "apres": "",
+    "trouvee": "lot 5b",
+    "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > réécrit l’entrée de la preview après un ajout"
+  },
+  {
+    "garantie": "Une reconstruction qui échoue garde le catalogue précédent",
+    "fichier": "packages/cli/src/dev.ts",
+    "avant": "      // catalogue is the difference between a save that flickers and a server\n      // that stops.\n      return",
+    "apres": "      // catalogue is the difference between a save that flickers and a server\n      // that stops.\n      next = { manifest: { ...held.catalogue.manifest, entries: [] }, skipped: [] }",
+    "trouvee": "lot 5b",
+    "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > garde le catalogue quand la reconstruction échoue"
+  },
+  {
+    "garantie": "L'entrée accepte les mises à jour de ses modules de story",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "  if (files.length === 0) return []",
+    "apres": "  if (files.length >= 0) return []",
+    "trouvee": "lot 5b",
+    "attendu": "hot-screen.test.ts > l’écran pendant qu’on édite > rafraîchit les props d’une story sans recharger le cadre"
+  },
+  {
+    "garantie": "Le serveur de preview a son propre cache de dépendances",
+    "fichier": "packages/cli/src/project.ts",
+    "avant": "    cacheDir: join(root, 'node_modules', '.crypte'),",
+    "apres": "    cacheDir: join(root, 'node_modules', '.vite'),",
+    "trouvee": "lot 5b",
+    "attendu": "project.test.ts > le dossier de cache > est propre à crypte, dans les node_modules du projet"
+  },
+  {
+    "garantie": "La sélection retombe sur le même rang du même fichier",
+    "fichier": "apps/shell/src/recover.ts",
+    "avant": "  const rank = sameFile(shown.storyFile, before).findIndex((entry) => entry.id === shown.id)",
+    "apres": "  const rank = 0",
+    "trouvee": "lot 5b",
+    "attendu": "recover.test.ts > la sélection après un changement de catalogue > suit un renommage sur place, par le rang dans le fichier"
   }
 ]

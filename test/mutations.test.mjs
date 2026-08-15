@@ -21,12 +21,33 @@ function sourceOf(file) {
   return sources.get(file)
 }
 
+// Élagué en descendant, pas filtré après. Un parcours complet du dépôt entrait
+// dans `node_modules` et dans les copies de projet qu'écrivent les cas de
+// rechargement : une de ces copies effacée pendant la descente faisait échouer
+// l'import du fichier entier, donc ces cas-ci, par intermittence. Mesuré.
+//
 // `readdirSync` récursif plutôt que `globSync`, stable seulement à partir de
 // Node 24 alors que l'intégration continue passe aussi par Node 22.
-const testFiles = readdirSync(root, { recursive: true, withFileTypes: true })
-  .filter((entry) => entry.isFile() && /\.test\.(ts|tsx|mjs)$/.test(entry.name))
-  .map((entry) => relative(root, join(entry.parentPath, entry.name)))
-  .filter((path) => !path.startsWith('node_modules/'))
+const PRUNED = /^(node_modules|dist|\.git|tmp-hot-.*|tmp-demo-.*|\.crypte)$/
+
+function testFilesIn(folder) {
+  const found = []
+
+  for (const entry of readdirSync(folder, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      if (!PRUNED.test(entry.name)) found.push(...testFilesIn(join(folder, entry.name)))
+      continue
+    }
+
+    if (entry.isFile() && /\.test\.(ts|tsx|mjs)$/.test(entry.name)) {
+      found.push(relative(root, join(folder, entry.name)))
+    }
+  }
+
+  return found
+}
+
+const testFiles = testFilesIn(root)
 
 // Le motif vient du script qui s'en sert pour cibler : deux écritures rendraient
 // cette validation muette sur la cible réellement lancée.

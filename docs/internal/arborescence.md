@@ -93,6 +93,9 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/dev.test.ts` | ce que le serveur sert vraiment, sur un serveur qui écoute | — |
 | `test/screen.test.ts` | ce que l'utilisateur voit, dans Chromium | — |
 | `test/adapter.test.ts` | ce que l'entrée reprend de `crypte.config.ts`, et ce qu'elle refuse | — |
+| `test/hot.test.ts` | le catalogue pendant que le serveur tourne, sur une copie de la fixture | — |
+| `test/hot-screen.test.ts` | l'écran pendant qu'on édite, sur une copie de la démonstration | — |
+| `test/shell-copy.test.ts` | la copie du shell n'est pas plus vieille que ses sources | — |
 | `test/fingerprint.test.ts` | ce que l'empreinte garde, replie, et ignore ; écrit celle de la fixture | — |
 | `test/fixture/.crypte/fingerprint.json` | l'empreinte commitée de la fixture, sous régime de verrouillage | `git diff --exit-code` en CI |
 | `test/guide.test.ts` | exécute les exemples de `docs/guide.md` | — |
@@ -126,6 +129,8 @@ Distinct de `packages/cli/test/fixture`, qui n'a ni `package.json` ni React et n
 | `index.html` | page du shell, la seule qu'il porte | le navigateur |
 | `src/main.ts` | montage de l'application Vue | `index.html` |
 | `src/App.vue` | arbre des stories, sélection, panneau d'erreur | `main.ts` |
+| `src/recover.ts` | où retombe la sélection quand l'identifiant affiché disparaît | `App.vue` |
+| `test/recover.test.ts` | les huit cas de ce repli | — |
 | `src/env.d.ts` | déclarations pour Vite et les fichiers `.vue` | le compilateur |
 
 Construit à l'avance et copié dans `packages/cli/dist/shell`. La page de la preview n'est plus ici : elle est servie par le CLI et compilée par le Vite du projet, faute de quoi elle imposerait Vue et React à un projet qui n'en veut pas. Voir `docs/decisions.md`.

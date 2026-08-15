@@ -22,3 +22,7 @@ coverage/
 # `**/` because a pattern holding a slash is anchored to this file's directory,
 # and the test fixture is a project of its own further down. See docs/decisions.md.
 **/.crypte/manifest.json
+
+# Copies de la fixture écrites par les cas de rechargement.
+packages/cli/test/tmp-hot-*/
+apps/tmp-demo-*/
