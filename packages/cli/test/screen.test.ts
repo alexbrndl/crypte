@@ -217,6 +217,15 @@ describe('l’écran', () => {
     // Et elle rend. L'arbre vient du manifeste, le rendu vient de l'entrée
     // générée : une story visible et immontable est le défaut que l'arbre seul
     // ne montre pas.
+    //
+    // Depuis une page fraîche : cliquer pendant que la preview se recharge
+    // envoie le rendu au document d'avant, qui ne connaît pas encore la story.
+    // Mesuré. La page fraîche éprouve la même chose, l'entrée étant regénérée.
+    await page.goto(origin)
+    await expect
+      .poll(() => page.getByRole('button', { name: 'Default' }).count(), { timeout: 30_000 })
+      .toBe(1)
+
     await page.getByRole('button', { name: 'Default' }).click()
 
     await expect
