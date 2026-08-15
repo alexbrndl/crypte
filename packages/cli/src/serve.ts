@@ -288,9 +288,12 @@ function hoisted(node: unknown, found: Set<string>): void {
 // level down: `namespace runtime.deep` holds `runtime` in a qualified name, and
 // it read nothing. Measured.
 //
-// Reading one name too many is the safe direction: it refuses a valid config
-// with a message, where reading one too few emits a dangling name and leaves an
-// empty frame with nothing to say.
+// What is not a binding is skipped rather than tolerated, because this is read
+// in two senses that do not forgive the same error. For `declared`, a name too
+// many refuses a valid config with a message. For the names a function of the
+// expression carries, a name too many drops the import that name needed, so the
+// entry emits it dangling: `({ [field]: value }) => value` swallowed `field`,
+// which is an expression and never a binding. Measured.
 function bindings(node: Node | undefined): string[] {
   const found: string[] = []
 
@@ -309,10 +312,11 @@ function bindings(node: Node | undefined): string[] {
     }
 
     for (const [key, held] of Object.entries(inner)) {
-      // The right side of a default is an expression, not a binding: reading it
-      // would take a name the expression really uses for one it carries.
+      // A default's right side and a key, computed or not, are expressions. The
+      // key of `{ a: b }` binds `b`, and the key of `{ [field]: value }` binds
+      // `value`: neither binds what is written on the left.
       if (key === 'right' && inner.type === 'AssignmentPattern') continue
-      if (key === 'key' && inner['computed'] !== true) continue
+      if (key === 'key' && inner.type === 'Property') continue
       if (key === 'typeAnnotation') continue
       walk(held)
     }

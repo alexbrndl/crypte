@@ -914,5 +914,13 @@
     "apres": "",
     "trouvee": "revue 8 du lot 5a",
     "attendu": "adapter.test.ts > la source de l’adaptateur > retient l’import qu’une valeur par défaut de paramètre nomme"
+  },
+  {
+    "garantie": "Une clé de motif n'est jamais une liaison",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "      if (key === 'key' && inner.type === 'Property') continue",
+    "apres": "      if (key === 'key' && inner['computed'] !== true) continue",
+    "trouvee": "revue 9 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > retient l’import qu’une clé calculée de paramètre nomme"
   }
 ]

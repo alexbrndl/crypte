@@ -307,6 +307,34 @@ describe('la source de l’adaptateur', () => {
     expect(read.imports).toContain("import { fallback } from './fallback'")
   })
 
+  // Une clé calculée de motif est une expression, pas une liaison. Lue comme
+  // liaison, elle passait pour un nom que la fonction porte, donc son import ne
+  // partait pas et le nom partait pendant.
+  it('retient l’import qu’une clé calculée de paramètre nomme', () => {
+    const read = adapterSource(
+      project(
+        [
+          "import { createAdapter } from '@crypte/react'",
+          "import { field } from './field'",
+          'export default { adapter: createAdapter({ pick: ({ [field]: value }) => value }) }',
+        ].join('\n'),
+      ),
+    )
+
+    expect(read.imports).toContain("import { field } from './field'")
+  })
+
+  it('lie bien la valeur d’une clé de motif, et pas son nom', () => {
+    const source = [
+      "import { createAdapter } from '@crypte/react'",
+      "import { opts } from './opts'",
+      'const { runtime: mode } = opts',
+      'export default { adapter: createAdapter({ mode }) }',
+    ].join('\n')
+
+    expect(() => adapterSource(project(source))).toThrow('(`mode`)')
+  })
+
   // Un global n'est pas un nom que le fichier calcule : le refuser refuserait
   // `process.env`, que Vite remplace.
   it('accepte un global que le fichier ne déclare pas', () => {
