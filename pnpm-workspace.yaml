@@ -1,6 +1,10 @@
 packages:
   - packages/*
   - apps/*
+  # Les copies de projet qu'écrivent les cas de rechargement. Sans cette
+  # exclusion, un `pnpm install` lancé pendant qu'une copie existe l'inscrit dans
+  # le fichier de verrouillage. Mesuré.
+  - '!apps/tmp-demo-*'
 
 catalogMode: prefer
 
