@@ -283,30 +283,44 @@ function hoisted(node: unknown, found: Set<string>): void {
   for (const held of Object.values(inner)) hoisted(held, found)
 }
 
-// The names a binding introduces. `const { a, b: [c] = [] } = …` declares three,
-// and reading only the plain `Identifier` case saw none of them. Measured.
+// Every name a binding position holds, read from the shape rather than from a
+// list of pattern types. That list was the same mistake as the one above, a
+// level down: `namespace runtime.deep` holds `runtime` in a qualified name, and
+// it read nothing. Measured.
+//
+// Reading one name too many is the safe direction: it refuses a valid config
+// with a message, where reading one too few emits a dangling name and leaves an
+// empty frame with nothing to say.
 function bindings(node: Node | undefined): string[] {
-  if (node === undefined) return []
+  const found: string[] = []
 
-  if (node.type === 'Identifier') return [node['name'] as string]
+  const walk = (current: unknown): void => {
+    if (current === null || typeof current !== 'object') return
 
-  if (node.type === 'ObjectPattern') {
-    return ((node['properties'] as Node[]) ?? []).flatMap((one) =>
-      bindings((one['value'] ?? one['argument']) as Node | undefined),
-    )
+    if (Array.isArray(current)) {
+      for (const item of current) walk(item)
+      return
+    }
+
+    const inner = current as Node
+    if (inner.type === 'Identifier') {
+      found.push(inner['name'] as string)
+      return
+    }
+
+    for (const [key, held] of Object.entries(inner)) {
+      // The right side of a default is an expression, not a binding: reading it
+      // would take a name the expression really uses for one it carries.
+      if (key === 'right' && inner.type === 'AssignmentPattern') continue
+      if (key === 'key' && inner['computed'] !== true) continue
+      if (key === 'typeAnnotation') continue
+      walk(held)
+    }
   }
 
-  if (node.type === 'ArrayPattern') {
-    return ((node['elements'] as (Node | null)[]) ?? []).flatMap((one) =>
-      bindings(one ?? undefined),
-    )
-  }
+  walk(node)
 
-  // The right side of a default is an expression, not a binding.
-  if (node.type === 'AssignmentPattern') return bindings(node['left'] as Node | undefined)
-  if (node.type === 'RestElement') return bindings(node['argument'] as Node | undefined)
-
-  return []
+  return found
 }
 
 const FUNCTIONS = new Set(['ArrowFunctionExpression', 'FunctionExpression', 'FunctionDeclaration'])

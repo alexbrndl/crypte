@@ -852,44 +852,12 @@
     "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déclare et exporte"
   },
   {
-    "garantie": "Un nom déstructuré d'un objet est déclaré comme un autre",
-    "fichier": "packages/cli/src/serve.ts",
-    "avant": "  if (node.type === 'ObjectPattern') {",
-    "apres": "  if (false) {",
-    "trouvee": "revue 4 du lot 5a",
-    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déstructure"
-  },
-  {
-    "garantie": "Un nom déstructuré d'un tableau est déclaré comme un autre",
-    "fichier": "packages/cli/src/serve.ts",
-    "avant": "  if (node.type === 'ArrayPattern') {",
-    "apres": "  if (false) {",
-    "trouvee": "revue 4 du lot 5a",
-    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déclare dans un tableau"
-  },
-  {
     "garantie": "Un paramètre de fonction ne désigne pas un nom du fichier",
     "fichier": "packages/cli/src/serve.ts",
     "avant": "    const inside = CARRIES.has(inner.type) ? new Set(bound) : bound",
     "apres": "    const inside = bound",
     "trouvee": "revue 4 du lot 5a",
     "attendu": "adapter.test.ts > la source de l’adaptateur > accepte un paramètre qui porte le nom d’une déclaration du fichier"
-  },
-  {
-    "garantie": "Un nom tiré d'un reste est déclaré comme un autre",
-    "fichier": "packages/cli/src/serve.ts",
-    "avant": "  if (node.type === 'RestElement') return bindings(node['argument'] as Node | undefined)",
-    "apres": "",
-    "trouvee": "revue 5 du lot 5a",
-    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier tire d’un reste"
-  },
-  {
-    "garantie": "Un nom déclaré avec une valeur par défaut est déclaré comme un autre",
-    "fichier": "packages/cli/src/serve.ts",
-    "avant": "  if (node.type === 'AssignmentPattern') return bindings(node['left'] as Node | undefined)",
-    "apres": "",
-    "trouvee": "revue 5 du lot 5a",
-    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déclare avec une valeur par défaut"
   },
   {
     "garantie": "Ce qu'un corps de fonction déclare lui appartient",
@@ -930,5 +898,21 @@
     "apres": "",
     "trouvee": "revue 7 du lot 5a",
     "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier calcule lui-même"
+  },
+  {
+    "garantie": "Une liaison déclare tous les noms que sa forme porte",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "      found.push(inner['name'] as string)",
+    "apres": "",
+    "trouvee": "revue 8 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier déstructure"
+  },
+  {
+    "garantie": "La valeur par défaut d'un paramètre n'est pas une liaison",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "      if (key === 'right' && inner.type === 'AssignmentPattern') continue",
+    "apres": "",
+    "trouvee": "revue 8 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > retient l’import qu’une valeur par défaut de paramètre nomme"
   }
 ]

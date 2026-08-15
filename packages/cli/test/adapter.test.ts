@@ -276,6 +276,37 @@ describe('la source de l’adaptateur', () => {
     expect(() => adapterSource(project(source))).toThrow('(`Runtime`)')
   })
 
+  // Un espace de noms pointé lie son premier segment, et une lecture par types
+  // de motifs ne voyait rien dans un nom qualifié.
+  it('refuse un nom que le fichier déclare en espace de noms pointé', () => {
+    const source = [
+      "import { createAdapter } from '@crypte/react'",
+      'namespace runtime.deep {',
+      '  export const x = 1',
+      '}',
+      'export default { adapter: createAdapter({ runtime }) }',
+    ].join('\n')
+
+    expect(() => adapterSource(project(source))).toThrow('(`runtime`)')
+  })
+
+  // La valeur par défaut d'un paramètre est une expression, pas une liaison :
+  // la lire comme telle prendrait un nom que l'expression utilise vraiment pour
+  // un nom qu'elle porte, et l'import partirait sans lui.
+  it('retient l’import qu’une valeur par défaut de paramètre nomme', () => {
+    const read = adapterSource(
+      project(
+        [
+          "import { createAdapter } from '@crypte/react'",
+          "import { fallback } from './fallback'",
+          'export default { adapter: createAdapter({ pick: (mode = fallback) => mode }) }',
+        ].join('\n'),
+      ),
+    )
+
+    expect(read.imports).toContain("import { fallback } from './fallback'")
+  })
+
   // Un global n'est pas un nom que le fichier calcule : le refuser refuserait
   // `process.env`, que Vite remplace.
   it('accepte un global que le fichier ne déclare pas', () => {
