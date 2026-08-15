@@ -149,6 +149,27 @@ describe('le catalogue pendant que le serveur tourne', () => {
     rmSync(join(root, 'stories', 'Autre.js'))
   }, 30_000)
 
+  // Une ligne qui reste dite pour toujours laisse la deuxième occurrence de la
+  // même faute passer en silence, ce qui est le silence que ce lot ferme.
+  it('redit ce qu’un fichier réparé casse à nouveau', async () => {
+    const cassee = join(root, 'stories', 'Reparee.js')
+
+    writeFileSync(cassee, 'export default 12')
+    await expect
+      .poll(() => lines.filter((line) => line.includes('Reparee.js')).length, { timeout: 10_000 })
+      .toBe(1)
+
+    writeFileSync(cassee, story('Badge'))
+    await expect.poll(names, { timeout: 10_000 }).toContain('reparee--default')
+
+    writeFileSync(cassee, 'export default 12')
+    await expect
+      .poll(() => lines.filter((line) => line.includes('Reparee.js')).length, { timeout: 10_000 })
+      .toBe(2)
+
+    rmSync(cassee)
+  }, 40_000)
+
   // Reconstruire lève ici, donc rien ne remplace le catalogue : le dire est la
   // différence entre un arbre qui ne bouge plus et un arbre qui explique.
   it('dit qu’une reconstruction a échoué', async () => {
@@ -184,8 +205,17 @@ describe('le catalogue pendant que le serveur tourne', () => {
   it('garde le catalogue quand la reconstruction échoue', async () => {
     const before = await names()
 
+    const dites = lines.length
+
     writeFileSync(join(root, 'stories', 'Badge.jsx'), story('Badge'))
-    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    // La ligne d'échec plutôt qu'un délai : sous charge, une attente plate
+    // laisserait le cas conclure avant que la reconstruction ait eu lieu.
+    await expect
+      .poll(() => lines.slice(dites).some((line) => line.includes('keeping the last good one')), {
+        timeout: 15_000,
+      })
+      .toBe(true)
 
     expect(await names()).toEqual(before)
 

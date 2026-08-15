@@ -432,6 +432,10 @@ function adapterExpression(body: Node[]): Node | undefined {
 // page. The entry has no parent to propagate to, so without this every keystroke
 // in a component reloads the iframe and remounts the whole tree.
 //
+// Through the channel, never around it: it owns what was last asked for and the
+// reporting that goes with it. Drawing from here left a failing edit throwing
+// into this callback, so no `error` reached the shell.
+//
 // The catalogue does not change here: a file whose stories changed name or count
 // makes the server reload the page instead. See docs/internal/architecture.md.
 function hot(files: string[]): string[] {
@@ -448,7 +452,7 @@ function hot(files: string[]): string[] {
     '      if (module) modules[paths[index]] = module',
     '    })',
     '',
-    '    if (last) render(last.id, last.overrides)',
+    '    channel.again()',
     '  })',
     '}',
   ]
@@ -493,11 +497,6 @@ export function previewEntry(project: Project, files: string[] = []): string {
     '// lookup and never a guess about a name.',
     'const byId = new Map(manifest.entries.map((entry) => [entry.id, entry]))',
     '',
-    '// The last render, kept so a hot update can replay it. Without it an edit',
-    '// leaves the previous output on screen, which reads as a change that did',
-    '// not take.',
-    'let last',
-    '',
     'function render(id, overrides) {',
     '  const entry = byId.get(id)',
     '  if (!entry) throw new Error(`unknown story: ${id}`)',
@@ -510,12 +509,10 @@ export function previewEntry(project: Project, files: string[] = []): string {
     '  // story rendered nothing. Measured in a browser.',
     '  const { component, definition } = module.default',
     '',
-    '  last = { id, overrides }',
-    '',
     '  adapter.mount(container, component, propsOfStory(definition, entry.name, overrides))',
     '}',
     '',
-    'createPreviewChannel({ render })',
+    'const channel = createPreviewChannel({ render })',
     '',
     ...hot(files),
   ].join('\n')

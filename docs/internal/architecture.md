@@ -702,9 +702,13 @@ Un module de story rend `{ component, definition }`, jamais un composant seul. M
 
 **Où retombe la sélection quand l'identifiant affiché disparaît.** L'identifiant vient du chemin et du nom, donc renommer une story le change. Le repli est le même rang dans le même fichier, ce qui, sur un renommage sur place, désigne la story renommée. Retomber sur la première story du fichier enverrait sur `Par défaut` quelqu'un qui renommait `Avertissement`. Fichier disparu, rien de sélectionné : proposer une story d'ailleurs enverrait sur un composant que personne n'a ouvert.
 
+**Le rejeu à chaud passe par le canal, jamais à côté.** `createPreviewChannel` retient ce que le shell a demandé en dernier et rend un `again()`. Dessiner depuis l'entrée générée court-circuitait le compte rendu : une édition qui fait lever le rendu jetait dans le callback de mise à jour, donc aucun `error` ne partait, le shell gardait l'ancienne sortie et son statut « rendu ». Et au retour, une édition qui répare remontait **dans une iframe masquée**, le panneau d'erreur restant ouvert jusqu'à un clic. Les sections 5.4 et 6 des contrats disent l'inverse des deux.
+
+*Ce que le rejeu ne couvre pas :* un composant. Fast Refresh de React en fait une frontière, donc la mise à jour s'y arrête et l'entrée n'est jamais rappelée. Le chemin chaud est celui des fichiers de story.
+
 **Ce que la reconstruction avale, elle le dit.** Un fichier de story que le lecteur cesse de lire disparaît de l'arbre et l'écran se recharge : sans une ligne, l'auteur voit sa story partir sans savoir pourquoi. C'est le silence que le lot 4 a fermé, et que l'édition rouvrait. Une reconstruction qui lève le dit aussi, sinon l'arbre cesse de bouger sans explication.
 
-*Dit une fois.* Le catalogue ne peut pas servir de mémoire pour ça : un fichier écarté ne change pas la forme, donc le catalogue retenu ne bougeait pas et la même ligne repartait à chaque frappe. Mesuré. La liste de ce qui a été dit est donc tenue à part.
+*Dit une fois, et redit si la faute revient.* Le catalogue ne peut pas servir de mémoire pour ça : un fichier écarté ne change pas la forme, donc le catalogue retenu ne bougeait pas et la même ligne repartait à chaque frappe. La liste est donc tenue à part, **amorcée** par ce que le démarrage a déjà imprimé et **remplacée** à chaque reconstruction plutôt que grossie : gardée pour toujours, un fichier cassé puis réparé puis recassé de la même façon ne disait plus rien la seconde fois. La ligne d'échec de reconstruction suit la même règle, sinon une conversion de fichier en imprime une par sauvegarde.
 
 **La forme décide du rechargement, jamais de la fraîcheur.** Le catalogue retenu est remplacé à chaque reconstruction réussie ; seule la décision de recharger le cadre regarde la forme. Rendre la main avant le remplacement servait les props d'avant l'édition, alors que la route les lit en direct. Mesuré.
 

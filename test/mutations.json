@@ -262,8 +262,8 @@
   {
     "garantie": "La preview rend un désabonnement qui désabonne",
     "fichier": "packages/core/src/preview/index.ts",
-    "avant": "  return () => window.removeEventListener('message', listener)",
-    "apres": "  return () => {}",
+    "avant": "    dispose: () => window.removeEventListener('message', listener),",
+    "apres": "    dispose: () => undefined,",
     "attendu": "preview.test.ts > ce qui est ignoré > tout, une fois désabonné",
     "trouvee": "lot 0 undecies"
   },
@@ -942,10 +942,10 @@
   {
     "garantie": "Le catalogue est lu à chaque requête, pas capturé au démarrage",
     "fichier": "packages/cli/src/serve.ts",
-    "avant": "          response.end(JSON.stringify(current().manifest))",
-    "apres": "          response.end(JSON.stringify(captured.manifest))",
+    "avant": "export function servePlugin(project: Project, current: () => Catalogue): Plugin {\n  const shell = shellAssets()",
+    "apres": "export function servePlugin(project: Project, live: () => Catalogue): Plugin {\n  const shell = shellAssets()\n  const held = live()\n  const current = () => held",
     "trouvee": "lot 5b",
-    "attendu": "TS2304"
+    "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > fait apparaître un fichier de story ajouté"
   },
   {
     "garantie": "L'entrée de la preview est invalidée quand la liste des fichiers change",
@@ -958,8 +958,8 @@
   {
     "garantie": "Une reconstruction qui échoue garde le catalogue précédent",
     "fichier": "packages/cli/src/dev.ts",
-    "avant": "      log(`the catalogue could not be rebuilt, keeping the last good one: ${reason(error)}`)\n      return",
-    "apres": "      log(`the catalogue could not be rebuilt, keeping the last good one: ${reason(error)}`)\n      next = { manifest: { ...held.catalogue.manifest, entries: [] }, skipped: [] }",
+    "avant": "      if (line !== failed) log(line)\n      failed = line\n      return",
+    "apres": "      if (line !== failed) log(line)\n      failed = line\n      next = { manifest: { ...held.catalogue.manifest, entries: [] }, skipped: [] }",
     "trouvee": "lot 5b",
     "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > garde le catalogue quand la reconstruction échoue"
   },
@@ -998,7 +998,7 @@
   {
     "garantie": "Une reconstruction qui échoue le dit",
     "fichier": "packages/cli/src/dev.ts",
-    "avant": "      log(`the catalogue could not be rebuilt, keeping the last good one: ${reason(error)}`)",
+    "avant": "      if (line !== failed) log(line)",
     "apres": "",
     "trouvee": "lot 5b",
     "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > dit qu’une reconstruction a échoué"
@@ -1006,8 +1006,8 @@
   {
     "garantie": "Ce qu'un fichier de story a cessé de produire est dit une fois",
     "fichier": "packages/cli/src/dev.ts",
-    "avant": "      if (said.has(line)) continue",
-    "apres": "",
+    "avant": "    for (const line of now) if (!said.has(line)) log(line)",
+    "apres": "    for (const line of now) log(line)",
     "trouvee": "lot 5b",
     "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > ne répète pas ce qu’il a déjà dit"
   },
@@ -1018,5 +1018,29 @@
     "apres": "    return [path]",
     "trouvee": "exploration du lot 5b",
     "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > reconstruit sur une racine derrière un lien symbolique"
+  },
+  {
+    "garantie": "Un rejeu à chaud rend compte comme un rendu demandé",
+    "fichier": "packages/core/src/preview/index.ts",
+    "avant": "      if (asked) draw(asked)",
+    "apres": "      if (asked) handlers.render(asked.id, asked.overrides)",
+    "trouvee": "revue 1 du lot 5b",
+    "attendu": "preview.test.ts > ce qui est ignoré > rejoue la dernière demande, avec son compte rendu"
+  },
+  {
+    "garantie": "Une sélection perdue ne se remplace pas toute seule",
+    "fichier": "apps/shell/src/recover.ts",
+    "avant": "  if (shown === 'effacée') return null",
+    "apres": "",
+    "trouvee": "revue 1 du lot 5b",
+    "attendu": "recover.test.ts > la sélection après un changement de catalogue > ne propose rien après une sélection perdue"
+  },
+  {
+    "garantie": "Une même faute répétée est redite",
+    "fichier": "packages/cli/src/dev.ts",
+    "avant": "    failed = undefined\n\n    const now = lines(next)\n    for (const line of now) if (!said.has(line)) log(line)\n    said = new Set(now)",
+    "apres": "    failed = undefined\n\n    const now = lines(next)\n    for (const line of now) if (!said.has(line)) log(line)\n    said = new Set([...said, ...now])",
+    "trouvee": "revue 1 du lot 5b",
+    "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > redit ce qu’un fichier réparé casse à nouveau"
   }
 ]

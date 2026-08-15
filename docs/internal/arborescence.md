@@ -129,7 +129,7 @@ Distinct de `packages/cli/test/fixture`, qui n'a ni `package.json` ni React et n
 | `src/main.ts` | montage de l'application Vue | `index.html` |
 | `src/App.vue` | arbre des stories, sélection, panneau d'erreur | `main.ts` |
 | `src/recover.ts` | où retombe la sélection quand l'identifiant affiché disparaît | `App.vue` |
-| `test/recover.test.ts` | les huit cas de ce repli | — |
+| `test/recover.test.ts` | les cas de ce repli | — |
 | `src/env.d.ts` | déclarations pour Vite et les fichiers `.vue` | le compilateur |
 
 Construit à l'avance et copié dans `packages/cli/dist/shell`. La page de la preview n'est plus ici : elle est servie par le CLI et compilée par le Vite du projet, faute de quoi elle imposerait Vue et React à un projet qui n'en veut pas. Voir `docs/decisions.md`.

@@ -64,6 +64,13 @@ describe('la sélection après un changement de catalogue', () => {
     expect(recovered(alerte, [], [defaut, renommee])).toBe(renommee.id)
   })
 
+  // Le troisième état. Confondu avec « rien n'a jamais été affiché », une
+  // sauvegarde sur n'importe quel autre fichier faisait sauter la sélection sur
+  // la première story, juste après avoir dit qu'il n'y avait plus rien.
+  it('ne propose rien après une sélection perdue', () => {
+    expect(recovered('effacée', [defaut, alerte], [defaut, alerte, autre])).toBeNull()
+  })
+
   it('rend rien quand le catalogue est devenu vide', () => {
     expect(recovered(alerte, [defaut, alerte], [])).toBeNull()
   })

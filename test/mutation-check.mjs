@@ -59,6 +59,18 @@ function recoverInFlight() {
     return
   }
 
+  // Seulement si le fichier porte encore la mutation. Le journal est ignoré par
+  // Git, donc rien ne signale sa présence : restaurer sans regarder écrasait ce
+  // que l'auteur avait écrit depuis, éventuellement des jours plus tard. C'est
+  // la panne que `CLAUDE.md` décrit sous « Annuler une modification de test ».
+  if (readFileSync(read.path, 'utf8') !== read.mutated) {
+    rmSync(INFLIGHT)
+    console.log(
+      `Journal du contrôle précédent périmé : ${relative(root, read.path)} a changé depuis, rien n'a été touché.`,
+    )
+    return
+  }
+
   writeFileSync(read.path, read.original)
   rmSync(INFLIGHT)
   console.log(`Contrôle précédent interrompu : ${relative(root, read.path)} a été restauré.`)
@@ -198,11 +210,10 @@ function main() {
 
     // Le remplacement passe par une fonction : la forme chaîne interpréterait
     // `$&` et `$1` dans le texte, qui y écriraient ce que personne n'a écrit.
-    writeFileSync(INFLIGHT, JSON.stringify({ path, original }))
-    writeFileSync(
-      path,
-      original.replace(mutation.avant, () => mutation.apres),
-    )
+    const muted = original.replace(mutation.avant, () => mutation.apres)
+
+    writeFileSync(INFLIGHT, JSON.stringify({ path, original, mutated: muted }))
+    writeFileSync(path, muted)
 
     try {
       // La construction précède les tests, comme en intégration continue : le test

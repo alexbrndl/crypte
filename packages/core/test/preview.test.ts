@@ -97,12 +97,17 @@ describe('rendu', () => {
 })
 
 describe('ce qui est ignoré', () => {
-  function monte() {
+  function monte(render: (id: string) => void = () => {}) {
     const rendus: unknown[] = []
-    const stop = createPreviewChannel({ render: (id) => rendus.push(id) })
+    const canal = createPreviewChannel({
+      render: (id) => {
+        rendus.push(id)
+        render(id)
+      },
+    })
     recus.length = 0
 
-    return { rendus, stop }
+    return { rendus, canal, stop: () => canal.dispose() }
   }
 
   it('un message d’une autre origine', () => {
@@ -139,6 +144,47 @@ describe('ce qui est ignoré', () => {
 
     envoie({ type: 'update-overrides', id: RENDER.id, overrides: { label: 'Autre' } })
     envoie({ type: 'set-globals', globals: { theme: 'dark' } })
+
+    expect([rendus, recus]).toEqual([[], []])
+  })
+
+  // Le rejeu passe par le même chemin que le canal : sans ça, une mise à jour à
+  // chaud qui lève jetait dans le callback et rien ne remontait au shell.
+  it('rejoue la dernière demande, avec son compte rendu', () => {
+    const { rendus, canal } = monte()
+
+    envoie(RENDER)
+    recus.length = 0
+    canal.again()
+
+    expect(rendus).toEqual([RENDER.id, RENDER.id])
+    expect(recus.map((message) => (message as { type: string }).type)).toEqual(['rendered'])
+  })
+
+  it('rend l’erreur d’un rejeu qui lève', () => {
+    let doitLever = false
+    const { canal } = monte(() => {
+      if (doitLever) throw new Error('ce composant ne rend plus')
+    })
+
+    envoie(RENDER)
+    doitLever = true
+    recus.length = 0
+    canal.again()
+
+    expect(recus).toEqual([
+      expect.objectContaining({
+        type: 'error',
+        id: RENDER.id,
+        message: 'ce composant ne rend plus',
+      }),
+    ])
+  })
+
+  it('ne rejoue rien tant que rien n’a été demandé', () => {
+    const { rendus, canal } = monte()
+
+    canal.again()
 
     expect([rendus, recus]).toEqual([[], []])
   })

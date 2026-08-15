@@ -19,7 +19,7 @@ const status = ref('chargement du catalogue')
 // L'entrée affichée, pas seulement son identifiant : celui-ci vient du chemin et
 // du nom, donc renommer une story le change et la sélection ne se retrouve plus.
 // Son fichier et son rang y survivent.
-let shown: StoryEntry | null = null
+let shown: StoryEntry | null | 'effacée' = null
 
 // Une erreur de rendu s'affiche, elle ne se glisse pas dans une ligne d'état :
 // une story qui ne rend rien laisse un cadre vide, et un cadre vide sans
@@ -55,7 +55,16 @@ function show(id: string) {
 // que dit une preview rechargée parce que le catalogue a changé. Aucun message
 // de plus n'a donc été ajouté au protocole.
 async function refresh() {
-  const manifest = (await fetch(MANIFEST).then((answer) => answer.json())) as Manifest
+  // Un catalogue illisible fige l'arbre sur son état d'avant : sans cette
+  // ligne, rien ne dirait pourquoi il a cessé de suivre.
+  let manifest: Manifest
+  try {
+    manifest = (await fetch(MANIFEST).then((answer) => answer.json())) as Manifest
+  } catch (error) {
+    status.value = `catalogue illisible : ${error instanceof Error ? error.message : String(error)}`
+    return
+  }
+
   const before = entries.value
 
   entries.value = manifest.entries
@@ -64,7 +73,7 @@ async function refresh() {
   const id = recovered(shown, before, manifest.entries)
   if (id === null) {
     current.value = null
-    shown = null
+    shown = 'effacée'
     if (manifest.entries.length > 0) status.value = 'la story affichée a disparu'
     return
   }

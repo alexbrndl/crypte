@@ -10,10 +10,16 @@ import type { StoryEntry } from '@crypte/core/protocol'
 // Perdre la place à chaque frappe est pire que ne pas recharger du tout, d'où un
 // repli plutôt qu'une sélection vide.
 export function recovered(
-  shown: StoryEntry | null,
+  shown: StoryEntry | null | 'effacée',
   before: readonly StoryEntry[],
   after: readonly StoryEntry[],
 ): string | null {
+  // Trois états, pas deux. `null` est « rien n'a jamais été affiché », qui veut
+  // la première story ; `'effacée'` est « la sélection vient d'être perdue »,
+  // qui ne veut rien. Confondus, une sauvegarde sur un autre fichier faisait
+  // sauter sur la première story du catalogue juste après avoir dit qu'il n'y
+  // avait plus rien à afficher.
+  if (shown === 'effacée') return null
   if (shown === null) return after[0]?.id ?? null
   if (after.some((entry) => entry.id === shown.id)) return shown.id
 

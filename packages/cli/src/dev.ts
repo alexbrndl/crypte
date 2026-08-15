@@ -79,10 +79,18 @@ function watchStories(
   // word. Measured. Without the separator a sibling `stories-old` would rebuild.
   const roots = watched(join(project.root, project.config.stories) + sep)
 
-  // What was already said, held apart from the catalogue: a skipped file leaves
-  // the shape untouched, so comparing catalogues repeated the same line on every
-  // keystroke. Measured.
-  const said = new Set<string>()
+  // What the last build left out, held apart from the catalogue: a skipped file
+  // leaves the shape untouched, so comparing catalogues repeated the same line
+  // on every keystroke. Measured.
+  //
+  // Seeded from the start-up build, whose lines `dev` has already printed, and
+  // replaced at each build rather than grown: kept for ever, a file broken then
+  // fixed then broken again the same way said nothing the second time.
+  let said = new Set(lines(held.catalogue))
+
+  // The last failure said. During a conversion, every save of every story file
+  // fails the same way, and repeating it buries what follows.
+  let failed: string | undefined
 
   const rebuild = (file: string): void => {
     if (!roots.some((one) => file.startsWith(one))) return
@@ -98,19 +106,19 @@ function watchStories(
       //
       // Said, though. Swallowed, it leaves an author in front of a tree that
       // stopped moving with no idea their file is the reason.
-      log(`the catalogue could not be rebuilt, keeping the last good one: ${reason(error)}`)
+      const line = `the catalogue could not be rebuilt, keeping the last good one: ${reason(error)}`
+      if (line !== failed) log(line)
+      failed = line
       return
     }
 
-    // What a story file stopped producing, and why. Only what is new: repeating
-    // the whole list on every keystroke would bury it.
-    for (const { file: from, reason: why } of next.skipped) {
-      const line = `  ${from} : ${why}`
-      if (said.has(line)) continue
+    // What a story file stopped producing, and why. Only what is new since the
+    // build before: repeating the whole list on every keystroke would bury it.
+    failed = undefined
 
-      said.add(line)
-      log(line)
-    }
+    const now = lines(next)
+    for (const line of now) if (!said.has(line)) log(line)
+    said = new Set(now)
 
     // Held first, reloaded second. The shape decides whether the frame reloads,
     // never whether the catalogue is current: editing a story's props leaves the
@@ -176,11 +184,16 @@ function write(root: string, catalogue: Catalogue): string | undefined {
   }
 }
 
+// The lines a catalogue's skipped files make, in the shape `reported` prints.
+function lines(catalogue: Catalogue): string[] {
+  return catalogue.skipped.map(({ file, reason: why }) => `  ${file} : ${why}`)
+}
+
 // What a story file did not produce, and why. One line each, before the
 // server's address: a story its author wrote and the reader could not read must
 // not vanish in silence. The in-app version is DCJ-217.
 export function reported(catalogue: Catalogue): string[] {
-  return catalogue.skipped.map(({ file, reason }) => `  ${file} : ${reason}`)
+  return lines(catalogue)
 }
 
 export async function dev(input: string, log = console.log): Promise<ViteDevServer> {

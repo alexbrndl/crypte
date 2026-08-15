@@ -217,6 +217,48 @@ describe('l’écran', () => {
     expect(navigations).toBe(before)
   }, 300_000)
 
+  // L'axe que l'exploration a manqué : une édition qui casse le rendu, puis une
+  // qui le répare. Le rejeu à chaud est un second chemin de rendu, et dessiner
+  // hors du canal laissait l'erreur dans le callback de mise à jour : rien ne
+  // remontait, le shell gardait l'ancienne sortie et son statut « rendu ».
+  it('efface puis remet l’erreur au fil des éditions, sans clic', async () => {
+    await page.goto(origin)
+
+    const preview = page.frameLocator('iframe[title="preview"]')
+    await expect
+      .poll(() => preview.locator('#root').textContent(), { timeout: 120_000 })
+      .toContain('Renouvelé')
+
+    await page.getByRole('button', { name: 'Échoue au rendu' }).click()
+
+    const alert = page.getByRole('alert')
+    await expect.poll(() => alert.isVisible(), { timeout: 120_000 }).toBe(true)
+
+    // Le fichier de story, pas le composant : Fast Refresh reprend seul les
+    // composants, donc le rejeu du canal ne les voit jamais. Mesuré.
+    const file = join(root, 'stories', 'Boom.tsx')
+    const sain = readFileSync(file, 'utf8')
+
+    const before = navigations
+    writeFileSync(file, sain.replace("reason: 'ce", "broken: false, reason: 'ce"))
+
+    // Le panneau se ferme sans qu'on touche à rien : parce que le rejeu rend
+    // compte, pas parce que l'utilisateur a recliqué.
+    await expect.poll(() => page.getByRole('alert').count(), { timeout: 120_000 }).toBe(0)
+    await expect
+      .poll(() => preview.locator('#root').textContent(), { timeout: 120_000 })
+      .toContain('réparé')
+
+    // Sans rechargement : c'est le rejeu qui a rendu compte, pas une preview
+    // repartie de zéro que le shell aurait redemandée.
+    expect(navigations).toBe(before)
+
+    // Et il revient : l'erreur repart par le même chemin.
+    writeFileSync(file, sain)
+
+    await expect.poll(() => alert.isVisible(), { timeout: 120_000 }).toBe(true)
+  }, 300_000)
+
   it('fait apparaître dans l’arbre une story ajoutée', async () => {
     await page.goto(origin)
     await expect.poll(() => page.getByRole('button').count(), { timeout: 120_000 }).toBe(4)
