@@ -48,7 +48,7 @@ export async function dev(input: string, log = console.log): Promise<ViteDevServ
 
   const lines = reported(catalogue)
   if (lines.length > 0) {
-    log(`${catalogue.skipped.length} fichier(s) de story laissé(s) de côté :`)
+    log(`${catalogue.skipped.length} story file(s) left out:`)
     for (const line of lines) log(line)
   }
 
