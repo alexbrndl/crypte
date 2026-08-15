@@ -341,3 +341,19 @@ Quatre occurrences dans la même session : trois sous `pnpm run mutations`, sur 
 *Ce qui le lèverait :* `actions/cache` sur `~/.cache/ms-playwright`, clé sur la version de Playwright du catalogue.
 
 *Origine :* revue 12 de la PR #33.
+
+### Les copies de projet des cas de rechargement touchent trois outils
+
+`packages/cli/test/screen.test.ts` et `hot.test.ts` copient un projet dans l'espace de travail, parce que hors du dépôt `crypte.config.ts` ne résout plus `@crypte/cli`. Cette copie est visible par trois outils qui ne l'attendent pas.
+
+*pnpm.* `apps/*` en fait un paquet de l'espace de travail, donc un `pnpm install` lancé pendant qu'une copie existe l'inscrit dans le fichier de verrouillage. Mesuré : 28 lignes ajoutées, et le contrôle de mutation refusant de partir sur un arbre sale. Fermé par `!apps/tmp-demo-*` dans `pnpm-workspace.yaml`.
+
+*Le parcours de fichiers de `mutations.test.mjs`.* Une copie effacée pendant sa descente faisait échouer l'import du fichier entier, par intermittence. Fermé par un élagage explicite en descendant.
+
+*Git.* Les copies sont ignorées, donc `git status --porcelain` ne les montre pas : un contrôle qui vérifie la propreté de l'arbre ne les verra jamais, et une copie oubliée survit sans que rien ne le dise.
+
+*Ce qui reste :* rien ne garantit qu'une copie soit retirée si un cas meurt entre la copie et son `afterAll`. Le coût est un dossier de 5 Mo et, désormais, aucun effet sur le verrouillage.
+
+*Ce qui le lèverait :* une copie par exécution dans un dossier unique nettoyé au démarrage de la suite, plutôt qu'à la fin de chaque fichier.
+
+*Origine :* lot 5b.
