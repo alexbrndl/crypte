@@ -249,7 +249,11 @@ function main() {
   }
 
   if (!restored.ok) {
+    // Avec sa sortie : sans elle, le message dit qu'il y a un problème et laisse
+    // relancer la suite à la main pour savoir lequel, ce qui coûte le temps du
+    // contrôle entier quand l'échec ne se reproduit pas.
     console.error('\nLa suite échoue sur les sources restaurées, arbre propre par ailleurs.')
+    console.error(plain(restored.output).split('\n').slice(-40).join('\n'))
     process.exit(1)
   }
 
