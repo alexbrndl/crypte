@@ -794,5 +794,29 @@
     "apres": "  return { ...own, ...definition.props, ...overrides }",
     "trouvee": "lot 5a",
     "attendu": "props.test.ts > les props d’une story nommée > met les props communes sous celles de la story"
+  },
+  {
+    "garantie": "Un adaptateur que le fichier calcule est refusé plutôt qu'émis",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "  if (value.type === 'Identifier' && !locals.has(value['name'] as string)) {",
+    "apres": "  if (false) {",
+    "trouvee": "revue 2 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > refuse un nom que le fichier calcule lui-même"
+  },
+  {
+    "garantie": "Une chaîne de l'expression ne fait pas retenir un import",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "    if (inner.type === 'Identifier') {\n      found.add(inner['name'] as string)\n      return\n    }",
+    "apres": "    if (inner.type === 'Identifier' || inner.type === 'StringLiteral') {\n      found.add((inner['name'] ?? inner['value']) as string)\n      return\n    }",
+    "trouvee": "revue 2 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > ne retient pas un import dont le nom n’apparaît que dans une chaîne"
+  },
+  {
+    "garantie": "Une clé d'objet non calculée ne désigne pas une variable",
+    "fichier": "packages/cli/src/serve.ts",
+    "avant": "      if (key === 'key' && inner['computed'] !== true) continue",
+    "apres": "",
+    "trouvee": "revue 2 du lot 5a",
+    "attendu": "adapter.test.ts > la source de l’adaptateur > ne retient pas un import dont le nom n’est qu’une clé d’objet"
   }
 ]

@@ -175,24 +175,76 @@ export function adapterSource(project: Project): { imports: string[]; expression
     throw new ConfigError(`crypte.config.ts could not be parsed: ${parsed.errors[0]?.message}`)
   }
 
-  const expression = adapterExpression(parsed.program.body as unknown as Node[], source)
-  if (expression === undefined) {
+  const value = adapterExpression(parsed.program.body as unknown as Node[])
+  if (value === undefined) {
     throw new ConfigError(
       'crypte.config.ts must declare `adapter` in the object it exports, written in place.',
     )
   }
 
-  // Only the imports the expression names. Carrying the others would put back
-  // exactly what reading rather than importing was meant to leave out.
-  const imports = (parsed.module.staticImports as unknown as Node[])
-    .filter((one) =>
-      ((one['entries'] as Node[]) ?? []).some((entry) =>
-        names(expression).has((entry['localName'] as Node)['value'] as string),
-      ),
-    )
-    .map((one) => source.slice(one.start, one.end))
+  const locals = new Map<string, Node>()
+  for (const one of parsed.module.staticImports as unknown as Node[]) {
+    for (const entry of (one['entries'] as Node[]) ?? []) {
+      locals.set((entry['localName'] as Node)['value'] as string, one)
+    }
+  }
 
-  return { imports, expression }
+  // A bare name is something this file computed, which the browser cannot
+  // reach. `{ adapter }` written short is the same thing, and it emitted
+  // `const adapter = adapter`: a ReferenceError at load time, so before the
+  // channel opens, so an empty frame with nothing to say. Measured.
+  if (value.type === 'Identifier' && !locals.has(value['name'] as string)) {
+    throw new ConfigError(
+      `crypte.config.ts hands \`adapter\` a value it builds itself (\`${value['name'] as string}\`). ` +
+        'Write the adapter in place, or import it: the preview reads this file, it never runs it.',
+    )
+  }
+
+  // Only the imports the expression really names, read from the tree and not
+  // from the text. A word test also matches inside a string, so
+  // `createAdapter({ runtime: 'react' })` carried `import react from
+  // '@vitejs/plugin-react'` into the browser: the very thing reading rather
+  // than importing exists to avoid. Measured.
+  const needed = new Set<Node>()
+  for (const name of referenced(value)) {
+    const one = locals.get(name)
+    if (one) needed.add(one)
+  }
+
+  const imports = [...needed].map((one) => source.slice(one.start, one.end))
+
+  return { imports, expression: source.slice(value.start, value.end) }
+}
+
+// The identifiers an expression really refers to. The name of a property is not
+// one unless it is computed, and a string is not one at all, which is the point.
+function referenced(node: Node): Set<string> {
+  const found = new Set<string>()
+
+  const walk = (current: unknown): void => {
+    if (current === null || typeof current !== 'object') return
+
+    if (Array.isArray(current)) {
+      for (const item of current) walk(item)
+      return
+    }
+
+    const inner = current as Node
+    if (inner.type === 'Identifier') {
+      found.add(inner['name'] as string)
+      return
+    }
+
+    for (const [key, held] of Object.entries(inner)) {
+      if (key === 'key' && inner['computed'] !== true) continue
+      if (key === 'typeAnnotation') continue
+      walk(held)
+    }
+  }
+
+  walk(node)
+
+  return found
 }
 
 interface Node {
@@ -202,16 +254,9 @@ interface Node {
   [key: string]: unknown
 }
 
-// The identifiers an expression writes, as words. A word test is enough here:
-// the expression is a call or a name, and a false match would only carry one
-// import too many.
-function names(expression: string): Set<string> {
-  return new Set(expression.match(/[A-Za-z_$][\w$]*/g) ?? [])
-}
-
 // `export default defineConfig({ … })` or `export default { … }`, and the
 // `adapter` property of whichever it is.
-function adapterExpression(body: Node[], source: string): string | undefined {
+function adapterExpression(body: Node[]): Node | undefined {
   const exported = body.find((node) => node.type === 'ExportDefaultDeclaration')
   const declaration = exported?.['declaration'] as Node | undefined
   const object =
@@ -225,9 +270,7 @@ function adapterExpression(body: Node[], source: string): string | undefined {
     (property) =>
       property.type === 'Property' && (property['key'] as Node | undefined)?.['name'] === 'adapter',
   )
-  const value = found?.['value'] as Node | undefined
-
-  return value ? source.slice(value.start, value.end) : undefined
+  return found?.['value'] as Node | undefined
 }
 
 // The preview's entry, written as source and compiled by the project's Vite.
@@ -246,7 +289,9 @@ export function previewEntry(project: Project, files: string[] = []): string {
   // the entry down at load time: no `createPreviewChannel`, no `ready`, and a
   // shell waiting for a catalogue that never comes. Only the files that produced
   // an entry are imported.
-  const imports = files.map((file, index) => `import * as story${index} from '/${file}'`)
+  const imports = files.map(
+    (file, index) => `import * as story${index} from ${JSON.stringify(`/${file}`)}`,
+  )
   const held = files.map((file, index) => `  ${JSON.stringify(`/${file}`)}: story${index},`)
 
   return [

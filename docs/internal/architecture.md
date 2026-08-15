@@ -628,6 +628,12 @@ Le même conflit s'est présenté un cran plus loin. Le contrôle mute une sourc
 
 L'entrée générée fait `import config from '/crypte.config.ts'` et lit `config.adapter`. Déduire un paquet depuis `adapter.name` casserait dès qu'on enveloppe un adaptateur, et la configuration porte déjà la vraie valeur.
 
+*Ce que l'entrée reprend du fichier, et pourquoi si peu.* Le fichier est lu, jamais exécuté : la section 1.5 des contrats y autorise `vite: { plugins: [react()] }`, donc l'exécuter chargerait un plugin Vite dans le navigateur, qui demande `node:module`. L'entrée reprend l'expression de `adapter` et **les seuls imports qu'elle nomme vraiment**.
+
+*Ce « vraiment » est le point.* La première version testait les mots du texte de l'expression. `createAdapter({ runtime: 'react' })` faisait alors retenir `import react from '@vitejs/plugin-react'`, c'est-à-dire précisément ce que lire au lieu d'importer existe pour éviter. Les noms sont donc lus dans l'arbre : une clé d'objet non calculée n'en est pas un, une chaîne non plus.
+
+*Un nom nu est refusé.* `const adapter = createAdapter()` puis `export default { adapter }` émettait `const adapter = adapter`, donc une `ReferenceError` au chargement, donc avant l'ouverture du canal, donc un cadre vide sans rien à dire. `crypte dev` s'arrête maintenant sur un message qui dit d'écrire l'adaptateur sur place ou de l'importer. Un nom **importé** reste accepté : son import part avec lui.
+
 **Le canal vient du CLI, jamais du projet.**
 
 La section 1.4 des contrats dit que l'utilisateur installe deux paquets et que `@crypte/core` n'en est pas. L'entrée l'importerait pourtant, donc le plugin pose un alias vers le chemin que le CLI résout lui-même. Sans ça, la preview demande au projet un paquet que personne n'a déclaré.

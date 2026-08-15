@@ -119,9 +119,19 @@ describe('l’entrée de la preview', () => {
       'stories/Gardee.tsx',
     ])
 
-    expect(source).toContain("import * as story0 from '/stories/Gardee.tsx'")
+    expect(source).toContain('import * as story0 from "/stories/Gardee.tsx"')
     expect(source).not.toContain('import.meta.glob')
     expect(source).not.toContain('Ecartee')
+  })
+
+  // Un nom de fichier est une donnée, pas du code : interpolé brut, une
+  // apostrophe ferme la chaîne et le reste du nom devient du JavaScript.
+  it('échappe le nom du fichier dans l’import', () => {
+    const source = previewEntry({ root: fixture, config: { stories: 'stories' } } as never, [
+      String.raw`stories/L'"Ecart.tsx`,
+    ])
+
+    expect(source).toContain(String.raw`import * as story0 from "/stories/L'\"Ecart.tsx"`)
   })
 
   it('charge la feuille de style déclarée, et rien quand il n’y en a pas', () => {
