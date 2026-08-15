@@ -56,7 +56,19 @@ describe('l’écran', () => {
     page.on('framenavigated', (frame: Frame) => {
       if (frame.url().includes('/preview.html')) navigations += 1
     })
-  }, 180_000)
+
+    // Un premier rendu avant tout cas. Le préchauffage de l'entrée ne couvre pas
+    // l'optimisation que Vite fait à la première demande du navigateur, ni le
+    // premier montage de React : sous charge, le premier cas payait les trois et
+    // rougissait pour une raison qui n'est pas la sienne. Mesuré sous le
+    // contrôle de mutation.
+    await page.goto(origin)
+    await expect
+      .poll(() => page.frameLocator('iframe[title="preview"]').locator('#root').textContent(), {
+        timeout: 120_000,
+      })
+      .toBe('Nouveau')
+  }, 300_000)
 
   afterAll(async () => {
     await browser?.close()
@@ -67,7 +79,7 @@ describe('l’écran', () => {
   it('affiche l’arbre des stories', async () => {
     await page.goto(origin)
 
-    await expect.poll(() => page.getByRole('button').count(), { timeout: 30_000 }).toBe(4)
+    await expect.poll(() => page.getByRole('button').count(), { timeout: 60_000 }).toBe(4)
     await expect
       .poll(() => page.getByRole('heading', { level: 2 }).allTextContents())
       .toEqual(['Badge', 'Boom'])
@@ -81,7 +93,7 @@ describe('l’écran', () => {
     const preview = page.frameLocator('iframe[title="preview"]')
 
     await expect
-      .poll(() => preview.locator('#root').textContent(), { timeout: 30_000 })
+      .poll(() => preview.locator('#root').textContent(), { timeout: 60_000 })
       .toBe('Nouveau')
   })
 
@@ -90,7 +102,7 @@ describe('l’écran', () => {
 
     const preview = page.frameLocator('iframe[title="preview"]')
     await expect
-      .poll(() => preview.locator('#root').textContent(), { timeout: 30_000 })
+      .poll(() => preview.locator('#root').textContent(), { timeout: 60_000 })
       .toBe('Nouveau')
 
     await page.getByRole('button', { name: 'Libellé long' }).click()
@@ -106,7 +118,7 @@ describe('l’écran', () => {
 
     const preview = page.frameLocator('iframe[title="preview"]')
     await expect
-      .poll(() => preview.locator('#root').textContent(), { timeout: 30_000 })
+      .poll(() => preview.locator('#root').textContent(), { timeout: 60_000 })
       .toBe('Nouveau')
 
     await page.getByRole('button', { name: 'Échoue au rendu' }).click()
@@ -127,7 +139,7 @@ describe('l’écran', () => {
     await page.goto(origin)
 
     await page.getByRole('button', { name: 'Échoue au rendu' }).click()
-    await expect.poll(() => page.getByRole('alert').isVisible(), { timeout: 30_000 }).toBe(true)
+    await expect.poll(() => page.getByRole('alert').isVisible(), { timeout: 60_000 }).toBe(true)
 
     await page.getByRole('button', { name: 'Par défaut' }).click()
 
@@ -147,7 +159,7 @@ describe('l’écran', () => {
 
     const preview = page.frameLocator('iframe[title="preview"]')
     await expect
-      .poll(() => preview.locator('#root').textContent(), { timeout: 30_000 })
+      .poll(() => preview.locator('#root').textContent(), { timeout: 60_000 })
       .toBe('Nouveau')
 
     await page.getByRole('button', { name: 'Libellé long' }).click()
@@ -159,7 +171,7 @@ describe('l’écran', () => {
     const before = navigations
 
     await expect
-      .poll(() => preview.locator('#root').textContent(), { timeout: 30_000 })
+      .poll(() => preview.locator('#root').textContent(), { timeout: 60_000 })
       .toBe('Vérification en cours !')
 
     // La story affichée n'a pas changé : c'est tout l'enjeu, un rechargement qui
@@ -169,7 +181,7 @@ describe('l’écran', () => {
       .toBe('true')
 
     expect(navigations).toBe(before)
-  }, 90_000)
+  }, 180_000)
 
   // Le fichier de story n'exporte aucun composant, donc Fast Refresh ne s'en
   // saisit pas : sans le chemin chaud de l'entrée, Vite ne trouve personne pour
@@ -182,7 +194,7 @@ describe('l’écran', () => {
     // ce qu'il rend porte donc sa marque.
     const preview = page.frameLocator('iframe[title="preview"]')
     await expect
-      .poll(() => preview.locator('#root').textContent(), { timeout: 30_000 })
+      .poll(() => preview.locator('#root').textContent(), { timeout: 60_000 })
       .toContain('Nouveau')
 
     const before = navigations
@@ -190,15 +202,15 @@ describe('l’écran', () => {
     writeFileSync(file, readFileSync(file, 'utf8').replace("'Nouveau'", "'Renouvelé'"))
 
     await expect
-      .poll(() => preview.locator('#root').textContent(), { timeout: 30_000 })
+      .poll(() => preview.locator('#root').textContent(), { timeout: 60_000 })
       .toContain('Renouvelé')
 
     expect(navigations).toBe(before)
-  }, 90_000)
+  }, 180_000)
 
   it('fait apparaître dans l’arbre une story ajoutée', async () => {
     await page.goto(origin)
-    await expect.poll(() => page.getByRole('button').count(), { timeout: 30_000 }).toBe(4)
+    await expect.poll(() => page.getByRole('button').count(), { timeout: 60_000 }).toBe(4)
 
     writeFileSync(
       join(root, 'stories', 'Tardive.tsx'),
@@ -211,7 +223,7 @@ describe('l’écran', () => {
     )
 
     await expect
-      .poll(() => page.getByRole('heading', { level: 2 }).allTextContents(), { timeout: 30_000 })
+      .poll(() => page.getByRole('heading', { level: 2 }).allTextContents(), { timeout: 60_000 })
       .toContain('Tardive')
 
     // Et elle rend. L'arbre vient du manifeste, le rendu vient de l'entrée
@@ -223,15 +235,15 @@ describe('l’écran', () => {
     // Mesuré. La page fraîche éprouve la même chose, l'entrée étant regénérée.
     await page.goto(origin)
     await expect
-      .poll(() => page.getByRole('button', { name: 'Default' }).count(), { timeout: 30_000 })
+      .poll(() => page.getByRole('button', { name: 'Default' }).count(), { timeout: 60_000 })
       .toBe(1)
 
     await page.getByRole('button', { name: 'Default' }).click()
 
     await expect
       .poll(() => page.frameLocator('iframe[title="preview"]').locator('#root').textContent(), {
-        timeout: 30_000,
+        timeout: 60_000,
       })
       .toContain('Tardive')
-  }, 90_000)
+  }, 180_000)
 })
