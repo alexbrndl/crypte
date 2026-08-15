@@ -84,7 +84,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `src/dev.ts` | `crypte dev` : catalogue, empreinte, serveur | `index.ts` |
 | `src/serve.ts` | les deux pages servies, et l'entrée de la preview | `dev.ts` |
 | `scripts/copy-shell.mjs` | copie le shell construit dans `dist/shell` | le script `pack` |
-| `src/fingerprint.ts` | la forme réduite du catalogue, commitée | la suite de tests, le futur serveur |
+| `src/fingerprint.ts` | la forme réduite du catalogue, commitée | `dev.ts`, la suite de tests |
 | `test/fixture/` | projet imité, aux contraintes réelles | `test/project.test.ts` |
 | `test/fixture/stories/` | les premiers fichiers de story du dépôt | `test/stories.test.ts`, `test/manifest*.test.ts` |
 | `test/stories.test.ts` | ce que la lecture d'un fichier refuse de deviner | — |
@@ -125,9 +125,9 @@ Distinct de `packages/cli/test/fixture`, qui n'a ni `package.json` ni React et n
 | `index.html` | page du shell, la seule qu'il porte | le navigateur |
 | `src/main.ts` | montage de l'application Vue | `index.html` |
 | `src/App.vue` | arbre des stories, sélection, panneau d'erreur | `main.ts` |
+| `src/env.d.ts` | déclarations pour Vite et les fichiers `.vue` | le compilateur |
 
 Construit à l'avance et copié dans `packages/cli/dist/shell`. La page de la preview n'est plus ici : elle est servie par le CLI et compilée par le Vite du projet, faute de quoi elle imposerait Vue et React à un projet qui n'en veut pas. Voir `docs/decisions.md`.
-| `src/env.d.ts` | déclarations pour Vite et les fichiers `.vue` | le compilateur |
 
 ## `docs` — public, en anglais à terme
 

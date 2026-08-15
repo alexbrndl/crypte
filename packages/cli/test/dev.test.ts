@@ -2,13 +2,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { startDev, type Started } from '../src/dev'
-import {
-  MANIFEST_ROUTE,
-  PREVIEW_ENTRY,
-  PREVIEW_PAGE,
-  previewEntry,
-  storiesGlob,
-} from '../src/serve'
+import { loadProject } from '../src/project'
+import { MANIFEST_ROUTE, PREVIEW_ENTRY, PREVIEW_PAGE, previewEntry } from '../src/serve'
 
 // Ce que `crypte dev` sert vraiment, mesuré sur un serveur qui écoute.
 // Voir docs/internal/architecture.md.
@@ -84,24 +79,49 @@ describe('crypte dev', () => {
   })
 })
 
+const demo = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'apps', 'demo')
+
 describe('l’entrée de la preview', () => {
-  it('globe le dossier de stories déclaré, dans les quatre extensions', () => {
-    expect(storiesGlob({ config: { stories: 'stories' } } as never)).toBe(
-      '/stories/**/*.{ts,tsx,js,jsx}',
-    )
+  // Le demo porte un adaptateur importé, la fixture un objet écrit sur place :
+  // les deux formes que la section 1.5 autorise.
+  it('reprend l’import dont un adaptateur construit se sert', async () => {
+    const source = previewEntry(await loadProject(demo))
+
+    expect(source).toContain("import { createAdapter } from '@crypte/react'")
+    expect(source).toContain('const adapter = createAdapter()')
+    expect(source).not.toContain('crypte.config.ts')
   })
 
   // L'adaptateur vient de la configuration du projet, jamais d'un nom de paquet
   // deviné depuis `adapter.name` : envelopper un adaptateur casserait la devinette.
   it('importe l’adaptateur depuis la configuration du projet', () => {
-    const source = previewEntry({
-      root: fixture,
-      config: { stories: 'stories', adapter: { name: 'fixture' } },
-    } as never)
+    const source = previewEntry({ root: fixture, config: { stories: 'stories' } } as never)
 
-    expect(source).toContain("import config from '/crypte.config.ts'")
-    expect(source).toContain('config.adapter.mount(')
-    expect(source).not.toContain('@crypte/fixture')
+    expect(source).toContain("const adapter = { name: 'fixture' }")
+    expect(source).toContain('adapter.mount(')
+
+    // La configuration n'est jamais importée : elle peut porter des plugins
+    // Vite, donc du code Node, et la preview échouerait avant d'ouvrir le canal,
+    // donc sans jamais pouvoir dire pourquoi.
+    expect(source).not.toContain('crypte.config.ts')
+
+    // Seuls les imports que l'expression nomme. Emporter les autres remettrait
+    // exactement ce que lire au lieu d'importer sert à laisser dehors.
+    expect(source).not.toContain('defineConfig')
+    expect(source).not.toContain('@crypte/cli')
+  })
+
+  // Un fichier que le lecteur a écarté ne doit pas être importé : il ferait
+  // échouer l'entrée au chargement, donc avant l'ouverture du canal, donc sans
+  // que le shell puisse rien afficher.
+  it('n’importe que les fichiers qui ont produit une entrée', () => {
+    const source = previewEntry({ root: fixture, config: { stories: 'stories' } } as never, [
+      'stories/Gardee.tsx',
+    ])
+
+    expect(source).toContain("import * as story0 from '/stories/Gardee.tsx'")
+    expect(source).not.toContain('import.meta.glob')
+    expect(source).not.toContain('Ecartee')
   })
 
   it('charge la feuille de style déclarée, et rien quand il n’y en a pas', () => {

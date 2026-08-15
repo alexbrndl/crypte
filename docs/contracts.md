@@ -698,13 +698,15 @@ This document is a contract. This section is the only place that says what exist
 
 **`crypte dev` is built, `crypte check` is not.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled by the project's own Vite. A story renders, switching story works, and a story that throws shows its error instead of an empty frame.
 
-Seven known gaps between this document and the code:
+Nine known gaps between this document and the code:
 
 - `update-overrides` and `set-globals` are part of the protocol and have no effect yet. The preview drops them.
 - A path alias cannot replace an installed package. `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because the resolver runs after Vite's own. TypeScript would return the replacement file.
 - `details` is written empty. Section 4.4 says it travels from the story file untouched, but the manifest carries the **resolved** form, whose `type` and `required` come from an adapter's inference and not from what the author wrote. `meta` and `options` do travel today.
 - What a story file cannot be read from is reported in the server's output, one line per file, and not yet in the shell. The in-app version, with its two levels, is DCJ-217.
 - Nothing reloads. Editing a component or a story needs a restart until DCJ-218.
+- **`wrap` is read and never applied.** Section 2.5 says the config's `wrap` wraps the file's, which wraps the component. The preview mounts the component alone, so a story that declares a provider renders without it. Tracked in DCJ-219.
+- **`plugins` is read and never used.** Section 6 is provisional and no plugin exists, so the field is validated and dropped.
 - The CLI does not yet guarantee the serialisation promised in 4.5. What it writes today is read from source text and is serialisable by construction, so the guarantee is not exercised.
 - `component.file` is resolved without Vite. The producer runs before any server exists, so it applies the project's `paths` and tries the usual extensions, with no plugin and no `exports` field. A component reached through a plugin keeps the identifier the story wrote.
 

@@ -50,7 +50,7 @@ jobs:
       # verrou s'éteindrait sans bruit.
       - name: Generated files are up to date
         run: |
-          git ls-files --error-unmatch packages/cli/test/fixture/.crypte/fingerprint.json
+          git ls-files --error-unmatch packages/cli/test/fixture/.crypte/fingerprint.json apps/demo/.crypte/fingerprint.json
           git diff --exit-code
       # Casse chaque garantie et vérifie que le bon test s'en aperçoit. Après le
       # git diff, parce qu'il modifie les sources et les restaure. Sur une seule

@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sirv from 'sirv'
-import type { Plugin } from 'vite'
+import { parseSync, type Plugin } from 'vite'
 import { ConfigError } from './errors'
 import { cssEntryOf, type Project } from './project'
 
@@ -50,23 +50,19 @@ export const PREVIEW_PAGE = '/preview.html'
 export function shellAssets(): string {
   if (!existsSync(join(SHELL, 'index.html'))) {
     throw new ConfigError(
-      'The shell is missing from this package. Run `vp run -r pack` at the root of the repository.',
+      'This @crypte/cli was published without its shell, so `crypte dev` has no page to serve. ' +
+        'Reinstall the package, and report it: https://github.com/alexbrndl/crypte/issues. ' +
+        'Working in the repository itself? Run `vp run -r pack` at its root.',
     )
   }
 
   return SHELL
 }
 
-// What a project offers a story reader: the folder to glob, as
-// `import.meta.glob` takes it, and the catalogue as it will be served.
-export function storiesGlob(project: Project): string {
-  return `/${project.config.stories}/**/*.{ts,tsx,js,jsx}`
-}
-
 // One plugin for both pages. Neither is a file in the project: they belong to
 // the CLI, and writing them into the project would leave behind something
 // nobody asked for.
-export function servePlugin(project: Project, manifest: string): Plugin {
+export function servePlugin(project: Project, manifest: string, files: string[]): Plugin {
   const shell = shellAssets()
 
   return {
@@ -127,7 +123,7 @@ export function servePlugin(project: Project, manifest: string): Plugin {
     },
 
     load(id) {
-      return id === `${VIRTUAL}${PREVIEW_ENTRY}` ? previewEntry(project) : undefined
+      return id === `${VIRTUAL}${PREVIEW_ENTRY}` ? previewEntry(project, files) : undefined
     },
   }
 }
@@ -159,26 +155,110 @@ export function previewHtml(): string {
   ].join('\n')
 }
 
-// The preview's entry, written as source and compiled by the project's Vite.
+// What the browser needs to build the adapter: the imports it uses, and the
+// expression itself, both taken from the project's configuration as text.
 //
-// The adapter comes from the project's own configuration, imported here rather
-// than named: guessing a package from `adapter.name` would break the moment
-// somebody wraps an adapter, and the configuration already holds the real one.
+// Read and never executed. Importing `crypte.config.ts` from the preview looked
+// tidier and was wrong: section 1.5 allows `vite: { plugins: [react()] }` there,
+// so the browser would load a Vite plugin, which reaches for `node:module`. The
+// entry would fail before `createPreviewChannel`, so no `ready` would leave and
+// the shell would sit on an empty frame with nothing to show.
+//
+// Guessing a package from `adapter.name` is the other wrong answer: it breaks
+// the moment somebody wraps an adapter. The text says what the author wrote.
+export function adapterSource(project: Project): { imports: string[]; expression: string } {
+  const file = join(project.root, 'crypte.config.ts')
+  const source = readFileSync(file, 'utf8')
+  const parsed = parseSync('crypte.config.ts', source)
+
+  if (parsed.errors.length > 0) {
+    throw new ConfigError(`crypte.config.ts could not be parsed: ${parsed.errors[0]?.message}`)
+  }
+
+  const expression = adapterExpression(parsed.program.body as unknown as Node[], source)
+  if (expression === undefined) {
+    throw new ConfigError(
+      'crypte.config.ts must declare `adapter` in the object it exports, written in place.',
+    )
+  }
+
+  // Only the imports the expression names. Carrying the others would put back
+  // exactly what reading rather than importing was meant to leave out.
+  const imports = (parsed.module.staticImports as unknown as Node[])
+    .filter((one) =>
+      ((one['entries'] as Node[]) ?? []).some((entry) =>
+        names(expression).has((entry['localName'] as Node)['value'] as string),
+      ),
+    )
+    .map((one) => source.slice(one.start, one.end))
+
+  return { imports, expression }
+}
+
+interface Node {
+  type: string
+  start: number
+  end: number
+  [key: string]: unknown
+}
+
+// The identifiers an expression writes, as words. A word test is enough here:
+// the expression is a call or a name, and a false match would only carry one
+// import too many.
+function names(expression: string): Set<string> {
+  return new Set(expression.match(/[A-Za-z_$][\w$]*/g) ?? [])
+}
+
+// `export default defineConfig({ … })` or `export default { … }`, and the
+// `adapter` property of whichever it is.
+function adapterExpression(body: Node[], source: string): string | undefined {
+  const exported = body.find((node) => node.type === 'ExportDefaultDeclaration')
+  const declaration = exported?.['declaration'] as Node | undefined
+  const object =
+    declaration?.type === 'CallExpression'
+      ? ((declaration['arguments'] as Node[])[0] as Node | undefined)
+      : declaration
+
+  if (object?.type !== 'ObjectExpression') return undefined
+
+  const found = (object['properties'] as Node[]).find(
+    (property) =>
+      property.type === 'Property' && (property['key'] as Node | undefined)?.['name'] === 'adapter',
+  )
+  const value = found?.['value'] as Node | undefined
+
+  return value ? source.slice(value.start, value.end) : undefined
+}
+
+// The preview's entry, written as source and compiled by the project's Vite.
 //
 // `import.meta.glob` is eager on purpose. The preview holds every story module
 // at once, so switching story is a lookup rather than a round trip, and the
 // props stay real, functions and elements included, since none of them crosses
 // the channel.
-export function previewEntry(project: Project): string {
+export function previewEntry(project: Project, files: string[] = []): string {
   const css = cssEntryOf(project)
+
+  const adapter = adapterSource(project)
+
+  // Named one by one rather than globbed. A glob takes the whole folder, so a
+  // file the reader set aside — a missing dependency, a syntax error — brought
+  // the entry down at load time: no `createPreviewChannel`, no `ready`, and a
+  // shell waiting for a catalogue that never comes. Only the files that produced
+  // an entry are imported.
+  const imports = files.map((file, index) => `import * as story${index} from '/${file}'`)
+  const held = files.map((file, index) => `  ${JSON.stringify(`/${file}`)}: story${index},`)
 
   return [
     "import { createPreviewChannel, propsOfStory } from '@crypte/core/preview'",
-    "import config from '/crypte.config.ts'",
+    ...adapter.imports,
+    ...imports,
     ...(css ? [`import ${JSON.stringify(css)}`] : []),
     '',
-    `const modules = import.meta.glob(${JSON.stringify(storiesGlob(project))}, { eager: true })`,
+    `const modules = {\n${held.join('\n')}\n}`,
     `const manifest = await fetch(${JSON.stringify(MANIFEST_ROUTE)}).then((answer) => answer.json())`,
+    '',
+    `const adapter = ${adapter.expression}`,
     '',
     "const container = document.getElementById('root')",
     "if (!container) throw new Error('preview container not found')",
@@ -200,7 +280,7 @@ export function previewEntry(project: Project): string {
     '    // story rendered nothing. Measured in a browser.',
     '    const { component, definition } = module.default',
     '',
-    '    config.adapter.mount(',
+    '    adapter.mount(',
     '      container,',
     '      component,',
     '      propsOfStory(definition, entry.name, overrides),',

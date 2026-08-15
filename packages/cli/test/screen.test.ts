@@ -27,9 +27,15 @@ describe('l’écran', () => {
     if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
     origin = `http://localhost:${address.port}`
 
+    // Une fois l'entrée demandée, Vite a transformé et optimisé ce qu'il fallait.
+    // Sans ce préchauffage, le premier rendu attend cette optimisation et les cas
+    // rougissent pour une raison qui n'est pas la leur. Mesuré, avec un plugin
+    // React déclaré par le projet.
+    await fetch(`${origin}/@crypte/preview.js`)
+
     browser = await chromium.launch()
     page = await browser.newPage()
-  }, 120_000)
+  }, 180_000)
 
   afterAll(async () => {
     await browser?.close()
@@ -92,7 +98,15 @@ describe('l’écran', () => {
     await expect.poll(() => page.locator('iframe[title="preview"]').isVisible()).toBe(false)
   })
 
+  // Reparti d'une page fraîche et passé par l'état d'erreur : sans ça, ses deux
+  // assertions sont déjà vraies au chargement, donc le cas resterait vert même
+  // si le clic ne faisait rien.
   it('revient au rendu quand on retourne sur une story qui marche', async () => {
+    await page.goto(origin)
+
+    await page.getByRole('button', { name: 'Échoue au rendu' }).click()
+    await expect.poll(() => page.getByRole('alert').isVisible(), { timeout: 20_000 }).toBe(true)
+
     await page.getByRole('button', { name: 'Par défaut' }).click()
 
     await expect.poll(() => page.getByRole('alert').count(), { timeout: 10_000 }).toBe(0)
