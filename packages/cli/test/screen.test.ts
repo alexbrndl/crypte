@@ -104,6 +104,12 @@ describe('l’écran', () => {
       await fetch(`${origin}/${file}`)
     }
 
+    // Et on attend que l'optimiseur ait fini. Sans ça, il repassait pendant que
+    // le navigateur chargeait déjà, réécrivait ses paquets sous une nouvelle
+    // empreinte, et la page restait sur des URL disparues. C'est ce que cette
+    // attente existe pour, chez Vite.
+    await started.server.waitForRequestsIdle()
+
     browser = await chromium.launch()
     page = await browser.newPage()
 
