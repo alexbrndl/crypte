@@ -310,6 +310,20 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 
 *Origine :* revues 2 à 5 de la PR #33, quatre tours ayant chacun rendu un axe d'entrée de plus.
 
+### Le cache de dépendances ne se copie pas avec un projet
+
+`packages/cli/test/screen.test.ts` copie le projet de démonstration, `node_modules` compris, et retire ensuite `node_modules/.crypte`.
+
+*Pourquoi.* Ce dossier est le cache de dépendances optimisées que le serveur de crypte écrit depuis le lot 5b. Hérité par une copie, il décrit des fichiers que cette copie n'a pas écrits : le navigateur recevait `The requested module '/node_modules/.crypte/deps/react-dom.js' does not provide an export named 't'` et la preview restait vide.
+
+*Ce que ça explique.* Tous les rouges intermittents de ce fichier sous le contrôle de mutation, attribués d'abord à la charge puis à des délais trop courts. Les deux étaient faux : la cause dépendait de l'état du cache de la démonstration au moment de la copie, donc elle allait et venait sans rapport avec la charge.
+
+*Ce qui l'a nommée.* Un `#root` vide se lisait « expected '' to contain … », ce qui ne désigne rien. Les cas rendent maintenant l'état visible avec les erreurs de la page, et la cause est apparue à la première occurrence suivante.
+
+*Ce qui casse si on l'enlève :* la copie repart d'un cache qui ne lui appartient pas, et les cas navigateur rougissent une fois sur trois sans dire pourquoi.
+
+*Origine :* lot 5b, quatre occurrences avant d'être nommée.
+
 ### `project.test.ts > échoue sans le résolveur` rougit par intermittence
 
 Quatre occurrences dans la même session : trois sous `pnpm run mutations`, sur l'une de ses trois barrières, et **une sous un `vp test` ordinaire**. Chaque fois, la même commande relancée passe. `screen.test.ts` a rougi une fois de la même façon.

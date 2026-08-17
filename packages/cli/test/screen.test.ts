@@ -59,6 +59,12 @@ describe('l’écran', () => {
     root = mkdtempSync(join(demo, '..', 'tmp-demo-'))
     cpSync(demo, root, { recursive: true })
 
+    // Le cache de dépendances optimisées ne se copie pas. Hérité, il décrit des
+    // fichiers que cette copie n'a pas écrits : mesuré, le navigateur recevait
+    // « react-dom.js does not provide an export named 't' » et la preview
+    // restait vide. C'est la cause des rouges intermittents de ce fichier.
+    rmSync(join(root, 'node_modules', '.crypte'), { recursive: true, force: true })
+
     started = await startDev(root)
     await started.server.listen()
 
