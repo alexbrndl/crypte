@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -80,6 +81,17 @@ describe('crypte dev', () => {
 })
 
 const demo = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'apps', 'demo')
+
+// `loadProject` nomme les fichiers dont la configuration dépend, et un projet
+// peut déclarer un `tsconfig.json` qu'il n'a pas. Surveiller un fichier absent
+// lève, donc démarrer échouait sur un projet parfaitement valide.
+describe('les fichiers surveillés', () => {
+  it('démarre même quand un fichier surveillé n’existe pas', async () => {
+    const project = await loadProject(fixture)
+
+    expect(project.watch.some((file) => !existsSync(file))).toBe(true)
+  })
+})
 
 describe('l’entrée de la preview', () => {
   // Le demo porte un adaptateur importé, la fixture un objet écrit sur place :

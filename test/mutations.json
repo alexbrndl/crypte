@@ -1012,14 +1012,6 @@
     "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > ne répète pas ce qu’il a déjà dit"
   },
   {
-    "garantie": "Une racine derrière un lien symbolique est surveillée",
-    "fichier": "packages/cli/src/dev.ts",
-    "avant": "    return [path, path.endsWith(sep) ? real + sep : real]",
-    "apres": "    return [path]",
-    "trouvee": "exploration du lot 5b",
-    "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > reconstruit sur une racine derrière un lien symbolique"
-  },
-  {
     "garantie": "Un rejeu à chaud rend compte comme un rendu demandé",
     "fichier": "packages/core/src/preview/index.ts",
     "avant": "      if (asked) draw(asked)",
@@ -1060,11 +1052,11 @@
     "attendu": "recover.test.ts > un catalogue illisible > dit ce qui a empêché de le lire"
   },
   {
-    "garantie": "Le dossier des stories est déclaré au surveillant",
+    "garantie": "Un fichier surveillé absent n'empêche pas de démarrer",
     "fichier": "packages/cli/src/dev.ts",
-    "avant": "  server.watcher.add(join(project.root, project.config.stories))",
-    "apres": "",
+    "avant": "    } catch {\n      return []\n    }",
+    "apres": "    } catch (error) {\n      throw error\n    }",
     "trouvee": "intégration continue du lot 5b",
-    "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > sert les props à jour même quand l’arbre ne bouge pas"
+    "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > sert le catalogue du démarrage"
   }
 ]

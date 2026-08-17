@@ -1,8 +1,8 @@
 // `crypte dev`: reads the project, writes the catalogue, serves both pages, and
 // keeps them in step with the files. See docs/internal/architecture.md.
 
-import { join, relative, sep } from 'node:path'
-import { realpathSync } from 'node:fs'
+import { join, relative } from 'node:path'
+import { watch } from 'node:fs'
 import { createServer, type ViteDevServer } from 'vite'
 import { fingerprintOf, writeFingerprint } from './fingerprint'
 import { buildCatalogue, writeCatalogue, type Catalogue } from './manifest'
@@ -73,11 +73,7 @@ function watchStories(
   held: Held,
   log: (line: string) => void,
 ): void {
-  // Both forms of the same folder, separator included. Chokidar follows links
-  // and reports the real path, which `loadProject` does not resolve: behind a
-  // symlinked root no event passed the filter and reloading was dead without a
-  // word. Measured. Without the separator a sibling `stories-old` would rebuild.
-  const roots = watched(join(project.root, project.config.stories) + sep)
+  let pending: ReturnType<typeof setTimeout> | undefined
 
   // What the last build left out, held apart from the catalogue: a skipped file
   // leaves the shape untouched, so comparing catalogues repeated the same line
@@ -92,9 +88,7 @@ function watchStories(
   // fails the same way, and repeating it buries what follows.
   let failed: string | undefined
 
-  const rebuild = (file: string): void => {
-    if (!roots.some((one) => file.startsWith(one))) return
-
+  const rebuild = (): void => {
     let next: Catalogue
     try {
       next = buildCatalogue(project)
@@ -138,40 +132,48 @@ function watchStories(
     server.hot.send({ type: 'full-reload', path: PREVIEW_PAGE })
   }
 
-  // Déclaré, pas hérité. Vite ne surveille que les fichiers de son graphe de
-  // modules : un fichier de story qu'aucune page n'a encore demandé n'y est pas,
-  // donc ses modifications n'arrivaient jamais. Mesuré en intégration continue
-  // sur Linux, où `add` passait et `change` non ; sur macOS le dossier entier
-  // est surveillé et le trou ne se voit pas.
-  server.watcher.add(join(project.root, project.config.stories))
+  // Our own watcher, on the folder we were given. Vite's only covers the files
+  // in its module graph, so a story file no page had requested yet never
+  // reported a change: on Linux `add` and `unlink` arrived and `change` did not,
+  // and on macOS the whole folder happens to be watched so the hole is
+  // invisible. Measured in continuous integration.
+  //
+  // Watching the folder ourselves also removes every question about the path: no
+  // filter, no separator, no real path behind a symlink. Every event is already
+  // inside it.
+  const watcher = watch(join(project.root, project.config.stories), { recursive: true }, () => {
+    // One save fires several events. Rebuilding on each would read the tree
+    // three times for nothing.
+    clearTimeout(pending)
+    pending = setTimeout(rebuild, 20)
+  })
 
-  for (const event of ['add', 'change', 'unlink'] as const) {
-    server.watcher.on(event, rebuild)
-  }
+  server.httpServer?.on('close', () => watcher.close())
 }
 
 // `crypte.config.ts` and what it imports. Reloading it means rebuilding the
 // server, since the project's own plugins come from there: out of this lot, and
 // a line is what turns a silence into an instruction.
 function watchConfig(server: ViteDevServer, project: Project, log: (line: string) => void): void {
-  const files = new Set(project.watch.flatMap((file) => watched(file)))
-
-  server.watcher.on('change', (file) => {
-    if (files.has(file)) log(`${relative(project.root, file)} changed, restart \`crypte dev\``)
+  // One watcher per file rather than a filter on a folder's events: the list is
+  // short, and it says exactly what is watched.
+  //
+  // `watch` throws on a file that is not there. `project.watch` names what the
+  // configuration depends on, and a project may declare a `tsconfig.json` it
+  // does not have: skipped rather than fatal.
+  const watchers = project.watch.flatMap((file) => {
+    try {
+      return [
+        watch(file, () => log(`${relative(project.root, file)} changed, restart \`crypte dev\``)),
+      ]
+    } catch {
+      return []
+    }
   })
-}
 
-// A path as written and as the file system really names it. The two differ as
-// soon as a symlink is on the way, and the watcher reports the second.
-function watched(path: string): string[] {
-  try {
-    const real = realpathSync(path.endsWith(sep) ? path.slice(0, -1) : path)
-
-    return [path, path.endsWith(sep) ? real + sep : real]
-  } catch {
-    // Not there yet, or gone: the written form is all there is.
-    return [path]
-  }
+  server.httpServer?.on('close', () => {
+    for (const one of watchers) one.close()
+  })
 }
 
 function reason(error: unknown): string {
