@@ -158,7 +158,14 @@ const vp = process.env.VP_BIN ?? 'vp'
 // séparateur `>` que vitest colorise ne se comparait plus au texte du catalogue.
 // Ici, `fullName` se compare par égalité.
 async function runner() {
-  const vus = []
+  // Les cas de la **dernière** exécution, rendus par `onTestRunEnd`, qui reçoit
+  // les modules de cette exécution-là.
+  //
+  // Un tableau partagé vidé entre deux exécutions ne suffit pas : les rappels de
+  // la précédente peuvent atterrir après le vidage. Mesuré, et le symptôme était
+  // un faux « gardien muet » où deux cas d'autres fichiers apparaissaient comme
+  // rouges.
+  let derniers = []
 
   const vitest = await createVitest('test', {
     root,
@@ -166,12 +173,14 @@ async function runner() {
     passWithNoTests: true,
     reporters: [
       {
-        onTestCaseResult(cas) {
-          vus.push({
-            nom: `${basename(cas.module.relativeModuleId)} > ${cas.fullName}`,
-            rouge: cas.result().state === 'failed',
-            erreurs: (cas.result().errors ?? []).map((une) => une.message ?? '').join('\n'),
-          })
+        onTestRunEnd(modules) {
+          derniers = modules.flatMap((un) =>
+            un.children.allTests().map((cas) => ({
+              nom: `${basename(un.relativeModuleId)} > ${cas.fullName}`,
+              rouge: cas.result().state === 'failed',
+              erreurs: (cas.result().errors ?? []).map((une) => une.message ?? '').join('\n'),
+            })),
+          )
         },
       },
     ],
@@ -190,17 +199,16 @@ async function runner() {
 
     // Les cas d'un fichier nommé, ou tous ceux hors navigateur.
     async lance(fichier) {
-      vus.length = 0
-
       const choisis = fichier
         ? specs.filter((one) => one.moduleId.endsWith(`/${fichier}`))
         : rapides
 
       if (choisis.length === 0) return undefined
 
+      derniers = []
       await vitest.runTestSpecifications(choisis)
 
-      return [...vus]
+      return derniers
     },
   }
 }
