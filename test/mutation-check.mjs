@@ -158,13 +158,16 @@ const vp = process.env.VP_BIN ?? 'vp'
 // séparateur `>` que vitest colorise ne se comparait plus au texte du catalogue.
 // Ici, `fullName` se compare par égalité.
 async function runner() {
-  // Les cas de la **dernière** exécution, rendus par `onTestRunEnd`, qui reçoit
-  // les modules de cette exécution-là.
+  // Les cas de la dernière exécution.
   //
-  // Un tableau partagé vidé entre deux exécutions ne suffit pas : les rappels de
-  // la précédente peuvent atterrir après le vidage. Mesuré, et le symptôme était
-  // un faux « gardien muet » où deux cas d'autres fichiers apparaissaient comme
-  // rouges.
+  // Vidé avant, et l'exécution est attendue jusqu'à sa fin : sans cette attente,
+  // des rappels de l'exécution précédente atterrissaient après le vidage, et deux
+  // cas d'autres fichiers apparaissaient comme rouges. Le symptôme était un faux
+  // « gardien muet ». Mesuré.
+  //
+  // `onTestRunEnd` ne convient pas : il ne se déclenche pas à chaque exécution
+  // ciblée, donc rien n'était collecté et tout paraissait « MANQUÉ ». Mesuré
+  // aussi.
   let derniers = []
 
   const vitest = await createVitest('test', {
@@ -173,14 +176,12 @@ async function runner() {
     passWithNoTests: true,
     reporters: [
       {
-        onTestRunEnd(modules) {
-          derniers = modules.flatMap((un) =>
-            un.children.allTests().map((cas) => ({
-              nom: `${basename(un.relativeModuleId)} > ${cas.fullName}`,
-              rouge: cas.result().state === 'failed',
-              erreurs: (cas.result().errors ?? []).map((une) => une.message ?? '').join('\n'),
-            })),
-          )
+        onTestCaseResult(cas) {
+          derniers.push({
+            nom: `${basename(cas.module.relativeModuleId)} > ${cas.fullName}`,
+            rouge: cas.result().state === 'failed',
+            erreurs: (cas.result().errors ?? []).map((une) => une.message ?? '').join('\n'),
+          })
         },
       },
     ],
@@ -207,6 +208,7 @@ async function runner() {
 
       derniers = []
       await vitest.runTestSpecifications(choisis)
+      await vitest.waitForTestRunEnd()
 
       return derniers
     },
