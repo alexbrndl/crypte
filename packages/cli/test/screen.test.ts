@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { chromium, type Browser, type Frame, type Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { startDev, type Started } from '../src/dev'
+import { storyFilesOf } from '../src/manifest'
 
 // Ce que l'utilisateur voit vraiment, dans un navigateur. Les autres cas
 // prouvent que les routes répondent ; ceux-ci prouvent qu'une story s'affiche,
@@ -77,6 +78,15 @@ describe('l’écran', () => {
     // rougissent pour une raison qui n'est pas la leur. Mesuré, avec un plugin
     // React déclaré par le projet.
     await fetch(`${origin}/@crypte/preview.js`)
+
+    // Et les modules que le navigateur va importer. L'entrée seule ne fait pas
+    // découvrir `react` ni `react-dom` à l'optimiseur : il les trouvait pendant
+    // les cas, réécrivait ses paquets avec une nouvelle empreinte, et le
+    // navigateur restait sur un graphe dont les URL avaient disparu. Mesuré,
+    // « react-dom.js does not provide an export named 't' » et une preview vide.
+    for (const file of storyFilesOf(started.held.catalogue)) {
+      await fetch(`${origin}/${file}`)
+    }
 
     browser = await chromium.launch()
     page = await browser.newPage()
