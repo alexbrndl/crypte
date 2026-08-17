@@ -129,7 +129,10 @@ function nomme(mutation, cas) {
   if (!cas.rouge) return false
   if (mutation.dans && !cas.nom.startsWith(`${mutation.dans} > `)) return false
 
-  return cas.nom.includes(mutation.attendu)
+  // Le titre du cas, ou son message d'échec : trois entrées citent ce que
+  // l'assertion écrit et non le nom du cas. Le message vient de l'objet
+  // d'erreur, pas de la sortie du terminal.
+  return cas.nom.includes(mutation.attendu) || cas.erreurs.includes(mutation.attendu)
 }
 
 // Rend le succès et la sortie. Un lancement impossible n'est pas un échec de
@@ -167,6 +170,7 @@ async function runner() {
           vus.push({
             nom: `${basename(cas.module.relativeModuleId)} > ${cas.fullName}`,
             rouge: cas.result().state === 'failed',
+            erreurs: (cas.result().errors ?? []).map((une) => une.message ?? '').join('\n'),
           })
         },
       },
