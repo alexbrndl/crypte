@@ -292,6 +292,14 @@ La seule méthode qui ait fonctionné à chaque fois est de casser ce que le tes
 
 **Ce qui casse si on l'enlève.** Rien immédiatement, et c'est le problème : les garanties se dégraderaient une par une sans qu'aucun test ne rougisse, exactement comme entre la huitième et la neuvième revue.
 
+**Il ne garde pas la porte de pull request, il tourne la nuit.** Son coût est « nombre de garanties × toute la suite », donc il grandit à chaque lot : sept minutes à 98 garanties, plus de vingt à 131, et le job d'intégration continue s'est fait tuer à son budget. La porte, elle, tient en **quatre secondes** : `pack`, `check`, `typecheck` et les 392 tests, cas navigateur compris.
+
+*Ce que ça coûte :* une garantie qui se dégrade est vue le lendemain, pas à la pull request. C'est le prix assumé, et il est petit devant une porte qui prend vingt-cinq minutes ou qui se fait couper.
+
+*Ce qui l'atténue :* `--depuis <ref>` ne garde que les garanties portant sur un fichier du diff, ce qui rend le lancement à la main utile avant une revue. Sur une pull request qui touche un fichier, une dizaine de garanties au lieu de 131.
+
+*Mesuré, et c'est ce qui a tranché :* les tests ne sont pas lents. Le fichier navigateur entier passe en trois secondes. Le temps était **entièrement** dans la multiplication par le catalogue.
+
 **Trois précautions.** Il refuse de tourner sur un arbre non propre, sinon une interruption laisserait des sources mutées sans que git puisse dire lesquelles. Il reconstruit les artefacts en sortant, le test d'isolation les lisant. Et il vérifie lui-même qu'il n'a rien laissé de modifié : en intégration continue il passe après le `git diff --exit-code`, donc personne d'autre ne le ferait.
 
 *La mort brutale est rattrapée par un journal, pas par un signal.* Le script écrit `test/.mutation-inflight.json` avant de muter, avec le chemin et le contenu d'origine, et le retire en restaurant. L'exécution suivante le lit, restaure, et le dit.

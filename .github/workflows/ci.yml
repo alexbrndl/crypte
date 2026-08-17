@@ -56,15 +56,11 @@ jobs:
         run: |
           git ls-files --error-unmatch packages/cli/test/fixture/.crypte/fingerprint.json apps/demo/.crypte/fingerprint.json
           git diff --exit-code
-      # Casse chaque garantie et vérifie que le bon test s'en aperçoit. Après le
-      # git diff, parce qu'il modifie les sources et les restaure. Sur une seule
-      # version : il relance toute la suite une fois par garantie, et ne dépend
-      # pas de Node.
-      - name: Guarantees are actually guarded
-        if: matrix.node == '24'
-        run: node test/mutation-check.mjs
-        env:
-          VP_BIN: vp
+      # Le contrôle de mutation n'est plus ici : son coût est « nombre de
+      # garanties × toute la suite », donc il grandit à chaque lot. Sept minutes
+      # à 98 garanties, plus de vingt à 131, et le job s'est fait tuer. La porte
+      # de pull request tient en quatre secondes sans lui.
+      # Il tourne chaque nuit, dans mutations.yml. Voir docs/internal/architecture.md.
 
   dependency-review:
     if: github.event_name == 'pull_request'
