@@ -742,6 +742,26 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 ---
 
+## 4 quaterdecies. Ce que vitest fait, et que nous écrivions à la main
+
+**Une fixture par cas, pas un `beforeAll` partagé.** `test.extend` monte une copie de projet, un serveur et une page pour chaque cas, et vitest les démonte même si le cas lève.
+
+*Ce que ça a supprimé, mesuré :* dans `hot.test.ts`, deux couplages d'ordre qui étaient **documentés en commentaire faute de savoir les retirer**, sept restaurations de fichier écrites dans le corps des cas, un tableau que six cas comptaient, et vingt-et-un délais en dur. Dans `screen.test.ts`, la dépendance d'ordre des cas d'édition et un helper qui rechargeait la page à la main. Dans `adapter.test.ts`, **trente-deux dossiers temporaires par lancement que personne ne ramassait**.
+
+*Ce que ça a coûté :* rien. `hot.test.ts` passe de 240 à 215 lignes et tourne en 1,3 s ; `screen.test.ts` monte huit serveurs au lieu d'un et tourne en 3,5 s.
+
+**L'ordre des cas est mélangé, celui des fichiers non.** `sequence.shuffle.tests` a fait tomber **six cas sur onze** dans `hot.test.ts` et trois sur huit dans `screen.test.ts` : ces fichiers n'étaient verts que dans un ordre précis, et deux fois cette session un couplage n'a été trouvé que par hasard. Mélanger les fichiers, en revanche, annule l'optimisation qui lance les plus longs d'abord.
+
+**Les cas navigateur sont un projet à part.** Entrelacés avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le même. `sequence.groupOrder` les fait passer après, seuls sur la machine : trois passes vertes contre une sur quatre avant.
+
+**Les réglages sont dans la configuration, plus dans les fichiers.** `testTimeout`, `hookTimeout` et surtout `expect.poll.timeout`, dont **le défaut d'une seconde** était la cause d'une partie de l'instabilité que j'attribuais à la charge.
+
+**Un réessai sur condition, pas un réessai global.** `retry: { condition: /does not provide an export/ }` ne réessaie que pour `DCJ-221`, la réoptimisation de dépendances que la preview ne surmonte pas. Le message remonte dans le diagnostic du cas, donc la condition le voit.
+
+*Ce qui casse si on l'enlève :* les couplages entre cas redeviennent invisibles, et les délais repartent se disperser dans les fichiers, où ils avaient atteint la trentaine.
+
+---
+
 ## 4 terdecies. Le piège de la copie du shell
 
 `packages/cli/test/shell-copy.test.ts` compare la date du plus récent fichier de `apps/shell/src` à celle de la copie dans `packages/cli/dist/shell`.

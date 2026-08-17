@@ -2,8 +2,8 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync }
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Manifest } from '@crypte/core/protocol'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { startDev, type Started } from '../src/dev'
+import { describe, expect, test as base } from 'vitest'
+import { startDev } from '../src/dev'
 import { MANIFEST_ROUTE } from '../src/serve'
 
 // Ce que le serveur fait des fichiers pendant qu'il tourne. Sur une copie de la
@@ -12,61 +12,89 @@ import { MANIFEST_ROUTE } from '../src/serve'
 // La copie reste dans l'espace de travail, pas dans `os.tmpdir()` : hors du
 // dépôt, `crypte.config.ts` ne résout plus `@crypte/cli`. Mesuré.
 //
-// Les attentes sont à trente secondes parce que le surveillant partage la
-// machine : en intégration continue, quatre cœurs pour trente fichiers de test,
-// et trois de ces cas expiraient à dix secondes sans que rien ne soit cassé.
+// **Une copie et un serveur par cas.** Partagés, ils rendaient chaque cas
+// dépendant de ce que ses voisins avaient écrit : le mélange d'ordre a fait
+// tomber six cas sur onze, et deux couplages étaient déjà documentés en
+// commentaire faute de savoir les retirer. Une fixture les supprime tous, et
+// vitest la démonte même si le cas lève.
 // Voir docs/internal/architecture.md.
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), 'fixture')
 
-describe('le catalogue pendant que le serveur tourne', () => {
-  let started: Started
-  let origin: string
-  let root: string
-  const lines: string[] = []
+interface Projet {
+  root: string
+  origin: string
+  // Le catalogue que le serveur retient, pour les cas qui n'ont pas besoin de
+  // passer par la route.
+  retenu: () => string[]
+  // Les identifiants que la route sert maintenant.
+  noms: () => Promise<string[]>
+  // Les entrées du manifeste servies maintenant.
+  entrees: () => Promise<Manifest['entries']>
+  // Ce que le serveur a dit, depuis le démarrage de ce cas.
+  dites: (motif: string) => () => string[]
+}
 
-  beforeAll(async () => {
-    root = mkdtempSync(join(fixture, '..', 'tmp-hot-'))
+const test = base.extend<{ projet: Projet }>({
+  // Le paramètre vide est la forme que vitest lit pour savoir quelles fixtures
+  // initialiser. Le renommer fait collecter zéro test : mesuré. Le lint le
+  // signale, et c'est le seul avertissement que ce dépôt accepte sciemment.
+  projet: async ({}, use) => {
+    const root = mkdtempSync(join(fixture, '..', 'tmp-hot-'))
     cpSync(fixture, root, { recursive: true })
 
-    started = await startDev(root, (line) => lines.push(line))
+    const lines: string[] = []
+    const started = await startDev(root, (line) => lines.push(line))
     await started.server.listen()
 
     const address = started.server.httpServer?.address()
     if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
 
-    origin = `http://localhost:${address.port}`
-  }, 60_000)
+    const origin = `http://localhost:${address.port}`
 
-  afterAll(async () => {
-    await started?.server.close()
-    if (root) rmSync(root, { recursive: true, force: true })
-  })
+    const entrees = async () => {
+      const manifest = (await fetch(`${origin}${MANIFEST_ROUTE}`).then((answer) =>
+        answer.json(),
+      )) as Manifest
 
-  const story = (component: string) =>
-    [
-      `import { ${component} } from '@/components/Badge'`,
-      '',
-      `export default defineStories(${component})`,
-    ].join('\n')
+      return manifest.entries
+    }
 
-  async function names(): Promise<string[]> {
-    const manifest = (await fetch(`${origin}${MANIFEST_ROUTE}`).then((answer) =>
-      answer.json(),
-    )) as Manifest
+    await use({
+      root,
+      origin,
+      retenu: () => started.held.catalogue.manifest.entries.map((entry) => entry.id),
+      noms: async () => (await entrees()).map((entry) => entry.id),
+      entrees,
+      dites: (motif) => {
+        const debut = lines.length
 
-    return manifest.entries.map((entry) => entry.id)
-  }
+        return () => lines.slice(debut).filter((une) => une.includes(motif))
+      },
+    })
 
-  it('sert le catalogue du démarrage', async () => {
-    expect(await names()).toContain('badge--default')
+    await started.server.close()
+    rmSync(root, { recursive: true, force: true })
+  },
+})
+
+const story = (component: string) =>
+  [
+    `import { ${component} } from '@/components/Badge'`,
+    '',
+    `export default defineStories(${component})`,
+  ].join('\n')
+
+describe('le catalogue pendant que le serveur tourne', () => {
+  test('sert le catalogue du démarrage', async ({ projet }) => {
+    expect(await projet.noms()).toContain('badge--default')
   })
 
   // La forme décide du rechargement, jamais de la fraîcheur du catalogue :
   // éditer les props d'une story ne change pas l'arbre, et rendre la main ici
   // servait les props d'avant l'édition. Mesuré.
-  it('sert les props à jour même quand l’arbre ne bouge pas', async () => {
-    const file = join(root, 'stories', 'Badge.js')
+  test('sert les props à jour même quand l’arbre ne bouge pas', async ({ projet }) => {
+    const file = join(projet.root, 'stories', 'Badge.js')
     const before = readFileSync(file, 'utf8')
 
     writeFileSync(
@@ -78,162 +106,129 @@ describe('le catalogue pendant que le serveur tourne', () => {
     )
 
     await expect
-      .poll(
-        async () => {
-          const manifest = (await fetch(`${origin}${MANIFEST_ROUTE}`).then((answer) =>
-            answer.json(),
-          )) as Manifest
-
-          return manifest.entries.find((entry) => entry.id === 'badge--default')?.props ?? []
-        },
-        { timeout: 30_000 },
-      )
+      .poll(async () => (await projet.entrees()).find((one) => one.id === 'badge--default')?.props)
       .toContain('tone')
+  })
 
-    writeFileSync(file, before)
-  }, 60_000)
+  // Vite ne surveille que les fichiers de son graphe de modules : la
+  // surveillance est donc la nôtre, et elle suit le chemin qu'on lui donne,
+  // lien symbolique compris.
+  test('reconstruit sur une racine derrière un lien symbolique', async ({ projet }) => {
+    const link = `${projet.root}-lien`
+    symlinkSync(projet.root, link)
 
-  // Chokidar suit les liens et rend le chemin réel. Sans cette forme dans le
-  // filtre, une racine derrière un lien ne reconstruit jamais, sans un mot :
-  // mesuré, la story ajoutée n'arrivait pas.
-  it('reconstruit sur une racine derrière un lien symbolique', { timeout: 30_000 }, async () => {
-    const link = join(fixture, '..', 'tmp-hot-lien')
-    rmSync(link, { force: true })
-    symlinkSync(root, link)
-
-    const behind = await startDev(link)
-    await behind.server.listen()
+    const derriere = await startDev(link)
+    await derriere.server.listen()
 
     try {
       writeFileSync(join(link, 'stories', 'Liee.js'), story('Badge'))
 
       await expect
-        .poll(() => behind.held.catalogue.manifest.entries.map((entry) => entry.id), {
-          timeout: 15_000,
-        })
+        .poll(() => derriere.held.catalogue.manifest.entries.map((one) => one.id))
         .toContain('liee--default')
     } finally {
-      await behind.server.close()
-      rmSync(join(root, 'stories', 'Liee.js'), { force: true })
+      await derriere.server.close()
       rmSync(link, { force: true })
     }
   })
 
-  // À partir d'ici les cas écrivent, et l'ordre compte : chaque écriture laisse
-  // une reconstruction en cours, qui peut atterrir pendant le cas suivant. Ceux
-  // qui lisent le catalogue tel qu'il est au démarrage passent donc devant.
-
   // Un fichier que le lecteur cesse de lire disparaît de l'arbre, et l'écran se
   // recharge : sans une ligne, l'auteur voit sa story partir sans savoir
   // pourquoi. C'est le silence que le lot 4 a fermé, rouvert par l'édition.
-  it('dit ce qu’un fichier de story a cessé de produire', async () => {
-    writeFileSync(join(root, 'stories', 'Muette.js'), 'export default 12')
+  test('dit ce qu’un fichier de story a cessé de produire', async ({ projet }) => {
+    const muettes = projet.dites('Muette.js')
 
-    await expect
-      .poll(() => lines.filter((line) => line.includes('Muette.js')), { timeout: 30_000 })
-      .not.toEqual([])
+    writeFileSync(join(projet.root, 'stories', 'Muette.js'), 'export default 12')
 
-    rmSync(join(root, 'stories', 'Muette.js'))
-  }, 60_000)
+    await expect.poll(muettes).not.toEqual([])
+  })
 
   // Répétée à chaque frappe, la liste entière enterrerait ce qui vient
   // d'apparaître.
-  it('ne répète pas ce qu’il a déjà dit', async () => {
-    writeFileSync(join(root, 'stories', 'Muette.js'), 'export default 12')
-    await expect
-      .poll(() => lines.filter((line) => line.includes('Muette.js')).length, { timeout: 30_000 })
-      .toBe(1)
+  test('ne répète pas ce qu’il a déjà dit', async ({ projet }) => {
+    const muettes = projet.dites('Muette.js')
 
-    writeFileSync(join(root, 'stories', 'Autre.js'), story('Badge'))
-    await expect.poll(names, { timeout: 30_000 }).toContain('autre--default')
+    writeFileSync(join(projet.root, 'stories', 'Muette.js'), 'export default 12')
+    await expect.poll(() => muettes().length).toBe(1)
 
-    expect(lines.filter((line) => line.includes('Muette.js'))).toHaveLength(1)
+    writeFileSync(join(projet.root, 'stories', 'Autre.js'), story('Badge'))
+    await expect.poll(projet.noms).toContain('autre--default')
 
-    rmSync(join(root, 'stories', 'Muette.js'))
-    rmSync(join(root, 'stories', 'Autre.js'))
-  }, 60_000)
+    expect(muettes()).toHaveLength(1)
+  })
 
   // Une ligne qui reste dite pour toujours laisse la deuxième occurrence de la
   // même faute passer en silence, ce qui est le silence que ce lot ferme.
-  it('redit ce qu’un fichier réparé casse à nouveau', async () => {
-    const cassee = join(root, 'stories', 'Reparee.js')
+  test('redit ce qu’un fichier réparé casse à nouveau', async ({ projet }) => {
+    const reparees = projet.dites('Reparee.js')
+    const cassee = join(projet.root, 'stories', 'Reparee.js')
 
     writeFileSync(cassee, 'export default 12')
-    await expect
-      .poll(() => lines.filter((line) => line.includes('Reparee.js')).length, { timeout: 30_000 })
-      .toBe(1)
+    await expect.poll(() => reparees().length).toBe(1)
 
     writeFileSync(cassee, story('Badge'))
-    await expect.poll(names, { timeout: 30_000 }).toContain('reparee--default')
+    await expect.poll(projet.noms).toContain('reparee--default')
 
     writeFileSync(cassee, 'export default 12')
-    await expect
-      .poll(() => lines.filter((line) => line.includes('Reparee.js')).length, { timeout: 30_000 })
-      .toBe(2)
-
-    rmSync(cassee)
-  }, 60_000)
+    await expect.poll(() => reparees().length).toBe(2)
+  })
 
   // Reconstruire lève ici, donc rien ne remplace le catalogue : le dire est la
   // différence entre un arbre qui ne bouge plus et un arbre qui explique.
-  it('dit qu’une reconstruction a échoué', async () => {
-    writeFileSync(join(root, 'stories', 'Badge.jsx'), story('Badge'))
+  test('dit qu’une reconstruction a échoué', async ({ projet }) => {
+    const echecs = projet.dites('keeping the last good one')
 
-    await expect
-      .poll(() => lines.filter((line) => line.includes('keeping the last good one')), {
-        timeout: 30_000,
-      })
-      .not.toEqual([])
+    writeFileSync(join(projet.root, 'stories', 'Badge.jsx'), story('Badge'))
 
-    rmSync(join(root, 'stories', 'Badge.jsx'))
-  }, 60_000)
+    await expect.poll(echecs).not.toEqual([])
+  })
 
   // La route lit le catalogue à chaque requête. Capturé au démarrage, il
   // laisserait le shell sur l'arbre d'il y a une heure.
-  it('fait apparaître un fichier de story ajouté', { timeout: 60_000 }, async () => {
-    writeFileSync(join(root, 'stories', 'Ajoutee.js'), story('Badge'))
+  test('fait apparaître un fichier de story ajouté', async ({ projet }) => {
+    writeFileSync(join(projet.root, 'stories', 'Ajoutee.js'), story('Badge'))
 
-    await expect.poll(names, { timeout: 30_000 }).toContain('ajoutee--default')
+    await expect.poll(projet.noms).toContain('ajoutee--default')
   })
 
-  it('fait disparaître un fichier de story retiré', { timeout: 60_000 }, async () => {
-    rmSync(join(root, 'stories', 'Ajoutee.js'))
+  test('fait disparaître un fichier de story retiré', async ({ projet }) => {
+    const partante = join(projet.root, 'stories', 'Partante.js')
 
-    await expect.poll(names, { timeout: 30_000 }).not.toContain('ajoutee--default')
+    writeFileSync(partante, story('Badge'))
+    await expect.poll(projet.noms).toContain('partante--default')
+
+    rmSync(partante)
+
+    await expect.poll(projet.noms).not.toContain('partante--default')
   })
 
   // Deux fichiers du même dossier au même nom de base portent le même
   // identifiant, ce qu'un `crypte dev` rencontre pendant qu'on convertit un
   // fichier. La reconstruction lève, et garder le dernier catalogue bon est la
   // différence entre une sauvegarde qui clignote et un serveur qui s'arrête.
-  it('garde le catalogue quand la reconstruction échoue', async () => {
-    const before = await names()
+  test('garde le catalogue quand la reconstruction échoue', async ({ projet }) => {
+    const before = await projet.noms()
+    const echecs = projet.dites('keeping the last good one')
 
-    const dites = lines.length
-
-    writeFileSync(join(root, 'stories', 'Badge.jsx'), story('Badge'))
+    writeFileSync(join(projet.root, 'stories', 'Badge.jsx'), story('Badge'))
 
     // La ligne d'échec plutôt qu'un délai : sous charge, une attente plate
     // laisserait le cas conclure avant que la reconstruction ait eu lieu.
-    await expect
-      .poll(() => lines.slice(dites).some((line) => line.includes('keeping the last good one')), {
-        timeout: 15_000,
-      })
-      .toBe(true)
+    await expect.poll(() => echecs().length).toBeGreaterThan(0)
 
-    expect(await names()).toEqual(before)
-
-    rmSync(join(root, 'stories', 'Badge.jsx'))
+    expect(await projet.noms()).toEqual(before)
   })
 
   // Le module virtuel de l'entrée nomme ses imports un par un : sans
   // invalidation il resservirait la liste d'avant, donc une story visible dans
   // l'arbre et introuvable au rendu.
-  it('réécrit l’entrée de la preview après un ajout', { timeout: 60_000 }, async () => {
-    writeFileSync(join(root, 'stories', 'Tardive.js'), story('Badge'))
-    await expect.poll(names, { timeout: 30_000 }).toContain('tardive--default')
+  test('réécrit l’entrée de la preview après un ajout', async ({ projet }) => {
+    writeFileSync(join(projet.root, 'stories', 'Tardive.js'), story('Badge'))
+    await expect.poll(projet.noms).toContain('tardive--default')
 
-    const source = await fetch(`${origin}/@crypte/preview.js`).then((answer) => answer.text())
+    const source = await fetch(`${projet.origin}/@crypte/preview.js`).then((answer) =>
+      answer.text(),
+    )
 
     expect(source).toContain('Tardive.js')
   })

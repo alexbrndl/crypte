@@ -35,7 +35,45 @@ export default defineConfig({
     singleQuote: true,
     semi: false,
   },
-  test: {},
+  test: {
+    // Les délais vivaient dans les fichiers, recopiés une trentaine de fois.
+    // Ici, ils se lisent d'un endroit et se changent d'un endroit.
+    testTimeout: 20_000,
+    hookTimeout: 30_000,
+
+    // Le défaut d'`expect.poll` est d'une seconde, ce qui ne suffit pas quand on
+    // attend un serveur, un rendu React ou un rechargement à chaud. Réglé ici,
+    // il cesse d'être recopié une trentaine de fois dans les fichiers.
+    expect: { poll: { timeout: 10_000 } },
+
+    // L'ordre des cas est mélangé, jamais celui des fichiers : mélanger les
+    // fichiers annule l'optimisation qui lance les plus longs d'abord.
+    //
+    // Deux couplages entre cas nous ont coûté des heures et n'ont été trouvés
+    // que par hasard : un cas qui supprimait ce que le précédent avait écrit, et
+    // un autre qui lisait un compteur rempli par ses voisins. La graine est
+    // imprimée par vitest, donc un échec se rejoue par `--sequence.seed`.
+    sequence: { shuffle: { tests: true, files: false } },
+
+    // Deux projets, parce que les cas navigateur ne sont pas du même genre. Ils
+    // montent une copie de projet, un serveur et une page par cas ; entrelacés
+    // avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le
+    // même. `groupOrder` les fait passer après, seuls sur la machine.
+    projects: [
+      {
+        extends: true,
+        test: { name: 'unité', exclude: ['**/node_modules/**', '**/screen.test.ts'] },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'écran',
+          include: ['**/screen.test.ts'],
+          sequence: { groupOrder: 1 },
+        },
+      },
+    ],
+  },
   staged: {
     // Toutes les extensions que le formateur traite réellement : un .md hors du motif
     // est passé en commit sans être vérifié, ce qui est la raison d'être de ce bloc.
