@@ -15,7 +15,36 @@ import { argv } from 'node:process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const mutations = JSON.parse(readFileSync(join(root, 'test', 'mutations.json'), 'utf8'))
+const catalogue = JSON.parse(readFileSync(join(root, 'test', 'mutations.json'), 'utf8'))
+
+// Le catalogue entier, ou seulement les garanties dont le fichier a changé. Son
+// coût est « nombre de garanties × toute la suite », donc il grandit à chaque
+// lot : 7 minutes à 98 garanties, plus de 20 à 131, et le job d'intégration
+// continue s'est fait tuer. Une pull request ne touche pourtant que quelques
+// fichiers.
+//
+// `--depuis <ref>` ne garde que les garanties portant sur un fichier du diff.
+// Sans argument, tout, ce qui reste le régime de la tâche de nuit et de la main.
+function selected() {
+  const marque = argv.indexOf('--depuis')
+  if (marque === -1) return { mutations: catalogue, depuis: undefined }
+
+  const depuis = argv[marque + 1]
+  if (!depuis) throw new Error('`--depuis` attend une référence git')
+
+  const changed = new Set(
+    execFileSync('git', ['diff', '--name-only', `${depuis}...HEAD`], {
+      cwd: root,
+      encoding: 'utf8',
+    })
+      .split('\n')
+      .filter(Boolean),
+  )
+
+  return { mutations: catalogue.filter((one) => changed.has(one.fichier)), depuis }
+}
+
+const { mutations, depuis } = selected()
 
 // Rend le succès et la sortie. Un lancement impossible n'est pas un échec de
 // vérification : le confondre avec un test rouge ferait passer toute mutation
@@ -145,9 +174,20 @@ function sample(output) {
 function main() {
   // Un catalogue vide annonçait « 0 garanties, toutes gardées », qui se lit comme
   // un succès. Rien à vérifier n'est un état à signaler, pas à approuver.
-  if (mutations.length === 0) {
+  if (catalogue.length === 0) {
     console.error('Catalogue vide : ce contrôle n’aurait rien à vérifier.')
     process.exit(1)
+  }
+
+  // Une sélection vide est en revanche un résultat : ce diff ne touche aucun
+  // fichier qui porte une garantie.
+  if (mutations.length === 0) {
+    console.log(`Aucune garantie ne porte sur un fichier changé depuis ${depuis}.`)
+    return
+  }
+
+  if (depuis) {
+    console.log(`${mutations.length} garantie(s) sur ${catalogue.length}, limitées au diff.`)
   }
 
   // Avant le contrôle d'arbre propre : une source laissée mutée par une exécution
