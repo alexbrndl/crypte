@@ -280,93 +280,41 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 ---
 
-## 4 bis. Le contrôle de mutation
+## 4 bis. La couverture, et ce qu'elle a remplacé
 
-`test/mutation-check.mjs` casse chaque garantie du protocole, une par une, et vérifie qu'au moins un test s'en aperçoit. Le catalogue est dans `test/mutations.json`, une entrée par constat de revue réel.
+`vp test --coverage` mesure ce que les tests exécutent réellement. Les seuils sont dans `vite.config.ts`, au plancher mesuré : 96 % des instructions, 88 % des branches, 96 % des fonctions, 97 % des lignes.
 
-**Pourquoi il existe.** Sur les cinquante-trois constats des neuf revues du lot 2, sept portaient sur un test qui passait pour la mauvaise raison, et quatre sur une garantie tenue par le code mais gardée par aucun test. C'est la première cause de défaut du dépôt, très loin devant les bugs de comportement, qui sont deux.
+**Pourquoi elle existe.** Elle répond à la seule des trois questions du contrôle de mutation qu'aucune relecture ne voit : *ce code est-il exécuté par quelqu'un ?* Le premier lancement a trouvé, en cinq secondes, deux endroits que 131 garanties n'avaient jamais signalés.
 
-La seule méthode qui ait fonctionné à chaque fois est de casser ce que le test surveille et de le voir rougir. Faite à la main, elle dépend de l'attention de qui écrit, laquelle a failli à chaque tour. Ce script la rend exécutable.
+- **L'adaptateur React à 0 %.** `packages/react/src/index.ts`, le fichier publié qui monte les composants, n'était exécuté par aucun test. Ses seules preuves étaient deux cas navigateur, à travers toute la pile. Il a maintenant neuf cas dans un DOM, dont la relance de l'erreur d'un composant qui ne rend pas, mesurée en navigateur et écrite en commentaire depuis des semaines sans être éprouvée.
+- **L'entrée du CLI à 0 %.** `--version`, l'aide qui porte le numéro de protocole, la racine par défaut, et le code de sortie 1 d'une erreur de configuration : rien ne les éprouvait. La décision de la commande vit désormais dans `cli.ts`, atteignable sans lancer un processus ; `index.ts` n'est plus que quatre lignes de câblage.
+- **La commande `dev` elle-même**, dont les lignes de démarrage (le compte de stories, les fichiers laissés de côté, l'échec d'écriture du manifeste) n'étaient jamais exécutées.
 
-**Ce qu'il a trouvé le jour de son écriture.** Une correction annoncée deux revues plus tôt, `NonNullable` dans le filtre des messages, n'avait jamais été appliquée : le remplacement visait une forme multiligne que le formateur avait condensée, et n'a donc rien remplacé, sans rien signaler.
+**Trois fichiers sont exclus, et nommément.** L'entrée du CLI qui appelle `run`, le montage du shell, et un module de types dont il ne reste qu'une constante à l'exécution. Rien d'autre : une exclusion est une garantie qu'on retire.
 
-**Ce qui casse si on l'enlève.** Rien immédiatement, et c'est le problème : les garanties se dégraderaient une par une sans qu'aucun test ne rougisse, exactement comme entre la huitième et la neuvième revue.
+**Le seuil monte, il ne descend pas.** Un seuil qu'on baisse pour faire passer un lot ne garde plus rien. Il est au plancher mesuré pour que la première régression le franchisse.
 
-**Il ne garde pas la porte de pull request, il tourne la nuit.** Son coût est « nombre de garanties × toute la suite », donc il grandit à chaque lot : sept minutes à 98 garanties, plus de vingt à 131, et le job d'intégration continue s'est fait tuer à son budget. La porte, elle, tient en **quatre secondes** : `pack`, `check`, `typecheck` et les 392 tests, cas navigateur compris.
+*Ce qui casse si on l'enlève :* du code publié cesse d'être exécuté par les tests sans que rien ne le dise, ce qui est exactement l'état dans lequel l'adaptateur React a vécu tout le projet.
 
-*Ce que ça coûte :* une garantie qui se dégrade est vue le lendemain, pas à la pull request. C'est le prix assumé, et il est petit devant une porte qui prend vingt-cinq minutes ou qui se fait couper.
-
-*Ce qui l'atténue :* `--depuis <ref>` sélectionne les garanties que le diff concerne, et c'est la commande à lancer avant une revue. Mesuré : un diff d'un seul commit en sélectionne **3 sur 131**.
-
-*Trois raisons de retenir une garantie*, et elles couvrent les trois façons de la rendre muette : son fichier a changé, son gardien a changé, ou un fichier dont son fichier dépend a changé.
-
-**Le gardien se nomme de deux façons, et les deux comptent.** `attendu` peut commencer par un fichier de test, ou le fichier vit dans `dans`. La première version ne lisait que `attendu` : en convertissant `project.test.ts` en fixtures, la sélection a retenu **une garantie sur les neuf** que ce fichier garde, les huit autres nommant leur gardien dans `dans`. Le graphe d'imports est **calculé au lancement, jamais commité** : sur le disque, il deviendrait un troisième artefact à garder frais à côté du manifeste et de l'empreinte, et ces deux-là ont déjà coûté une mutation partie dans un commit.
-
-*Pourquoi la porte de pull request ne s'en sert pas :* sur une pull request qui touche beaucoup de fichiers, la sélection remonte à 58 garanties, donc le problème revient. Une porte dont le coût dépend de la taille du diff se remet à dépasser son budget le jour où le diff est gros.
-
-*Mesuré, et c'est ce qui a tranché :* les tests ne sont pas lents. Le fichier navigateur entier passe en trois secondes. Le temps était **entièrement** dans la multiplication par le catalogue.
-
-**Trois précautions.** Il refuse de tourner sur un arbre non propre, sinon une interruption laisserait des sources mutées sans que git puisse dire lesquelles. Il reconstruit les artefacts en sortant, le test d'isolation les lisant. Et il vérifie lui-même qu'il n'a rien laissé de modifié : en intégration continue il passe après le `git diff --exit-code`, donc personne d'autre ne le ferait.
-
-*La mort brutale est rattrapée par un journal, pas par un signal.* Le script écrit `test/.mutation-inflight.json` avant de muter, avec le chemin et le contenu d'origine, et le retire en restaurant. L'exécution suivante le lit, restaure, et le dit.
-
-*Pourquoi pas un gestionnaire de signal.* La boucle est synchrone : `execFileSync` bloque presque tout le temps, donc le gestionnaire ne s'exécute jamais. L'enregistrer nuit même, puisque cela désactive l'interruption par défaut et rend le script impossible à arrêter au clavier. C'était déjà écrit ici, et une version l'a réessayé quand même avant de le mesurer : tué par `pkill`, le fichier restait muté.
-
-*Ce qui casse si on l'enlève.* Un contrôle tué par un délai laisse une source mutée dans l'arbre. Le contrôle d'arbre propre la signale au prochain lancement, mais entre les deux, un `git add -A` la commite. **Mesuré au lot 5b, sur ce dépôt : `if (false) return null` est arrivé dans un commit de cette façon**, et n'a été vu qu'en comparant le fichier restauré à `HEAD`.
-
-*Une construction en échec interrompt le tour* plutôt que de laisser les tests lire les artefacts précédents, ce qui accuserait une garantie pourtant gardée.
-
-**Il compare sur une sortie sans couleurs.** En intégration continue, vitest colorise, et le `>` qui sépare le fichier du nom de test se retrouve enveloppé de codes d'échappement : `channel.test.ts > un aller-retour` n'apparaît alors jamais tel quel. Trois entrées ont été déclarées **vues par autre chose que leur gardien**, vertes en local et rouges en CI. Le contrôle retire donc les couleurs avant de chercher.
-
-Le verdict ne pouvait pas être « n'est gardée par rien » : celui-là ne dépend que des codes de sortie, que la colorisation ne change pas. Seule la comparaison au gardien attendu lit du texte, donc elle seule était exposée.
-
-*Ce que ça a appris :* un verdict « vue par autre chose » ne disait pas ce qui avait rougi à la place, donc ne se diagnostiquait pas. Il en donne maintenant les trois premières lignes, et c'est ce qui a permis de voir les codes d'échappement.
-
-**Il exige que ce soit le bon gardien qui rougisse.** Chaque entrée nomme ce qui doit apparaître dans la sortie d'échec. Sans cela, une mutation vue par un test sans rapport laisserait croire que la garantie tient, alors que celui qui la porte est muet : c'est « un test passe pour la mauvaise raison » transposé à l'outil censé le détecter. À l'ajout de ce contrôle, deux entrées sur neuf se sont révélées mal attribuées.
-
-**Ce qu'il ne couvre pas.** Seulement les garanties qu'on a pensé à y mettre : il empêche un défaut trouvé de revenir, il n'en trouve pas de nouveau. Le contrôle de la spécification, lui, ne descend pas plus bas que le champ : il voit un champ absent, pas une phrase fausse à côté d'un champ présent.
+**Ce qu'elle ne dit pas.** Qu'une ligne exécutée est *vérifiée*. Un test qui appelle une fonction sans rien affirmer la couvre à 100 %. C'est la raison des instantanés : `toMatchInlineSnapshot` fixe le message entier, là où un `toContain('champ')` passait sur une phrase à moitié fausse. Les deux ensemble, exécution mesurée et assertion exacte, couvrent ce que le contrôle de mutation cherchait ; ni l'un ni l'autre ne le remplace seul.
 
 ---
 
-## 4 bis bis. Le catalogue de mutations se périme
+## 4 bis bis. Le contrôle de mutation, et pourquoi il n'est plus là
 
-`test/mutations.test.mjs` vérifie que chaque motif `avant` apparaît **exactement une fois** dans son fichier, que la mutation change vraiment le code, et que chaque garantie nomme un test attendu et une origine.
+`test/mutation-check.mjs` cassait chaque garantie du dépôt, une par une, et vérifiait qu'un test nommé s'en apercevait. Le catalogue, `test/mutations.json`, portait **131 entrées**, une par constat de revue réel. Un second fichier, `test/mutations.test.mjs`, vérifiait que le catalogue ne se périmait pas : un contrôle du contrôle.
 
-*Pourquoi ça existe :* le catalogue cite du code par son texte, donc toute refonte le périme en silence. Le contrôle de mutation le dit, mais il coûte quatre minutes ; ces cas le disent en une seconde, avant le commit.
+**Ce qu'il a apporté, et il faut le dire.** Sur les cinquante-trois constats des neuf revues du lot 2, sept portaient sur un test qui passait pour la mauvaise raison et quatre sur une garantie gardée par aucun test : c'était la première cause de défaut du dépôt. Le jour de son écriture, il a trouvé une correction annoncée deux revues plus tôt qui n'avait jamais été appliquée. Sur 131 garanties, 121 portaient sur du code produit et 66 sur 75 des constats de revue étaient de vrais défauts.
 
-**Deux voies, et quatre-vingt-quatre garanties sur quatre-vingt-treize portent une cible.**
+**Pourquoi il part.** Son coût était « nombre de garanties × toute la suite », donc il grandissait à chaque lot : 7 minutes à 98 garanties, plus de 20 à 131, un job d'intégration continue tué à son budget, puis un déplacement en tâche de nuit. Trois artefacts à garder frais (le catalogue, son test de péremption, le journal de mort brutale), une source mutée partie dans un commit, et une porte de pull request qui tient en quatre secondes sans lui.
 
-*La voie rapide* lance le seul fichier de test que la garantie nomme. Si ce fichier rougit et que le cas attendu apparaît dans sa sortie, c'est fini : ni suite complète, ni `vp check`. La raison tient en une phrase : si le cas attendu rougit, la garantie est tenue quoi qu'en dise le lint.
+Surtout : il traitait le symptôme. Un test qui passe pour la mauvaise raison est un test mal écrit, et le catalogue le compensait entrée par entrée au lieu de corriger le style. Les conversions de cette session, instantanés au lieu de sous-chaînes, fixtures au lieu d'échafaudage, ordre mélangé, couverture mesurée, corrigent la cause.
 
-*La voie lente* ne sert plus qu'aux garanties dont la voie rapide n'a pas conclu, et c'est là que se décide « vue ailleurs ». Ce diagnostic vaut son prix : il a attrapé une mutation vue par la colorisation de vitest, et une autre vue par le formateur parce qu'elle laissait une indentation fausse.
+**L'audit de sortie.** Le contrôle a été lancé une dernière fois en entier avant d'être supprimé, et le verdict est consigné : c'est le dernier service qu'il pouvait rendre, et il vaut mieux qu'un abandon en silence.
 
-*Deux garde-fous.* Un filtre qui ne correspond à rien fait sortir vitest en échec, ce qui se lirait comme une mutation vue : le script reconnaît son message pour retomber sur la voie lente. Et neuf garanties ne nomment aucun fichier, dont quatre citent un code d'erreur TypeScript que seul `vp check` attrape : elles vont directement en voie lente.
+*Ce qui est perdu, et assumé :* une garantie précise ne se vérifie plus par exécution. Ce qui reste à sa place est l'ensemble des tests qu'elle a fait écrire, la couverture qui dit qu'ils exécutent le code, et les instantanés qui disent qu'ils l'affirment en entier. Si un défaut de la classe « test muet » revient, la réponse est un test, pas un catalogue.
 
-*Un gardien purement compilatoire ne reçoit pas de cible.* `vp test` ne vérifie pas les types, donc un `satisfies` ou un `@ts-expect-error` ne fait jamais rougir son fichier : lui donner une cible ferait payer la voie rapide **en plus** de la voie lente. Deux garanties du canal sont dans ce cas.
-
-*Le champ `dans`* nomme le fichier quand `attendu` cite un titre sans lui. Préfixer `attendu` ne marcherait pas : il est cherché comme sous-chaîne dans une sortie où vitest écrit `fichier > describe > cas`.
-
-*Le seul mode d'échec de ce raccourci est gardé par des cas, pas par une sonde.* Une garantie dont le cas attendu ne rougit pas doit rester signalée, jamais conclue « vu ». La décision vit dans `concludes`, exportée, et `mutations.test.mjs` la couvre : fichier qui passe, filtre sans correspondance, autre cas du même fichier qui a rougi. Deux garanties du catalogue la cassent pour vérifier que ces cas rougissent. Une sonde avait d'abord mesuré la même chose une fois, mais une mesure ponctuelle ne survit pas au remaniement suivant.
-
-*Le contrôle positif lance aussi chaque cible seule.* La voie rapide ajoute une précondition que la suite entière ne couvre pas : un fichier devenu dépendant de l'ordre rougirait sans mutation, son cas attendu apparaîtrait dans sa sortie, et toutes les garanties qui le nomment seraient conclues « vu » sur un gardien muet. C'est la panne même pour laquelle ce contrôle positif existe. Une quinzaine de démarrages de vitest, contre les soixante secondes de plancher déjà assumées.
-
-*Le script est une fonction gardée*, comme `changeset-check.mjs` et `post-review.mjs` : sans ça, importer le module pour en tester une fonction lancerait les quatre-vingt-douze mutations.
-
-*Chronométré en local.* **4 min 10 s pour 90 garanties avant, 2 min 21 s pour 92 après**, soit 1,8 fois moins. Les quatre-vingt-quatre cités plus haut sont les garanties qui **portent** une cible, pas celles qui concluent : un gardien peut rougir sur un autre cas de son fichier, et la voie lente reprend alors la main.
-
-Le calcul par mutation : `pack` 30 ms partout, puis 0,9 s sur la voie rapide contre 3,7 s sur la lente, `test` et `check` compris. Les seize cibles distinctes lancées seules par le contrôle positif coûtent 24 s de ce total, et c'est ce qu'achète la fermeture du trou décrit ci-dessous.
-
-Le plancher est le démarrage de vitest, environ 0,7 s par lancement, donc plus d'une minute pour quatre-vingt-douze garanties quoi qu'on fasse d'autre.
-
-En intégration continue, mesuré sur le job entier, `install` et construction comprises : **12 min 2 avant, 5 min 45 après**. L'extrapolation faite depuis le rapport local sur distant annonçait 7 min et était donc pessimiste, ce qui est la raison de citer la mesure et non le calcul. `DCJ-216` visait moins de 3 min : ce n'est pas atteint, et ça demanderait de muter en mémoire plutôt qu'un processus par garantie. Le délai du job est redescendu de 30 à 20 min, qui laisse le double du temps observé.
-
-*Ce qui casse si on l'enlève :* une garantie dont le motif a disparu ne casse plus rien, donc elle ne surveille plus rien, et le catalogue continue d'annoncer son compte. Mesuré sur le lot 4 : cinq refontes, sept motifs périmés. Les cinq premiers ont coûté un contrôle complet chacun ; les deux derniers ont été vus par ce test, en quelques millisecondes.
-
-Trois modes de péremption, et les deux derniers sont les sournois.
-
-Le motif **disparaît**, et le contrôle le signale clairement. Ou le motif devient **ambigu**, parce qu'un second endroit du fichier porte le même texte : `shadowed` a réutilisé le test de clé de `propertyOf`, et le motif court s'est mis à correspondre deux fois. Ou le **cas attendu** est renommé, et la garantie n'attend plus rien : c'est ce que `DCJ-210` s'apprête à faire sur 183 noms de tests.
-
-Le troisième ne se vérifie que sur les entrées qui nomment un fichier de test, **110 sur 131**, plus 12 qui le nomment dans `dans`. `attendu` est du texte libre par construction, le contrôle le cherchant comme sous-chaîne dans la sortie : les autres nomment un titre de cas, un code d'erreur TypeScript ou une fixture, et rien de structurel ne s'y vérifie.
+*Ce qui le rouvrirait :* deux régressions de suite arrivées sur `main` par un test qui passait pour la mauvaise raison.
 
 ---
 
@@ -380,7 +328,7 @@ Le troisième ne se vérifie que sur les entrées qui nomment un fichier de test
 
 **Ce qu'il lit d'un fichier de code.** Ses commentaires, et rien d'autre. Une citation y vit ; les chemins fabriqués vivent dans des chaînes, qu'un test ou une fixture écrit par construction. Séparer sur la nature de la ligne évite d'exempter des fichiers entiers.
 
-Un seul fichier est écarté, nommément : `test/mutations.json`, qui porte le code muté et n'a pas de commentaire où séparer le vrai du fabriqué. Le nommer plutôt qu'écarter tous les JSON garde l'exemption visible.
+Aucun fichier n'est écarté. Le seul l'était nommément, `test/mutations.json`, qui portait du code muté sans commentaire où séparer le vrai du fabriqué ; il a disparu avec le contrôle de mutation.
 
 Une première version exemptait tous les `*.test.*`, au motif que leurs vraies dépendances échouent d'elles-mêmes. C'est vrai d'un chemin lu à l'exécution, faux d'une citation en commentaire : six renvois réécrits par ce même lot n'étaient surveillés par rien. Constat de la revue de la PR #23.
 
@@ -430,7 +378,7 @@ Une première version exemptait tous les `*.test.*`, au motif que leurs vraies d
 
 **Comment un bloc est rattaché.** Un commentaire HTML le précède, `<!-- checked: config -->`, et un cas porte le même nom. Le marqueur est explicite plutôt que positionnel : ajouter un paragraphe au-dessus d'un bloc ne doit pas changer ce qui est vérifié.
 
-Un cas à part compare **la liste des marqueurs à la liste attendue**. Sans lui, renommer un marqueur ferait passer l'exemple en silence. Mesuré, c'est la seule des quatre mutations qui ne tombait pas d'elle-même.
+Un cas à part compare **la liste des marqueurs à la liste attendue**. Sans lui, renommer un marqueur ferait passer l'exemple en silence. Mesuré, c'est la seule des quatre altérations d'exemple qui ne tombait pas d'elle-même.
 
 Un second garde va avec : `indexOf` rend `-1` sur un marqueur absent, et la découpe ramenait alors le **premier bloc du guide**, langue comprise. L'extraction ne signalait donc rien, elle rendait le mauvais bloc. Un cas exige maintenant qu'un marqueur inconnu lève.
 
@@ -620,11 +568,11 @@ Le producteur tourne avant qu'un serveur existe, donc il applique les motifs `pa
 
 **Le formateur ne touche pas à `.crypte/`, et il a fallu le lui dire.**
 
-Deux mécanismes se disputaient la forme du fichier. `vp check --fix`, lancé par le hook de pré-commit sur les fichiers indexés, compactait les tableaux de props sur une ligne. L'écriture suivante les dépliait, `JSON.stringify` avec deux espaces d'indentation ne compactant rien. L'arbre n'était donc jamais propre deux commandes de suite, et le contrôle de mutation échouait sur son propre contrôle positif.
+Deux mécanismes se disputaient la forme du fichier. `vp check --fix`, lancé par le hook de pré-commit sur les fichiers indexés, compactait les tableaux de props sur une ligne. L'écriture suivante les dépliait, `JSON.stringify` avec deux espaces d'indentation ne compactant rien. L'arbre n'était donc jamais propre deux commandes de suite.
 
 *La règle générale :* un fichier généré et commité ne doit pas être reformaté par un outil qui ne le produit pas. Le dépôt appliquait déjà ça à `docs/**` et à `README.md`, pour une raison différente.
 
-**Le contrôle de mutation rejoue la suite une dernière fois.**
+**La suite rejouée une dernière fois.**
 
 Le même conflit s'est présenté un cran plus loin. Le contrôle mute une source, lance la suite, et exige à la fin que l'arbre soit propre : c'est sa condition d'emploi, et personne d'autre ne la vérifie. Or la suite écrit l'empreinte, qui diverge quand elle est produite depuis une source mutée, donc le contrôle la voyait comme une source non restaurée.
 
@@ -754,11 +702,11 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 **Les fabriques de projet sont des fixtures, pas des fonctions de module.** Dans `project.test.ts`, `projectWith`, `projectOf` et `serverOn` étaient trois fonctions avec un tableau `temporary` et un `afterAll` pour le ramassage, et chaque serveur demandait son `try`/`finally` : **quatorze**, tous identiques. Les fixtures les ramassent, 95 cas et 16 lignes de moins.
 
-**Un tableau de cas qui veut une fixture s'écrit avec `test.for`, jamais `test.each`.** Mesuré : `each` n'a pas de contexte du tout, son troisième paramètre vaut `undefined` ; `for` passe le contexte en second et **exige** une déstructuration d'objet. Les noms produits sont identiques aux deux formes, vérifié cas par cas sur les 95 de `project.test.ts` avant de convertir, parce que le contrôle de mutation s'y ancre.
+**Un tableau de cas qui veut une fixture s'écrit avec `test.for`, jamais `test.each`.** Mesuré : `each` n'a pas de contexte du tout, son troisième paramètre vaut `undefined` ; `for` passe le contexte en second et **exige** une déstructuration d'objet. Les noms produits sont identiques aux deux formes, vérifié cas par cas sur les 95 de `project.test.ts` avant de convertir.
 
 **Le tableau de cas est un tuple.** `noUncheckedIndexedAccess` rend `string | undefined` chaque élément d'un tableau non figé, donc onze `as const`, sinon neuf erreurs de type.
 
-**Un `globalSetup` ramasse ce qu'un lancement tué laisse.** `test/sweep-tmp.mjs` efface `packages/cli/test/tmp-hot-*` et `apps/tmp-demo-*` au démarrage de la suite. Les fixtures démontent leur copie, y compris quand le cas lève, mais pas quand le processus est tué, ce que le contrôle de mutation fait couramment : **soixante-huit copies** s'étaient accumulées.
+**Un `globalSetup` ramasse ce qu'un lancement tué laisse.** `test/sweep-tmp.mjs` efface `packages/cli/test/tmp-hot-*` et `apps/tmp-demo-*` au démarrage de la suite. Les fixtures démontent leur copie, y compris quand le cas lève, mais pas quand le processus est tué : **soixante-huit copies** s'étaient accumulées.
 
 *Ce qui casse si on l'enlève :* rien de vert ne rougit, les copies reviennent s'entasser. C'est le seul mécanisme de ce document qui ne garde aucune garantie.
 
@@ -1001,7 +949,7 @@ Le lot 2 a demandé onze tours. La cause n'est pas le nombre de constats, c'est 
 
 Mesuré sur le onzième tour : six points, dont deux bloquants seulement. Les quatre autres auraient pu partir en issue, et ce tour aurait été le dernier.
 
-**Deux causes secondaires, mesurées elles aussi.** Les trois derniers tours ne portaient plus sur le protocole, dont le code n'avait pas bougé, mais sur les outils de vérification ajoutés pendant la pull request : chaque outil est une surface neuve qui produit ses propres constats. Et la borne d'effort de la revue, fixée à une dizaine d'appels d'outils, a été dépassée trois fois de suite à trente-quatre et quarante-trois, principalement pour refaire à la main ce que `pnpm run mutations` fait déjà.
+**Deux causes secondaires, mesurées elles aussi.** Les trois derniers tours ne portaient plus sur le protocole, dont le code n'avait pas bougé, mais sur les outils de vérification ajoutés pendant la pull request : chaque outil est une surface neuve qui produit ses propres constats. Et la borne d'effort de la revue, fixée à une dizaine d'appels d'outils, a été dépassée trois fois de suite à trente-quatre et quarante-trois, principalement pour refaire à la main ce que le contrôle de mutation faisait déjà.
 
 Sur les 1907 lignes du lot, 245 sont du code de production, 1193 des tests et des outils, 464 de la documentation.
 
@@ -1015,7 +963,7 @@ Le lot 2 a demandé neuf revues et cinquante-trois constats. Quatre mesures en s
 
 **La re-revue porte sur le diff incrémental**, pas sur la branche entière. C'est ce qui faisait dix minutes par tour et ramenait les mêmes constats de fond.
 
-**La revue lance `pnpm run mutations`** au lieu de refaire les mutations à la main, ce qu'elle faisait à chaque tour.
+**La revue lance `vp test --coverage`** au lieu d'éprouver à la main que les tests exécutent ce qu'ils prétendent garder.
 
 *Ce qui reste incertain :* les deux premières mesures sont de la discipline, et la discipline a échoué à chaque tour de ce lot. Elles n'ont fonctionné que le jour où elles ont été demandées explicitement. Les écrire les rend opposables en revue, pas automatiques.
 
@@ -1304,7 +1252,7 @@ La seconde est la promesse structurelle de la section 5.1 de la spécification :
 
 Une troisième règle vient de la même exigence : **un écouteur s'exécute dans la fenêtre qui reçoit**, donc `window` bascule le temps de chaque distribution. Sans ce passage, les deux canaux d'un même test liraient le même `parent` et la même origine, et leur appariement serait vrai par accident.
 
-**Ces règles sont elles-mêmes au catalogue de mutation.** Si la simulation cesse de les tenir, les mutations du canal ne prouvent plus rien : c'est le seul endroit du dépôt où un outil de vérification est lui-même vérifié.
+**Ces règles étaient elles-mêmes au catalogue de mutation**, seul endroit du dépôt où un outil de vérification était lui-même vérifié. Ce qui les tient désormais est `no-plugin.test.ts`, qui compile le noyau sans la simulation.
 
 **Ce qui casse si on l'enlève.** Rien de visible, et c'est le problème : avant ces tests, remplacer `origin` par `'*'` dans la réponse de la preview laissait la suite entièrement verte, alors que le commentaire juste au-dessus en fait la raison de sûreté du canal.
 

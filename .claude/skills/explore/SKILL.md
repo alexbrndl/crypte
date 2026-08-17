@@ -50,11 +50,15 @@ Chaque case se tranche par exécution, sur un projet jetable, jamais par lecture
 
 Les tests qui lisent la **forme** d'un résultat ne prouvent rien : un alias `{ find: '@' }` a passé un tour entier en étant parfaitement inerte. Éprouve ce que le produit assemble, pas la pièce isolée : monter un serveur à la main plutôt que passer par la configuration réelle a masqué une régression un tour de plus.
 
-## 5. Muter chaque garantie annoncée
+## 5. Vérifier chaque garantie annoncée
 
-Pour chaque garantie que le code, un commentaire ou la documentation annonce : casse-la et vérifie qu'un test rougit.
+Pour chaque garantie que le code, un commentaire ou la documentation annonce, deux questions, dans cet ordre.
 
-`pnpm run mutations` couvre celles du catalogue. Pour les autres, fais-le à la main. Une garantie qu'aucune mutation ne fait tomber n'est pas tenue, elle est seulement écrite.
+**Le code est-il exécuté ?** `vp test --coverage` le dit, ligne par ligne et branche par branche. Une ligne jamais exécutée n'est gardée par rien, quoi qu'annonce le commentaire au-dessus. C'est ainsi qu'on a trouvé l'adaptateur React à 0 % après tout un projet.
+
+**Et l'est-il pour la bonne raison ?** Casse la garantie et vérifie qu'un test rougit. C'est manuel, et c'est le seul moyen : un test qui appelle sans rien affirmer couvre à 100 %. Un `toContain` sur un fragment de message est le cas typique ; préfère `toMatchInlineSnapshot`, qui fixe le message entier et ne peut pas passer sur une phrase à moitié fausse.
+
+Une garantie qu'aucune altération ne fait tomber n'est pas tenue, elle est seulement écrite.
 
 ## 6. Rendre compte
 

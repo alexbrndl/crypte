@@ -58,7 +58,18 @@ export default defineConfig({
         'apps/shell/src/main.ts',
         'packages/core/src/protocol/manifest.ts',
         '**/*.d.ts',
+
+        // Le fournisseur v8 ne sait pas parser un composant monofichier : il
+        // l'écartait de lui-même en imprimant une erreur, donc autant le dire
+        // ici. Ce que le composant décide vit dans `recover.ts`, couvert à
+        // 100 % ; ce qui reste en `.vue` est du rendu, éprouvé par les cas
+        // navigateur. Consigné dans docs/internal/suivi.md.
+        '**/*.vue',
       ],
+      // Un point sous le plancher mesuré, pas au ras : le chiffre bouge de 0,16
+      // point d'un lancement à l'autre, les cas navigateur n'exécutant pas
+      // exactement les mêmes lignes. Un seuil au ras rendrait la porte
+      // intermittente, ce qui est pire qu'un seuil un peu bas.
       thresholds: {
         statements: 96,
         branches: 88,

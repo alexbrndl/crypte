@@ -25,14 +25,11 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `.github/workflows/ts7-readiness.yml` | sonde mensuelle sur `vue-tsc` | personne, ouvre une issue |
 | `.github/dependabot.yml` | veille sur les actions GitHub | Dependabot |
 | `.vite-hooks/pre-commit` | lance `vp staged` | Git, avant chaque commit |
-| `test/mutation-check.mjs` | casse chaque garantie, attend un test rouge | `pnpm run mutations`, la CI |
-| `test/mutations.json` | catalogue des garanties, une par constat de revue | le script ci-dessus |
 | `test/manifest-size.mjs` | ce que pèse un manifeste, et le coût d'en garder l'historique | personne, lancé à la main |
 | `test/post-review.mjs` | publie un verdict de revue, et vérifie qu'il y est arrivé | `/review` |
 | `test/post-review.test.mjs` | ce que le script refuse de publier | — |
 | `test/changeset-check.mjs` | décide si une pull request doit porter une note | `require-changeset.yml` |
 | `test/changeset-check.test.mjs` | ce qui exige une note, et ce qui n'en exige pas | — |
-| `test/mutations.test.mjs` | les motifs du catalogue de mutations ne sont pas périmés | — |
 | `test/doc-links.test.mjs` | tout document cité existe, et hors de `docs/` il est cité par son chemin | — |
 | `test/published-english.test.mjs` | aucune phrase française dans le code publié | — |
 | `test/sweep-tmp.mjs` | efface les copies de projet qu'un lancement tué laisse | vitest, au démarrage |
@@ -74,7 +71,8 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 
 | Fichier | Contient | Consommé par |
 | -- | -- | -- |
-| `src/index.ts` | binaire `crypte` | l'utilisateur final |
+| `src/index.ts` | binaire `crypte`, câblage seul | l'utilisateur final |
+| `src/cli.ts` | ce que la commande fait de ses arguments | `src/index.ts` |
 | `src/config.ts` | contrat de `crypte.config.ts`, `defineConfig` | le projet utilisateur |
 | `src/project.ts` | chargement de la configuration, config Vite | le futur serveur |
 | `src/config-paths.ts` | où le projet déclare ses chemins | `project.ts` |
@@ -98,6 +96,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/shell-copy.test.ts` | la copie du shell n'est pas plus vieille que ses sources | — |
 | `test/fingerprint.test.ts` | ce que l'empreinte garde, replie, et ignore ; écrit celle de la fixture | — |
 | `test/fixture/.crypte/fingerprint.json` | l'empreinte commitée de la fixture, sous régime de verrouillage | `git diff --exit-code` en CI |
+| `test/cli.test.ts` | version, aide, racine par défaut, code de sortie | — |
 | `test/guide.test.ts` | exécute les exemples de `docs/guide.md` | — |
 
 ## `packages/react` — `@crypte/react`
@@ -106,6 +105,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | -- | -- | -- |
 | `src/index.ts` | adaptateur, montage React | la page de preview |
 | `src/stories.ts` | `defineStories`, `story`, et les types qu'ils inferent | un fichier de story |
+| `test/adapter.test.tsx` | montage, démontage et erreur de rendu, dans un DOM | — |
 | `test/public-augmentation.ts` | augmentation par la porte d'entrée publique | `core/test/no-plugin.test.ts` |
 | `test/tsconfig.json` | programme du test ci-dessus | idem |
 

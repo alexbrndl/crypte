@@ -16,10 +16,9 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    # 20 et non 10 à cause du contrôle de mutation, qui lance un test par
-    # garantie. Mesuré ici sur le job entier : 12 min 2 avant son accélération,
-    # 5 min 45 après. Voir docs/internal/architecture.md.
-    timeout-minutes: 20
+    # 10 depuis le retrait du contrôle de mutation, qui lançait un test par
+    # garantie et demandait 20. Mesuré ici sur le job entier : moins de 2 min.
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -43,7 +42,11 @@ jobs:
       # un exécutable absent, et le seul contrôle qui voit ce que l'utilisateur
       # voit tombe. Voir docs/internal/architecture.md.
       - run: vp node node_modules/playwright/cli.js install --with-deps chromium
-      - run: vp test
+      # `--coverage` : les seuils sont dans vite.config.ts, et c'est ici qu'ils
+      # gardent quelque chose. Sans le drapeau, ils ne sont jamais évalués et un
+      # fichier publié peut retomber à 0 % d'exécution sans un mot.
+      # Voir docs/internal/architecture.md.
+      - run: vp test --coverage
       # Deux choses sont écrites par la suite et commitées : les réexports
       # générés, et l'empreinte de la fixture. Le régime est celui d'un fichier
       # de verrouillage, et ce diff en est le contrôle : le réparer, c'est
@@ -56,11 +59,6 @@ jobs:
         run: |
           git ls-files --error-unmatch packages/cli/test/fixture/.crypte/fingerprint.json apps/demo/.crypte/fingerprint.json
           git diff --exit-code
-      # Le contrôle de mutation n'est plus ici : son coût est « nombre de
-      # garanties × toute la suite », donc il grandit à chaque lot. Sept minutes
-      # à 98 garanties, plus de vingt à 131, et le job s'est fait tuer. La porte
-      # de pull request tient en quatre secondes sans lui.
-      # Il tourne chaque nuit, dans mutations.yml. Voir docs/internal/architecture.md.
 
   dependency-review:
     if: github.event_name == 'pull_request'

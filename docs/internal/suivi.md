@@ -16,7 +16,7 @@ Une ligne disparaît quand le point est traité, pas avant. Les niveaux sont dé
 
 La section 5.2 de la spécification déclare trois messages du shell vers la preview. Un seul a un effet : `render`. Les deux autres sont reçus et ignorés.
 
-*Ce que ça donne :* un test fixe l'état d'aujourd'hui, et le catalogue de mutation surveille que la preview n'agit que sur `render`. Implémenter les deux messages restants demandera donc de mettre à jour cette entrée, ce qui est voulu : elle dit ce que le code fait, pas ce qu'il devrait faire.
+*Ce que ça donne :* un test fixe l'état d'aujourd'hui, à savoir que la preview n'agit que sur `render`. Implémenter les deux messages restants demandera donc de mettre à jour cette entrée, ce qui est voulu : elle dit ce que le code fait, pas ce qu'il devrait faire.
 
 *Pourquoi ce n'est pas fait ici :* `update-overrides` suppose un panneau qui édite des valeurs, `set-globals` un thème ou une locale à appliquer. Ni l'un ni l'autre n'existe avant le lot 8.
 
@@ -81,7 +81,7 @@ Quatre fois sur le lot 3, puis une fois sur le lot 0 decies, une commande a éch
 | Ce qui a échoué | Ce qu'on a vu ensuite |
 |---|---|
 | deux tests isolés | vingt-trois lancements verts |
-| le contrôle de mutation | deux relances vertes |
+| le contrôle de mutation, depuis retiré | deux relances vertes |
 | `vp run -r pack`, code 2 | « Build complete » affiché, trois relances à zéro |
 | un test, juste avant un commit | treize lancements verts |
 | un test de `post-review`, dans la foulée d'un `vp check --fix` | quatre lancements verts sur un fichier identique au fichier rouge |
@@ -206,9 +206,9 @@ Le troisième, la colonne « props propres » de la page composant, veut les seu
 
 `StoriesRead` a trois variantes et `produced` les traite dans un `switch`. Ajouter une quatrième variante sans la traiter donne `TS2366`, mesuré, parce que la fin d'une fonction à type de retour déclaré redevient atteignable.
 
-*Ce qui n'est pas gardé :* rien n'empêche de remplacer le `switch` par une chaîne de ternaires, qui compile sans exiger l'exhaustivité. Les 81 garanties de mutation resteraient vertes et la protection disparaîtrait en silence.
+*Ce qui n'est pas gardé :* rien n'empêche de remplacer le `switch` par une chaîne de ternaires, qui compile sans exiger l'exhaustivité. Toute la suite resterait verte et la protection disparaîtrait en silence.
 
-*Pourquoi ce n'est pas fait ici :* le catalogue de mutations casse du code et lit le rouge d'un test ; il ne sait pas exprimer « ce changement doit produire une erreur de type ». Le garder demanderait un second mécanisme, du genre d'un fichier de type attendu en échec, pour une protection d'une seule fonction.
+*Ce qui le garderait :* `expectTypeOf` dans un fichier `*.test-d.ts` avec `typecheck` activé, qui sait exprimer « ce changement doit produire une erreur de type ». Trois garanties du catalogue retiré étaient dans ce cas ; c'est le successeur naturel, pour une protection d'une seule fonction.
 
 *Origine :* auto-review du lot 4.
 
@@ -249,18 +249,6 @@ L'empreinte commitée de la fixture est le seul instance du régime de verrouill
 *Ce qui l'élargira tout seul :* le lot 5 et l'adaptateur, qui remplissent `details`, puis le premier plugin, qui remplit `options`.
 
 *Origine :* revue de la PR #31.
-
-### Le contrôle de mutation reste à six minutes en intégration continue
-
-`DCJ-216` visait moins de trois minutes. Chronométré : 4 min 10 s pour 90 garanties avant, **2 min 21 s pour 92 après**, soit 1,8 fois moins en local. En intégration continue, mesuré sur le job entier : **12 min 2 avant, 5 min 45 après**. L'objectif de trois minutes n'est donc pas atteint.
-
-*Où passe le temps qui reste :* la plupart des garanties passent par la voie rapide, à 0,9 s chacune, dont environ 0,7 s de démarrage de vitest. Ce démarrage est un plancher : quatre-vingt-douze lancements en coûtent plus d'une minute quoi qu'on fasse du reste. S'y ajoutent 24 s de contrôle positif, qui lance chaque cible seule.
-
-*Ce qui le lèverait :* muter en mémoire, un seul processus vitest rejouant la suite après chaque écriture, au lieu d'un processus par garantie. C'est un autre mécanisme, pas un réglage de celui-ci.
-
-*Pourquoi s'arrêter là :* le gain de 1,8 est acquis et le coût par garantie ajoutée passe de 3,7 s à 0,9 s, donc le catalogue peut tripler avant de retrouver le temps d'avant. Le délai du job reste à 30 min, qui couvre largement.
-
-*Origine :* mesures de DCJ-216.
 
 ### Les cas d'écran rougissent au premier lancement après une installation
 
@@ -379,15 +367,11 @@ Quatre occurrences dans la même session : trois sous `pnpm run mutations`, sur 
 
 `packages/cli/test/screen.test.ts` et `hot.test.ts` copient un projet dans l'espace de travail, parce que hors du dépôt `crypte.config.ts` ne résout plus `@crypte/cli`. Cette copie est visible par trois outils qui ne l'attendent pas.
 
-*pnpm.* `apps/*` en fait un paquet de l'espace de travail, donc un `pnpm install` lancé pendant qu'une copie existe l'inscrit dans le fichier de verrouillage. Mesuré : 28 lignes ajoutées, et le contrôle de mutation refusant de partir sur un arbre sale. Fermé par `!apps/tmp-demo-*` dans `pnpm-workspace.yaml`.
-
-*Le parcours de fichiers de `mutations.test.mjs`.* Une copie effacée pendant sa descente faisait échouer l'import du fichier entier, par intermittence. Fermé par un élagage explicite en descendant.
+*pnpm.* `apps/*` en fait un paquet de l'espace de travail, donc un `pnpm install` lancé pendant qu'une copie existe l'inscrit dans le fichier de verrouillage. Mesuré : 28 lignes ajoutées, et un contrôle refusant de partir sur un arbre sale. Fermé par `!apps/tmp-demo-*` dans `pnpm-workspace.yaml`.
 
 *Git.* Les copies sont ignorées, donc `git status --porcelain` ne les montre pas : un contrôle qui vérifie la propreté de l'arbre ne les verra jamais, et une copie oubliée survit sans que rien ne le dise.
 
-*Ce qui reste :* rien ne garantit qu'une copie soit retirée si un cas meurt entre la copie et son `afterAll`. Le coût est un dossier de 5 Mo et, désormais, aucun effet sur le verrouillage.
-
-*Ce qui le lèverait :* une copie par exécution dans un dossier unique nettoyé au démarrage de la suite, plutôt qu'à la fin de chaque fichier.
+*Fermé.* `test/sweep-tmp.mjs`, un `globalSetup`, efface les copies au démarrage de la suite. Les fixtures démontent la leur même quand le cas lève ; ce que ce ramassage ajoute est le cas du processus tué, qui en avait laissé soixante-huit.
 
 *Origine :* lot 5b.
 
@@ -417,17 +401,21 @@ Quatre occurrences dans la même session : trois sous `pnpm run mutations`, sur 
 
 *Origine :* revue 1 du lot 5b.
 
-### Un verdict `AILLEURS` du contrôle de mutation n'est pas reproductible
+### `App.vue` échappe à la mesure de couverture
 
-`La simulation refuse une livraison hors origine` est rendue « vue par autre chose » par le contrôle complet, alors que **la garantie est tenue**, mesuré deux fois :
+Le fournisseur v8 ne sait pas parser un composant monofichier : il imprimait `Unexpected JSX expression` sur `apps/shell/src/App.vue` et l'écartait du rapport de lui-même. Le fichier est donc exclu nommément, plutôt que d'être absent en silence.
 
-* `ui.test.ts` lancé seul sous mutation : un seul rouge, et c'est le gardien nommé.
-* Le repli entier sous mutation : trois rouges, dont le gardien nommé.
+*Ce qui le garde quand même :* ce que le composant **décide** a été sorti dans `apps/shell/src/recover.ts`, couvert à 100 % et éprouvé par quatorze cas. Ce qui reste dans le `.vue` est du rendu et du câblage, éprouvé de bout en bout par les huit cas navigateur.
 
-*Ce qui ne colle pas :* la liste que le contrôle imprime cite `isolation.test.ts` et `id.test.ts`, que ni l'une ni l'autre mesure ne fait rougir. Ces deux mêmes cas revenaient dans plusieurs listes avant que la collecte par exécution soit corrigée, donc le soupçon porte sur un reste de collecte entre exécutions que `waitForTestRunEnd` n'a pas entièrement fermé.
+*Ce qui reste non éprouvé :* le template lui-même, hors navigateur. Une condition d'affichage inversée passerait la suite unitaire ; c'est `screen.test.ts` qui la verrait, donc seulement dans le projet `écran`.
 
-*Pourquoi ce n'est pas creusé plus loin :* la garantie est tenue, donc le risque est un **faux négatif de l'outil**, pas un trou de protection. Le coût d'un tour de contrôle complet est d'une douzaine de minutes, et trois hypothèses ont déjà été éliminées par la mesure.
+*Ce qui le lèverait :* `@vue/test-utils` avec l'environnement jsdom déjà installé pour l'adaptateur React, et un projet de plus. Non fait ici : le composant parle au canal et au réseau, donc le monter demande de doubler les deux, pour une surface que les cas navigateur traversent déjà.
 
-*Ce qui le trancherait :* faire imprimer par le contrôle, pour chaque garantie, le nombre de cas collectés et l'identité de l'exécution ; un reste se verrait comme un compte plus grand que le nombre de cas du fichier ciblé.
+*Origine :* la mise en place de la couverture, en remplacement du contrôle de mutation.
 
-*Origine :* réécriture du contrôle sur l'API vitest.
+### Clos : le verdict `AILLEURS` du contrôle de mutation
+
+`La simulation refuse une livraison hors origine` était rendue « vue par autre chose » par le contrôle complet, alors que la garantie était tenue, mesuré deux fois : `ui.test.ts` lancé seul sous mutation donnait un seul rouge, et c'était le gardien nommé.
+
+*Clos par le retrait du contrôle.* Le dernier audit avant suppression a rendu **130 garanties sur 131 vues**, la seule exception étant celle-ci, un faux négatif de l'outil et non un trou de protection. Le cas reste gardé par `ui.test.ts`, et l'outil qui le diagnostiquait mal n'existe plus.
+

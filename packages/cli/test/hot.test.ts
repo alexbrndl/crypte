@@ -218,8 +218,8 @@ describe('le catalogue pendant que le serveur tourne', () => {
 
     // Le catalogue retenu par le serveur, pas celui que la route sert : la ligne
     // d'échec est écrite dans la même reconstruction, donc l'état est déjà
-    // décidé quand elle paraît. Par la route, le cas n'attrapait la mutation que
-    // par chance, et le contrôle l'a dit « gardien muet ».
+    // décidé quand elle paraît. Par la route, le cas ne voyait le catalogue
+    // gardé que par chance : mesuré.
     expect(projet.retenu()).toEqual(before)
   })
 
