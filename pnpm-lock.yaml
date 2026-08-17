@@ -246,6 +246,9 @@ importers:
       vite-plus:
         specifier: ^0.2.8
         version: 0.2.8(@types/node@24.13.3)(typescript@7.0.2)(vite@8.2.1(@types/node@24.13.3))
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.10(@types/node@24.13.3)(@vitest/browser-preview@4.1.10)(vite@8.2.1(@types/node@24.13.3))
 
   apps/demo:
     dependencies:

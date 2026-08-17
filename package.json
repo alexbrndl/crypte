@@ -19,7 +19,8 @@
     "@changesets/changelog-github": "catalog:",
     "@changesets/cli": "catalog:",
     "playwright": "catalog:",
-    "vite-plus": "^0.2.8"
+    "vite-plus": "^0.2.8",
+    "vitest": "catalog:"
   },
   "devEngines": {
     "packageManager": {

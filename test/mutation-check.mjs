@@ -10,9 +10,10 @@
 
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join, relative, resolve } from 'node:path'
+import { basename, dirname, join, relative, resolve } from 'node:path'
 import { argv } from 'node:process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { createVitest } from 'vitest/node'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const catalogue = JSON.parse(readFileSync(join(root, 'test', 'mutations.json'), 'utf8'))
@@ -132,6 +133,60 @@ function run(command, args) {
 
 const vp = process.env.VP_BIN ?? 'vp'
 
+// Une seule instance de vitest pour tout le contrôle, et des résultats en objets.
+//
+// Avant, chaque garantie lançait `vp test` en sous-processus et le verdict se
+// décidait sur une **sous-chaîne** de la sortie. Trois entrées ont été déclarées
+// « vues ailleurs » par la colorisation, vertes en local et rouges en CI : le
+// séparateur `>` que vitest colorise ne se comparait plus au texte du catalogue.
+// Ici, `fullName` se compare par égalité.
+async function runner() {
+  const vus = []
+
+  const vitest = await createVitest('test', {
+    root,
+    watch: false,
+    passWithNoTests: true,
+    reporters: [
+      {
+        onTestCaseResult(cas) {
+          vus.push({
+            nom: `${basename(cas.module.relativeModuleId)} > ${cas.fullName}`,
+            rouge: cas.result().state === 'failed',
+          })
+        },
+      },
+    ],
+  })
+
+  const specs = await vitest.globTestSpecifications()
+
+  // Les cas navigateur sont hors du repli : ils montent un serveur et Chromium,
+  // donc ils dominent son coût. Une garantie qui les nomme les lance quand même
+  // par la voie rapide.
+  const rapides = specs.filter((one) => !one.moduleId.endsWith('screen.test.ts'))
+
+  return {
+    close: () => vitest.close(),
+    invalidate: (path) => vitest.invalidateFile(path),
+
+    // Les cas d'un fichier nommé, ou tous ceux hors navigateur.
+    async lance(fichier) {
+      vus.length = 0
+
+      const choisis = fichier
+        ? specs.filter((one) => one.moduleId.endsWith(`/${fichier}`))
+        : rapides
+
+      if (choisis.length === 0) return undefined
+
+      await vitest.runTestSpecifications(choisis)
+
+      return [...vus]
+    },
+  }
+}
+
 // La voie lente, sans les cas navigateur. Ils démarrent un serveur et Chromium,
 // donc ils dominent le temps d'un repli, et un repli arrive pour chaque garantie
 // que la voie rapide ne tranche pas. Mesuré : le contrôle a dépassé les vingt
@@ -242,7 +297,7 @@ function sample(output) {
 // Le contrôle entier. Dans une fonction gardée, comme `changeset-check.mjs` et
 // `post-review.mjs` : sans ça, importer ce module pour en tester une fonction
 // lancerait les quatre-vingt-dix mutations.
-function main() {
+async function main() {
   // Un catalogue vide annonçait « 0 garanties, toutes gardées », qui se lit comme
   // un succès. Rien à vérifier n'est un état à signaler, pas à approuver.
   if (catalogue.length === 0) {
@@ -317,6 +372,10 @@ function main() {
 
   const failures = []
 
+  // Monté une fois, fermé à la fin : c'est ce qui remplace les cent trente
+  // démarrages de vitest en sous-processus.
+  const lanceur = await runner()
+
   // La restauration tient dans le `finally` de chaque tour, et nulle part ailleurs.
   // Un gestionnaire de signal ne servirait à rien ici : la boucle est synchrone, le
   // gestionnaire ne s'exécuterait donc jamais, et l'enregistrer suffirait à
@@ -352,26 +411,34 @@ function main() {
       // mutations s'arrête ici. `vp check` n'a pas à tourner dans ce cas : si le
       // cas attendu rougit, la garantie est tenue, quoi qu'en dise le lint.
       const target = targetOf(mutation)
-      const quick = built.ok && target ? run(vp, ['test', target]) : undefined
-      const quickConcluded = concludes(quick, mutation.attendu)
+
+      lanceur.invalidate(path)
+
+      // Voie rapide : le seul fichier que la garantie nomme. La quasi-totalité
+      // des mutations s'arrête ici. `vp check` n'a pas à tourner dans ce cas : si
+      // le cas attendu rougit, la garantie est tenue, quoi qu'en dise le lint.
+      const quick = built.ok && target ? await lanceur.lance(target) : undefined
+      const quickConcluded = quick?.some((un) => un.rouge && un.nom === mutation.attendu) ?? false
 
       // Voie lente : seulement quand la voie rapide n'a pas conclu. C'est là que se
       // décide « vue ailleurs », et ce diagnostic vaut son prix : il a attrapé une
       // mutation vue par la colorisation de vitest, et une autre vue par le
       // formateur parce qu'elle laissait une indentation fausse.
-      const tests = quickConcluded
-        ? quick
-        : built.ok
-          ? run(vp, [...SLOW])
-          : { ok: false, output: built.output }
-      const check = quickConcluded ? { ok: false, output: '' } : run(vp, ['check'])
-      const noticed = !tests.ok || !check.ok
+      const tests = quickConcluded ? quick : built.ok ? await lanceur.lance() : []
+      const rouges = tests ?? []
+
+      // `vp check` reste un sous-processus : une vingtaine de garanties attendent
+      // un code d'erreur du compilateur, que l'API des tests ne voit pas.
+      const check = quickConcluded ? { ok: true, output: '' } : run(vp, ['check'])
+      const noticed = rouges.some((un) => un.rouge) || !check.ok
 
       // Qu'une vérification rougisse ne suffit pas : ce doit être celle qui porte
       // la garantie. Sans ce contrôle, une mutation vue par un test sans rapport
       // laisserait croire que la garantie tient, alors que son gardien est muet.
       const byTheRightOne =
-        quickConcluded || plain(`${tests.output}${check.output}`).includes(mutation.attendu)
+        quickConcluded ||
+        rouges.some((un) => un.rouge && un.nom === mutation.attendu) ||
+        plain(check.output).includes(mutation.attendu)
 
       const verdict = !built.ok
         ? 'CASSÉ'
@@ -392,7 +459,11 @@ function main() {
         failures.push(
           // Sans l'extrait, ce verdict dit ce qui manque, jamais ce qui a rougi.
           `${mutation.garantie} : vue par autre chose que « ${mutation.attendu} », son gardien est muet\n` +
-            `    à la place : ${sample(`${tests.output}${check.output}`)}`,
+            `    à la place : ${rouges
+              .filter((un) => un.rouge)
+              .map((un) => un.nom)
+              .slice(0, 3)
+              .join(' | ')}${check.ok ? '' : ` | ${sample(check.output)}`}`,
         )
     } finally {
       writeFileSync(path, original)
@@ -407,6 +478,8 @@ function main() {
   // `dist` est ignoré par git, donc le contrôle ci-dessous ne verrait pas des
   // artefacts restés construits depuis une source mutée. La reconstruction vaut
   // aussi pour la sortie par exception, d'où le `finally` autour de la boucle.
+  await lanceur.close()
+
   if (!run(vp, ['run', '-r', 'pack']).ok) {
     console.error('\nLa reconstruction finale a échoué : `dist` ne correspond plus aux sources.')
     process.exit(1)
@@ -449,4 +522,9 @@ function main() {
   console.log(`\n${mutations.length} garanties, toutes gardées.`)
 }
 
-if (argv[1] && import.meta.url === pathToFileURL(argv[1]).href) main()
+if (argv[1] && import.meta.url === pathToFileURL(argv[1]).href) {
+  main().catch((cause) => {
+    console.error(cause)
+    process.exit(1)
+  })
+}
