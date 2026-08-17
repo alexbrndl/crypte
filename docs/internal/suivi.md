@@ -416,3 +416,18 @@ Quatre occurrences dans la même session : trois sous `pnpm run mutations`, sur 
 *Ce que le rejeu ne couvre pas :* un composant. Fast Refresh de React en fait une frontière, donc la mise à jour s'y arrête et l'entrée générée n'est jamais rappelée.
 
 *Origine :* revue 1 du lot 5b.
+
+### Un verdict `AILLEURS` du contrôle de mutation n'est pas reproductible
+
+`La simulation refuse une livraison hors origine` est rendue « vue par autre chose » par le contrôle complet, alors que **la garantie est tenue**, mesuré deux fois :
+
+* `ui.test.ts` lancé seul sous mutation : un seul rouge, et c'est le gardien nommé.
+* Le repli entier sous mutation : trois rouges, dont le gardien nommé.
+
+*Ce qui ne colle pas :* la liste que le contrôle imprime cite `isolation.test.ts` et `id.test.ts`, que ni l'une ni l'autre mesure ne fait rougir. Ces deux mêmes cas revenaient dans plusieurs listes avant que la collecte par exécution soit corrigée, donc le soupçon porte sur un reste de collecte entre exécutions que `waitForTestRunEnd` n'a pas entièrement fermé.
+
+*Pourquoi ce n'est pas creusé plus loin :* la garantie est tenue, donc le risque est un **faux négatif de l'outil**, pas un trou de protection. Le coût d'un tour de contrôle complet est d'une douzaine de minutes, et trois hypothèses ont déjà été éliminées par la mesure.
+
+*Ce qui le trancherait :* faire imprimer par le contrôle, pour chaque garantie, le nombre de cas collectés et l'identité de l'exécution ; un reste se verrait comme un compte plus grand que le nombre de cas du fichier ciblé.
+
+*Origine :* réécriture du contrôle sur l'API vitest.
