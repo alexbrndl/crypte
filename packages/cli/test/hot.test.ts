@@ -207,7 +207,7 @@ describe('le catalogue pendant que le serveur tourne', () => {
   // fichier. La reconstruction lève, et garder le dernier catalogue bon est la
   // différence entre une sauvegarde qui clignote et un serveur qui s'arrête.
   test('garde le catalogue quand la reconstruction échoue', async ({ projet }) => {
-    const before = await projet.noms()
+    const before = projet.retenu()
     const echecs = projet.dites('keeping the last good one')
 
     writeFileSync(join(projet.root, 'stories', 'Badge.jsx'), story('Badge'))
@@ -216,7 +216,11 @@ describe('le catalogue pendant que le serveur tourne', () => {
     // laisserait le cas conclure avant que la reconstruction ait eu lieu.
     await expect.poll(() => echecs().length).toBeGreaterThan(0)
 
-    expect(await projet.noms()).toEqual(before)
+    // Le catalogue retenu par le serveur, pas celui que la route sert : la ligne
+    // d'échec est écrite dans la même reconstruction, donc l'état est déjà
+    // décidé quand elle paraît. Par la route, le cas n'attrapait la mutation que
+    // par chance, et le contrôle l'a dit « gardien muet ».
+    expect(projet.retenu()).toEqual(before)
   })
 
   // Le module virtuel de l'entrée nomme ses imports un par un : sans
