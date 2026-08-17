@@ -42,6 +42,22 @@ describe('l’écran', () => {
   // L'état visible, avec ce que la page a dit : un `#root` vide seul ne dit pas
   // si la preview a échoué, si le shell affiche une erreur, ou si rien n'est
   // encore arrivé.
+  // Attend un texte dans la preview, en encaissant une réoptimisation des
+  // dépendances. Quand Vite réécrit ses paquets en cours de session, l'entrée
+  // de la preview échoue à l'import : aucun canal, aucun `ready`, donc rien ne
+  // se rétablit sans un rechargement. Voir DCJ-221 et docs/internal/suivi.md.
+  async function attend(texte: string, delai = 30_000) {
+    try {
+      await expect.poll(vu, { timeout: delai }).toContain(texte)
+    } catch (echec) {
+      if (!plaintes.some((une) => une.includes('does not provide an export'))) throw echec
+
+      plaintes.length = 0
+      await page.reload()
+      await expect.poll(vu, { timeout: delai }).toContain(texte)
+    }
+  }
+
   async function vu() {
     const root = await page
       .frameLocator('iframe[title="preview"]')
@@ -205,6 +221,31 @@ describe('l’écran', () => {
   // Les cas d'édition viennent après, dans cet ordre : chacun laisse la copie
   // modifiée, et les cas ci-dessus attendent le projet tel qu'il est commité.
 
+  // Le fichier de story n'exporte aucun composant, donc Fast Refresh ne s'en
+  // saisit pas : sans le chemin chaud de l'entrée, Vite ne trouve personne pour
+  // accepter et recharge le cadre. Mesuré, c'est ce cas et non le précédent qui
+  // éprouve `hot`.
+  it('rafraîchit les props d’une story sans recharger le cadre', async () => {
+    await page.goto(origin)
+
+    await attend('Nouveau')
+
+    const before = navigations
+    const file = join(root, 'stories', 'Badge.tsx')
+    const sain = readFileSync(file, 'utf8')
+
+    writeFileSync(file, sain.replace("'Nouveau'", "'Renouvelé'"))
+
+    await attend('Renouvelé')
+
+    expect(navigations).toBe(before)
+
+    // Remis comme il était : les cas suivants attendent le projet tel qu'il est
+    // commité, et le retour éprouve le même chemin dans l'autre sens.
+    writeFileSync(file, sain)
+    await attend('Nouveau')
+  }, 120_000)
+
   // Le cas de fin du lot 5b. Ce que React rafraîchit lui-même, en fait : le
   // composant est repris par Fast Refresh, pas par le chemin chaud de l'entrée.
   it('rafraîchit la story affichée quand son composant change', async () => {
@@ -232,29 +273,6 @@ describe('l’écran', () => {
     await expect
       .poll(() => page.getByRole('button', { name: 'Libellé long' }).getAttribute('aria-current'))
       .toBe('true')
-
-    expect(navigations).toBe(before)
-  }, 120_000)
-
-  // Le fichier de story n'exporte aucun composant, donc Fast Refresh ne s'en
-  // saisit pas : sans le chemin chaud de l'entrée, Vite ne trouve personne pour
-  // accepter et recharge le cadre. Mesuré, c'est ce cas et non le précédent qui
-  // éprouve `hot`.
-  it('rafraîchit les props d’une story sans recharger le cadre', async () => {
-    await page.goto(origin)
-
-    // `toContain` : le cas précédent a modifié le composant de cette copie, et
-    // ce qu'il rend porte donc sa marque.
-    await expect.poll(vu, { timeout: 30_000 }).toContain('Nouveau')
-
-    const preview = page.frameLocator('iframe[title="preview"]')
-    const before = navigations
-    const file = join(root, 'stories', 'Badge.tsx')
-    writeFileSync(file, readFileSync(file, 'utf8').replace("'Nouveau'", "'Renouvelé'"))
-
-    await expect
-      .poll(() => preview.locator('#root').textContent(), { timeout: 30_000 })
-      .toContain('Renouvelé')
 
     expect(navigations).toBe(before)
   }, 120_000)
