@@ -59,15 +59,23 @@ function selected() {
   // son gardien aveugle sans y toucher.
   return {
     mutations: catalogue.filter(
-      (one) => touched.has(one.fichier) || changed.has(fileOf(one.attendu)),
+      (one) => touched.has(one.fichier) || guardiansOf(one).some((file) => changed.has(file)),
     ),
     depuis,
   }
 }
 
+// Les fichiers de test qu'une garantie nomme, par `attendu` ou par `dans`. Les
+// deux formes comptent : la conversion de `project.test.ts` en fixtures ne
+// sélectionnait qu'une garantie sur les neuf que ce fichier garde, les huit
+// autres nommant leur gardien dans `dans`.
+function guardiansOf(mutation) {
+  return [fileOf(mutation.attendu), mutation.dans && fileOf(mutation.dans)].filter(Boolean)
+}
+
 // Le fichier de test qu'une garantie nomme, quand elle en nomme un. `attendu`
-// est du texte libre : la vingtaine d'entrées qui citent un code TypeScript ou
-// une fixture n'en portent pas.
+// est du texte libre : les trois entrées qui citent un code TypeScript n'en
+// portent pas.
 function fileOf(attendu) {
   const premier = attendu.split(' > ')[0]
 
