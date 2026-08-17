@@ -85,7 +85,9 @@ Lis ensuite `CLAUDE.md` et, si le diff touche au format de story, au manifeste, 
 
 ## 3. Ce que le dépôt vérifie déjà
 
-`pnpm run mutations` casse chaque garantie du protocole et vérifie que le bon test s'en aperçoit. **Lance-le plutôt que de refaire ces mutations à la main**, et consacre ton temps à ce qui n'y figure pas.
+`node test/mutation-check.mjs --depuis origin/main` casse chaque garantie que le diff touche et vérifie que le bon test s'en aperçoit. **Lance-le plutôt que de refaire ces mutations à la main**, et consacre ton temps à ce qui n'y figure pas.
+
+Sans `--depuis`, il prend le catalogue entier, soit une vingtaine de minutes : c'est le régime de la tâche de nuit, pas le tien.
 
 Le catalogue est dans `test/mutations.json` : une garantie absente de ce fichier est une garantie que personne ne surveille, et c'est en soi un constat.
 

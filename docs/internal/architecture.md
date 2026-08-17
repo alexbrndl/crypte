@@ -296,7 +296,11 @@ La seule méthode qui ait fonctionné à chaque fois est de casser ce que le tes
 
 *Ce que ça coûte :* une garantie qui se dégrade est vue le lendemain, pas à la pull request. C'est le prix assumé, et il est petit devant une porte qui prend vingt-cinq minutes ou qui se fait couper.
 
-*Ce qui l'atténue :* `--depuis <ref>` ne garde que les garanties portant sur un fichier du diff, ce qui rend le lancement à la main utile avant une revue. Sur une pull request qui touche un fichier, une dizaine de garanties au lieu de 131.
+*Ce qui l'atténue :* `--depuis <ref>` sélectionne les garanties que le diff concerne, et c'est la commande à lancer avant une revue. Mesuré : un diff d'un seul commit en sélectionne **3 sur 131**.
+
+*Trois raisons de retenir une garantie*, et elles couvrent les trois façons de la rendre muette : son fichier a changé, son gardien a changé, ou un fichier dont son fichier dépend a changé. Le graphe d'imports est **calculé au lancement, jamais commité** : sur le disque, il deviendrait un troisième artefact à garder frais à côté du manifeste et de l'empreinte, et ces deux-là ont déjà coûté une mutation partie dans un commit.
+
+*Pourquoi la porte de pull request ne s'en sert pas :* sur une pull request qui touche beaucoup de fichiers, la sélection remonte à 58 garanties, donc le problème revient. Une porte dont le coût dépend de la taille du diff se remet à dépasser son budget le jour où le diff est gros.
 
 *Mesuré, et c'est ce qui a tranché :* les tests ne sont pas lents. Le fichier navigateur entier passe en trois secondes. Le temps était **entièrement** dans la multiplication par le catalogue.
 
