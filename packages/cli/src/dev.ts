@@ -138,6 +138,13 @@ function watchStories(
     server.hot.send({ type: 'full-reload', path: PREVIEW_PAGE })
   }
 
+  // Déclaré, pas hérité. Vite ne surveille que les fichiers de son graphe de
+  // modules : un fichier de story qu'aucune page n'a encore demandé n'y est pas,
+  // donc ses modifications n'arrivaient jamais. Mesuré en intégration continue
+  // sur Linux, où `add` passait et `change` non ; sur macOS le dossier entier
+  // est surveillé et le trou ne se voit pas.
+  server.watcher.add(join(project.root, project.config.stories))
+
   for (const event of ['add', 'change', 'unlink'] as const) {
     server.watcher.on(event, rebuild)
   }

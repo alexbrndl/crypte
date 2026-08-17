@@ -1058,5 +1058,13 @@
     "apres": "  return `catalogue illisible : ${String(error)}`",
     "trouvee": "revue 2 du lot 5b",
     "attendu": "recover.test.ts > un catalogue illisible > dit ce qui a empêché de le lire"
+  },
+  {
+    "garantie": "Le dossier des stories est déclaré au surveillant",
+    "fichier": "packages/cli/src/dev.ts",
+    "avant": "  server.watcher.add(join(project.root, project.config.stories))",
+    "apres": "",
+    "trouvee": "intégration continue du lot 5b",
+    "attendu": "hot.test.ts > le catalogue pendant que le serveur tourne > sert les props à jour même quand l’arbre ne bouge pas"
   }
 ]

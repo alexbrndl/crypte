@@ -714,6 +714,8 @@ Un module de story rend `{ component, definition }`, jamais un composant seul. M
 
 **La forme décide du rechargement, jamais de la fraîcheur.** Le catalogue retenu est remplacé à chaque reconstruction réussie ; seule la décision de recharger le cadre regarde la forme. Rendre la main avant le remplacement servait les props d'avant l'édition, alors que la route les lit en direct. Mesuré.
 
+**Le dossier des stories est déclaré au surveillant, pas hérité de lui.** Vite ne surveille que les fichiers de son graphe de modules : un fichier de story qu'aucune page n'a encore demandé n'y figure pas, donc ses modifications n'arrivaient jamais. Sur macOS le trou ne se voit pas, le dossier entier étant surveillé ; en intégration continue sur Linux, `add` et `unlink` passaient et `change` non. Mesuré.
+
 **Le filtre du surveillant compare deux formes du même chemin, séparateur compris.** Chokidar suit les liens et rend le chemin réel, que `loadProject` ne résout pas : sur une racine derrière un lien symbolique, aucun événement ne passait le filtre et **le rechargement était mort sans un mot**. Trouvé en explorant, pas en relisant. Le séparateur au bout ferme l'autre côté : sans lui, un dossier `stories-old` voisin déclencherait des reconstructions qui ne le concernent pas.
 
 **Un changement de `crypte.config.ts` donne une ligne, pas un rechargement.** Relire la configuration veut dire reconstruire le serveur, puisque les plugins du projet en viennent. Hors de ce lot, donc, et le silence est remplacé par une instruction : relancer.
