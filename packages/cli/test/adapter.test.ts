@@ -103,7 +103,9 @@ describe('la source de l’adaptateur', () => {
     ].join('\n')
 
     expect(() => adapterSource(projet(source))).toThrow(ConfigError)
-    expect(() => adapterSource(projet(source))).toThrow('a value it builds itself')
+    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
+      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`adapter\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
+    )
   })
 
   // Le refus ne portait que sur l'identifiant en tête : mesuré, un nom local
@@ -116,7 +118,9 @@ describe('la source de l’adaptateur', () => {
       'export default { adapter: createAdapter({ runtime }) }',
     ].join('\n')
 
-    expect(() => adapterSource(projet(source))).toThrow('a value it builds itself')
+    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
+      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
+    )
   })
 
   // `export const` porte sa déclaration un cran plus bas dans l'arbre, et la
@@ -128,7 +132,9 @@ describe('la source de l’adaptateur', () => {
       'export default { adapter: createAdapter({ runtime }) }',
     ].join('\n')
 
-    expect(() => adapterSource(projet(source))).toThrow('a value it builds itself')
+    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
+      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
+    )
   })
 
   test('refuse un nom que le fichier déstructure', ({ projet }) => {
@@ -139,7 +145,9 @@ describe('la source de l’adaptateur', () => {
       'export default { adapter: createAdapter({ runtime }) }',
     ].join('\n')
 
-    expect(() => adapterSource(projet(source))).toThrow('a value it builds itself')
+    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
+      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
+    )
   })
 
   test('refuse un nom que le fichier déclare dans un tableau', ({ projet }) => {
@@ -150,7 +158,9 @@ describe('la source de l’adaptateur', () => {
       'export default { adapter: createAdapter({ runtime }) }',
     ].join('\n')
 
-    expect(() => adapterSource(projet(source))).toThrow('a value it builds itself')
+    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
+      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
+    )
   })
 
   // Un paramètre porte son propre nom : l'expression l'emmène avec elle, donc
@@ -179,7 +189,9 @@ describe('la source de l’adaptateur', () => {
 
     // Le nom cité, pas seulement le jet : `mode` est déclaré par le même motif,
     // et une lecture qui s'arrêterait à lui laisserait le reste passer.
-    expect(() => adapterSource(projet(source))).toThrow('(`runtime`)')
+    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
+      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
+    )
   })
 
   test('refuse un nom que le fichier déclare avec une valeur par défaut', ({ projet }) => {
@@ -190,7 +202,9 @@ describe('la source de l’adaptateur', () => {
       'export default { adapter: createAdapter({ runtime }) }',
     ].join('\n')
 
-    expect(() => adapterSource(projet(source))).toThrow('a value it builds itself')
+    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
+      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
+    )
   })
 
   // Une énumération déclare un nom comme les autres, et le manquer relâchait un
@@ -204,7 +218,9 @@ describe('la source de l’adaptateur', () => {
       'export default { adapter: createAdapter({ runtime: Runtime.React }) }',
     ].join('\n')
 
-    expect(() => adapterSource(projet(source))).toThrow('a value it builds itself')
+    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
+      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`Runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
+    )
   })
 
   // Ce qu'un corps de fonction déclare lui appartient, au même titre que ses
@@ -236,7 +252,9 @@ describe('la source de l’adaptateur', () => {
       'export default { adapter: createAdapter({ runtime }) }',
     ].join('\n')
 
-    expect(() => adapterSource(projet(source))).toThrow('(`runtime`)')
+    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
+      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
+    )
   })
 
   test('refuse un nom que le fichier déclare en espace de noms', ({ projet }) => {
@@ -248,7 +266,9 @@ describe('la source de l’adaptateur', () => {
       'export default { adapter: createAdapter({ runtime: Runtime.React }) }',
     ].join('\n')
 
-    expect(() => adapterSource(projet(source))).toThrow('(`Runtime`)')
+    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
+      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`Runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
+    )
   })
 
   // Le `var` d'une fonction lui appartient : le remonter au fichier ferait
@@ -277,7 +297,9 @@ describe('la source de l’adaptateur', () => {
       'export default { adapter: createAdapter({ runtime }) }',
     ].join('\n')
 
-    expect(() => adapterSource(projet(source))).toThrow('(`runtime`)')
+    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
+      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
+    )
   })
 
   test('refuse un nom que le fichier aliase par `import =`', ({ projet }) => {
@@ -288,7 +310,9 @@ describe('la source de l’adaptateur', () => {
       'export default { adapter: createAdapter({ runtime: Runtime.React }) }',
     ].join('\n')
 
-    expect(() => adapterSource(projet(source))).toThrow('(`Runtime`)')
+    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
+      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`Runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
+    )
   })
 
   // Un espace de noms pointé lie son premier segment, et une lecture par types
@@ -302,7 +326,9 @@ describe('la source de l’adaptateur', () => {
       'export default { adapter: createAdapter({ runtime }) }',
     ].join('\n')
 
-    expect(() => adapterSource(projet(source))).toThrow('(`runtime`)')
+    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
+      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
+    )
   })
 
   // La valeur par défaut d'un paramètre est une expression, pas une liaison :
@@ -347,7 +373,9 @@ describe('la source de l’adaptateur', () => {
       'export default { adapter: createAdapter({ mode }) }',
     ].join('\n')
 
-    expect(() => adapterSource(projet(source))).toThrow('(`mode`)')
+    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
+      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`mode\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
+    )
   })
 
   // Un décorateur pend à l'identifiant qu'il décore : s'arrêter sur celui-ci
