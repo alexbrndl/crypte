@@ -310,6 +310,25 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 
 *Origine :* revues 2 à 5 de la PR #33, quatre tours ayant chacun rendu un axe d'entrée de plus.
 
+### Une réoptimisation des dépendances tue la preview, et les cas la contournent
+
+Quand Vite réécrit ses paquets de dépendances en cours de session, le navigateur garde un graphe dont les URL ont disparu : `react-dom.js does not provide an export named 't'`, et `#root` reste vide. **Issue `DCJ-221`.**
+
+*Pourquoi rien ne se rétablit :* c'est un échec d'import, donc antérieur à `createPreviewChannel`. Sans canal, pas de `ready`, et c'est `ready` qui déclenche la relecture du manifeste et le renvoi de la story. Le rétablissement du lot 5b dépend de la seule chose que cette panne empêche.
+
+*Ce que les cas font :* `screen.test.ts` recharge la page une fois quand il voit cette erreur précise, et seulement celle-là.
+
+*Ce qui a été essayé et rejeté, mesuré à chaque fois :*
+
+* **Attribuer les rouges à la charge**, puis élargir les délais à cent vingt secondes par cas. Faux, et coûteux : un cas qui doit rougir payait le délai entier, et le contrôle de mutation est passé de sept minutes à plusieurs heures.
+* **Ne pas hériter du cache de la démonstration.** Nécessaire, insuffisant : la réoptimisation se produit aussi dans une copie partie de zéro.
+* **Faire découvrir les modules de story avant d'ouvrir le navigateur.** Améliore, ne ferme pas.
+* **Faire un échange à chaud dans le préchauffage.** A **aggravé** : quatre passes, une avec le préchauffage en échec et deux à sept cas rouges.
+
+*Ce qui l'a nommée :* rendre les cas bavards. Un `#root` vide se lisait « expected '' to contain … », ce qui ne désigne personne ; avec les erreurs de la page, la cause est apparue à l'occurrence suivante.
+
+*Origine :* lot 5b, quatre occurrences et trois fausses causes avant la bonne.
+
 ### Le cache de dépendances ne se copie pas avec un projet
 
 `packages/cli/test/screen.test.ts` copie le projet de démonstration, `node_modules` compris, et retire ensuite `node_modules/.crypte`.
