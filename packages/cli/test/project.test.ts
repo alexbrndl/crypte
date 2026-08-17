@@ -6,6 +6,7 @@ import { createServer, type InlineConfig, type ViteDevServer } from 'vite'
 import { describe, expect, test as base } from 'vitest'
 import { projectPathsOf } from '../src/config-paths'
 import { capture, isBareSpecifier } from '../src/paths'
+import { defineConfig } from '../src/config'
 import { ConfigError, cssEntryOf, loadProject, viteConfigOf } from '../src/project'
 
 // La fixture reproduit les contraintes d'un projet réel : alias `@/`, pas de
@@ -112,6 +113,17 @@ const test = base.extend<{
       return { root, server: await serverOn(viteConfigOf(await loadProject(root))) }
     })
   },
+})
+
+// `defineConfig` existe pour les types et l'autocomplétion, et rend son argument
+// tel quel : en rendre une copie ferait perdre l'identité des plugins que le
+// projet y met.
+describe('defineConfig', () => {
+  test('rend l’objet reçu, sans le copier', () => {
+    const config = { stories: 'stories', adapter: {} }
+
+    expect(defineConfig(config)).toBe(config)
+  })
 })
 
 describe('chargement de la configuration', () => {

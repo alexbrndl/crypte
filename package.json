@@ -18,6 +18,8 @@
   "devDependencies": {
     "@changesets/changelog-github": "catalog:",
     "@changesets/cli": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "jsdom": "catalog:",
     "playwright": "catalog:",
     "vite-plus": "^0.2.8",
     "vitest": "catalog:"

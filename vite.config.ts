@@ -39,6 +39,34 @@ export default defineConfig({
     semi: false,
   },
   test: {
+    // La couverture remplace une des trois questions que le contrôle de mutation
+    // posait, et la seule qu'aucune relecture ne voit : « ce code est-il exécuté
+    // par quelqu'un ? ». Mesurée en 5 s là où le contrôle demandait 20 min, elle
+    // a trouvé du premier coup l'adaptateur React et l'entrée du CLI à 0 %.
+    //
+    // Les seuils sont au plancher mesuré, pas à 100 : un seuil qu'on baisse pour
+    // faire passer un lot ne garde plus rien. Ils montent quand un lot les
+    // dépasse. Voir docs/internal/architecture.md.
+    coverage: {
+      include: ['packages/*/src/**', 'apps/shell/src/**'],
+
+      // Trois fichiers de câblage, et rien d'autre : l'entrée du CLI qui appelle
+      // `run`, le montage du shell, et un module de types dont il ne reste à
+      // l'exécution qu'une constante.
+      exclude: [
+        'packages/cli/src/index.ts',
+        'apps/shell/src/main.ts',
+        'packages/core/src/protocol/manifest.ts',
+        '**/*.d.ts',
+      ],
+      thresholds: {
+        statements: 96,
+        branches: 88,
+        functions: 96,
+        lines: 97,
+      },
+    },
+
     // Les cas navigateur et le rechargement à chaud copient un projet par cas et
     // la démontent après. Un lancement tué, ce que le contrôle de mutation fait
     // couramment, laisse la copie : soixante-huit s'étaient accumulées.
@@ -70,7 +98,21 @@ export default defineConfig({
     projects: [
       {
         extends: true,
-        test: { name: 'unité', exclude: ['**/node_modules/**', '**/screen.test.ts'] },
+        test: {
+          name: 'unité',
+          exclude: ['**/node_modules/**', '**/screen.test.ts', '**/adapter.test.tsx'],
+        },
+      },
+      // L'adaptateur monte du React : il lui faut un DOM, et jsdom suffit. Sans
+      // ce projet, le seul fichier publié qu'aucun test n'exécutait le restait,
+      // ses deux seules preuves passant par un vrai navigateur et toute la pile.
+      {
+        extends: true,
+        test: {
+          name: 'adaptateur',
+          include: ['**/adapter.test.tsx'],
+          environment: 'jsdom',
+        },
       },
       {
         extends: true,

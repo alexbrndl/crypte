@@ -27,5 +27,6 @@ coverage/
 # Sans barre finale : les cas créent aussi un lien symbolique, que Git traite
 # comme un fichier et qu'un motif de dossier ne couvre pas. Mesuré.
 packages/cli/test/tmp-hot-*
+packages/cli/test/tmp-dev-*
 apps/tmp-demo-*
 test/.mutation-inflight.json

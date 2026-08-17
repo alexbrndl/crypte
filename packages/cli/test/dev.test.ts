@@ -1,8 +1,9 @@
-import { existsSync } from 'node:fs'
+import { cpSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { startDev, type Started } from '../src/dev'
+import type { ViteDevServer } from 'vite'
+import { afterAll, beforeAll, describe, expect, it, test as base } from 'vitest'
+import { dev, startDev, type Started } from '../src/dev'
 import { loadProject } from '../src/project'
 import { MANIFEST_ROUTE, PREVIEW_ENTRY, PREVIEW_PAGE, previewEntry } from '../src/serve'
 
@@ -172,5 +173,63 @@ describe('l’entrée de la preview', () => {
 
     expect(withCss).toContain('app.css')
     expect(without).not.toContain('app.css')
+  })
+})
+
+// La commande elle-même, et non le serveur qu'elle monte : ces lignes-ci sont
+// tout ce que l'utilisateur voit au démarrage, et la couverture les donnait
+// jamais exécutées.
+describe('ce que la commande dit au démarrage', () => {
+  const commande = base.extend<{ projet: { root: string; dit: () => Promise<string[]> } }>({
+    // Le paramètre vide est la forme que vitest lit pour savoir quelles fixtures
+    // initialiser. Le renommer fait collecter zéro test : mesuré.
+    projet: async ({}, use) => {
+      const root = mkdtempSync(join(fixture, '..', 'tmp-dev-'))
+      cpSync(fixture, root, { recursive: true })
+
+      let server: ViteDevServer | undefined
+
+      await use({
+        root,
+        dit: async () => {
+          const lignes: string[] = []
+          server = await dev(root, (line: string) => lignes.push(line))
+
+          return lignes
+        },
+      })
+
+      await server?.close()
+      rmSync(root, { recursive: true, force: true })
+    },
+  })
+
+  commande('compte les stories servies', async ({ projet }) => {
+    expect(await projet.dit()).toContain('4 stories')
+  })
+
+  // Un fichier que le lecteur n'a pas su lire est nommé, avec sa raison : c'est
+  // le silence que le lot 4 a fermé, et il vaut aussi au démarrage.
+  commande('nomme les fichiers de story laissés de côté', async ({ projet }) => {
+    writeFileSync(join(projet.root, 'stories', 'Muette.js'), 'export default 12')
+
+    const lignes = await projet.dit()
+
+    expect(lignes.some((une) => une.includes('story file(s) left out'))).toBe(true)
+    expect(lignes.some((une) => une.includes('Muette.js'))).toBe(true)
+  })
+
+  // Le manifeste et l'empreinte s'écrivent sous `.crypte`. Un fichier à cette
+  // place fait échouer l'écriture, et l'utilisateur doit l'apprendre plutôt que
+  // de chercher un manifeste qui n'arrivera jamais.
+  commande('dit quand ni le manifeste ni l’empreinte n’ont pu être écrits', async ({ projet }) => {
+    rmSync(join(projet.root, '.crypte'), { recursive: true, force: true })
+    writeFileSync(join(projet.root, '.crypte'), 'pas un dossier')
+
+    const lignes = await projet.dit()
+
+    expect(
+      lignes.some((une) => une.includes('neither manifest nor fingerprint could be written')),
+    ).toBe(true)
   })
 })

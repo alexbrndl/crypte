@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
-const restes = ['packages/cli/test/tmp-hot-*', 'apps/tmp-demo-*']
+const restes = ['packages/cli/test/tmp-hot-*', 'packages/cli/test/tmp-dev-*', 'apps/tmp-demo-*']
 
 export function setup() {
   for (const reste of globSync(restes, { cwd: root })) {
