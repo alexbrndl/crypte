@@ -32,6 +32,17 @@ function run(command, args) {
 
 const vp = process.env.VP_BIN ?? 'vp'
 
+// La voie lente, sans les cas navigateur. Ils démarrent un serveur et Chromium,
+// donc ils dominent le temps d'un repli, et un repli arrive pour chaque garantie
+// que la voie rapide ne tranche pas. Mesuré : le contrôle a dépassé les vingt
+// minutes du job d'intégration continue et s'est fait tuer.
+//
+// Rien n'est perdu du diagnostic : une garantie dont le gardien est un cas
+// navigateur le nomme, donc la voie rapide le lance directement. Ce que le repli
+// cesse de voir, c'est « vue par un cas navigateur alors qu'elle en nomme un
+// autre », qui serait de toute façon un gardien muet.
+const SLOW = ['test', '--exclude', '**/screen.test.ts']
+
 // La source mutée du moment, écrite sur le disque avant de muter. Le `finally`
 // de la boucle restaure sur une exception, et un gestionnaire de signal ne
 // suffit pas : `execFileSync` bloque la boucle d'événements pendant presque tout
@@ -240,7 +251,7 @@ function main() {
       const tests = quickConcluded
         ? quick
         : built.ok
-          ? run(vp, ['test'])
+          ? run(vp, [...SLOW])
           : { ok: false, output: built.output }
       const check = quickConcluded ? { ok: false, output: '' } : run(vp, ['check'])
       const noticed = !tests.ok || !check.ok
