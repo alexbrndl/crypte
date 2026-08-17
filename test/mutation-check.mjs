@@ -118,6 +118,20 @@ function withDependents(changed) {
 
 const { mutations, depuis } = selected()
 
+// Le cas rouge est-il celui que la garantie nomme ?
+//
+// `attendu` est du texte libre par construction : une vingtaine d'entrées ne
+// citent qu'un fragment de titre, avec un champ `dans` pour le fichier. La
+// comparaison reste donc une inclusion, mais **dans un nom de cas** et non dans
+// la sortie du terminal : un rouge venu d'ailleurs, une colorisation ou un
+// préfixe de projet ne peuvent plus la satisfaire.
+function nomme(mutation, cas) {
+  if (!cas.rouge) return false
+  if (mutation.dans && !cas.nom.startsWith(`${mutation.dans} > `)) return false
+
+  return cas.nom.includes(mutation.attendu)
+}
+
 // Rend le succès et la sortie. Un lancement impossible n'est pas un échec de
 // vérification : le confondre avec un test rouge ferait passer toute mutation
 // pour vue.
@@ -418,7 +432,7 @@ async function main() {
       // des mutations s'arrête ici. `vp check` n'a pas à tourner dans ce cas : si
       // le cas attendu rougit, la garantie est tenue, quoi qu'en dise le lint.
       const quick = built.ok && target ? await lanceur.lance(target) : undefined
-      const quickConcluded = quick?.some((un) => un.rouge && un.nom === mutation.attendu) ?? false
+      const quickConcluded = quick?.some((un) => nomme(mutation, un)) ?? false
 
       // Voie lente : seulement quand la voie rapide n'a pas conclu. C'est là que se
       // décide « vue ailleurs », et ce diagnostic vaut son prix : il a attrapé une
@@ -437,7 +451,7 @@ async function main() {
       // laisserait croire que la garantie tient, alors que son gardien est muet.
       const byTheRightOne =
         quickConcluded ||
-        rouges.some((un) => un.rouge && un.nom === mutation.attendu) ||
+        rouges.some((un) => nomme(mutation, un)) ||
         plain(check.output).includes(mutation.attendu)
 
       const verdict = !built.ok
