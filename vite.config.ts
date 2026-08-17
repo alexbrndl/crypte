@@ -39,6 +39,11 @@ export default defineConfig({
     semi: false,
   },
   test: {
+    // Les cas navigateur et le rechargement à chaud copient un projet par cas et
+    // la démontent après. Un lancement tué, ce que le contrôle de mutation fait
+    // couramment, laisse la copie : soixante-huit s'étaient accumulées.
+    globalSetup: ['./test/sweep-tmp.mjs'],
+
     // Les délais vivaient dans les fichiers, recopiés une trentaine de fois.
     // Ici, ils se lisent d'un endroit et se changent d'un endroit.
     testTimeout: 20_000,

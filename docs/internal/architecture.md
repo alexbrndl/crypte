@@ -298,7 +298,9 @@ La seule méthode qui ait fonctionné à chaque fois est de casser ce que le tes
 
 *Ce qui l'atténue :* `--depuis <ref>` sélectionne les garanties que le diff concerne, et c'est la commande à lancer avant une revue. Mesuré : un diff d'un seul commit en sélectionne **3 sur 131**.
 
-*Trois raisons de retenir une garantie*, et elles couvrent les trois façons de la rendre muette : son fichier a changé, son gardien a changé, ou un fichier dont son fichier dépend a changé. Le graphe d'imports est **calculé au lancement, jamais commité** : sur le disque, il deviendrait un troisième artefact à garder frais à côté du manifeste et de l'empreinte, et ces deux-là ont déjà coûté une mutation partie dans un commit.
+*Trois raisons de retenir une garantie*, et elles couvrent les trois façons de la rendre muette : son fichier a changé, son gardien a changé, ou un fichier dont son fichier dépend a changé.
+
+**Le gardien se nomme de deux façons, et les deux comptent.** `attendu` peut commencer par un fichier de test, ou le fichier vit dans `dans`. La première version ne lisait que `attendu` : en convertissant `project.test.ts` en fixtures, la sélection a retenu **une garantie sur les neuf** que ce fichier garde, les huit autres nommant leur gardien dans `dans`. Le graphe d'imports est **calculé au lancement, jamais commité** : sur le disque, il deviendrait un troisième artefact à garder frais à côté du manifeste et de l'empreinte, et ces deux-là ont déjà coûté une mutation partie dans un commit.
 
 *Pourquoi la porte de pull request ne s'en sert pas :* sur une pull request qui touche beaucoup de fichiers, la sélection remonte à 58 garanties, donc le problème revient. Une porte dont le coût dépend de la taille du diff se remet à dépasser son budget le jour où le diff est gros.
 
@@ -364,7 +366,7 @@ Trois modes de péremption, et les deux derniers sont les sournois.
 
 Le motif **disparaît**, et le contrôle le signale clairement. Ou le motif devient **ambigu**, parce qu'un second endroit du fichier porte le même texte : `shadowed` a réutilisé le test de clé de `propertyOf`, et le motif court s'est mis à correspondre deux fois. Ou le **cas attendu** est renommé, et la garantie n'attend plus rien : c'est ce que `DCJ-210` s'apprête à faire sur 183 noms de tests.
 
-Le troisième ne se vérifie que sur les entrées qui nomment un fichier de test, une soixantaine sur 86. `attendu` est du texte libre par construction, le contrôle le cherchant comme sous-chaîne dans la sortie : les autres nomment un titre de cas, un code d'erreur TypeScript ou une fixture, et rien de structurel ne s'y vérifie.
+Le troisième ne se vérifie que sur les entrées qui nomment un fichier de test, **110 sur 131**, plus 12 qui le nomment dans `dans`. `attendu` est du texte libre par construction, le contrôle le cherchant comme sous-chaîne dans la sortie : les autres nomment un titre de cas, un code d'erreur TypeScript ou une fixture, et rien de structurel ne s'y vérifie.
 
 ---
 
@@ -749,6 +751,16 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 *Ce que ça a supprimé, mesuré :* dans `hot.test.ts`, deux couplages d'ordre qui étaient **documentés en commentaire faute de savoir les retirer**, sept restaurations de fichier écrites dans le corps des cas, un tableau que six cas comptaient, et vingt-et-un délais en dur. Dans `screen.test.ts`, la dépendance d'ordre des cas d'édition et un helper qui rechargeait la page à la main. Dans `adapter.test.ts`, **trente-deux dossiers temporaires par lancement que personne ne ramassait**.
 
 *Ce que ça a coûté :* rien. `hot.test.ts` passe de 240 à 215 lignes et tourne en 1,3 s ; `screen.test.ts` monte huit serveurs au lieu d'un et tourne en 3,5 s.
+
+**Les fabriques de projet sont des fixtures, pas des fonctions de module.** Dans `project.test.ts`, `projectWith`, `projectOf` et `serverOn` étaient trois fonctions avec un tableau `temporary` et un `afterAll` pour le ramassage, et chaque serveur demandait son `try`/`finally` : **quatorze**, tous identiques. Les fixtures les ramassent, 95 cas et 16 lignes de moins.
+
+**Un tableau de cas qui veut une fixture s'écrit avec `test.for`, jamais `test.each`.** Mesuré : `each` n'a pas de contexte du tout, son troisième paramètre vaut `undefined` ; `for` passe le contexte en second et **exige** une déstructuration d'objet. Les noms produits sont identiques aux deux formes, vérifié cas par cas sur les 95 de `project.test.ts` avant de convertir, parce que le contrôle de mutation s'y ancre.
+
+**Le tableau de cas est un tuple.** `noUncheckedIndexedAccess` rend `string | undefined` chaque élément d'un tableau non figé, donc onze `as const`, sinon neuf erreurs de type.
+
+**Un `globalSetup` ramasse ce qu'un lancement tué laisse.** `test/sweep-tmp.mjs` efface `packages/cli/test/tmp-hot-*` et `apps/tmp-demo-*` au démarrage de la suite. Les fixtures démontent leur copie, y compris quand le cas lève, mais pas quand le processus est tué, ce que le contrôle de mutation fait couramment : **soixante-huit copies** s'étaient accumulées.
+
+*Ce qui casse si on l'enlève :* rien de vert ne rougit, les copies reviennent s'entasser. C'est le seul mécanisme de ce document qui ne garde aucune garantie.
 
 **L'ordre des cas est mélangé, celui des fichiers non.** `sequence.shuffle.tests` a fait tomber **six cas sur onze** dans `hot.test.ts` et trois sur huit dans `screen.test.ts` : ces fichiers n'étaient verts que dans un ordre précis, et deux fois cette session un couplage n'a été trouvé que par hasard. Mélanger les fichiers, en revanche, annule l'optimisation qui lance les plus longs d'abord.
 

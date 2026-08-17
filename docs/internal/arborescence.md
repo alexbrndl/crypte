@@ -35,6 +35,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/mutations.test.mjs` | les motifs du catalogue de mutations ne sont pas périmés | — |
 | `test/doc-links.test.mjs` | tout document cité existe, et hors de `docs/` il est cité par son chemin | — |
 | `test/published-english.test.mjs` | aucune phrase française dans le code publié | — |
+| `test/sweep-tmp.mjs` | efface les copies de projet qu'un lancement tué laisse | vitest, au démarrage |
 | `.changeset/config.json` | mode fixe, générateur de changelog | Changesets |
 | `.claude/skills/review/SKILL.md` | prompt de revue | `/review` |
 | `.claude/skills/explore/SKILL.md` | méthode de découverte avant revue | `/explore` |
