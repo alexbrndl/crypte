@@ -8,6 +8,10 @@
 # `node test/mutation-check.mjs --depuis origin/main`.
 name: Guarantees
 
+# Il ne fait que lire le dépôt et lancer des commandes locales.
+permissions:
+  contents: read
+
 on:
   schedule:
     - cron: '17 3 * * *'
