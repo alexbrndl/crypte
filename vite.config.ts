@@ -31,7 +31,10 @@ export default defineConfig({
     // deux mécanismes se disputaient sa forme. Le formateur compactait ses
     // tableaux au commit, l'écriture les dépliait au test suivant, et l'arbre
     // n'était jamais propre. Voir docs/internal/architecture.md.
-    ignorePatterns: ['dist/**', 'docs/**', 'README.md', '**/.crypte/**'],
+    // Les instantanés sont écrits par vitest et relus en revue : le formateur et
+    // l'écriture se disputeraient leur forme, comme ils l'ont fait pour
+    // l'empreinte.
+    ignorePatterns: ['dist/**', 'docs/**', 'README.md', '**/.crypte/**', '**/test/snapshots/**'],
     singleQuote: true,
     semi: false,
   },

@@ -93,14 +93,34 @@ describe('les fichiers surveillés', () => {
   })
 })
 
+// Le chemin absolu du dépôt, remplacé par un repère : sinon l'instantané ne vaut
+// que sur la machine qui l'a écrit.
+const racine = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
+const sansRacine = (source: string) => source.replaceAll(racine, '<racine>')
+
 describe('l’entrée de la preview', () => {
+  // L'entrée entière, dans un fichier que la revue lit comme un diff.
+  //
+  // Elle remplace six assertions par sous-chaîne sur cette même source. Une
+  // sous-chaîne passe dès que le texte la contient, pour n'importe quelle
+  // raison ; un instantané compare tout, donc il ne peut pas passer pour la
+  // mauvaise raison. Il se met à jour par `vp test -u`, et sa mise à jour se
+  // relit.
+  it('rend une entrée que la revue lit en entier', async () => {
+    const source = previewEntry(await loadProject(fixture), ['stories/Gardee.tsx'])
+
+    // La racine du dépôt est remplacée : l'entrée porte le chemin absolu de la
+    // feuille de style, donc l'instantané ne vaudrait que sur cette machine.
+    await expect(sansRacine(source)).toMatchFileSnapshot('./snapshots/preview-entry.js')
+  })
+
   // Le demo porte un adaptateur importé, la fixture un objet écrit sur place :
   // les deux formes que la section 1.5 autorise.
   it('reprend l’import dont un adaptateur construit se sert', async () => {
     const source = previewEntry(await loadProject(demo))
 
-    expect(source).toContain("import { createAdapter } from '@crypte/react'")
-    expect(source).toContain('const adapter = createAdapter()')
+    await expect(sansRacine(source)).toMatchFileSnapshot('./snapshots/preview-entry-demo.js')
+
     expect(source).not.toContain('crypte.config.ts')
   })
 
@@ -108,9 +128,6 @@ describe('l’entrée de la preview', () => {
   // deviné depuis `adapter.name` : envelopper un adaptateur casserait la devinette.
   it('importe l’adaptateur depuis la configuration du projet', () => {
     const source = previewEntry({ root: fixture, config: { stories: 'stories' } } as never)
-
-    expect(source).toContain("const adapter = { name: 'fixture' }")
-    expect(source).toContain('adapter.mount(')
 
     // La configuration n'est jamais importée : elle peut porter des plugins
     // Vite, donc du code Node, et la preview échouerait avant d'ouvrir le canal,
