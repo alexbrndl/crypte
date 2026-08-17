@@ -10,12 +10,21 @@
 
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join, relative } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import { argv } from 'node:process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const catalogue = JSON.parse(readFileSync(join(root, 'test', 'mutations.json'), 'utf8'))
+
+// Les fichiers du dépôt, par git plutôt qu'en parcourant : la liste est déjà
+// tenue, et elle ignore ce qui est ignoré.
+const tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' })
+  .split('\n')
+  .filter(Boolean)
+
+const sourceFiles = tracked.filter((one) => /\/src\/.*\.(ts|tsx|vue)$/.test(one))
+const testFiles = tracked.filter((one) => /\.test\.(ts|tsx|mjs)$/.test(one))
 
 // Le catalogue entier, ou seulement les garanties dont le fichier a changé. Son
 // coût est « nombre de garanties × toute la suite », donc il grandit à chaque
@@ -41,7 +50,69 @@ function selected() {
       .filter(Boolean),
   )
 
-  return { mutations: catalogue.filter((one) => changed.has(one.fichier)), depuis }
+  const touched = withDependents(changed)
+
+  // Trois raisons de vérifier une garantie : son fichier a changé, son gardien a
+  // changé, ou un fichier dont son fichier dépend a changé. Les deux premières
+  // sont les façons de casser une garantie ; la troisième est la façon de rendre
+  // son gardien aveugle sans y toucher.
+  return {
+    mutations: catalogue.filter(
+      (one) => touched.has(one.fichier) || changed.has(fileOf(one.attendu)),
+    ),
+    depuis,
+  }
+}
+
+// Le fichier de test qu'une garantie nomme, quand elle en nomme un. `attendu`
+// est du texte libre : la vingtaine d'entrées qui citent un code TypeScript ou
+// une fixture n'en portent pas.
+function fileOf(attendu) {
+  const premier = attendu.split(' > ')[0]
+
+  return premier.endsWith('.ts') || premier.endsWith('.mjs')
+    ? (testFiles.find((one) => one.endsWith(`/${premier}`)) ?? premier)
+    : premier
+}
+
+// Les fichiers changés, plus tout ce qui dépend d'eux, directement ou non.
+// Calculé et jamais commité : un graphe sur le disque serait un troisième
+// artefact à garder frais, et les deux qu'on a déjà ont coûté assez.
+function withDependents(changed) {
+  const imports = new Map()
+
+  for (const file of sourceFiles) {
+    const from = join(root, file)
+    const cited = [...readFileSync(from, 'utf8').matchAll(/from\s+'(\.[^']*)'/g)].map(
+      (found) => found[1],
+    )
+
+    imports.set(
+      file,
+      cited.flatMap((one) => {
+        const base = relative(root, resolve(dirname(from), one))
+
+        return sourceFiles.filter(
+          (candidate) => candidate === base || candidate.startsWith(`${base}.`),
+        )
+      }),
+    )
+  }
+
+  const reached = new Set(changed)
+  let grew = true
+  while (grew) {
+    grew = false
+    for (const [file, cited] of imports) {
+      if (reached.has(file)) continue
+      if (!cited.some((one) => reached.has(one))) continue
+
+      reached.add(file)
+      grew = true
+    }
+  }
+
+  return reached
 }
 
 const { mutations, depuis } = selected()
