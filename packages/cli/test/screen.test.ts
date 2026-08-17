@@ -36,6 +36,24 @@ describe('l’écran', () => {
   let origin: string
   let root: string
   let navigations = 0
+  const plaintes: string[] = []
+
+  // L'état visible, avec ce que la page a dit : un `#root` vide seul ne dit pas
+  // si la preview a échoué, si le shell affiche une erreur, ou si rien n'est
+  // encore arrivé.
+  async function vu() {
+    const root = await page
+      .frameLocator('iframe[title="preview"]')
+      .locator('#root')
+      .textContent()
+      .catch(() => '<cadre absent>')
+
+    if (root) return root
+
+    const etat = await page.locator('main > div > p').last().textContent()
+
+    return `<vide> état: ${etat} ${plaintes.slice(-3).join(' | ')}`
+  }
 
   beforeAll(async () => {
     root = mkdtempSync(join(demo, '..', 'tmp-demo-'))
@@ -63,6 +81,14 @@ describe('l’écran', () => {
     page.on('framenavigated', (frame: Frame) => {
       if (frame.url().includes('/preview.html')) navigations += 1
     })
+
+    // Ce que la page a dit. Sans ça, un `#root` vide se lit « expected '' to
+    // contain … » et ne nomme rien : plusieurs diagnostics ont été perdus à
+    // relancer pour voir.
+    page.on('console', (message) => {
+      if (message.type() === 'error') plaintes.push(`console: ${message.text()}`)
+    })
+    page.on('pageerror', (error) => plaintes.push(`page: ${error.message}`))
 
     // Un premier rendu avant tout cas. Le préchauffage de l'entrée ne couvre pas
     // l'optimisation que Vite fait à la première demande du navigateur, ni le
@@ -203,11 +229,9 @@ describe('l’écran', () => {
 
     // `toContain` : le cas précédent a modifié le composant de cette copie, et
     // ce qu'il rend porte donc sa marque.
-    const preview = page.frameLocator('iframe[title="preview"]')
-    await expect
-      .poll(() => preview.locator('#root').textContent(), { timeout: 30_000 })
-      .toContain('Nouveau')
+    await expect.poll(vu, { timeout: 30_000 }).toContain('Nouveau')
 
+    const preview = page.frameLocator('iframe[title="preview"]')
     const before = navigations
     const file = join(root, 'stories', 'Badge.tsx')
     writeFileSync(file, readFileSync(file, 'utf8').replace("'Nouveau'", "'Renouvelé'"))
