@@ -69,7 +69,7 @@ describe('l’adaptateur React', () => {
 
   // Et l'erreur ne reste pas collée : la story suivante doit monter.
   test('remonte une story qui marche après une erreur', ({ monte }) => {
-    expect(() => monte.adapter.mount(monte.hote, Boum, {})).toThrow()
+    expect(() => monte.adapter.mount(monte.hote, Boum, {})).toThrow('ne rend jamais')
 
     monte.adapter.mount(monte.hote, Badge, { label: 'Réparé' })
 

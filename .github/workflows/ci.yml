@@ -58,7 +58,9 @@ jobs:
       # Le résumé et le compte partent au job `coverage`, qui les affiche et
       # commente. `always()` : un lancement rouge doit pouvoir dire son compte.
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        if: always() && matrix.node == '24'
+        # `!cancelled()` et non `always()` : un lancement annulé par le suivant
+        # n'a rien à déposer, et le job d'à côté rougirait sur un artefact absent.
+        if: ${{ !cancelled() && matrix.node == '24' }}
         with:
           name: coverage-summary
           # Aucun chemin caché : `upload-artifact` écarte les fichiers en point
@@ -86,7 +88,7 @@ jobs:
   # seuil : vitest garde déjà la porte, celui-ci la rend visible.
   # Voir docs/internal/architecture.md.
   coverage:
-    if: always()
+    if: ${{ !cancelled() }}
     needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -129,7 +131,12 @@ jobs:
       - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           name: coverage-summary
-      - run: node test/coverage-report.mjs --resume coverage-summary.json --badge .github/coverage.json > /dev/null
+      # Les chemins par défaut, ceux que l'artefact porte : `coverage/` est
+      # préservé depuis qu'il y a deux fichiers dedans. L'override d'avant
+      # cherchait le résumé à la racine, donc le badge n'était jamais écrit et ce
+      # job aurait été rouge à chaque fusion. Il n'a jamais tourné sur une pull
+      # request, donc rien ne l'a dit. Voir docs/internal/architecture.md.
+      - run: node test/coverage-report.mjs --badge .github/coverage.json > /dev/null
       # `[skip ci]` : sans lui, la pousse relance toute la CI pour recalculer le
       # même chiffre. Et rien n'est commité quand il n'a pas bougé, ce qui est le
       # cas de la plupart des fusions.

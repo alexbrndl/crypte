@@ -1,5 +1,16 @@
 import { defineConfig } from 'vite-plus'
 
+// Les réglages que tout projet de test doit avoir. Écrits ici parce que le projet
+// `shell` étend la configuration du shell, pas la racine : sans eux, ses cas
+// tournaient dans un ordre fixe et avec le défaut d'une seconde d'`expect.poll`.
+// Voir docs/internal/architecture.md.
+const partagé = {
+  testTimeout: 20_000,
+  hookTimeout: 30_000,
+  expect: { poll: { timeout: 10_000 } },
+  sequence: { shuffle: { tests: true, files: false } },
+}
+
 export default defineConfig({
   run: {
     cache: true,
@@ -76,24 +87,19 @@ export default defineConfig({
     // s'étaient accumulées.
     globalSetup: ['./test/sweep-tmp.mjs'],
 
-    // Les délais vivaient dans les fichiers, recopiés une trentaine de fois.
-    // Ici, ils se lisent d'un endroit et se changent d'un endroit.
-    testTimeout: 20_000,
-    hookTimeout: 30_000,
-
-    // Le défaut d'`expect.poll` est d'une seconde, ce qui ne suffit pas quand on
-    // attend un serveur, un rendu React ou un rechargement à chaud. Réglé ici,
-    // il cesse d'être recopié une trentaine de fois dans les fichiers.
-    expect: { poll: { timeout: 10_000 } },
-
-    // L'ordre des cas est mélangé, jamais celui des fichiers : mélanger les
-    // fichiers annule l'optimisation qui lance les plus longs d'abord.
+    // Les délais et l'ordre mélangé vivaient dans les fichiers, recopiés une
+    // trentaine de fois. Ici, ils se lisent d'un endroit et se changent d'un
+    // endroit.
     //
-    // Deux couplages entre cas nous ont coûté des heures et n'ont été trouvés
-    // que par hasard : un cas qui supprimait ce que le précédent avait écrit, et
-    // un autre qui lisait un compteur rempli par ses voisins. La graine est
-    // imprimée par vitest, donc un échec se rejoue par `--sequence.seed`.
-    sequence: { shuffle: { tests: true, files: false } },
+    // Le défaut d'`expect.poll` est d'une seconde, ce qui ne suffit pas quand on
+    // attend un serveur, un rendu React ou un rechargement à chaud.
+    //
+    // L'ordre des cas est mélangé, jamais celui des fichiers : mélanger les
+    // fichiers annule l'optimisation qui lance les plus longs d'abord. Deux
+    // couplages entre cas nous ont coûté des heures et n'ont été trouvés que par
+    // hasard. La graine est imprimée par vitest, donc un échec se rejoue par
+    // `--sequence.seed`.
+    ...partagé,
 
     // Deux projets, parce que les cas navigateur ne sont pas du même genre. Ils
     // montent une copie de projet, un serveur et une page par cas ; entrelacés
@@ -118,6 +124,7 @@ export default defineConfig({
       {
         extends: './apps/shell/vite.config.ts',
         test: {
+          ...partagé,
           name: 'shell',
           include: ['apps/shell/test/app.test.ts'],
           environment: 'jsdom',

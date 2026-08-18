@@ -324,6 +324,8 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 *Un job à part*, pour que `contents: write` ne vaille que là : le job qui exécute les tests n'a jamais le droit d'écrire dans le dépôt, ni dans une pull request. Le résumé et le compte des tests passent de job en job par un artefact.
 
+*Le chemin du résumé est celui par défaut*, et c'est une correction de l'auto-revue : le job passait `--resume coverage-summary.json`, vrai quand l'artefact ne portait qu'un fichier, faux depuis qu'il en porte deux et que `coverage/` est préservé. Le badge n'aurait jamais été écrit et ce job aurait été rouge à chaque fusion. Il ne tourne que sur `main`, donc aucune pull request ne pouvait le dire.
+
 *Sur `main` seulement*, et avec `[skip ci]` : le badge dit l'état de la branche par défaut, et sans le marqueur la pousse relancerait toute la CI pour recalculer le même chiffre. Rien n'est commité quand il n'a pas bougé, ce qui est le cas de la plupart des fusions.
 
 **Les échecs sont annotés dans le diff.** Le rapporteur `github-actions` de vitest place chaque échec sur son fichier et sa ligne, ce qui évite d'ouvrir les journaux pour savoir quoi.
@@ -751,6 +753,8 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 **L'ordre des cas est mélangé, celui des fichiers non.** `sequence.shuffle.tests` a fait tomber **six cas sur onze** dans `hot.test.ts` et trois sur huit dans `screen.test.ts` : ces fichiers n'étaient verts que dans un ordre précis, et deux fois cette session un couplage n'a été trouvé que par hasard. Mélanger les fichiers, en revanche, annule l'optimisation qui lance les plus longs d'abord.
 
 **Les cas navigateur sont un projet à part.** Entrelacés avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le même. `sequence.groupOrder` les fait passer après, seuls sur la machine : trois passes vertes contre une sur quatre avant.
+
+**Les réglages partagés sont hoistés, parce qu'un projet n'hérite pas toujours de la racine.** Le projet `shell` étend `apps/shell/vite.config.ts`, qui porte le plugin Vue : il ne voyait donc ni l'ordre mélangé ni le délai d'`expect.poll`. Ses treize cas tournaient dans un ordre fixe, ce qui est exactement l'état où deux couplages nous ont coûté des heures. Un objet `partagé` est maintenant épandu dans la racine et dans ce projet, et trois lancements mélangés passent.
 
 **Les réglages sont dans la configuration, plus dans les fichiers.** `testTimeout`, `hookTimeout` et surtout `expect.poll.timeout`, dont **le défaut d'une seconde** était la cause d'une partie de l'instabilité que j'attribuais à la charge.
 
