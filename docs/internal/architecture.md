@@ -296,6 +296,16 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 *Ce qui casse si on l'enlève :* du code publié cesse d'être exécuté par les tests sans que rien ne le dise, ce qui est exactement l'état dans lequel l'adaptateur React a vécu tout le projet.
 
+**Le chiffre est affiché, pas rangé dans un journal.** `test/coverage-report.mjs` compose un tableau, les quatre métriques avec leur barre, leur seuil et leur compte brut, et l'envoie à deux endroits : le résumé du job, sur toute exécution, et un commentaire de pull request, remplacé en place plutôt qu'empilé.
+
+*Pourquoi remplacé :* une pull request de quinze pousses porterait quinze tableaux, et le dernier serait le seul vrai. Le marqueur `<!-- crypte-coverage -->` sert à retrouver le commentaire, comme celui de la revue.
+
+*Une seule entrée de matrice le poste*, et jamais depuis une bifurcation : deux entrées se marcheraient dessus, et le jeton d'une pull request venue d'ailleurs est en lecture seule de toute façon.
+
+*Les deux étapes sont informatives*, donc `continue-on-error`. Un rapport manquant ne doit pas masquer l'échec qui l'a empêché d'exister ; la porte est l'étape de test.
+
+**Les échecs sont annotés dans le diff.** Le rapporteur `github-actions` de vitest place chaque échec sur son fichier et sa ligne, ce qui évite d'ouvrir les journaux pour savoir quoi.
+
 **Ce qu'elle ne dit pas.** Qu'une ligne exécutée est *vérifiée*. Un test qui appelle une fonction sans rien affirmer la couvre à 100 %. C'est la raison des instantanés : `toMatchInlineSnapshot` fixe le message entier, là où un `toContain('champ')` passait sur une phrase à moitié fausse. Les deux ensemble, exécution mesurée et assertion exacte, couvrent ce que le contrôle de mutation cherchait ; ni l'un ni l'autre ne le remplace seul.
 
 ---
@@ -768,13 +778,15 @@ Règle à retenir si un autre workflow apparaît : `cancel-in-progress: true` po
 
 **Ce qui casse si on l'enlève.** La matrice ne renseigne plus. Un échec sur la première version annule la seconde, et on ignore si le problème est spécifique à une version, ce qui est précisément la question posée.
 
-### `permissions: contents: read`
+### `permissions: contents: read`, et `pull-requests: write` sur un seul job
 
 **Ce que ça fait.** Réduit le jeton fourni aux jobs à la lecture du dépôt.
 
 **Pourquoi.** Sans déclaration explicite, le jeton par défaut peut être bien plus large que nécessaire.
 
 **Ce qui casse si on l'enlève.** Rien visiblement, et c'est le problème : une action compromise ou une dépendance malveillante disposerait de droits d'écriture sur un dépôt public.
+
+**La seule exception, et elle est locale.** Le job `check` déclare `pull-requests: write`, pour le seul commentaire de couverture. La portée est le job, pas le fichier, donc les trois autres jobs restent en lecture. Et le jeton d'une pull request venue d'une bifurcation reste en lecture seule quoi qu'on écrive ici : l'étape est donc gardée sur l'origine de la branche, sinon elle échouerait chez un contributeur extérieur.
 
 ### `timeout-minutes: 10`
 

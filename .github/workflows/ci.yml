@@ -16,6 +16,12 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # `pull-requests: write` pour le seul commentaire de couverture. Le jeton
+    # d'une pull request venue d'une bifurcation reste en lecture seule quoi
+    # qu'on écrive ici, d'où la garde sur l'étape. Voir docs/internal/architecture.md.
+    permissions:
+      contents: read
+      pull-requests: write
     # 10 depuis le retrait du contrôle de mutation, qui lançait un test par
     # garantie et demandait 20. Mesuré ici sur le job entier : moins de 2 min.
     timeout-minutes: 10
@@ -45,8 +51,34 @@ jobs:
       # `--coverage` : les seuils sont dans vite.config.ts, et c'est ici qu'ils
       # gardent quelque chose. Sans le drapeau, ils ne sont jamais évalués et un
       # fichier publié peut retomber à 0 % d'exécution sans un mot.
+      #
+      # `github-actions` annote les fichiers du diff aux lignes qui échouent, ce
+      # qui évite d'ouvrir les journaux pour savoir quoi. `json` écrit le compte
+      # que le résumé et le commentaire affichent.
       # Voir docs/internal/architecture.md.
-      - run: vp test --coverage
+      - run: >
+          vp test --coverage
+          --reporter=default --reporter=github-actions
+          --reporter=json --outputFile=.vitest-report.json
+      # Le tableau sur la page du job, quel que soit le déclencheur. Le rapport
+      # de couverture vivait dans les journaux, que personne n'ouvre.
+      - name: Tests and coverage summary
+        if: always() && matrix.node == '24'
+        # Informatif : un rapport manquant ne doit pas masquer l'échec qui l'a
+        # empêché d'exister. La porte est l'étape de test, pas celle-ci.
+        continue-on-error: true
+        run: node test/coverage-report.mjs --sha "${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+      # Et le même tableau en commentaire de pull request, remplacé en place.
+      # Une seule entrée de matrice le poste : deux se marcheraient dessus.
+      # Jamais depuis une bifurcation, dont le jeton est en lecture seule.
+      - name: Comment coverage on the pull request
+        if: >
+          always() && matrix.node == '24' && github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node test/coverage-report.mjs --pr "${{ github.event.pull_request.number }}" --sha "${{ github.sha }}" > /dev/null
       # Deux choses sont écrites par la suite et commitées : les réexports
       # générés, et l'empreinte de la fixture. Le régime est celui d'un fichier
       # de verrouillage, et ce diff en est le contrôle : le réparer, c'est

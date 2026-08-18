@@ -50,6 +50,10 @@ export default defineConfig({
     coverage: {
       include: ['packages/*/src/**', 'apps/shell/src/**'],
 
+      // `text` pour la console, `json-summary` pour le commentaire de pull
+      // request. Ni `html` ni `clover`, que personne ne lit ici.
+      reporter: ['text', 'json-summary'],
+
       // Trois fichiers de câblage, et rien d'autre : l'entrée du CLI qui appelle
       // `run`, le montage du shell, et un module de types dont il ne reste à
       // l'exécution qu'une constante.
@@ -79,8 +83,8 @@ export default defineConfig({
     },
 
     // Les cas navigateur et le rechargement à chaud copient un projet par cas et
-    // la démontent après. Un lancement tué, ce que le contrôle de mutation fait
-    // couramment, laisse la copie : soixante-huit s'étaient accumulées.
+    // la démontent après. Un lancement tué laisse la copie : soixante-huit
+    // s'étaient accumulées.
     globalSetup: ['./test/sweep-tmp.mjs'],
 
     // Les délais vivaient dans les fichiers, recopiés une trentaine de fois.
