@@ -121,17 +121,27 @@ export function existing(comments, marker = MARKER) {
 
 // Publie, ou remplace. Sans le remplacement, une pull request de quinze pousses
 // porterait quinze tableaux, et le dernier serait le seul vrai.
+//
+// La liste passe par l'API REST et non par `gh pr view --json comments`, qui rend
+// un identifiant GraphQL : la mise à jour répondait alors 404, le premier
+// commentaire restait en place, et ses chiffres verts survivaient à tout.
 export function publish(body, number, run = gh) {
-  const comments = JSON.parse(
-    run(['pr', 'view', number, '--json', 'comments', '--jq', '.comments']),
-  )
-  const id = existing(comments)
   const repo = run(['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner'])
-  const route = id
-    ? `repos/${repo}/issues/comments/${id}`
-    : `repos/${repo}/issues/${number}/comments`
+  const liste = `repos/${repo}/issues/${number}/comments`
+  const comments = JSON.parse(run(['api', '--paginate', liste, '--jq', '[.[] | {id, body}]']))
+  const id = existing(comments)
+  const route = id ? `repos/${repo}/issues/comments/${id}` : liste
 
   run(['api', route, '--method', id ? 'PATCH' : 'POST', '-f', `body=${body}`])
+
+  // Vérifié, pas supposé : c'est le 404 silencieux qui a fait vivre un tableau
+  // périmé pendant trois lancements.
+  const relu = JSON.parse(run(['api', '--paginate', liste, '--jq', '[.[] | {id, body}]']))
+  const posé = relu.find((one) => (one.body ?? '').startsWith(MARKER))
+
+  if (!posé || posé.body.trim() !== body.trim()) {
+    throw new Error('le commentaire de couverture n’est pas arrivé tel quel')
+  }
 
   return id ? 'remplacé' : 'posté'
 }

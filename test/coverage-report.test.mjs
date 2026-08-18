@@ -127,16 +127,29 @@ describe('le corps du commentaire', () => {
 })
 
 describe('la publication', () => {
+  // La doublure rend ce que rendrait `gh`, et retient le corps écrit pour que la
+  // relecture de vérification le retrouve.
   const faux = (comments) => {
     const calls = []
+    let etat = [...comments]
 
     return {
       calls,
+      get etat() {
+        return etat
+      },
       run: (args) => {
         calls.push(args.join(' '))
-        if (args[0] === 'pr') return JSON.stringify(comments)
         if (args[0] === 'repo') return 'alexbrndl/crypte'
-        return ''
+
+        const corps = args.find((one) => one.startsWith('body='))?.slice('body='.length)
+
+        if (args.includes('PATCH')) {
+          etat = etat.map((one) => (one.body?.startsWith(MARKER) ? { ...one, body: corps } : one))
+        }
+        if (args.includes('POST')) etat = [...etat, { id: 99, body: corps }]
+
+        return JSON.stringify(etat)
       },
     }
   }
@@ -144,8 +157,8 @@ describe('la publication', () => {
   it('poste quand aucun commentaire ne porte le marqueur', () => {
     const gh = faux([{ id: 1, body: 'un commentaire humain' }])
 
-    expect(publish('corps', '34', gh.run)).toBe('posté')
-    expect(gh.calls.some((one) => one.includes('--method POST'))).toBe(true)
+    expect(publish(`${MARKER}\ncorps`, '34', gh.run)).toBe('posté')
+    expect(gh.calls.some((one) => one.includes('issues/34/comments --method POST'))).toBe(true)
   })
 
   // Sans le remplacement, une pull request de quinze pousses porterait quinze
@@ -153,8 +166,28 @@ describe('la publication', () => {
   it('remplace le commentaire qui porte le marqueur', () => {
     const gh = faux([{ id: 7, body: `${MARKER}\nun vieux tableau` }])
 
-    expect(publish('corps', '34', gh.run)).toBe('remplacé')
+    expect(publish(`${MARKER}\ncorps`, '34', gh.run)).toBe('remplacé')
     expect(gh.calls.some((one) => one.includes('issues/comments/7 --method PATCH'))).toBe(true)
+  })
+
+  // `gh pr view --json comments` rend un identifiant GraphQL, que l'API REST
+  // refuse en 404 : la liste doit venir de l'API, pas de la commande de haut
+  // niveau. Trois lancements ont servi un tableau périmé pour ça.
+  it('lit la liste par l’API REST, jamais par pr view', () => {
+    const gh = faux([])
+
+    publish(`${MARKER}\ncorps`, '34', gh.run)
+
+    expect(gh.calls.some((one) => one.startsWith('api --paginate repos/'))).toBe(true)
+    expect(gh.calls.some((one) => one.startsWith('pr view'))).toBe(false)
+  })
+
+  // Vérifié, pas supposé : c'est le 404 silencieux qui a fait vivre un tableau
+  // périmé.
+  it('lève quand le commentaire n’est pas arrivé', () => {
+    const muet = { run: (args) => (args[0] === 'repo' ? 'alexbrndl/crypte' : '[]') }
+
+    expect(() => publish(`${MARKER}\ncorps`, '34', muet.run)).toThrow('n’est pas arrivé tel quel')
   })
 
   it('trouve l’identifiant par le marqueur, et rien d’autre', () => {

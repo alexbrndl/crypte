@@ -300,6 +300,8 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 *Pourquoi remplacé :* une pull request de quinze pousses porterait quinze tableaux, et le dernier serait le seul vrai. Le marqueur `<!-- crypte-coverage -->` sert à retrouver le commentaire, comme celui de la revue.
 
+*La liste des commentaires vient de l'API REST*, jamais de `gh pr view --json comments`, qui rend un identifiant GraphQL : la mise à jour répondait 404, l'étape était `continue-on-error`, et le premier tableau posté a survécu trois lancements, dont un sous une CI rouge. Le script **relit ce qu'il a écrit** et lève si le corps n'est pas arrivé tel quel, comme `post-review.mjs` compte les revues avant et après.
+
 *Une seule entrée de matrice le poste*, et jamais depuis une bifurcation : deux entrées se marcheraient dessus, et le jeton d'une pull request venue d'ailleurs est en lecture seule de toute façon.
 
 *Les deux étapes sont informatives*, donc `continue-on-error`. Un rapport manquant ne doit pas masquer l'échec qui l'a empêché d'exister ; la porte est l'étape de test.

@@ -83,7 +83,10 @@ jobs:
         if: >
           always() && matrix.node == '24' && github.event_name == 'pull_request'
           && github.event.pull_request.head.repo.full_name == github.repository
-        continue-on-error: true
+        # Pas de `continue-on-error` ici, contrairement au résumé : un
+        # commentaire qui cesse de se mettre à jour en silence a servi trois
+        # lancements de chiffres périmés, dont un sous une CI rouge. Le script
+        # relit ce qu'il a écrit, donc l'étape rougit si rien n'est arrivé.
         env:
           GH_TOKEN: ${{ github.token }}
         run: node test/coverage-report.mjs --pr "${{ github.event.pull_request.number }}" --sha "${{ github.sha }}" > /dev/null
