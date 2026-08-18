@@ -49,28 +49,41 @@ function tests(results) {
   const cases = results.numTotalTests ?? 0
   const failed = results.numFailedTests ?? 0
   const verdict =
-    failed === 0 ? `**${cases} tests passent**` : `**${failed} tests échouent** sur ${cases}`
+    failed === 0
+      ? `**${cases} tests passent**`
+      : `**${failed} test${failed > 1 ? 's' : ''} ${failed > 1 ? 'échouent' : 'échoue'}** sur ${cases}`
+  const compte = `${verdict}, dans ${files} fichier${files > 1 ? 's' : ''}.`
 
-  return `${verdict}, dans ${files} fichier${files > 1 ? 's' : ''}.`
+  if (failed === 0) return compte
+
+  // Les noms plutôt qu'un compte seul : « 2 échouent » envoie lire les journaux,
+  // ce que ce commentaire existe pour éviter.
+  const noms = (results.testResults ?? [])
+    .flatMap((file) => file.assertionResults ?? [])
+    .filter((cas) => cas.status === 'failed')
+    .slice(0, 3)
+    .map((cas) => `- \`${cas.fullName ?? cas.title}\``)
+
+  return [compte, '', ...noms].join('\n')
 }
 
 // Le corps du commentaire. Séparé de la publication pour être éprouvé sans
 // réseau.
 export function compose(summary, results, sha) {
   const total = summary?.total
-  if (!total) throw new Error('résumé de couverture illisible : pas de champ `total`')
 
-  const lignes = [
-    MARKER,
-    '## Tests et couverture',
-    '',
-    tests(results),
-    '',
-    '| | progression | couvert | seuil | compte | |',
-    '| -- | -- | --: | --: | --: | -- |',
-    ...['statements', 'branches', 'functions', 'lines'].map((name) => row(name, total[name])),
-    '',
-  ]
+  // Sans couverture, on le dit et on garde le compte des tests. Lever ici
+  // laissait le commentaire d'avant en place : un lancement rouge affichait donc
+  // les chiffres verts du précédent, ce qui est pire que pas de commentaire.
+  const table = total
+    ? [
+        '| | progression | couvert | seuil | compte | |',
+        '| -- | -- | --: | --: | --: | -- |',
+        ...['statements', 'branches', 'functions', 'lines'].map((name) => row(name, total[name])),
+      ]
+    : ['⚠️ Couverture non mesurée : le lancement s’est arrêté avant.']
+
+  const lignes = [MARKER, '## Tests et couverture', '', tests(results), '', ...table, '']
 
   if (sha) lignes.push(`<sub>Mesuré sur \`${sha.slice(0, 7)}\`.</sub>`)
 
@@ -153,10 +166,7 @@ function main(args) {
   const { pr, resume, tests: chemin, sha, badge: cible } = options(args)
   const summary = readJson(resume)
 
-  if (!summary) {
-    console.error(`résumé de couverture introuvable : ${resume}`)
-    exit(1)
-  }
+  if (!summary) console.error(`résumé de couverture introuvable : ${resume}`)
 
   const body = compose(summary, readJson(chemin), sha)
 
@@ -164,9 +174,11 @@ function main(args) {
 
   // Deux espaces d'indentation et un saut final : le formateur du dépôt écrirait
   // exactement ça, donc l'arbre reste propre après l'écriture.
-  if (cible) writeFileSync(cible, `${JSON.stringify(badge(summary), undefined, 2)}\n`)
-
   if (pr) console.error(`commentaire ${publish(body, pr)} sur la pull request ${pr}`)
+
+  // Le badge, lui, exige un chiffre : pas de couverture, pas de badge, et un
+  // code de sortie qui le dit.
+  if (cible) writeFileSync(cible, `${JSON.stringify(badge(summary), undefined, 2)}\n`)
 }
 
 if (argv[1] && import.meta.url === pathToFileURL(argv[1]).href) main(argv.slice(2))

@@ -304,6 +304,8 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 *Les deux étapes sont informatives*, donc `continue-on-error`. Un rapport manquant ne doit pas masquer l'échec qui l'a empêché d'exister ; la porte est l'étape de test.
 
+*Un lancement rouge n'écrit pas de couverture*, et la première version levait alors : le commentaire d'avant restait donc en place, affichant les chiffres **verts** du lancement précédent sous une CI rouge. Mesuré sur la PR #34, une heure après l'avoir écrit. Le commentaire dit maintenant « couverture non mesurée », garde le compte des tests, et nomme les trois premiers cas qui rougissent.
+
 **Le badge du README est écrit par la CI, pas recopié à la main.** `.github/coverage.json` porte le format « endpoint » que shields.io lit, et un job `badge` le réécrit sur chaque pousse vers `main`. Le pourcentage de lignes, arrondi **vers le bas** : 98,55 affiché « 99 % » flatterait. La couleur suit le seuil du dépôt, pas une échelle scolaire, parce qu'un badge vert sous le seuil mentirait sur une porte rouge.
 
 *Un job à part*, pour que `contents: write` ne vaille que là : le job qui exécute les tests n'a jamais le droit d'écrire dans le dépôt. Le résumé passe de l'un à l'autre par un artefact.

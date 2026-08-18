@@ -55,6 +55,48 @@ describe('le corps du commentaire', () => {
     expect(body).toContain('**2 tests échouent** sur 404')
   })
 
+  it('accorde le verbe sur un seul échec', () => {
+    const body = compose(resume(), {
+      numTotalTests: 404,
+      numFailedTests: 1,
+      testResults: Array(31),
+    })
+
+    expect(body).toContain('**1 test échoue** sur 404')
+  })
+
+  // Un commentaire qui dit « 2 échouent » envoie lire les journaux, ce que ce
+  // commentaire existe pour éviter.
+  it('nomme les cas qui rougissent, trois au plus', () => {
+    const rouge = (fullName) => ({ status: 'failed', fullName })
+    const body = compose(resume(), {
+      numTotalTests: 404,
+      numFailedTests: 4,
+      testResults: [
+        { assertionResults: [rouge('un'), rouge('deux'), { status: 'passed', fullName: 'vert' }] },
+        { assertionResults: [rouge('trois'), rouge('quatre')] },
+      ],
+    })
+
+    expect(body).toContain('- `un`')
+    expect(body).toContain('- `trois`')
+    expect(body).not.toContain('- `quatre`')
+    // La puce, pas le mot : « vert » est une sous-chaîne de « couvert », dans
+    // l'en-tête du tableau. Le cas a rougi pour ça.
+    expect(body).not.toContain('- `vert`')
+  })
+
+  // Lever laissait le commentaire d'avant en place : un lancement rouge
+  // affichait alors les chiffres verts du précédent, ce qui est pire que pas de
+  // commentaire. Mesuré sur la PR #34.
+  it('dit la couverture non mesurée plutôt que de lever', () => {
+    const body = compose(undefined, { numTotalTests: 422, numFailedTests: 1, testResults: [{}] })
+
+    expect(body.split('\n')[0]).toBe(MARKER)
+    expect(body).toContain('Couverture non mesurée')
+    expect(body).toContain('**1 test échoue** sur 422')
+  })
+
   // Sans rapport, ne rien prétendre : annoncer zéro test se lirait comme une
   // suite vide, et une suite vide passe toujours.
   it('ne prétend rien quand le rapport des tests manque', () => {
@@ -76,10 +118,11 @@ describe('le corps du commentaire', () => {
     expect(compose(resume(), undefined, 'abcdef1234567')).toContain('`abcdef1`')
   })
 
-  // Un résumé illisible doit lever, pas produire un tableau vide qui se lirait
-  // comme une couverture nulle.
-  it('lève sur un résumé sans total', () => {
-    expect(() => compose({}, undefined)).toThrow('résumé de couverture illisible')
+  // Un résumé présent mais sans total est traité comme une absence : ce qui
+  // compte est de ne jamais afficher un tableau vide, qui se lirait comme une
+  // couverture nulle.
+  it('traite un résumé sans total comme une absence de mesure', () => {
+    expect(compose({}, undefined)).toContain('Couverture non mesurée')
   })
 })
 
