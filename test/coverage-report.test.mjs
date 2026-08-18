@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import {
   MARKER,
+  METRICS,
   badge,
   bar,
   byFolder,
+  byTotal,
   compose,
   existing,
   failing,
   folderOf,
   options,
   publish,
+  rowTotal,
 } from './coverage-report.mjs'
 
 // Ce que le commentaire de pull request dit, et ce qu'il remplace. Le script
@@ -351,5 +354,69 @@ describe('les seuils', () => {
     expect(config).toContain("from './test/coverage-thresholds.json'")
     expect(config).toContain('thresholds,')
     expect(compose(resume(99), undefined)).toContain(`lignes ${partagés.lines} %`)
+  })
+})
+
+describe('le total par ligne', () => {
+  // Le tableau totalisait par colonne et pas par dossier, donc rien ne disait
+  // lequel est le plus faible dans l'ensemble.
+  it('additionne les quatre métriques du dossier', () => {
+    const held = {
+      lines: [9, 10],
+      statements: [9, 10],
+      branches: [1, 10],
+      functions: [10, 10],
+    }
+
+    expect(rowTotal(held)).toEqual([29, 40])
+  })
+
+  it('met le total du résumé à la même forme', () => {
+    const pairs = byTotal(resume(99).total)
+
+    expect(pairs.lines).toEqual([615, 623])
+    expect(Object.keys(pairs)).toEqual(METRICS)
+  })
+
+  it('paraît dans le corps, par dossier et en bas', () => {
+    const body = compose(resume(), undefined)
+    const lignes = body.split('\n').filter((une) => une.startsWith('|'))
+
+    expect(lignes[0]).toContain('| total | lignes | instructions | branches | fonctions |')
+    expect(lignes.at(-1)).toContain('| **total** |')
+  })
+
+  // Zéro sur zéro n'est pas une lacune : un dossier sans branche ne doit pas
+  // tomber à 0 %.
+  it('rend cent quand il n’y a rien à couvrir', () => {
+    const body = compose(
+      {
+        '/dépôt/packages/vide/src/types.ts': {
+          lines: metrique(100, 0, 0),
+          statements: metrique(100, 0, 0),
+          branches: metrique(100, 0, 0),
+          functions: metrique(100, 0, 0),
+        },
+        total: resume(99).total,
+      },
+      undefined,
+    )
+
+    expect(body).toContain('| `packages/vide` | `██████████` | **100.0 %** |')
+  })
+})
+
+describe('ce que le tableau ne mesure pas', () => {
+  // Une colonne à 100 % qui tait une exclusion est un mensonge par omission :
+  // `apps/shell` est à 100 % alors que son composant principal n'est pas mesuré.
+  it('nomme App.vue et les fichiers de câblage', () => {
+    const body = compose(resume(), undefined)
+
+    expect(body).toContain('Hors mesure')
+    expect(body).toContain('`App.vue`')
+  })
+
+  it('ne dit rien quand il n’y a pas de tableau', () => {
+    expect(compose(undefined, undefined)).not.toContain('Hors mesure')
   })
 })

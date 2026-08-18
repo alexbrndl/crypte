@@ -22,13 +22,20 @@ const THRESHOLDS = JSON.parse(
 )
 
 // Le tableau s'explique tout seul : « branches 88 % » ne veut rien dire pour qui
-// lit la pull request sans connaître l'outil.
+// lit la pull request sans connaître l'outil. Une par ligne, plutôt qu'un
+// paragraphe dense.
 const LEGEND = [
-  '<sub>**lignes** : lignes exécutées au moins une fois.',
-  '**branches** : chaque côté d’un `if`, d’un `?:`, d’un `&&` ou d’un `??`.',
-  '**fonctions** : fonctions appelées au moins une fois.',
-  '**instructions** : instructions exécutées, plus fin que la ligne quand elle en porte plusieurs.</sub>',
-].join(' ')
+  '- <sub>**lignes** : lignes exécutées au moins une fois.</sub>',
+  '- <sub>**instructions** : instructions exécutées, plus fin que la ligne quand elle en porte plusieurs.</sub>',
+  '- <sub>**branches** : chaque côté d’un `if`, d’un `?:`, d’un `&&` ou d’un `??`. La plus exigeante : un `if` dont seul le cas vrai est éprouvé compte 1 sur 2, alors que sa ligne est comptée couverte.</sub>',
+  '- <sub>**fonctions** : fonctions appelées au moins une fois.</sub>',
+  '- <sub>**total** : les quatre additionnées, pour classer les dossiers entre eux.</sub>',
+]
+
+// Ce que le tableau ne mesure pas, dit à côté de lui : une colonne à 100 % qui
+// tait une exclusion est un mensonge par omission.
+const EXCLUDED =
+  '<sub>Hors mesure : `App.vue` (le fournisseur v8 ne parse pas un composant monofichier), et trois fichiers de câblage. Voir docs/internal/suivi.md.</sub>'
 
 const LABELS = {
   statements: 'instructions',
@@ -54,6 +61,10 @@ export function folderOf(path) {
   return found ? `${found[1]}/${found[2]}` : undefined
 }
 
+// L'ordre des colonnes, et le seul : le tableau, le total par ligne et la
+// légende le suivent tous.
+export const METRICS = ['lines', 'statements', 'branches', 'functions']
+
 // Les métriques additionnées par dossier, dans l'ordre où le résumé les donne.
 export function byFolder(summary) {
   const folders = new Map()
@@ -62,9 +73,9 @@ export function byFolder(summary) {
     const folder = path === 'total' ? undefined : folderOf(path)
     if (!folder) continue
 
-    const held = folders.get(folder) ?? { lines: [0, 0], branches: [0, 0], functions: [0, 0] }
+    const held = folders.get(folder) ?? Object.fromEntries(METRICS.map((name) => [name, [0, 0]]))
 
-    for (const name of ['lines', 'branches', 'functions']) {
+    for (const name of METRICS) {
       held[name][0] += metrics[name]?.covered ?? 0
       held[name][1] += metrics[name]?.total ?? 0
     }
@@ -83,6 +94,22 @@ function part([covered, total]) {
 
 function cell(pair) {
   return `${part(pair).toFixed(1)} % <sub>${pair[0]}/${pair[1]}</sub>`
+}
+
+// Le total d'une ligne : les quatre métriques additionnées. Le tableau totalisait
+// par colonne et pas par dossier, donc rien ne disait lequel est le plus faible
+// dans l'ensemble.
+// Le total du résumé, mis à la forme des paires pour que `rowTotal` s'applique
+// aussi à lui.
+export function byTotal(total) {
+  return Object.fromEntries(METRICS.map((name) => [name, [total[name].covered, total[name].total]]))
+}
+
+export function rowTotal(held) {
+  return METRICS.reduce(
+    ([covered, total], name) => [covered + held[name][0], total + held[name][1]],
+    [0, 0],
+  )
 }
 
 // Les métriques sous leur seuil, nommées. Rend un tableau vide quand tout tient.
@@ -135,15 +162,16 @@ export function compose(summary, results, sha) {
   // les chiffres verts du précédent, ce qui est pire que pas de commentaire.
   const table = total
     ? [
-        '| dossier | progression | lignes | branches | fonctions |',
-        '| -- | -- | --: | --: | --: |',
+        '| dossier | progression | total | lignes | instructions | branches | fonctions |',
+        '| -- | -- | --: | --: | --: | --: | --: |',
         ...[...byFolder(summary)]
           .sort(([a], [b]) => a.localeCompare(b))
-          .map(
-            ([folder, held]) =>
-              `| \`${folder}\` | \`${bar(part(held.lines))}\` | ${cell(held.lines)} | ${cell(held.branches)} | ${cell(held.functions)} |`,
-          ),
-        `| **total** | \`${bar(total.lines.pct)}\` | **${total.lines.pct} %** | **${total.branches.pct} %** | **${total.functions.pct} %** |`,
+          .map(([folder, held]) => {
+            const somme = rowTotal(held)
+
+            return `| \`${folder}\` | \`${bar(part(somme))}\` | **${part(somme).toFixed(1)} %** | ${METRICS.map((name) => cell(held[name])).join(' | ')} |`
+          }),
+        `| **total** | \`${bar(part(rowTotal(byTotal(total))))}\` | **${part(rowTotal(byTotal(total))).toFixed(1)} %** | ${METRICS.map((name) => `**${total[name].pct} %**`).join(' | ')} |`,
       ]
     : ['⚠️ Couverture non mesurée : le lancement s’est arrêté avant.']
 
@@ -156,7 +184,7 @@ export function compose(summary, results, sha) {
 
   const lignes = [MARKER, '## Tests et couverture', '', tests(results), '', ...table, '']
 
-  if (total) lignes.push(LEGEND, '')
+  if (total) lignes.push(...LEGEND, '', EXCLUDED, '')
   if (seuils) lignes.push(seuils, '')
   if (sha) lignes.push(`<sub>Mesuré sur \`${sha.slice(0, 7)}\`.</sub>`)
 

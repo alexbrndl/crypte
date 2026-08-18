@@ -302,7 +302,11 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 *Ce qui ne devait pas être doublé, en revanche, ce sont les chiffres.* Ils vivaient dans `vite.config.ts` **et** dans le script, donc deux copies à garder d'accord : le tableau aurait fini par annoncer un seuil que la porte n'applique pas. Ils sont maintenant dans `test/coverage-thresholds.json`, que la configuration importe et que le script lit. Un cas le vérifie.
 
-**Le tableau porte sa légende.** « branches 88 % » ne veut rien dire pour qui lit la pull request sans connaître l'outil : les quatre métriques sont définies sous le tableau, en une ligne.
+**Le tableau porte sa légende, et ses trous.** « branches 88 % » ne veut rien dire pour qui lit la pull request sans connaître l'outil : les cinq colonnes sont définies sous le tableau, une par ligne. Et ce qui **n'est pas** mesuré y est nommé, `App.vue` en tête : une colonne à 100 % qui tait une exclusion est un mensonge par omission, et `apps/shell` est précisément dans ce cas.
+
+*Un total par ligne autant que par colonne.* Les quatre métriques additionnées par dossier, pour classer les dossiers entre eux : sans lui, le tableau totalisait dans un seul sens et rien ne disait lequel est le plus faible dans l'ensemble. Mesuré aujourd'hui : `packages/cli` à 95,3 %, tous les autres au-dessus de 98 %.
+
+*Les chiffres paraissent petits pour `packages/core`*, 43 lignes, et ce n'est pas un oubli : les sept fichiers sont bien dans le rapport, mais v8 compte les lignes **exécutables**. Le noyau est surtout des types et des commentaires ; son code exécutable, ce sont les deux côtés du canal.
 
 **Le tableau va par dossier, pas par métrique seule.** « instructions 97 % » ne dit pas où chercher ; `packages/cli` à 88 % de branches le dit. Les fichiers du résumé sont additionnés par paquet et par application, avec le total en dernière ligne.
 
