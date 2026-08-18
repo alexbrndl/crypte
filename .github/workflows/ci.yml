@@ -71,6 +71,14 @@ jobs:
       # Et le même tableau en commentaire de pull request, remplacé en place.
       # Une seule entrée de matrice le poste : deux se marcheraient dessus.
       # Jamais depuis une bifurcation, dont le jeton est en lecture seule.
+      # Le résumé part au job du badge, qui a seul le droit d'écrire. Sur `main`
+      # seulement : le badge dit l'état de la branche par défaut, pas d'une
+      # pull request en cours.
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        if: github.event_name == 'push' && matrix.node == '24'
+        with:
+          name: coverage-summary
+          path: coverage/coverage-summary.json
       - name: Comment coverage on the pull request
         if: >
           always() && matrix.node == '24' && github.event_name == 'pull_request'
@@ -91,6 +99,34 @@ jobs:
         run: |
           git ls-files --error-unmatch packages/cli/test/fixture/.crypte/fingerprint.json apps/demo/.crypte/fingerprint.json
           git diff --exit-code
+
+  # Le badge du README, écrit par la CI parce qu'un chiffre recopié à la main
+  # dérive. Job à part pour que `contents: write` ne vaille que là.
+  # Voir docs/internal/architecture.md.
+  badge:
+    if: github.event_name == 'push'
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: coverage-summary
+      - run: node test/coverage-report.mjs --resume coverage-summary.json --badge .github/coverage.json > /dev/null
+      # `[skip ci]` : sans lui, la pousse relance toute la CI pour recalculer le
+      # même chiffre. Et rien n'est commité quand il n'a pas bougé, ce qui est le
+      # cas de la plupart des fusions.
+      - name: Commit the badge when the number moved
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/coverage.json
+          git diff --cached --quiet && echo "couverture inchangée" && exit 0
+          git commit -m "chore: update the coverage badge [skip ci]"
+          git push
 
   dependency-review:
     if: github.event_name == 'pull_request'

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MARKER, bar, compose, existing, options, publish } from './coverage-report.mjs'
+import { MARKER, badge, bar, compose, existing, options, publish } from './coverage-report.mjs'
 
 // Ce que le commentaire de pull request dit, et ce qu'il remplace. Le script
 // écrit sur une pull request : sans ces cas, sa seule épreuve serait une pousse.
@@ -136,5 +136,28 @@ describe('les arguments', () => {
   it('ne publie que sur --pr', () => {
     expect(options(['--pr', '34']).pr).toBe('34')
     expect(options(['--sha', 'abc']).pr).toBeUndefined()
+  })
+})
+
+describe('le badge du README', () => {
+  // Arrondi vers le bas : 98,55 affiché « 99 % » flatterait.
+  it('rend le format que shields.io lit, arrondi vers le bas', () => {
+    expect(badge(resume(98.55))).toEqual({
+      schemaVersion: 1,
+      label: 'coverage',
+      message: '98%',
+      color: 'brightgreen',
+    })
+  })
+
+  // Un badge vert sous le seuil mentirait sur une porte rouge.
+  it('n’est vert vif qu’au-dessus du seuil de lignes', () => {
+    expect(badge(resume(97)).color).toBe('brightgreen')
+    expect(badge(resume(96.9)).color).toBe('yellow')
+    expect(badge(resume(86)).color).toBe('red')
+  })
+
+  it('lève sur un résumé sans pourcentage de lignes', () => {
+    expect(() => badge({ total: {} })).toThrow('résumé de couverture illisible')
   })
 })

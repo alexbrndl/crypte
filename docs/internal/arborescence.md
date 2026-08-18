@@ -24,6 +24,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `.github/workflows/require-changeset.yml` | contrôle de présence d'une note de version | chaque pull request |
 | `.github/workflows/ts7-readiness.yml` | sonde mensuelle sur `vue-tsc` | personne, ouvre une issue |
 | `.github/dependabot.yml` | veille sur les actions GitHub | Dependabot |
+| `.github/coverage.json` | le chiffre du badge, écrit par la CI sur `main` | shields.io, via le README |
 | `.vite-hooks/pre-commit` | lance `vp staged` | Git, avant chaque commit |
 | `test/manifest-size.mjs` | ce que pèse un manifeste, et le coût d'en garder l'historique | personne, lancé à la main |
 | `test/post-review.mjs` | publie un verdict de revue, et vérifie qu'il y est arrivé | `/review` |
@@ -33,7 +34,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/doc-links.test.mjs` | tout document cité existe, et hors de `docs/` il est cité par son chemin | — |
 | `test/published-english.test.mjs` | aucune phrase française dans le code publié | — |
 | `test/sweep-tmp.mjs` | efface les copies de projet qu'un lancement tué laisse | vitest, au démarrage |
-| `test/coverage-report.mjs` | tableau des tests et de la couverture, en commentaire de PR | `ci.yml` |
+| `test/coverage-report.mjs` | tableau des tests et de la couverture, commentaire de PR et badge | `ci.yml` |
 | `test/coverage-report.test.mjs` | ce que le tableau dit, et ce qu'il remplace | — |
 | `.changeset/config.json` | mode fixe, générateur de changelog | Changesets |
 | `.claude/skills/review/SKILL.md` | prompt de revue | `/review` |

@@ -304,6 +304,12 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 *Les deux étapes sont informatives*, donc `continue-on-error`. Un rapport manquant ne doit pas masquer l'échec qui l'a empêché d'exister ; la porte est l'étape de test.
 
+**Le badge du README est écrit par la CI, pas recopié à la main.** `.github/coverage.json` porte le format « endpoint » que shields.io lit, et un job `badge` le réécrit sur chaque pousse vers `main`. Le pourcentage de lignes, arrondi **vers le bas** : 98,55 affiché « 99 % » flatterait. La couleur suit le seuil du dépôt, pas une échelle scolaire, parce qu'un badge vert sous le seuil mentirait sur une porte rouge.
+
+*Un job à part*, pour que `contents: write` ne vaille que là : le job qui exécute les tests n'a jamais le droit d'écrire dans le dépôt. Le résumé passe de l'un à l'autre par un artefact.
+
+*Sur `main` seulement*, et avec `[skip ci]` : le badge dit l'état de la branche par défaut, et sans le marqueur la pousse relancerait toute la CI pour recalculer le même chiffre. Rien n'est commité quand il n'a pas bougé, ce qui est le cas de la plupart des fusions.
+
 **Les échecs sont annotés dans le diff.** Le rapporteur `github-actions` de vitest place chaque échec sur son fichier et sa ligne, ce qui évite d'ouvrir les journaux pour savoir quoi.
 
 **Ce qu'elle ne dit pas.** Qu'une ligne exécutée est *vérifiée*. Un test qui appelle une fonction sans rien affirmer la couvre à 100 %. C'est la raison des instantanés : `toMatchInlineSnapshot` fixe le message entier, là où un `toContain('champ')` passait sur une phrase à moitié fausse. Les deux ensemble, exécution mesurée et assertion exacte, couvrent ce que le contrôle de mutation cherchait ; ni l'un ni l'autre ne le remplace seul.

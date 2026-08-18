@@ -5,7 +5,7 @@
 // n'ouvre. Voir docs/internal/architecture.md.
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { argv, exit } from 'node:process'
 import { pathToFileURL } from 'node:url'
 
@@ -77,6 +77,24 @@ export function compose(summary, results, sha) {
   return lignes.join('\n')
 }
 
+// Le badge du README, au format « endpoint » que shields.io sait lire. Les
+// lignes plutôt qu'une autre métrique : c'est celle que tout le monde entend par
+// « couverture ». Arrondi vers le bas : 98,55 affiché « 99 % » flatterait.
+// Voir docs/internal/architecture.md.
+export function badge(summary) {
+  const pct = summary?.total?.lines?.pct
+  if (typeof pct !== 'number')
+    throw new Error('résumé de couverture illisible : pas de `lines.pct`')
+
+  // Les paliers sont les seuils du dépôt, pas une échelle scolaire : vert vif
+  // au-dessus du seuil de lignes, jaune entre le seuil et dix points sous lui,
+  // rouge en dessous. Un badge vert sous le seuil mentirait sur une porte rouge.
+  const color =
+    pct >= THRESHOLDS.lines ? 'brightgreen' : pct >= THRESHOLDS.lines - 10 ? 'yellow' : 'red'
+
+  return { schemaVersion: 1, label: 'coverage', message: `${Math.floor(pct)}%`, color }
+}
+
 function gh(args) {
   return execFileSync('gh', args, { stdio: 'pipe', encoding: 'utf8' }).trim()
 }
@@ -127,11 +145,12 @@ export function options(args) {
     resume: read('--resume', 'coverage/coverage-summary.json'),
     tests: read('--tests', '.vitest-report.json'),
     sha: read('--sha'),
+    badge: read('--badge'),
   }
 }
 
 function main(args) {
-  const { pr, resume, tests: chemin, sha } = options(args)
+  const { pr, resume, tests: chemin, sha, badge: cible } = options(args)
   const summary = readJson(resume)
 
   if (!summary) {
@@ -142,6 +161,10 @@ function main(args) {
   const body = compose(summary, readJson(chemin), sha)
 
   console.log(body)
+
+  // Deux espaces d'indentation et un saut final : le formateur du dépôt écrirait
+  // exactement ça, donc l'arbre reste propre après l'écriture.
+  if (cible) writeFileSync(cible, `${JSON.stringify(badge(summary), undefined, 2)}\n`)
 
   if (pr) console.error(`commentaire ${publish(body, pr)} sur la pull request ${pr}`)
 }
