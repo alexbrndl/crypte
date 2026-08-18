@@ -69,14 +69,38 @@ function declaredInterfaces(): { name: string; fields: string[] }[] {
     })
 }
 
+// Les mêmes formes que le contrôle des réexports, et pour la même raison : ce
+// motif ne lisait que quatre mots-clés, donc un type déclaré puis exporté seul
+// échappait au contrôle et la partie normative pouvait l'ignorer en silence.
+// Voir docs/internal/architecture.md.
+const DECLARATION =
+  /^export\s+(?:declare\s+)?(?:abstract\s+)?(?:async\s+)?(?:interface|type|function|const|class|enum|let|var)\s+(\w+)/gm
+
+// Un symbole déclaré plus haut puis exporté seul. La garde `from` distingue
+// l'export local du réexport, qui appartient à `index.ts`.
+const LOCAL_EXPORT = /^export\s+(?:type\s+)?\{([^}]*)\}(?!\s*from)/gm
+
+// `Foo as Bar` expose `Bar` : c'est ce nom que la spécification doit décrire.
+function publicName(entry: string): string | undefined {
+  const cleaned = entry.trim().replace(/^type\s+/, '')
+  if (!cleaned) return undefined
+
+  const renamed = /^(\w+)\s+as\s+(\w+)$/.exec(cleaned)
+
+  return renamed ? renamed[2] : /^\w+$/.test(cleaned) ? cleaned : undefined
+}
+
 function declaredNames(): string[] {
   return readdirSync(protocol)
     .filter((file) => file.endsWith('.ts') && file !== 'index.ts')
     .flatMap((file) => {
       const source = readFileSync(join(protocol, file), 'utf8')
-      return [...source.matchAll(/^export (?:interface|type|const|function) (\w+)/gm)].map(
-        (match) => match[1] as string,
+      const declared = [...source.matchAll(DECLARATION)].map((match) => match[1] as string)
+      const exported = [...source.matchAll(LOCAL_EXPORT)].flatMap((match) =>
+        (match[1] ?? '').split(',').map(publicName),
       )
+
+      return [...declared, ...exported].filter((name): name is string => name !== undefined)
     })
 }
 

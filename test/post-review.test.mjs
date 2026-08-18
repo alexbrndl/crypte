@@ -1,5 +1,19 @@
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { expect, test } from 'vitest'
-import { changedFiles, MARKER, publish, readCount, validate } from './post-review.mjs'
+import {
+  changedFiles,
+  hunksByFile,
+  hunksOf,
+  inHunk,
+  MARKER,
+  publish,
+  readCount,
+  validate,
+} from './post-review.mjs'
 
 // Un faux `gh` : rend le compte de revues marquées, qui n'augmente que si la
 // publication a eu lieu.
@@ -184,4 +198,159 @@ test('un verdict vide ou mal formé ne fait pas tomber le contrôle', () => {
   expect(
     validate({ event: 'COMMENT', body: `${MARKER}\naucun bloquant`, comments: 'deux' }),
   ).toContain('`comments` doit être un tableau')
+})
+
+// Les portions du diff. L'API refuse l'appel entier en 422 pour un seul point
+// posé hors portion, donc le script doit le voir avant elle.
+// Voir docs/internal/architecture.md.
+
+const DIFF = [
+  'diff --git a/x.ts b/x.ts',
+  '--- a/x.ts',
+  '+++ b/x.ts',
+  '@@ -1,4 +1,6 @@',
+  ' inchangé',
+  '+ajouté',
+  '@@ -40,3 +42,2 @@ contexte de section',
+  ' inchangé',
+].join('\n')
+
+test('lit les plages de la version droite, pas de la gauche', () => {
+  expect(hunksOf(DIFF)).toEqual([
+    [1, 6],
+    [42, 43],
+  ])
+})
+
+// `+c` sans `,d` vaut une seule ligne : compté comme zéro, la plage serait vide
+// et un point juste se ferait refuser.
+test('compte une portion d’une seule ligne', () => {
+  expect(hunksOf('@@ -1 +7 @@')).toEqual([[7, 7]])
+})
+
+test('rend une liste vide sur un diff sans portion', () => {
+  expect(hunksOf('diff --git a/x.ts b/x.ts\n')).toEqual([])
+})
+
+test('accepte une ligne dans une portion, refuse celle du dehors', () => {
+  const plages = hunksOf(DIFF)
+
+  expect(inHunk(1, plages)).toBe(true)
+  expect(inHunk(6, plages)).toBe(true)
+  expect(inHunk(7, plages)).toBe(false)
+  expect(inHunk(42, plages)).toBe(true)
+  expect(inHunk(44, plages)).toBe(false)
+})
+
+// Un fichier dont les portions ne se lisent pas laisse passer : mieux vaut
+// laisser l'API trancher que refuser un verdict juste.
+test('laisse passer quand aucune portion n’est lisible', () => {
+  expect(inHunk(999, [])).toBe(true)
+})
+
+test('refuse un point posé hors des portions de son fichier', () => {
+  const review = {
+    event: 'COMMENT',
+    body: `${MARKER}\n**Verdict : aucun bloquant.**`,
+    comments: [{ path: 'x.ts', line: 99, side: 'RIGHT', body: '**Important.** …' }],
+  }
+  const hunks = new Map([['x.ts', hunksOf(DIFF)]])
+
+  expect(validate(review, ['x.ts'], hunks).join(' ')).toContain('hors des portions du diff')
+  expect(validate(review, ['x.ts'], undefined)).toEqual([])
+})
+
+test('lit les portions fichier par fichier, et rend la main quand git échoue', () => {
+  const appels = []
+  const run = (args) => {
+    appels.push(args.join(' '))
+    return DIFF
+  }
+
+  expect(hunksByFile(['x.ts', 'y.ts'], run).get('y.ts')).toEqual([
+    [1, 6],
+    [42, 43],
+  ])
+  expect(appels).toEqual(['diff origin/main...HEAD -- x.ts', 'diff origin/main...HEAD -- y.ts'])
+
+  expect(hunksByFile(undefined, run)).toBeUndefined()
+  expect(
+    hunksByFile(['x.ts'], () => {
+      throw new Error('pas un dépôt')
+    }),
+  ).toBeUndefined()
+})
+
+// Le câblage réel, pas un lanceur injecté : `git diff --name-only
+// origin/main...HEAD` ne s'exécutait jamais, donc une erreur d'arguments passait
+// au vert. Sur un dépôt jetable, parce que l'exécuter ici rendrait le résultat
+// dépendant de la branche courante. Voir docs/internal/architecture.md.
+test('exécute pour de vrai la commande git de changedFiles', () => {
+  const racine = mkdtempSync(join(tmpdir(), 'crypte-depot-'))
+  const git = (...args) => execFileSync('git', args, { cwd: racine, stdio: 'pipe' })
+
+  try {
+    git('init', '-q', '-b', 'main')
+    git('config', 'user.email', 'test@crypte')
+    git('config', 'user.name', 'Test')
+    writeFileSync(join(racine, 'garde.txt'), 'un\n')
+    git('add', '-A')
+    git('commit', '-qm', 'départ')
+    // Pas de remote : la référence suffit, et elle évite un dépôt nu de plus.
+    git('update-ref', 'refs/remotes/origin/main', 'main')
+    git('checkout', '-q', '-b', 'travaux')
+    writeFileSync(join(racine, 'change.txt'), 'deux\n')
+    git('add', '-A')
+    git('commit', '-qm', 'un fichier de plus')
+
+    const module = pathToFileURL(join(process.cwd(), 'test', 'post-review.mjs')).href
+    const sortie = execFileSync(
+      'node',
+      [
+        '--input-type=module',
+        '-e',
+        `import { changedFiles } from ${JSON.stringify(module)}
+         console.log(JSON.stringify(changedFiles()))`,
+      ],
+      { cwd: racine, encoding: 'utf8', stdio: 'pipe' },
+    )
+
+    expect(JSON.parse(sortie)).toEqual(['change.txt'])
+  } finally {
+    rmSync(racine, { recursive: true, force: true })
+  }
+})
+
+// Et le cas dégénéré, celui qui décide du reste : sans `origin/main`, la liste
+// est vide, ce que le script traite comme « illisible » plutôt que comme « le
+// diff ne touche rien ». Sinon tous les points seraient refusés, et le message
+// enverrait corriger le verdict quand c'est le dépôt qu'il faut mettre à jour.
+test('rend undefined quand origin/main n’existe pas', () => {
+  const racine = mkdtempSync(join(tmpdir(), 'crypte-depot-'))
+  const git = (...args) => execFileSync('git', args, { cwd: racine, stdio: 'pipe' })
+
+  try {
+    git('init', '-q', '-b', 'main')
+    git('config', 'user.email', 'test@crypte')
+    git('config', 'user.name', 'Test')
+    writeFileSync(join(racine, 'garde.txt'), 'un\n')
+    git('add', '-A')
+    git('commit', '-qm', 'départ')
+
+    const module = pathToFileURL(join(process.cwd(), 'test', 'post-review.mjs')).href
+    const sortie = execFileSync(
+      'node',
+      [
+        '--input-type=module',
+        '-e',
+        `import { changedFiles } from ${JSON.stringify(module)}
+         console.log(JSON.stringify(changedFiles() ?? null))`,
+      ],
+      { cwd: racine, encoding: 'utf8', stdio: 'pipe' },
+    )
+
+    expect(JSON.parse(sortie)).toBeNull()
+  } finally {
+    rmSync(racine, { recursive: true, force: true })
+  }
 })

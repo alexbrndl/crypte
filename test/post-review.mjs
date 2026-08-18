@@ -17,10 +17,49 @@ const DECLARED = /(\d+|aucun) bloquants?/i
 const LEVEL = /^\*\*(Bloquant|Important|Observation)\.\*\*/
 const BLOCKING = /^\*\*Bloquant\.\*\*/
 
+// Les plages de lignes qu'un point peut viser dans un fichier, côté droit du
+// diff. L'API refuse l'appel **entier** en 422 pour un seul point posé hors
+// portion, donc le script doit le voir avant elle.
+//
+// `@@ -a,b +c,d @@` : seul le second couple compte, et `d` vaut 1 quand il est
+// absent. Le calcul a été écrit deux fois à la main avant de vivre ici.
+export function hunksOf(diff) {
+  return [...diff.matchAll(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/gm)].map((found) => {
+    const start = Number(found[1])
+
+    return [start, start + (found[2] === undefined ? 1 : Number(found[2])) - 1]
+  })
+}
+
+// Vrai quand la ligne tombe dans une portion. Un fichier sans portion lisible
+// rend vrai : mieux vaut laisser l'API trancher que refuser un verdict juste.
+export function inHunk(line, hunks) {
+  if (hunks.length === 0) return true
+
+  return hunks.some(([from, to]) => line >= from && line <= to)
+}
+
+// Les plages de chaque fichier du diff, lues une fois. `undefined` quand git
+// n'est pas lisible, comme `changedFiles`.
+export function hunksByFile(files, run = git) {
+  if (!files) return undefined
+
+  try {
+    return new Map(
+      files.map((file) => [file, hunksOf(run(['diff', 'origin/main...HEAD', '--', file]))]),
+    )
+  } catch (error) {
+    console.error(`Portions du diff illisibles, lignes non vérifiées : ${error.message}`)
+
+    return undefined
+  }
+}
+
 // Rend la liste des raisons de refuser le verdict, vide s'il est publiable.
 // `changed` est la liste des fichiers du diff, quand on l'a : l'API refuse le
-// tout en 422 pour un seul point ancré ailleurs.
-export function validate(review, changed) {
+// tout en 422 pour un seul point ancré ailleurs. `hunks` fait le même travail
+// pour la ligne.
+export function validate(review, changed, hunks) {
   const problems = []
   const { body, event, comments } = review ?? {}
   const points = Array.isArray(comments) ? comments : []
@@ -44,6 +83,8 @@ export function validate(review, changed) {
       problems.push(`${où} est ancré sur ${point.path}, que le diff ne touche pas`)
     if (!Number.isInteger(point?.line) || point.line < 1)
       problems.push(`${où} n'est ancré sur aucune ligne`)
+    else if (hunks?.has(point?.path) && !inHunk(point.line, hunks.get(point.path)))
+      problems.push(`${où} vise la ligne ${point.line} de ${point.path}, hors des portions du diff`)
   })
 
   const declared = typeof body === 'string' ? body.match(DECLARED) : null
@@ -152,7 +193,8 @@ function main([file, given]) {
     exit(1)
   }
 
-  const problems = validate(review, changedFiles())
+  const changed = changedFiles()
+  const problems = validate(review, changed, hunksByFile(changed))
   if (problems.length > 0) {
     console.error(`Verdict refusé, ${problems.length} raison(s) :`)
     for (const problem of problems) console.error(`  ${problem}`)
