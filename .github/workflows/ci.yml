@@ -53,16 +53,19 @@ jobs:
       - run: >
           vp test --coverage
           --reporter=default --reporter=github-actions
-          --reporter=json --outputFile=.vitest-report.json
+          --reporter=json --outputFile=vitest-report.json
       # Le résumé et le compte partent au job `coverage`, qui les affiche et
       # commente. `always()` : un lancement rouge doit pouvoir dire son compte.
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: always() && matrix.node == '24'
         with:
           name: coverage-summary
+          # Aucun chemin caché : `upload-artifact` écarte les fichiers en point
+          # par défaut, et le rapport s'appelait `.vitest-report.json`. Le
+          # commentaire annonçait alors « résultat des tests indisponible ».
           path: |
             coverage/coverage-summary.json
-            .vitest-report.json
+            vitest-report.json
           if-no-files-found: ignore
       # Deux choses sont écrites par la suite et commitées : les réexports
       # générés, et l'empreinte de la fixture. Le régime est celui d'un fichier

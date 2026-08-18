@@ -287,7 +287,7 @@ describe('les arguments', () => {
     expect(options([])).toEqual({
       pr: undefined,
       resume: 'coverage/coverage-summary.json',
-      tests: '.vitest-report.json',
+      tests: 'vitest-report.json',
       sha: undefined,
     })
   })

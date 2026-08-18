@@ -30,4 +30,4 @@ packages/cli/test/tmp-hot-*
 packages/cli/test/tmp-dev-*
 apps/tmp-demo-*
 test/.mutation-inflight.json
-.vitest-report.json
+vitest-report.json

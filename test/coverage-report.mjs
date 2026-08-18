@@ -234,7 +234,7 @@ export function options(args) {
   return {
     pr: read('--pr'),
     resume: read('--resume', 'coverage/coverage-summary.json'),
-    tests: read('--tests', '.vitest-report.json'),
+    tests: read('--tests', 'vitest-report.json'),
     sha: read('--sha'),
     badge: read('--badge'),
   }

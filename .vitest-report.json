@@ -1,0 +1,170 @@
+{
+  "numTotalTestSuites": 4,
+  "numPassedTestSuites": 4,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 13,
+  "numPassedTests": 13,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1787045729862,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": ["la barre de progression"],
+          "fullName": "la barre de progression est vide à zéro et pleine à cent",
+          "status": "passed",
+          "title": "est vide à zéro et pleine à cent",
+          "duration": 0.0747080000000011,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["la barre de progression"],
+          "fullName": "la barre de progression n’est jamais pleine en dessous de cent",
+          "status": "passed",
+          "title": "n’est jamais pleine en dessous de cent",
+          "duration": 0.08579200000001208,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["le corps du commentaire"],
+          "fullName": "le corps du commentaire commence par le marqueur, seul sur sa première ligne",
+          "status": "passed",
+          "title": "commence par le marqueur, seul sur sa première ligne",
+          "duration": 0.09874999999999545,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["le corps du commentaire"],
+          "fullName": "le corps du commentaire compte les tests quand le rapport est là",
+          "status": "passed",
+          "title": "compte les tests quand le rapport est là",
+          "duration": 0.0800830000000019,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["le corps du commentaire"],
+          "fullName": "le corps du commentaire dit les échecs plutôt que le total",
+          "status": "passed",
+          "title": "dit les échecs plutôt que le total",
+          "duration": 0.11054199999999526,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["le corps du commentaire"],
+          "fullName": "le corps du commentaire ne prétend rien quand le rapport des tests manque",
+          "status": "passed",
+          "title": "ne prétend rien quand le rapport des tests manque",
+          "duration": 0.11762499999998965,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["le corps du commentaire"],
+          "fullName": "le corps du commentaire marque d’une croix la métrique sous son seuil",
+          "status": "passed",
+          "title": "marque d’une croix la métrique sous son seuil",
+          "duration": 0.13058300000000145,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["le corps du commentaire"],
+          "fullName": "le corps du commentaire marque d’une coche la métrique au-dessus de son seuil",
+          "status": "passed",
+          "title": "marque d’une coche la métrique au-dessus de son seuil",
+          "duration": 0.32395800000000463,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["le corps du commentaire"],
+          "fullName": "le corps du commentaire abrège la révision mesurée",
+          "status": "passed",
+          "title": "abrège la révision mesurée",
+          "duration": 0.10504199999999742,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["le corps du commentaire"],
+          "fullName": "le corps du commentaire lève sur un résumé sans total",
+          "status": "passed",
+          "title": "lève sur un résumé sans total",
+          "duration": 0.48287499999999284,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["la publication"],
+          "fullName": "la publication poste quand aucun commentaire ne porte le marqueur",
+          "status": "passed",
+          "title": "poste quand aucun commentaire ne porte le marqueur",
+          "duration": 0.1405419999999964,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["la publication"],
+          "fullName": "la publication remplace le commentaire qui porte le marqueur",
+          "status": "passed",
+          "title": "remplace le commentaire qui porte le marqueur",
+          "duration": 0.22283399999999176,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["la publication"],
+          "fullName": "la publication trouve l’identifiant par le marqueur, et rien d’autre",
+          "status": "passed",
+          "title": "trouve l’identifiant par le marqueur, et rien d’autre",
+          "duration": 1.2073339999999888,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1787045730024,
+      "endTime": 1787045730028.0857,
+      "status": "passed",
+      "message": "",
+      "name": "/Users/alexandrebrondel/Coding/crypte/test/coverage-report.test.mjs"
+    }
+  ]
+}
