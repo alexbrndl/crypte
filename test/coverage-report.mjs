@@ -308,8 +308,8 @@ function main(args) {
   if (cible && summary) writeFileSync(cible, `${JSON.stringify(badge(summary), undefined, 2)}\n`)
 
   // Le verdict en dernier, pour que le commentaire existe même quand il est
-  // mauvais. C'est ce qui rend le contrôle `coverage` de la pull request
-  // parlant : vitest garde déjà la porte, celui-ci l'affiche.
+  // mauvais. C'est le seul endroit où les seuils sont évalués : la configuration
+  // de vitest ne les porte pas.
   const manques = failing(summary)
 
   if (manques.length > 0) {

@@ -1,8 +1,8 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { dirname, join } from 'node:path'
+import { describe, expect, it, test as base } from 'vitest'
 import {
   MARKER,
   METRICS,
@@ -455,40 +455,70 @@ describe('ce que l’exploration a trouvé', () => {
   })
 })
 
-// Le câblage du script entier, lancé comme la CI le lance. Le job `badge` ne
-// tourne que sur `main`, donc rien d'autre ne l'éprouve : c'est exactement la
-// panne que ce lot a corrigée sur `--resume`, trouvée par une simulation à la
-// main faute d'un cas.
+// Le câblage du script entier, lancé en sous-processus. Le job `badge` ne tourne
+// que sur `main`, donc rien d'autre ne l'éprouve : c'est exactement la panne que
+// ce lot a corrigée sur `--resume`, trouvée par une simulation à la main faute
+// d'un cas. Voir docs/internal/architecture.md.
 describe('le script, lancé pour de vrai', () => {
-  const lance = (args, dossier) => {
-    try {
-      const out = execFileSync('node', ['test/coverage-report.mjs', ...args], {
-        encoding: 'utf8',
-        stdio: 'pipe',
-        cwd: dossier,
+  const SCRIPT = join(process.cwd(), 'test', 'coverage-report.mjs')
+
+  // Le dossier jetable est démonté par la fixture, même quand le cas lève : le
+  // nettoyage écrit après les assertions laissait un `crypte-couverture-*` dans
+  // le dossier temporaire du système à chaque échec, que le ramassage du dépôt ne
+  // connaît pas.
+  const test = base.extend({
+    // Le paramètre vide est la forme que vitest lit pour savoir quelles fixtures
+    // initialiser. Le renommer fait collecter zéro test : mesuré.
+    dossier: async ({}, use) => {
+      const racine = mkdtempSync(join(tmpdir(), 'crypte-couverture-'))
+
+      await use({
+        racine,
+        // Le résumé là où le script le cherche par défaut, ou à un chemin donné.
+        écrit: (pct, chemin = join('coverage', 'coverage-summary.json')) => {
+          const cible = join(racine, chemin)
+          mkdirSync(dirname(cible), { recursive: true })
+          writeFileSync(cible, JSON.stringify(resume(pct)))
+
+          return cible
+        },
+        lance: (args) => {
+          try {
+            return {
+              code: 0,
+              out: execFileSync('node', [SCRIPT, ...args], {
+                encoding: 'utf8',
+                stdio: 'pipe',
+                cwd: racine,
+              }),
+            }
+          } catch (error) {
+            return { code: error.status, out: error.stdout ?? '' }
+          }
+        },
       })
 
-      return { code: 0, out }
-    } catch (error) {
-      return { code: error.status, out: error.stdout ?? '' }
-    }
-  }
+      rmSync(racine, { recursive: true, force: true })
+    },
+  })
 
-  const projet = (pct) => {
-    const racine = mkdtempSync(join(tmpdir(), 'crypte-couverture-'))
-    writeFileSync(join(racine, 'résumé.json'), JSON.stringify(resume(pct)))
+  // Le cas du job `badge` : aucun `--resume`, donc le chemin par défaut, celui
+  // dont la mauvaise résolution aurait rendu ce job rouge à chaque fusion.
+  test('trouve le résumé au chemin par défaut, comme le job badge', ({ dossier }) => {
+    dossier.écrit(99)
+    const cible = join(dossier.racine, 'badge.json')
 
-    return racine
-  }
+    const { code } = dossier.lance(['--badge', cible])
 
-  it('écrit le badge que shields.io lit, et sort en zéro', () => {
-    const racine = projet(99)
-    const cible = join(racine, 'badge.json')
+    expect(code).toBe(0)
+    expect(JSON.parse(readFileSync(cible, 'utf8')).message).toBe('99%')
+  })
 
-    const { code } = lance(
-      ['--resume', join(racine, 'résumé.json'), '--badge', cible],
-      process.cwd(),
-    )
+  test('écrit le badge que shields.io lit, et sort en zéro', ({ dossier }) => {
+    const résumé = dossier.écrit(99, 'résumé.json')
+    const cible = join(dossier.racine, 'badge.json')
+
+    const { code } = dossier.lance(['--resume', résumé, '--badge', cible])
 
     expect(code).toBe(0)
     expect(JSON.parse(readFileSync(cible, 'utf8'))).toEqual({
@@ -497,41 +527,56 @@ describe('le script, lancé pour de vrai', () => {
       message: '99%',
       color: 'brightgreen',
     })
-
-    rmSync(racine, { recursive: true, force: true })
   })
 
   // Pas de couverture, pas de badge : un badge écrit sans chiffre annoncerait
   // une mesure qui n'a pas eu lieu.
-  it('n’écrit aucun badge et sort en un quand le résumé manque', () => {
-    const racine = mkdtempSync(join(tmpdir(), 'crypte-couverture-'))
-    const cible = join(racine, 'badge.json')
+  test('n’écrit aucun badge et sort en un quand le résumé manque', ({ dossier }) => {
+    const cible = join(dossier.racine, 'badge.json')
 
-    const { code } = lance(
-      ['--resume', join(racine, 'absent.json'), '--badge', cible],
-      process.cwd(),
-    )
+    const { code } = dossier.lance([
+      '--resume',
+      join(dossier.racine, 'absent.json'),
+      '--badge',
+      cible,
+    ])
 
     expect(code).toBe(1)
-    expect(() => readFileSync(cible, 'utf8')).toThrow()
-
-    rmSync(racine, { recursive: true, force: true })
+    // L'erreur nommée, pas n'importe laquelle : `toThrow()` nu passerait aussi
+    // sur un badge écrit mais illisible.
+    expect(() => readFileSync(cible, 'utf8')).toThrow(/ENOENT/)
   })
 
   // Le verdict vient en dernier : le badge est écrit, puis le code de sortie dit
   // que le seuil n'est pas tenu.
-  it('sort en un sous le seuil, en ayant écrit le badge', () => {
-    const racine = projet(50)
-    const cible = join(racine, 'badge.json')
+  test('sort en un sous le seuil, en ayant écrit le badge', ({ dossier }) => {
+    const résumé = dossier.écrit(50, 'résumé.json')
+    const cible = join(dossier.racine, 'badge.json')
 
-    const { code } = lance(
-      ['--resume', join(racine, 'résumé.json'), '--badge', cible],
-      process.cwd(),
-    )
+    const { code } = dossier.lance(['--resume', résumé, '--badge', cible])
 
     expect(code).toBe(1)
     expect(JSON.parse(readFileSync(cible, 'utf8')).color).toBe('red')
+  })
+})
 
-    rmSync(racine, { recursive: true, force: true })
+// Ce que le cas ci-dessus ne peut pas prouver : que le workflow appelle le script
+// avec les bons arguments. La panne était là, pas dans le script, et le job ne
+// tourne que sur `main`. Le dépôt compare déjà un document au code de cette
+// façon, dans `spec.test.ts`. Voir docs/internal/architecture.md.
+describe('l’appel du job badge dans le workflow', () => {
+  const workflow = readFileSync('.github/workflows/ci.yml', 'utf8')
+  const appel = workflow
+    .split('\n')
+    .find((une) => une.includes('coverage-report.mjs') && une.includes('--badge'))
+
+  it('existe', () => {
+    expect(appel, 'aucune ligne du workflow ne lance le script avec --badge').toBeTypeOf('string')
+  })
+
+  // `--resume coverage-summary.json` était vrai quand l'artefact ne portait qu'un
+  // fichier, et faux depuis qu'il en porte deux : le badge n'était jamais écrit.
+  it('laisse le chemin du résumé par défaut', () => {
+    expect(appel).not.toContain('--resume')
   })
 })

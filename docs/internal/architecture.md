@@ -324,6 +324,8 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 *Un job à part*, pour que `contents: write` ne vaille que là : le job qui exécute les tests n'a jamais le droit d'écrire dans le dépôt, ni dans une pull request. Le résumé et le compte des tests passent de job en job par un artefact.
 
+*Deux cas gardent ce job*, qui ne tourne jamais sur une pull request : l'un lance le script en sous-processus depuis un faux artefact, sans `--resume`, donc sur le chemin par défaut ; l'autre lit `ci.yml` et refuse un `--resume` dans la ligne d'appel. Mesuré : remettre la panne fait rougir le second, la retirer le rend vert. Comparer un document au code est ce que fait déjà `spec.test.ts`.
+
 *Le chemin du résumé est celui par défaut*, et c'est une correction de l'auto-revue : le job passait `--resume coverage-summary.json`, vrai quand l'artefact ne portait qu'un fichier, faux depuis qu'il en porte deux et que `coverage/` est préservé. Le badge n'aurait jamais été écrit et ce job aurait été rouge à chaque fusion. Il ne tourne que sur `main`, donc aucune pull request ne pouvait le dire.
 
 *Sur `main` seulement*, et avec `[skip ci]` : le badge dit l'état de la branche par défaut, et sans le marqueur la pousse relancerait toute la CI pour recalculer le même chiffre. Rien n'est commité quand il n'a pas bougé, ce qui est le cas de la plupart des fusions.

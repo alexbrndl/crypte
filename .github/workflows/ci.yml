@@ -84,8 +84,9 @@ jobs:
           git diff --exit-code
 
   # Un contrôle nommé sur la pull request, plutôt qu'un chiffre enterré dans les
-  # journaux d'un autre job. Il affiche le tableau, le commente, et rougit sous le
-  # seuil : vitest garde déjà la porte, celui-ci la rend visible.
+  # journaux d'un autre job. Il affiche le tableau, le commente, et rend le
+  # verdict : c'est le seul endroit où les seuils sont évalués, vitest ne les
+  # porte pas.
   # Voir docs/internal/architecture.md.
   coverage:
     if: ${{ !cancelled() }}
