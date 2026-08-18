@@ -35,7 +35,7 @@ const LEGEND = [
 // Ce que le tableau ne mesure pas, dit à côté de lui : une colonne à 100 % qui
 // tait une exclusion est un mensonge par omission.
 const EXCLUDED =
-  '<sub>Hors mesure : `App.vue` (le fournisseur v8 ne parse pas un composant monofichier), et trois fichiers de câblage. Voir docs/internal/suivi.md.</sub>'
+  '<sub>Hors mesure : trois fichiers de câblage, l’entrée du CLI, le montage du shell et un module de types. Voir docs/internal/architecture.md.</sub>'
 
 const LABELS = {
   statements: 'instructions',

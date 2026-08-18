@@ -298,11 +298,11 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 **Le chiffre est affiché, pas rangé dans un journal.** `test/coverage-report.mjs` compose un tableau et l'envoie à trois endroits : le résumé du job, un commentaire de pull request, et son propre code de sortie, qui fait du job `coverage` un **contrôle nommé sur la pull request**, à côté de `has-review` et `has-changeset`. Enterré dans le job `check`, le chiffre demandait d'ouvrir les journaux pour être lu.
 
-*Le contrôle redouble la porte, et il faut savoir ce que ça achète.* Les seuils sont tenus par vitest, qui échoue le premier et localement aussi ; le job `coverage` les réévalue, ce qui n'attrape **rien de plus**. Ce que ça achète est la visibilité : un contrôle qui ne peut pas rougir serait décoratif, et le chiffre resterait enterré dans les journaux d'un autre job. Huit secondes.
+**Les seuils sont évalués une seule fois, et là où on les voit.** Ils vivent dans `test/coverage-thresholds.json`, lus par `test/coverage-report.mjs`, dont le code de sortie **est** le contrôle `coverage`. La configuration de vitest ne les porte plus : évalués aux deux endroits, ils rougissaient deux fois pour la même raison, et le second n'attrapait jamais rien que le premier ait laissé passer. Un cas vérifie que `vite.config.ts` n'a pas de clé `thresholds`.
 
-*Ce qui ne devait pas être doublé, en revanche, ce sont les chiffres.* Ils vivaient dans `vite.config.ts` **et** dans le script, donc deux copies à garder d'accord : le tableau aurait fini par annoncer un seuil que la porte n'applique pas. Ils sont maintenant dans `test/coverage-thresholds.json`, que la configuration importe et que le script lit. Un cas le vérifie.
+*Ce que ça coûte :* `vp test --coverage` seul affiche les chiffres sans rendre de verdict. C'est `pnpm ready` qui applique les seuils en local, et le contrôle `coverage` qui les applique en intégration continue.
 
-**Le tableau porte sa légende, et ses trous.** « branches 88 % » ne veut rien dire pour qui lit la pull request sans connaître l'outil : les cinq colonnes sont définies sous le tableau, une par ligne. Et ce qui **n'est pas** mesuré y est nommé, `App.vue` en tête : une colonne à 100 % qui tait une exclusion est un mensonge par omission, et `apps/shell` est précisément dans ce cas.
+**Le tableau porte sa légende, et ses trous.** « branches 88 % » ne veut rien dire pour qui lit la pull request sans connaître l'outil : les cinq colonnes sont définies sous le tableau, une par ligne. Et ce qui **n'est pas** mesuré y est nommé : une colonne à 100 % qui tait une exclusion est un mensonge par omission.
 
 *Un total par ligne autant que par colonne.* Les quatre métriques additionnées par dossier, pour classer les dossiers entre eux : sans lui, le tableau totalisait dans un seul sens et rien ne disait lequel est le plus faible dans l'ensemble. Mesuré aujourd'hui : `packages/cli` à 95,3 %, tous les autres au-dessus de 98 %.
 
@@ -737,6 +737,12 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 **Un tableau de cas qui veut une fixture s'écrit avec `test.for`, jamais `test.each`.** Mesuré : `each` n'a pas de contexte du tout, son troisième paramètre vaut `undefined` ; `for` passe le contexte en second et **exige** une déstructuration d'objet. Les noms produits sont identiques aux deux formes, vérifié cas par cas sur les 95 de `project.test.ts` avant de convertir.
 
 **Le tableau de cas est un tuple.** `noUncheckedIndexedAccess` rend `string | undefined` chaque élément d'un tableau non figé, donc onze `as const`, sinon neuf erreurs de type.
+
+**Le composant du shell est mesuré, et ça s'est joué sur un test, pas sur l'outil.** Ni v8 ni istanbul ne savent parser un `.vue` **brut** : les deux échouent sur `<template>`, et le fichier était donc exclu du rapport. La cause n'était pas le fournisseur mais l'absence de test qui le charge : dès que `apps/shell/test/app.test.ts` le monte, le plugin Vue le transforme, v8 le suit par sa carte de sources, et il paraît à **98,2 %**. Mesuré dans les deux sens avant de conclure.
+
+*Ce que ça a ajouté :* treize cas sur les 184 lignes du composant, dont la règle qui n'était éprouvée qu'en navigateur, « rien ne part avant que la preview ait dit `ready` ». Et un projet vitest `shell` qui étend `apps/shell/vite.config.ts` plutôt que la racine, parce que c'est elle qui porte le plugin Vue.
+
+*Un piège :* le programme TypeScript du shell n'incluait que `src`, donc le test ne voyait pas le `declare module '*.vue'` de `env.d.ts` et `vp check` refusait l'import. `include: ["src", "test"]` le règle, et met au passage le test sous `vue-tsc`.
 
 **Un `globalSetup` ramasse ce qu'un lancement tué laisse.** `test/sweep-tmp.mjs` efface `packages/cli/test/tmp-hot-*` et `apps/tmp-demo-*` au démarrage de la suite. Les fixtures démontent leur copie, y compris quand le cas lève, mais pas quand le processus est tué : **soixante-huit copies** s'étaient accumulées.
 

@@ -401,17 +401,19 @@ Quatre occurrences dans la même session : trois sous `pnpm run mutations`, sur 
 
 *Origine :* revue 1 du lot 5b.
 
-### `App.vue` échappe à la mesure de couverture
+### Clos : `App.vue` échappait à la mesure de couverture
 
-Le fournisseur v8 ne sait pas parser un composant monofichier : il imprimait `Unexpected JSX expression` sur `apps/shell/src/App.vue` et l'écartait du rapport de lui-même. Le fichier est donc exclu nommément, plutôt que d'être absent en silence.
+Le fournisseur v8 ne sait pas parser un composant monofichier **brut**, et istanbul non plus : mesuré dans les deux sens. La cause n'était pas le fournisseur mais l'absence de test qui charge le fichier.
 
-*Ce qui le garde quand même :* ce que le composant **décide** a été sorti dans `apps/shell/src/recover.ts`, couvert à 100 % et éprouvé par quatorze cas. Ce qui reste dans le `.vue` est du rendu et du câblage, éprouvé de bout en bout par les huit cas navigateur.
+*Clos par `apps/shell/test/app.test.ts`*, treize cas qui montent le composant dans jsdom. Le plugin Vue le transforme, v8 le suit par sa carte de sources, et il paraît au rapport à **98,2 %** d'instructions et 88 % de branches. L'exclusion `**/*.vue` a été retirée.
 
-*Ce qui reste non éprouvé :* le template lui-même, hors navigateur. Une condition d'affichage inversée passerait la suite unitaire ; c'est `screen.test.ts` qui la verrait, donc seulement dans le projet `écran`.
+### La ligne « preview prête » n'est jamais visible
 
-*Ce qui le lèverait :* `@vue/test-utils` avec l'environnement jsdom déjà installé pour l'adaptateur React, et un projet de plus. Non fait ici : le composant parle au canal et au réseau, donc le monter demande de doubler les deux, pour une surface que les cas navigateur traversent déjà.
+Sur un message `ready`, `App.vue` écrit `preview prête, protocole v{n}` dans la ligne d'état, puis appelle `refresh()`, qui la remplace par le compte de stories dans le même tour. Le numéro de protocole n'est donc jamais montré à personne.
 
-*Origine :* la mise en place de la couverture, en remplacement du contrôle de mutation.
+*Trouvé par* le premier test qui monte le composant : le cas attendait cette ligne et lisait « 3 stories ».
+
+*Pourquoi ce n'est pas corrigé ici :* c'est un choix d'interface, pas un défaut de logique. Soit la ligne disparaît, soit elle survit à un rafraîchissement, et les deux demandent de décider ce que la ligne d'état raconte. Le test fixe le comportement actuel et cite cette entrée.
 
 ### Clos : le verdict `AILLEURS` du contrôle de mutation
 

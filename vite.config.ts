@@ -1,5 +1,4 @@
 import { defineConfig } from 'vite-plus'
-import thresholds from './test/coverage-thresholds.json' with { type: 'json' }
 
 export default defineConfig({
   run: {
@@ -63,24 +62,13 @@ export default defineConfig({
         'apps/shell/src/main.ts',
         'packages/core/src/protocol/manifest.ts',
         '**/*.d.ts',
-
-        // Le fournisseur v8 ne sait pas parser un composant monofichier : il
-        // l'écartait de lui-même en imprimant une erreur, donc autant le dire
-        // ici. Ce que le composant décide vit dans `recover.ts`, couvert à
-        // 100 % ; ce qui reste en `.vue` est du rendu, éprouvé par les cas
-        // navigateur. Consigné dans docs/internal/suivi.md.
-        '**/*.vue',
       ],
-      // Un point sous le plancher mesuré, pas au ras : le chiffre bouge de 0,16
-      // point d'un lancement à l'autre, les cas navigateur n'exécutant pas
-      // exactement les mêmes lignes. Un seuil au ras rendrait la porte
-      // intermittente, ce qui est pire qu'un seuil un peu bas.
-      //
-      // Les chiffres viennent de `test/coverage-thresholds.json`, que le
-      // commentaire de pull request lit aussi : écrits deux fois, ils auraient
-      // dérivé, et le tableau aurait annoncé un seuil que la porte n'applique
-      // pas.
-      thresholds,
+      // Les seuils ne sont **pas** ici. Ils vivent dans
+      // `test/coverage-thresholds.json` et sont évalués une seule fois, par
+      // `test/coverage-report.mjs`, donc par le contrôle `coverage` de la pull
+      // request : évalués aux deux endroits, ils rougissaient deux fois pour la
+      // même raison et le contrôle visible n'attrapait rien de plus.
+      // `pnpm ready` les applique en local. Voir docs/internal/architecture.md.
     },
 
     // Les cas navigateur et le rechargement à chaud copient un projet par cas et
@@ -116,7 +104,23 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'unité',
-          exclude: ['**/node_modules/**', '**/screen.test.ts', '**/adapter.test.tsx'],
+          exclude: [
+            '**/node_modules/**',
+            '**/screen.test.ts',
+            '**/adapter.test.tsx',
+            '**/app.test.ts',
+          ],
+        },
+      },
+      // Le composant du shell, monté dans un DOM. La configuration du shell
+      // plutôt que la racine, parce qu'elle porte le plugin Vue : sans lui, le
+      // `.vue` n'est pas transformé, donc ni exécuté ni mesurable.
+      {
+        extends: './apps/shell/vite.config.ts',
+        test: {
+          name: 'shell',
+          include: ['apps/shell/test/app.test.ts'],
+          environment: 'jsdom',
         },
       },
       // L'adaptateur monte du React : il lui faut un DOM, et jsdom suffit. Sans

@@ -344,16 +344,18 @@ describe('la légende', () => {
 })
 
 describe('les seuils', () => {
-  // Écrits deux fois, ils auraient dérivé : le tableau aurait annoncé un seuil
-  // que la porte n'applique pas.
-  it('viennent du même fichier que vite.config.ts', async () => {
+  // Évalués une seule fois, et ici : la configuration de vitest ne les porte
+  // plus, sinon ils rougissaient deux fois pour la même raison et le contrôle
+  // visible n'attrapait rien de plus.
+  it('sont ceux du fichier partagé, et vitest ne les évalue pas', async () => {
     const { readFileSync } = await import('node:fs')
     const partagés = JSON.parse(readFileSync('test/coverage-thresholds.json', 'utf8'))
     const config = readFileSync('vite.config.ts', 'utf8')
 
-    expect(config).toContain("from './test/coverage-thresholds.json'")
-    expect(config).toContain('thresholds,')
     expect(compose(resume(99), undefined)).toContain(`lignes ${partagés.lines} %`)
+    // La clé, pas le mot : le nom du fichier partagé le contient, et le
+    // commentaire qui explique où sont passés les seuils aussi.
+    expect(config).not.toMatch(/thresholds\s*[:,]/)
   })
 })
 
@@ -407,13 +409,12 @@ describe('le total par ligne', () => {
 })
 
 describe('ce que le tableau ne mesure pas', () => {
-  // Une colonne à 100 % qui tait une exclusion est un mensonge par omission :
-  // `apps/shell` est à 100 % alors que son composant principal n'est pas mesuré.
-  it('nomme App.vue et les fichiers de câblage', () => {
+  // Une colonne à 100 % qui tait une exclusion est un mensonge par omission.
+  it('nomme ce qui est hors mesure', () => {
     const body = compose(resume(), undefined)
 
     expect(body).toContain('Hors mesure')
-    expect(body).toContain('`App.vue`')
+    expect(body).toContain('câblage')
   })
 
   it('ne dit rien quand il n’y a pas de tableau', () => {

@@ -34,7 +34,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/doc-links.test.mjs` | tout document cité existe, et hors de `docs/` il est cité par son chemin | — |
 | `test/published-english.test.mjs` | aucune phrase française dans le code publié | — |
 | `test/sweep-tmp.mjs` | efface les copies de projet qu'un lancement tué laisse | vitest, au démarrage |
-| `test/coverage-thresholds.json` | les quatre seuils, lus par la configuration et par le script | `vite.config.ts`, `coverage-report.mjs` |
+| `test/coverage-thresholds.json` | les quatre seuils, seule source du verdict | `coverage-report.mjs` |
 | `test/coverage-report.mjs` | tableau par dossier, commentaire de PR, badge, verdict des seuils | `ci.yml` |
 | `test/coverage-report.test.mjs` | ce que le tableau dit, et ce qu'il remplace | — |
 | `.changeset/config.json` | mode fixe, générateur de changelog | Changesets |
@@ -135,6 +135,7 @@ Distinct de `packages/cli/test/fixture`, qui n'a ni `package.json` ni React et n
 | `src/App.vue` | arbre des stories, sélection, panneau d'erreur | `main.ts` |
 | `src/recover.ts` | où retombe la sélection, ce que le shell en retient, et ce qu'il dit d'un catalogue illisible | `App.vue` |
 | `test/recover.test.ts` | les cas de ce repli | — |
+| `test/app.test.ts` | l'arbre, la sélection et les réponses de la preview, dans un DOM | — |
 | `src/env.d.ts` | déclarations pour Vite et les fichiers `.vue` | le compilateur |
 
 Construit à l'avance et copié dans `packages/cli/dist/shell`. La page de la preview n'est plus ici : elle est servie par le CLI et compilée par le Vite du projet, faute de quoi elle imposerait Vue et React à un projet qui n'en veut pas. Voir `docs/decisions.md`.

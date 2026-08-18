@@ -42,9 +42,10 @@ jobs:
       # un exécutable absent, et le seul contrôle qui voit ce que l'utilisateur
       # voit tombe. Voir docs/internal/architecture.md.
       - run: vp node node_modules/playwright/cli.js install --with-deps chromium
-      # `--coverage` : les seuils sont dans vite.config.ts, et c'est ici qu'ils
-      # gardent quelque chose. Sans le drapeau, ils ne sont jamais évalués et un
-      # fichier publié peut retomber à 0 % d'exécution sans un mot.
+      # `--coverage` produit la mesure ; le verdict est rendu par le job
+      # `coverage`, une seule fois, là où il est visible. Sans le drapeau, il n'y
+      # a rien à juger et un fichier publié peut retomber à 0 % d'exécution sans
+      # un mot.
       #
       # `github-actions` annote les fichiers du diff aux lignes qui échouent, ce
       # qui évite d'ouvrir les journaux pour savoir quoi. `json` écrit le compte
