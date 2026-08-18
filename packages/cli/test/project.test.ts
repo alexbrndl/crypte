@@ -732,10 +732,17 @@ describe('résolution réelle par un serveur Vite', () => {
 
   // Contrôle négatif : sans le résolveur, le même import échoue. Sinon le cas
   // ci-dessus passerait aussi bien avec une configuration vide.
+  //
+  // Le motif ne nomme pas lequel des deux imports aliasés échoue : `entry.jsx`
+  // en porte deux, et Vite signale celui qu'il rencontre en premier. Nommer
+  // `@/components/Badge` a fait rougir la CI sur Node 24 pendant qu'elle passait
+  // sur Node 22, avec « @/assets » à la place. Mesuré.
   test('échoue sans le résolveur, ce qui prouve qu’il sert', async ({ serverOn }) => {
     const server = await serverOn({ root: fixture, configFile: false })
 
-    await expect(server.transformRequest('/entry.jsx')).rejects.toThrow(/@\/components\/Badge/)
+    await expect(server.transformRequest('/entry.jsx')).rejects.toThrow(
+      /Failed to resolve import "@\//,
+    )
   })
 })
 
