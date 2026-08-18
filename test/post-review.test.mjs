@@ -281,41 +281,74 @@ test('lit les portions fichier par fichier, et rend la main quand git échoue', 
   ).toBeUndefined()
 })
 
-// Le câblage réel, pas un lanceur injecté : `git diff --name-only
-// origin/main...HEAD` ne s'exécutait jamais, donc une erreur d'arguments passait
-// au vert. Sur un dépôt jetable, parce que l'exécuter ici rendrait le résultat
-// dépendant de la branche courante. Voir docs/internal/architecture.md.
-test('exécute pour de vrai la commande git de changedFiles', () => {
+// Le câblage réel, pas un lanceur injecté : ces deux commandes git ne
+// s'exécutaient jamais, donc une erreur d'arguments passait au vert. Sur un dépôt
+// jetable, parce que les exécuter ici rendrait le résultat dépendant de la
+// branche courante. Voir docs/internal/architecture.md.
+const MODULE = pathToFileURL(join(process.cwd(), 'test', 'post-review.mjs')).href
+
+// Un dépôt d'un commit sur `main`, plus ce que `suite` y ajoute sur une branche.
+// `update-ref` plutôt qu'un dépôt nu : la référence `origin/main` suffit.
+function depotJetable(suite = () => {}) {
   const racine = mkdtempSync(join(tmpdir(), 'crypte-depot-'))
   const git = (...args) => execFileSync('git', args, { cwd: racine, stdio: 'pipe' })
 
+  git('init', '-q', '-b', 'main')
+  git('config', 'user.email', 'test@crypte')
+  git('config', 'user.name', 'Test')
+  writeFileSync(join(racine, 'garde.txt'), 'un\n')
+  git('add', '-A')
+  git('commit', '-qm', 'départ')
+  suite(racine, git)
+
+  return racine
+}
+
+// Le script lancé dans ce dépôt, qui rend ce que l'expression imprime.
+function dansLeDepot(racine, expression) {
+  const sortie = execFileSync(
+    'node',
+    [
+      '--input-type=module',
+      '-e',
+      `import * as script from ${JSON.stringify(MODULE)}
+       console.log(JSON.stringify(${expression}))`,
+    ],
+    { cwd: racine, encoding: 'utf8', stdio: 'pipe' },
+  )
+
+  return JSON.parse(sortie)
+}
+
+const avecUneBranche = (racine, git) => {
+  git('update-ref', 'refs/remotes/origin/main', 'main')
+  git('checkout', '-q', '-b', 'travaux')
+  writeFileSync(join(racine, 'change.txt'), 'deux\ntrois\n')
+  git('add', '-A')
+  git('commit', '-qm', 'un fichier de plus')
+}
+
+test('exécute pour de vrai la commande git de changedFiles', () => {
+  const racine = depotJetable(avecUneBranche)
+
   try {
-    git('init', '-q', '-b', 'main')
-    git('config', 'user.email', 'test@crypte')
-    git('config', 'user.name', 'Test')
-    writeFileSync(join(racine, 'garde.txt'), 'un\n')
-    git('add', '-A')
-    git('commit', '-qm', 'départ')
-    // Pas de remote : la référence suffit, et elle évite un dépôt nu de plus.
-    git('update-ref', 'refs/remotes/origin/main', 'main')
-    git('checkout', '-q', '-b', 'travaux')
-    writeFileSync(join(racine, 'change.txt'), 'deux\n')
-    git('add', '-A')
-    git('commit', '-qm', 'un fichier de plus')
+    expect(dansLeDepot(racine, 'script.changedFiles()')).toEqual(['change.txt'])
+  } finally {
+    rmSync(racine, { recursive: true, force: true })
+  }
+})
 
-    const module = pathToFileURL(join(process.cwd(), 'test', 'post-review.mjs')).href
-    const sortie = execFileSync(
-      'node',
-      [
-        '--input-type=module',
-        '-e',
-        `import { changedFiles } from ${JSON.stringify(module)}
-         console.log(JSON.stringify(changedFiles()))`,
-      ],
-      { cwd: racine, encoding: 'utf8', stdio: 'pipe' },
-    )
+// Le même trou, une fonction plus loin : sans ce cas, une erreur d'arguments dans
+// `hunksByFile` faisait rendre `undefined`, donc la vérification de ligne
+// devenait un no-op complet, avec pour seul signe une ligne sur `stderr` au
+// milieu d'un postage réussi.
+test('exécute pour de vrai la commande git de hunksByFile', () => {
+  const racine = depotJetable(avecUneBranche)
 
-    expect(JSON.parse(sortie)).toEqual(['change.txt'])
+  try {
+    expect(dansLeDepot(racine, "[...script.hunksByFile(['change.txt'])]")).toEqual([
+      ['change.txt', [[1, 2]]],
+    ])
   } finally {
     rmSync(racine, { recursive: true, force: true })
   }
@@ -326,30 +359,11 @@ test('exécute pour de vrai la commande git de changedFiles', () => {
 // diff ne touche rien ». Sinon tous les points seraient refusés, et le message
 // enverrait corriger le verdict quand c'est le dépôt qu'il faut mettre à jour.
 test('rend undefined quand origin/main n’existe pas', () => {
-  const racine = mkdtempSync(join(tmpdir(), 'crypte-depot-'))
-  const git = (...args) => execFileSync('git', args, { cwd: racine, stdio: 'pipe' })
+  const racine = depotJetable()
 
   try {
-    git('init', '-q', '-b', 'main')
-    git('config', 'user.email', 'test@crypte')
-    git('config', 'user.name', 'Test')
-    writeFileSync(join(racine, 'garde.txt'), 'un\n')
-    git('add', '-A')
-    git('commit', '-qm', 'départ')
-
-    const module = pathToFileURL(join(process.cwd(), 'test', 'post-review.mjs')).href
-    const sortie = execFileSync(
-      'node',
-      [
-        '--input-type=module',
-        '-e',
-        `import { changedFiles } from ${JSON.stringify(module)}
-         console.log(JSON.stringify(changedFiles() ?? null))`,
-      ],
-      { cwd: racine, encoding: 'utf8', stdio: 'pipe' },
-    )
-
-    expect(JSON.parse(sortie)).toBeNull()
+    expect(dansLeDepot(racine, 'script.changedFiles() ?? null')).toBeNull()
+    expect(dansLeDepot(racine, "script.hunksByFile(['garde.txt']) ?? null")).toBeNull()
   } finally {
     rmSync(racine, { recursive: true, force: true })
   }
@@ -371,4 +385,35 @@ test('refuse un point sur une section qui ne fait que supprimer', () => {
 test('laisse passer quand l’en-tête de section est illisible', () => {
   expect(hunksOf('@@ -1,2 +x,3 @@')).toEqual([])
   expect(inHunk(42, hunksOf('@@ -1,2 +x,3 @@'))).toBe(true)
+})
+
+// Le contrôle ne vaut que pour le côté droit : à gauche, la ligne est celle
+// d'avant le diff, et un fichier supprimé rend une plage vide qui refuserait
+// tout. Mesuré : sans cette garde, un point `LEFT` que l'API accepte était
+// refusé, et le script sortait en 1 sur un verdict juste.
+test('ne vérifie la ligne que du côté droit', () => {
+  const point = (side) => ({
+    event: 'COMMENT',
+    body: `${MARKER}\n**Verdict : aucun bloquant.**`,
+    comments: [{ path: 'parti.ts', line: 2, side, body: '**Observation.** …' }],
+  })
+  // Un fichier supprimé : la version d'après n'a aucune ligne.
+  const hunks = new Map([['parti.ts', hunksOf('@@ -1,3 +0,0 @@')]])
+
+  expect(validate(point('LEFT'), ['parti.ts'], hunks)).toEqual([])
+  expect(validate(point('RIGHT'), ['parti.ts'], hunks).join(' ')).toContain('hors des portions')
+})
+
+// Sans `side`, l'API prend le côté droit : le contrôle doit faire de même,
+// sinon un verdict qui omet le champ échapperait à la vérification.
+test('traite un point sans côté comme un point du côté droit', () => {
+  const review = {
+    event: 'COMMENT',
+    body: `${MARKER}\n**Verdict : aucun bloquant.**`,
+    comments: [{ path: 'x.ts', line: 99, body: '**Observation.** …' }],
+  }
+
+  expect(
+    validate(review, ['x.ts'], new Map([['x.ts', hunksOf('@@ -1,2 +1,2 @@')]])).join(' '),
+  ).toContain('hors des portions')
 })

@@ -170,7 +170,7 @@ La dernière est la moins évidente : **un bloquant laissé dans le corps n'est 
 Deux choses restent à ta charge :
 
 - **Ancre chaque point sur un fichier.** Pour une remarque sans ligne évidente, par exemple une documentation manquante, ancre-la sur le fichier le plus concerné du diff.
-- **`line` doit tomber dans une portion du diff**, pas seulement dans un fichier qu'il touche. Le script vérifie le fichier, pas la ligne, et l'API refuse l'appel entier pour un seul point mal placé. En cas de doute, `git diff origin/main...HEAD -- <fichier>`.
+- **`line` doit tomber dans une portion du diff**, pas seulement dans un fichier qu'il touche. Le script le vérifie maintenant, pour les points du côté droit, et refuse le verdict en nommant le fichier et la ligne : « le point 2 vise la ligne 90 de x.ts, hors des portions du diff ». Tu n'as donc plus à le faire à la main, mais si tu veux choisir la ligne avant d'écrire, `git diff origin/main...HEAD -- <fichier>`.
 
 Structure de chaque commentaire ancré : la contrainte enfreinte citée nommément, et ce qui casse concrètement.
 

@@ -126,9 +126,11 @@ Le contrôle de note de version exempte toute ligne commençant par `//`. Or `//
 
 `spec.test.ts` ne reconnaissait que `export interface|type|const|function`, quand `index.test.ts` couvrait aussi `export declare`, `class`, `enum`, `let`, `var`, `async function` et les blocs `export { X }` sans `from`. Un type déclaré puis exporté séparément échappait donc au contrôle, et la partie normative pouvait l'ignorer en silence.
 
-*Clos par* le même motif que le contrôle des réexports, plus la lecture des exports locaux avec leur renommage : `Foo as Bar` expose `Bar`, et c'est ce nom que la spécification doit décrire.
+*Clos par* le **même code** que le contrôle des réexports, `packages/core/test/exported-names.ts`, et non par une copie du motif : les deux copies du premier essai avaient déjà divergé, et la plus stricte abandonnait en silence les entrées qu'elle ne reconnaissait pas, ce qui est le défaut que cette entrée décrit.
 
 *Mesuré :* un `export declare const` ajouté à un module du protocole fait maintenant rougir le contrôle, ce que l'ancien motif laissait passer.
+
+*Ce que la mesure ne couvre pas :* la lecture des blocs `export { X }` locaux. Les cinq modules que ce contrôle lit n'en portent aucun aujourd'hui, donc cette moitié du code n'y est exercée par rien. Elle l'est du côté du barrel, où les mêmes fonctions servent pour de bon, et c'est la raison de les partager plutôt que de les recopier.
 
 ### Un fichier publié déplacé hors de `src/` n'exige aucune note
 

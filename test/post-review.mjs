@@ -83,7 +83,14 @@ export function validate(review, changed, hunks) {
       problems.push(`${où} est ancré sur ${point.path}, que le diff ne touche pas`)
     if (!Number.isInteger(point?.line) || point.line < 1)
       problems.push(`${où} n'est ancré sur aucune ligne`)
-    else if (hunks?.has(point?.path) && !inHunk(point.line, hunks.get(point.path)))
+    // Le côté droit seulement : ces plages sont celles de la version d'après,
+    // donc un point du côté gauche vise une ligne qu'elles ne décrivent pas, et
+    // un fichier supprimé rend une plage vide qui le refuserait toujours.
+    else if (
+      (point.side ?? 'RIGHT') === 'RIGHT' &&
+      hunks?.has(point?.path) &&
+      !inHunk(point.line, hunks.get(point.path))
+    )
       problems.push(`${où} vise la ligne ${point.line} de ${point.path}, hors des portions du diff`)
   })
 
