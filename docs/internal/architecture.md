@@ -298,7 +298,11 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 **Le chiffre est affiché, pas rangé dans un journal.** `test/coverage-report.mjs` compose un tableau et l'envoie à trois endroits : le résumé du job, un commentaire de pull request, et son propre code de sortie, qui fait du job `coverage` un **contrôle nommé sur la pull request**, à côté de `has-review` et `has-changeset`. Enterré dans le job `check`, le chiffre demandait d'ouvrir les journaux pour être lu.
 
-*Le contrôle redouble la porte, et c'est voulu.* Les seuils sont tenus par vitest, qui échoue le premier ; le job `coverage` les réévalue pour que le verdict ait un nom visible. Un contrôle qui ne peut pas rougir serait décoratif.
+*Le contrôle redouble la porte, et il faut savoir ce que ça achète.* Les seuils sont tenus par vitest, qui échoue le premier et localement aussi ; le job `coverage` les réévalue, ce qui n'attrape **rien de plus**. Ce que ça achète est la visibilité : un contrôle qui ne peut pas rougir serait décoratif, et le chiffre resterait enterré dans les journaux d'un autre job. Huit secondes.
+
+*Ce qui ne devait pas être doublé, en revanche, ce sont les chiffres.* Ils vivaient dans `vite.config.ts` **et** dans le script, donc deux copies à garder d'accord : le tableau aurait fini par annoncer un seuil que la porte n'applique pas. Ils sont maintenant dans `test/coverage-thresholds.json`, que la configuration importe et que le script lit. Un cas le vérifie.
+
+**Le tableau porte sa légende.** « branches 88 % » ne veut rien dire pour qui lit la pull request sans connaître l'outil : les quatre métriques sont définies sous le tableau, en une ligne.
 
 **Le tableau va par dossier, pas par métrique seule.** « instructions 97 % » ne dit pas où chercher ; `packages/cli` à 88 % de branches le dit. Les fichiers du résumé sont additionnés par paquet et par application, avec le total en dernière ligne.
 

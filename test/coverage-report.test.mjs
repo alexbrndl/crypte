@@ -322,3 +322,34 @@ describe('le badge du README', () => {
     expect(() => badge({ total: {} })).toThrow('résumé de couverture illisible')
   })
 })
+
+describe('la légende', () => {
+  // « branches 88 % » ne veut rien dire pour qui lit la pull request sans
+  // connaître l'outil.
+  it('explique les quatre métriques sous le tableau', () => {
+    const body = compose(resume(), undefined)
+
+    for (const mot of ['**lignes**', '**branches**', '**fonctions**', '**instructions**']) {
+      expect(body).toContain(mot)
+    }
+  })
+
+  // Rien à expliquer quand il n'y a pas de tableau.
+  it('ne paraît pas quand la couverture manque', () => {
+    expect(compose(undefined, undefined)).not.toContain('**branches**')
+  })
+})
+
+describe('les seuils', () => {
+  // Écrits deux fois, ils auraient dérivé : le tableau aurait annoncé un seuil
+  // que la porte n'applique pas.
+  it('viennent du même fichier que vite.config.ts', async () => {
+    const { readFileSync } = await import('node:fs')
+    const partagés = JSON.parse(readFileSync('test/coverage-thresholds.json', 'utf8'))
+    const config = readFileSync('vite.config.ts', 'utf8')
+
+    expect(config).toContain("from './test/coverage-thresholds.json'")
+    expect(config).toContain('thresholds,')
+    expect(compose(resume(99), undefined)).toContain(`lignes ${partagés.lines} %`)
+  })
+})

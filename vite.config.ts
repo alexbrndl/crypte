@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite-plus'
+import thresholds from './test/coverage-thresholds.json' with { type: 'json' }
 
 export default defineConfig({
   run: {
@@ -74,12 +75,12 @@ export default defineConfig({
       // point d'un lancement à l'autre, les cas navigateur n'exécutant pas
       // exactement les mêmes lignes. Un seuil au ras rendrait la porte
       // intermittente, ce qui est pire qu'un seuil un peu bas.
-      thresholds: {
-        statements: 96,
-        branches: 88,
-        functions: 96,
-        lines: 97,
-      },
+      //
+      // Les chiffres viennent de `test/coverage-thresholds.json`, que le
+      // commentaire de pull request lit aussi : écrits deux fois, ils auraient
+      // dérivé, et le tableau aurait annoncé un seuil que la porte n'applique
+      // pas.
+      thresholds,
     },
 
     // Les cas navigateur et le rechargement à chaud copient un projet par cas et

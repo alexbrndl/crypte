@@ -34,6 +34,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/doc-links.test.mjs` | tout document cité existe, et hors de `docs/` il est cité par son chemin | — |
 | `test/published-english.test.mjs` | aucune phrase française dans le code publié | — |
 | `test/sweep-tmp.mjs` | efface les copies de projet qu'un lancement tué laisse | vitest, au démarrage |
+| `test/coverage-thresholds.json` | les quatre seuils, lus par la configuration et par le script | `vite.config.ts`, `coverage-report.mjs` |
 | `test/coverage-report.mjs` | tableau par dossier, commentaire de PR, badge, verdict des seuils | `ci.yml` |
 | `test/coverage-report.test.mjs` | ce que le tableau dit, et ce qu'il remplace | — |
 | `.changeset/config.json` | mode fixe, générateur de changelog | Changesets |

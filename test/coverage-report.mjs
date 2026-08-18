@@ -6,16 +6,29 @@
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { argv, exit } from 'node:process'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 // Le marqueur qui distingue notre commentaire des autres : c'est lui qui permet
 // de le retrouver pour le remplacer.
 export const MARKER = '<!-- crypte-coverage -->'
 
-// Les seuils de `vite.config.ts`, recopiés ici pour être affichés à côté du
-// chiffre. Ils ne décident de rien : c'est vitest qui échoue sous le seuil.
-const THRESHOLDS = { statements: 96, branches: 88, functions: 96, lines: 97 }
+// Les seuils, lus du même fichier que `vite.config.ts`. Recopiés ici, ils
+// auraient dérivé : le tableau aurait annoncé un seuil que la porte n'applique
+// pas. Voir docs/internal/architecture.md.
+const THRESHOLDS = JSON.parse(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'coverage-thresholds.json'), 'utf8'),
+)
+
+// Le tableau s'explique tout seul : « branches 88 % » ne veut rien dire pour qui
+// lit la pull request sans connaître l'outil.
+const LEGEND = [
+  '<sub>**lignes** : lignes exécutées au moins une fois.',
+  '**branches** : chaque côté d’un `if`, d’un `?:`, d’un `&&` ou d’un `??`.',
+  '**fonctions** : fonctions appelées au moins une fois.',
+  '**instructions** : instructions exécutées, plus fin que la ligne quand elle en porte plusieurs.</sub>',
+].join(' ')
 
 const LABELS = {
   statements: 'instructions',
@@ -143,6 +156,7 @@ export function compose(summary, results, sha) {
 
   const lignes = [MARKER, '## Tests et couverture', '', tests(results), '', ...table, '']
 
+  if (total) lignes.push(LEGEND, '')
   if (seuils) lignes.push(seuils, '')
   if (sha) lignes.push(`<sub>Mesuré sur \`${sha.slice(0, 7)}\`.</sub>`)
 
