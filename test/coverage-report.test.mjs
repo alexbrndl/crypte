@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { MARKER, badge, bar, compose, existing, options, publish } from './coverage-report.mjs'
+import {
+  MARKER,
+  badge,
+  bar,
+  byFolder,
+  compose,
+  existing,
+  failing,
+  folderOf,
+  options,
+  publish,
+} from './coverage-report.mjs'
 
 // Ce que le commentaire de pull request dit, et ce qu'il remplace. Le script
 // écrit sur une pull request : sans ces cas, sa seule épreuve serait une pousse.
@@ -7,7 +18,17 @@ import { MARKER, badge, bar, compose, existing, options, publish } from './cover
 
 const metrique = (pct, covered = 1, total = 1) => ({ pct, covered, total, skipped: 0 })
 
+const fichier = (pct) => ({
+  lines: metrique(pct, 99, 100),
+  branches: metrique(pct, 99, 100),
+  functions: metrique(pct, 99, 100),
+  statements: metrique(pct, 99, 100),
+})
+
 const resume = (pct = 99) => ({
+  '/dépôt/packages/cli/src/dev.ts': fichier(pct),
+  '/dépôt/packages/core/src/protocol/id.ts': fichier(pct),
+  '/dépôt/apps/shell/src/recover.ts': fichier(pct),
   total: {
     statements: metrique(pct, 726, 746),
     branches: metrique(pct, 455, 512),
@@ -127,8 +148,8 @@ describe('le corps du commentaire', () => {
 })
 
 describe('la publication', () => {
-  // La doublure rend ce que rendrait `gh`, et retient le corps écrit pour que la
-  // relecture de vérification le retrouve.
+  // La doublure rend ce que rendrait `gh`, et retient les corps écrits pour que
+  // la relecture de vérification les retrouve.
   const faux = (comments) => {
     const calls = []
     let etat = [...comments]
@@ -144,9 +165,11 @@ describe('la publication', () => {
 
         const corps = args.find((one) => one.startsWith('body='))?.slice('body='.length)
 
-        if (args.includes('PATCH')) {
-          etat = etat.map((one) => (one.body?.startsWith(MARKER) ? { ...one, body: corps } : one))
+        if (args.includes('DELETE')) {
+          const id = Number(args[1].split('/').at(-1))
+          etat = etat.filter((one) => one.id !== id)
         }
+
         if (args.includes('POST')) etat = [...etat, { id: 99, body: corps }]
 
         return JSON.stringify(etat)
@@ -159,20 +182,36 @@ describe('la publication', () => {
 
     expect(publish(`${MARKER}\ncorps`, '34', gh.run)).toBe('posté')
     expect(gh.calls.some((one) => one.includes('issues/34/comments --method POST'))).toBe(true)
+    expect(gh.calls.some((one) => one.includes('DELETE'))).toBe(false)
   })
 
-  // Sans le remplacement, une pull request de quinze pousses porterait quinze
-  // tableaux, et le dernier serait le seul vrai.
-  it('remplace le commentaire qui porte le marqueur', () => {
+  // Remplacé sur place, le tableau restait à sa position d'origine dans la
+  // conversation, donc loin du dernier commit. On le veut en bas.
+  it('retire l’ancien tableau avant de poster le nouveau', () => {
     const gh = faux([{ id: 7, body: `${MARKER}\nun vieux tableau` }])
 
     expect(publish(`${MARKER}\ncorps`, '34', gh.run)).toBe('remplacé')
-    expect(gh.calls.some((one) => one.includes('issues/comments/7 --method PATCH'))).toBe(true)
+    expect(gh.calls.some((one) => one.includes('issues/comments/7 --method DELETE'))).toBe(true)
+    expect(gh.etat.filter((one) => one.body.startsWith(MARKER))).toHaveLength(1)
+  })
+
+  // Deux anciens arrivent si une publication a échoué entre le POST et la
+  // vérification : les deux partent, pas seulement le premier.
+  it('retire tous les anciens tableaux', () => {
+    const gh = faux([
+      { id: 7, body: `${MARKER}\nun` },
+      { id: 8, body: `${MARKER}\ndeux` },
+      { id: 9, body: 'humain' },
+    ])
+
+    publish(`${MARKER}\ncorps`, '34', gh.run)
+
+    expect(gh.etat.filter((one) => one.body.startsWith(MARKER))).toHaveLength(1)
+    expect(gh.etat.some((one) => one.body === 'humain')).toBe(true)
   })
 
   // `gh pr view --json comments` rend un identifiant GraphQL, que l'API REST
-  // refuse en 404 : la liste doit venir de l'API, pas de la commande de haut
-  // niveau. Trois lancements ont servi un tableau périmé pour ça.
+  // refuse en 404. Trois lancements ont servi un tableau périmé pour ça.
   it('lit la liste par l’API REST, jamais par pr view', () => {
     const gh = faux([])
 
@@ -182,18 +221,64 @@ describe('la publication', () => {
     expect(gh.calls.some((one) => one.startsWith('pr view'))).toBe(false)
   })
 
-  // Vérifié, pas supposé : c'est le 404 silencieux qui a fait vivre un tableau
-  // périmé.
   it('lève quand le commentaire n’est pas arrivé', () => {
     const muet = { run: (args) => (args[0] === 'repo' ? 'alexbrndl/crypte' : '[]') }
 
-    expect(() => publish(`${MARKER}\ncorps`, '34', muet.run)).toThrow('n’est pas arrivé tel quel')
+    expect(() => publish(`${MARKER}\ncorps`, '34', muet.run)).toThrow('attendu 1')
   })
 
   it('trouve l’identifiant par le marqueur, et rien d’autre', () => {
     expect(existing([{ id: 3, body: `${MARKER} x` }])).toBe(3)
     expect(existing([{ id: 3, body: 'sans marqueur' }])).toBeUndefined()
     expect(existing([{ id: 3 }])).toBeUndefined()
+  })
+})
+
+describe('le tableau par dossier', () => {
+  it('nomme le paquet ou l’application, pas le chemin entier', () => {
+    expect(folderOf('/dépôt/packages/cli/src/dev.ts')).toBe('packages/cli')
+    expect(folderOf('/dépôt/apps/shell/src/recover.ts')).toBe('apps/shell')
+    expect(folderOf('/dépôt/test/sweep-tmp.mjs')).toBeUndefined()
+  })
+
+  // « instructions 97 % » ne dit pas où chercher ; « packages/cli 88 % de
+  // branches » le dit.
+  it('additionne les fichiers d’un même dossier', () => {
+    const folders = byFolder(resume())
+
+    expect([...folders.keys()].sort()).toEqual(['apps/shell', 'packages/cli', 'packages/core'])
+    expect(folders.get('packages/cli').lines).toEqual([99, 100])
+  })
+
+  it('cite chaque dossier dans le corps', () => {
+    const body = compose(resume(), undefined)
+
+    expect(body).toContain('`packages/cli`')
+    expect(body).toContain('`apps/shell`')
+    expect(body).toContain('| **total** |')
+  })
+
+  it('ignore le total dans le regroupement', () => {
+    expect(byFolder({ total: fichier(99) }).size).toBe(0)
+  })
+})
+
+describe('le verdict des seuils', () => {
+  it('ne nomme rien quand tout tient', () => {
+    expect(failing(resume(99))).toEqual([])
+    expect(compose(resume(99), undefined)).toContain('✅ Seuils tenus')
+  })
+
+  it('nomme la métrique et son seuil', () => {
+    const manques = failing(resume(50))
+
+    expect(manques).toHaveLength(4)
+    expect(manques[0]).toContain('sous le seuil de')
+    expect(compose(resume(50), undefined)).toContain('❌')
+  })
+
+  it('dit la couverture non mesurée quand le résumé manque', () => {
+    expect(failing(undefined)).toEqual(['couverture non mesurée'])
   })
 })
 

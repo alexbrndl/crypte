@@ -296,9 +296,13 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 *Ce qui casse si on l'enlève :* du code publié cesse d'être exécuté par les tests sans que rien ne le dise, ce qui est exactement l'état dans lequel l'adaptateur React a vécu tout le projet.
 
-**Le chiffre est affiché, pas rangé dans un journal.** `test/coverage-report.mjs` compose un tableau, les quatre métriques avec leur barre, leur seuil et leur compte brut, et l'envoie à deux endroits : le résumé du job, sur toute exécution, et un commentaire de pull request, remplacé en place plutôt qu'empilé.
+**Le chiffre est affiché, pas rangé dans un journal.** `test/coverage-report.mjs` compose un tableau et l'envoie à trois endroits : le résumé du job, un commentaire de pull request, et son propre code de sortie, qui fait du job `coverage` un **contrôle nommé sur la pull request**, à côté de `has-review` et `has-changeset`. Enterré dans le job `check`, le chiffre demandait d'ouvrir les journaux pour être lu.
 
-*Pourquoi remplacé :* une pull request de quinze pousses porterait quinze tableaux, et le dernier serait le seul vrai. Le marqueur `<!-- crypte-coverage -->` sert à retrouver le commentaire, comme celui de la revue.
+*Le contrôle redouble la porte, et c'est voulu.* Les seuils sont tenus par vitest, qui échoue le premier ; le job `coverage` les réévalue pour que le verdict ait un nom visible. Un contrôle qui ne peut pas rougir serait décoratif.
+
+**Le tableau va par dossier, pas par métrique seule.** « instructions 97 % » ne dit pas où chercher ; `packages/cli` à 88 % de branches le dit. Les fichiers du résumé sont additionnés par paquet et par application, avec le total en dernière ligne.
+
+*L'ancien est retiré, pas modifié.* Édité sur place, le tableau restait à sa position d'origine dans la conversation, donc loin du dernier commit sur une longue pull request. Il est maintenant supprimé puis reposté, donc toujours en bas, à côté de ce qu'il mesure. Le marqueur `<!-- crypte-coverage -->` sert à le retrouver, comme celui de la revue, et la vérification exige qu'il en reste **exactement un**.
 
 *La liste des commentaires vient de l'API REST*, jamais de `gh pr view --json comments`, qui rend un identifiant GraphQL : la mise à jour répondait 404, l'étape était `continue-on-error`, et le premier tableau posté a survécu trois lancements, dont un sous une CI rouge. Le script **relit ce qu'il a écrit** et lève si le corps n'est pas arrivé tel quel, comme `post-review.mjs` compte les revues avant et après.
 
@@ -310,7 +314,7 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 **Le badge du README est écrit par la CI, pas recopié à la main.** `.github/coverage.json` porte le format « endpoint » que shields.io lit, et un job `badge` le réécrit sur chaque pousse vers `main`. Le pourcentage de lignes, arrondi **vers le bas** : 98,55 affiché « 99 % » flatterait. La couleur suit le seuil du dépôt, pas une échelle scolaire, parce qu'un badge vert sous le seuil mentirait sur une porte rouge.
 
-*Un job à part*, pour que `contents: write` ne vaille que là : le job qui exécute les tests n'a jamais le droit d'écrire dans le dépôt. Le résumé passe de l'un à l'autre par un artefact.
+*Un job à part*, pour que `contents: write` ne vaille que là : le job qui exécute les tests n'a jamais le droit d'écrire dans le dépôt, ni dans une pull request. Le résumé et le compte des tests passent de job en job par un artefact.
 
 *Sur `main` seulement*, et avec `[skip ci]` : le badge dit l'état de la branche par défaut, et sans le marqueur la pousse relancerait toute la CI pour recalculer le même chiffre. Rien n'est commité quand il n'a pas bougé, ce qui est le cas de la plupart des fusions.
 
@@ -796,7 +800,7 @@ Règle à retenir si un autre workflow apparaît : `cancel-in-progress: true` po
 
 **Ce qui casse si on l'enlève.** Rien visiblement, et c'est le problème : une action compromise ou une dépendance malveillante disposerait de droits d'écriture sur un dépôt public.
 
-**La seule exception, et elle est locale.** Le job `check` déclare `pull-requests: write`, pour le seul commentaire de couverture. La portée est le job, pas le fichier, donc les trois autres jobs restent en lecture. Et le jeton d'une pull request venue d'une bifurcation reste en lecture seule quoi qu'on écrive ici : l'étape est donc gardée sur l'origine de la branche, sinon elle échouerait chez un contributeur extérieur.
+**Deux exceptions, chacune sur un job.** `coverage` déclare `pull-requests: write` pour son commentaire, `badge` déclare `contents: write` pour le chiffre du README. La portée est le job, donc celui qui exécute les tests n'écrit nulle part. Et le jeton d'une pull request venue d'une bifurcation reste en lecture seule quoi qu'on écrive ici : le commentaire est donc gardé sur l'origine de la branche, sinon il échouerait chez un contributeur extérieur.
 
 ### `timeout-minutes: 10`
 

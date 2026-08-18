@@ -32,12 +32,57 @@ export function bar(pct) {
   return '█'.repeat(full) + '░'.repeat(10 - full)
 }
 
-// Le tableau d'une métrique : le chiffre, la barre, le seuil, et le compte brut.
-function row(name, metric) {
-  const seuil = THRESHOLDS[name]
-  const verdict = metric.pct >= seuil ? '✅' : '❌'
+// Le dossier d'un fichier du résumé : le paquet ou l'application, pas le chemin
+// entier. « instructions 97 % » ne dit pas où chercher ; « packages/cli 88 % de
+// branches » le dit. Voir docs/internal/architecture.md.
+export function folderOf(path) {
+  const found = /(packages|apps)\/([^/]+)/.exec(path)
 
-  return `| ${LABELS[name]} | \`${bar(metric.pct)}\` | **${metric.pct} %** | ${seuil} % | ${metric.covered}/${metric.total} | ${verdict} |`
+  return found ? `${found[1]}/${found[2]}` : undefined
+}
+
+// Les métriques additionnées par dossier, dans l'ordre où le résumé les donne.
+export function byFolder(summary) {
+  const folders = new Map()
+
+  for (const [path, metrics] of Object.entries(summary)) {
+    const folder = path === 'total' ? undefined : folderOf(path)
+    if (!folder) continue
+
+    const held = folders.get(folder) ?? { lines: [0, 0], branches: [0, 0], functions: [0, 0] }
+
+    for (const name of ['lines', 'branches', 'functions']) {
+      held[name][0] += metrics[name]?.covered ?? 0
+      held[name][1] += metrics[name]?.total ?? 0
+    }
+
+    folders.set(folder, held)
+  }
+
+  return folders
+}
+
+// Un pourcentage, ou 100 quand il n'y a rien à couvrir : zéro sur zéro n'est pas
+// une lacune.
+function part([covered, total]) {
+  return total === 0 ? 100 : (covered / total) * 100
+}
+
+function cell(pair) {
+  return `${part(pair).toFixed(1)} % <sub>${pair[0]}/${pair[1]}</sub>`
+}
+
+// Les métriques sous leur seuil, nommées. Rend un tableau vide quand tout tient.
+export function failing(summary) {
+  const total = summary?.total
+  if (!total) return ['couverture non mesurée']
+
+  return Object.entries(THRESHOLDS)
+    .filter(([name]) => (total[name]?.pct ?? 0) < THRESHOLDS[name])
+    .map(
+      ([name, seuil]) =>
+        `${LABELS[name]} à ${total[name]?.pct ?? 0} %, sous le seuil de ${seuil} %`,
+    )
 }
 
 // Ce que le commentaire dit des tests. `results` est la sortie du rapporteur
@@ -77,14 +122,28 @@ export function compose(summary, results, sha) {
   // les chiffres verts du précédent, ce qui est pire que pas de commentaire.
   const table = total
     ? [
-        '| | progression | couvert | seuil | compte | |',
-        '| -- | -- | --: | --: | --: | -- |',
-        ...['statements', 'branches', 'functions', 'lines'].map((name) => row(name, total[name])),
+        '| dossier | progression | lignes | branches | fonctions |',
+        '| -- | -- | --: | --: | --: |',
+        ...[...byFolder(summary)]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(
+            ([folder, held]) =>
+              `| \`${folder}\` | \`${bar(part(held.lines))}\` | ${cell(held.lines)} | ${cell(held.branches)} | ${cell(held.functions)} |`,
+          ),
+        `| **total** | \`${bar(total.lines.pct)}\` | **${total.lines.pct} %** | **${total.branches.pct} %** | **${total.functions.pct} %** |`,
       ]
     : ['⚠️ Couverture non mesurée : le lancement s’est arrêté avant.']
 
+  const manques = failing(summary)
+  const seuils = total
+    ? manques.length === 0
+      ? `✅ Seuils tenus : lignes ${THRESHOLDS.lines} %, branches ${THRESHOLDS.branches} %, instructions ${THRESHOLDS.statements} %, fonctions ${THRESHOLDS.functions} %.`
+      : `❌ ${manques.join(' ; ')}.`
+    : undefined
+
   const lignes = [MARKER, '## Tests et couverture', '', tests(results), '', ...table, '']
 
+  if (seuils) lignes.push(seuils, '')
   if (sha) lignes.push(`<sub>Mesuré sur \`${sha.slice(0, 7)}\`.</sub>`)
 
   return lignes.join('\n')
@@ -119,8 +178,9 @@ export function existing(comments, marker = MARKER) {
   return found?.id
 }
 
-// Publie, ou remplace. Sans le remplacement, une pull request de quinze pousses
-// porterait quinze tableaux, et le dernier serait le seul vrai.
+// Publie le tableau, et retire celui d'avant. Remplacé sur place, il restait à
+// sa position d'origine dans la conversation, donc loin du dernier commit sur une
+// longue pull request : on le veut en bas, à côté de ce qu'il mesure.
 //
 // La liste passe par l'API REST et non par `gh pr view --json comments`, qui rend
 // un identifiant GraphQL : la mise à jour répondait alors 404, le premier
@@ -128,22 +188,30 @@ export function existing(comments, marker = MARKER) {
 export function publish(body, number, run = gh) {
   const repo = run(['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner'])
   const liste = `repos/${repo}/issues/${number}/comments`
-  const comments = JSON.parse(run(['api', '--paginate', liste, '--jq', '[.[] | {id, body}]']))
-  const id = existing(comments)
-  const route = id ? `repos/${repo}/issues/comments/${id}` : liste
+  const lire = () => JSON.parse(run(['api', '--paginate', liste, '--jq', '[.[] | {id, body}]']))
 
-  run(['api', route, '--method', id ? 'PATCH' : 'POST', '-f', `body=${body}`])
+  const anciens = lire().filter((one) => (one.body ?? '').startsWith(MARKER))
 
-  // Vérifié, pas supposé : c'est le 404 silencieux qui a fait vivre un tableau
-  // périmé pendant trois lancements.
-  const relu = JSON.parse(run(['api', '--paginate', liste, '--jq', '[.[] | {id, body}]']))
-  const posé = relu.find((one) => (one.body ?? '').startsWith(MARKER))
+  for (const one of anciens) {
+    run(['api', `repos/${repo}/issues/comments/${one.id}`, '--method', 'DELETE'])
+  }
 
-  if (!posé || posé.body.trim() !== body.trim()) {
+  run(['api', liste, '--method', 'POST', '-f', `body=${body}`])
+
+  // Vérifié, pas supposé : c'est un 404 silencieux qui a fait vivre un tableau
+  // périmé pendant trois lancements. Et un seul, sinon la pull request en
+  // porterait un par pousse.
+  const posés = lire().filter((one) => (one.body ?? '').startsWith(MARKER))
+
+  if (posés.length !== 1) {
+    throw new Error(`${posés.length} commentaires de couverture après publication, attendu 1`)
+  }
+
+  if (posés[0].body.trim() !== body.trim()) {
     throw new Error('le commentaire de couverture n’est pas arrivé tel quel')
   }
 
-  return id ? 'remplacé' : 'posté'
+  return anciens.length === 0 ? 'posté' : 'remplacé'
 }
 
 function readJson(path) {
@@ -182,13 +250,20 @@ function main(args) {
 
   console.log(body)
 
-  // Deux espaces d'indentation et un saut final : le formateur du dépôt écrirait
-  // exactement ça, donc l'arbre reste propre après l'écriture.
   if (pr) console.error(`commentaire ${publish(body, pr)} sur la pull request ${pr}`)
 
-  // Le badge, lui, exige un chiffre : pas de couverture, pas de badge, et un
-  // code de sortie qui le dit.
-  if (cible) writeFileSync(cible, `${JSON.stringify(badge(summary), undefined, 2)}\n`)
+  // Le badge exige un chiffre : pas de couverture, pas de badge.
+  if (cible && summary) writeFileSync(cible, `${JSON.stringify(badge(summary), undefined, 2)}\n`)
+
+  // Le verdict en dernier, pour que le commentaire existe même quand il est
+  // mauvais. C'est ce qui rend le contrôle `coverage` de la pull request
+  // parlant : vitest garde déjà la porte, celui-ci l'affiche.
+  const manques = failing(summary)
+
+  if (manques.length > 0) {
+    console.error(`couverture insuffisante : ${manques.join(' ; ')}`)
+    exit(1)
+  }
 }
 
 if (argv[1] && import.meta.url === pathToFileURL(argv[1]).href) main(argv.slice(2))

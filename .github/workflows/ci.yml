@@ -16,12 +16,6 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    # `pull-requests: write` pour le seul commentaire de couverture. Le jeton
-    # d'une pull request venue d'une bifurcation reste en lecture seule quoi
-    # qu'on écrive ici, d'où la garde sur l'étape. Voir docs/internal/architecture.md.
-    permissions:
-      contents: read
-      pull-requests: write
     # 10 depuis le retrait du contrôle de mutation, qui lançait un test par
     # garantie et demandait 20. Mesuré ici sur le job entier : moins de 2 min.
     timeout-minutes: 10
@@ -60,36 +54,16 @@ jobs:
           vp test --coverage
           --reporter=default --reporter=github-actions
           --reporter=json --outputFile=.vitest-report.json
-      # Le tableau sur la page du job, quel que soit le déclencheur. Le rapport
-      # de couverture vivait dans les journaux, que personne n'ouvre.
-      - name: Tests and coverage summary
-        if: always() && matrix.node == '24'
-        # Informatif : un rapport manquant ne doit pas masquer l'échec qui l'a
-        # empêché d'exister. La porte est l'étape de test, pas celle-ci.
-        continue-on-error: true
-        run: node test/coverage-report.mjs --sha "${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
-      # Et le même tableau en commentaire de pull request, remplacé en place.
-      # Une seule entrée de matrice le poste : deux se marcheraient dessus.
-      # Jamais depuis une bifurcation, dont le jeton est en lecture seule.
-      # Le résumé part au job du badge, qui a seul le droit d'écrire. Sur `main`
-      # seulement : le badge dit l'état de la branche par défaut, pas d'une
-      # pull request en cours.
+      # Le résumé et le compte partent au job `coverage`, qui les affiche et
+      # commente. `always()` : un lancement rouge doit pouvoir dire son compte.
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        if: github.event_name == 'push' && matrix.node == '24'
+        if: always() && matrix.node == '24'
         with:
           name: coverage-summary
-          path: coverage/coverage-summary.json
-      - name: Comment coverage on the pull request
-        if: >
-          always() && matrix.node == '24' && github.event_name == 'pull_request'
-          && github.event.pull_request.head.repo.full_name == github.repository
-        # Pas de `continue-on-error` ici, contrairement au résumé : un
-        # commentaire qui cesse de se mettre à jour en silence a servi trois
-        # lancements de chiffres périmés, dont un sous une CI rouge. Le script
-        # relit ce qu'il a écrit, donc l'étape rougit si rien n'est arrivé.
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node test/coverage-report.mjs --pr "${{ github.event.pull_request.number }}" --sha "${{ github.sha }}" > /dev/null
+          path: |
+            coverage/coverage-summary.json
+            .vitest-report.json
+          if-no-files-found: ignore
       # Deux choses sont écrites par la suite et commitées : les réexports
       # générés, et l'empreinte de la fixture. Le régime est celui d'un fichier
       # de verrouillage, et ce diff en est le contrôle : le réparer, c'est
@@ -103,12 +77,45 @@ jobs:
           git ls-files --error-unmatch packages/cli/test/fixture/.crypte/fingerprint.json apps/demo/.crypte/fingerprint.json
           git diff --exit-code
 
+  # Un contrôle nommé sur la pull request, plutôt qu'un chiffre enterré dans les
+  # journaux d'un autre job. Il affiche le tableau, le commente, et rougit sous le
+  # seuil : vitest garde déjà la porte, celui-ci la rend visible.
+  # Voir docs/internal/architecture.md.
+  coverage:
+    if: always()
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: coverage-summary
+      # Une seule commande pour les trois sorties : le tableau sur la page du
+      # job, le commentaire quand c'est une pull request de ce dépôt, et le code
+      # de sortie qui décide du contrôle. Jamais depuis une bifurcation, dont le
+      # jeton est en lecture seule.
+      - name: Report coverage
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: >-
+            ${{ (github.event_name == 'pull_request'
+            && github.event.pull_request.head.repo.full_name == github.repository)
+            && github.event.pull_request.number || '' }}
+        run: |
+          node test/coverage-report.mjs \
+            ${PR:+--pr "$PR"} \
+            --sha "${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+
   # Le badge du README, écrit par la CI parce qu'un chiffre recopié à la main
   # dérive. Job à part pour que `contents: write` ne vaille que là.
   # Voir docs/internal/architecture.md.
   badge:
     if: github.event_name == 'push'
-    needs: check
+    needs: coverage
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -142,7 +149,7 @@ jobs:
   # Seul job exigé par le ruleset. Voir docs/internal/architecture.md.
   ci-passed:
     if: always()
-    needs: [check, dependency-review]
+    needs: [check, coverage, dependency-review]
     runs-on: ubuntu-latest
     steps:
       - name: Une dépendance a échoué ou a été annulée
