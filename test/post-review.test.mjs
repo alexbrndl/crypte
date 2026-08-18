@@ -354,3 +354,21 @@ test('rend undefined quand origin/main n’existe pas', () => {
     rmSync(racine, { recursive: true, force: true })
   }
 })
+
+// Les deux classes dégénérées d'un en-tête de section, mesurées.
+//
+// Une section qui ne fait que supprimer donne une plage vide, donc refuse tout
+// point : c'est juste, un commentaire du côté droit n'a aucune ligne où se poser.
+test('refuse un point sur une section qui ne fait que supprimer', () => {
+  const plages = hunksOf('@@ -3,4 +3,0 @@')
+
+  expect(plages).toEqual([[3, 2]])
+  expect(inHunk(3, plages)).toBe(false)
+})
+
+// Un en-tête illisible ne laisse aucune plage, donc laisse passer : le script ne
+// refuse un point que sur une mesure, jamais sur une lecture ratée.
+test('laisse passer quand l’en-tête de section est illisible', () => {
+  expect(hunksOf('@@ -1,2 +x,3 @@')).toEqual([])
+  expect(inHunk(42, hunksOf('@@ -1,2 +x,3 @@'))).toBe(true)
+})
