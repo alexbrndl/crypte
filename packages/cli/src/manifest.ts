@@ -24,6 +24,12 @@ export interface Catalogue {
   skipped: { file: string; reason: string }[]
 }
 
+// The story files that produced an entry, each once. Only those: the preview
+// imports them by name, so a file the reader set aside must not be in the list.
+export function storyFilesOf(catalogue: Catalogue): string[] {
+  return [...new Set(catalogue.manifest.entries.map((entry) => entry.storyFile))]
+}
+
 export function buildCatalogue(project: Project): Catalogue {
   const storiesRoot = join(project.root, project.config.stories)
   if (!existsSync(storiesRoot)) {

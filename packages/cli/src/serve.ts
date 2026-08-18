@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import sirv from 'sirv'
 import { parseSync, type Plugin } from 'vite'
 import { ConfigError } from './errors'
+import { storyFilesOf, type Catalogue } from './manifest'
 import { cssEntryOf, type Project } from './project'
 
 // The shell is built ahead of time and copied into `dist/shell` when the CLI is
@@ -40,6 +41,10 @@ export const PREVIEW_ENTRY = '/@crypte/preview.js'
 // project.
 const VIRTUAL = '\0'
 
+// The id the module graph knows the entry by. Exported so a rebuild can
+// invalidate it: nothing imports the entry, so nothing propagates to it.
+export const PREVIEW_ENTRY_ID = `${VIRTUAL}${PREVIEW_ENTRY}`
+
 // Where the shell reads the catalogue. Served from memory rather than from
 // `.crypte/manifest.json`: that file is an artefact, and reading it back would
 // show a stale catalogue whenever a write failed.
@@ -62,7 +67,10 @@ export function shellAssets(): string {
 // One plugin for both pages. Neither is a file in the project: they belong to
 // the CLI, and writing them into the project would leave behind something
 // nobody asked for.
-export function servePlugin(project: Project, manifest: string, files: string[]): Plugin {
+//
+// The catalogue is read at each request, never captured: a story added while
+// the server runs must reach the shell without a restart.
+export function servePlugin(project: Project, current: () => Catalogue): Plugin {
   const shell = shellAssets()
 
   return {
@@ -96,7 +104,7 @@ export function servePlugin(project: Project, manifest: string, files: string[])
 
         if (url === MANIFEST_ROUTE) {
           response.setHeader('Content-Type', 'application/json')
-          response.end(manifest)
+          response.end(JSON.stringify(current().manifest))
           return
         }
 
@@ -119,11 +127,11 @@ export function servePlugin(project: Project, manifest: string, files: string[])
     },
 
     resolveId(id) {
-      return id === PREVIEW_ENTRY ? `${VIRTUAL}${PREVIEW_ENTRY}` : undefined
+      return id === PREVIEW_ENTRY ? PREVIEW_ENTRY_ID : undefined
     },
 
     load(id) {
-      return id === `${VIRTUAL}${PREVIEW_ENTRY}` ? previewEntry(project, files) : undefined
+      return id === PREVIEW_ENTRY_ID ? previewEntry(project, storyFilesOf(current())) : undefined
     },
   }
 }
@@ -420,6 +428,36 @@ function adapterExpression(body: Node[]): Node | undefined {
   return found?.['value'] as Node | undefined
 }
 
+// Replaying the last render on a hot update, rather than letting Vite reload the
+// page. The entry has no parent to propagate to, so without this every keystroke
+// in a component reloads the iframe and remounts the whole tree.
+//
+// Through the channel, never around it: it owns what was last asked for and the
+// reporting that goes with it. Drawing from here left a failing edit throwing
+// into this callback, so no `error` reached the shell.
+//
+// The catalogue does not change here: a file whose stories changed name or count
+// makes the server reload the page instead. See docs/internal/architecture.md.
+function hot(files: string[]): string[] {
+  if (files.length === 0) return []
+
+  const paths = files.map((file) => `/${file}`)
+
+  return [
+    'if (import.meta.hot) {',
+    `  const paths = ${JSON.stringify(paths)}`,
+    '',
+    '  import.meta.hot.accept(paths, (updated) => {',
+    '    updated.forEach((module, index) => {',
+    '      if (module) modules[paths[index]] = module',
+    '    })',
+    '',
+    '    channel.again()',
+    '  })',
+    '}',
+  ]
+}
+
 // The preview's entry, written as source and compiled by the project's Vite.
 //
 // `import.meta.glob` is eager on purpose. The preview holds every story module
@@ -459,25 +497,23 @@ export function previewEntry(project: Project, files: string[] = []): string {
     '// lookup and never a guess about a name.',
     'const byId = new Map(manifest.entries.map((entry) => [entry.id, entry]))',
     '',
-    'createPreviewChannel({',
-    '  render(id, overrides) {',
-    '    const entry = byId.get(id)',
-    '    if (!entry) throw new Error(`unknown story: ${id}`)',
+    'function render(id, overrides) {',
+    '  const entry = byId.get(id)',
+    '  if (!entry) throw new Error(`unknown story: ${id}`)',
     '',
-    '    const module = modules[`/${entry.storyFile}`]',
-    '    if (!module) throw new Error(`no module for ${entry.storyFile}`)',
+    '  const module = modules[`/${entry.storyFile}`]',
+    '  if (!module) throw new Error(`no module for ${entry.storyFile}`)',
     '',
-    '    // The module holds the component and its definition, never a component',
-    '    // on its own: mounting `module.default` handed React an object, and the',
-    '    // story rendered nothing. Measured in a browser.',
-    '    const { component, definition } = module.default',
+    '  // The module holds the component and its definition, never a component',
+    '  // on its own: mounting `module.default` handed React an object, and the',
+    '  // story rendered nothing. Measured in a browser.',
+    '  const { component, definition } = module.default',
     '',
-    '    adapter.mount(',
-    '      container,',
-    '      component,',
-    '      propsOfStory(definition, entry.name, overrides),',
-    '    )',
-    '  },',
-    '})',
+    '  adapter.mount(container, component, propsOfStory(definition, entry.name, overrides))',
+    '}',
+    '',
+    'const channel = createPreviewChannel({ render })',
+    '',
+    ...hot(files),
   ].join('\n')
 }

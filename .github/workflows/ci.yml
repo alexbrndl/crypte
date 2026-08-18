@@ -16,10 +16,9 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    # 20 et non 10 à cause du contrôle de mutation, qui lance un test par
-    # garantie. Mesuré ici sur le job entier : 12 min 2 avant son accélération,
-    # 5 min 45 après. Voir docs/internal/architecture.md.
-    timeout-minutes: 20
+    # 10 depuis le retrait du contrôle de mutation, qui lançait un test par
+    # garantie et demandait 20. Mesuré ici sur le job entier : moins de 2 min.
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -43,7 +42,34 @@ jobs:
       # un exécutable absent, et le seul contrôle qui voit ce que l'utilisateur
       # voit tombe. Voir docs/internal/architecture.md.
       - run: vp node node_modules/playwright/cli.js install --with-deps chromium
-      - run: vp test
+      # `--coverage` produit la mesure ; le verdict est rendu par le job
+      # `coverage`, une seule fois, là où il est visible. Sans le drapeau, il n'y
+      # a rien à juger et un fichier publié peut retomber à 0 % d'exécution sans
+      # un mot.
+      #
+      # `github-actions` annote les fichiers du diff aux lignes qui échouent, ce
+      # qui évite d'ouvrir les journaux pour savoir quoi. `json` écrit le compte
+      # que le résumé et le commentaire affichent.
+      # Voir docs/internal/architecture.md.
+      - run: >
+          vp test --coverage
+          --reporter=default --reporter=github-actions
+          --reporter=json --outputFile=vitest-report.json
+      # Le résumé et le compte partent au job `coverage`, qui les affiche et
+      # commente. `always()` : un lancement rouge doit pouvoir dire son compte.
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        # `!cancelled()` et non `always()` : un lancement annulé par le suivant
+        # n'a rien à déposer, et le job d'à côté rougirait sur un artefact absent.
+        if: ${{ !cancelled() && matrix.node == '24' }}
+        with:
+          name: coverage-summary
+          # Aucun chemin caché : `upload-artifact` écarte les fichiers en point
+          # par défaut, et le rapport s'appelait `.vitest-report.json`. Le
+          # commentaire annonçait alors « résultat des tests indisponible ».
+          path: |
+            coverage/coverage-summary.json
+            vitest-report.json
+          if-no-files-found: ignore
       # Deux choses sont écrites par la suite et commitées : les réexports
       # générés, et l'empreinte de la fixture. Le régime est celui d'un fichier
       # de verrouillage, et ce diff en est le contrôle : le réparer, c'est
@@ -56,15 +82,73 @@ jobs:
         run: |
           git ls-files --error-unmatch packages/cli/test/fixture/.crypte/fingerprint.json apps/demo/.crypte/fingerprint.json
           git diff --exit-code
-      # Casse chaque garantie et vérifie que le bon test s'en aperçoit. Après le
-      # git diff, parce qu'il modifie les sources et les restaure. Sur une seule
-      # version : il relance toute la suite une fois par garantie, et ne dépend
-      # pas de Node.
-      - name: Guarantees are actually guarded
-        if: matrix.node == '24'
-        run: node test/mutation-check.mjs
+
+  # Un contrôle nommé sur la pull request, plutôt qu'un chiffre enterré dans les
+  # journaux d'un autre job. Il affiche le tableau, le commente, et rend le
+  # verdict : c'est le seul endroit où les seuils sont évalués, vitest ne les
+  # porte pas.
+  # Voir docs/internal/architecture.md.
+  coverage:
+    if: ${{ !cancelled() }}
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: coverage-summary
+      # Une seule commande pour les trois sorties : le tableau sur la page du
+      # job, le commentaire quand c'est une pull request de ce dépôt, et le code
+      # de sortie qui décide du contrôle. Jamais depuis une bifurcation, dont le
+      # jeton est en lecture seule.
+      - name: Report coverage
         env:
-          VP_BIN: vp
+          GH_TOKEN: ${{ github.token }}
+          PR: >-
+            ${{ (github.event_name == 'pull_request'
+            && github.event.pull_request.head.repo.full_name == github.repository)
+            && github.event.pull_request.number || '' }}
+        run: |
+          node test/coverage-report.mjs \
+            ${PR:+--pr "$PR"} \
+            --sha "${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+
+  # Le badge du README, écrit par la CI parce qu'un chiffre recopié à la main
+  # dérive. Job à part pour que `contents: write` ne vaille que là.
+  # Voir docs/internal/architecture.md.
+  badge:
+    if: github.event_name == 'push'
+    needs: coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: coverage-summary
+      # Les chemins par défaut, ceux que l'artefact porte : `coverage/` est
+      # préservé depuis qu'il y a deux fichiers dedans. L'override d'avant
+      # cherchait le résumé à la racine, donc le badge n'était jamais écrit et ce
+      # job aurait été rouge à chaque fusion. Il n'a jamais tourné sur une pull
+      # request, donc rien ne l'a dit. Voir docs/internal/architecture.md.
+      - run: node test/coverage-report.mjs --badge .github/coverage.json > /dev/null
+      # `[skip ci]` : sans lui, la pousse relance toute la CI pour recalculer le
+      # même chiffre. Et rien n'est commité quand il n'a pas bougé, ce qui est le
+      # cas de la plupart des fusions.
+      - name: Commit the badge when the number moved
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/coverage.json
+          git diff --cached --quiet && echo "couverture inchangée" && exit 0
+          git commit -m "chore: update the coverage badge [skip ci]"
+          git push
 
   dependency-review:
     if: github.event_name == 'pull_request'
@@ -77,7 +161,7 @@ jobs:
   # Seul job exigé par le ruleset. Voir docs/internal/architecture.md.
   ci-passed:
     if: always()
-    needs: [check, dependency-review]
+    needs: [check, coverage, dependency-review]
     runs-on: ubuntu-latest
     steps:
       - name: Une dépendance a échoué ou a été annulée

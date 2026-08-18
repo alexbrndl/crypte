@@ -12,14 +12,17 @@
     "check": "vp check",
     "test": "vp test",
     "pack": "vp run -r pack",
-    "ready": "vp check && vp run -r pack && vp test",
-    "mutations": "node test/mutation-check.mjs"
+    "ready": "vp check && vp run -r pack && vp test --coverage && node test/coverage-report.mjs"
   },
   "devDependencies": {
     "@changesets/changelog-github": "catalog:",
     "@changesets/cli": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "@vue/test-utils": "catalog:",
+    "jsdom": "catalog:",
     "playwright": "catalog:",
-    "vite-plus": "^0.2.8"
+    "vite-plus": "^0.2.8",
+    "vitest": "catalog:"
   },
   "devEngines": {
     "packageManager": {

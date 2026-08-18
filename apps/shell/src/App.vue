@@ -2,6 +2,7 @@
 import type { Manifest, StoryEntry } from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/ui'
 import { computed, onMounted, ref, useTemplateRef } from 'vue'
+import { landing, unreadable, type Shown } from './recover'
 
 // Le shell ne connaît aucun framework : il lit un manifeste et parle par le
 // canal. C'est ce qui lui permet d'être construit à l'avance et livré dans le
@@ -14,6 +15,11 @@ const frame = useTemplateRef<HTMLIFrameElement>('frame')
 const entries = ref<StoryEntry[]>([])
 const current = ref<string | null>(null)
 const status = ref('chargement du catalogue')
+
+// L'entrée affichée, pas seulement son identifiant : celui-ci vient du chemin et
+// du nom, donc renommer une story le change et la sélection ne se retrouve plus.
+// Son fichier et son rang y survivent.
+let shown: Shown = null
 
 // Une erreur de rendu s'affiche, elle ne se glisse pas dans une ligne d'état :
 // une story qui ne rend rien laisse un cadre vide, et un cadre vide sans
@@ -38,20 +44,52 @@ const groups = computed(() => {
 
 function show(id: string) {
   current.value = id
+  shown = entries.value.find((entry) => entry.id === id) ?? shown
   failure.value = null
   // Rien ne part avant que la preview ait dit `ready` : un message envoyé à une
   // iframe qui n'écoute pas encore est perdu sans trace.
   if (ready) channel?.send({ type: 'render', id, overrides: {} })
 }
 
-onMounted(async () => {
+// Relu à chaque `ready`, et pas seulement au montage : ce message est aussi ce
+// que dit une preview rechargée parce que le catalogue a changé. Aucun message
+// de plus n'a donc été ajouté au protocole.
+async function refresh() {
+  // Un catalogue illisible fige l'arbre sur son état d'avant : sans cette
+  // ligne, rien ne dirait pourquoi il a cessé de suivre.
+  let manifest: Manifest
+  try {
+    manifest = (await fetch(MANIFEST).then((answer) => answer.json())) as Manifest
+  } catch (error) {
+    status.value = unreadable(error)
+    return
+  }
+
+  const before = entries.value
+
+  entries.value = manifest.entries
+  status.value = `${manifest.entries.length} stories`
+
+  const next = landing(shown, before, manifest.entries)
+  shown = next.shown
+  if (next.status) status.value = next.status
+
+  if (next.id === null) {
+    current.value = null
+    return
+  }
+
+  show(next.id)
+}
+
+onMounted(() => {
   if (frame.value) {
     channel = createShellChannel(frame.value)
     channel.onMessage((message) => {
       if (message.type === 'ready') {
         ready = true
         status.value = `preview prête, protocole v${message.protocolVersion}`
-        if (current.value) show(current.value)
+        void refresh()
       }
       if (message.type === 'rendered') {
         failure.value = null
@@ -64,12 +102,7 @@ onMounted(async () => {
     })
   }
 
-  const manifest = (await fetch(MANIFEST).then((answer) => answer.json())) as Manifest
-  entries.value = manifest.entries
-  status.value = `${manifest.entries.length} stories`
-
-  const first = manifest.entries[0]
-  if (first) show(first.id)
+  void refresh()
 })
 </script>
 

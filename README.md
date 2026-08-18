@@ -1,10 +1,13 @@
 # Crypte
 
+[![CI](https://github.com/alexbrndl/crypte/actions/workflows/ci.yml/badge.svg)](https://github.com/alexbrndl/crypte/actions/workflows/ci.yml)
+[![coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Falexbrndl%2Fcrypte%2Fmain%2F.github%2Fcoverage.json)](https://github.com/alexbrndl/crypte/actions/workflows/ci.yml)
+
 A component workshop for design systems, built to stay light and to work with more than one framework.
 
 A framework-neutral core, one adapter per framework, and plugins you add one at a time. Nothing you have not installed is ever loaded.
 
-> **Status: in progress.** Three of the four contracts are settled, the plugin one is still provisional. The CLI reads a project's configuration and resolves its path aliases, and the channel between the shell and the preview is built and tested. **No command runs yet**, and nothing is published to npm. Section 8 of [`docs/contracts.md`](docs/contracts.md) says exactly what exists.
+> **Status: in progress.** Three of the four contracts are settled, the plugin one is still provisional. `crypte dev` serves the workshop: it reads a project's configuration, resolves its path aliases, discovers stories, renders them in a preview, and follows the files while it runs. **Nothing is published to npm yet.** Section 8 of [`docs/contracts.md`](docs/contracts.md) says exactly what exists.
 
 ## Why
 

@@ -100,6 +100,12 @@ export function viteConfigOf(project: Project): InlineConfig {
   return {
     root,
     configFile: false,
+    // Ours, not `node_modules/.vite`. The project's own `vite dev` uses that
+    // one, and two servers with different plugins and different entries writing
+    // the same `_metadata.json` corrupt each other's optimised dependencies.
+    // Inside `node_modules` all the same, so it is already ignored and a
+    // `rm -rf node_modules` still clears it.
+    cacheDir: join(root, 'node_modules', '.crypte'),
     // The resolver first, the project's plugins after: the first one only
     // catches what it truly resolves, its fallback letting the rest through, so
     // putting it in front takes nothing from anyone. A plugin that wants to run

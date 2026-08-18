@@ -280,75 +280,77 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 ---
 
-## 4 bis. Le contrôle de mutation
+## 4 bis. La couverture, et ce qu'elle a remplacé
 
-`test/mutation-check.mjs` casse chaque garantie du protocole, une par une, et vérifie qu'au moins un test s'en aperçoit. Le catalogue est dans `test/mutations.json`, une entrée par constat de revue réel.
+`vp test --coverage` mesure ce que les tests exécutent réellement. Les seuils sont dans `test/coverage-thresholds.json`, au plancher mesuré : 96 % des instructions, 88 % des branches, 96 % des fonctions, 97 % des lignes. C'est `test/coverage-report.mjs` qui les applique, et lui seul ; la configuration de vitest ne les porte pas.
 
-**Pourquoi il existe.** Sur les cinquante-trois constats des neuf revues du lot 2, sept portaient sur un test qui passait pour la mauvaise raison, et quatre sur une garantie tenue par le code mais gardée par aucun test. C'est la première cause de défaut du dépôt, très loin devant les bugs de comportement, qui sont deux.
+**Pourquoi elle existe.** Elle répond à la seule des trois questions du contrôle de mutation qu'aucune relecture ne voit : *ce code est-il exécuté par quelqu'un ?* Le premier lancement a trouvé, en cinq secondes, deux endroits que 131 garanties n'avaient jamais signalés.
 
-La seule méthode qui ait fonctionné à chaque fois est de casser ce que le test surveille et de le voir rougir. Faite à la main, elle dépend de l'attention de qui écrit, laquelle a failli à chaque tour. Ce script la rend exécutable.
+- **L'adaptateur React à 0 %.** `packages/react/src/index.ts`, le fichier publié qui monte les composants, n'était exécuté par aucun test. Ses seules preuves étaient deux cas navigateur, à travers toute la pile. Il a maintenant neuf cas dans un DOM, dont la relance de l'erreur d'un composant qui ne rend pas, mesurée en navigateur et écrite en commentaire depuis des semaines sans être éprouvée.
+- **L'entrée du CLI à 0 %.** `--version`, l'aide qui porte le numéro de protocole, la racine par défaut, et le code de sortie 1 d'une erreur de configuration : rien ne les éprouvait. La décision de la commande vit désormais dans `cli.ts`, atteignable sans lancer un processus ; `index.ts` n'est plus que quatre lignes de câblage.
+- **La commande `dev` elle-même**, dont les lignes de démarrage (le compte de stories, les fichiers laissés de côté, l'échec d'écriture du manifeste) n'étaient jamais exécutées.
 
-**Ce qu'il a trouvé le jour de son écriture.** Une correction annoncée deux revues plus tôt, `NonNullable` dans le filtre des messages, n'avait jamais été appliquée : le remplacement visait une forme multiligne que le formateur avait condensée, et n'a donc rien remplacé, sans rien signaler.
+**Trois fichiers sont exclus, et nommément.** L'entrée du CLI qui appelle `run`, le montage du shell, et un module de types dont il ne reste qu'une constante à l'exécution. Rien d'autre : une exclusion est une garantie qu'on retire.
 
-**Ce qui casse si on l'enlève.** Rien immédiatement, et c'est le problème : les garanties se dégraderaient une par une sans qu'aucun test ne rougisse, exactement comme entre la huitième et la neuvième revue.
+**Le seuil monte, il ne descend pas.** Un seuil qu'on baisse pour faire passer un lot ne garde plus rien. Il est au plancher mesuré pour que la première régression le franchisse.
 
-**Trois précautions.** Il refuse de tourner sur un arbre non propre, sinon une interruption laisserait des sources mutées sans que git puisse dire lesquelles. Il reconstruit les artefacts en sortant, le test d'isolation les lisant. Et il vérifie lui-même qu'il n'a rien laissé de modifié : en intégration continue il passe après le `git diff --exit-code`, donc personne d'autre ne le ferait.
+*Ce qui casse si on l'enlève :* du code publié cesse d'être exécuté par les tests sans que rien ne le dise, ce qui est exactement l'état dans lequel l'adaptateur React a vécu tout le projet.
 
-*Ce qu'il ne fait pas :* rattraper un signal. Une version antérieure enregistrait un gestionnaire pour `SIGINT`, ce qui ne servait à rien et nuisait : la boucle étant synchrone, le gestionnaire ne s'exécutait jamais, et l'enregistrer suffisait à désactiver l'interruption par défaut, donc à rendre le script impossible à arrêter au clavier. La restauration tient dans le `finally` de chaque tour, et une interruption laisse une source mutée que `git status` montre.
+**Le chiffre est affiché, pas rangé dans un journal.** `test/coverage-report.mjs` compose un tableau et l'envoie à trois endroits : le résumé du job, un commentaire de pull request, et son propre code de sortie, qui fait du job `coverage` un **contrôle nommé sur la pull request**, à côté de `has-review` et `has-changeset`. Enterré dans le job `check`, le chiffre demandait d'ouvrir les journaux pour être lu.
 
-*Une construction en échec interrompt le tour* plutôt que de laisser les tests lire les artefacts précédents, ce qui accuserait une garantie pourtant gardée.
+**Les seuils sont évalués une seule fois, et là où on les voit.** Ils vivent dans `test/coverage-thresholds.json`, lus par `test/coverage-report.mjs`, dont le code de sortie **est** le contrôle `coverage`. La configuration de vitest ne les porte plus : évalués aux deux endroits, ils rougissaient deux fois pour la même raison, et le second n'attrapait jamais rien que le premier ait laissé passer. Un cas vérifie que `vite.config.ts` n'a pas de clé `thresholds`.
 
-**Il compare sur une sortie sans couleurs.** En intégration continue, vitest colorise, et le `>` qui sépare le fichier du nom de test se retrouve enveloppé de codes d'échappement : `channel.test.ts > un aller-retour` n'apparaît alors jamais tel quel. Trois entrées ont été déclarées **vues par autre chose que leur gardien**, vertes en local et rouges en CI. Le contrôle retire donc les couleurs avant de chercher.
+*Ce que ça coûte :* `vp test --coverage` seul affiche les chiffres sans rendre de verdict. C'est `pnpm ready` qui applique les seuils en local, et le contrôle `coverage` qui les applique en intégration continue.
 
-Le verdict ne pouvait pas être « n'est gardée par rien » : celui-là ne dépend que des codes de sortie, que la colorisation ne change pas. Seule la comparaison au gardien attendu lit du texte, donc elle seule était exposée.
+**Le tableau porte sa légende, et ses trous.** « branches 88 % » ne veut rien dire pour qui lit la pull request sans connaître l'outil : les cinq colonnes sont définies sous le tableau, une par ligne. Et ce qui **n'est pas** mesuré y est nommé : une colonne à 100 % qui tait une exclusion est un mensonge par omission.
 
-*Ce que ça a appris :* un verdict « vue par autre chose » ne disait pas ce qui avait rougi à la place, donc ne se diagnostiquait pas. Il en donne maintenant les trois premières lignes, et c'est ce qui a permis de voir les codes d'échappement.
+*Un total par ligne autant que par colonne.* Les quatre métriques additionnées par dossier, pour classer les dossiers entre eux : sans lui, le tableau totalisait dans un seul sens et rien ne disait lequel est le plus faible dans l'ensemble. Mesuré aujourd'hui : `packages/cli` à 95,3 %, tous les autres au-dessus de 98 %.
 
-**Il exige que ce soit le bon gardien qui rougisse.** Chaque entrée nomme ce qui doit apparaître dans la sortie d'échec. Sans cela, une mutation vue par un test sans rapport laisserait croire que la garantie tient, alors que celui qui la porte est muet : c'est « un test passe pour la mauvaise raison » transposé à l'outil censé le détecter. À l'ajout de ce contrôle, deux entrées sur neuf se sont révélées mal attribuées.
+*Les chiffres paraissent petits pour `packages/core`*, 43 lignes, et ce n'est pas un oubli : les sept fichiers sont bien dans le rapport, mais v8 compte les lignes **exécutables**. Le noyau est surtout des types et des commentaires ; son code exécutable, ce sont les deux côtés du canal.
 
-**Ce qu'il ne couvre pas.** Seulement les garanties qu'on a pensé à y mettre : il empêche un défaut trouvé de revenir, il n'en trouve pas de nouveau. Le contrôle de la spécification, lui, ne descend pas plus bas que le champ : il voit un champ absent, pas une phrase fausse à côté d'un champ présent.
+**Le tableau va par dossier, pas par métrique seule.** « instructions 97 % » ne dit pas où chercher ; `packages/cli` à 88 % de branches le dit. Les fichiers du résumé sont additionnés par paquet et par application, avec le total en dernière ligne.
+
+*L'ancien est retiré, pas modifié.* Édité sur place, le tableau restait à sa position d'origine dans la conversation, donc loin du dernier commit sur une longue pull request. Il est maintenant supprimé puis reposté, donc toujours en bas, à côté de ce qu'il mesure. Le marqueur `<!-- crypte-coverage -->` sert à le retrouver, comme celui de la revue, et la vérification exige qu'il en reste **exactement un**.
+
+*La liste des commentaires vient de l'API REST*, jamais de `gh pr view --json comments`, qui rend un identifiant GraphQL : la mise à jour répondait 404, l'étape était `continue-on-error`, et le premier tableau posté a survécu trois lancements, dont un sous une CI rouge. Le script **relit ce qu'il a écrit** et lève si le corps n'est pas arrivé tel quel, comme `post-review.mjs` compte les revues avant et après.
+
+*Une seule entrée de matrice le poste*, et jamais depuis une bifurcation : deux entrées se marcheraient dessus, et le jeton d'une pull request venue d'ailleurs est en lecture seule de toute façon.
+
+*Le job ne porte pas de `continue-on-error`.* Une première version en mettait, sur l'idée qu'un rapport manquant ne doit pas masquer l'échec qui l'a empêché d'exister. C'était l'inverse : le commentaire a cessé de se mettre à jour pendant trois lancements et personne ne l'a su. Le script relit ce qu'il a écrit et lève sinon, donc l'étape rougit quand la publication échoue, et son code de sortie est le contrôle.
+
+*Un lancement rouge n'écrit pas de couverture*, et la première version levait alors : le commentaire d'avant restait donc en place, affichant les chiffres **verts** du lancement précédent sous une CI rouge. Mesuré sur la PR #34, une heure après l'avoir écrit. Le commentaire dit maintenant « couverture non mesurée », garde le compte des tests, et nomme les trois premiers cas qui rougissent.
+
+**Le badge du README est écrit par la CI, pas recopié à la main.** `.github/coverage.json` porte le format « endpoint » que shields.io lit, et un job `badge` le réécrit sur chaque pousse vers `main`. Le pourcentage de lignes, arrondi **vers le bas** : 98,55 affiché « 99 % » flatterait. La couleur suit le seuil du dépôt, pas une échelle scolaire, parce qu'un badge vert sous le seuil mentirait sur une porte rouge.
+
+*Un job à part*, pour que `contents: write` ne vaille que là : le job qui exécute les tests n'a jamais le droit d'écrire dans le dépôt, ni dans une pull request. Le résumé et le compte des tests passent de job en job par un artefact.
+
+*Deux cas gardent ce job*, qui ne tourne jamais sur une pull request : l'un lance le script en sous-processus depuis un faux artefact, sans `--resume`, donc sur le chemin par défaut ; l'autre lit `ci.yml` et refuse un `--resume` dans la ligne d'appel. Mesuré : remettre la panne fait rougir le second, la retirer le rend vert. Comparer un document au code est ce que fait déjà `spec.test.ts`.
+
+*Le chemin du résumé est celui par défaut*, et c'est une correction de l'auto-revue : le job passait `--resume coverage-summary.json`, vrai quand l'artefact ne portait qu'un fichier, faux depuis qu'il en porte deux et que `coverage/` est préservé. Le badge n'aurait jamais été écrit et ce job aurait été rouge à chaque fusion. Il ne tourne que sur `main`, donc aucune pull request ne pouvait le dire.
+
+*Sur `main` seulement*, et avec `[skip ci]` : le badge dit l'état de la branche par défaut, et sans le marqueur la pousse relancerait toute la CI pour recalculer le même chiffre. Rien n'est commité quand il n'a pas bougé, ce qui est le cas de la plupart des fusions.
+
+**Les échecs sont annotés dans le diff.** Le rapporteur `github-actions` de vitest place chaque échec sur son fichier et sa ligne, ce qui évite d'ouvrir les journaux pour savoir quoi.
+
+**Ce qu'elle ne dit pas.** Qu'une ligne exécutée est *vérifiée*. Un test qui appelle une fonction sans rien affirmer la couvre à 100 %. C'est la raison des instantanés : `toMatchInlineSnapshot` fixe le message entier, là où un `toContain('champ')` passait sur une phrase à moitié fausse. Les deux ensemble, exécution mesurée et assertion exacte, couvrent ce que le contrôle de mutation cherchait ; ni l'un ni l'autre ne le remplace seul.
 
 ---
 
-## 4 bis bis. Le catalogue de mutations se périme
+## 4 bis bis. Le contrôle de mutation, et pourquoi il n'est plus là
 
-`test/mutations.test.mjs` vérifie que chaque motif `avant` apparaît **exactement une fois** dans son fichier, que la mutation change vraiment le code, et que chaque garantie nomme un test attendu et une origine.
+`test/mutation-check.mjs` cassait chaque garantie du dépôt, une par une, et vérifiait qu'un test nommé s'en apercevait. Le catalogue, `test/mutations.json`, portait **131 entrées**, une par constat de revue réel. Un second fichier, `test/mutations.test.mjs`, vérifiait que le catalogue ne se périmait pas : un contrôle du contrôle.
 
-*Pourquoi ça existe :* le catalogue cite du code par son texte, donc toute refonte le périme en silence. Le contrôle de mutation le dit, mais il coûte quatre minutes ; ces cas le disent en une seconde, avant le commit.
+**Ce qu'il a apporté, et il faut le dire.** Sur les cinquante-trois constats des neuf revues du lot 2, sept portaient sur un test qui passait pour la mauvaise raison et quatre sur une garantie gardée par aucun test : c'était la première cause de défaut du dépôt. Le jour de son écriture, il a trouvé une correction annoncée deux revues plus tôt qui n'avait jamais été appliquée. Sur 131 garanties, 121 portaient sur du code produit et 66 sur 75 des constats de revue étaient de vrais défauts.
 
-**Deux voies, et quatre-vingt-quatre garanties sur quatre-vingt-treize portent une cible.**
+**Pourquoi il part.** Son coût était « nombre de garanties × toute la suite », donc il grandissait à chaque lot : 7 minutes à 98 garanties, plus de 20 à 131, un job d'intégration continue tué à son budget, puis un déplacement en tâche de nuit. Trois artefacts à garder frais (le catalogue, son test de péremption, le journal de mort brutale), une source mutée partie dans un commit, et une porte de pull request qui tient en quatre secondes sans lui.
 
-*La voie rapide* lance le seul fichier de test que la garantie nomme. Si ce fichier rougit et que le cas attendu apparaît dans sa sortie, c'est fini : ni suite complète, ni `vp check`. La raison tient en une phrase : si le cas attendu rougit, la garantie est tenue quoi qu'en dise le lint.
+Surtout : il traitait le symptôme. Un test qui passe pour la mauvaise raison est un test mal écrit, et le catalogue le compensait entrée par entrée au lieu de corriger le style. Les conversions de cette session, instantanés au lieu de sous-chaînes, fixtures au lieu d'échafaudage, ordre mélangé, couverture mesurée, corrigent la cause.
 
-*La voie lente* ne sert plus qu'aux garanties dont la voie rapide n'a pas conclu, et c'est là que se décide « vue ailleurs ». Ce diagnostic vaut son prix : il a attrapé une mutation vue par la colorisation de vitest, et une autre vue par le formateur parce qu'elle laissait une indentation fausse.
+**L'audit de sortie.** Le contrôle a été lancé une dernière fois en entier avant d'être supprimé, et le verdict est consigné : c'est le dernier service qu'il pouvait rendre, et il vaut mieux qu'un abandon en silence.
 
-*Deux garde-fous.* Un filtre qui ne correspond à rien fait sortir vitest en échec, ce qui se lirait comme une mutation vue : le script reconnaît son message pour retomber sur la voie lente. Et neuf garanties ne nomment aucun fichier, dont quatre citent un code d'erreur TypeScript que seul `vp check` attrape : elles vont directement en voie lente.
+*Ce qui est perdu, et assumé :* une garantie précise ne se vérifie plus par exécution. Ce qui reste à sa place est l'ensemble des tests qu'elle a fait écrire, la couverture qui dit qu'ils exécutent le code, et les instantanés qui disent qu'ils l'affirment en entier. Si un défaut de la classe « test muet » revient, la réponse est un test, pas un catalogue.
 
-*Un gardien purement compilatoire ne reçoit pas de cible.* `vp test` ne vérifie pas les types, donc un `satisfies` ou un `@ts-expect-error` ne fait jamais rougir son fichier : lui donner une cible ferait payer la voie rapide **en plus** de la voie lente. Deux garanties du canal sont dans ce cas.
-
-*Le champ `dans`* nomme le fichier quand `attendu` cite un titre sans lui. Préfixer `attendu` ne marcherait pas : il est cherché comme sous-chaîne dans une sortie où vitest écrit `fichier > describe > cas`.
-
-*Le seul mode d'échec de ce raccourci est gardé par des cas, pas par une sonde.* Une garantie dont le cas attendu ne rougit pas doit rester signalée, jamais conclue « vu ». La décision vit dans `concludes`, exportée, et `mutations.test.mjs` la couvre : fichier qui passe, filtre sans correspondance, autre cas du même fichier qui a rougi. Deux garanties du catalogue la cassent pour vérifier que ces cas rougissent. Une sonde avait d'abord mesuré la même chose une fois, mais une mesure ponctuelle ne survit pas au remaniement suivant.
-
-*Le contrôle positif lance aussi chaque cible seule.* La voie rapide ajoute une précondition que la suite entière ne couvre pas : un fichier devenu dépendant de l'ordre rougirait sans mutation, son cas attendu apparaîtrait dans sa sortie, et toutes les garanties qui le nomment seraient conclues « vu » sur un gardien muet. C'est la panne même pour laquelle ce contrôle positif existe. Une quinzaine de démarrages de vitest, contre les soixante secondes de plancher déjà assumées.
-
-*Le script est une fonction gardée*, comme `changeset-check.mjs` et `post-review.mjs` : sans ça, importer le module pour en tester une fonction lancerait les quatre-vingt-douze mutations.
-
-*Chronométré en local.* **4 min 10 s pour 90 garanties avant, 2 min 21 s pour 92 après**, soit 1,8 fois moins. Les quatre-vingt-quatre cités plus haut sont les garanties qui **portent** une cible, pas celles qui concluent : un gardien peut rougir sur un autre cas de son fichier, et la voie lente reprend alors la main.
-
-Le calcul par mutation : `pack` 30 ms partout, puis 0,9 s sur la voie rapide contre 3,7 s sur la lente, `test` et `check` compris. Les seize cibles distinctes lancées seules par le contrôle positif coûtent 24 s de ce total, et c'est ce qu'achète la fermeture du trou décrit ci-dessous.
-
-Le plancher est le démarrage de vitest, environ 0,7 s par lancement, donc plus d'une minute pour quatre-vingt-douze garanties quoi qu'on fasse d'autre.
-
-En intégration continue, mesuré sur le job entier, `install` et construction comprises : **12 min 2 avant, 5 min 45 après**. L'extrapolation faite depuis le rapport local sur distant annonçait 7 min et était donc pessimiste, ce qui est la raison de citer la mesure et non le calcul. `DCJ-216` visait moins de 3 min : ce n'est pas atteint, et ça demanderait de muter en mémoire plutôt qu'un processus par garantie. Le délai du job est redescendu de 30 à 20 min, qui laisse le double du temps observé.
-
-*Ce qui casse si on l'enlève :* une garantie dont le motif a disparu ne casse plus rien, donc elle ne surveille plus rien, et le catalogue continue d'annoncer son compte. Mesuré sur le lot 4 : cinq refontes, sept motifs périmés. Les cinq premiers ont coûté un contrôle complet chacun ; les deux derniers ont été vus par ce test, en quelques millisecondes.
-
-Trois modes de péremption, et les deux derniers sont les sournois.
-
-Le motif **disparaît**, et le contrôle le signale clairement. Ou le motif devient **ambigu**, parce qu'un second endroit du fichier porte le même texte : `shadowed` a réutilisé le test de clé de `propertyOf`, et le motif court s'est mis à correspondre deux fois. Ou le **cas attendu** est renommé, et la garantie n'attend plus rien : c'est ce que `DCJ-210` s'apprête à faire sur 183 noms de tests.
-
-Le troisième ne se vérifie que sur les entrées qui nomment un fichier de test, une soixantaine sur 86. `attendu` est du texte libre par construction, le contrôle le cherchant comme sous-chaîne dans la sortie : les autres nomment un titre de cas, un code d'erreur TypeScript ou une fixture, et rien de structurel ne s'y vérifie.
+*Ce qui le rouvrirait :* deux régressions de suite arrivées sur `main` par un test qui passait pour la mauvaise raison.
 
 ---
 
@@ -362,7 +364,7 @@ Le troisième ne se vérifie que sur les entrées qui nomment un fichier de test
 
 **Ce qu'il lit d'un fichier de code.** Ses commentaires, et rien d'autre. Une citation y vit ; les chemins fabriqués vivent dans des chaînes, qu'un test ou une fixture écrit par construction. Séparer sur la nature de la ligne évite d'exempter des fichiers entiers.
 
-Un seul fichier est écarté, nommément : `test/mutations.json`, qui porte le code muté et n'a pas de commentaire où séparer le vrai du fabriqué. Le nommer plutôt qu'écarter tous les JSON garde l'exemption visible.
+Aucun fichier n'est écarté. Le seul l'était nommément, `test/mutations.json`, qui portait du code muté sans commentaire où séparer le vrai du fabriqué ; il a disparu avec le contrôle de mutation.
 
 Une première version exemptait tous les `*.test.*`, au motif que leurs vraies dépendances échouent d'elles-mêmes. C'est vrai d'un chemin lu à l'exécution, faux d'une citation en commentaire : six renvois réécrits par ce même lot n'étaient surveillés par rien. Constat de la revue de la PR #23.
 
@@ -412,7 +414,7 @@ Une première version exemptait tous les `*.test.*`, au motif que leurs vraies d
 
 **Comment un bloc est rattaché.** Un commentaire HTML le précède, `<!-- checked: config -->`, et un cas porte le même nom. Le marqueur est explicite plutôt que positionnel : ajouter un paragraphe au-dessus d'un bloc ne doit pas changer ce qui est vérifié.
 
-Un cas à part compare **la liste des marqueurs à la liste attendue**. Sans lui, renommer un marqueur ferait passer l'exemple en silence. Mesuré, c'est la seule des quatre mutations qui ne tombait pas d'elle-même.
+Un cas à part compare **la liste des marqueurs à la liste attendue**. Sans lui, renommer un marqueur ferait passer l'exemple en silence. Mesuré, c'est la seule des quatre altérations d'exemple qui ne tombait pas d'elle-même.
 
 Un second garde va avec : `indexOf` rend `-1` sur un marqueur absent, et la découpe ramenait alors le **premier bloc du guide**, langue comprise. L'extraction ne signalait donc rien, elle rendait le mauvais bloc. Un cas exige maintenant qu'un marqueur inconnu lève.
 
@@ -602,11 +604,11 @@ Le producteur tourne avant qu'un serveur existe, donc il applique les motifs `pa
 
 **Le formateur ne touche pas à `.crypte/`, et il a fallu le lui dire.**
 
-Deux mécanismes se disputaient la forme du fichier. `vp check --fix`, lancé par le hook de pré-commit sur les fichiers indexés, compactait les tableaux de props sur une ligne. L'écriture suivante les dépliait, `JSON.stringify` avec deux espaces d'indentation ne compactant rien. L'arbre n'était donc jamais propre deux commandes de suite, et le contrôle de mutation échouait sur son propre contrôle positif.
+Deux mécanismes se disputaient la forme du fichier. `vp check --fix`, lancé par le hook de pré-commit sur les fichiers indexés, compactait les tableaux de props sur une ligne. L'écriture suivante les dépliait, `JSON.stringify` avec deux espaces d'indentation ne compactant rien. L'arbre n'était donc jamais propre deux commandes de suite.
 
 *La règle générale :* un fichier généré et commité ne doit pas être reformaté par un outil qui ne le produit pas. Le dépôt appliquait déjà ça à `docs/**` et à `README.md`, pour une raison différente.
 
-**Le contrôle de mutation rejoue la suite une dernière fois.**
+**La suite rejouée une dernière fois.**
 
 Le même conflit s'est présenté un cran plus loin. Le contrôle mute une source, lance la suite, et exige à la fin que l'arbre soit propre : c'est sa condition d'emploi, et personne d'autre ne la vérifie. Or la suite écrit l'empreinte, qui diverge quand elle est produite depuis une source mutée, donc le contrôle la voyait comme une source non restaurée.
 
@@ -680,6 +682,102 @@ Un module de story rend `{ component, definition }`, jamais un composant seul. M
 
 ---
 
+## 4 duodecies. Ce qui suit les fichiers pendant que le serveur tourne
+
+**Le catalogue est lu à chaque requête, jamais capturé.** `servePlugin` reçoit une fonction, pas une valeur. Capturé au démarrage, il laisserait le shell sur l'arbre d'il y a une heure, et l'entrée de la preview importerait la liste de fichiers du même instant.
+
+**Deux granularités, parce qu'elles n'ont pas le même coût.**
+
+*Un composant, ou les props d'une story.* Rien à faire côté serveur. Le module de la story est accepté par l'entrée générée, qui rejoue le dernier rendu. Sans ce chemin, Vite ne trouve personne pour accepter et recharge le cadre, ce qui remonte tout l'arbre pour une lettre. Mesuré : le nombre de navigations du cadre passe de 2 à 3 sur le même cas.
+
+*Un fichier de story ajouté, retiré ou renommé.* L'entrée nomme ses imports un par un, donc c'est un autre module. Le module virtuel est invalidé et la preview reçoit un rechargement complet. Rien n'importe l'entrée, donc rien ne propage jusqu'à elle : Vite n'a aucun moyen de le savoir seul.
+
+**Ce qui déclenche le second, et ce qui ne le déclenche pas.** La comparaison porte sur l'identifiant, le nom, le chemin et le fichier de chaque entrée, pas sur le manifeste entier. Éditer les props d'une story reste donc une mise à jour à chaud, alors que le manifeste, lui, a changé.
+
+**Une reconstruction qui lève garde le catalogue précédent.** Deux stories partagent brièvement un nom pendant qu'on convertit un fichier, et `assertDistinct` lève. C'est la différence entre une sauvegarde qui clignote et un serveur qui s'arrête.
+
+**Le shell se rafraîchit sur `ready`, sans message de plus.** Ce message est aussi ce que dit une preview rechargée, donc le shell relit le manifeste à ce moment-là. Le protocole n'a pas bougé, et le shell n'a pas de client Vite : il est préconstruit et servi par `sirv`.
+
+**Ce que le shell devient après un rafraîchissement est décidé hors du composant.** `recover.ts` rend l'identifiant à afficher, ce qu'il faut retenir de l'affichée, et ce qu'il y a à dire. La raison est qu'une distinction s'y joue et ne s'éprouve pas depuis un rendu Vue : « rien n'a jamais été affiché » et « la sélection vient d'être perdue » veulent l'inverse l'un de l'autre. Confondus, un projet sans story se marquait comme ayant perdu sa sélection, et **ne se sélectionnait plus jamais tout seul** une fois la première story écrite.
+
+**Où retombe la sélection quand l'identifiant affiché disparaît.** L'identifiant vient du chemin et du nom, donc renommer une story le change. Le repli est le même rang dans le même fichier, ce qui, sur un renommage sur place, désigne la story renommée. Retomber sur la première story du fichier enverrait sur `Par défaut` quelqu'un qui renommait `Avertissement`. Fichier disparu, rien de sélectionné : proposer une story d'ailleurs enverrait sur un composant que personne n'a ouvert.
+
+**Le rejeu à chaud passe par le canal, jamais à côté.** `createPreviewChannel` retient ce que le shell a demandé en dernier et rend un `again()`. Dessiner depuis l'entrée générée court-circuitait le compte rendu : une édition qui fait lever le rendu jetait dans le callback de mise à jour, donc aucun `error` ne partait, le shell gardait l'ancienne sortie et son statut « rendu ». Et au retour, une édition qui répare remontait **dans une iframe masquée**, le panneau d'erreur restant ouvert jusqu'à un clic. Les sections 5.4 et 6 des contrats disent l'inverse des deux.
+
+*Ce que le rejeu ne couvre pas :* un composant. Fast Refresh de React en fait une frontière, donc la mise à jour s'y arrête et l'entrée n'est jamais rappelée. Le chemin chaud est celui des fichiers de story.
+
+**Ce que la reconstruction avale, elle le dit.** Un fichier de story que le lecteur cesse de lire disparaît de l'arbre et l'écran se recharge : sans une ligne, l'auteur voit sa story partir sans savoir pourquoi. C'est le silence que le lot 4 a fermé, et que l'édition rouvrait. Une reconstruction qui lève le dit aussi, sinon l'arbre cesse de bouger sans explication.
+
+*Dit une fois, et redit si la faute revient.* Le catalogue ne peut pas servir de mémoire pour ça : un fichier écarté ne change pas la forme, donc le catalogue retenu ne bougeait pas et la même ligne repartait à chaque frappe. La liste est donc tenue à part, **amorcée** par ce que le démarrage a déjà imprimé et **remplacée** à chaque reconstruction plutôt que grossie : gardée pour toujours, un fichier cassé puis réparé puis recassé de la même façon ne disait plus rien la seconde fois. La ligne d'échec de reconstruction suit la même règle, sinon une conversion de fichier en imprime une par sauvegarde.
+
+**La forme décide du rechargement, jamais de la fraîcheur.** Le catalogue retenu est remplacé à chaque reconstruction réussie ; seule la décision de recharger le cadre regarde la forme. Rendre la main avant le remplacement servait les props d'avant l'édition, alors que la route les lit en direct. Mesuré.
+
+**La surveillance est la nôtre, pas celle de Vite.** Vite ne surveille que les fichiers de son graphe de modules : un fichier de story qu'aucune page n'a encore demandé n'y figure pas, donc ses modifications n'arrivaient jamais. Sur macOS le trou ne se voit pas, le dossier entier étant surveillé par le système ; en intégration continue sur Linux, `add` et `unlink` arrivaient et `change` non. Mesuré, et `server.watcher.add` n'y a rien changé.
+
+Un `fs.watch` récursif sur le dossier des stories suffit, et **il supprime trois pièces** : le filtre sur le chemin, le séparateur de fin, et la résolution du chemin réel derrière un lien symbolique. Tout événement est déjà à l'intérieur. Une sauvegarde en produit plusieurs, d'où vingt millisecondes de regroupement.
+
+Les fichiers dont la configuration dépend ont un surveillant chacun, et un fichier absent est **sauté plutôt que fatal** : `loadProject` peut nommer un `tsconfig.json` que le projet n'a pas, et `fs.watch` lève dessus.
+
+**Un changement de `crypte.config.ts` donne une ligne, pas un rechargement.** Relire la configuration veut dire reconstruire le serveur, puisque les plugins du projet en viennent. Hors de ce lot, donc, et le silence est remplacé par une instruction : relancer.
+
+**L'empreinte est écrite au démarrage seulement.** C'est un fichier de verrouillage commité. La réécrire à chaque sauvegarde salirait l'arbre de travail pendant qu'on tape, y compris sur les états intermédiaires d'un renommage. Le manifeste sur le disque suit la même règle : il est ignoré par Git, mais personne ne le lit pendant `crypte dev`, la route servant depuis la mémoire.
+
+**Le serveur a son propre cache de dépendances**, `node_modules/.crypte`. Sans lui il partage `node_modules/.vite` avec le `vite dev` du projet : deux serveurs aux plugins et aux entrées différents écrivant le même `_metadata.json`.
+
+*Ce qui casse si on l'enlève :* l'outil demande un redémarrage à chaque story ajoutée, ce qui est le reproche fait à sa catégorie entière.
+
+---
+
+## 4 quaterdecies. Ce que vitest fait, et que nous écrivions à la main
+
+**Une fixture par cas, pas un `beforeAll` partagé.** `test.extend` monte une copie de projet, un serveur et une page pour chaque cas, et vitest les démonte même si le cas lève.
+
+*Ce que ça a supprimé, mesuré :* dans `hot.test.ts`, deux couplages d'ordre qui étaient **documentés en commentaire faute de savoir les retirer**, sept restaurations de fichier écrites dans le corps des cas, un tableau que six cas comptaient, et vingt-et-un délais en dur. Dans `screen.test.ts`, la dépendance d'ordre des cas d'édition et un helper qui rechargeait la page à la main. Dans `adapter.test.ts`, **trente-deux dossiers temporaires par lancement que personne ne ramassait**.
+
+*Ce que ça a coûté :* rien. `hot.test.ts` passe de 240 à 215 lignes et tourne en 1,3 s ; `screen.test.ts` monte huit serveurs au lieu d'un et tourne en 3,5 s.
+
+**Les fabriques de projet sont des fixtures, pas des fonctions de module.** Dans `project.test.ts`, `projectWith`, `projectOf` et `serverOn` étaient trois fonctions avec un tableau `temporary` et un `afterAll` pour le ramassage, et chaque serveur demandait son `try`/`finally` : **quatorze**, tous identiques. Les fixtures les ramassent, 95 cas et 16 lignes de moins.
+
+**Un tableau de cas qui veut une fixture s'écrit avec `test.for`, jamais `test.each`.** Mesuré : `each` n'a pas de contexte du tout, son troisième paramètre vaut `undefined` ; `for` passe le contexte en second et **exige** une déstructuration d'objet. Les noms produits sont identiques aux deux formes, vérifié cas par cas sur les 95 de `project.test.ts` avant de convertir.
+
+**Le tableau de cas est un tuple.** `noUncheckedIndexedAccess` rend `string | undefined` chaque élément d'un tableau non figé, donc onze `as const`, sinon neuf erreurs de type.
+
+**Le composant du shell est mesuré, et ça s'est joué sur un test, pas sur l'outil.** Ni v8 ni istanbul ne savent parser un `.vue` **brut** : les deux échouent sur `<template>`, et le fichier était donc exclu du rapport. La cause n'était pas le fournisseur mais l'absence de test qui le charge : dès que `apps/shell/test/app.test.ts` le monte, le plugin Vue le transforme, v8 le suit par sa carte de sources, et il paraît à **98,2 %**. Mesuré dans les deux sens avant de conclure.
+
+*Ce que ça a ajouté :* treize cas sur les 184 lignes du composant, dont la règle qui n'était éprouvée qu'en navigateur, « rien ne part avant que la preview ait dit `ready` ». Et un projet vitest `shell` qui étend `apps/shell/vite.config.ts` plutôt que la racine, parce que c'est elle qui porte le plugin Vue.
+
+*Un piège :* le programme TypeScript du shell n'incluait que `src`, donc le test ne voyait pas le `declare module '*.vue'` de `env.d.ts` et `vp check` refusait l'import. `include: ["src", "test"]` le règle, et met au passage le test sous `vue-tsc`.
+
+**Un `globalSetup` ramasse ce qu'un lancement tué laisse.** `test/sweep-tmp.mjs` efface `packages/cli/test/tmp-hot-*` et `apps/tmp-demo-*` au démarrage de la suite. Les fixtures démontent leur copie, y compris quand le cas lève, mais pas quand le processus est tué : **soixante-huit copies** s'étaient accumulées.
+
+*Ce qui casse si on l'enlève :* rien de vert ne rougit, les copies reviennent s'entasser. C'est le seul mécanisme de ce document qui ne garde aucune garantie.
+
+**L'ordre des cas est mélangé, celui des fichiers non.** `sequence.shuffle.tests` a fait tomber **six cas sur onze** dans `hot.test.ts` et trois sur huit dans `screen.test.ts` : ces fichiers n'étaient verts que dans un ordre précis, et deux fois cette session un couplage n'a été trouvé que par hasard. Mélanger les fichiers, en revanche, annule l'optimisation qui lance les plus longs d'abord.
+
+**Les cas navigateur sont un projet à part.** Entrelacés avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le même. `sequence.groupOrder` les fait passer après, seuls sur la machine : trois passes vertes contre une sur quatre avant.
+
+**Les réglages partagés sont hoistés, parce qu'un projet n'hérite pas toujours de la racine.** Le projet `shell` étend `apps/shell/vite.config.ts`, qui porte le plugin Vue : il ne voyait donc ni l'ordre mélangé ni le délai d'`expect.poll`. Ses treize cas tournaient dans un ordre fixe, ce qui est exactement l'état où deux couplages nous ont coûté des heures. Un objet `partagé` est maintenant épandu dans la racine et dans ce projet, et trois lancements mélangés passent.
+
+**Les réglages sont dans la configuration, plus dans les fichiers.** `testTimeout`, `hookTimeout` et surtout `expect.poll.timeout`, dont **le défaut d'une seconde** était la cause d'une partie de l'instabilité que j'attribuais à la charge.
+
+**Un réessai sur condition, pas un réessai global.** `retry: { condition: /does not provide an export/ }` ne réessaie que pour `DCJ-221`, la réoptimisation de dépendances que la preview ne surmonte pas. Le message remonte dans le diagnostic du cas, donc la condition le voit.
+
+*Ce qui casse si on l'enlève :* les couplages entre cas redeviennent invisibles, et les délais repartent se disperser dans les fichiers, où ils avaient atteint la trentaine.
+
+---
+
+## 4 terdecies. Le piège de la copie du shell
+
+`packages/cli/test/shell-copy.test.ts` compare la date du plus récent fichier de `apps/shell/src` à celle de la copie dans `packages/cli/dist/shell`.
+
+*Pourquoi ça existe.* Le shell servi est préconstruit et copié. Éditer ses sources sans reconstruire laisse tous les cas navigateur juger la version d'avant, **et ils passent**. Mesuré au lot 5b : une correction du shell était en place, le cas échouait, et le shell servi ne la portait pas.
+
+*Ce qui casse si on l'enlève :* le seul contrôle qui voit ce que l'utilisateur voit devient vert sur du code qui n'est pas celui qu'on vient d'écrire. C'est un vert pour la mauvaise raison, le mode d'échec le plus coûteux du dépôt.
+
+*Ce qu'il ne couvre pas :* une reconstruction qui échoue à mi-chemin et laisse une copie récente mais fausse. `vp run -r pack` échoue bruyamment dans ce cas.
+
+---
+
 ## 5. Décisions encodées dans la configuration
 
 Ces réglages ont l'air anodins et ne le sont pas. Chacun a été mis là pour une raison précise, et chacun est le genre de ligne qu'on supprime en croyant nettoyer.
@@ -714,13 +812,15 @@ Règle à retenir si un autre workflow apparaît : `cancel-in-progress: true` po
 
 **Ce qui casse si on l'enlève.** La matrice ne renseigne plus. Un échec sur la première version annule la seconde, et on ignore si le problème est spécifique à une version, ce qui est précisément la question posée.
 
-### `permissions: contents: read`
+### `permissions: contents: read`, et `pull-requests: write` sur un seul job
 
 **Ce que ça fait.** Réduit le jeton fourni aux jobs à la lecture du dépôt.
 
 **Pourquoi.** Sans déclaration explicite, le jeton par défaut peut être bien plus large que nécessaire.
 
 **Ce qui casse si on l'enlève.** Rien visiblement, et c'est le problème : une action compromise ou une dépendance malveillante disposerait de droits d'écriture sur un dépôt public.
+
+**Deux exceptions, chacune sur un job.** `coverage` déclare `pull-requests: write` pour son commentaire, `badge` déclare `contents: write` pour le chiffre du README. La portée est le job, donc celui qui exécute les tests n'écrit nulle part. Et le jeton d'une pull request venue d'une bifurcation reste en lecture seule quoi qu'on écrive ici : le commentaire est donc gardé sur l'origine de la branche, sinon il échouerait chez un contributeur extérieur.
 
 ### `timeout-minutes: 10`
 
@@ -895,7 +995,7 @@ Le lot 2 a demandé onze tours. La cause n'est pas le nombre de constats, c'est 
 
 Mesuré sur le onzième tour : six points, dont deux bloquants seulement. Les quatre autres auraient pu partir en issue, et ce tour aurait été le dernier.
 
-**Deux causes secondaires, mesurées elles aussi.** Les trois derniers tours ne portaient plus sur le protocole, dont le code n'avait pas bougé, mais sur les outils de vérification ajoutés pendant la pull request : chaque outil est une surface neuve qui produit ses propres constats. Et la borne d'effort de la revue, fixée à une dizaine d'appels d'outils, a été dépassée trois fois de suite à trente-quatre et quarante-trois, principalement pour refaire à la main ce que `pnpm run mutations` fait déjà.
+**Deux causes secondaires, mesurées elles aussi.** Les trois derniers tours ne portaient plus sur le protocole, dont le code n'avait pas bougé, mais sur les outils de vérification ajoutés pendant la pull request : chaque outil est une surface neuve qui produit ses propres constats. Et la borne d'effort de la revue, fixée à une dizaine d'appels d'outils, a été dépassée trois fois de suite à trente-quatre et quarante-trois, principalement pour refaire à la main ce que le contrôle de mutation faisait déjà.
 
 Sur les 1907 lignes du lot, 245 sont du code de production, 1193 des tests et des outils, 464 de la documentation.
 
@@ -909,7 +1009,7 @@ Le lot 2 a demandé neuf revues et cinquante-trois constats. Quatre mesures en s
 
 **La re-revue porte sur le diff incrémental**, pas sur la branche entière. C'est ce qui faisait dix minutes par tour et ramenait les mêmes constats de fond.
 
-**La revue lance `pnpm run mutations`** au lieu de refaire les mutations à la main, ce qu'elle faisait à chaque tour.
+**La revue lance `vp test --coverage`** au lieu d'éprouver à la main que les tests exécutent ce qu'ils prétendent garder.
 
 *Ce qui reste incertain :* les deux premières mesures sont de la discipline, et la discipline a échoué à chaque tour de ce lot. Elles n'ont fonctionné que le jour où elles ont été demandées explicitement. Les écrire les rend opposables en revue, pas automatiques.
 
@@ -1198,7 +1298,7 @@ La seconde est la promesse structurelle de la section 5.1 de la spécification :
 
 Une troisième règle vient de la même exigence : **un écouteur s'exécute dans la fenêtre qui reçoit**, donc `window` bascule le temps de chaque distribution. Sans ce passage, les deux canaux d'un même test liraient le même `parent` et la même origine, et leur appariement serait vrai par accident.
 
-**Ces règles sont elles-mêmes au catalogue de mutation.** Si la simulation cesse de les tenir, les mutations du canal ne prouvent plus rien : c'est le seul endroit du dépôt où un outil de vérification est lui-même vérifié.
+**Ces règles étaient elles-mêmes au catalogue de mutation**, seul endroit du dépôt où un outil de vérification était lui-même vérifié. Ce qui les tient désormais est `no-plugin.test.ts`, qui compile le noyau sans la simulation.
 
 **Ce qui casse si on l'enlève.** Rien de visible, et c'est le problème : avant ces tests, remplacer `origin` par `'*'` dans la réponse de la preview laissait la suite entièrement verte, alors que le commentaire juste au-dessus en fait la raison de sûreté du canal.
 

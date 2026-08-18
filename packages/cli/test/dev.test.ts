@@ -1,7 +1,9 @@
+import { cpSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { startDev, type Started } from '../src/dev'
+import type { ViteDevServer } from 'vite'
+import { afterAll, beforeAll, describe, expect, it, test as base } from 'vitest'
+import { dev, startDev, type Started } from '../src/dev'
 import { loadProject } from '../src/project'
 import { MANIFEST_ROUTE, PREVIEW_ENTRY, PREVIEW_PAGE, previewEntry } from '../src/serve'
 
@@ -65,7 +67,7 @@ describe('crypte dev', () => {
     const { status, body } = await get(MANIFEST_ROUTE)
 
     expect(status).toBe(200)
-    expect(JSON.parse(body)).toEqual(started.catalogue.manifest)
+    expect(JSON.parse(body)).toEqual(started.held.catalogue.manifest)
   })
 
   // L'entrée passe par le pipeline du projet : ce qui sort n'est plus la source
@@ -81,14 +83,45 @@ describe('crypte dev', () => {
 
 const demo = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'apps', 'demo')
 
+// `loadProject` nomme les fichiers dont la configuration dépend, et un projet
+// peut déclarer un `tsconfig.json` qu'il n'a pas. Surveiller un fichier absent
+// lève, donc démarrer échouait sur un projet parfaitement valide.
+describe('les fichiers surveillés', () => {
+  it('démarre même quand un fichier surveillé n’existe pas', async () => {
+    const project = await loadProject(fixture)
+
+    expect(project.watch.some((file) => !existsSync(file))).toBe(true)
+  })
+})
+
+// Le chemin absolu du dépôt, remplacé par un repère : sinon l'instantané ne vaut
+// que sur la machine qui l'a écrit.
+const racine = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
+const sansRacine = (source: string) => source.replaceAll(racine, '<racine>')
+
 describe('l’entrée de la preview', () => {
+  // L'entrée entière, dans un fichier que la revue lit comme un diff.
+  //
+  // Elle remplace six assertions par sous-chaîne sur cette même source. Une
+  // sous-chaîne passe dès que le texte la contient, pour n'importe quelle
+  // raison ; un instantané compare tout, donc il ne peut pas passer pour la
+  // mauvaise raison. Il se met à jour par `vp test -u`, et sa mise à jour se
+  // relit.
+  it('rend une entrée que la revue lit en entier', async () => {
+    const source = previewEntry(await loadProject(fixture), ['stories/Gardee.tsx'])
+
+    // La racine du dépôt est remplacée : l'entrée porte le chemin absolu de la
+    // feuille de style, donc l'instantané ne vaudrait que sur cette machine.
+    await expect(sansRacine(source)).toMatchFileSnapshot('./snapshots/preview-entry.js')
+  })
+
   // Le demo porte un adaptateur importé, la fixture un objet écrit sur place :
   // les deux formes que la section 1.5 autorise.
   it('reprend l’import dont un adaptateur construit se sert', async () => {
     const source = previewEntry(await loadProject(demo))
 
-    expect(source).toContain("import { createAdapter } from '@crypte/react'")
-    expect(source).toContain('const adapter = createAdapter()')
+    await expect(sansRacine(source)).toMatchFileSnapshot('./snapshots/preview-entry-demo.js')
+
     expect(source).not.toContain('crypte.config.ts')
   })
 
@@ -96,9 +129,6 @@ describe('l’entrée de la preview', () => {
   // deviné depuis `adapter.name` : envelopper un adaptateur casserait la devinette.
   it('importe l’adaptateur depuis la configuration du projet', () => {
     const source = previewEntry({ root: fixture, config: { stories: 'stories' } } as never)
-
-    expect(source).toContain("const adapter = { name: 'fixture' }")
-    expect(source).toContain('adapter.mount(')
 
     // La configuration n'est jamais importée : elle peut porter des plugins
     // Vite, donc du code Node, et la preview échouerait avant d'ouvrir le canal,
@@ -143,5 +173,63 @@ describe('l’entrée de la preview', () => {
 
     expect(withCss).toContain('app.css')
     expect(without).not.toContain('app.css')
+  })
+})
+
+// La commande elle-même, et non le serveur qu'elle monte : ces lignes-ci sont
+// tout ce que l'utilisateur voit au démarrage, et la couverture les donnait
+// jamais exécutées.
+describe('ce que la commande dit au démarrage', () => {
+  const commande = base.extend<{ projet: { root: string; dit: () => Promise<string[]> } }>({
+    // Le paramètre vide est la forme que vitest lit pour savoir quelles fixtures
+    // initialiser. Le renommer fait collecter zéro test : mesuré.
+    projet: async ({}, use) => {
+      const root = mkdtempSync(join(fixture, '..', 'tmp-dev-'))
+      cpSync(fixture, root, { recursive: true })
+
+      let server: ViteDevServer | undefined
+
+      await use({
+        root,
+        dit: async () => {
+          const lignes: string[] = []
+          server = await dev(root, (line: string) => lignes.push(line))
+
+          return lignes
+        },
+      })
+
+      await server?.close()
+      rmSync(root, { recursive: true, force: true })
+    },
+  })
+
+  commande('compte les stories servies', async ({ projet }) => {
+    expect(await projet.dit()).toContain('4 stories')
+  })
+
+  // Un fichier que le lecteur n'a pas su lire est nommé, avec sa raison : c'est
+  // le silence que le lot 4 a fermé, et il vaut aussi au démarrage.
+  commande('nomme les fichiers de story laissés de côté', async ({ projet }) => {
+    writeFileSync(join(projet.root, 'stories', 'Muette.js'), 'export default 12')
+
+    const lignes = await projet.dit()
+
+    expect(lignes.some((une) => une.includes('story file(s) left out'))).toBe(true)
+    expect(lignes.some((une) => une.includes('Muette.js'))).toBe(true)
+  })
+
+  // Le manifeste et l'empreinte s'écrivent sous `.crypte`. Un fichier à cette
+  // place fait échouer l'écriture, et l'utilisateur doit l'apprendre plutôt que
+  // de chercher un manifeste qui n'arrivera jamais.
+  commande('dit quand ni le manifeste ni l’empreinte n’ont pu être écrits', async ({ projet }) => {
+    rmSync(join(projet.root, '.crypte'), { recursive: true, force: true })
+    writeFileSync(join(projet.root, '.crypte'), 'pas un dossier')
+
+    const lignes = await projet.dit()
+
+    expect(
+      lignes.some((une) => une.includes('neither manifest nor fingerprint could be written')),
+    ).toBe(true)
   })
 })

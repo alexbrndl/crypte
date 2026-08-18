@@ -152,7 +152,7 @@ Notes written for the maintainer stay in French: `architecture.md`, `suivi.md`, 
 
 **Why.** Crypte is a public tool, and French text leaves out most of its readers. Agent instructions have no such audience: one person and one agent read them, and they carry rules that cost many review rounds to learn. Translating those rules loosely would lose more than it gains.
 
-Test names are a third case, tracked in DCJ-210. There are 183 of them, and 18 are quoted by `test/mutations.json`, so renaming one without the other turns a guarantee mute.
+Test names are a third case, tracked in DCJ-210. There are 183 of them. They were quoted by `test/mutations.json`, which made renaming one a two-file operation; the catalogue is gone, so a rename is now a rename.
 
 **What would reopen it.** An outside contributor. Published source points at `architecture.md` twice today, and the tests of the packages eight more times: English code that sends its reader to a French document does not hold for long.
 

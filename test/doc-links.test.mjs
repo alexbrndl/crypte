@@ -16,11 +16,6 @@ const SCANNED = /\.(md|ts|tsx|mjs|yml|yaml|json|vue)$/
 const WRITES_PATHS = /\.(ts|tsx|mjs)$/
 const COMMENT = /^\s*(\/\/|\/\*|\*)/
 
-// Le seul fichier écarté, et il l'est nommément : le catalogue de mutation
-// porte le code muté, chemins faux compris, et le JSON n'a pas de commentaire
-// où l'on puisse séparer les deux.
-const CATALOGUE = 'test/mutations.json'
-
 const URL_LIKE = /https?:\/\/\S+/g
 
 // Le point initial est facultatif, pour `.changeset/README.md` et `.claude/…`,
@@ -45,7 +40,7 @@ function mentionsOf(path) {
   return [...new Set(read.join('\n').match(MENTION) ?? [])]
 }
 
-const scanned = tracked.filter((path) => SCANNED.test(path) && path !== CATALOGUE)
+const scanned = tracked.filter((path) => SCANNED.test(path))
 
 test('les documents cités existent', () => {
   const missing = []

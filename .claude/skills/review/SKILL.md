@@ -85,9 +85,9 @@ Lis ensuite `CLAUDE.md` et, si le diff touche au format de story, au manifeste, 
 
 ## 3. Ce que le dépôt vérifie déjà
 
-`pnpm run mutations` casse chaque garantie du protocole et vérifie que le bon test s'en aperçoit. **Lance-le plutôt que de refaire ces mutations à la main**, et consacre ton temps à ce qui n'y figure pas.
+`vp test --coverage` dit ce que les tests exécutent. Il n'applique pas les seuils : c'est `node test/coverage-report.mjs` qui rend le verdict, une fois la mesure faite, et c'est lui que le contrôle `coverage` de la pull request exécute. **Lance les deux plutôt que de juger à la lecture** si le diff est éprouvé : une ligne neuve jamais exécutée est un constat en soi, et il se mesure en cinq secondes.
 
-Le catalogue est dans `test/mutations.json` : une garantie absente de ce fichier est une garantie que personne ne surveille, et c'est en soi un constat.
+Ce qu'il ne dit pas : qu'une ligne exécutée est vérifiée. Un test qui appelle sans rien affirmer la couvre à 100 %. Un `toContain` sur un fragment de message, ou un `toThrow()` nu, sont donc des constats recevables même sur du code couvert.
 
 ## 4. Vérifier contre les contraintes, pas contre le goût
 
@@ -198,7 +198,7 @@ Un nouveau commit sur la branche relance également le contrôle.
 
 Repère chiffré, **sur un tour de correction** : une dizaine d'appels d'outils au maximum, poster la revue et relancer le contrôle compris. Sur un premier tour portant du code neuf, la borne ne s'applique pas : mieux vaut une revue longue et complète que trois revues courtes. Au-delà, tu es en train d'enquêter au lieu de relire.
 
-Cette borne a été dépassée trois fois de suite, à trente-quatre et quarante-trois appels : un budget qui n'est jamais tenu ne sert à rien. **Sur un tour de correction, elle est ferme.** Ce qui la fait exploser est de refaire à la main ce que `pnpm run mutations` fait déjà, et de monter des projets témoins pour éprouver un mécanisme que le diff seul permet de juger.
+Cette borne a été dépassée trois fois de suite, à trente-quatre et quarante-trois appels : un budget qui n'est jamais tenu ne sert à rien. **Sur un tour de correction, elle est ferme.** Ce qui la fait exploser est de monter des projets témoins pour éprouver un mécanisme que le diff seul permet de juger.
 
 Sur un premier tour, l'enquête est en revanche légitime : c'est elle qui a produit les meilleurs constats de ce dépôt.
 

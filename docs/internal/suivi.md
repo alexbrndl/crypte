@@ -16,7 +16,7 @@ Une ligne disparaît quand le point est traité, pas avant. Les niveaux sont dé
 
 La section 5.2 de la spécification déclare trois messages du shell vers la preview. Un seul a un effet : `render`. Les deux autres sont reçus et ignorés.
 
-*Ce que ça donne :* un test fixe l'état d'aujourd'hui, et le catalogue de mutation surveille que la preview n'agit que sur `render`. Implémenter les deux messages restants demandera donc de mettre à jour cette entrée, ce qui est voulu : elle dit ce que le code fait, pas ce qu'il devrait faire.
+*Ce que ça donne :* un test fixe l'état d'aujourd'hui, à savoir que la preview n'agit que sur `render`. Implémenter les deux messages restants demandera donc de mettre à jour cette entrée, ce qui est voulu : elle dit ce que le code fait, pas ce qu'il devrait faire.
 
 *Pourquoi ce n'est pas fait ici :* `update-overrides` suppose un panneau qui édite des valeurs, `set-globals` un thème ou une locale à appliquer. Ni l'un ni l'autre n'existe avant le lot 8.
 
@@ -81,7 +81,7 @@ Quatre fois sur le lot 3, puis une fois sur le lot 0 decies, une commande a éch
 | Ce qui a échoué | Ce qu'on a vu ensuite |
 |---|---|
 | deux tests isolés | vingt-trois lancements verts |
-| le contrôle de mutation | deux relances vertes |
+| le contrôle de mutation, depuis retiré | deux relances vertes |
 | `vp run -r pack`, code 2 | « Build complete » affiché, trois relances à zéro |
 | un test, juste avant un commit | treize lancements verts |
 | un test de `post-review`, dans la foulée d'un `vp check --fix` | quatre lancements verts sur un fichier identique au fichier rouge |
@@ -206,9 +206,9 @@ Le troisième, la colonne « props propres » de la page composant, veut les seu
 
 `StoriesRead` a trois variantes et `produced` les traite dans un `switch`. Ajouter une quatrième variante sans la traiter donne `TS2366`, mesuré, parce que la fin d'une fonction à type de retour déclaré redevient atteignable.
 
-*Ce qui n'est pas gardé :* rien n'empêche de remplacer le `switch` par une chaîne de ternaires, qui compile sans exiger l'exhaustivité. Les 81 garanties de mutation resteraient vertes et la protection disparaîtrait en silence.
+*Ce qui n'est pas gardé :* rien n'empêche de remplacer le `switch` par une chaîne de ternaires, qui compile sans exiger l'exhaustivité. Toute la suite resterait verte et la protection disparaîtrait en silence.
 
-*Pourquoi ce n'est pas fait ici :* le catalogue de mutations casse du code et lit le rouge d'un test ; il ne sait pas exprimer « ce changement doit produire une erreur de type ». Le garder demanderait un second mécanisme, du genre d'un fichier de type attendu en échec, pour une protection d'une seule fonction.
+*Ce qui le garderait :* `expectTypeOf` dans un fichier `*.test-d.ts` avec `typecheck` activé, qui sait exprimer « ce changement doit produire une erreur de type ». Trois garanties du catalogue retiré étaient dans ce cas ; c'est le successeur naturel, pour une protection d'une seule fonction.
 
 *Origine :* auto-review du lot 4.
 
@@ -249,18 +249,6 @@ L'empreinte commitée de la fixture est le seul instance du régime de verrouill
 *Ce qui l'élargira tout seul :* le lot 5 et l'adaptateur, qui remplissent `details`, puis le premier plugin, qui remplit `options`.
 
 *Origine :* revue de la PR #31.
-
-### Le contrôle de mutation reste à six minutes en intégration continue
-
-`DCJ-216` visait moins de trois minutes. Chronométré : 4 min 10 s pour 90 garanties avant, **2 min 21 s pour 92 après**, soit 1,8 fois moins en local. En intégration continue, mesuré sur le job entier : **12 min 2 avant, 5 min 45 après**. L'objectif de trois minutes n'est donc pas atteint.
-
-*Où passe le temps qui reste :* la plupart des garanties passent par la voie rapide, à 0,9 s chacune, dont environ 0,7 s de démarrage de vitest. Ce démarrage est un plancher : quatre-vingt-douze lancements en coûtent plus d'une minute quoi qu'on fasse du reste. S'y ajoutent 24 s de contrôle positif, qui lance chaque cible seule.
-
-*Ce qui le lèverait :* muter en mémoire, un seul processus vitest rejouant la suite après chaque écriture, au lieu d'un processus par garantie. C'est un autre mécanisme, pas un réglage de celui-ci.
-
-*Pourquoi s'arrêter là :* le gain de 1,8 est acquis et le coût par garantie ajoutée passe de 3,7 s à 0,9 s, donc le catalogue peut tripler avant de retrouver le temps d'avant. Le délai du job reste à 30 min, qui couvre largement.
-
-*Origine :* mesures de DCJ-216.
 
 ### Les cas d'écran rougissent au premier lancement après une installation
 
@@ -310,6 +298,39 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 
 *Origine :* revues 2 à 5 de la PR #33, quatre tours ayant chacun rendu un axe d'entrée de plus.
 
+### Une réoptimisation des dépendances tue la preview, et les cas la contournent
+
+Quand Vite réécrit ses paquets de dépendances en cours de session, le navigateur garde un graphe dont les URL ont disparu : `react-dom.js does not provide an export named 't'`, et `#root` reste vide. **Issue `DCJ-221`.**
+
+*Pourquoi rien ne se rétablit :* c'est un échec d'import, donc antérieur à `createPreviewChannel`. Sans canal, pas de `ready`, et c'est `ready` qui déclenche la relecture du manifeste et le renvoi de la story. Le rétablissement du lot 5b dépend de la seule chose que cette panne empêche.
+
+*Ce que les cas font :* `screen.test.ts` recharge la page une fois quand il voit cette erreur précise, et seulement celle-là.
+
+*Ce qui a été essayé et rejeté, mesuré à chaque fois :*
+
+* **Attribuer les rouges à la charge**, puis élargir les délais à cent vingt secondes par cas. Faux, et coûteux : un cas qui doit rougir payait le délai entier, et le contrôle de mutation est passé de sept minutes à plusieurs heures.
+* **Ne pas hériter du cache de la démonstration.** Nécessaire, insuffisant : la réoptimisation se produit aussi dans une copie partie de zéro.
+* **Faire découvrir les modules de story avant d'ouvrir le navigateur.** Améliore, ne ferme pas.
+* **Faire un échange à chaud dans le préchauffage.** A **aggravé** : quatre passes, une avec le préchauffage en échec et deux à sept cas rouges.
+
+*Ce qui l'a nommée :* rendre les cas bavards. Un `#root` vide se lisait « expected '' to contain … », ce qui ne désigne personne ; avec les erreurs de la page, la cause est apparue à l'occurrence suivante.
+
+*Origine :* lot 5b, quatre occurrences et trois fausses causes avant la bonne.
+
+### Le cache de dépendances ne se copie pas avec un projet
+
+`packages/cli/test/screen.test.ts` copie le projet de démonstration, `node_modules` compris, et retire ensuite `node_modules/.crypte`.
+
+*Pourquoi.* Ce dossier est le cache de dépendances optimisées que le serveur de crypte écrit depuis le lot 5b. Hérité par une copie, il décrit des fichiers que cette copie n'a pas écrits : le navigateur recevait `The requested module '/node_modules/.crypte/deps/react-dom.js' does not provide an export named 't'` et la preview restait vide.
+
+*Ce que ça explique.* Tous les rouges intermittents de ce fichier sous le contrôle de mutation, attribués d'abord à la charge puis à des délais trop courts. Les deux étaient faux : la cause dépendait de l'état du cache de la démonstration au moment de la copie, donc elle allait et venait sans rapport avec la charge.
+
+*Ce qui l'a nommée.* Un `#root` vide se lisait « expected '' to contain … », ce qui ne désigne rien. Les cas rendent maintenant l'état visible avec les erreurs de la page, et la cause est apparue à la première occurrence suivante.
+
+*Ce qui casse si on l'enlève :* la copie repart d'un cache qui ne lui appartient pas, et les cas navigateur rougissent une fois sur trois sans dire pourquoi.
+
+*Origine :* lot 5b, quatre occurrences avant d'être nommée.
+
 ### `project.test.ts > échoue sans le résolveur` rougit par intermittence
 
 Quatre occurrences dans la même session : trois sous `pnpm run mutations`, sur l'une de ses trois barrières, et **une sous un `vp test` ordinaire**. Chaque fois, la même commande relancée passe. `screen.test.ts` a rougi une fois de la même façon.
@@ -341,3 +362,84 @@ Quatre occurrences dans la même session : trois sous `pnpm run mutations`, sur 
 *Ce qui le lèverait :* `actions/cache` sur `~/.cache/ms-playwright`, clé sur la version de Playwright du catalogue.
 
 *Origine :* revue 12 de la PR #33.
+
+### Les copies de projet des cas de rechargement touchent trois outils
+
+`packages/cli/test/screen.test.ts` et `hot.test.ts` copient un projet dans l'espace de travail, parce que hors du dépôt `crypte.config.ts` ne résout plus `@crypte/cli`. Cette copie est visible par trois outils qui ne l'attendent pas.
+
+*pnpm.* `apps/*` en fait un paquet de l'espace de travail, donc un `pnpm install` lancé pendant qu'une copie existe l'inscrit dans le fichier de verrouillage. Mesuré : 28 lignes ajoutées, et un contrôle refusant de partir sur un arbre sale. Fermé par `!apps/tmp-demo-*` dans `pnpm-workspace.yaml`.
+
+*Git.* Les copies sont ignorées, donc `git status --porcelain` ne les montre pas : un contrôle qui vérifie la propreté de l'arbre ne les verra jamais, et une copie oubliée survit sans que rien ne le dise.
+
+*Fermé.* `test/sweep-tmp.mjs`, un `globalSetup`, efface les copies au démarrage de la suite. Les fixtures démontent la leur même quand le cas lève ; ce que ce ramassage ajoute est le cas du processus tué, qui en avait laissé soixante-huit.
+
+*Origine :* lot 5b.
+
+### Le séparateur en fin de préfixe du surveillant n'est gardé par rien
+
+`watchStories` compare le chemin d'un événement au dossier des stories, séparateur compris. Sans ce séparateur, un dossier voisin nommé `stories-old` passe le filtre.
+
+*Ce que ça coûte alors :* une reconstruction du catalogue par sauvegarde dans ce dossier voisin. Rien de plus : `buildCatalogue` ne lit que le dossier des stories, donc le manifeste est identique, la forme aussi, et ni le shell ni la preview ne voient quoi que ce soit.
+
+*Pourquoi il n'y a ni cas ni garantie :* la différence n'est pas observable de l'extérieur. Un premier cas a été écrit puis retiré, parce qu'il affirmait que le catalogue ne changeait pas, ce qui est vrai avec ou sans le séparateur : un test qui ne peut pas échouer.
+
+*Ce qui le rendrait observable :* compter les reconstructions, donc exposer un compteur qui n'existe que pour les tests. Le coût du défaut ne le justifie pas.
+
+*Origine :* exploration du lot 5b.
+
+### Le compte rendu d'un rejeu à chaud n'est gardé qu'au niveau du canal
+
+`createPreviewChannel` retient la dernière demande et rend un `again()` qui redessine **avec** son `rendered` ou son `error`. C'est ce qui ferme le point bloquant de la revue du lot 5b : dessiner depuis l'entrée générée laissait une édition ratée jeter dans le callback de mise à jour, sans rien remonter au shell.
+
+*Ce qui le garde :* trois cas unitaires dans `packages/core/test/preview.test.ts`, et une garantie du catalogue qui remplace `draw(asked)` par un appel direct au gestionnaire.
+
+*Ce qui ne le garde pas, et pourquoi c'est écrit ici :* un cas navigateur a été écrit, qui casse puis répare une story et regarde le panneau d'erreur s'ouvrir et se fermer sans clic. Éprouvé contre une version du canal privée de son compte rendu, **bundle reconstruit et vérifié**, il passe quand même. Il coûtait deux minutes de navigateur et ne distinguait rien : retiré.
+
+*Ce qui n'est pas expliqué :* ce qui referme le panneau dans ce cas-là, puisque ni rechargement du cadre ni `rendered` ne sont en jeu. La question reste ouverte et vaut d'être reprise si un défaut de cette zone remonte.
+
+*Ce que le rejeu ne couvre pas :* un composant. Fast Refresh de React en fait une frontière, donc la mise à jour s'y arrête et l'entrée générée n'est jamais rappelée.
+
+*Origine :* revue 1 du lot 5b.
+
+### Deux lancements de tests simultanés s'effacent leurs copies de projet
+
+`test/sweep-tmp.mjs` efface `tmp-hot-*`, `tmp-dev-*` et `tmp-demo-*` au démarrage de la suite. Deux `vp test` lancés en parallèle, ou un `vp test` pendant qu'un autre tourne en veille, se prennent donc leurs copies pendant qu'ils les utilisent.
+
+*Ce que ça donnerait :* des `ENOENT` intermittents dans le lancement le plus ancien, sans rapport apparent avec le cas qui rougit.
+
+*Pourquoi ce n'est pas traité :* ce n'est pas arrivé, et le dépôt a un seul mainteneur. Le périmètre du dépôt est ce que l'usage démontre.
+
+*Ce qui le lèverait :* n'effacer que les copies dont la date de modification dépasse l'heure, ou nommer chaque copie par le pid du processus et n'effacer que celles des autres.
+
+*Origine :* exploration du lot 5b.
+
+### Rien n'empêche de baisser un seuil de couverture
+
+`test/coverage-thresholds.json` porte les quatre seuils, et le contrôle `coverage` les applique. Les baisser suffit à faire passer une régression de couverture, et rien ne le signale.
+
+*Pourquoi ce n'est pas traité :* la règle écrite est que les seuils montent quand un lot les dépasse. Un mécanisme qui l'imposerait devrait garder un historique du chiffre, donc un troisième artefact à tenir frais, ce que le contrôle de mutation a déjà coûté une fois.
+
+*Ce qui le rendrait visible sans machinerie :* le diff. Une baisse de seuil est une ligne dans un fichier de quatre lignes, et la revue la voit.
+
+*Origine :* exploration du lot 5b.
+
+### Clos : `App.vue` échappait à la mesure de couverture
+
+Le fournisseur v8 ne sait pas parser un composant monofichier **brut**, et istanbul non plus : mesuré dans les deux sens. La cause n'était pas le fournisseur mais l'absence de test qui charge le fichier.
+
+*Clos par `apps/shell/test/app.test.ts`*, treize cas qui montent le composant dans jsdom. Le plugin Vue le transforme, v8 le suit par sa carte de sources, et il paraît au rapport à **98,2 %** d'instructions et 88 % de branches. L'exclusion `**/*.vue` a été retirée.
+
+### La ligne « preview prête » n'est jamais visible
+
+Sur un message `ready`, `App.vue` écrit `preview prête, protocole v{n}` dans la ligne d'état, puis appelle `refresh()`, qui la remplace par le compte de stories dans le même tour. Le numéro de protocole n'est donc jamais montré à personne.
+
+*Trouvé par* le premier test qui monte le composant : le cas attendait cette ligne et lisait « 3 stories ».
+
+*Pourquoi ce n'est pas corrigé ici :* c'est un choix d'interface, pas un défaut de logique. Soit la ligne disparaît, soit elle survit à un rafraîchissement, et les deux demandent de décider ce que la ligne d'état raconte. Le test fixe le comportement actuel et cite cette entrée.
+
+### Clos : le verdict `AILLEURS` du contrôle de mutation
+
+`La simulation refuse une livraison hors origine` était rendue « vue par autre chose » par le contrôle complet, alors que la garantie était tenue, mesuré deux fois : `ui.test.ts` lancé seul sous mutation donnait un seul rouge, et c'était le gardien nommé.
+
+*Clos par le retrait du contrôle.* Le dernier audit avant suppression a rendu **130 garanties sur 131 vues**, la seule exception étant celle-ci, un faux négatif de l'outil et non un trou de protection. Le cas reste gardé par `ui.test.ts`, et l'outil qui le diagnostiquait mal n'existe plus.
+

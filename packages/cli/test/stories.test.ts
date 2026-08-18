@@ -228,7 +228,7 @@ describe('la lecture des stories', () => {
     const { entries, skipped } = fileWith('A.ts', 'export default defineStories(A)\n')
 
     expect(entries).toEqual([])
-    expect(skipped).toMatch(/not imported/)
+    expect(skipped).toMatchInlineSnapshot(`"A is not imported by a form this reader can follow"`)
   })
 
   // Un espace de noms ne nomme aucun export, donc `export: 'A'` désignerait un
@@ -236,7 +236,9 @@ describe('la lecture des stories', () => {
   it('passe un composant lié par un import d’espace de noms', () => {
     const source = "import * as A from '../a'\nexport default defineStories(A)\n"
 
-    expect(fileWith('A.ts', source).skipped).toMatch(/not imported/)
+    expect(fileWith('A.ts', source).skipped).toMatchInlineSnapshot(
+      `"A is not imported by a form this reader can follow"`,
+    )
   })
 
   it('garde le nom d’origine d’un composant renommé à l’import', () => {
@@ -262,7 +264,9 @@ describe('la lecture des stories', () => {
     const { entries, skipped } = fileWith('A.ts', source)
 
     expect(entries.map((entry) => entry.name)).toEqual(['Vraie'])
-    expect(skipped).toMatch(/computed at runtime/)
+    expect(skipped).toMatchInlineSnapshot(
+      `"stories left out: one whose key is computed at runtime"`,
+    )
   })
 
   // Le repli sur `Default` appartient au fichier qui ne nomme aucune story. Un
@@ -281,7 +285,9 @@ describe('la lecture des stories', () => {
     const { entries, skipped } = fileWith('A.ts', source)
 
     expect(entries).toEqual([])
-    expect(skipped).toMatch(/computed at runtime/)
+    expect(skipped).toMatchInlineSnapshot(
+      `"no story this reader can name: one whose key is computed at runtime"`,
+    )
   })
 
   // Les quatre formes du bloc. Le premier tour n'avait fermé que la dernière,
@@ -371,7 +377,7 @@ describe('la lecture des stories', () => {
     const { entries, skipped } = fileWith('A.ts', source)
 
     expect(entries.map((entry) => entry.name)).toEqual(['Une'])
-    expect(skipped).toMatch(/spread/)
+    expect(skipped).toMatchInlineSnapshot(`"stories left out: one brought by a spread"`)
   })
 
   // La même règle un cran plus bas : un spread emporte les clés qu'il suit.
@@ -387,7 +393,9 @@ describe('la lecture des stories', () => {
     const { entries, skipped } = fileWith('A.ts', source)
 
     expect(entries.map((entry) => entry.name)).toEqual(['Apres'])
-    expect(skipped).toMatch(/a later spread may replace/)
+    expect(skipped).toMatchInlineSnapshot(
+      `"stories left out: one a later spread may replace, one brought by a spread"`,
+    )
   })
 
   // `find` prenait la première, l'exécution garde la dernière.
