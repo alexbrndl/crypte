@@ -421,3 +421,29 @@ describe('ce que le tableau ne mesure pas', () => {
     expect(compose(undefined, undefined)).not.toContain('Hors mesure')
   })
 })
+
+describe('ce que l’exploration a trouvé', () => {
+  // Un `total` amputé d'une métrique faisait lever le rendu, donc laissait le
+  // commentaire d'avant en place, donc affichait des chiffres périmés.
+  it('traite un résumé incomplet comme une absence de mesure', () => {
+    const partiel = { total: { lines: metrique(99), statements: metrique(99) } }
+
+    expect(compose(partiel, undefined)).toContain('Couverture non mesurée')
+    expect(compose(partiel, undefined)).not.toContain('| **total** |')
+  })
+
+  // Une suite vide passe toujours : « 0 tests passent » se lirait comme un
+  // succès, alors que c'est le signe qu'aucun cas n'a été collecté.
+  it('ne présente pas zéro test comme un succès', () => {
+    const body = compose(resume(), { numTotalTests: 0, numFailedTests: 0, testResults: [] })
+
+    expect(body).toContain('Aucun test rapporté')
+    expect(body).not.toContain('0 tests passent')
+  })
+
+  it('garde le tableau quand seul le rapport des tests est vide', () => {
+    const body = compose(resume(), { numTotalTests: 0, numFailedTests: 0, testResults: [] })
+
+    expect(body).toContain('| **total** |')
+  })
+})

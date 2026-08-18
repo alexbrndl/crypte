@@ -401,6 +401,28 @@ Quatre occurrences dans la même session : trois sous `pnpm run mutations`, sur 
 
 *Origine :* revue 1 du lot 5b.
 
+### Deux lancements de tests simultanés s'effacent leurs copies de projet
+
+`test/sweep-tmp.mjs` efface `tmp-hot-*`, `tmp-dev-*` et `tmp-demo-*` au démarrage de la suite. Deux `vp test` lancés en parallèle, ou un `vp test` pendant qu'un autre tourne en veille, se prennent donc leurs copies pendant qu'ils les utilisent.
+
+*Ce que ça donnerait :* des `ENOENT` intermittents dans le lancement le plus ancien, sans rapport apparent avec le cas qui rougit.
+
+*Pourquoi ce n'est pas traité :* ce n'est pas arrivé, et le dépôt a un seul mainteneur. Le périmètre du dépôt est ce que l'usage démontre.
+
+*Ce qui le lèverait :* n'effacer que les copies dont la date de modification dépasse l'heure, ou nommer chaque copie par le pid du processus et n'effacer que celles des autres.
+
+*Origine :* exploration du lot 5b.
+
+### Rien n'empêche de baisser un seuil de couverture
+
+`test/coverage-thresholds.json` porte les quatre seuils, et le contrôle `coverage` les applique. Les baisser suffit à faire passer une régression de couverture, et rien ne le signale.
+
+*Pourquoi ce n'est pas traité :* la règle écrite est que les seuils montent quand un lot les dépasse. Un mécanisme qui l'imposerait devrait garder un historique du chiffre, donc un troisième artefact à tenir frais, ce que le contrôle de mutation a déjà coûté une fois.
+
+*Ce qui le rendrait visible sans machinerie :* le diff. Une baisse de seuil est une ligne dans un fichier de quatre lignes, et la revue la voit.
+
+*Origine :* exploration du lot 5b.
+
 ### Clos : `App.vue` échappait à la mesure de couverture
 
 Le fournisseur v8 ne sait pas parser un composant monofichier **brut**, et istanbul non plus : mesuré dans les deux sens. La cause n'était pas le fournisseur mais l'absence de test qui charge le fichier.

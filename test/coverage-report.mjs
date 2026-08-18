@@ -133,6 +133,11 @@ function tests(results) {
   const files = results.testResults?.length ?? 0
   const cases = results.numTotalTests ?? 0
   const failed = results.numFailedTests ?? 0
+
+  // Une suite vide passe toujours : « 0 tests passent » se lirait comme un
+  // succès, alors que c'est le signe qu'aucun cas n'a été collecté.
+  if (cases === 0) return '⚠️ **Aucun test rapporté.** Une suite vide passe toujours.'
+
   const verdict =
     failed === 0
       ? `**${cases} tests passent**`
@@ -155,7 +160,12 @@ function tests(results) {
 // Le corps du commentaire. Séparé de la publication pour être éprouvé sans
 // réseau.
 export function compose(summary, results, sha) {
-  const total = summary?.total
+  // Complet, ou rien : un `total` amputé d'une métrique faisait lever le
+  // rendu du tableau, donc laissait le commentaire d'avant en place, donc
+  // affichait des chiffres périmés. Mesuré à l'exploration.
+  const total = METRICS.every((name) => typeof summary?.total?.[name]?.covered === 'number')
+    ? summary.total
+    : undefined
 
   // Sans couverture, on le dit et on garde le compte des tests. Lever ici
   // laissait le commentaire d'avant en place : un lancement rouge affichait donc
