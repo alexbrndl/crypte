@@ -85,7 +85,7 @@ Lis ensuite `CLAUDE.md` et, si le diff touche au format de story, au manifeste, 
 
 ## 3. Ce que le dépôt vérifie déjà
 
-`vp test --coverage` dit ce que les tests exécutent, et échoue sous les seuils de `vite.config.ts`. **Lance-le plutôt que de juger à la lecture** si le diff est éprouvé : une ligne neuve jamais exécutée est un constat en soi, et il se mesure en cinq secondes.
+`vp test --coverage` dit ce que les tests exécutent. Il n'applique pas les seuils : c'est `node test/coverage-report.mjs` qui rend le verdict, une fois la mesure faite, et c'est lui que le contrôle `coverage` de la pull request exécute. **Lance les deux plutôt que de juger à la lecture** si le diff est éprouvé : une ligne neuve jamais exécutée est un constat en soi, et il se mesure en cinq secondes.
 
 Ce qu'il ne dit pas : qu'une ligne exécutée est vérifiée. Un test qui appelle sans rien affirmer la couvre à 100 %. Un `toContain` sur un fragment de message, ou un `toThrow()` nu, sont donc des constats recevables même sur du code couvert.
 

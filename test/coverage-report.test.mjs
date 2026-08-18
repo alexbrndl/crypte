@@ -1,3 +1,7 @@
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   MARKER,
@@ -287,12 +291,16 @@ describe('le verdict des seuils', () => {
 
 describe('les arguments', () => {
   it('lit les chemins par défaut', () => {
+    // Les cinq clés, `badge` comprise : `toEqual` ignore une clé absente valant
+    // `undefined`, donc l'omettre laissait passer son retrait.
     expect(options([])).toEqual({
       pr: undefined,
       resume: 'coverage/coverage-summary.json',
       tests: 'vitest-report.json',
       sha: undefined,
+      badge: undefined,
     })
+    expect(options(['--badge', 'x.json']).badge).toBe('x.json')
   })
 
   // Sans `--pr`, le corps part sur la sortie standard et rien n'est publié :
@@ -347,8 +355,7 @@ describe('les seuils', () => {
   // Évalués une seule fois, et ici : la configuration de vitest ne les porte
   // plus, sinon ils rougissaient deux fois pour la même raison et le contrôle
   // visible n'attrapait rien de plus.
-  it('sont ceux du fichier partagé, et vitest ne les évalue pas', async () => {
-    const { readFileSync } = await import('node:fs')
+  it('sont ceux du fichier partagé, et vitest ne les évalue pas', () => {
     const partagés = JSON.parse(readFileSync('test/coverage-thresholds.json', 'utf8'))
     const config = readFileSync('vite.config.ts', 'utf8')
 
@@ -445,5 +452,86 @@ describe('ce que l’exploration a trouvé', () => {
     const body = compose(resume(), { numTotalTests: 0, numFailedTests: 0, testResults: [] })
 
     expect(body).toContain('| **total** |')
+  })
+})
+
+// Le câblage du script entier, lancé comme la CI le lance. Le job `badge` ne
+// tourne que sur `main`, donc rien d'autre ne l'éprouve : c'est exactement la
+// panne que ce lot a corrigée sur `--resume`, trouvée par une simulation à la
+// main faute d'un cas.
+describe('le script, lancé pour de vrai', () => {
+  const lance = (args, dossier) => {
+    try {
+      const out = execFileSync('node', ['test/coverage-report.mjs', ...args], {
+        encoding: 'utf8',
+        stdio: 'pipe',
+        cwd: dossier,
+      })
+
+      return { code: 0, out }
+    } catch (error) {
+      return { code: error.status, out: error.stdout ?? '' }
+    }
+  }
+
+  const projet = (pct) => {
+    const racine = mkdtempSync(join(tmpdir(), 'crypte-couverture-'))
+    writeFileSync(join(racine, 'résumé.json'), JSON.stringify(resume(pct)))
+
+    return racine
+  }
+
+  it('écrit le badge que shields.io lit, et sort en zéro', () => {
+    const racine = projet(99)
+    const cible = join(racine, 'badge.json')
+
+    const { code } = lance(
+      ['--resume', join(racine, 'résumé.json'), '--badge', cible],
+      process.cwd(),
+    )
+
+    expect(code).toBe(0)
+    expect(JSON.parse(readFileSync(cible, 'utf8'))).toEqual({
+      schemaVersion: 1,
+      label: 'coverage',
+      message: '99%',
+      color: 'brightgreen',
+    })
+
+    rmSync(racine, { recursive: true, force: true })
+  })
+
+  // Pas de couverture, pas de badge : un badge écrit sans chiffre annoncerait
+  // une mesure qui n'a pas eu lieu.
+  it('n’écrit aucun badge et sort en un quand le résumé manque', () => {
+    const racine = mkdtempSync(join(tmpdir(), 'crypte-couverture-'))
+    const cible = join(racine, 'badge.json')
+
+    const { code } = lance(
+      ['--resume', join(racine, 'absent.json'), '--badge', cible],
+      process.cwd(),
+    )
+
+    expect(code).toBe(1)
+    expect(() => readFileSync(cible, 'utf8')).toThrow()
+
+    rmSync(racine, { recursive: true, force: true })
+  })
+
+  // Le verdict vient en dernier : le badge est écrit, puis le code de sortie dit
+  // que le seuil n'est pas tenu.
+  it('sort en un sous le seuil, en ayant écrit le badge', () => {
+    const racine = projet(50)
+    const cible = join(racine, 'badge.json')
+
+    const { code } = lance(
+      ['--resume', join(racine, 'résumé.json'), '--badge', cible],
+      process.cwd(),
+    )
+
+    expect(code).toBe(1)
+    expect(JSON.parse(readFileSync(cible, 'utf8')).color).toBe('red')
+
+    rmSync(racine, { recursive: true, force: true })
   })
 })

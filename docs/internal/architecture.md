@@ -282,7 +282,7 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 ## 4 bis. La couverture, et ce qu'elle a remplacé
 
-`vp test --coverage` mesure ce que les tests exécutent réellement. Les seuils sont dans `vite.config.ts`, au plancher mesuré : 96 % des instructions, 88 % des branches, 96 % des fonctions, 97 % des lignes.
+`vp test --coverage` mesure ce que les tests exécutent réellement. Les seuils sont dans `test/coverage-thresholds.json`, au plancher mesuré : 96 % des instructions, 88 % des branches, 96 % des fonctions, 97 % des lignes. C'est `test/coverage-report.mjs` qui les applique, et lui seul ; la configuration de vitest ne les porte pas.
 
 **Pourquoi elle existe.** Elle répond à la seule des trois questions du contrôle de mutation qu'aucune relecture ne voit : *ce code est-il exécuté par quelqu'un ?* Le premier lancement a trouvé, en cinq secondes, deux endroits que 131 garanties n'avaient jamais signalés.
 
@@ -316,7 +316,7 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 *Une seule entrée de matrice le poste*, et jamais depuis une bifurcation : deux entrées se marcheraient dessus, et le jeton d'une pull request venue d'ailleurs est en lecture seule de toute façon.
 
-*Les deux étapes sont informatives*, donc `continue-on-error`. Un rapport manquant ne doit pas masquer l'échec qui l'a empêché d'exister ; la porte est l'étape de test.
+*Le job ne porte pas de `continue-on-error`.* Une première version en mettait, sur l'idée qu'un rapport manquant ne doit pas masquer l'échec qui l'a empêché d'exister. C'était l'inverse : le commentaire a cessé de se mettre à jour pendant trois lancements et personne ne l'a su. Le script relit ce qu'il a écrit et lève sinon, donc l'étape rougit quand la publication échoue, et son code de sortie est le contrôle.
 
 *Un lancement rouge n'écrit pas de couverture*, et la première version levait alors : le commentaire d'avant restait donc en place, affichant les chiffres **verts** du lancement précédent sous une CI rouge. Mesuré sur la PR #34, une heure après l'avoir écrit. Le commentaire dit maintenant « couverture non mesurée », garde le compte des tests, et nomme les trois premiers cas qui rougissent.
 
