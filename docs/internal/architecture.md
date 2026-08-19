@@ -816,6 +816,8 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 *La liste vient des imports de la configuration*, donc aucun nom n'est codé en dur, et un alias que le projet déclare en est écarté par le `capture` du résolveur : `@/adapters/mine` se lit comme un nom nu et n'a pourtant aucun paquet derrière. Trouvé à l'exploration.
 
+*Les positions de type sont écartées par nœud, pas par clé.* Un `import type` parti dans `optimizeDeps.include` n'a aucun paquet derrière et Vite le dit à chaque démarrage. Une liste de clés se re-oublie : `typeAnnotation` et `typeArguments` laissaient passer `<T extends Q>(x: T) => …`, qui nomme `Q` par `typeParameters`. Toute position de type pendant sous un nœud `TSType…`, la règle tient en une ligne, avec **une** exception mesurée : `TSTypeAssertion` porte une valeur, et `<Q>valeur` perd `valeur` si on s'y arrête. Neuf formes croisées, dont `typeof valeur` dans un argument de type, écarté à raison puisqu'un nom effacé à l'exécution n'a rien à pré-empaqueter.
+
 *Ce qui casse si on l'enlève :* `reopt.test.ts` rougit avec l'erreur exacte, mesuré. Et le contournement retiré de `screen.test.ts`, un `retry` sur condition, redeviendrait nécessaire.
 
 **Les cas navigateur sont un projet à part.** Entrelacés avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le même. `sequence.groupOrder` les fait passer après, seuls sur la machine : trois passes vertes contre une sur quatre avant.
@@ -824,7 +826,7 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 **Les réglages sont dans la configuration, plus dans les fichiers.** `testTimeout`, `hookTimeout` et surtout `expect.poll.timeout`, dont **le défaut d'une seconde** était la cause d'une partie de l'instabilité que j'attribuais à la charge.
 
-**Un réessai sur condition, pas un réessai global.** `retry: { condition: /does not provide an export/ }` ne réessaie que pour `DCJ-221`, la réoptimisation de dépendances que la preview ne surmonte pas. Le message remonte dans le diagnostic du cas, donc la condition le voit.
+**Plus de réessai sur condition.** `retry: { condition: /does not provide an export/ }` contournait `DCJ-221` en attendant sa cause ; la cause étant traitée, le réessai est retiré. Un réessai qui survit à sa panne rend vert un cas qui échoue une fois sur deux.
 
 *Ce qui casse si on l'enlève :* les couplages entre cas redeviennent invisibles, et les délais repartent se disperser dans les fichiers, où ils avaient atteint la trentaine.
 

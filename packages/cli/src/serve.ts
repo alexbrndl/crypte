@@ -464,6 +464,11 @@ function referenced(node: Node): Set<string> {
 
     const inner = current as Node
 
+    // Types name nothing the browser loads, and every type position hangs under
+    // a `TSType…` node. `TSTypeAssertion` is the one that holds a value:
+    // `<Q>valeur` loses `valeur` if we stop there. Voir docs/internal/architecture.md.
+    if (inner.type.startsWith('TSType') && inner.type !== 'TSTypeAssertion') return
+
     // Named, then walked through: `constructor(@field() x)` hangs `field` off
     // the identifier, and stopping here left its import behind.
     if (inner.type === 'Identifier') {
@@ -498,11 +503,6 @@ function referenced(node: Node): Set<string> {
 
     for (const [key, held] of Object.entries(inner)) {
       if (key === fixed) continue
-      // Types name nothing the browser loads. `typeAnnotation` covers `as` and
-      // `satisfies` ; `typeArguments` covers `createAdapter<P>()`, which carried
-      // an `import type` into `optimizeDeps.include`, where Vite has no package
-      // to pre-bundle and says so on every start. Measured.
-      if (key === 'typeAnnotation' || key === 'typeArguments') continue
       walk(held, inside)
     }
   }

@@ -1,4 +1,4 @@
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium, type Browser, type Frame, type Page } from 'playwright'
@@ -58,8 +58,10 @@ const test = base.extend<{ ecran: Ecran }>({
 
     // Le cache d'optimisation hérité de la copie s'en va : un cache écrit par une
     // autre configuration fait réoptimiser sous la page, ce qui est `DCJ-221`, et
-    // le préchauffage ci-dessous suppose de partir froid.
+    // le préchauffage ci-dessous suppose de partir froid. Affirmé plutôt que
+    // supposé : `7483a9c` a perdu cette ligne en silence.
     rmSync(join(root, 'node_modules', '.crypte'), { recursive: true, force: true })
+    expect(existsSync(join(root, 'node_modules', '.crypte', 'deps'))).toBe(false)
 
     const started = await startDev(root)
     await started.server.listen()
