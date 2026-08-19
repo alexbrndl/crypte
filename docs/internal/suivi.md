@@ -355,7 +355,11 @@ Quatre occurrences au lot 5a, dont une sous un `vp test` ordinaire, chaque fois 
 
 *Mesuré, et ça sépare les deux moitiés de l'étape.* À vide, l'installation a coûté 3 min 26 sur un runner et **19 min 50 sur l'autre**, tuée par le budget. Avec la touche : restauration de 282 Mo en **2 s**, étape réduite à **1 min 19**, ce qui ne reste que l'apt, et job entier à **2 min 4**. Le téléchargement était donc la moitié coûteuse, et la variable.
 
-*Pourquoi `--with-deps` n'est pas retiré :* 1 min 19 est un prix supportable pour que les cas d'écran tournent aussi sur un runner nu. Le retirer ferait dépendre le contrôle de ce que l'image de GitHub embarque, sans qu'aucune mesure ne le garantisse d'une version à l'autre.
+*`--with-deps` ne tourne plus que sur un manque de cache.* Deux fois il a mangé le budget entier du job, tué à 20 min et 20 min 17 sans une ligne d'erreur, une fois sur chaque version de Node, alors que le job d'à côté passait en 1 min 9 avec la même touche de cache. Ce qui traîne est l'`apt`, pas le téléchargement.
+
+*Ce qui justifie de le sauter sur une touche :* sur les lancements rapides, `apt` n'avait **rien** à installer, donc l'image de GitHub porte déjà les bibliothèques de Chromium. Sur un manque il tourne toujours, avec une borne de 8 minutes à l'étape : un échec qui nomme l'étape vaut mieux qu'une annulation du job qui ne nomme rien.
+
+*Ce qui reste :* si une image future retire une de ces bibliothèques, un lancement avec cache réussi lancera un Chromium qui ne démarre pas. Le mode d'échec est bruyant et immédiat, et le lancement suivant sans cache réinstallera les paquets.
 
 *Ce qui reste :* le chemin `node_modules/playwright/cli.js` suppose toujours le hissage à la racine. Son mode d'échec est un rouge bruyant et immédiat, pas un silence.
 

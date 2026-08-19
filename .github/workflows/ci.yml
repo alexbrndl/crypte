@@ -49,10 +49,21 @@ jobs:
       # de Node, et une fois 9 min 11 à lui seul. `--with-deps` reste lancé même
       # sur une touche, parce que les paquets système ne sont pas dans ce dossier.
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        id: chromium
         with:
           path: ~/.cache/ms-playwright
           key: chromium-${{ runner.os }}-${{ hashFiles('pnpm-workspace.yaml') }}
-      - run: vp node node_modules/playwright/cli.js install --with-deps chromium
+      # Sur une touche, pas d'`apt` : sur les lancements rapides il n'avait rien à
+      # installer, donc l'image porte déjà les bibliothèques de Chromium. Deux
+      # fois pourtant il a mangé le budget entier du job, tué à 20 min sans une
+      # ligne d'erreur. Voir docs/internal/suivi.md.
+      - if: steps.chromium.outputs.cache-hit == 'true'
+        run: vp node node_modules/playwright/cli.js install chromium
+      # Sur un manque, les paquets système en plus, et une borne à l'étape : un
+      # échec à 8 min dit ce qui a traîné, une annulation du job à 20 ne dit rien.
+      - if: steps.chromium.outputs.cache-hit != 'true'
+        timeout-minutes: 8
+        run: vp node node_modules/playwright/cli.js install --with-deps chromium
       # `--coverage` produit la mesure ; le verdict est rendu par le job
       # `coverage`, une seule fois, là où il est visible. Sans le drapeau, il n'y
       # a rien à juger et un fichier publié peut retomber à 0 % d'exécution sans
