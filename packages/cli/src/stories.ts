@@ -113,8 +113,8 @@ type StoriesRead =
   | { kind: 'these'; stories: Declared[]; reason?: string }
   | { kind: 'unusable'; reason: string }
 
-// The one place that decides. A fourth kind stops compiling here, because the
-// end of a function with a declared return type becomes reachable.
+// The one place that decides. A fourth kind stops compiling on the `never`
+// below. See docs/internal/architecture.md.
 function produced(read: StoriesRead): { stories: Declared[]; reason?: string } {
   switch (read.kind) {
     case 'noBlock':
@@ -123,6 +123,13 @@ function produced(read: StoriesRead): { stories: Declared[]; reason?: string } {
       return { stories: read.stories, reason: read.reason }
     case 'unusable':
       return { stories: [], reason: read.reason }
+    // The throw is for a cast that gets one past the compiler: returning `read`
+    // would hand back a shape the caller does not expect.
+    default: {
+      const unhandled: never = read
+
+      throw new Error(`unread story shape: ${JSON.stringify(unhandled)}`)
+    }
   }
 }
 

@@ -202,15 +202,15 @@ Le troisième, la colonne « props propres » de la page composant, veut les seu
 
 *Origine :* revue de la PR #30.
 
-### L'exhaustivité de `produced` n'est gardée que par le compilateur
+### Clos, en partie : l'exhaustivité de `produced`
 
-`StoriesRead` a trois variantes et `produced` les traite dans un `switch`. Ajouter une quatrième variante sans la traiter donne `TS2366`, mesuré, parce que la fin d'une fonction à type de retour déclaré redevient atteignable.
+`produced` traite les trois variantes de `StoriesRead` dans un `switch`, et la protection venait du seul type de retour déclaré. Mesuré : réécrire ce `switch` en chaîne de ternaires **et** ajouter une quatrième variante laissait `vp check` et les 36 cas au vert.
 
-*Ce qui n'est pas gardé :* rien n'empêche de remplacer le `switch` par une chaîne de ternaires, qui compile sans exiger l'exhaustivité. Toute la suite resterait verte et la protection disparaîtrait en silence.
+*Clos par* une garde explicite, `const unhandled: never = read` dans le `default`, qui lève ensuite plutôt que de rendre `read` : la branche est inatteignable, mais un `as` peut passer outre, et rendre `read` ferait atterrir la panne loin de sa cause. Mesuré : une quatrième variante ne compile plus.
 
-*Ce qui le garderait :* `expectTypeOf` dans un fichier `*.test-d.ts` avec `typecheck` activé, qui sait exprimer « ce changement doit produire une erreur de type ». Trois garanties du catalogue retiré étaient dans ce cas ; c'est le successeur naturel, pour une protection d'une seule fonction.
+*Ce qui reste, et c'est assumé :* la garde ne survit pas à sa propre suppression. Un test ne peut pas la remplacer, `produced` et `StoriesRead` n'étant pas exportés, et les ouvrir pour un test créerait un usage qu'on ne peut plus reprendre. Ce que la garde change est qu'une protection perdue devient une ligne retirée dans un diff.
 
-*Origine :* auto-review du lot 4.
+*Ce que `expectTypeOf` n'a pas eu à faire ici :* les trois garanties de type que le contrôle de mutation portait sont déjà attrapées par `vp check`, mesuré en affaiblissant `Wrap` et `Manifest.version`.
 
 ### Arrêt explicite : la limite de la lecture statique d'un fichier de story
 

@@ -11,6 +11,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `vite.config.ts` | blocs `run`, `lint`, `fmt`, `test`, `staged` | toutes les commandes `vp` |
 | `tsconfig.base.json` | sévérité TypeScript partagée | les `tsconfig` de chaque paquet |
 | `tsconfig.json` | références vers les paquets | la vérification de types du dépôt |
+| `tsconfig.types.json` | le programme des `*.test-d.ts` | le projet `types` de vitest |
 | `CLAUDE.md` | contraintes et règles de travail | les agents |
 | `CONTRIBUTING.md` | installation, conventions, flux | un contributeur extérieur |
 
@@ -33,6 +34,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/changeset-check.test.mjs` | ce qui exige une note, et ce qui n'en exige pas | — |
 | `test/doc-links.test.mjs` | tout document cité existe, et hors de `docs/` il est cité par son chemin | — |
 | `test/published-english.test.mjs` | aucune phrase française dans le code publié | — |
+| `test/typecheck.test.mjs` | le projet de types nomme bien son programme | — |
 | `test/sweep-tmp.mjs` | efface les copies de projet qu'un lancement tué laisse | vitest, au démarrage |
 | `test/coverage-thresholds.json` | les quatre seuils, seule source du verdict | `coverage-report.mjs` |
 | `test/coverage-report.mjs` | tableau par dossier, commentaire de PR, badge, verdict des seuils | `ci.yml` |
@@ -111,6 +113,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `src/index.ts` | adaptateur, montage React | la page de preview |
 | `src/stories.ts` | `defineStories`, `story`, et les types qu'ils inferent | un fichier de story |
 | `test/adapter.test.tsx` | montage, démontage et erreur de rendu, dans un DOM | — |
+| `test/stories.test-d.ts` | ce que l'inférence publique promet, à la compilation | — |
 | `test/public-augmentation.ts` | augmentation par la porte d'entrée publique | `core/test/no-plugin.test.ts` |
 | `test/tsconfig.json` | programme du test ci-dessus | idem |
 
