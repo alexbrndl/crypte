@@ -808,7 +808,9 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 **Les paquets que la configuration importe sont pré-empaquetés.** Un paquet de l'espace de travail lié dans `node_modules` est le cas intermédiaire : Vite ne l'invalide pas comme un module du projet, et il n'est pas pré-empaqueté, donc les URL de dépendances qu'il porte survivent à une réoptimisation. Le navigateur finissait par assembler **quatre générations** de paquets, et l'export manquant qu'il signalait était un paquet d'une génération interrogeant le runtime partagé d'une autre.
 
-*Reproduit à la demande*, après quatre occurrences qui ne l'avaient jamais permis : la course, c'est-à-dire une story qui tire une dépendance neuve **pendant** le premier chargement. Déclenchée sur une page posée, la même réoptimisation ne casse rien, Vite recharge l'iframe et la preview repart seule.
+*Reproduit à la demande*, après quatre occurrences qui ne l'avaient jamais permis, et il suffit de **ne pas préchauffer** : la première visite d'une copie fraîche découvre les dépendances du paquet lié pendant que la page charge. Déclenchée sur une page posée, la même réoptimisation ne casse rien, Vite recharge l'iframe et la preview repart seule.
+
+*C'est le préchauffage de `screen.test.ts` qui masquait la panne*, et le `retry` qui la contournait : `reopt.test.ts` est le même scénario sans préchauffage. Une première version de ce cas écrivait une story tirant une dépendance neuve, et passait **sans avoir rien déclenché** : le dossier des dépendances optimisées ne contenait pas ce paquet quand l'assertion passait. Trouvé en doutant d'un cas navigateur qui rendait en 1,2 s.
 
 *La liste vient des imports de la configuration*, donc aucun nom n'est codé en dur, et un alias que le projet déclare en est écarté par le `capture` du résolveur : `@/adapters/mine` se lit comme un nom nu et n'a pourtant aucun paquet derrière. Trouvé à l'exploration.
 
