@@ -447,6 +447,16 @@ const FUNCTIONS = new Set(['ArrowFunctionExpression', 'FunctionExpression', 'Fun
 // name of the file does not make the expression look like it uses that name.
 const CARRIES = new Set([...FUNCTIONS, 'CatchClause'])
 
+// The `TS…` nodes that hold a value under `expression`, so the only ones the
+// walk enters. Everything else in the family is a type.
+const VALUED = new Set([
+  'TSAsExpression',
+  'TSSatisfiesExpression',
+  'TSNonNullExpression',
+  'TSTypeAssertion',
+  'TSInstantiationExpression',
+])
+
 // The names an expression takes from outside itself. A string is not one, and
 // neither is a name that only sits where a name cannot be read: the key of an
 // object written `{ react: true }`, the property of an access written
@@ -464,10 +474,9 @@ function referenced(node: Node): Set<string> {
 
     const inner = current as Node
 
-    // Types name nothing the browser loads, and every type position hangs under
-    // a `TSType…` node. `TSTypeAssertion` is the one that holds a value:
-    // `<Q>valeur` loses `valeur` if we stop there. Voir docs/internal/architecture.md.
-    if (inner.type.startsWith('TSType') && inner.type !== 'TSTypeAssertion') return
+    // Types name nothing the browser loads, and a type position is any `TS…`
+    // node but the five that hold a value. Voir docs/internal/architecture.md.
+    if (inner.type.startsWith('TS') && !VALUED.has(inner.type)) return
 
     // Named, then walked through: `constructor(@field() x)` hangs `field` off
     // the identifier, and stopping here left its import behind.

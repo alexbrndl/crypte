@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium, type Browser } from 'playwright'
@@ -38,6 +38,9 @@ describe('un optimiseur froid au premier chargement', () => {
 
     // Le cache hérité s'en va, et son absence est affirmée : c'est la condition
     // du cas, pas un détail de mise en place.
+    // Posé avant d'être retiré : `apps/demo` n'a pas toujours de cache, donc
+    // l'affirmation ci-dessous passait sans rien surveiller.
+    mkdirSync(join(root, 'node_modules', '.crypte', 'deps'), { recursive: true })
     rmSync(join(root, 'node_modules', '.crypte'), { recursive: true, force: true })
     expect(existsSync(join(root, 'node_modules', '.crypte', 'deps'))).toBe(false)
 

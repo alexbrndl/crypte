@@ -728,6 +728,49 @@ describe('un import de types', () => {
     ])
   })
 
+  // Les formes qu'un tri par clé n'atteignait pas, et qu'un tri sur le seul
+  // préfixe `TSType` faisait voyager : mesuré, chacune emportait son paquet.
+  test.for([
+    ['un paramètre de type contraint', '(<T extends P>(x: T) => x)(createAdapter())'],
+    ['un type de fonction qui nomme un import', 'createAdapter as (Autre: number) => unknown'],
+    ['un type de constructeur', 'createAdapter as new (Autre: number) => unknown'],
+    ['un import de type en ligne', "createAdapter as import('@acme/types').P"],
+    ['un membre de tuple nommé', 'createAdapter as [Autre: string]'],
+  ] as const)('écarte %s', ([, expression], { projet }) => {
+    const project = projet(`
+      import { createAdapter } from '@crypte/react'
+      import type { P } from '@acme/types'
+      import { Autre } from '@acme/autre'
+      export default { stories: 's', adapter: ${expression} }
+    `)
+
+    expect(configPackages(project)).toEqual(['@crypte/react'])
+  })
+
+  // L'exception : une assertion à l'ancienne porte une valeur, et le saut sur la
+  // famille entière perdait le paquet de cette valeur.
+  test('garde la valeur d’une assertion à l’ancienne', ({ projet }) => {
+    const project = projet(`
+      import type { P } from '@acme/types'
+      import { fait } from '@acme/valeur'
+      export default { stories: 's', adapter: <P>fait }
+    `)
+
+    expect(configPackages(project)).toEqual(['@acme/valeur'])
+  })
+
+  // Un nom du fichier réutilisé comme nom de paramètre dans un type n'est pas un
+  // nom que la configuration construit : la refuser était le bloquant du tour 3.
+  test('n’accuse pas la configuration de construire un nom de type', ({ projet }) => {
+    const project = projet(`
+      import { createAdapter } from '@crypte/react'
+      const runtime = 'react'
+      export default { stories: 's', adapter: createAdapter as (runtime: string) => unknown }
+    `)
+
+    expect(configPackages(project)).toEqual(['@crypte/react'])
+  })
+
   // `as` et `satisfies` passaient déjà par `typeAnnotation` : le cas les garde,
   // pour que le tri ne se réduise pas à `typeArguments`.
   test('écarte aussi un type nommé par as', ({ projet }) => {

@@ -1,4 +1,12 @@
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium, type Browser, type Frame, type Page } from 'playwright'
@@ -60,6 +68,9 @@ const test = base.extend<{ ecran: Ecran }>({
     // autre configuration fait réoptimiser sous la page, ce qui est `DCJ-221`, et
     // le préchauffage ci-dessous suppose de partir froid. Affirmé plutôt que
     // supposé : `7483a9c` a perdu cette ligne en silence.
+    // Posé avant d'être retiré : `apps/demo` n'a pas toujours de cache, donc
+    // l'affirmation ci-dessous passait sans rien surveiller.
+    mkdirSync(join(root, 'node_modules', '.crypte', 'deps'), { recursive: true })
     rmSync(join(root, 'node_modules', '.crypte'), { recursive: true, force: true })
     expect(existsSync(join(root, 'node_modules', '.crypte', 'deps'))).toBe(false)
 
