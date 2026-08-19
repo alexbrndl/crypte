@@ -228,7 +228,7 @@ Vérifient ce que le noyau refuse **installé seul**, par une seconde compilatio
 Vérifie la forme des messages du canal.
 
 **`test/protocol/index.test.ts`**
-Vérifie que la porte d'entrée du protocole réexporte tout ce que les quatre modules déclarent.
+Vérifie que la porte d'entrée du protocole réexporte tout ce que les cinq modules déclarent.
 
 *Pourquoi :* un nom oublié en réorganisant `index.ts` disparaît de l'API publique sans que rien ne bronche. Les consommateurs internes importent depuis les fichiers, pas depuis la porte, donc ni le typage ni la construction ne voient l'absence. C'est arrivé en regroupant les réexports par thème, où `StoryEntry` s'est perdu.
 
@@ -1034,6 +1034,12 @@ Les trois dernières conditions ne sont pas cosmétiques. Un bloquant laissé da
 *Trois choix mesurés.* `+c` sans `,d` vaut **une** ligne, pas zéro : comptée zéro, la plage serait vide et un point juste se ferait refuser. Un fichier dont les portions ne se lisent pas laisse passer, comme `changedFiles` le fait déjà pour le fichier : mieux vaut laisser l'API trancher que refuser un verdict juste. Et le contrôle ne vaut que pour `side: 'RIGHT'`, le seul côté dont ces plages parlent : un point du côté gauche vise une ligne d'avant le diff, et une section qui ne fait que supprimer rend une plage vide, donc le refuserait toujours.
 
 *Ce qui casse si on l'enlève :* on revient à poster, recevoir un 422 qui ne nomme aucun point, et chercher lequel des dix l'a causé.
+
+**Un dépôt jetable éprouve les deux commandes git.** `depotJetable` monte un dépôt d'un commit sur `main`, pose la référence `origin/main` par `update-ref` plutôt qu'un dépôt nu, et `dansLeDepot` y lance le script en sous-processus. `changedFiles` y rend `['change.txt']`, `hunksByFile` y rend `[['change.txt', [[1, 2]]]]`, la plage du fichier ajouté par la branche.
+
+*Pourquoi pas dans le dépôt courant :* le résultat dépendrait de la branche, donc les cas diraient autre chose à chaque lot.
+
+*Ce qui casse si on l'enlève :* les deux commandes redeviennent du texte que personne n'exécute. Mesuré dans les deux cas : `--names-only` au lieu de `--name-only`, et `origin/main..HEAD` avec `---` au lieu de `--`, font rougir un cas chacun. Sans eux, l'erreur d'arguments est avalée par le `catch`, la vérification devient un no-op complet, et le seul signe est une ligne sur `stderr` au milieu d'un postage qui réussit.
 
 Puis il compte les revues marquées **avant et après** l'appel, et échoue si le nombre n'a pas bougé. C'est la présence sur la pull request qui fait foi, pas le code de sortie de `gh` : une réponse d'API acceptée mais sans effet passerait sinon pour un succès.
 
