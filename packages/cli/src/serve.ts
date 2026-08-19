@@ -175,7 +175,15 @@ export function previewHtml(): string {
 // Guessing a package from `adapter.name` is the other wrong answer: it breaks
 // the moment somebody wraps an adapter. The text says what the author wrote.
 export function adapterSource(project: Project): { imports: string[]; expression: string } {
-  const found = configSources(project).adapter
+  return required(configSources(project).adapter)
+}
+
+// The adapter is the one field the entry cannot do without. Written once: two
+// copies of this sentence would drift, and it is the message a user reads.
+function required(found: { imports: string[]; expression: string } | undefined): {
+  imports: string[]
+  expression: string
+} {
   if (found === undefined) {
     throw new ConfigError(
       'crypte.config.ts must declare `adapter` in the object it exports, written in place.',
@@ -528,12 +536,9 @@ function hot(files: string[]): string[] {
 export function previewEntry(project: Project, files: string[] = []): string {
   const css = cssEntryOf(project)
 
-  const { adapter, wrap } = configSources(project)
-  if (adapter === undefined) {
-    throw new ConfigError(
-      'crypte.config.ts must declare `adapter` in the object it exports, written in place.',
-    )
-  }
+  const sources = configSources(project)
+  const adapter = required(sources.adapter)
+  const { wrap } = sources
 
   // Named one by one rather than globbed. A glob takes the whole folder, so a
   // file the reader set aside — a missing dependency, a syntax error — brought

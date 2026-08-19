@@ -497,3 +497,34 @@ describe('un import qui sort du projet', () => {
     )
   })
 })
+
+// Les natures de spécificateur, croisées : seul le relatif est réécrit, et il
+// l'est par résolution, pas par découpage de chaîne. Mesuré à l'exploration.
+describe('les natures de spécificateur', () => {
+  const importe = (spec: string, projet: (source: string) => never) =>
+    adapterSource(
+      projet(`
+        import { A } from '${spec}'
+        export default { stories: 's', adapter: A }
+      `),
+    ).imports
+
+  test.for([
+    ['un nom de paquet', 'ma-lib'],
+    ['un paquet scopé', '@crypte/react'],
+    ['un alias du projet', '@/components/Frame'],
+    ['un chemin déjà absolu', '/src/x'],
+    ['un module natif', 'node:fs'],
+  ] as const)('laisse passer %s tel quel', ([, spec], { projet }) => {
+    expect(importe(spec, projet)).toEqual([`import { A } from '${spec}'`])
+  })
+
+  // `./a/../b/c` ne se coupe pas au préfixe : il se résout. Une version qui
+  // retirait `./` en tête aurait rendu `/a/../b/c`, que le navigateur refuse.
+  test.for([
+    ['un relatif simple', './src/deep/Frame', '/src/deep/Frame'],
+    ['un relatif qui remonte à l’intérieur', './a/../b/c', '/b/c'],
+  ] as const)('réécrit %s en chemin de racine', ([, spec, attendu], { projet }) => {
+    expect(importe(spec, projet)).toEqual([`import { A } from "${attendu}"`])
+  })
+})

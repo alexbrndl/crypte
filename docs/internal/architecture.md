@@ -758,6 +758,8 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 *Le garde-fou ne se calcule pas sur une chaîne :* `posix.normalize('/../x')` rend `/x`, donc un `../` sortait en silence. La résolution se fait contre la racine réelle, mesuré.
 
+*Sept natures de spécificateur croisées :* un nom de paquet, un paquet scopé, un alias `@/` du projet, un chemin déjà absolu et un module natif passent verbatim ; seul le relatif est réécrit, et `./a/../b/c` rend `/b/c` parce qu'il est résolu et non découpé au préfixe. L'alias traverse ensuite le résolveur du projet, dont les cas de provenance virtuelle disent déjà qu'il s'applique depuis un module virtuel.
+
 *Ce qui casse si on l'enlève :* une story qui déclare un `ThemeProvider` rend sans son contexte, sans un mot, ce qui était l'état avant ce lot alors que le contrat le promettait.
 
 **Le composant du shell est mesuré, et ça s'est joué sur un test, pas sur l'outil.** Ni v8 ni istanbul ne savent parser un `.vue` **brut** : les deux échouent sur `<template>`, et le fichier était donc exclu du rapport. La cause n'était pas le fournisseur mais l'absence de test qui le charge : dès que `apps/shell/test/app.test.ts` le monte, le plugin Vue le transforme, v8 le suit par sa carte de sources, et il paraît à **98,2 %**. Mesuré dans les deux sens avant de conclure.

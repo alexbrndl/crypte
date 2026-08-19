@@ -429,6 +429,19 @@ Quatre occurrences au lot 5a, dont une sous un `vp test` ordinaire, chaque fois 
 
 *Origine :* exploration du lot 5b.
 
+### Une enveloppe mal formée échoue à l'exécution, pas à la lecture
+
+`wrapsOf` met à plat ce que le type déclare, et rien de plus. Mesuré sur deux formes que le type interdit mais qu'un `as` laisse passer :
+
+* `[[Composant, 42]]` rend `props: 42`, que React refuse en levant.
+* `[[[Composant]]]` rend un tableau comme composant, que React refuse aussi.
+
+*Pourquoi ce n'est pas gardé :* le mode d'échec est bruyant et il arrive au bon endroit. La preview attrape l'erreur du rendu et l'envoie au shell avec l'identifiant de la story, qui l'affiche dans son panneau. Un contrôle de forme dans le noyau ajouterait du code pour transformer une erreur nommée en une autre.
+
+*Ce qui le rouvrirait :* un message de React trop obscur pour désigner l'enveloppe fautive. Il faudrait alors nommer l'entrée, pas valider sa forme.
+
+*Origine :* exploration du lot 5d.
+
 ### Clos : `App.vue` échappait à la mesure de couverture
 
 Le fournisseur v8 ne sait pas parser un composant monofichier **brut**, et istanbul non plus : mesuré dans les deux sens. La cause n'était pas le fournisseur mais l'absence de test qui charge le fichier.
