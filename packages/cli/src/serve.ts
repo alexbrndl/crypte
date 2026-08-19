@@ -163,6 +163,14 @@ export function previewHtml(): string {
   ].join('\n')
 }
 
+// Every name the generated entry declares carries this prefix, and the core's
+// imports are aliased into it. A name the configuration imports lands in the same
+// top-level scope: `import { adapter } from './setup'` next to `const adapter =
+// adapter` is a `SyntaxError: Identifier 'adapter' has already been declared`, so
+// the preview never loads at all. Measured, and it held for a dozen names.
+// See docs/internal/architecture.md.
+const OWN = '__crypte_'
+
 // What the browser needs to build the adapter: the imports it uses, and the
 // expression itself, both taken from the project's configuration as text.
 //
@@ -514,14 +522,14 @@ function hot(files: string[]): string[] {
 
   return [
     'if (import.meta.hot) {',
-    `  const paths = ${JSON.stringify(paths)}`,
+    `  const ${OWN}paths = ${JSON.stringify(paths)}`,
     '',
-    '  import.meta.hot.accept(paths, (updated) => {',
+    `  import.meta.hot.accept(${OWN}paths, (updated) => {`,
     '    updated.forEach((module, index) => {',
-    '      if (module) modules[paths[index]] = module',
+    `      if (module) ${OWN}modules[${OWN}paths[index]] = module`,
     '    })',
     '',
-    '    channel.again()',
+    `    ${OWN}channel.again()`,
     '  })',
     '}',
   ]
@@ -556,12 +564,12 @@ export function previewEntry(project: Project, files: string[] = []): string {
   // shell waiting for a catalogue that never comes. Only the files that produced
   // an entry are imported.
   const imports = files.map(
-    (file, index) => `import * as story${index} from ${JSON.stringify(`/${file}`)}`,
+    (file, index) => `import * as ${OWN}story${index} from ${JSON.stringify(`/${file}`)}`,
   )
-  const held = files.map((file, index) => `  ${JSON.stringify(`/${file}`)}: story${index},`)
+  const held = files.map((file, index) => `  ${JSON.stringify(`/${file}`)}: ${OWN}story${index},`)
 
   return [
-    "import { createPreviewChannel, propsOfStory, wrapsOf } from '@crypte/core/preview'",
+    `import { createPreviewChannel as ${OWN}channelOf, propsOfStory as ${OWN}propsOf, wrapsOf as ${OWN}wrapsOf } from '@crypte/core/preview'`,
     // Deduplicated across the two fields: `adapter` and `wrap` can come from the
     // same `import`, and emitting it twice is a `SyntaxError: Identifier … has
     // already been declared`. The preview then never loads, so no story renders
@@ -571,27 +579,27 @@ export function previewEntry(project: Project, files: string[] = []): string {
     ...imports,
     ...(css ? [`import ${JSON.stringify(css)}`] : []),
     '',
-    `const modules = {\n${held.join('\n')}\n}`,
-    `const manifest = await fetch(${JSON.stringify(MANIFEST_ROUTE)}).then((answer) => answer.json())`,
+    `const ${OWN}modules = {\n${held.join('\n')}\n}`,
+    `const ${OWN}manifest = await fetch(${JSON.stringify(MANIFEST_ROUTE)}).then((answer) => answer.json())`,
     '',
-    `const adapter = ${adapter.expression}`,
+    `const ${OWN}adapter = ${adapter.expression}`,
     // The global wrap of section 2.5, read from the text like the adapter: the
     // preview cannot import this file, it would run the project's Vite plugins
     // in the browser.
-    `const globalWrap = ${wrap?.expression ?? 'undefined'}`,
+    `const ${OWN}wrap = ${wrap?.expression ?? 'undefined'}`,
     '',
-    "const container = document.getElementById('root')",
-    "if (!container) throw new Error('preview container not found')",
+    `const ${OWN}container = document.getElementById('root')`,
+    `if (!${OWN}container) throw new Error('preview container not found')`,
     '',
     '// An entry carries the path of its story file, so finding its module is a',
     '// lookup and never a guess about a name.',
-    'const byId = new Map(manifest.entries.map((entry) => [entry.id, entry]))',
+    `const ${OWN}byId = new Map(${OWN}manifest.entries.map((entry) => [entry.id, entry]))`,
     '',
-    'function render(id, overrides) {',
-    '  const entry = byId.get(id)',
+    `function ${OWN}render(id, overrides) {`,
+    `  const entry = ${OWN}byId.get(id)`,
     '  if (!entry) throw new Error(`unknown story: ${id}`)',
     '',
-    '  const module = modules[`/${entry.storyFile}`]',
+    `  const module = ${OWN}modules[\`/\${entry.storyFile}\`]`,
     '  if (!module) throw new Error(`no module for ${entry.storyFile}`)',
     '',
     '  // The module holds the component and its definition, never a component',
@@ -599,14 +607,14 @@ export function previewEntry(project: Project, files: string[] = []): string {
     '  // story rendered nothing. Measured in a browser.',
     '  const { component, definition } = module.default',
     '',
-    '  const props = propsOfStory(definition, entry.name, overrides)',
+    `  const props = ${OWN}propsOf(definition, entry.name, overrides)`,
     '',
     '  // The wrappers last: the adapter nests them, outermost first, and the',
     '  // global one of section 2.5 comes from the configuration text.',
-    '  adapter.mount(container, component, props, wrapsOf(globalWrap, definition))',
+    `  ${OWN}adapter.mount(${OWN}container, component, props, ${OWN}wrapsOf(${OWN}wrap, definition))`,
     '}',
     '',
-    'const channel = createPreviewChannel({ render })',
+    `const ${OWN}channel = ${OWN}channelOf({ render: ${OWN}render })`,
     '',
     ...hot(files),
   ].join('\n')

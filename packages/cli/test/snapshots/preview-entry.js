@@ -1,27 +1,27 @@
-import { createPreviewChannel, propsOfStory, wrapsOf } from '@crypte/core/preview'
-import * as story0 from "/stories/Gardee.tsx"
+import { createPreviewChannel as __crypte_channelOf, propsOfStory as __crypte_propsOf, wrapsOf as __crypte_wrapsOf } from '@crypte/core/preview'
+import * as __crypte_story0 from "/stories/Gardee.tsx"
 import "<racine>/packages/cli/test/fixture/src/styles/app.css"
 
-const modules = {
-  "/stories/Gardee.tsx": story0,
+const __crypte_modules = {
+  "/stories/Gardee.tsx": __crypte_story0,
 }
-const manifest = await fetch("/@crypte/manifest.json").then((answer) => answer.json())
+const __crypte_manifest = await fetch("/@crypte/manifest.json").then((answer) => answer.json())
 
-const adapter = { name: 'fixture' }
-const globalWrap = undefined
+const __crypte_adapter = { name: 'fixture' }
+const __crypte_wrap = undefined
 
-const container = document.getElementById('root')
-if (!container) throw new Error('preview container not found')
+const __crypte_container = document.getElementById('root')
+if (!__crypte_container) throw new Error('preview container not found')
 
 // An entry carries the path of its story file, so finding its module is a
 // lookup and never a guess about a name.
-const byId = new Map(manifest.entries.map((entry) => [entry.id, entry]))
+const __crypte_byId = new Map(__crypte_manifest.entries.map((entry) => [entry.id, entry]))
 
-function render(id, overrides) {
-  const entry = byId.get(id)
+function __crypte_render(id, overrides) {
+  const entry = __crypte_byId.get(id)
   if (!entry) throw new Error(`unknown story: ${id}`)
 
-  const module = modules[`/${entry.storyFile}`]
+  const module = __crypte_modules[`/${entry.storyFile}`]
   if (!module) throw new Error(`no module for ${entry.storyFile}`)
 
   // The module holds the component and its definition, never a component
@@ -29,23 +29,23 @@ function render(id, overrides) {
   // story rendered nothing. Measured in a browser.
   const { component, definition } = module.default
 
-  const props = propsOfStory(definition, entry.name, overrides)
+  const props = __crypte_propsOf(definition, entry.name, overrides)
 
   // The wrappers last: the adapter nests them, outermost first, and the
   // global one of section 2.5 comes from the configuration text.
-  adapter.mount(container, component, props, wrapsOf(globalWrap, definition))
+  __crypte_adapter.mount(__crypte_container, component, props, __crypte_wrapsOf(__crypte_wrap, definition))
 }
 
-const channel = createPreviewChannel({ render })
+const __crypte_channel = __crypte_channelOf({ render: __crypte_render })
 
 if (import.meta.hot) {
-  const paths = ["/stories/Gardee.tsx"]
+  const __crypte_paths = ["/stories/Gardee.tsx"]
 
-  import.meta.hot.accept(paths, (updated) => {
+  import.meta.hot.accept(__crypte_paths, (updated) => {
     updated.forEach((module, index) => {
-      if (module) modules[paths[index]] = module
+      if (module) __crypte_modules[__crypte_paths[index]] = module
     })
 
-    channel.again()
+    __crypte_channel.again()
   })
 }

@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -548,7 +549,7 @@ describe('adapter et wrap ensemble', () => {
     expect(entry.split('\n').filter((une) => une.includes('/setup'))).toEqual([
       'import { createAdapter, Panel } from "/setup"',
     ])
-    expect(entry).toContain('const globalWrap = Panel')
+    expect(entry).toContain('const __crypte_wrap = Panel')
   })
 
   test('garde les deux imports quand les champs viennent de deux fichiers', ({ projet }) => {
@@ -596,6 +597,58 @@ describe('adapter et wrap ensemble', () => {
       projet,
     )
 
-    expect(entry).toContain('const globalWrap = undefined')
+    expect(entry).toContain('const __crypte_wrap = undefined')
+  })
+})
+
+// La classe entière, pas un nom : l'entrée est vérifiée par node, qui refuse une
+// redéclaration. Un nom importé par la configuration atterrit dans le même
+// espace que le préambule, et `import { adapter }` à côté de `const adapter =
+// adapter` ne chargeait pas du tout. Mesuré, sur une douzaine de noms.
+describe('les noms que l’entrée déclare', () => {
+  const accepteParNode = (entry: string) => {
+    try {
+      execFileSync('node', ['--input-type=module', '--check'], { input: entry, stdio: 'pipe' })
+
+      return 'accepté'
+    } catch (error) {
+      const sortie = String((error as { stderr?: Buffer }).stderr)
+
+      return sortie.split('\n').find((une) => une.includes('Error')) ?? 'refusé'
+    }
+  }
+
+  test.for([
+    ['adapter', 'adapter'],
+    ['modules', 'modules'],
+    ['manifest', 'manifest'],
+    ['container', 'container'],
+    ['render', 'render'],
+    ['channel', 'channel'],
+    ['propsOfStory', 'propsOfStory'],
+    ['wrapsOf', 'wrapsOf'],
+    ['story0', 'story0'],
+  ] as const)('ne percute pas un import nommé %s', ([, nom], { projet }) => {
+    const project = projet(`
+      import { ${nom} } from './setup'
+      export default { stories: 's', adapter: ${nom} }
+    `)
+
+    expect(accepteParNode(previewEntry(project, ['stories/Une.tsx']))).toBe('accepté')
+  })
+
+  // Et le préfixe lui-même : un projet qui l'emploierait percuterait, ce qui est
+  // dit dans la source plutôt que gardé, faute d'un usage qui le démontre.
+  test('émet ses propres noms sous un préfixe réservé', ({ projet }) => {
+    const entry = previewEntry(
+      projet(`
+        import { createAdapter } from '@crypte/react'
+        export default { stories: 's', adapter: createAdapter() }
+      `),
+      [],
+    )
+
+    expect(entry).toContain('const __crypte_adapter = createAdapter()')
+    expect(entry).not.toMatch(/^const adapter =/m)
   })
 })
