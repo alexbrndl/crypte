@@ -432,8 +432,8 @@ function bindings(node: Node | undefined): string[] {
       if (key === 'right' && inner.type === 'AssignmentPattern') continue
       if (key === 'key' && inner.type === 'Property') continue
       if (key === 'typeAnnotation') continue
-      // A decorator is an expression too: `constructor(@field() public a)` binds
-      // `a`, and reading `field` as a binding lost its import.
+      // A decorator is an expression too: `@field() class …` binds nothing named
+      // `field`, and reading it as a binding lost its import.
       if (key === 'decorators') continue
       walk(held)
     }
@@ -450,27 +450,20 @@ const FUNCTIONS = new Set(['ArrowFunctionExpression', 'FunctionExpression', 'Fun
 // name of the file does not make the expression look like it uses that name.
 const CARRIES = new Set([...FUNCTIONS, 'CatchClause'])
 
-// The `TS…` nodes that hold a value, so the only ones the walk enters. The five
-// expressions hold it under `expression` ; the six others elsewhere, an enum
-// member under `initializer`, a namespace under its block. Not a closed list,
-// and the one place where forgetting a name drops an import the entry needs.
-// Voir docs/internal/architecture.md.
+// A class member names itself, so `class { make() {} }` does not read a `make`
+// of the file. Measured: it produced a false « builds itself » refusal.
+const MEMBERS = new Set(['MethodDefinition', 'PropertyDefinition', 'AccessorProperty'])
+
+// The `TS…` nodes that hold a value, so the only ones the walk enters. All five
+// hold it under `expression`. A declaration that holds one too, an enum or a
+// namespace, is left out on purpose: the entry is served as `.js`, so no such
+// form runs at all. Voir docs/internal/architecture.md.
 const VALUED = new Set([
   'TSAsExpression',
   'TSSatisfiesExpression',
   'TSNonNullExpression',
   'TSTypeAssertion',
   'TSInstantiationExpression',
-  'TSParameterProperty',
-  'TSEnumDeclaration',
-  'TSEnumBody',
-  'TSEnumMember',
-  'TSModuleDeclaration',
-  'TSModuleBlock',
-  'TSImportEqualsDeclaration',
-  // Only reachable from the declaration above: every type-side parent of a
-  // qualified name is already skipped, `TSTypeReference` and `TSImportType`.
-  'TSQualifiedName',
 ])
 
 // The keys by which a value node points at a type. Doubled with the family
@@ -529,8 +522,8 @@ function referenced(node: Node): Set<string> {
           ? 'key'
           : inner.type === 'MemberExpression'
             ? 'property'
-            : inner.type === 'TSQualifiedName'
-              ? 'right'
+            : MEMBERS.has(inner.type)
+              ? 'key'
               : undefined
 
     for (const [key, held] of Object.entries(inner)) {

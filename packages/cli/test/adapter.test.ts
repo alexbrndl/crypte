@@ -760,19 +760,17 @@ describe('un import de types', () => {
   })
 
   // L'autre sens, et le plus grave : un nœud `TS…` qui porte une valeur et qu'on
-  // saute fait disparaître un import dont l'entrée servie a besoin.
+  // saute fait disparaître un import dont l'entrée servie a besoin. Les cinq
+  // expressions sont les seules entrées, et une assertion à l'ancienne est celle
+  // qui perdrait sa valeur.
   test.for([
-    ['une propriété de paramètre', 'new (class { constructor(public a = fait) {} })()'],
-    ['une propriété privée', 'new (class { constructor(private readonly a = fait) {} })()'],
-    [
-      'un décorateur de propriété de paramètre',
-      'new (class { constructor(@fait() public a = 1) {} })()',
-    ],
-    ['un membre d’énumération', '(() => { enum E { A = fait } return E.A })()'],
-    ['un corps de namespace', '(() => { namespace N { export const a = fait } return N.a })()'],
-    ['une référence de module qualifiée', '(() => { import E = fait.x; return E })()'],
+    ['une assertion à l’ancienne', '<P>fait'],
+    ['un as', 'fait as P'],
+    ['un satisfies', 'fait satisfies P'],
+    ['un non-null', 'fait!'],
   ] as const)('garde la valeur derrière %s', ([, expression], { projet }) => {
     const project = projet(`
+      import type { P } from '@acme/types'
       import { fait } from '@acme/valeur'
       export default { stories: 's', adapter: ${expression} }
     `)
@@ -781,27 +779,19 @@ describe('un import de types', () => {
     expect(adapterSource(project).imports).toEqual(["import { fait } from '@acme/valeur'"])
   })
 
-  // La droite d'un nom qualifié est une propriété, comme celle d'un accès membre :
-  // l'entrer pour sauver la gauche ne doit pas faire voyager la droite.
-  test('ne fait pas voyager la droite d’un nom qualifié', ({ projet }) => {
-    const project = projet(`
-      import { fait } from '@acme/valeur'
-      import { Named } from '@acme/named'
-      export default { stories: 's', adapter: (() => { import E = fait.Named; return E })() }
-    `)
-
-    expect(configPackages(project)).toEqual(['@acme/valeur'])
-  })
-
-  // Un nom qualifié du côté type reste écarté, par ses deux parents sautés.
+  // Un membre de classe se nomme lui-même : le lire comme un nom du fichier
+  // produisait un faux refus sur du JavaScript valide.
   test.for([
-    ['un type qualifié', 'createAdapter() as P.Sub'],
-    ['un import de type qualifié', "createAdapter as import('@acme/types').P.Sub"],
-  ] as const)('écarte %s', ([, expression], { projet }) => {
+    ['une méthode', 'make() { return 2 }'],
+    ['un champ', 'make = 2'],
+  ] as const)('n’accuse pas la configuration à cause de %s', ([, membre], { projet }) => {
     const project = projet(`
       import { createAdapter } from '@crypte/react'
-      import type { P } from '@acme/types'
-      export default { stories: 's', adapter: ${expression} }
+      const make = () => 1
+      export default {
+        stories: 's',
+        adapter: new (class { mount() { return createAdapter() } ${membre} })(),
+      }
     `)
 
     expect(configPackages(project)).toEqual(['@crypte/react'])

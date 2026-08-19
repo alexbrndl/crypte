@@ -318,6 +318,30 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 
 *Ce qui reste :* un paquet lié qu'une story importe sans que la configuration le nomme ne serait pas pré-empaqueté. Aucun usage ne le démontre, et le remède serait le même, une entrée de plus dans `include`.
 
+### Ouvert : un cas de veille tombe rarement sous la charge
+
+`hot.test.ts > reconstruit sur une racine derrière un lien symbolique` a rougi **une fois sur six** lancements complets de la suite, le 19 août 2026. Seul, le fichier passe en 1,38 s.
+
+*Ce que ça fait :* le cas démarre un serveur sur une racine derrière un lien symbolique, écrit une story, et attend que la veille la voie, avec le `expect.poll` de 10 s de la configuration.
+
+*Cause non isolée*, donc non attribuée : sous la charge des 38 fichiers, la veille sur un chemin lié peut dépasser le délai, mais rien ne le démontre. La graine du lancement rouge n'a pas été conservée, ce qui aurait permis de le rejouer, et c'est la leçon immédiate.
+
+*À la prochaine occurrence :* garder la graine, la rejouer par `--sequence.seed`, et regarder si le cas dépasse le délai ou reçoit un événement pour un autre chemin. S'il devient fréquent, il rejoint le projet `écran`, qui existe pour les cas que la charge dérange.
+
+### Ouvert : l'entrée de preview est servie en JavaScript (`DCJ-224`)
+
+`PREVIEW_ENTRY` vaut `/@crypte/preview.js`, donc Vite la transforme comme du JavaScript et l'expression que `crypte.config.ts` donne à `adapter` y est recopiée telle quelle.
+
+*Mesuré* contre un serveur qui écoute : `GET /@crypte/preview.js` rend 200 avec `const __crypte_adapter = { name: 'fixture' } as Kind`. Dans un navigateur, c'est un `SyntaxError` avant `createPreviewChannel`, donc pas de `ready` et un cadre vide.
+
+*Ce que ça interdit :* toute syntaxe purement TypeScript dans cette expression, `as`, `satisfies`, une énumération, un `namespace`, une propriété de paramètre, un `createAdapter<P>()`. Le tri des positions de type reste utile pour autant, parce qu'un `import type` parti dans `optimizeDeps.include` fait échouer le **démarrage du serveur**, avant tout navigateur.
+
+*Trouvé au tour 5 de la PR #38*, hors périmètre de `DCJ-221`, et suivi par `DCJ-224`. Le remède tient probablement en un identifiant de module virtuel en `.ts`, mais il change la chaîne de transformation de l'entrée servie, donc il vaut son lot et sa revue.
+
+*Arrêté au tour 5 :* les huit noms de déclaration ajoutés aux tours 3 et 4 sont retirés. Chacun couvrait une forme que l'entrée ne peut pas servir, et chacun a ouvert une fuite, dont deux bloquants. La liste des nœuds à valeur tient aux cinq expressions, ce que l'usage démontre.
+
+*À ne pas rouvrir sans une forme mesurée à l'appui :* la redondance des deux filtres n'est surveillée par aucun test, chacun couvrant seul les vingt-huit formes croisées. Ce qui la tient est le commentaire du code. Un test qui affirmerait la présence d'une ligne serait le contrôle du contrôle retiré du projet, et un sixième tour sur le même tri coûterait davantage qu'il ne rapporte.
+
 *Un alias du projet est écarté de cette liste*, et il a fallu le mesurer : `@/adapters/mine` se lit comme un nom nu, donc il partait à l'optimiseur, qui n'a aucun paquet à pré-empaqueter derrière. Le tri se fait par le `capture` du résolveur, pas par une règle sur `@`.
 
 *Un import de types aussi*, trouvé à la revue : `referenced` sautait `typeAnnotation` mais pas `typeArguments`, donc `createAdapter<P>()` emportait `import type { P } from '@acme/types'` dans la liste, et Vite écrivait `Failed to resolve dependency` à chaque démarrage. Mesuré : bruyant, jamais fatal.
