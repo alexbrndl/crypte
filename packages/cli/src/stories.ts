@@ -114,9 +114,7 @@ type StoriesRead =
   | { kind: 'unusable'; reason: string }
 
 // The one place that decides. A fourth kind stops compiling on the `never`
-// below, whatever shape the branching takes: the declared return type alone made
-// the protection incidental, and rewriting this switch as a ternary chain lost it
-// in silence. Measured. See docs/internal/architecture.md.
+// below. See docs/internal/architecture.md.
 function produced(read: StoriesRead): { stories: Declared[]; reason?: string } {
   switch (read.kind) {
     case 'noBlock':
@@ -125,9 +123,8 @@ function produced(read: StoriesRead): { stories: Declared[]; reason?: string } {
       return { stories: read.stories, reason: read.reason }
     case 'unusable':
       return { stories: [], reason: read.reason }
-    // `never` is what enforces the exhaustiveness; the throw is what happens if
-    // a cast ever gets one past the compiler. Returning `read` would hand back a
-    // shape the caller does not expect, and the crash would land far from here.
+    // The throw is for a cast that gets one past the compiler: returning `read`
+    // would hand back a shape the caller does not expect.
     default: {
       const unhandled: never = read
 

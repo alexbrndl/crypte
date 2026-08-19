@@ -70,3 +70,13 @@ describe('story', () => {
     story<BadgeProps>({ taille: 2 })
   })
 })
+
+// La contrainte que les autres cas ne voient pas : retirer `C extends
+// ComponentType<never>` les laisse tous verts, `PropsOf<42>` valant `never` sans
+// faire échouer une assertion. Mesuré.
+describe('la contrainte de defineStories', () => {
+  it('refuse ce qui n’est pas un composant', () => {
+    // @ts-expect-error un nombre n'est pas un composant
+    defineStories(42)
+  })
+})

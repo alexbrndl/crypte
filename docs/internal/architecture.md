@@ -238,7 +238,7 @@ Vérifie que la porte d'entrée du protocole réexporte tout ce que les cinq mod
 
 **L'exhaustivité de `produced` est explicite, pas incidente.** Une garde `const unhandled: never = read` dans le `default` du `switch`. Avant elle, la protection venait du seul type de retour déclaré : mesuré, réécrire le `switch` en chaîne de ternaires et ajouter une quatrième variante laissait `vp check` et les 36 cas au vert.
 
-*Elle lève plutôt que de rendre `read`.* La branche est inatteignable, mais un `as` peut passer outre le compilateur : rendre `read` donnerait au reste du lecteur une forme qu'il n'attend pas, et la panne atterrirait loin d'ici. La couverture n'en souffre pas, le total reste à 98,5 % de lignes pour un seuil de 97.
+*Elle lève plutôt que de rendre `read`.* La branche est inatteignable, mais un `as` peut passer outre le compilateur : rendre `read` donnerait au reste du lecteur une forme qu'il n'attend pas, et la panne atterrirait loin d'ici. Le seuil tient, mais la marge est en branches et non en lignes : cette branche jamais prise laisse 88,47 % (476/538) pour un plancher de 88, soit **trois branches**, là où les lignes sont à 98,5 % pour 97.
 
 *Ce qu'elle ne fait pas :* survivre à sa propre suppression. Elle ne peut pas être un test, `produced` et `StoriesRead` n'étant pas exportés et l'ouvrir pour un test créerait un usage qu'on ne peut plus reprendre. Ce qu'elle change est qu'une protection perdue devient une ligne retirée dans un diff, que la revue voit.
 
@@ -759,6 +759,8 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 **Un projet de types, et le piège qui va avec.** `typecheck` demande à vitest de lancer le compilateur sur les `*.test-d.ts`. Ce qu'il apporte que `vp check` ne donne pas : `vp check` voit une erreur de type, il ne demande jamais qu'un type **soit** ce qu'on promet. Mesuré : `PropsOf<C>` dégradé de `infer P` en `any` laissait `vp check` **et** les 480 cas au vert, alors que c'est l'inférence dont dépend l'autocomplétion de tout fichier de story.
 
 *Le piège :* sans `tsconfig` nommé, vitest prend le plus proche. Ni `packages/react/tsconfig.json` (qui n'inclut que `src`) ni `packages/react/test/tsconfig.json` (qui n'inclut que `public-augmentation.ts`) ne contient ces fichiers, donc le compilateur ne compilait **rien** et annonçait « no errors ». Une assertion volontairement fausse passait, mesuré. C'est le même défaut que celui déjà consigné pour `public-augmentation.ts`, une seconde fois. D'où `tsconfig.types.json` à la racine, et `test/typecheck.test.mjs` qui garde le câblage plutôt que les types.
+
+*Deux façons d'éteindre ce projet en silence, mesurées.* Un programme qui n'inclut plus les `*.test-d.ts` : le projet annonce « no errors » sans rien compiler. Et `typecheck.enabled: false` : il rend « 7 passed » sans même une ligne `Type Errors`, parce que ces fichiers tournent aussi à l'exécution, où `expectTypeOf` ne fait rien. La garde couvre les deux, le programme **et** l'interrupteur.
 
 *Coût mesuré :* 0,6 s sur la suite entière, 1,1 s pour le projet seul.
 
