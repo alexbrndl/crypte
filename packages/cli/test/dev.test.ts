@@ -149,7 +149,7 @@ describe('l’entrée de la preview', () => {
       'stories/Gardee.tsx',
     ])
 
-    expect(source).toContain('import * as story0 from "/stories/Gardee.tsx"')
+    expect(source).toContain('import * as __crypte_story0 from "/stories/Gardee.tsx"')
     expect(source).not.toContain('import.meta.glob')
     expect(source).not.toContain('Ecartee')
   })
@@ -161,7 +161,7 @@ describe('l’entrée de la preview', () => {
       String.raw`stories/L'"Ecart.tsx`,
     ])
 
-    expect(source).toContain(String.raw`import * as story0 from "/stories/L'\"Ecart.tsx"`)
+    expect(source).toContain(String.raw`import * as __crypte_story0 from "/stories/L'\"Ecart.tsx"`)
   })
 
   it('charge la feuille de style déclarée, et rien quand il n’y en a pas', () => {
@@ -231,5 +231,31 @@ describe('ce que la commande dit au démarrage', () => {
     expect(
       lignes.some((une) => une.includes('neither manifest nor fingerprint could be written')),
     ).toBe(true)
+  })
+})
+
+// Le refus d'un `wrap` que le lecteur ne voit pas, sur un projet réellement
+// chargé : `loadProject` exécute la configuration, donc le spread y met bien un
+// `wrap`, là où le texte n'en montre aucun. Le cas d'`adapter.test.ts` fabriquait
+// cette divergence à la main.
+describe('un wrap que seul un spread apporte', () => {
+  it('est refusé en le nommant, sur un projet chargé', async () => {
+    const root = mkdtempSync(join(fixture, '..', 'tmp-dev-'))
+    writeFileSync(
+      join(root, 'crypte.config.ts'),
+      `const partage = { wrap: 'Panel' }
+       export default { ...partage, stories: 'stories', adapter: {} }`,
+    )
+
+    try {
+      const project = await loadProject(root)
+
+      // La configuration exécutée porte bien le wrap : sans ça le cas ne
+      // prouverait rien.
+      expect(project.config.wrap).toBe('Panel')
+      expect(() => previewEntry(project, [])).toThrow(/cannot read, a spread for instance/)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })

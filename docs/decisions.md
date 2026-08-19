@@ -185,3 +185,15 @@ The real difference is who reads a document. The language follows from that.
 **What it cost.** 0.6 s on the whole suite, 1.1 s for the project alone. The cost was never the question.
 
 **What would reopen it.** A type guarantee that `vp check` cannot express, or a second package growing an inference surface of its own. The project is already there, so the marginal cost is one file.
+
+## The adapter nests the wrappers, the core flattens them
+
+**What we do.** `wrapsOf` in `@crypte/core/preview` turns the two `wrap` declarations of section 2.5 into one ordered list, outermost first. `Adapter.mount` takes it as an optional fourth argument, and the React adapter nests it with one `createElement` per entry.
+
+**What we rule out.** Flattening in each adapter, which would drift the day one of them learns something the other does not, exactly as `propsOfStory` already argues. And nesting in the core, which cannot: composing components is the framework's business.
+
+**Why the fourth argument is optional.** An adapter written against the previous shape keeps compiling, and a story with no wrapper mounts exactly as before, with no extra element in the tree.
+
+**What the browser proved.** A relative import in `crypte.config.ts` could not travel into the generated entry: the entry is a virtual module, so `./src/components/Frame` resolved against its own path and failed. Config imports are now rewritten root-absolute, like story imports already were, and one that escapes the project is refused by name. This defect predates the lot: an adapter imported relatively would have failed the same way.
+
+**What would reopen it.** A framework whose composition is not a tree of components, where an ordered list is the wrong shape to hand over.

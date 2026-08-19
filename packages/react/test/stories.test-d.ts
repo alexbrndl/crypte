@@ -1,5 +1,7 @@
+import { wrapsOf, type PreviewWrapper } from '@crypte/core/preview'
 import type { ComponentType } from 'react'
 import { describe, expectTypeOf, it } from 'vitest'
+import { createAdapter } from '../src/index'
 import {
   defineStories,
   story,
@@ -78,5 +80,18 @@ describe('la contrainte de defineStories', () => {
   it('refuse ce qui n’est pas un composant', () => {
     // @ts-expect-error un nombre n'est pas un composant
     defineStories(42)
+  })
+})
+
+// Le joint entre les deux paquets publiés : ce que `wrapsOf` rend doit entrer
+// dans `mount` sans cast. Ils sont faits pour s'emboîter, et rien ne le voyait,
+// l'entrée générée étant du JavaScript.
+describe('le joint avec le noyau', () => {
+  it('accepte telle quelle la liste que wrapsOf rend', () => {
+    const adapter = createAdapter()
+    const wraps = wrapsOf(undefined, { wrap: Badge })
+
+    expectTypeOf(wraps).toEqualTypeOf<PreviewWrapper[]>()
+    expectTypeOf(adapter.mount).parameter(3).toEqualTypeOf<readonly PreviewWrapper[] | undefined>()
   })
 })

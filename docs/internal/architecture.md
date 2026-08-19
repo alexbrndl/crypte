@@ -750,6 +750,32 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 **Le tableau de cas est un tuple.** `noUncheckedIndexedAccess` rend `string | undefined` chaque élément d'un tableau non figé, donc onze `as const`, sinon neuf erreurs de type.
 
+**Les enveloppes d'une story.** `wrapsOf` met à plat les deux déclarations de la section 2.5, celle de la configuration puis celle du fichier, en une liste ordonnée dont la première entrée est la plus extérieure. L'adaptateur l'imbrique, un `createElement` par entrée, en pliant depuis la droite.
+
+*Le partage est celui de `propsOfStory` :* mettre cette forme à plat ne connaît aucun framework, composer des composants n'appartient qu'à lui. Deux adaptateurs qui aplatiraient chacun de leur côté dériveraient.
+
+*Le type du joint vit dans le noyau*, `PreviewWrapper`, et l'adaptateur le réexporte. Son `component` est `unknown` là-bas, parce que le noyau ne peut pas dire que c'est un composant, et l'adaptateur le dit une fois, par le seul cast de son fichier. Les deux surfaces publiées ne compilaient pas ensemble avant ce joint, et rien ne le voyait : l'entrée générée est du JavaScript. Un cas de `stories.test-d.ts` le garde, et rougit quand les deux divergent.
+
+*Un import relatif de la configuration est réécrit en chemin absolu depuis la racine.* L'entrée est un module virtuel, donc `./src/components/Frame` y résolvait contre son propre chemin et ne chargeait pas : mesuré sur la démonstration, où le `wrap` global a fait apparaître le défaut. Il précède ce lot, un adaptateur importé en relatif échouait de la même façon. Un import qui sort du projet est refusé en le nommant.
+
+*Le garde-fou ne se calcule pas sur une chaîne :* `posix.normalize('/../x')` rend `/x`, donc un `../` sortait en silence. La résolution se fait contre la racine réelle, mesuré.
+
+*Sept natures de spécificateur croisées :* un nom de paquet, un paquet scopé, un alias `@/` du projet, un chemin déjà absolu et un module natif passent verbatim ; seul le relatif est réécrit, et `./a/../b/c` rend `/b/c` parce qu'il est résolu et non découpé au préfixe. L'alias traverse ensuite le résolveur du projet, dont les cas de provenance virtuelle disent déjà qu'il s'applique depuis un module virtuel.
+
+*Les imports des deux champs sont dédoublonnés, et c'était un bloquant de revue.* `adapter` et `wrap` peuvent venir du même `import` : émis deux fois, c'est un `SyntaxError: Identifier … has already been declared`, donc une preview qui ne charge pas du tout. La démonstration ne l'attrapait pas, ses deux noms venant de deux fichiers. Mesuré, reproduit, puis fermé par deux cas qui croisent les deux champs.
+
+**Tout ce que l'entrée déclare porte le préfixe `__crypte_`**, et les imports du noyau sont aliasés dedans. Un nom que la configuration **importe** atterrit dans le même espace de noms de premier niveau : `import { adapter } from './setup'` à côté de `const adapter = adapter` est un `SyntaxError: Identifier 'adapter' has already been declared`, donc une preview qui ne charge pas du tout. Second bloquant de revue du lot, sur l'axe voisin du premier.
+
+*La garde ferme la classe, pas un nom.* Treize cas passent l'entrée générée à `node --input-type=module --check`, un par nom que le préambule déclare ou importe.
+
+*Ce que le préfixe protège, mesuré en le retirant :* **dix des treize** rougissent. Les trois autres tiennent pour deux raisons indépendantes, et c'est utile à savoir. `propsOfStory` et `createPreviewChannel` sont aliasés vers un autre nom local, `propsOf` et `channelOf`, donc ils ne sont plus des liaisons de premier niveau. `paths` est déclaré dans le bloc `if (import.meta.hot)`, donc il est de portée bloc. Une première version de cette phrase annonçait « neuf sur neuf » sans l'avoir mesuré, et la revue l'a corrigée.
+
+*Ce qui reste :* un projet qui nommerait lui-même quelque chose `__crypte_…` percuterait. Consigné dans `docs/internal/suivi.md`, où la revue le lit.
+
+*Un `wrap` que le lecteur ne voit pas est refusé.* Le CLI tient les deux moitiés : la configuration exécutée et son texte. Si `project.config.wrap` est défini et que le texte n'en montre rien, un spread par exemple, l'entrée lève en le nommant plutôt que de monter la story sans son enveloppe, qui est l'état que ce lot retire.
+
+*Ce qui casse si on l'enlève :* une story qui déclare un `ThemeProvider` rend sans son contexte, sans un mot, ce qui était l'état avant ce lot alors que le contrat le promettait.
+
 **Le composant du shell est mesuré, et ça s'est joué sur un test, pas sur l'outil.** Ni v8 ni istanbul ne savent parser un `.vue` **brut** : les deux échouent sur `<template>`, et le fichier était donc exclu du rapport. La cause n'était pas le fournisseur mais l'absence de test qui le charge : dès que `apps/shell/test/app.test.ts` le monte, le plugin Vue le transforme, v8 le suit par sa carte de sources, et il paraît à **98,2 %**. Mesuré dans les deux sens avant de conclure.
 
 *Ce que ça a ajouté :* treize cas sur les 184 lignes du composant, dont la règle qui n'était éprouvée qu'en navigateur, « rien ne part avant que la preview ait dit `ready` ». Et un projet vitest `shell` qui étend `apps/shell/vite.config.ts` plutôt que la racine, parce que c'est elle qui porte le plugin Vue.

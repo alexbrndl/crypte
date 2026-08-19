@@ -1,4 +1,5 @@
-import { createElement, type ComponentType } from 'react'
+import { createElement, type ComponentType, type ReactNode } from 'react'
+import type { PreviewWrapper } from '@crypte/core/preview'
 import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 
@@ -11,9 +12,17 @@ export interface Adapter {
     container: HTMLElement,
     component: ComponentType<ComponentProps>,
     props: ComponentProps,
+    // The wrappers the story renders inside, outermost first, exactly as
+    // `wrapsOf` flattens them. Optional so an adapter written against the
+    // previous shape keeps compiling. See docs/contracts.md section 2.5.
+    wraps?: readonly PreviewWrapper[],
   ): void
   unmount(): void
 }
+
+// The core's shape, re-exported so a story file or a second adapter names it
+// once. `component` is `unknown` there, and this is the file that knows better.
+export type { PreviewWrapper }
 
 export function createAdapter(): Adapter {
   let root: Root | null = null
@@ -28,7 +37,7 @@ export function createAdapter(): Adapter {
     // Measured in a browser: React 19 reports a component that throws as an
     // unhandled error and does **not** rethrow to the caller, so `mount`
     // returned as if it had rendered and the preview announced `rendered`.
-    mount(container, component, props) {
+    mount(container, component, props, wraps = []) {
       caught = undefined
       root ??= createRoot(container, {
         onUncaughtError(error) {
@@ -37,7 +46,7 @@ export function createAdapter(): Adapter {
       })
       const target = root
       flushSync(() => {
-        target.render(createElement(component, props))
+        target.render(nested(wraps, createElement(component, props)))
       })
 
       if (caught !== undefined) throw caught
@@ -47,6 +56,20 @@ export function createAdapter(): Adapter {
       root = null
     },
   }
+}
+
+// From the inside out: the last wrapper is the closest to the component, so
+// folding from the right puts the first one outermost. That order is the whole
+// of section 2.5, and reversing it would render a router inside its theme.
+function nested(wraps: readonly PreviewWrapper[], story: ReactNode): ReactNode {
+  return wraps.reduceRight<ReactNode>(
+    // The one cast of this file: the core cannot know a wrapper is a component,
+    // this adapter is what makes it one. A wrapper that is not renders a React
+    // error naming it, which the preview sends to the shell.
+    (child, wrap) =>
+      createElement(wrap.component as ComponentType<{ children?: unknown }>, wrap.props, child),
+    story,
+  )
 }
 
 export { defineStories, story, type AnyComponent, type PropsOf, type StoryModule } from './stories'

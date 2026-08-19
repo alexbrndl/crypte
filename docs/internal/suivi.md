@@ -28,9 +28,11 @@ Le retrait de la branche fonction de l'union ne suffit pas côté React, où un 
 
 *Ce qui reste ouvert :* aucun diagnostic n'avertit celui qui écrit cette forme en attendant l'ancien comportement. Un marqueur sur les composants, ou une vérification à l'exécution dans l'adaptateur, le permettrait.
 
-*Pourquoi ce n'est pas fait ici :* le noyau ne connaît aucun framework, donc la reconnaissance appartient à l'adaptateur, qui n'existe pas encore.
+*Le risque a changé de nature au lot 5d.* La raison consignée ici était que « l'adaptateur n'existe pas encore ». Il existe, et il instancie chaque entrée : `wrap: (story) => …` ne reste donc plus sans effet, il **rend faux**. La fonction est montée comme composant, reçoit `children` et les props de l'entrée, et ne rend jamais la story qu'elle croyait envelopper.
 
-*Origine :* revue de la PR #16.
+*Pourquoi ce n'est toujours pas fait :* distinguer un composant d'une fonction quelconque n'a pas de réponse fiable en React, où un composant est une fonction. La section 2.5 en a fait une règle plutôt qu'une vérification, et un rendu faux se voit à l'écran là où un silence ne se voyait pas.
+
+*Origine :* revue de la PR #16, requalifiée à la revue du lot 5d.
 
 ### `has-review` ne regarde pas la date de la revue
 
@@ -355,7 +357,11 @@ Quatre occurrences au lot 5a, dont une sous un `vp test` ordinaire, chaque fois 
 
 *Mesuré, et ça sépare les deux moitiés de l'étape.* À vide, l'installation a coûté 3 min 26 sur un runner et **19 min 50 sur l'autre**, tuée par le budget. Avec la touche : restauration de 282 Mo en **2 s**, étape réduite à **1 min 19**, ce qui ne reste que l'apt, et job entier à **2 min 4**. Le téléchargement était donc la moitié coûteuse, et la variable.
 
-*Pourquoi `--with-deps` n'est pas retiré :* 1 min 19 est un prix supportable pour que les cas d'écran tournent aussi sur un runner nu. Le retirer ferait dépendre le contrôle de ce que l'image de GitHub embarque, sans qu'aucune mesure ne le garantisse d'une version à l'autre.
+*`--with-deps` ne tourne plus que sur un manque de cache.* Deux fois il a mangé le budget entier du job, tué à 20 min et 20 min 17 sans une ligne d'erreur, une fois sur chaque version de Node, alors que le job d'à côté passait en 1 min 9 avec la même touche de cache. Ce qui traîne est l'`apt`, pas le téléchargement.
+
+*Ce qui justifie de le sauter sur une touche :* sur les lancements rapides, `apt` n'avait **rien** à installer, donc l'image de GitHub porte déjà les bibliothèques de Chromium. Sur un manque il tourne toujours, avec une borne de 8 minutes à l'étape : un échec qui nomme l'étape vaut mieux qu'une annulation du job qui ne nomme rien.
+
+*Ce qui reste :* si une image future retire une de ces bibliothèques, un lancement avec cache réussi lancera un Chromium qui ne démarre pas. Le mode d'échec est bruyant et immédiat, et le lancement suivant sans cache réinstallera les paquets.
 
 *Ce qui reste :* le chemin `node_modules/playwright/cli.js` suppose toujours le hissage à la racine. Son mode d'échec est un rouge bruyant et immédiat, pas un silence.
 
@@ -424,6 +430,31 @@ Quatre occurrences au lot 5a, dont une sous un `vp test` ordinaire, chaque fois 
 *Ce qui le rendrait visible sans machinerie :* le diff. Une baisse de seuil est une ligne dans un fichier de quatre lignes, et la revue la voit.
 
 *Origine :* exploration du lot 5b.
+
+### Un nom `__crypte_` dans la configuration du projet percuterait l'entrée
+
+Tout ce que l'entrée générée déclare porte le préfixe `__crypte_`, ce qui la met hors d'atteinte des noms qu'un `crypte.config.ts` importe. La réciproque n'est pas gardée : un projet qui importerait lui-même un `__crypte_adapter` percuterait le préambule, et la preview ne chargerait pas du tout.
+
+*Pourquoi ce n'est pas gardé :* aucun usage ne le démontre, et le préfixe est déjà l'endroit le plus improbable où un projet irait chercher un nom. Le mode d'échec est bruyant et immédiat, un `SyntaxError` au chargement.
+
+*Ce qui le lèverait :* refuser un import dont le nom local commence par le préfixe, en le nommant. Treize cas éprouvent déjà l'inverse, donc le patron est là : le quatorzième est une ligne.
+
+*Ce qui le rendrait nécessaire :* un plugin ou une convention qui pousserait les projets à employer ce préfixe.
+
+*Origine :* revue 3 du lot 5d.
+
+### Une enveloppe mal formée échoue à l'exécution, pas à la lecture
+
+`wrapsOf` met à plat ce que le type déclare, et rien de plus. Mesuré sur deux formes que le type interdit mais qu'un `as` laisse passer :
+
+* `[[Composant, 42]]` rend `props: 42`, que React refuse en levant.
+* `[[[Composant]]]` rend un tableau comme composant, que React refuse aussi.
+
+*Pourquoi ce n'est pas gardé :* le mode d'échec est bruyant et il arrive au bon endroit. La preview attrape l'erreur du rendu et l'envoie au shell avec l'identifiant de la story, qui l'affiche dans son panneau. Un contrôle de forme dans le noyau ajouterait du code pour transformer une erreur nommée en une autre.
+
+*Ce qui le rouvrirait :* un message de React trop obscur pour désigner l'enveloppe fautive. Il faudrait alors nommer l'entrée, pas valider sa forme.
+
+*Origine :* exploration du lot 5d.
 
 ### Clos : `App.vue` échappait à la mesure de couverture
 

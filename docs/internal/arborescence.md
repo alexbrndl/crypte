@@ -72,6 +72,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/no-plugin/tsconfig.json` | programme sans la simulation de plugin | `no-plugin.test.ts` |
 | `test/isolation.test.ts` | étanchéité des trois entrées, sur les bundles | — |
 | `test/exported-names.ts` | les formes d'export lues dans un module, partagées | `spec.test.ts`, `protocol/index.test.ts` |
+| `test/wraps.test.ts` | l'ordre des enveloppes, mis à plat | — |
 | `test/spec.test.ts` | écart entre la spécification et le code | — |
 
 ## `packages/cli` — `@crypte/cli`
@@ -124,6 +125,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `crypte.config.ts` | un vrai adaptateur React, un alias `@/`, une entrée CSS | `crypte dev` |
 | `index.html` | la page du projet, que Crypte ne doit jamais servir | le repli de Vite, s'il était actif |
 | `src/components/Badge.tsx` | composant d'exemple, deux props documentées | `stories/Badge.tsx` |
+| `src/components/Frame.tsx` | deux enveloppes, pour éprouver la section 2.5 | `crypte.config.ts`, `stories/Badge.tsx` |
 | `src/components/Boom.tsx` | composant qui échoue exprès | `stories/Boom.tsx` |
 | `stories/` | quatre stories, dont une qui ne rend jamais | le catalogue |
 | `.crypte/fingerprint.json` | son empreinte, commitée sous régime de verrouillage | `git diff --exit-code` |

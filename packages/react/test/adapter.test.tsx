@@ -122,3 +122,74 @@ describe('l’adaptateur React', () => {
     expect(monte.hote.textContent).toBe('0')
   })
 })
+
+// Les enveloppes, la promesse de la section 2.5 : le `wrap` global enveloppe
+// celui du fichier, qui enveloppe le composant. Avant ce lot, `wrap` était lu,
+// typé, validé, puis jeté : une story qui déclarait un provider rendait sans lui.
+describe('les enveloppes', () => {
+  const Cadre =
+    (nom: string) =>
+    ({ children, ton }: { children?: unknown; ton?: string }) => (
+      <div data-cadre={nom} data-ton={ton}>
+        {children as never}
+      </div>
+    )
+
+  const Theme = Cadre('theme')
+  const Router = Cadre('router')
+
+  test('monte le composant à l’intérieur de son enveloppe', ({ monte }) => {
+    monte.adapter.mount(monte.hote, Badge, { label: 'Neuf' }, [{ component: Theme, props: {} }])
+
+    const cadre = monte.hote.querySelector('[data-cadre="theme"]')
+
+    expect(cadre).not.toBeNull()
+    expect(cadre?.textContent).toBe('Neuf')
+  })
+
+  // L'ordre est toute la règle : la première entrée est la plus extérieure.
+  test('met la première enveloppe à l’extérieur', ({ monte }) => {
+    monte.adapter.mount(monte.hote, Badge, { label: 'Neuf' }, [
+      { component: Router, props: {} },
+      { component: Theme, props: {} },
+    ])
+
+    expect(monte.hote.querySelector('[data-cadre="router"] > [data-cadre="theme"]')).not.toBeNull()
+    expect(monte.hote.querySelector('[data-cadre="theme"] > [data-cadre="router"]')).toBeNull()
+  })
+
+  test('passe à une enveloppe les props qu’elle déclare', ({ monte }) => {
+    monte.adapter.mount(monte.hote, Badge, {}, [{ component: Theme, props: { ton: 'sombre' } }])
+
+    expect(monte.hote.querySelector('[data-cadre="theme"]')?.getAttribute('data-ton')).toBe(
+      'sombre',
+    )
+  })
+
+  // Sans enveloppe, rien ne change : c'est le cas courant, et un cadre en trop
+  // casserait la mise en page de toutes les stories existantes.
+  test('ne pose aucun cadre quand la liste est vide', ({ monte }) => {
+    monte.adapter.mount(monte.hote, Badge, { label: 'Neuf' }, [])
+
+    expect(monte.hote.querySelector('div')).toBeNull()
+    expect(monte.hote.textContent).toBe('Neuf')
+  })
+
+  test('accepte l’absence du quatrième argument', ({ monte }) => {
+    monte.adapter.mount(monte.hote, Badge, { label: 'Neuf' })
+
+    expect(monte.hote.textContent).toBe('Neuf')
+  })
+
+  // Une enveloppe qui lève doit remonter comme une story qui lève : sinon le
+  // cadre reste vide et la preview annonce « rendered ».
+  test('relance l’erreur d’une enveloppe qui ne rend pas', ({ monte }) => {
+    const Casse = () => {
+      throw new Error('cette enveloppe ne rend jamais')
+    }
+
+    expect(() =>
+      monte.adapter.mount(monte.hote, Badge, {}, [{ component: Casse, props: {} }]),
+    ).toThrow('cette enveloppe ne rend jamais')
+  })
+})
