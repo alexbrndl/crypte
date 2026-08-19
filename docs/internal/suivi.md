@@ -431,6 +431,18 @@ Quatre occurrences au lot 5a, dont une sous un `vp test` ordinaire, chaque fois 
 
 *Origine :* exploration du lot 5b.
 
+### Un nom `__crypte_` dans la configuration du projet percuterait l'entrée
+
+Tout ce que l'entrée générée déclare porte le préfixe `__crypte_`, ce qui la met hors d'atteinte des noms qu'un `crypte.config.ts` importe. La réciproque n'est pas gardée : un projet qui importerait lui-même un `__crypte_adapter` percuterait le préambule, et la preview ne chargerait pas du tout.
+
+*Pourquoi ce n'est pas gardé :* aucun usage ne le démontre, et le préfixe est déjà l'endroit le plus improbable où un projet irait chercher un nom. Le mode d'échec est bruyant et immédiat, un `SyntaxError` au chargement.
+
+*Ce qui le lèverait :* refuser un import dont le nom local commence par le préfixe, en le nommant. Treize cas éprouvent déjà l'inverse, donc le patron est là : le quatorzième est une ligne.
+
+*Ce qui le rendrait nécessaire :* un plugin ou une convention qui pousserait les projets à employer ce préfixe.
+
+*Origine :* revue 3 du lot 5d.
+
 ### Une enveloppe mal formée échoue à l'exécution, pas à la lecture
 
 `wrapsOf` met à plat ce que le type déclare, et rien de plus. Mesuré sur deux formes que le type interdit mais qu'un `as` laisse passer :

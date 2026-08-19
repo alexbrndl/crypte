@@ -766,9 +766,11 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 **Tout ce que l'entrée déclare porte le préfixe `__crypte_`**, et les imports du noyau sont aliasés dedans. Un nom que la configuration **importe** atterrit dans le même espace de noms de premier niveau : `import { adapter } from './setup'` à côté de `const adapter = adapter` est un `SyntaxError: Identifier 'adapter' has already been declared`, donc une preview qui ne charge pas du tout. Second bloquant de revue du lot, sur l'axe voisin du premier.
 
-*La garde ferme la classe, pas un nom.* Neuf cas passent l'entrée générée à `node --input-type=module --check`, un par nom du préambule, `propsOfStory` et `story0` compris. Mesuré : retirer le préfixe fait rougir les neuf.
+*La garde ferme la classe, pas un nom.* Treize cas passent l'entrée générée à `node --input-type=module --check`, un par nom que le préambule déclare ou importe.
 
-*Ce qui reste :* un projet qui nommerait lui-même quelque chose `__crypte_…` percuterait. Dit ici plutôt que gardé, faute d'un usage qui le démontre.
+*Ce que le préfixe protège, mesuré en le retirant :* **dix des treize** rougissent. Les trois autres tiennent pour deux raisons indépendantes, et c'est utile à savoir. `propsOfStory` et `createPreviewChannel` sont aliasés vers un autre nom local, `propsOf` et `channelOf`, donc ils ne sont plus des liaisons de premier niveau. `paths` est déclaré dans le bloc `if (import.meta.hot)`, donc il est de portée bloc. Une première version de cette phrase annonçait « neuf sur neuf » sans l'avoir mesuré, et la revue l'a corrigée.
+
+*Ce qui reste :* un projet qui nommerait lui-même quelque chose `__crypte_…` percuterait. Consigné dans `docs/internal/suivi.md`, où la revue le lit.
 
 *Un `wrap` que le lecteur ne voit pas est refusé.* Le CLI tient les deux moitiés : la configuration exécutée et son texte. Si `project.config.wrap` est défini et que le texte n'en montre rien, un spread par exemple, l'entrée lève en le nommant plutôt que de monter la story sans son enveloppe, qui est l'état que ce lot retire.
 

@@ -627,7 +627,11 @@ describe('les noms que l’entrée déclare', () => {
     ['channel', 'channel'],
     ['propsOfStory', 'propsOfStory'],
     ['wrapsOf', 'wrapsOf'],
+    ['createPreviewChannel', 'createPreviewChannel'],
     ['story0', 'story0'],
+    ['byId', 'byId'],
+    ['wrap', 'wrap'],
+    ['paths', 'paths'],
   ] as const)('ne percute pas un import nommé %s', ([, nom], { projet }) => {
     const project = projet(`
       import { ${nom} } from './setup'
