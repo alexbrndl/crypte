@@ -173,3 +173,15 @@ A split by language would also be incomplete. `CLAUDE.md` and `.claude/skills/` 
 The real difference is who reads a document. The language follows from that.
 
 **What would reopen it.** A genuine translation of one document into a second language. Then `fr/` means what it usually means, and both rules can live side by side.
+
+## Type tests guard inference, not what `vp check` already catches
+
+**What we do.** One vitest project, `types`, runs the compiler over `*.test-d.ts` with a dedicated program, `tsconfig.types.json`. It guards the inference the published React package promises: `PropsOf`, `defineStories`, `story`.
+
+**What we rule out.** Adding type tests for the three guarantees the retired mutation catalogue carried (`TS2339` on `channel.ts`, `TS2322` on `manifest.ts`, `TS2578` on `story.ts`). Measured: weakening `Wrap` and `Manifest.version` already fails `vp check`, which runs in CI. Restating them in `expectTypeOf` would evaluate the same compiler twice for the same verdict, which is the duplication removed one lot earlier.
+
+**Why.** `vp check` sees a type error; nothing asks it that a type **is** what we promise. Measured: `PropsOf<C>` degraded from `infer P` to `any` left `vp check` and all 480 cases green, and that inference is what every story file's autocompletion depends on.
+
+**What it cost.** 0.6 s on the whole suite, 1.1 s for the project alone. The cost was never the question.
+
+**What would reopen it.** A type guarantee that `vp check` cannot express, or a second package growing an inference surface of its own. The project is already there, so the marginal cost is one file.

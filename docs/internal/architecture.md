@@ -236,6 +236,10 @@ Vérifie que la porte d'entrée du protocole réexporte tout ce que les cinq mod
 
 *Ce qu'il lit :* les modules sont pris dans le dossier et non énumérés à la main, sinon un fichier oublié dans les deux endroits resterait invisible. Les noms déclarés couvrent aussi les formes que le protocole n'emploie pas encore, `export async function` par exemple, et les blocs `export { X }` sans `from`. Côté porte d'entrée, un réexport renommé compte pour son nom public : `StoryEntry as Entry` retire bien `StoryEntry` de l'API. Un `export *` est refusé, puisqu'il exposerait des noms sans les nommer et mettrait la comparaison hors service sans la faire échouer.
 
+**L'exhaustivité de `produced` est explicite, pas incidente.** Une garde `const unhandled: never = read` dans le `default` du `switch`. Avant elle, la protection venait du seul type de retour déclaré : mesuré, réécrire le `switch` en chaîne de ternaires et ajouter une quatrième variante laissait `vp check` et les 36 cas au vert.
+
+*Ce qu'elle ne fait pas :* survivre à sa propre suppression. Elle ne peut pas être un test, `produced` et `StoriesRead` n'étant pas exportés et l'ouvrir pour un test créerait un usage qu'on ne peut plus reprendre. Ce qu'elle change est qu'une protection perdue devient une ligne retirée dans un diff, que la revue voit.
+
 **Les formes d'export sont lues par un seul code**, `packages/core/test/exported-names.ts`, que ce contrôle et celui de la spécification partagent. Ils posaient la même question à deux copies, et les copies avaient déjà divergé : la plus stricte rendait `undefined` sur une entrée qu'elle ne reconnaissait pas, et cette entrée disparaissait sans un mot. C'est exactement le défaut que le contrôle existe pour empêcher.
 
 *Il lit du texte, faute d'alternative :* un type n'existe pas à l'exécution, il n'y a donc rien à énumérer dans le module importé. Une première version cherchait chaque nom n'importe où dans le fichier, et le trouvait dans les commentaires de regroupement : elle laissait passer le retrait d'un export cité juste au-dessus. Les noms sont maintenant pris dans les accolades des réexports.
@@ -749,6 +753,16 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 *Ce que ça a ajouté :* treize cas sur les 184 lignes du composant, dont la règle qui n'était éprouvée qu'en navigateur, « rien ne part avant que la preview ait dit `ready` ». Et un projet vitest `shell` qui étend `apps/shell/vite.config.ts` plutôt que la racine, parce que c'est elle qui porte le plugin Vue.
 
 *Un piège :* le programme TypeScript du shell n'incluait que `src`, donc le test ne voyait pas le `declare module '*.vue'` de `env.d.ts` et `vp check` refusait l'import. `include: ["src", "test"]` le règle, et met au passage le test sous `vue-tsc`.
+
+**Un projet de types, et le piège qui va avec.** `typecheck` demande à vitest de lancer le compilateur sur les `*.test-d.ts`. Ce qu'il apporte que `vp check` ne donne pas : `vp check` voit une erreur de type, il ne demande jamais qu'un type **soit** ce qu'on promet. Mesuré : `PropsOf<C>` dégradé de `infer P` en `any` laissait `vp check` **et** les 480 cas au vert, alors que c'est l'inférence dont dépend l'autocomplétion de tout fichier de story.
+
+*Le piège :* sans `tsconfig` nommé, vitest prend le plus proche. Ni `packages/react/tsconfig.json` (qui n'inclut que `src`) ni `packages/react/test/tsconfig.json` (qui n'inclut que `public-augmentation.ts`) ne contient ces fichiers, donc le compilateur ne compilait **rien** et annonçait « no errors ». Une assertion volontairement fausse passait, mesuré. C'est le même défaut que celui déjà consigné pour `public-augmentation.ts`, une seconde fois. D'où `tsconfig.types.json` à la racine, et `test/typecheck.test.mjs` qui garde le câblage plutôt que les types.
+
+*Coût mesuré :* 0,6 s sur la suite entière, 1,1 s pour le projet seul.
+
+*Ce qui casse si on l'enlève :* l'API d'inférence d'un paquet publié peut retomber à `any` sans un rouge, et c'est celle dont dépend tout ce qu'un auteur de story écrit.
+
+**Ce que ce projet ne double pas.** Les trois garanties de type que le contrôle de mutation portait sont déjà attrapées par `vp check`, mesuré en affaiblissant `Wrap` et `Manifest.version` : rien n'a été ajouté pour elles.
 
 **Un `globalSetup` ramasse ce qu'un lancement tué laisse.** `test/sweep-tmp.mjs` efface `packages/cli/test/tmp-hot-*` et `apps/tmp-demo-*` au démarrage de la suite. Les fixtures démontent leur copie, y compris quand le cas lève, mais pas quand le processus est tué : **soixante-huit copies** s'étaient accumulées.
 

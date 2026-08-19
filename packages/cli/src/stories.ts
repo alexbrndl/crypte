@@ -113,8 +113,10 @@ type StoriesRead =
   | { kind: 'these'; stories: Declared[]; reason?: string }
   | { kind: 'unusable'; reason: string }
 
-// The one place that decides. A fourth kind stops compiling here, because the
-// end of a function with a declared return type becomes reachable.
+// The one place that decides. A fourth kind stops compiling on the `never`
+// below, whatever shape the branching takes: the declared return type alone made
+// the protection incidental, and rewriting this switch as a ternary chain lost it
+// in silence. Measured. See docs/internal/architecture.md.
 function produced(read: StoriesRead): { stories: Declared[]; reason?: string } {
   switch (read.kind) {
     case 'noBlock':
@@ -123,6 +125,11 @@ function produced(read: StoriesRead): { stories: Declared[]; reason?: string } {
       return { stories: read.stories, reason: read.reason }
     case 'unusable':
       return { stories: [], reason: read.reason }
+    default: {
+      const unhandled: never = read
+
+      return unhandled
+    }
   }
 }
 

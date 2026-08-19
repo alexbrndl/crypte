@@ -106,6 +106,29 @@ export default defineConfig({
     // avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le
     // même. `groupOrder` les fait passer après, seuls sur la machine.
     projects: [
+      // Les types, éprouvés par le compilateur que vitest lance pour eux.
+      // `vp check` voit les erreurs de type du dépôt, mais rien ne lui demande
+      // qu'un type **soit** ce qu'on promet : `PropsOf` dégradé en `any` laissait
+      // la suite entière au vert, mesuré. Coût mesuré : 0,6 s.
+      {
+        extends: true,
+        test: {
+          name: 'types',
+          // `node_modules` exclu comme dans le projet d'unité : un paquet
+          // installé porte ses propres `*.test-d.ts`, et vitest en prenait un.
+          include: ['**/*.test-d.ts'],
+          exclude: ['**/node_modules/**'],
+          // `tsconfig` nommément : sans lui, vitest prend le plus proche, qui
+          // n'inclut pas ces fichiers, et annonce « no errors » en n'ayant rien
+          // compilé. Mesuré, une assertion volontairement fausse passait.
+          typecheck: {
+            enabled: true,
+            include: ['**/*.test-d.ts'],
+            exclude: ['**/node_modules/**'],
+            tsconfig: './tsconfig.types.json',
+          },
+        },
+      },
       {
         extends: true,
         test: {
