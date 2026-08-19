@@ -125,10 +125,13 @@ function produced(read: StoriesRead): { stories: Declared[]; reason?: string } {
       return { stories: read.stories, reason: read.reason }
     case 'unusable':
       return { stories: [], reason: read.reason }
+    // `never` is what enforces the exhaustiveness; the throw is what happens if
+    // a cast ever gets one past the compiler. Returning `read` would hand back a
+    // shape the caller does not expect, and the crash would land far from here.
     default: {
       const unhandled: never = read
 
-      return unhandled
+      throw new Error(`unread story shape: ${JSON.stringify(unhandled)}`)
     }
   }
 }

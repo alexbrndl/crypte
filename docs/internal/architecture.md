@@ -238,6 +238,8 @@ Vérifie que la porte d'entrée du protocole réexporte tout ce que les cinq mod
 
 **L'exhaustivité de `produced` est explicite, pas incidente.** Une garde `const unhandled: never = read` dans le `default` du `switch`. Avant elle, la protection venait du seul type de retour déclaré : mesuré, réécrire le `switch` en chaîne de ternaires et ajouter une quatrième variante laissait `vp check` et les 36 cas au vert.
 
+*Elle lève plutôt que de rendre `read`.* La branche est inatteignable, mais un `as` peut passer outre le compilateur : rendre `read` donnerait au reste du lecteur une forme qu'il n'attend pas, et la panne atterrirait loin d'ici. La couverture n'en souffre pas, le total reste à 98,5 % de lignes pour un seuil de 97.
+
 *Ce qu'elle ne fait pas :* survivre à sa propre suppression. Elle ne peut pas être un test, `produced` et `StoriesRead` n'étant pas exportés et l'ouvrir pour un test créerait un usage qu'on ne peut plus reprendre. Ce qu'elle change est qu'une protection perdue devient une ligne retirée dans un diff, que la revue voit.
 
 **Les formes d'export sont lues par un seul code**, `packages/core/test/exported-names.ts`, que ce contrôle et celui de la spécification partagent. Ils posaient la même question à deux copies, et les copies avaient déjà divergé : la plus stricte rendait `undefined` sur une entrée qu'elle ne reconnaissait pas, et cette entrée disparaissait sans un mot. C'est exactement le défaut que le contrôle existe pour empêcher.

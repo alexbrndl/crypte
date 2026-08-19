@@ -206,7 +206,7 @@ Le troisième, la colonne « props propres » de la page composant, veut les seu
 
 `produced` traite les trois variantes de `StoriesRead` dans un `switch`, et la protection venait du seul type de retour déclaré. Mesuré : réécrire ce `switch` en chaîne de ternaires **et** ajouter une quatrième variante laissait `vp check` et les 36 cas au vert.
 
-*Clos par* une garde explicite, `const unhandled: never = read` dans le `default`. Mesuré : une quatrième variante ne compile plus.
+*Clos par* une garde explicite, `const unhandled: never = read` dans le `default`, qui lève ensuite plutôt que de rendre `read` : la branche est inatteignable, mais un `as` peut passer outre, et rendre `read` ferait atterrir la panne loin de sa cause. Mesuré : une quatrième variante ne compile plus.
 
 *Ce qui reste, et c'est assumé :* la garde ne survit pas à sa propre suppression. Un test ne peut pas la remplacer, `produced` et `StoriesRead` n'étant pas exportés, et les ouvrir pour un test créerait un usage qu'on ne peut plus reprendre. Ce que la garde change est qu'une protection perdue devient une ligne retirée dans un diff.
 
