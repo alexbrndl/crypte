@@ -353,6 +353,10 @@ Quatre occurrences au lot 5a, dont une sous un `vp test` ordinaire, chaque fois 
 
 *Le cache est posé*, sur `~/.cache/ms-playwright`, avec une clé sur la version du catalogue. `--with-deps` reste lancé même sur une touche : les paquets système apt ne vivent pas dans ce dossier.
 
+*Mesuré, et ça sépare les deux moitiés de l'étape.* À vide, l'installation a coûté 3 min 26 sur un runner et **19 min 50 sur l'autre**, tuée par le budget. Avec la touche : restauration de 282 Mo en **2 s**, étape réduite à **1 min 19**, ce qui ne reste que l'apt, et job entier à **2 min 4**. Le téléchargement était donc la moitié coûteuse, et la variable.
+
+*Pourquoi `--with-deps` n'est pas retiré :* 1 min 19 est un prix supportable pour que les cas d'écran tournent aussi sur un runner nu. Le retirer ferait dépendre le contrôle de ce que l'image de GitHub embarque, sans qu'aucune mesure ne le garantisse d'une version à l'autre.
+
 *Ce qui reste :* le chemin `node_modules/playwright/cli.js` suppose toujours le hissage à la racine. Son mode d'échec est un rouge bruyant et immédiat, pas un silence.
 
 *Ce que ça a coûté avant d'être posé :* le budget du job, ramené de 20 à 10 minutes au retrait du contrôle de mutation sur une mesure de moins de 2 min prise navigateur déjà présent. Le job s'est fait tuer à 10 min 17 sur cette installation, sans aucune ligne d'erreur, ce qui est le mode d'échec le plus désagréable. **Un chiffre de budget se change en relisant ce que le registre en dit** : celui-ci annonçait 9 min 11.

@@ -756,6 +756,12 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 **L'ordre des cas est mélangé, celui des fichiers non.** `sequence.shuffle.tests` a fait tomber **six cas sur onze** dans `hot.test.ts` et trois sur huit dans `screen.test.ts` : ces fichiers n'étaient verts que dans un ordre précis, et deux fois cette session un couplage n'a été trouvé que par hasard. Mélanger les fichiers, en revanche, annule l'optimisation qui lance les plus longs d'abord.
 
+**Le navigateur est en cache, et le budget du job vaut 20 minutes.** Mesuré : à vide, l'installation de Chromium a coûté 3 min 26 sur un runner et 19 min 50 sur l'autre, tuée par un budget que j'avais ramené à 10. Avec la touche de cache, 2 s de restauration, 1 min 19 d'apt, 2 min 4 pour le job entier.
+
+*Ce qui casse si on l'enlève :* le job repart à 95 Mo par exécution et par version de Node, avec une durée que rien ne borne, et le mode d'échec est une annulation sans aucune ligne d'erreur.
+
+*La leçon, plus large :* un chiffre de budget se change en relisant ce que le registre en dit. Celui-ci annonçait « 9 min 11 » et « tient dans le budget de 20 minutes », deux lignes que le retrait du contrôle de mutation n'a pas lues.
+
 **Les cas navigateur sont un projet à part.** Entrelacés avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le même. `sequence.groupOrder` les fait passer après, seuls sur la machine : trois passes vertes contre une sur quatre avant.
 
 **Les réglages partagés sont hoistés, parce qu'un projet n'hérite pas toujours de la racine.** Le projet `shell` étend `apps/shell/vite.config.ts`, qui porte le plugin Vue : il ne voyait donc ni l'ordre mélangé ni le délai d'`expect.poll`. Ses treize cas tournaient dans un ordre fixe, ce qui est exactement l'état où deux couplages nous ont coûté des heures. Un objet `partagé` est maintenant épandu dans la racine et dans ce projet, et trois lancements mélangés passent.
