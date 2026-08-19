@@ -314,6 +314,8 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 
 *Ce qui reste :* un paquet lié qu'une story importe sans que la configuration le nomme ne serait pas pré-empaqueté. Aucun usage ne le démontre, et le remède serait le même, une entrée de plus dans `include`.
 
+*Un alias du projet est écarté de cette liste*, et il a fallu le mesurer : `@/adapters/mine` se lit comme un nom nu, donc il partait à l'optimiseur, qui n'a aucun paquet à pré-empaqueter derrière. Le tri se fait par le `capture` du résolveur, pas par une règle sur `@`.
+
 ### Le cache de dépendances ne se copie pas avec un projet
 
 `packages/cli/test/screen.test.ts` copie le projet de démonstration, `node_modules` compris, et retire ensuite `node_modules/.crypte`.

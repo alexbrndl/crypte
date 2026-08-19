@@ -810,6 +810,8 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 *Reproduit à la demande*, après quatre occurrences qui ne l'avaient jamais permis : la course, c'est-à-dire une story qui tire une dépendance neuve **pendant** le premier chargement. Déclenchée sur une page posée, la même réoptimisation ne casse rien, Vite recharge l'iframe et la preview repart seule.
 
+*La liste vient des imports de la configuration*, donc aucun nom n'est codé en dur, et un alias que le projet déclare en est écarté par le `capture` du résolveur : `@/adapters/mine` se lit comme un nom nu et n'a pourtant aucun paquet derrière. Trouvé à l'exploration.
+
 *Ce qui casse si on l'enlève :* `reopt.test.ts` rougit avec l'erreur exacte, mesuré. Et le contournement retiré de `screen.test.ts`, un `retry` sur condition, redeviendrait nécessaire.
 
 **Les cas navigateur sont un projet à part.** Entrelacés avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le même. `sequence.groupOrder` les fait passer après, seuls sur la machine : trois passes vertes contre une sur quatre avant.

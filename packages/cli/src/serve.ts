@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import sirv from 'sirv'
 import { parseSync, type Plugin } from 'vite'
 import { ConfigError } from './errors'
-import { isBareSpecifier } from './paths'
+import { capture, isBareSpecifier } from './paths'
 import { storyFilesOf, type Catalogue } from './manifest'
 import { cssEntryOf, type Project } from './project'
 
@@ -215,10 +215,17 @@ export function configPackages(project: Project): string[] {
   const sources = configSources(project)
   const statements = [...(sources.adapter?.imports ?? []), ...(sources.wrap?.imports ?? [])]
 
+  // A specifier the project's own paths capture is one of its files, not a
+  // package: `@/adapters/mine` reads as bare and would be handed to the optimiser,
+  // which has no package to pre-bundle. Judged by the resolver's own `capture`
+  // rather than by a rule about `@`. Measured at exploration.
+  const aliased = (one: string) =>
+    Object.keys(project.paths?.paths ?? {}).some((pattern) => capture(pattern, one) !== null)
+
   const named = statements
     .map((one) => /from\s+['"]([^'"]+)['"]/.exec(one)?.[1])
     .filter((one): one is string => one !== undefined)
-    .filter((one) => isBareSpecifier(one))
+    .filter((one) => isBareSpecifier(one) && !aliased(one))
 
   return [...new Set(named)]
 }

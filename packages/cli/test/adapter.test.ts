@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test as base } from 'vitest'
 import { ConfigError } from '../src/errors'
-import { adapterSource, previewEntry } from '../src/serve'
+import { adapterSource, configPackages, previewEntry } from '../src/serve'
 
 // Ce que la preview reprend de `crypte.config.ts`, lu et jamais exécuté.
 //
@@ -654,5 +654,60 @@ describe('les noms que l’entrée déclare', () => {
 
     expect(entry).toContain('const __crypte_adapter = createAdapter()')
     expect(entry).not.toMatch(/^const adapter =/m)
+  })
+})
+
+// Les paquets que l'optimiseur doit pré-empaqueter, tirés des mêmes imports. Un
+// paquet lié servi comme module du graphe garde des URL de dépendances périmées,
+// ce qui est `DCJ-221`. Voir docs/internal/architecture.md.
+describe('les paquets de la configuration', () => {
+  const paquets = (
+    spec: string,
+    projet: (source: string) => never,
+    paths?: Record<string, string[]>,
+  ) =>
+    configPackages({
+      ...(projet(`
+        import { A } from '${spec}'
+        export default { stories: 's', adapter: A }
+      `) as unknown as { root: string }),
+      config: { stories: 's' },
+      paths: paths ? { paths, base: '/', files: [] } : undefined,
+    } as never)
+
+  test.for([
+    ['un paquet nu', 'ma-lib', ['ma-lib']],
+    ['un paquet scopé', '@crypte/react', ['@crypte/react']],
+    ['un sous-chemin de paquet', 'react-dom/client', ['react-dom/client']],
+  ] as const)('retient %s', ([, spec, attendu], { projet }) => {
+    expect(paquets(spec, projet)).toEqual(attendu)
+  })
+
+  // Un relatif est déjà réécrit en chemin de racine, donc il n'a rien de nu.
+  test.for([
+    ['un relatif', './src/adapter'],
+    ['un module natif', 'node:fs'],
+  ] as const)('écarte %s', ([, spec], { projet }) => {
+    expect(paquets(spec, projet)).toEqual([])
+  })
+
+  // Le cas trouvé à l'exploration : un alias du projet se lit comme un nom nu, et
+  // l'optimiseur n'a aucun paquet à pré-empaqueter derrière.
+  test('écarte un alias que le projet déclare', ({ projet }) => {
+    expect(paquets('@/adapters/mine', projet, { '@/*': ['src/*'] })).toEqual([])
+    expect(paquets('@/adapters/mine', projet)).toEqual(['@/adapters/mine'])
+  })
+
+  test('ne nomme qu’une fois le paquet que les deux champs partagent', ({ projet }) => {
+    const project = projet(`
+      import { createAdapter, Panel } from '@crypte/react'
+      export default { stories: 's', adapter: createAdapter(), wrap: Panel }
+    `)
+
+    expect(configPackages(project)).toEqual(['@crypte/react'])
+  })
+
+  test('ne rend rien quand la configuration n’importe rien', ({ projet }) => {
+    expect(configPackages(projet("export default { stories: 's', adapter: {} }"))).toEqual([])
   })
 })
