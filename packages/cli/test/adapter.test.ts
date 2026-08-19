@@ -759,6 +759,54 @@ describe('un import de types', () => {
     expect(configPackages(project)).toEqual(['@acme/valeur'])
   })
 
+  // L'autre sens, et le plus grave : un nœud `TS…` qui porte une valeur et qu'on
+  // saute fait disparaître un import dont l'entrée servie a besoin.
+  test.for([
+    ['une propriété de paramètre', 'new (class { constructor(public a = fait) {} })()'],
+    ['une propriété privée', 'new (class { constructor(private readonly a = fait) {} })()'],
+    [
+      'un décorateur de propriété de paramètre',
+      'new (class { constructor(@fait() public a = 1) {} })()',
+    ],
+    ['un membre d’énumération', '(() => { enum E { A = fait } return E.A })()'],
+    ['un corps de namespace', '(() => { namespace N { export const a = fait } return N.a })()'],
+    ['une référence de module qualifiée', '(() => { import E = fait.x; return E })()'],
+  ] as const)('garde la valeur derrière %s', ([, expression], { projet }) => {
+    const project = projet(`
+      import { fait } from '@acme/valeur'
+      export default { stories: 's', adapter: ${expression} }
+    `)
+
+    expect(configPackages(project)).toEqual(['@acme/valeur'])
+    expect(adapterSource(project).imports).toEqual(["import { fait } from '@acme/valeur'"])
+  })
+
+  // La droite d'un nom qualifié est une propriété, comme celle d'un accès membre :
+  // l'entrer pour sauver la gauche ne doit pas faire voyager la droite.
+  test('ne fait pas voyager la droite d’un nom qualifié', ({ projet }) => {
+    const project = projet(`
+      import { fait } from '@acme/valeur'
+      import { Named } from '@acme/named'
+      export default { stories: 's', adapter: (() => { import E = fait.Named; return E })() }
+    `)
+
+    expect(configPackages(project)).toEqual(['@acme/valeur'])
+  })
+
+  // Un nom qualifié du côté type reste écarté, par ses deux parents sautés.
+  test.for([
+    ['un type qualifié', 'createAdapter() as P.Sub'],
+    ['un import de type qualifié', "createAdapter as import('@acme/types').P.Sub"],
+  ] as const)('écarte %s', ([, expression], { projet }) => {
+    const project = projet(`
+      import { createAdapter } from '@crypte/react'
+      import type { P } from '@acme/types'
+      export default { stories: 's', adapter: ${expression} }
+    `)
+
+    expect(configPackages(project)).toEqual(['@crypte/react'])
+  })
+
   // Un nom du fichier réutilisé comme nom de paramètre dans un type n'est pas un
   // nom que la configuration construit : la refuser était le bloquant du tour 3.
   test('n’accuse pas la configuration de construire un nom de type', ({ projet }) => {

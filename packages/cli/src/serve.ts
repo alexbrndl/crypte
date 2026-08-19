@@ -432,6 +432,9 @@ function bindings(node: Node | undefined): string[] {
       if (key === 'right' && inner.type === 'AssignmentPattern') continue
       if (key === 'key' && inner.type === 'Property') continue
       if (key === 'typeAnnotation') continue
+      // A decorator is an expression too: `constructor(@field() public a)` binds
+      // `a`, and reading `field` as a binding lost its import.
+      if (key === 'decorators') continue
       walk(held)
     }
   }
@@ -447,15 +450,33 @@ const FUNCTIONS = new Set(['ArrowFunctionExpression', 'FunctionExpression', 'Fun
 // name of the file does not make the expression look like it uses that name.
 const CARRIES = new Set([...FUNCTIONS, 'CatchClause'])
 
-// The `TS…` nodes that hold a value under `expression`, so the only ones the
-// walk enters. Everything else in the family is a type.
+// The `TS…` nodes that hold a value, so the only ones the walk enters. The five
+// expressions hold it under `expression` ; the six others elsewhere, an enum
+// member under `initializer`, a namespace under its block. Not a closed list,
+// and the one place where forgetting a name drops an import the entry needs.
+// Voir docs/internal/architecture.md.
 const VALUED = new Set([
   'TSAsExpression',
   'TSSatisfiesExpression',
   'TSNonNullExpression',
   'TSTypeAssertion',
   'TSInstantiationExpression',
+  'TSParameterProperty',
+  'TSEnumDeclaration',
+  'TSEnumBody',
+  'TSEnumMember',
+  'TSModuleDeclaration',
+  'TSModuleBlock',
+  'TSImportEqualsDeclaration',
+  // Only reachable from the declaration above: every type-side parent of a
+  // qualified name is already skipped, `TSTypeReference` and `TSImportType`.
+  'TSQualifiedName',
 ])
+
+// The keys by which a value node points at a type. Doubled with the family
+// above on purpose: a name has to be missing from both lists to travel.
+// Voir docs/internal/architecture.md.
+const TYPED = new Set(['typeAnnotation', 'typeArguments', 'typeParameters', 'returnType'])
 
 // The names an expression takes from outside itself. A string is not one, and
 // neither is a name that only sits where a name cannot be read: the key of an
@@ -475,7 +496,7 @@ function referenced(node: Node): Set<string> {
     const inner = current as Node
 
     // Types name nothing the browser loads, and a type position is any `TS…`
-    // node but the five that hold a value. Voir docs/internal/architecture.md.
+    // node outside `VALUED`. Voir docs/internal/architecture.md.
     if (inner.type.startsWith('TS') && !VALUED.has(inner.type)) return
 
     // Named, then walked through: `constructor(@field() x)` hangs `field` off
@@ -508,10 +529,12 @@ function referenced(node: Node): Set<string> {
           ? 'key'
           : inner.type === 'MemberExpression'
             ? 'property'
-            : undefined
+            : inner.type === 'TSQualifiedName'
+              ? 'right'
+              : undefined
 
     for (const [key, held] of Object.entries(inner)) {
-      if (key === fixed) continue
+      if (key === fixed || TYPED.has(key)) continue
       walk(held, inside)
     }
   }
