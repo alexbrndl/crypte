@@ -698,7 +698,7 @@ This document is a contract. This section is the only place that says what exist
 
 **`crypte dev` is built, `crypte check` is not.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled by the project's own Vite. A story renders, switching story works, and a story that throws shows its error instead of an empty frame.
 
-Nine known gaps between this document and the code:
+Eight known gaps between this document and the code:
 
 - `update-overrides` and `set-globals` are part of the protocol and have no effect yet. The preview drops them.
 - A path alias cannot replace an installed package. `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because the resolver runs after Vite's own. TypeScript would return the replacement file.

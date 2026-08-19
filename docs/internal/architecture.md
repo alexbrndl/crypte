@@ -754,11 +754,17 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 *Le partage est celui de `propsOfStory` :* mettre cette forme à plat ne connaît aucun framework, composer des composants n'appartient qu'à lui. Deux adaptateurs qui aplatiraient chacun de leur côté dériveraient.
 
+*Le type du joint vit dans le noyau*, `PreviewWrapper`, et l'adaptateur le réexporte. Son `component` est `unknown` là-bas, parce que le noyau ne peut pas dire que c'est un composant, et l'adaptateur le dit une fois, par le seul cast de son fichier. Les deux surfaces publiées ne compilaient pas ensemble avant ce joint, et rien ne le voyait : l'entrée générée est du JavaScript. Un cas de `stories.test-d.ts` le garde, et rougit quand les deux divergent.
+
 *Un import relatif de la configuration est réécrit en chemin absolu depuis la racine.* L'entrée est un module virtuel, donc `./src/components/Frame` y résolvait contre son propre chemin et ne chargeait pas : mesuré sur la démonstration, où le `wrap` global a fait apparaître le défaut. Il précède ce lot, un adaptateur importé en relatif échouait de la même façon. Un import qui sort du projet est refusé en le nommant.
 
 *Le garde-fou ne se calcule pas sur une chaîne :* `posix.normalize('/../x')` rend `/x`, donc un `../` sortait en silence. La résolution se fait contre la racine réelle, mesuré.
 
 *Sept natures de spécificateur croisées :* un nom de paquet, un paquet scopé, un alias `@/` du projet, un chemin déjà absolu et un module natif passent verbatim ; seul le relatif est réécrit, et `./a/../b/c` rend `/b/c` parce qu'il est résolu et non découpé au préfixe. L'alias traverse ensuite le résolveur du projet, dont les cas de provenance virtuelle disent déjà qu'il s'applique depuis un module virtuel.
+
+*Les imports des deux champs sont dédoublonnés, et c'était un bloquant de revue.* `adapter` et `wrap` peuvent venir du même `import` : émis deux fois, c'est un `SyntaxError: Identifier … has already been declared`, donc une preview qui ne charge pas du tout. La démonstration ne l'attrapait pas, ses deux noms venant de deux fichiers. Mesuré, reproduit, puis fermé par deux cas qui croisent les deux champs.
+
+*Un `wrap` que le lecteur ne voit pas est refusé.* Le CLI tient les deux moitiés : la configuration exécutée et son texte. Si `project.config.wrap` est défini et que le texte n'en montre rien, un spread par exemple, l'entrée lève en le nommant plutôt que de monter la story sans son enveloppe, qui est l'état que ce lot retire.
 
 *Ce qui casse si on l'enlève :* une story qui déclare un `ThemeProvider` rend sans son contexte, sans un mot, ce qui était l'état avant ce lot alors que le contrat le promettait.
 

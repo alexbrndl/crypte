@@ -28,9 +28,11 @@ Le retrait de la branche fonction de l'union ne suffit pas côté React, où un 
 
 *Ce qui reste ouvert :* aucun diagnostic n'avertit celui qui écrit cette forme en attendant l'ancien comportement. Un marqueur sur les composants, ou une vérification à l'exécution dans l'adaptateur, le permettrait.
 
-*Pourquoi ce n'est pas fait ici :* le noyau ne connaît aucun framework, donc la reconnaissance appartient à l'adaptateur, qui n'existe pas encore.
+*Le risque a changé de nature au lot 5d.* La raison consignée ici était que « l'adaptateur n'existe pas encore ». Il existe, et il instancie chaque entrée : `wrap: (story) => …` ne reste donc plus sans effet, il **rend faux**. La fonction est montée comme composant, reçoit `children` et les props de l'entrée, et ne rend jamais la story qu'elle croyait envelopper.
 
-*Origine :* revue de la PR #16.
+*Pourquoi ce n'est toujours pas fait :* distinguer un composant d'une fonction quelconque n'a pas de réponse fiable en React, où un composant est une fonction. La section 2.5 en a fait une règle plutôt qu'une vérification, et un rendu faux se voit à l'écran là où un silence ne se voyait pas.
+
+*Origine :* revue de la PR #16, requalifiée à la revue du lot 5d.
 
 ### `has-review` ne regarde pas la date de la revue
 

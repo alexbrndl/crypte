@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test as base } from 'vitest'
 import { ConfigError } from '../src/errors'
-import { adapterSource } from '../src/serve'
+import { adapterSource, previewEntry } from '../src/serve'
 
 // Ce que la preview reprend de `crypte.config.ts`, lu et jamais exécuté.
 //
@@ -526,5 +526,76 @@ describe('les natures de spécificateur', () => {
     ['un relatif qui remonte à l’intérieur', './a/../b/c', '/b/c'],
   ] as const)('réécrit %s en chemin de racine', ([, spec, attendu], { projet }) => {
     expect(importe(spec, projet)).toEqual([`import { A } from "${attendu}"`])
+  })
+})
+
+// Les deux champs croisés, l'axe que l'exploration avait laissé : `adapter` et
+// `wrap` peuvent venir du même `import`, et l'émettre deux fois est un
+// `SyntaxError` en ESM, donc une preview qui ne charge pas du tout.
+describe('adapter et wrap ensemble', () => {
+  const entree = (source: string, projet: (source: string) => never) =>
+    previewEntry(projet(source), [])
+
+  test('n’émet qu’une fois l’import que les deux champs partagent', ({ projet }) => {
+    const entry = entree(
+      `
+        import { createAdapter, Panel } from './setup'
+        export default { stories: 's', adapter: createAdapter(), wrap: Panel }
+      `,
+      projet,
+    )
+
+    expect(entry.split('\n').filter((une) => une.includes('/setup'))).toEqual([
+      'import { createAdapter, Panel } from "/setup"',
+    ])
+    expect(entry).toContain('const globalWrap = Panel')
+  })
+
+  test('garde les deux imports quand les champs viennent de deux fichiers', ({ projet }) => {
+    const entry = entree(
+      `
+        import { createAdapter } from './adapter'
+        import { Panel } from './frame'
+        export default { stories: 's', adapter: createAdapter(), wrap: Panel }
+      `,
+      projet,
+    )
+
+    expect(entry).toContain('import { createAdapter } from "/adapter"')
+    expect(entry).toContain('import { Panel } from "/frame"')
+  })
+
+  // Un `wrap` que le lecteur ne voit pas se dit, au lieu de rendre sans lui : la
+  // configuration exécutée en porte un, le texte non.
+  test('refuse un wrap que seul un spread apporte', ({ projet }) => {
+    const project = projet(`
+      import { createAdapter } from '@crypte/react'
+      const shared = { wrap: 'Panel' }
+      export default { ...shared, stories: 's', adapter: createAdapter() }
+    `)
+    // La configuration exécutée porte le `wrap`, le texte ne le montre pas :
+    // c'est exactement ce que le spread produit.
+    const avecWrap = {
+      root: (project as unknown as { root: string }).root,
+      config: { stories: 's', wrap: 'Panel' },
+    } as never
+
+    expect(() => previewEntry(avecWrap, [])).toThrow(ConfigError)
+    expect(() => previewEntry(avecWrap, [])).toThrowErrorMatchingInlineSnapshot(
+      `[Error: crypte.config.ts declares \`wrap\` somewhere the preview cannot read, a spread for instance. Write it in place: the preview reads this file, it never runs it.]`,
+    )
+  })
+
+  // Et sans `wrap` du tout, rien ne change : c'est le cas courant.
+  test('ne dit rien quand la configuration ne déclare aucun wrap', ({ projet }) => {
+    const entry = entree(
+      `
+        import { createAdapter } from '@crypte/react'
+        export default { stories: 's', adapter: createAdapter() }
+      `,
+      projet,
+    )
+
+    expect(entry).toContain('const globalWrap = undefined')
   })
 })

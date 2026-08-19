@@ -99,14 +99,22 @@ export function propsOfStory(
 export function wrapsOf(
   global: unknown,
   definition: { wrap?: unknown } | undefined,
-): { component: unknown; props: Record<string, unknown> }[] {
+): PreviewWrapper[] {
   return [...entriesOf(global), ...entriesOf(definition?.wrap)]
+}
+
+// One wrapper and the props it was declared with. `component` stays `unknown`:
+// the core knows no framework, so it cannot say this is a component. The adapter
+// can, and says it once.
+export interface PreviewWrapper {
+  component: unknown
+  props: Record<string, unknown>
 }
 
 // A `Wrap` is one wrapper or an array of them, and an entry of that array is a
 // wrapper or a `[wrapper, props]` pair. Any array entry is read as a pair: the
 // type declares no other array shape.
-function entriesOf(wrap: unknown): { component: unknown; props: Record<string, unknown> }[] {
+function entriesOf(wrap: unknown): PreviewWrapper[] {
   if (wrap === undefined || wrap === null) return []
   if (!Array.isArray(wrap)) return [{ component: wrap, props: {} }]
 

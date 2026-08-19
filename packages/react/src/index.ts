@@ -1,4 +1,5 @@
 import { createElement, type ComponentType, type ReactNode } from 'react'
+import type { PreviewWrapper } from '@crypte/core/preview'
 import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 
@@ -11,19 +12,17 @@ export interface Adapter {
     container: HTMLElement,
     component: ComponentType<ComponentProps>,
     props: ComponentProps,
-    // The wrappers the story renders inside, outermost first, as
+    // The wrappers the story renders inside, outermost first, exactly as
     // `wrapsOf` flattens them. Optional so an adapter written against the
     // previous shape keeps compiling. See docs/contracts.md section 2.5.
-    wraps?: readonly Wrapper[],
+    wraps?: readonly PreviewWrapper[],
   ): void
   unmount(): void
 }
 
-// One wrapper and the props it was declared with, which may be none.
-export interface Wrapper {
-  component: ComponentType<{ children?: unknown }>
-  props: ComponentProps
-}
+// The core's shape, re-exported so a story file or a second adapter names it
+// once. `component` is `unknown` there, and this is the file that knows better.
+export type { PreviewWrapper }
 
 export function createAdapter(): Adapter {
   let root: Root | null = null
@@ -62,9 +61,13 @@ export function createAdapter(): Adapter {
 // From the inside out: the last wrapper is the closest to the component, so
 // folding from the right puts the first one outermost. That order is the whole
 // of section 2.5, and reversing it would render a router inside its theme.
-function nested(wraps: readonly Wrapper[], story: ReactNode): ReactNode {
+function nested(wraps: readonly PreviewWrapper[], story: ReactNode): ReactNode {
   return wraps.reduceRight<ReactNode>(
-    (child, wrap) => createElement(wrap.component, wrap.props, child),
+    // The one cast of this file: the core cannot know a wrapper is a component,
+    // this adapter is what makes it one. A wrapper that is not renders a React
+    // error naming it, which the preview sends to the shell.
+    (child, wrap) =>
+      createElement(wrap.component as ComponentType<{ children?: unknown }>, wrap.props, child),
     story,
   )
 }

@@ -46,8 +46,8 @@ jobs:
       # voit tombe. Voir docs/internal/architecture.md.
       #
       # En cache sur la version du catalogue : 95 Mo par exécution et par version
-      # de Node, et une fois 9 min 11 à lui seul. `--with-deps` reste lancé même
-      # sur une touche, parce que les paquets système ne sont pas dans ce dossier.
+      # de Node, et une fois 9 min 11 à lui seul. Les paquets système ne vivent
+      # pas dans ce dossier, d'où les deux étapes qui suivent.
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         id: chromium
         with:

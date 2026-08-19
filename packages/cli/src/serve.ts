@@ -540,6 +540,16 @@ export function previewEntry(project: Project, files: string[] = []): string {
   const adapter = required(sources.adapter)
   const { wrap } = sources
 
+  // The executed configuration against the text: a `wrap` reached through a
+  // spread is invisible to the reader, so the entry would mount the story
+  // without it and say nothing, which is the state this lot removes.
+  if (project.config.wrap !== undefined && wrap === undefined) {
+    throw new ConfigError(
+      'crypte.config.ts declares `wrap` somewhere the preview cannot read, a spread for instance. ' +
+        'Write it in place: the preview reads this file, it never runs it.',
+    )
+  }
+
   // Named one by one rather than globbed. A glob takes the whole folder, so a
   // file the reader set aside — a missing dependency, a syntax error — brought
   // the entry down at load time: no `createPreviewChannel`, no `ready`, and a
@@ -552,8 +562,12 @@ export function previewEntry(project: Project, files: string[] = []): string {
 
   return [
     "import { createPreviewChannel, propsOfStory, wrapsOf } from '@crypte/core/preview'",
-    ...adapter.imports,
-    ...(wrap?.imports ?? []),
+    // Deduplicated across the two fields: `adapter` and `wrap` can come from the
+    // same `import`, and emitting it twice is a `SyntaxError: Identifier … has
+    // already been declared`. The preview then never loads, so no story renders
+    // at all. Measured, and the demo misses it: its two names come from two
+    // files.
+    ...new Set([...adapter.imports, ...(wrap?.imports ?? [])]),
     ...imports,
     ...(css ? [`import ${JSON.stringify(css)}`] : []),
     '',
