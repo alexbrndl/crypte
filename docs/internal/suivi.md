@@ -300,24 +300,19 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 
 *Origine :* revues 2 à 5 de la PR #33, quatre tours ayant chacun rendu un axe d'entrée de plus.
 
-### Une réoptimisation des dépendances tue la preview, et les cas la contournent
+### Clos : une réoptimisation des dépendances tuait la preview
 
-Quand Vite réécrit ses paquets de dépendances en cours de session, le navigateur garde un graphe dont les URL ont disparu : `react-dom.js does not provide an export named 't'`, et `#root` reste vide. **Issue `DCJ-221`.**
+`The requested module '/node_modules/.crypte/deps/react-dom.js?v=…' does not provide an export named 't'`, et `#root` vide pour toujours, rechargement compris.
 
-*Pourquoi rien ne se rétablit :* c'est un échec d'import, donc antérieur à `createPreviewChannel`. Sans canal, pas de `ready`, et c'est `ready` qui déclenche la relecture du manifeste et le renvoi de la story. Le rétablissement du lot 5b dépend de la seule chose que cette panne empêche.
+*Reproduit à la demande*, ce que quatre occurrences n'avaient pas permis : écrire une story qui tire une dépendance neuve **pendant** le premier chargement. Déclenchée après, la réoptimisation ne casse rien, Vite recharge l'iframe et la preview repart seule. C'est donc une course, pas une réoptimisation.
 
-*Ce que les cas font :* `screen.test.ts` recharge la page une fois quand il voit cette erreur précise, et seulement celle-là.
+*La cause, mesurée.* Le navigateur assemblait **quatre générations** de paquets : `react.js` et `react-dom.js` en `d376bc5b`, `react-dom_client.js` en `0e03fc0a`, le morceau de runtime partagé en `a85cec4f`, `react-dom_server.js` en `2734d89d`, alors que le disque portait `a4c9ac7f`. L'export `t` manquant est un paquet d'une génération qui interroge le runtime d'une autre.
 
-*Ce qui a été essayé et rejeté, mesuré à chaque fois :*
+*Qui gardait l'empreinte périmée :* le paquet de l'espace de travail lié dans `node_modules`. Resservi par le serveur **après** la panne, l'adaptateur portait encore deux empreintes mortes. Un paquet lié est le cas intermédiaire : il est dans `node_modules` par son chemin, donc Vite ne l'invalide pas comme un module du projet, et il n'est pas pré-empaqueté, donc ses URL réécrites survivent à la réoptimisation.
 
-* **Attribuer les rouges à la charge**, puis élargir les délais à cent vingt secondes par cas. Faux, et coûteux : un cas qui doit rougir payait le délai entier, et le contrôle de mutation est passé de sept minutes à plusieurs heures.
-* **Ne pas hériter du cache de la démonstration.** Nécessaire, insuffisant : la réoptimisation se produit aussi dans une copie partie de zéro.
-* **Faire découvrir les modules de story avant d'ouvrir le navigateur.** Améliore, ne ferme pas.
-* **Faire un échange à chaud dans le préchauffage.** A **aggravé** : quatre passes, une avec le préchauffage en échec et deux à sept cas rouges.
+*Clos par* le pré-empaquetage des paquets que `crypte.config.ts` importe, tirés des mêmes imports que l'adaptateur et le `wrap`. `packages/cli/test/reopt.test.ts` reproduit la course : mesuré, il rougit sans le correctif avec l'erreur exacte, et passe avec. Le `retry` de `screen.test.ts` est retiré, et le projet navigateur passe dix cas trois fois d'affilée.
 
-*Ce qui l'a nommée :* rendre les cas bavards. Un `#root` vide se lisait « expected '' to contain … », ce qui ne désigne personne ; avec les erreurs de la page, la cause est apparue à l'occurrence suivante.
-
-*Origine :* lot 5b, quatre occurrences et trois fausses causes avant la bonne.
+*Ce qui reste :* un paquet lié qu'une story importe sans que la configuration le nomme ne serait pas pré-empaqueté. Aucun usage ne le démontre, et le remède serait le même, une entrée de plus dans `include`.
 
 ### Le cache de dépendances ne se copie pas avec un projet
 

@@ -136,6 +136,7 @@ export default defineConfig({
           exclude: [
             '**/node_modules/**',
             '**/screen.test.ts',
+            '**/reopt.test.ts',
             '**/adapter.test.tsx',
             '**/app.test.ts',
           ],
@@ -168,7 +169,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'écran',
-          include: ['**/screen.test.ts'],
+          include: ['**/screen.test.ts', '**/reopt.test.ts'],
           sequence: { groupOrder: 1 },
         },
       },

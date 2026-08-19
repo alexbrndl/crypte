@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import sirv from 'sirv'
 import { parseSync, type Plugin } from 'vite'
 import { ConfigError } from './errors'
+import { isBareSpecifier } from './paths'
 import { storyFilesOf, type Catalogue } from './manifest'
 import { cssEntryOf, type Project } from './project'
 
@@ -199,6 +200,27 @@ function required(found: { imports: string[]; expression: string } | undefined):
   }
 
   return found
+}
+
+// The packages the configuration imports for the preview, by their bare name.
+//
+// Vite pre-bundles these rather than serving them as graph modules. A linked
+// workspace package is the awkward middle case: it sits in `node_modules` but is
+// not pre-bundled, so its rewritten dependency URLs are never invalidated when
+// the optimiser rewrites its bundles. Measured on the demo: after two
+// re-optimisations the adapter was still served with two stale hashes, and the
+// browser assembled four generations at once, which is the missing export of
+// `DCJ-221`. See docs/internal/architecture.md.
+export function configPackages(project: Project): string[] {
+  const sources = configSources(project)
+  const statements = [...(sources.adapter?.imports ?? []), ...(sources.wrap?.imports ?? [])]
+
+  const named = statements
+    .map((one) => /from\s+['"]([^'"]+)['"]/.exec(one)?.[1])
+    .filter((one): one is string => one !== undefined)
+    .filter((one) => isBareSpecifier(one))
+
+  return [...new Set(named)]
 }
 
 // Both fields the browser needs from the configuration, read in one parse: the

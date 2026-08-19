@@ -7,7 +7,7 @@ import { createServer, type ViteDevServer } from 'vite'
 import { fingerprintOf, writeFingerprint } from './fingerprint'
 import { buildCatalogue, writeCatalogue, type Catalogue } from './manifest'
 import { loadProject, viteConfigOf, type Project } from './project'
-import { servePlugin, PREVIEW_ENTRY_ID, PREVIEW_PAGE } from './serve'
+import { configPackages, servePlugin, PREVIEW_ENTRY_ID, PREVIEW_PAGE } from './serve'
 
 export interface Started {
   server: ViteDevServer
@@ -45,8 +45,14 @@ export async function startDev(
   const written = write(project.root, held.catalogue)
 
   const config = viteConfigOf(project)
+
+  // The configuration's own packages are pre-bundled: a linked workspace package
+  // served as a graph module keeps stale dependency URLs across a
+  // re-optimisation, and the preview then loads four generations at once.
+  // Measured, `DCJ-221`. See docs/internal/architecture.md.
   const server = await createServer({
     ...config,
+    optimizeDeps: { ...config.optimizeDeps, include: configPackages(project) },
     plugins: [...(config.plugins ?? []), servePlugin(project, () => held.catalogue)],
   })
 

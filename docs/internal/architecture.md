@@ -806,6 +806,12 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 *La leçon, plus large :* un chiffre de budget se change en relisant ce que le registre en dit. Celui-ci annonçait « 9 min 11 » et « tient dans le budget de 20 minutes », deux lignes que le retrait du contrôle de mutation n'a pas lues.
 
+**Les paquets que la configuration importe sont pré-empaquetés.** Un paquet de l'espace de travail lié dans `node_modules` est le cas intermédiaire : Vite ne l'invalide pas comme un module du projet, et il n'est pas pré-empaqueté, donc les URL de dépendances qu'il porte survivent à une réoptimisation. Le navigateur finissait par assembler **quatre générations** de paquets, et l'export manquant qu'il signalait était un paquet d'une génération interrogeant le runtime partagé d'une autre.
+
+*Reproduit à la demande*, après quatre occurrences qui ne l'avaient jamais permis : la course, c'est-à-dire une story qui tire une dépendance neuve **pendant** le premier chargement. Déclenchée sur une page posée, la même réoptimisation ne casse rien, Vite recharge l'iframe et la preview repart seule.
+
+*Ce qui casse si on l'enlève :* `reopt.test.ts` rougit avec l'erreur exacte, mesuré. Et le contournement retiré de `screen.test.ts`, un `retry` sur condition, redeviendrait nécessaire.
+
 **Les cas navigateur sont un projet à part.** Entrelacés avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le même. `sequence.groupOrder` les fait passer après, seuls sur la machine : trois passes vertes contre une sur quatre avant.
 
 **Les réglages partagés sont hoistés, parce qu'un projet n'hérite pas toujours de la racine.** Le projet `shell` étend `apps/shell/vite.config.ts`, qui porte le plugin Vue : il ne voyait donc ni l'ordre mélangé ni le délai d'`expect.poll`. Ses treize cas tournaient dans un ordre fixe, ce qui est exactement l'état où deux couplages nous ont coûté des heures. Un objet `partagé` est maintenant épandu dans la racine et dans ce projet, et trois lancements mélangés passent.

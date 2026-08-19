@@ -112,11 +112,11 @@ const test = base.extend<{ ecran: Ecran }>({
   },
 })
 
-// `retry` sur une condition, et une seule : `DCJ-221`, une réoptimisation des
-// dépendances que la preview ne surmonte pas. Le message remonte dans `vu()`,
-// donc dans l'échec, donc la condition le voit. Un réessai repart d'une copie et
-// d'un serveur neufs. À retirer avec l'issue.
-describe('l’écran', { retry: { count: 1, condition: /does not provide an export/ } }, () => {
+// Plus de `retry` : celui d'avant contournait `DCJ-221`, une réoptimisation des
+// dépendances dont la preview ne se relevait pas. La cause est corrigée, les
+// paquets que la configuration nomme étant pré-empaquetés, et `reopt.test.ts`
+// reproduit la course à la demande.
+describe('l’écran', () => {
   test('affiche l’arbre des stories', async ({ ecran }) => {
     await expect.poll(() => ecran.page.getByRole('button').count()).toBe(4)
     await expect
