@@ -750,6 +750,16 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 **Le tableau de cas est un tuple.** `noUncheckedIndexedAccess` rend `string | undefined` chaque élément d'un tableau non figé, donc onze `as const`, sinon neuf erreurs de type.
 
+**Les enveloppes d'une story.** `wrapsOf` met à plat les deux déclarations de la section 2.5, celle de la configuration puis celle du fichier, en une liste ordonnée dont la première entrée est la plus extérieure. L'adaptateur l'imbrique, un `createElement` par entrée, en pliant depuis la droite.
+
+*Le partage est celui de `propsOfStory` :* mettre cette forme à plat ne connaît aucun framework, composer des composants n'appartient qu'à lui. Deux adaptateurs qui aplatiraient chacun de leur côté dériveraient.
+
+*Un import relatif de la configuration est réécrit en chemin absolu depuis la racine.* L'entrée est un module virtuel, donc `./src/components/Frame` y résolvait contre son propre chemin et ne chargeait pas : mesuré sur la démonstration, où le `wrap` global a fait apparaître le défaut. Il précède ce lot, un adaptateur importé en relatif échouait de la même façon. Un import qui sort du projet est refusé en le nommant.
+
+*Le garde-fou ne se calcule pas sur une chaîne :* `posix.normalize('/../x')` rend `/x`, donc un `../` sortait en silence. La résolution se fait contre la racine réelle, mesuré.
+
+*Ce qui casse si on l'enlève :* une story qui déclare un `ThemeProvider` rend sans son contexte, sans un mot, ce qui était l'état avant ce lot alors que le contrat le promettait.
+
 **Le composant du shell est mesuré, et ça s'est joué sur un test, pas sur l'outil.** Ni v8 ni istanbul ne savent parser un `.vue` **brut** : les deux échouent sur `<template>`, et le fichier était donc exclu du rapport. La cause n'était pas le fournisseur mais l'absence de test qui le charge : dès que `apps/shell/test/app.test.ts` le monte, le plugin Vue le transforme, v8 le suit par sa carte de sources, et il paraît à **98,2 %**. Mesuré dans les deux sens avant de conclure.
 
 *Ce que ça a ajouté :* treize cas sur les 184 lignes du composant, dont la règle qui n'était éprouvée qu'en navigateur, « rien ne part avant que la preview ait dit `ready` ». Et un projet vitest `shell` qui étend `apps/shell/vite.config.ts` plutôt que la racine, parce que c'est elle qui porte le plugin Vue.

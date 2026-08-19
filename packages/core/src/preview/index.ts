@@ -87,3 +87,34 @@ export function propsOfStory(
 
   return { ...definition.props, ...own, ...overrides }
 }
+
+// The wrappers a story renders inside, outermost first, flattened from the two
+// places section 2.5 of docs/contracts.md declares them: the config's `wrap`
+// wraps the file's, which wraps the component. Each entry carries its own props,
+// which may be none.
+//
+// Here rather than in an adapter, like `propsOfStory`: flattening this shape
+// knows no framework, and it is the whole of the ordering rule. Nesting them is
+// what belongs to the adapter, one `createElement` per entry for React.
+export function wrapsOf(
+  global: unknown,
+  definition: { wrap?: unknown } | undefined,
+): { component: unknown; props: Record<string, unknown> }[] {
+  return [...entriesOf(global), ...entriesOf(definition?.wrap)]
+}
+
+// A `Wrap` is one wrapper or an array of them, and an entry of that array is a
+// wrapper or a `[wrapper, props]` pair. Any array entry is read as a pair: the
+// type declares no other array shape.
+function entriesOf(wrap: unknown): { component: unknown; props: Record<string, unknown> }[] {
+  if (wrap === undefined || wrap === null) return []
+  if (!Array.isArray(wrap)) return [{ component: wrap, props: {} }]
+
+  return wrap.flatMap((entry) => {
+    if (!Array.isArray(entry)) return entriesOf(entry)
+
+    const [component, props] = entry as [unknown, Record<string, unknown> | undefined]
+
+    return component === undefined || component === null ? [] : [{ component, props: props ?? {} }]
+  })
+}

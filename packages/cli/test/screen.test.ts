@@ -210,6 +210,24 @@ describe('l’écran', { retry: { count: 1, condition: /does not provide an expo
     expect(ecran.navigations()).toBe(avant)
   })
 
+  // La promesse de la section 2.5, de bout en bout : le `wrap` du projet
+  // enveloppe celui du fichier, qui enveloppe le composant. La démonstration
+  // déclare `Panel` dans sa configuration et `[[Tone, …]]` dans son fichier.
+  test('rend la story dans ses deux enveloppes, la globale à l’extérieur', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+
+    const cadre = ecran.page.frameLocator('iframe[title="preview"]')
+
+    // L'ordre, et pas seulement la présence : le sélecteur enfant direct
+    // échouerait si le fichier enveloppait le projet.
+    await expect
+      .poll(() => cadre.locator('[data-frame="panel"] > [data-frame="tone"]').count())
+      .toBe(1)
+    await expect
+      .poll(() => cadre.locator('[data-frame="tone"]').getAttribute('data-tone'))
+      .toBe('calm')
+  })
+
   test('fait apparaître dans l’arbre une story ajoutée', async ({ ecran }) => {
     await expect.poll(() => ecran.page.getByRole('button').count()).toBe(4)
 

@@ -1,4 +1,4 @@
-import { createPreviewChannel, propsOfStory } from '@crypte/core/preview'
+import { createPreviewChannel, propsOfStory, wrapsOf } from '@crypte/core/preview'
 import * as story0 from "/stories/Gardee.tsx"
 import "<racine>/packages/cli/test/fixture/src/styles/app.css"
 
@@ -8,6 +8,7 @@ const modules = {
 const manifest = await fetch("/@crypte/manifest.json").then((answer) => answer.json())
 
 const adapter = { name: 'fixture' }
+const globalWrap = undefined
 
 const container = document.getElementById('root')
 if (!container) throw new Error('preview container not found')
@@ -28,7 +29,11 @@ function render(id, overrides) {
   // story rendered nothing. Measured in a browser.
   const { component, definition } = module.default
 
-  adapter.mount(container, component, propsOfStory(definition, entry.name, overrides))
+  const props = propsOfStory(definition, entry.name, overrides)
+
+  // The wrappers last: the adapter nests them, outermost first, and the
+  // global one of section 2.5 comes from the configuration text.
+  adapter.mount(container, component, props, wrapsOf(globalWrap, definition))
 }
 
 const channel = createPreviewChannel({ render })

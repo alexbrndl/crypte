@@ -2,7 +2,7 @@
 // See docs/decisions.md and docs/internal/architecture.md.
 
 import { existsSync, readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sirv from 'sirv'
 import { parseSync, type Plugin } from 'vite'
@@ -175,6 +175,22 @@ export function previewHtml(): string {
 // Guessing a package from `adapter.name` is the other wrong answer: it breaks
 // the moment somebody wraps an adapter. The text says what the author wrote.
 export function adapterSource(project: Project): { imports: string[]; expression: string } {
+  const found = configSources(project).adapter
+  if (found === undefined) {
+    throw new ConfigError(
+      'crypte.config.ts must declare `adapter` in the object it exports, written in place.',
+    )
+  }
+
+  return found
+}
+
+// Both fields the browser needs from the configuration, read in one parse: the
+// adapter, and the global `wrap` of section 2.5 when the file declares one.
+export function configSources(project: Project): {
+  adapter?: { imports: string[]; expression: string }
+  wrap?: { imports: string[]; expression: string }
+} {
   const file = join(project.root, 'crypte.config.ts')
   const source = readFileSync(file, 'utf8')
   const parsed = parseSync('crypte.config.ts', source)
@@ -183,12 +199,23 @@ export function adapterSource(project: Project): { imports: string[]; expression
     throw new ConfigError(`crypte.config.ts could not be parsed: ${parsed.errors[0]?.message}`)
   }
 
-  const value = adapterExpression(parsed.program.body as unknown as Node[])
-  if (value === undefined) {
-    throw new ConfigError(
-      'crypte.config.ts must declare `adapter` in the object it exports, written in place.',
-    )
+  return {
+    adapter: fieldSource('adapter', source, parsed, project.root),
+    wrap: fieldSource('wrap', source, parsed, project.root),
   }
+}
+
+// One field of the exported object, as text, plus the imports it names. Rends
+// `undefined` when the file does not declare it: `adapter` is required and its
+// caller says so, `wrap` is not.
+function fieldSource(
+  field: string,
+  source: string,
+  parsed: ReturnType<typeof parseSync>,
+  root: string,
+): { imports: string[]; expression: string } | undefined {
+  const value = fieldExpression(parsed.program.body as unknown as Node[], field)
+  if (value === undefined) return undefined
 
   const locals = new Map<string, Node>()
   for (const one of parsed.module.staticImports as unknown as Node[]) {
@@ -212,8 +239,8 @@ export function adapterSource(project: Project): { imports: string[]; expression
   const built = [...names].find((name) => own.has(name))
   if (built !== undefined) {
     throw new ConfigError(
-      `crypte.config.ts hands \`adapter\` a value it builds itself (\`${built}\`). ` +
-        'Write the adapter in place, or import it: the preview reads this file, it never runs it.',
+      `crypte.config.ts hands \`${field}\` a value it builds itself (\`${built}\`). ` +
+        `Write the ${field} in place, or import it: the preview reads this file, it never runs it.`,
     )
   }
 
@@ -228,9 +255,43 @@ export function adapterSource(project: Project): { imports: string[]; expression
     if (one) needed.add(one)
   }
 
-  const imports = [...needed].map((one) => source.slice(one.start, one.end))
+  const imports = [...needed].map((one) => served(one, source, field, root))
 
   return { imports, expression: source.slice(value.start, value.end) }
+}
+
+// An import of the configuration, rewritten for the entry the browser loads. The
+// entry is a virtual module, so a relative specifier resolves against its own
+// path and not against the project: `./src/components/Frame` failed to resolve,
+// measured on the demo. Story files are already emitted root-absolute, and this
+// makes the configuration's imports travel the same way.
+function served(one: Node, source: string, field: string, root: string): string {
+  const request = one['moduleRequest'] as Node | undefined
+  const specifier = request?.['value'] as string | undefined
+  const statement = source.slice(one.start, one.end)
+
+  if (request === undefined || specifier === undefined || !specifier.startsWith('.')) {
+    return statement
+  }
+
+  // Resolved against the real root, not by normalising a string:
+  // `posix.normalize('/../x')` yields `/x`, so a `../` escaped in silence.
+  // Measured.
+  const inside = relative(root, resolve(root, specifier))
+  const rooted = `/${inside.split(sep).join('/')}`
+
+  if (inside.startsWith('..')) {
+    throw new ConfigError(
+      `crypte.config.ts imports \`${specifier}\` for \`${field}\`, which is outside the project. ` +
+        'The preview serves the project, so move the file under it or import a package.',
+    )
+  }
+
+  return (
+    statement.slice(0, request.start - one.start) +
+    JSON.stringify(rooted) +
+    statement.slice(request.end - one.start)
+  )
 }
 
 // The names a list of statements declares. Used on the file, where everything
@@ -411,7 +472,7 @@ interface Node {
 
 // `export default defineConfig({ … })` or `export default { … }`, and the
 // `adapter` property of whichever it is.
-function adapterExpression(body: Node[]): Node | undefined {
+function fieldExpression(body: Node[], field: string): Node | undefined {
   const exported = body.find((node) => node.type === 'ExportDefaultDeclaration')
   const declaration = exported?.['declaration'] as Node | undefined
   const object =
@@ -423,7 +484,7 @@ function adapterExpression(body: Node[]): Node | undefined {
 
   const found = (object['properties'] as Node[]).find(
     (property) =>
-      property.type === 'Property' && (property['key'] as Node | undefined)?.['name'] === 'adapter',
+      property.type === 'Property' && (property['key'] as Node | undefined)?.['name'] === field,
   )
   return found?.['value'] as Node | undefined
 }
@@ -467,7 +528,12 @@ function hot(files: string[]): string[] {
 export function previewEntry(project: Project, files: string[] = []): string {
   const css = cssEntryOf(project)
 
-  const adapter = adapterSource(project)
+  const { adapter, wrap } = configSources(project)
+  if (adapter === undefined) {
+    throw new ConfigError(
+      'crypte.config.ts must declare `adapter` in the object it exports, written in place.',
+    )
+  }
 
   // Named one by one rather than globbed. A glob takes the whole folder, so a
   // file the reader set aside — a missing dependency, a syntax error — brought
@@ -480,8 +546,9 @@ export function previewEntry(project: Project, files: string[] = []): string {
   const held = files.map((file, index) => `  ${JSON.stringify(`/${file}`)}: story${index},`)
 
   return [
-    "import { createPreviewChannel, propsOfStory } from '@crypte/core/preview'",
+    "import { createPreviewChannel, propsOfStory, wrapsOf } from '@crypte/core/preview'",
     ...adapter.imports,
+    ...(wrap?.imports ?? []),
     ...imports,
     ...(css ? [`import ${JSON.stringify(css)}`] : []),
     '',
@@ -489,6 +556,10 @@ export function previewEntry(project: Project, files: string[] = []): string {
     `const manifest = await fetch(${JSON.stringify(MANIFEST_ROUTE)}).then((answer) => answer.json())`,
     '',
     `const adapter = ${adapter.expression}`,
+    // The global wrap of section 2.5, read from the text like the adapter: the
+    // preview cannot import this file, it would run the project's Vite plugins
+    // in the browser.
+    `const globalWrap = ${wrap?.expression ?? 'undefined'}`,
     '',
     "const container = document.getElementById('root')",
     "if (!container) throw new Error('preview container not found')",
@@ -509,7 +580,11 @@ export function previewEntry(project: Project, files: string[] = []): string {
     '  // story rendered nothing. Measured in a browser.',
     '  const { component, definition } = module.default',
     '',
-    '  adapter.mount(container, component, propsOfStory(definition, entry.name, overrides))',
+    '  const props = propsOfStory(definition, entry.name, overrides)',
+    '',
+    '  // The wrappers last: the adapter nests them, outermost first, and the',
+    '  // global one of section 2.5 comes from the configuration text.',
+    '  adapter.mount(container, component, props, wrapsOf(globalWrap, definition))',
     '}',
     '',
     'const channel = createPreviewChannel({ render })',

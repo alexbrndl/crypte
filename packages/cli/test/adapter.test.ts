@@ -6,6 +6,10 @@ import { ConfigError } from '../src/errors'
 import { adapterSource } from '../src/serve'
 
 // Ce que la preview reprend de `crypte.config.ts`, lu et jamais exécuté.
+//
+// Un import relatif en ressort en chemin absolu depuis la racine : l'entrée est
+// un module virtuel, donc `./src/x` y résoudrait contre son propre chemin. Mesuré
+// sur la démonstration, où le `wrap` global ne chargeait pas.
 // Voir docs/internal/architecture.md.
 
 // Une fixture plutôt qu'une fonction libre : vitest la démonte après chaque cas,
@@ -140,7 +144,7 @@ describe('la source de l’adaptateur', () => {
   test('refuse un nom que le fichier déstructure', ({ projet }) => {
     const source = [
       "import { createAdapter } from '@crypte/react'",
-      "import { opts } from './opts'",
+      'import { opts } from "/opts"',
       'const { runtime } = opts',
       'export default { adapter: createAdapter({ runtime }) }',
     ].join('\n')
@@ -153,7 +157,7 @@ describe('la source de l’adaptateur', () => {
   test('refuse un nom que le fichier déclare dans un tableau', ({ projet }) => {
     const source = [
       "import { createAdapter } from '@crypte/react'",
-      "import { list } from './list'",
+      'import { list } from "/list"',
       'const [runtime] = list',
       'export default { adapter: createAdapter({ runtime }) }',
     ].join('\n')
@@ -182,7 +186,7 @@ describe('la source de l’adaptateur', () => {
   test('refuse un nom que le fichier tire d’un reste', ({ projet }) => {
     const source = [
       "import { createAdapter } from '@crypte/react'",
-      "import { list } from './list'",
+      'import { list } from "/list"',
       'const [mode, ...runtime] = list',
       'export default { adapter: createAdapter({ runtime }) }',
     ].join('\n')
@@ -197,7 +201,7 @@ describe('la source de l’adaptateur', () => {
   test('refuse un nom que le fichier déclare avec une valeur par défaut', ({ projet }) => {
     const source = [
       "import { createAdapter } from '@crypte/react'",
-      "import { opts } from './opts'",
+      'import { opts } from "/opts"',
       "const { runtime = 'react' } = opts",
       'export default { adapter: createAdapter({ runtime }) }',
     ].join('\n')
@@ -278,14 +282,14 @@ describe('la source de l’adaptateur', () => {
       projet(
         [
           "import { createAdapter } from '@crypte/react'",
-          "import { runtime } from './runtime'",
+          'import { runtime } from "/runtime"',
           "function make() { var runtime = 'vue'; return runtime }",
           'export default { adapter: createAdapter({ runtime }) }',
         ].join('\n'),
       ),
     )
 
-    expect(read.imports).toContain("import { runtime } from './runtime'")
+    expect(read.imports).toContain('import { runtime } from "/runtime"')
   })
 
   // `import x = require(…)` déclare un nom sans passer par les imports que le
@@ -339,13 +343,13 @@ describe('la source de l’adaptateur', () => {
       projet(
         [
           "import { createAdapter } from '@crypte/react'",
-          "import { fallback } from './fallback'",
+          'import { fallback } from "/fallback"',
           'export default { adapter: createAdapter({ pick: (mode = fallback) => mode }) }',
         ].join('\n'),
       ),
     )
 
-    expect(read.imports).toContain("import { fallback } from './fallback'")
+    expect(read.imports).toContain('import { fallback } from "/fallback"')
   })
 
   // Une clé calculée de motif est une expression, pas une liaison. Lue comme
@@ -356,19 +360,19 @@ describe('la source de l’adaptateur', () => {
       projet(
         [
           "import { createAdapter } from '@crypte/react'",
-          "import { field } from './field'",
+          'import { field } from "/field"',
           'export default { adapter: createAdapter({ pick: ({ [field]: value }) => value }) }',
         ].join('\n'),
       ),
     )
 
-    expect(read.imports).toContain("import { field } from './field'")
+    expect(read.imports).toContain('import { field } from "/field"')
   })
 
   test('lie bien la valeur d’une clé de motif, et pas son nom', ({ projet }) => {
     const source = [
       "import { createAdapter } from '@crypte/react'",
-      "import { opts } from './opts'",
+      'import { opts } from "/opts"',
       'const { runtime: mode } = opts',
       'export default { adapter: createAdapter({ mode }) }',
     ].join('\n')
@@ -385,7 +389,7 @@ describe('la source de l’adaptateur', () => {
       projet(
         [
           "import { createAdapter } from '@crypte/react'",
-          "import { field } from './field'",
+          'import { field } from "/field"',
           'export default {',
           '  adapter: createAdapter({ pick: class { constructor(@field() x) { void x } } }),',
           '}',
@@ -393,7 +397,7 @@ describe('la source de l’adaptateur', () => {
       ),
     )
 
-    expect(read.imports).toContain("import { field } from './field'")
+    expect(read.imports).toContain('import { field } from "/field"')
   })
 
   // Une annotation de type ne s'exécute pas : retenir son import ferait charger
@@ -435,7 +439,7 @@ describe('la source de l’adaptateur', () => {
         [
           "import { createAdapter } from '@crypte/react'",
           "import react from '@vitejs/plugin-react'",
-          "import { opts } from './opts'",
+          'import { opts } from "/opts"',
           'export default { adapter: createAdapter({ runtime: opts.react }) }',
         ].join('\n'),
       ),
@@ -443,7 +447,7 @@ describe('la source de l’adaptateur', () => {
 
     expect(read.imports).toEqual([
       "import { createAdapter } from '@crypte/react'",
-      "import { opts } from './opts'",
+      'import { opts } from "/opts"',
     ])
   })
 
@@ -453,7 +457,7 @@ describe('la source de l’adaptateur', () => {
         [
           "import { createAdapter } from '@crypte/react'",
           "import key from './key'",
-          "import { opts } from './opts'",
+          'import { opts } from "/opts"',
           'export default { adapter: createAdapter({ runtime: opts[key] }) }',
         ].join('\n'),
       ),
@@ -464,16 +468,32 @@ describe('la source de l’adaptateur', () => {
 
   test('accepte un nom qui vient d’un import', ({ projet }) => {
     const read = adapterSource(
-      projet(["import { adapter } from './adapter'", 'export default { adapter }'].join('\n')),
+      projet(['import { adapter } from "/adapter"', 'export default { adapter }'].join('\n')),
     )
 
     expect(read.expression).toBe('adapter')
-    expect(read.imports).toEqual(["import { adapter } from './adapter'"])
+    expect(read.imports).toEqual(['import { adapter } from "/adapter"'])
   })
 
   test('refuse un fichier qui ne déclare pas d’adaptateur', ({ projet }) => {
     expect(() => adapterSource(projet('export default { stories: "stories" }'))).toThrow(
       ConfigError,
+    )
+  })
+})
+
+// Ce qui sort de la racine ne se sert pas : la preview sert le projet, et un
+// `../` remonterait où elle n'a rien à offrir. Refusé en nommant le fichier.
+describe('un import qui sort du projet', () => {
+  test('est refusé, en nommant le spécificateur et le champ', ({ projet }) => {
+    const project = projet(`
+      import { createAdapter } from '../ailleurs/adapter'
+      export default { stories: 's', adapter: createAdapter() }
+    `)
+
+    expect(() => adapterSource(project)).toThrow(ConfigError)
+    expect(() => adapterSource(project)).toThrowErrorMatchingInlineSnapshot(
+      `[Error: crypte.config.ts imports \`../ailleurs/adapter\` for \`adapter\`, which is outside the project. The preview serves the project, so move the file under it or import a package.]`,
     )
   })
 })
