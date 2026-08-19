@@ -320,9 +320,17 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 
 *Un alias du projet est écarté de cette liste*, et il a fallu le mesurer : `@/adapters/mine` se lit comme un nom nu, donc il partait à l'optimiseur, qui n'a aucun paquet à pré-empaqueter derrière. Le tri se fait par le `capture` du résolveur, pas par une règle sur `@`.
 
+*Un import de types aussi*, trouvé à la revue : `referenced` sautait `typeAnnotation` mais pas `typeArguments`, donc `createAdapter<P>()` emportait `import type { P } from '@acme/types'` dans la liste, et Vite écrivait `Failed to resolve dependency` à chaque démarrage. Mesuré : bruyant, jamais fatal.
+
+*Les deux causes sont nécessaires, mesuré.* Avec le retrait du cache hérité rétabli mais sans le pré-empaquetage, le cas reste **rouge** : le cache hérité et la découverte tardive du paquet lié sont deux mécanismes distincts qui produisent la même erreur.
+
 ### Le cache de dépendances ne se copie pas avec un projet
 
-`packages/cli/test/screen.test.ts` copie le projet de démonstration, `node_modules` compris, et retire ensuite `node_modules/.crypte`.
+`packages/cli/test/screen.test.ts` et `reopt.test.ts` copient le projet de démonstration, `node_modules` compris, et retirent ensuite `node_modules/.crypte`.
+
+**Ce retrait a été perdu, et la panne est revenue.** `7cc83f4` l'avait ajouté en citant cette erreur ; `7483a9c`, la réécriture en fixtures du lot 5b, l'a supprimé sans le voir. `DCJ-221` a été ouverte le jour même pour l'erreur que ce retrait corrigeait. C'est le mode de défaillance que la règle des pièces mobiles vise, et cette entrée portait déjà son « ce qui casse si on l'enlève ».
+
+*Ce que ça a appris :* une ligne de mise en place se perd dans une réécriture, et sa raison ne vit que dans un commentaire que la réécriture emporte aussi. `reopt.test.ts` **affirme** maintenant la condition, `expect(existsSync(…deps)).toBe(false)`, plutôt que de la supposer : une supposition disparaît en silence, une assertion rougit.
 
 *Pourquoi.* Ce dossier est le cache de dépendances optimisées que le serveur de crypte écrit depuis le lot 5b. Hérité par une copie, il décrit des fichiers que cette copie n'a pas écrits : le navigateur recevait `The requested module '/node_modules/.crypte/deps/react-dom.js' does not provide an export named 't'` et la preview restait vide.
 

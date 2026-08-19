@@ -1,4 +1,4 @@
-import { cpSync, mkdtempSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium, type Browser } from 'playwright'
@@ -14,8 +14,10 @@ import { startDev } from '../src/dev'
 // signalait un export `t` manquant, et `#root` restait vide pour toujours,
 // rechargement compris. Voir docs/internal/architecture.md.
 //
-// Une copie du projet de démonstration : son dossier `.crypte` est vide dans le
-// dépôt, donc chaque copie repart d'un optimiseur froid, ce qui est la condition.
+// La condition est un optimiseur **froid**, et le cas l'affirme au lieu de la
+// supposer : `cpSync` emporte `node_modules`, donc le cache d'optimisation de la
+// démonstration, qu'un `crypte dev` lancé à la main y a peut-être laissé. Sans ce
+// retrait, la condition dépend de l'état d'une copie de travail.
 
 const demo = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'apps', 'demo')
 
@@ -34,6 +36,11 @@ describe('un optimiseur froid au premier chargement', () => {
     const root = mkdtempSync(join(demo, '..', 'tmp-demo-'))
     cpSync(demo, root, { recursive: true })
 
+    // Le cache hérité s'en va, et son absence est affirmée : c'est la condition
+    // du cas, pas un détail de mise en place.
+    rmSync(join(root, 'node_modules', '.crypte'), { recursive: true, force: true })
+    expect(existsSync(join(root, 'node_modules', '.crypte', 'deps'))).toBe(false)
+
     const started = await startDev(root, () => {})
     await started.server.listen()
     const address = started.server.httpServer?.address()
@@ -48,12 +55,19 @@ describe('un optimiseur froid au premier chargement', () => {
       // masquait la panne, et le `retry` qui la contournait.
       await page.goto(`http://localhost:${address.port}`)
 
-      const vu = async () =>
-        page
+      // Bavard comme celui de `screen.test.ts` : un `#root` vide seul ne nomme
+      // personne, et le rouge de ce cas est le seul signal de cette panne.
+      const vu = async () => {
+        const rendu = await page
           .frameLocator('iframe[title="preview"]')
           .locator('#root')
           .textContent()
           .catch(() => '<cadre absent>')
+
+        if (rendu) return rendu
+
+        return `<vide> ${plaintes.slice(-2).join(' | ')}`
+      }
 
       await expect.poll(vu, { timeout: 30_000 }).toBe('Nouveau')
 

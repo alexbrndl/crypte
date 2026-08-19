@@ -810,6 +810,8 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 *Reproduit à la demande*, après quatre occurrences qui ne l'avaient jamais permis, et il suffit de **ne pas préchauffer** : la première visite d'une copie fraîche découvre les dépendances du paquet lié pendant que la page charge. Déclenchée sur une page posée, la même réoptimisation ne casse rien, Vite recharge l'iframe et la preview repart seule.
 
+*Deux causes, pas une, et les deux sont nécessaires.* Un cache d'optimisation **hérité** d'une copie produit la même erreur, ce que `suivi.md` avait diagnostiqué au lot 5b avant que la réécriture en fixtures n'en perde le remède. Mesuré : le remède rétabli seul laisse le cas rouge, le pré-empaquetage seul le rend vert, et les deux sont en place.
+
 *C'est le préchauffage de `screen.test.ts` qui masquait la panne*, et le `retry` qui la contournait : `reopt.test.ts` est le même scénario sans préchauffage. Une première version de ce cas écrivait une story tirant une dépendance neuve, et passait **sans avoir rien déclenché** : le dossier des dépendances optimisées ne contenait pas ce paquet quand l'assertion passait. Trouvé en doutant d'un cas navigateur qui rendait en 1,2 s.
 
 *La liste vient des imports de la configuration*, donc aucun nom n'est codé en dur, et un alias que le projet déclare en est écarté par le `capture` du résolveur : `@/adapters/mine` se lit comme un nom nu et n'a pourtant aucun paquet derrière. Trouvé à l'exploration.

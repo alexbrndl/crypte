@@ -711,3 +711,32 @@ describe('les paquets de la configuration', () => {
     expect(configPackages(projet("export default { stories: 's', adapter: {} }"))).toEqual([])
   })
 })
+
+// La nature de l'import, second axe : un paquet de types n'a aucun paquet à
+// pré-empaqueter derrière, et Vite le disait à chaque démarrage.
+describe('un import de types', () => {
+  test('ne part ni dans l’entrée ni chez l’optimiseur', ({ projet }) => {
+    const project = projet(`
+      import { createAdapter } from '@crypte/react'
+      import type { P } from '@acme/types'
+      export default { stories: 's', adapter: createAdapter<P>() }
+    `)
+
+    expect(configPackages(project)).toEqual(['@crypte/react'])
+    expect(adapterSource(project).imports).toEqual([
+      "import { createAdapter } from '@crypte/react'",
+    ])
+  })
+
+  // `as` et `satisfies` passaient déjà par `typeAnnotation` : le cas les garde,
+  // pour que le tri ne se réduise pas à `typeArguments`.
+  test('écarte aussi un type nommé par as', ({ projet }) => {
+    const project = projet(`
+      import { createAdapter } from '@crypte/react'
+      import type { P } from '@acme/types'
+      export default { stories: 's', adapter: createAdapter() as P }
+    `)
+
+    expect(configPackages(project)).toEqual(['@crypte/react'])
+  })
+})

@@ -498,7 +498,11 @@ function referenced(node: Node): Set<string> {
 
     for (const [key, held] of Object.entries(inner)) {
       if (key === fixed) continue
-      if (key === 'typeAnnotation') continue
+      // Types name nothing the browser loads. `typeAnnotation` covers `as` and
+      // `satisfies` ; `typeArguments` covers `createAdapter<P>()`, which carried
+      // an `import type` into `optimizeDeps.include`, where Vite has no package
+      // to pre-bundle and says so on every start. Measured.
+      if (key === 'typeAnnotation' || key === 'typeArguments') continue
       walk(held, inside)
     }
   }

@@ -56,6 +56,11 @@ const test = base.extend<{ ecran: Ecran }>({
     const root = mkdtempSync(join(demo, '..', 'tmp-demo-'))
     cpSync(demo, root, { recursive: true })
 
+    // Le cache d'optimisation hérité de la copie s'en va : un cache écrit par une
+    // autre configuration fait réoptimiser sous la page, ce qui est `DCJ-221`, et
+    // le préchauffage ci-dessous suppose de partir froid.
+    rmSync(join(root, 'node_modules', '.crypte'), { recursive: true, force: true })
+
     const started = await startDev(root)
     await started.server.listen()
 
