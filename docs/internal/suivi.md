@@ -304,7 +304,11 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 
 `The requested module '/node_modules/.crypte/deps/react-dom.js?v=…' does not provide an export named 't'`, et `#root` vide pour toujours, rechargement compris.
 
-*Reproduit à la demande*, ce que quatre occurrences n'avaient pas permis : écrire une story qui tire une dépendance neuve **pendant** le premier chargement. Déclenchée après, la réoptimisation ne casse rien, Vite recharge l'iframe et la preview repart seule. C'est donc une course, pas une réoptimisation.
+*Reproduit à la demande*, ce que quatre occurrences n'avaient pas permis, et le déclencheur est plus simple que ce que j'avais d'abord écrit : **ne pas préchauffer**. La première visite d'une copie fraîche suffit, l'optimiseur découvrant les dépendances du paquet lié pendant que la page charge.
+
+*Une première version de cette entrée annonçait un autre déclencheur*, une story tirant une dépendance neuve pendant le chargement. C'était faux, et mesuré comme tel : le dossier des dépendances optimisées ne contenait pas le paquet de cette story quand l'assertion passait, donc le cas passait sans avoir rien déclenché. La leçon est celle du chronomètre : un cas navigateur qui rend en 1,2 s n'a pas fait ce qu'il annonce.
+
+*Déclenchée sur une page posée*, la même réoptimisation ne casse rien : Vite recharge l'iframe et la preview repart seule, mesuré. C'est donc bien une course avec le chargement.
 
 *La cause, mesurée.* Le navigateur assemblait **quatre générations** de paquets : `react.js` et `react-dom.js` en `d376bc5b`, `react-dom_client.js` en `0e03fc0a`, le morceau de runtime partagé en `a85cec4f`, `react-dom_server.js` en `2734d89d`, alors que le disque portait `a4c9ac7f`. L'export `t` manquant est un paquet d'une génération qui interroge le runtime d'une autre.
 
