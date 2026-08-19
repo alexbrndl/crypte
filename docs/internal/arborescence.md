@@ -69,6 +69,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/no-plugin/cases.ts` | ce que le noyau refuse installé seul | — |
 | `test/no-plugin/tsconfig.json` | programme sans la simulation de plugin | `no-plugin.test.ts` |
 | `test/isolation.test.ts` | étanchéité des trois entrées, sur les bundles | — |
+| `test/exported-names.ts` | les formes d'export lues dans un module, partagées | `spec.test.ts`, `protocol/index.test.ts` |
 | `test/spec.test.ts` | écart entre la spécification et le code | — |
 
 ## `packages/cli` — `@crypte/cli`

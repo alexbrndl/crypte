@@ -228,13 +228,15 @@ Vérifient ce que le noyau refuse **installé seul**, par une seconde compilatio
 Vérifie la forme des messages du canal.
 
 **`test/protocol/index.test.ts`**
-Vérifie que la porte d'entrée du protocole réexporte tout ce que les quatre modules déclarent.
+Vérifie que la porte d'entrée du protocole réexporte tout ce que les cinq modules déclarent.
 
 *Pourquoi :* un nom oublié en réorganisant `index.ts` disparaît de l'API publique sans que rien ne bronche. Les consommateurs internes importent depuis les fichiers, pas depuis la porte, donc ni le typage ni la construction ne voient l'absence. C'est arrivé en regroupant les réexports par thème, où `StoryEntry` s'est perdu.
 
 *Sans lui :* un paquet publié perd un type entre deux versions, et le seul à s'en apercevoir est l'utilisateur.
 
 *Ce qu'il lit :* les modules sont pris dans le dossier et non énumérés à la main, sinon un fichier oublié dans les deux endroits resterait invisible. Les noms déclarés couvrent aussi les formes que le protocole n'emploie pas encore, `export async function` par exemple, et les blocs `export { X }` sans `from`. Côté porte d'entrée, un réexport renommé compte pour son nom public : `StoryEntry as Entry` retire bien `StoryEntry` de l'API. Un `export *` est refusé, puisqu'il exposerait des noms sans les nommer et mettrait la comparaison hors service sans la faire échouer.
+
+**Les formes d'export sont lues par un seul code**, `packages/core/test/exported-names.ts`, que ce contrôle et celui de la spécification partagent. Ils posaient la même question à deux copies, et les copies avaient déjà divergé : la plus stricte rendait `undefined` sur une entrée qu'elle ne reconnaissait pas, et cette entrée disparaissait sans un mot. C'est exactement le défaut que le contrôle existe pour empêcher.
 
 *Il lit du texte, faute d'alternative :* un type n'existe pas à l'exécution, il n'y a donc rien à énumérer dans le module importé. Une première version cherchait chaque nom n'importe où dans le fichier, et le trouvait dans les commentaires de regroupement : elle laissait passer le retrait d'un export cité juste au-dessus. Les noms sont maintenant pris dans les accolades des réexports.
 
@@ -754,6 +756,12 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 **L'ordre des cas est mélangé, celui des fichiers non.** `sequence.shuffle.tests` a fait tomber **six cas sur onze** dans `hot.test.ts` et trois sur huit dans `screen.test.ts` : ces fichiers n'étaient verts que dans un ordre précis, et deux fois cette session un couplage n'a été trouvé que par hasard. Mélanger les fichiers, en revanche, annule l'optimisation qui lance les plus longs d'abord.
 
+**Le navigateur est en cache, et le budget du job vaut 20 minutes.** Mesuré : à vide, l'installation de Chromium a coûté 3 min 26 sur un runner et 19 min 50 sur l'autre, tuée par un budget que j'avais ramené à 10. Avec la touche de cache, 2 s de restauration, 1 min 19 d'apt, 2 min 4 pour le job entier.
+
+*Ce qui casse si on l'enlève :* le job repart à 95 Mo par exécution et par version de Node, avec une durée que rien ne borne, et le mode d'échec est une annulation sans aucune ligne d'erreur.
+
+*La leçon, plus large :* un chiffre de budget se change en relisant ce que le registre en dit. Celui-ci annonçait « 9 min 11 » et « tient dans le budget de 20 minutes », deux lignes que le retrait du contrôle de mutation n'a pas lues.
+
 **Les cas navigateur sont un projet à part.** Entrelacés avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le même. `sequence.groupOrder` les fait passer après, seuls sur la machine : trois passes vertes contre une sur quatre avant.
 
 **Les réglages partagés sont hoistés, parce qu'un projet n'hérite pas toujours de la racine.** Le projet `shell` étend `apps/shell/vite.config.ts`, qui porte le plugin Vue : il ne voyait donc ni l'ordre mélangé ni le délai d'`expect.poll`. Ses treize cas tournaient dans un ordre fixe, ce qui est exactement l'état où deux couplages nous ont coûté des heures. Un objet `partagé` est maintenant épandu dans la racine et dans ce projet, et trois lancements mélangés passent.
@@ -1021,9 +1029,23 @@ Le lot 2 a demandé neuf revues et cinquante-trois constats. Quatre mesures en s
 
 Deux corrections avaient été tentées sans rien changer : demander au sous-agent de publier avant de rendre compte, sa tâche s'achevant quand il rend son texte ; puis déplacer la responsabilité sur l'orchestrateur, ce qui reste une règle écrite.
 
-**Ce qu'il vérifie.** Le marqueur seul sur la première ligne, `event` à `COMMENT`, un niveau en tête de chaque point, un fichier et une ligne pour chacun, ce fichier appartenant au diff, et un compte de bloquants égal au nombre de points ancrés qui en portent le niveau.
+**Ce qu'il vérifie.** Le marqueur seul sur la première ligne, `event` à `COMMENT`, un niveau en tête de chaque point, un fichier et une ligne pour chacun, ce fichier appartenant au diff, **cette ligne tombant dans une portion du diff**, et un compte de bloquants égal au nombre de points ancrés qui en portent le niveau.
 
-Les deux dernières conditions ne sont pas cosmétiques. Un bloquant laissé dans le corps de la revue n'est pas résolvable, donc ne bloque rien. Et un seul point ancré hors du diff fait refuser l'appel entier en 422 : sans ce contrôle, l'échec sortirait en code 2, celui dont le geste est de recommencer, alors que ce qu'il faut est corriger le fichier.
+Les trois dernières conditions ne sont pas cosmétiques. Un bloquant laissé dans le corps de la revue n'est pas résolvable, donc ne bloque rien. Et un seul point ancré hors du diff fait refuser l'appel entier en 422 : sans ce contrôle, l'échec sortirait en code 2, celui dont le geste est de recommencer, alors que ce qu'il faut est corriger le fichier.
+
+**La ligne se vérifie comme le fichier.** `hunksOf` lit les `@@ -a,b +c,d @@` du diff d'un fichier et n'en garde que le couple de droite ; `inHunk` dit si une ligne y tombe ; `hunksByFile` le fait pour chaque fichier du diff.
+
+*Pourquoi ça existe.* Le fichier seul ne suffit pas : l'API exige que la ligne tombe dans une portion, et refuse l'appel **entier** pour un seul point mal placé. Un verdict de dix points se perdait donc pour une ligne, et le calcul avait déjà été écrit deux fois à la main, hors du script, pour valider les ancres avant de poster.
+
+*Trois choix mesurés.* `+c` sans `,d` vaut **une** ligne, pas zéro : comptée zéro, la plage serait vide et un point juste se ferait refuser. Un fichier dont les portions ne se lisent pas laisse passer, comme `changedFiles` le fait déjà pour le fichier : mieux vaut laisser l'API trancher que refuser un verdict juste. Et le contrôle ne vaut que pour `side: 'RIGHT'`, le seul côté dont ces plages parlent : un point du côté gauche vise une ligne d'avant le diff, et une section qui ne fait que supprimer rend une plage vide, donc le refuserait toujours.
+
+*Ce qui casse si on l'enlève :* on revient à poster, recevoir un 422 qui ne nomme aucun point, et chercher lequel des dix l'a causé.
+
+**Un dépôt jetable éprouve les deux commandes git.** `depotJetable` monte un dépôt d'un commit sur `main`, pose la référence `origin/main` par `update-ref` plutôt qu'un dépôt nu, et `dansLeDepot` y lance le script en sous-processus. `changedFiles` y rend `['change.txt']`, `hunksByFile` y rend `[['change.txt', [[1, 2]]]]`, la plage du fichier ajouté par la branche.
+
+*Pourquoi pas dans le dépôt courant :* le résultat dépendrait de la branche, donc les cas diraient autre chose à chaque lot.
+
+*Ce qui casse si on l'enlève :* les deux commandes redeviennent du texte que personne n'exécute. Mesuré dans les deux cas : `--names-only` au lieu de `--name-only`, et `origin/main..HEAD` avec `---` au lieu de `--`, font rougir un cas chacun. Sans eux, l'erreur d'arguments est avalée par le `catch`, la vérification devient un no-op complet, et le seul signe est une ligne sur `stderr` au milieu d'un postage qui réussit.
 
 Puis il compte les revues marquées **avant et après** l'appel, et échoue si le nombre n'a pas bougé. C'est la présence sur la pull request qui fait foi, pas le code de sortie de `gh` : une réponse d'API acceptée mais sans effet passerait sinon pour un succès.
 

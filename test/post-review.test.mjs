@@ -1,5 +1,19 @@
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { expect, test } from 'vitest'
-import { changedFiles, MARKER, publish, readCount, validate } from './post-review.mjs'
+import {
+  changedFiles,
+  hunksByFile,
+  hunksOf,
+  inHunk,
+  MARKER,
+  publish,
+  readCount,
+  validate,
+} from './post-review.mjs'
 
 // Un faux `gh` : rend le compte de revues marquées, qui n'augmente que si la
 // publication a eu lieu.
@@ -184,4 +198,222 @@ test('un verdict vide ou mal formé ne fait pas tomber le contrôle', () => {
   expect(
     validate({ event: 'COMMENT', body: `${MARKER}\naucun bloquant`, comments: 'deux' }),
   ).toContain('`comments` doit être un tableau')
+})
+
+// Les portions du diff. L'API refuse l'appel entier en 422 pour un seul point
+// posé hors portion, donc le script doit le voir avant elle.
+// Voir docs/internal/architecture.md.
+
+const DIFF = [
+  'diff --git a/x.ts b/x.ts',
+  '--- a/x.ts',
+  '+++ b/x.ts',
+  '@@ -1,4 +1,6 @@',
+  ' inchangé',
+  '+ajouté',
+  '@@ -40,3 +42,2 @@ contexte de section',
+  ' inchangé',
+].join('\n')
+
+test('lit les plages de la version droite, pas de la gauche', () => {
+  expect(hunksOf(DIFF)).toEqual([
+    [1, 6],
+    [42, 43],
+  ])
+})
+
+// `+c` sans `,d` vaut une seule ligne : compté comme zéro, la plage serait vide
+// et un point juste se ferait refuser.
+test('compte une portion d’une seule ligne', () => {
+  expect(hunksOf('@@ -1 +7 @@')).toEqual([[7, 7]])
+})
+
+test('rend une liste vide sur un diff sans portion', () => {
+  expect(hunksOf('diff --git a/x.ts b/x.ts\n')).toEqual([])
+})
+
+test('accepte une ligne dans une portion, refuse celle du dehors', () => {
+  const plages = hunksOf(DIFF)
+
+  expect(inHunk(1, plages)).toBe(true)
+  expect(inHunk(6, plages)).toBe(true)
+  expect(inHunk(7, plages)).toBe(false)
+  expect(inHunk(42, plages)).toBe(true)
+  expect(inHunk(44, plages)).toBe(false)
+})
+
+// Un fichier dont les portions ne se lisent pas laisse passer : mieux vaut
+// laisser l'API trancher que refuser un verdict juste.
+test('laisse passer quand aucune portion n’est lisible', () => {
+  expect(inHunk(999, [])).toBe(true)
+})
+
+test('refuse un point posé hors des portions de son fichier', () => {
+  const review = {
+    event: 'COMMENT',
+    body: `${MARKER}\n**Verdict : aucun bloquant.**`,
+    comments: [{ path: 'x.ts', line: 99, side: 'RIGHT', body: '**Important.** …' }],
+  }
+  const hunks = new Map([['x.ts', hunksOf(DIFF)]])
+
+  expect(validate(review, ['x.ts'], hunks).join(' ')).toContain('hors des portions du diff')
+  expect(validate(review, ['x.ts'], undefined)).toEqual([])
+})
+
+test('lit les portions fichier par fichier, et rend la main quand git échoue', () => {
+  const appels = []
+  const run = (args) => {
+    appels.push(args.join(' '))
+    return DIFF
+  }
+
+  expect(hunksByFile(['x.ts', 'y.ts'], run).get('y.ts')).toEqual([
+    [1, 6],
+    [42, 43],
+  ])
+  expect(appels).toEqual(['diff origin/main...HEAD -- x.ts', 'diff origin/main...HEAD -- y.ts'])
+
+  expect(hunksByFile(undefined, run)).toBeUndefined()
+  expect(
+    hunksByFile(['x.ts'], () => {
+      throw new Error('pas un dépôt')
+    }),
+  ).toBeUndefined()
+})
+
+// Le câblage réel, pas un lanceur injecté : ces deux commandes git ne
+// s'exécutaient jamais, donc une erreur d'arguments passait au vert. Sur un dépôt
+// jetable, parce que les exécuter ici rendrait le résultat dépendant de la
+// branche courante. Voir docs/internal/architecture.md.
+const MODULE = pathToFileURL(join(process.cwd(), 'test', 'post-review.mjs')).href
+
+// Un dépôt d'un commit sur `main`, plus ce que `suite` y ajoute sur une branche.
+// `update-ref` plutôt qu'un dépôt nu : la référence `origin/main` suffit.
+function depotJetable(suite = () => {}) {
+  const racine = mkdtempSync(join(tmpdir(), 'crypte-depot-'))
+  const git = (...args) => execFileSync('git', args, { cwd: racine, stdio: 'pipe' })
+
+  git('init', '-q', '-b', 'main')
+  git('config', 'user.email', 'test@crypte')
+  git('config', 'user.name', 'Test')
+  writeFileSync(join(racine, 'garde.txt'), 'un\n')
+  git('add', '-A')
+  git('commit', '-qm', 'départ')
+  suite(racine, git)
+
+  return racine
+}
+
+// Le script lancé dans ce dépôt, qui rend ce que l'expression imprime.
+function dansLeDepot(racine, expression) {
+  const sortie = execFileSync(
+    'node',
+    [
+      '--input-type=module',
+      '-e',
+      `import * as script from ${JSON.stringify(MODULE)}
+       console.log(JSON.stringify(${expression}))`,
+    ],
+    { cwd: racine, encoding: 'utf8', stdio: 'pipe' },
+  )
+
+  return JSON.parse(sortie)
+}
+
+const avecUneBranche = (racine, git) => {
+  git('update-ref', 'refs/remotes/origin/main', 'main')
+  git('checkout', '-q', '-b', 'travaux')
+  writeFileSync(join(racine, 'change.txt'), 'deux\ntrois\n')
+  git('add', '-A')
+  git('commit', '-qm', 'un fichier de plus')
+}
+
+test('exécute pour de vrai la commande git de changedFiles', () => {
+  const racine = depotJetable(avecUneBranche)
+
+  try {
+    expect(dansLeDepot(racine, 'script.changedFiles()')).toEqual(['change.txt'])
+  } finally {
+    rmSync(racine, { recursive: true, force: true })
+  }
+})
+
+// Le même trou, une fonction plus loin : sans ce cas, une erreur d'arguments dans
+// `hunksByFile` faisait rendre `undefined`, donc la vérification de ligne
+// devenait un no-op complet, avec pour seul signe une ligne sur `stderr` au
+// milieu d'un postage réussi.
+test('exécute pour de vrai la commande git de hunksByFile', () => {
+  const racine = depotJetable(avecUneBranche)
+
+  try {
+    expect(dansLeDepot(racine, "[...script.hunksByFile(['change.txt'])]")).toEqual([
+      ['change.txt', [[1, 2]]],
+    ])
+  } finally {
+    rmSync(racine, { recursive: true, force: true })
+  }
+})
+
+// Et le cas dégénéré, celui qui décide du reste : sans `origin/main`, la liste
+// est vide, ce que le script traite comme « illisible » plutôt que comme « le
+// diff ne touche rien ». Sinon tous les points seraient refusés, et le message
+// enverrait corriger le verdict quand c'est le dépôt qu'il faut mettre à jour.
+test('rend undefined quand origin/main n’existe pas', () => {
+  const racine = depotJetable()
+
+  try {
+    expect(dansLeDepot(racine, 'script.changedFiles() ?? null')).toBeNull()
+    expect(dansLeDepot(racine, "script.hunksByFile(['garde.txt']) ?? null")).toBeNull()
+  } finally {
+    rmSync(racine, { recursive: true, force: true })
+  }
+})
+
+// Les deux classes dégénérées d'un en-tête de section, mesurées.
+//
+// Une section qui ne fait que supprimer donne une plage vide, donc refuse tout
+// point : c'est juste, un commentaire du côté droit n'a aucune ligne où se poser.
+test('refuse un point sur une section qui ne fait que supprimer', () => {
+  const plages = hunksOf('@@ -3,4 +3,0 @@')
+
+  expect(plages).toEqual([[3, 2]])
+  expect(inHunk(3, plages)).toBe(false)
+})
+
+// Un en-tête illisible ne laisse aucune plage, donc laisse passer : le script ne
+// refuse un point que sur une mesure, jamais sur une lecture ratée.
+test('laisse passer quand l’en-tête de section est illisible', () => {
+  expect(hunksOf('@@ -1,2 +x,3 @@')).toEqual([])
+  expect(inHunk(42, hunksOf('@@ -1,2 +x,3 @@'))).toBe(true)
+})
+
+// Le contrôle ne vaut que pour le côté droit : à gauche, la ligne est celle
+// d'avant le diff, et un fichier supprimé rend une plage vide qui refuserait
+// tout. Mesuré : sans cette garde, un point `LEFT` que l'API accepte était
+// refusé, et le script sortait en 1 sur un verdict juste.
+test('ne vérifie la ligne que du côté droit', () => {
+  const point = (side) => ({
+    event: 'COMMENT',
+    body: `${MARKER}\n**Verdict : aucun bloquant.**`,
+    comments: [{ path: 'parti.ts', line: 2, side, body: '**Observation.** …' }],
+  })
+  // Un fichier supprimé : la version d'après n'a aucune ligne.
+  const hunks = new Map([['parti.ts', hunksOf('@@ -1,3 +0,0 @@')]])
+
+  expect(validate(point('LEFT'), ['parti.ts'], hunks)).toEqual([])
+  expect(validate(point('RIGHT'), ['parti.ts'], hunks).join(' ')).toContain('hors des portions')
+})
+
+// Sans `side`, l'API prend le côté droit : le contrôle doit faire de même,
+// sinon un verdict qui omet le champ échapperait à la vérification.
+test('traite un point sans côté comme un point du côté droit', () => {
+  const review = {
+    event: 'COMMENT',
+    body: `${MARKER}\n**Verdict : aucun bloquant.**`,
+    comments: [{ path: 'x.ts', line: 99, body: '**Observation.** …' }],
+  }
+
+  expect(
+    validate(review, ['x.ts'], new Map([['x.ts', hunksOf('@@ -1,2 +1,2 @@')]])).join(' '),
+  ).toContain('hors des portions')
 })

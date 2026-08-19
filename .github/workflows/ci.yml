@@ -16,9 +16,12 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    # 10 depuis le retrait du contrôle de mutation, qui lançait un test par
-    # garantie et demandait 20. Mesuré ici sur le job entier : moins de 2 min.
-    timeout-minutes: 10
+    # 20, et non 10. Le retrait du contrôle de mutation avait fait descendre ce
+    # chiffre sur une mesure de moins de 2 min, prise quand le navigateur était
+    # déjà là. L'installation de Chromium a coûté 9 min 11 une fois, ce que
+    # `docs/internal/suivi.md` disait, et le job s'est fait tuer à 10 min 17.
+    # Un budget se change en relisant ce que le registre en dit.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -41,6 +44,14 @@ jobs:
       # Le navigateur des cas d'écran. Sans lui `chromium.launch()` échoue sur
       # un exécutable absent, et le seul contrôle qui voit ce que l'utilisateur
       # voit tombe. Voir docs/internal/architecture.md.
+      #
+      # En cache sur la version du catalogue : 95 Mo par exécution et par version
+      # de Node, et une fois 9 min 11 à lui seul. `--with-deps` reste lancé même
+      # sur une touche, parce que les paquets système ne sont pas dans ce dossier.
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: chromium-${{ runner.os }}-${{ hashFiles('pnpm-workspace.yaml') }}
       - run: vp node node_modules/playwright/cli.js install --with-deps chromium
       # `--coverage` produit la mesure ; le verdict est rendu par le job
       # `coverage`, une seule fois, là où il est visible. Sans le drapeau, il n'y

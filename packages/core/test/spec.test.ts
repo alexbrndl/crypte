@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { declaredIn } from './exported-names'
 
 // L'écart entre la spécification et le code, qui a produit douze constats de
 // revue sur le lot 2. Voir docs/internal/architecture.md.
@@ -69,15 +70,13 @@ function declaredInterfaces(): { name: string; fields: string[] }[] {
     })
 }
 
+// Les formes lues sont celles du contrôle des réexports, par le même code : ce
+// motif n'en lisait que quatre sur onze, donc un type déclaré puis exporté seul
+// échappait au contrôle et la partie normative pouvait l'ignorer en silence.
 function declaredNames(): string[] {
   return readdirSync(protocol)
     .filter((file) => file.endsWith('.ts') && file !== 'index.ts')
-    .flatMap((file) => {
-      const source = readFileSync(join(protocol, file), 'utf8')
-      return [...source.matchAll(/^export (?:interface|type|const|function) (\w+)/gm)].map(
-        (match) => match[1] as string,
-      )
-    })
+    .flatMap((file) => declaredIn(readFileSync(join(protocol, file), 'utf8')))
 }
 
 describe('la spécification et le code', () => {

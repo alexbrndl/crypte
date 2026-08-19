@@ -163,14 +163,14 @@ Construis un fichier JSON, puis envoie-le :
 
 Un verdict sans compte de bloquants est inutilisable : celui qui le reçoit ne peut pas savoir ce qui retient la pull request, et retombe alors à tout corriger, ce qui est la boucle qu'on cherche à fermer.
 
-`test/post-review.mjs` refuse le fichier tant que ces conditions ne sont pas réunies : le marqueur seul sur la première ligne, `event` à `COMMENT`, un niveau en tête de chaque point, un `path` et une `line` pour chacun, ce `path` appartenant au diff quand les fichiers du diff sont lisibles, et un compte de bloquants égal au nombre de points ancrés qui en portent le niveau.
+`test/post-review.mjs` refuse le fichier tant que ces conditions ne sont pas réunies : le marqueur seul sur la première ligne, `event` à `COMMENT`, un niveau en tête de chaque point, un `path` et une `line` pour chacun, ce `path` appartenant au diff quand les fichiers du diff sont lisibles, cette `line` tombant dans une portion du diff quand le point vise le côté droit, et un compte de bloquants égal au nombre de points ancrés qui en portent le niveau.
 
 La dernière est la moins évidente : **un bloquant laissé dans le corps n'est pas résolvable, donc ne bloque rien.** Le compte annoncé et les points ancrés doivent donc coïncider.
 
 Deux choses restent à ta charge :
 
 - **Ancre chaque point sur un fichier.** Pour une remarque sans ligne évidente, par exemple une documentation manquante, ancre-la sur le fichier le plus concerné du diff.
-- **`line` doit tomber dans une portion du diff**, pas seulement dans un fichier qu'il touche. Le script vérifie le fichier, pas la ligne, et l'API refuse l'appel entier pour un seul point mal placé. En cas de doute, `git diff origin/main...HEAD -- <fichier>`.
+- **`line` doit tomber dans une portion du diff**, pas seulement dans un fichier qu'il touche. Le script le vérifie maintenant, pour les points du côté droit, et refuse le verdict en nommant le fichier et la ligne : « le point 2 vise la ligne 90 de x.ts, hors des portions du diff ». Tu n'as donc plus à le faire à la main, mais si tu veux choisir la ligne avant d'écrire, `git diff origin/main...HEAD -- <fichier>`.
 
 Structure de chaque commentaire ancré : la contrainte enfreinte citée nommément, et ce qui casse concrètement.
 

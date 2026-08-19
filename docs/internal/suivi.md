@@ -42,15 +42,11 @@ Le contrôle est satisfait dès qu'une revue portant le marqueur existe, quelle 
 
 *Origine :* constaté en passant la PR #16 en prêt.
 
-### `viteConfigOf` ne fixe pas de dossier de cache
+### Clos : `viteConfigOf` ne fixait pas de dossier de cache
 
-La configuration produite laisse Vite écrire dans `<projet>/node_modules/.vite`, le même dossier que le `vite dev` du projet. Deux serveurs aux plugins et aux entrées différents y écriraient le même `_metadata.json`.
+La configuration produite laissait Vite écrire dans `<projet>/node_modules/.vite`, le même dossier que le `vite dev` du projet : deux serveurs aux plugins et aux entrées différents y auraient écrit le même `_metadata.json`.
 
-*Ce qui l'atteste :* le fabricant de serveurs des tests a dû donner un cache propre à chacun, après deux échecs isolés jamais reproduits. Le code de production porte la même exposition sans la parade.
-
-*Pourquoi ce n'est pas fait ici :* aucun serveur ne tourne encore, `viteConfigOf` n'étant consommé que par les tests. Choisir l'emplacement demande de savoir ce que le serveur de preview partage avec le projet, ce que le lot 5 tranchera.
-
-*Origine :* revue 5 de la PR #17.
+*Clos par le lot 5b*, qui a fait tourner le serveur pour de vrai et a donc pu trancher l'emplacement : `node_modules/.crypte`, dans les `node_modules` du projet. Deux cas de `project.test.ts` le gardent, dont un négatif qui refuse `.vite`.
 
 ### Les chemins déclarés ne s'appliquent pas dans une feuille de style
 
@@ -81,14 +77,16 @@ Quatre fois sur le lot 3, puis une fois sur le lot 0 decies, une commande a éch
 | Ce qui a échoué | Ce qu'on a vu ensuite |
 |---|---|
 | deux tests isolés | vingt-trois lancements verts |
-| le contrôle de mutation, depuis retiré | deux relances vertes |
+| le contrôle de mutation, retiré au lot 5b | deux relances vertes |
 | `vp run -r pack`, code 2 | « Build complete » affiché, trois relances à zéro |
 | un test, juste avant un commit | treize lancements verts |
 | un test de `post-review`, dans la foulée d'un `vp check --fix` | quatre lancements verts sur un fichier identique au fichier rouge |
 
 *Ce qui a été fait :* donner un dossier de cache propre à chaque serveur de test, la seule cause plausible qui ait été mesurée, à savoir qu'ils partageaient `node_modules/.vite`. Les trois autres occurrences sont postérieures.
 
-*Ce qui reste :* aucune cause démontrée. Les quatre surviennent autour d'un commit ou d'un enchaînement de commandes, ce qui suggère une course avec le cache de tâches, mais rien ne l'établit.
+*Ce qui reste :* aucune cause démontrée pour ces cinq-là. Les quatre premières surviennent autour d'un commit ou d'un enchaînement de commandes, ce qui suggère une course avec le cache de tâches, mais rien ne l'établit. Deux des outils cités n'existent plus, donc deux de ces occurrences ne se reproduiront pas.
+
+*Une occurrence de la même famille a fini par avoir une cause*, et elle n'était pas dans l'environnement : le rouge intermittent de `project.test.ts` venait de son assertion, pas d'une course. C'est le premier endroit à regarder devant un rouge qui ne se reproduit pas.
 
 *Pourquoi c'est consigné :* une instabilité rare finit par tomber en intégration continue, où personne ne saura la reproduire. La noter permet au moins de compter.
 
@@ -124,13 +122,15 @@ Le contrôle de note de version exempte toute ligne commençant par `//`. Or `//
 
 ## Observations
 
-### Le contrôle de la spécification lit moins de formes que celui du barrel
+### Clos : le contrôle de la spécification lisait moins de formes que celui du barrel
 
-`spec.test.ts` reconnaît `export interface|type|const|function`, quand `index.test.ts` couvre aussi `export declare`, `class`, `enum`, `let`, `var`, `async function` et les blocs `export { X }` sans `from`.
+`spec.test.ts` ne reconnaissait que `export interface|type|const|function`, quand `index.test.ts` couvrait aussi `export declare`, `class`, `enum`, `let`, `var`, `async function` et les blocs `export { X }` sans `from`. Un type déclaré puis exporté séparément échappait donc au contrôle, et la partie normative pouvait l'ignorer en silence.
 
-*Conséquence :* un type déclaré puis exporté séparément échappe au contrôle, et la partie normative peut l'ignorer en silence.
+*Clos par* le **même code** que le contrôle des réexports, `packages/core/test/exported-names.ts`, et non par une copie du motif : les deux copies du premier essai avaient déjà divergé, et la plus stricte abandonnait en silence les entrées qu'elle ne reconnaissait pas, ce qui est le défaut que cette entrée décrit.
 
-*Origine :* revue 12 du lot 2.
+*Mesuré :* un `export declare const` ajouté à un module du protocole fait maintenant rougir le contrôle, ce que l'ancien motif laissait passer.
+
+*Ce que la mesure ne couvre pas :* la lecture des blocs `export { X }` locaux. Les cinq modules que ce contrôle lit n'en portent aucun aujourd'hui, donc cette moitié du code n'y est exercée par rien. Elle l'est du côté du barrel, où les mêmes fonctions servent pour de bon, et c'est la raison de les partager plutôt que de les recopier.
 
 ### Un fichier publié déplacé hors de `src/` n'exige aucune note
 
@@ -140,23 +140,23 @@ L'API des fichiers d'une pull request rend un renommage sous son seul nouveau no
 
 *Origine :* revue de la PR #19.
 
-### Le câblage réel de `changedFiles` n'est pas exécuté par les tests
+### Le câblage réel de `publish` n'est pas exécuté par les tests
 
-`changedFiles(run)` est éprouvé avec un lanceur injecté : la valeur par défaut, `git diff --name-only origin/main...HEAD`, ne s'exécute jamais en test. Une erreur d'arguments passerait au vert.
+`publish` est éprouvé avec un lanceur injecté : son appel `gh` réel ne s'exécute jamais en test.
 
-*Pourquoi ce n'est pas fait ici :* il faut un dépôt jetable avec un `origin` et deux branches, pour couvrir une commande de trois arguments. Le même compromis vaut pour `publish`, dont l'appel `gh` réel n'est pas davantage exercé.
+*Ce qui a été fermé :* le même trou sur `changedFiles`. Sa commande, `git diff --name-only origin/main...HEAD`, tourne maintenant pour de vrai sur un dépôt jetable monté par le cas, avec une référence `origin/main` posée par `update-ref` plutôt qu'un dépôt nu. Mesuré : remplacer `--name-only` par `--names-only` fait rougir le cas.
 
-*Ce qui l'atteste malgré tout :* la commande a tourné pour de bon à chaque publication de revue de cette pull request, trois fois.
+*Pourquoi `publish` reste dehors :* il faudrait une pull request réelle, donc un jeton et un dépôt distant. Ce qui l'atteste malgré tout est l'usage : la commande a tourné à chaque publication de revue, quatre fois sur la seule PR #34.
 
-*Origine :* revue 3 de la PR #18.
+*Ce qui le lèverait :* un faux `gh` sur le `PATH` du sous-processus, qui enregistre ses arguments. Le patron existe désormais, il a servi pour `changedFiles`.
 
-### `post-review` vérifie le fichier d'un point, pas sa ligne
+### Clos : `post-review` ne vérifiait que le fichier d'un point, pas sa ligne
 
-L'API exige que `line` tombe dans une portion du diff, pas seulement dans un fichier qu'il touche. Le script vérifie l'appartenance du fichier, jamais celle de la ligne : un point ancré sur la ligne 400 d'un fichier dont le diff ne change que les dix premières est publié, et l'appel entier échoue en 422.
+L'API exige que `line` tombe dans une portion du diff, pas seulement dans un fichier qu'il touche, et elle refuse l'appel **entier** en 422 pour un seul point mal placé. Le script ne vérifiait que le fichier.
 
-*Pourquoi ce n'est pas fait ici :* il faut analyser les en-têtes de section du diff pour reconstruire les lignes admissibles, ce qui est un lot en soi. Le fichier est le cas le plus fréquent, et il est couvert.
+*L'entrée annonçait « un lot en soi ».* Ce n'en était plus un : le calcul a été écrit deux fois à la main pendant le lot 5b, pour valider les ancres avant de poster. Il vit maintenant dans `hunksOf`, `inHunk` et `hunksByFile`, une quinzaine de lignes.
 
-*Origine :* exploration du lot 0 decies, après la revue de la PR #18.
+*Deux choix, chacun tiré d'une mesure.* `+c` sans `,d` vaut une ligne et non zéro, sinon la plage serait vide et un point juste se ferait refuser. Et un fichier dont les portions ne se lisent pas laisse passer : mieux vaut laisser l'API trancher que refuser un verdict juste, comme `changedFiles` le fait déjà pour le fichier.
 
 ### La relance du contrôle de revue reste écrite à la main
 
@@ -331,21 +331,15 @@ Quand Vite réécrit ses paquets de dépendances en cours de session, le navigat
 
 *Origine :* lot 5b, quatre occurrences avant d'être nommée.
 
-### `project.test.ts > échoue sans le résolveur` rougit par intermittence
+### Clos : `project.test.ts > échoue sans le résolveur` rougissait par intermittence
 
-Quatre occurrences dans la même session : trois sous `pnpm run mutations`, sur l'une de ses trois barrières, et **une sous un `vp test` ordinaire**. Chaque fois, la même commande relancée passe. `screen.test.ts` a rougi une fois de la même façon.
+Quatre occurrences au lot 5a, dont une sous un `vp test` ordinaire, chaque fois vertes à la relance. Le soupçon portait sur le cache de dépendances partagé par deux serveurs sur la même racine, sans qu'aucune mesure ne l'isole.
 
-*Ce que la mesure a écarté :* la charge du contrôle de mutation n'est pas nécessaire, puisque le rouge est apparu sans lui. Le fichier lancé seul passe, et six passes complètes d'affilée passent également, donc la fréquence est de l'ordre de un sur sept sans être reproductible à la demande.
+*La cause est établie, et ce n'était pas le cache.* `entry.jsx` porte **deux** imports aliasés, `@/components/Badge` et `@/assets`, et l'assertion nommait lequel devait échouer. Vite signale celui qu'il rencontre en premier, et cet ordre n'est pas stable : la CI du lot 5b l'a fait rougir sur Node 24 pendant que Node 22 passait.
 
-*Ce qui n'est pas établi :* la cause. Le cas est un contrôle négatif qui démarre un second serveur Vite sur **la même racine** que le cas précédent, donc sur le même cache de dépendances ; c'est un candidat, pas une cause, et rien ne l'a isolé.
+*Clos par* un motif qui ne nomme plus l'import, seulement l'échec de résolution d'un chemin aliasé. Le cas reste un contrôle négatif, il ne dépend plus de l'ordre.
 
-*Ce que ça coûte :* ces deux contrôles servent de barrière avant de pousser. Un rouge qui ne se reproduit pas apprend à relancer plutôt qu'à lire, ce qui est l'inverse de ce qu'on leur demande.
-
-*Ce qui a été fait ici :* les deux messages du contrôle qui disaient « ça échoue » sans dire quoi nomment maintenant la commande fautive et affichent sa sortie. C'était le vrai coût : deux diagnostics à l'aveugle avant d'avoir cette information.
-
-*Ce qui le trancherait :* boucler sur ce seul fichier jusqu'au rouge en capturant l'erreur, puis rejouer avec une racine propre par serveur pour voir si le rouge suit le cache.
-
-*Origine :* lot 5a, quatre occurrences mesurées.
+*Ce que ça a appris :* trois hypothèses avaient été formées sur l'environnement, aucune sur l'assertion. Un rouge qui suit la plateforme désigne d'abord ce que le test affirme.
 
 ### Deux points laissés ouverts à la sortie du brouillon du lot 5a
 
@@ -357,7 +351,15 @@ Quatre occurrences dans la même session : trois sous `pnpm run mutations`, sur 
 
 **L'installation de Chromium en CI coûte 95 Mo par exécution et par version de Node.** Elle n'est pas mise en cache, et son chemin `node_modules/playwright/cli.js` suppose le hissage à la racine du dépôt.
 
-*Pourquoi ce n'est pas traité ici :* le mode d'échec du chemin est un rouge bruyant et immédiat, pas un silence. Le coût est réel mais il tient dans le budget de 20 minutes du job, mesuré à 9 min 11 sur Node 24.
+*Le cache est posé*, sur `~/.cache/ms-playwright`, avec une clé sur la version du catalogue. `--with-deps` reste lancé même sur une touche : les paquets système apt ne vivent pas dans ce dossier.
+
+*Mesuré, et ça sépare les deux moitiés de l'étape.* À vide, l'installation a coûté 3 min 26 sur un runner et **19 min 50 sur l'autre**, tuée par le budget. Avec la touche : restauration de 282 Mo en **2 s**, étape réduite à **1 min 19**, ce qui ne reste que l'apt, et job entier à **2 min 4**. Le téléchargement était donc la moitié coûteuse, et la variable.
+
+*Pourquoi `--with-deps` n'est pas retiré :* 1 min 19 est un prix supportable pour que les cas d'écran tournent aussi sur un runner nu. Le retirer ferait dépendre le contrôle de ce que l'image de GitHub embarque, sans qu'aucune mesure ne le garantisse d'une version à l'autre.
+
+*Ce qui reste :* le chemin `node_modules/playwright/cli.js` suppose toujours le hissage à la racine. Son mode d'échec est un rouge bruyant et immédiat, pas un silence.
+
+*Ce que ça a coûté avant d'être posé :* le budget du job, ramené de 20 à 10 minutes au retrait du contrôle de mutation sur une mesure de moins de 2 min prise navigateur déjà présent. Le job s'est fait tuer à 10 min 17 sur cette installation, sans aucune ligne d'erreur, ce qui est le mode d'échec le plus désagréable. **Un chiffre de budget se change en relisant ce que le registre en dit** : celui-ci annonçait 9 min 11.
 
 *Ce qui le lèverait :* `actions/cache` sur `~/.cache/ms-playwright`, clé sur la version de Playwright du catalogue.
 
