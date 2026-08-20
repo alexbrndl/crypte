@@ -214,6 +214,20 @@ Le troisième, la colonne « props propres » de la page composant, veut les seu
 
 *Ce que `expectTypeOf` n'a pas eu à faire ici :* les trois garanties de type que le contrôle de mutation portait sont déjà attrapées par `vp check`, mesuré en affaiblissant `Wrap` et `Manifest.version`.
 
+### Arbitré : deux cas au bord du bandeau (`DCJ-217`)
+
+Le bandeau du shell ne montre que ce qui est **certain** d'avoir voulu être une story. Deux cas tombent au bord, mesurés le 20 août 2026.
+
+**Une faute de frappe sur le nom ne va pas au bandeau.** `export default defineStorys(Badge)` n'appelle pas `defineStories`, donc c'est une supposition, donc le terminal seul le dit. L'auteur qui ne lit pas son terminal ne voit rien.
+
+*Pourquoi c'est laissé là :* le discriminant existe, un appel à un identifiant que le fichier n'importe ni ne déclare plante à l'exécution, donc c'est sûrement une faute. Mais ce serait la **cinquième** règle sur cette frontière en un lot, et les quatre précédentes ont chacune été cassées par une mesure. Trois tours de revue sur quatre y sont passés. Ajouter une règle de plus sans usage réel qui la demande, c'est reprendre le cycle.
+
+*Ce qui la rouvrirait :* un usage sur un projet réel où la faute de frappe passe inaperçue. Le remède tient alors en un contrôle de liaison du nom appelé.
+
+**Un `stories: {}` délibéré va au bandeau.** L'issue le classe « intentionnel, rien de plus qu'un constat », et le message en est un : « the stories block names no story ». Il y reste parce qu'il vient d'un vrai appel à `defineStories`, donc il est certain, et parce qu'un fichier qui déclare zéro story sans le vouloir est plus fréquent que l'inverse.
+
+*La leçon du lot, plus large que le lot :* trois des quatre tours ont porté sur la même question, « ce fichier voulait-il être une story », et j'ai proposé trois règles fausses chacune dans un sens différent. Ce qui a fini par tenir n'est pas une meilleure heuristique mais un changement de question : **un journal au démarrage et une interface permanente n'ont pas le même coût pour une ligne en trop**, donc ils n'ont pas le même seuil. Quand une frontière résiste à trois règles, c'est la question qu'il faut changer, pas la règle.
+
 ### Ouvert : le terminal ne dit pas les fiches partielles
 
 `crypte dev` imprime les fichiers écartés, un par ligne avec sa raison, mais rien des `partial` que `DCJ-217` a ajoutés. Un utilisateur qui lit son terminal voit donc les stories perdues, pas les fiches incomplètes.
