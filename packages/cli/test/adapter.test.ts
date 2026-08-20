@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test as base } from 'vitest'
 import { ConfigError } from '../src/errors'
-import { adapterSource, configPackages, PREVIEW_ENTRY, previewEntry } from '../src/serve'
+import { adapterSource, configPackages, previewEntry } from '../src/serve'
 
 // Ce que la preview reprend de `crypte.config.ts`, lu et jamais exécuté.
 //
@@ -606,6 +606,8 @@ describe('adapter et wrap ensemble', () => {
 // espace que le préambule, et `import { adapter }` à côté de `const adapter =
 // adapter` ne chargeait pas du tout. Mesuré, sur une douzaine de noms.
 describe('les noms que l’entrée déclare', () => {
+  // Node lit du JavaScript : une configuration en TypeScript dans cette table
+  // ferait échouer le contrôle sur la syntaxe, pas sur une redéclaration.
   const accepteParNode = (entry: string) => {
     try {
       execFileSync('node', ['--input-type=module', '--check'], { input: entry, stdio: 'pipe' })
@@ -759,14 +761,6 @@ describe('un import de types', () => {
     expect(configPackages(project)).toEqual(['@acme/valeur'])
   })
 
-  // Le couplage avec `DCJ-224`, sinon il se perd : les déclarations restent hors
-  // de `VALUED` **parce que** l'entrée est servie en `.js`, donc Vite la
-  // transforme comme du JavaScript et aucune forme TypeScript n'y survit. Le
-  // jour où l'entrée passe en `.ts`, ce cas rougit et renvoie ici.
-  test('sert l’entrée en .js, ce qui est pourquoi les déclarations sont écartées', () => {
-    expect(PREVIEW_ENTRY.endsWith('.js')).toBe(true)
-  })
-
   // L'autre sens, et le plus grave : un nœud `TS…` qui porte une valeur et qu'on
   // saute fait disparaître un import dont l'entrée servie a besoin. Les cinq
   // expressions sont les seules entrées, et une assertion à l'ancienne est celle
@@ -786,6 +780,59 @@ describe('un import de types', () => {
 
     expect(configPackages(project)).toEqual(['@acme/valeur'])
     expect(adapterSource(project).imports).toEqual(["import { fait } from '@acme/valeur'"])
+  })
+
+  // Depuis que l'entrée est compilée (`DCJ-224`), les formes de déclaration
+  // s'exécutent, donc leur import doit voyager. Sauter le nœud laissait l'entrée
+  // lire un nom qu'elle n'importait pas, c'est-à-dire un `ReferenceError` et un
+  // cadre vide.
+  test.for([
+    ['une propriété de paramètre', 'new (class { constructor(public a = fait) {} })()'],
+    ['un membre d’énumération', '(() => { enum E { A = fait } return E.A })()'],
+    ['un corps de namespace', '(() => { namespace N { export const a = fait } return N.a })()'],
+  ] as const)('garde la valeur derrière %s', ([, expression], { projet }) => {
+    const project = projet(`
+      import { fait } from '@acme/valeur'
+      export default { stories: 's', adapter: ${expression} }
+    `)
+
+    expect(configPackages(project)).toEqual(['@acme/valeur'])
+    expect(adapterSource(project).imports).toEqual(["import { fait } from '@acme/valeur'"])
+  })
+
+  // Et les trois pièges de ces formes, chacun trouvé par une revue : un membre
+  // d'énumération se nomme lui-même, un corps de namespace est une portée, et
+  // une déclaration nichée dans un bloc ne nomme rien du fichier.
+  test.for([
+    [
+      'un nom de membre homonyme d’un type',
+      '(() => { enum E { P = 1 } return createAdapter(E.P) })()',
+      '',
+    ],
+    [
+      'une énumération sans initialiseur',
+      '(() => { enum E { P, Q } return createAdapter(E.P) })()',
+      '',
+    ],
+    [
+      'un namespace qui masque un nom du fichier',
+      '(() => { namespace N { export const runtime = 1 } return createAdapter(N.runtime) })()',
+      "const runtime = 'react'",
+    ],
+    [
+      'une énumération dans un bloc',
+      '(() => { if (1) { enum E { P = 1 } return createAdapter(E.P) } return createAdapter() })()',
+      '',
+    ],
+  ] as const)('écarte %s', ([, expression, tête], { projet }) => {
+    const project = projet(`
+      import { createAdapter } from '@crypte/react'
+      import type { P } from '@acme/types'
+      ${tête}
+      export default { stories: 's', adapter: ${expression} }
+    `)
+
+    expect(configPackages(project)).toEqual(['@crypte/react'])
   })
 
   // Un décorateur est une expression, et `TSParameterProperty` est le seul nœud

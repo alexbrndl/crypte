@@ -348,7 +348,9 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 
 *La piste que l'issue annonçait était fausse, et la mesure l'a dit avant le code :* renommer le module virtuel en `.ts` ne change rien, Vite ne transforme pas un module virtuel par son extension. Le chemin public reste donc `/@crypte/preview.js`, ce qui est exact puisque ce qui part est du JavaScript, et la section 4.1 de `contracts.md` n'a pas bougé.
 
-*Arrêté au tour 5 :* les huit noms de déclaration ajoutés aux tours 3 et 4 sont retirés. Chacun couvrait une forme que l'entrée ne peut pas servir, et chacun a ouvert une fuite, dont deux bloquants. La liste des nœuds à valeur tient aux cinq expressions, ce que l'usage démontre.
+*Arrêté au tour 5, puis rouvert par la correction :* les huit noms de déclaration retirés au tour 5 reviennent à six, `DCJ-224` ayant rendu ces formes exécutables. `TSImportEqualsDeclaration` et `TSQualifiedName` restent dehors, la seule forme qui les atteindrait étant refusée par `tsc`.
+
+*Le garde-fou avait tort de porter sur le chemin.* `PREVIEW_ENTRY.endsWith('.js')` devait rougir le jour où la prémisse tomberait ; la correction a gardé le chemin, donc il est resté vert pendant que la prémisse disparaissait. Retenir : un garde-fou affirme la chose dont on dépend, pas un symptôme attendu de cette chose.
 
 *Le couplage est tenu par un cas*, ajouté au tour 6 : un test affirme que `PREVIEW_ENTRY` finit en `.js`. Sans lui, le remède de `DCJ-224` réactiverait la fuite en silence, puisque les déclarations sont hors de `VALUED` **parce que** l'entrée est servie en JavaScript.
 

@@ -462,22 +462,30 @@ const CARRIES = new Set([
   'ClassExpression',
   'ClassDeclaration',
   'StaticBlock',
+  'TSModuleBlock',
 ])
 
 // A class member names itself, so `class { make() {} }` does not read a `make`
 // of the file. Measured: it produced a false « builds itself » refusal.
 const MEMBERS = new Set(['MethodDefinition', 'PropertyDefinition', 'AccessorProperty'])
 
-// The `TS…` nodes that hold a value, so the only ones the walk enters. All five
-// hold it under `expression`. A declaration that holds one too, an enum or a
-// namespace, is left out on purpose: the entry is served as `.js`, so no such
-// form runs at all. Voir docs/internal/architecture.md.
+// The `TS…` nodes that hold a value, so the only ones the walk enters. The five
+// expressions hold it under `expression`, a parameter property under
+// `parameter`, an enum member under `initializer`, a namespace under its block.
+// They belong here since the entry is compiled: these forms now run, so their
+// imports have to travel. Voir docs/internal/architecture.md.
 const VALUED = new Set([
   'TSAsExpression',
   'TSSatisfiesExpression',
   'TSNonNullExpression',
   'TSTypeAssertion',
   'TSInstantiationExpression',
+  'TSParameterProperty',
+  'TSEnumDeclaration',
+  'TSEnumBody',
+  'TSEnumMember',
+  'TSModuleDeclaration',
+  'TSModuleBlock',
 ])
 
 // The keys by which a value node points at a type. Doubled with the family
@@ -547,7 +555,9 @@ function referenced(node: Node): Set<string> {
             ? 'property'
             : MEMBERS.has(inner.type)
               ? 'key'
-              : undefined
+              : inner.type === 'TSEnumMember'
+                ? 'id'
+                : undefined
 
     for (const [key, held] of Object.entries(inner)) {
       if (key === fixed || TYPED.has(key)) continue
