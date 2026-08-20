@@ -545,3 +545,92 @@ describe('la lecture des stories', () => {
     expect(entries[0]?.props).toEqual(['a'])
   })
 })
+
+// La seconde moitié de la règle du lot 4 : ce qui est laissé de côté est dit.
+// L'étage du fichier vit dans `skipped`, celui de l'entrée dans `partial`, et
+// une story dont la fiche est partielle rend quand même. `DCJ-217`.
+describe('ce que la fiche ne dit pas', () => {
+  it('cite le spread que le fichier a écrit', () => {
+    const { entries } = fileWith(
+      'Spread.js',
+      `import { Badge } from './Badge'
+       const base = { title: 'x' }
+       export default defineStories(Badge, { stories: { Un: { ...base, size: 'lg' } } })`,
+    )
+
+    expect(entries[0]?.partial).toBe('`...base` brings props this reader cannot follow')
+    expect(entries[0]?.props).toEqual(['size'])
+  })
+
+  it('dit la clé de prop calculée sans nommer ce qu’elle vaut', () => {
+    const { entries } = fileWith(
+      'Calculee.js',
+      `import { Badge } from './Badge'
+       const cle = 'taille'
+       export default defineStories(Badge, { stories: { Un: { [cle]: 'lg', size: 'sm' } } })`,
+    )
+
+    expect(entries[0]?.partial).toBe('a prop whose key is computed at runtime is left out')
+  })
+
+  // Le bloc partagé vaut pour tout le fichier, donc sa note aussi.
+  it('porte la note du bloc partagé sur chaque entrée', () => {
+    const { entries } = fileWith(
+      'Partage.js',
+      `import { Badge } from './Badge'
+       const base = { title: 'x' }
+       export default defineStories(Badge, {
+         props: { ...base, size: 'lg' },
+         stories: { Un: {}, Deux: {} },
+       })`,
+    )
+
+    expect(entries).toHaveLength(2)
+    expect(entries.map((entry) => entry.partial)).toEqual([
+      '`...base` brings props this reader cannot follow',
+      '`...base` brings props this reader cannot follow',
+    ])
+  })
+
+  // Deux pertes que rien ne disait avant ce lot : un spread de la définition
+  // décide `props`, un autre décide `meta`, et l'entrée sortait muette.
+  it('dit un spread qui décide le bloc partagé et le meta', () => {
+    const { entries } = fileWith(
+      'Definition.js',
+      `import { Badge } from './Badge'
+       const autre = {}
+       export default defineStories(Badge, {
+         props: { size: 'lg' },
+         meta: { status: 'stable' },
+         ...autre,
+         stories: { Un: {} },
+       })`,
+    )
+
+    expect(entries[0]?.partial).toBe(
+      'a spread in the definition decides the props, so the shared block is not read; ' +
+        'a spread in the definition decides `meta`, so no status or owner is read',
+    )
+  })
+
+  // Une même raison deux fois ne se dit qu'une fois.
+  it('ne répète pas la même raison', () => {
+    const { entries } = fileWith(
+      'Deux.js',
+      `import { Badge } from './Badge'
+       export default defineStories(Badge, {
+         stories: { Un: { [a]: 1, [b]: 2, size: 'lg' } },
+       })`,
+    )
+
+    expect(entries[0]?.partial).toBe('a prop whose key is computed at runtime is left out')
+  })
+
+  // Le cas courant reste muet : un champ posé sur toutes les entrées ferait
+  // porter à chaque fiche un avertissement qui ne veut rien dire.
+  it('ne pose rien sur une story que le lecteur lit entièrement', () => {
+    const { entries } = entriesOf(join(stories, 'checkout', 'OrderSummary.jsx'), fixture, stories)
+
+    expect(entries.every((entry) => entry.partial === undefined)).toBe(true)
+  })
+})

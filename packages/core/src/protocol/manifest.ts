@@ -12,6 +12,17 @@ export interface Manifest {
   // by another version, a comparison a frozen type would make impossible.
   version: number
   entries: ManifestEntry[]
+  // What a story file gave up on, so the shell can say it. Optional, so a
+  // manifest written before it stays valid. Section 4.1 of docs/contracts.md.
+  skipped?: SkippedFile[]
+}
+
+// A file, not an entry: a story that was set aside has no entry to hang a
+// message on. `file` is the same project-relative path as `StoryEntry.storyFile`,
+// so a reader counts what the file did give by comparing the two.
+export interface SkippedFile {
+  file: string
+  reason: string
 }
 
 // `page` and `tokens` are reserved for design-system work: the field is here so
@@ -36,6 +47,10 @@ export interface StoryEntry {
   props: string[]
   source: string
   meta?: StoryMeta
+  // Set when the record is incomplete though the story renders: a spread or a
+  // computed key kept props out. Its text quotes what the file wrote, the
+  // missing names being what cannot be read. Section 4.1 of docs/contracts.md.
+  partial?: string
 }
 
 export interface ComponentRef {

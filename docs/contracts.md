@@ -400,12 +400,27 @@ Written by the CLI, read by the shell.
 
 The manifest feeds the shell: navigation tree, search, props table, controls panel. It holds serialisable data only. A prop that cannot be serialised is not in it; `details` is enough to say that it exists and what it is.
 
+**What the reader set aside travels with it.** A story file is read without being run, so what cannot be read without running it is set aside and said, never guessed. Both halves of that rule are in the manifest:
+
+- `skipped` names a **file**, once per reason, when the file gave no story or gave only part of them. It is a file and not an entry because a story that was set aside has no entry to hang a message on. A reader that wants the count compares `file` with the `storyFile` of the entries: the two are the same project-relative path.
+- `partial` names one **entry** whose record is incomplete: the story is there and renders, but a spread or a computed key kept props out of its table. Its text quotes what the file wrote, since the missing names are precisely what cannot be read.
+
+Both are optional, so a manifest written before them stays valid and the version does not move.
+
+Neither is ever fatal. A file being written must not cost the catalogue, and half a story is worth more than an empty screen.
+
 ### 4.2 Typed entries
 
 ```ts
 interface Manifest {
   version: number
   entries: ManifestEntry[]
+  skipped?: SkippedFile[]
+}
+
+interface SkippedFile {
+  file: string
+  reason: string
 }
 
 type ManifestEntry = StoryEntry
@@ -422,6 +437,7 @@ interface StoryEntry {
   props: string[]
   source: string
   meta?: StoryMeta
+  partial?: string
 }
 
 interface ComponentRef {

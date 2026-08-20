@@ -54,9 +54,20 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
   const storyFile = posix(relative(root, file))
 
   // Read only what a spread does not decide, the same rule the stories follow.
-  const shared = shadowed(definition, 'props')
-    ? new Map<string, Node>()
-    : propsOf(propertyOf(definition, 'props'))
+  const sharedProps = propertyOf(definition, 'props')
+  const shared = shadowed(definition, 'props') ? new Map<string, Node>() : propsOf(sharedProps)
+
+  // What the file lost above its stories, so every entry of the file says it.
+  // Three losses were silent: a spread deciding the shared block, a spread
+  // deciding `meta`, and what the shared block itself could not give up.
+  const above = [
+    ...(shadowed(definition, 'props')
+      ? ['a spread in the definition decides the props, so the shared block is not read']
+      : unreadOf(sharedProps, source)),
+    ...(shadowed(definition, 'meta')
+      ? ['a spread in the definition decides `meta`, so no status or owner is read']
+      : []),
+  ]
 
   // `meta` travels untouched: section 4.4. `details` does not travel yet, since
   // the manifest carries the resolved form, whose `type` and `required` come
@@ -66,11 +77,12 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
   // The helper can be imported under another name, and any other call is
   // somebody else's function whose arguments say nothing about props.
   const helper = boundTo(parsed.module, 'story') ?? 'story'
-  const { stories, reason } = produced(readStories(definition, helper))
+  const { stories, reason } = produced(readStories(definition, helper, source))
 
   return {
     entries: stories.map((story) => {
       const props = new Map([...shared, ...story.own])
+      const partial = [...new Set([...above, ...story.unread])]
 
       return {
         type: 'story',
@@ -84,6 +96,7 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
         props: [...props.keys()].sort(),
         source: callOf(name, props, source),
         ...(meta ? { meta } : {}),
+        ...(partial.length > 0 ? { partial: partial.join('; ') } : {}),
       } satisfies StoryEntry
     }),
     ...(reason ? { skipped: reason } : {}),
@@ -99,6 +112,8 @@ interface Declared {
   // name is certain, the value is not. See `propsOf`.
   own: Map<string, Node | undefined>
   options: Node | undefined
+  // What its own props block did not give up. See `unreadOf`.
+  unread: string[]
 }
 
 // What a file says about its stories. Three answers, never two: this reader can
@@ -118,7 +133,7 @@ type StoriesRead =
 function produced(read: StoriesRead): { stories: Declared[]; reason?: string } {
   switch (read.kind) {
     case 'noBlock':
-      return { stories: [{ name: ONLY_STORY, own: new Map(), options: undefined }] }
+      return { stories: [{ name: ONLY_STORY, own: new Map(), options: undefined, unread: [] }] }
     case 'these':
       return { stories: read.stories, reason: read.reason }
     case 'unusable':
@@ -134,7 +149,7 @@ function produced(read: StoriesRead): { stories: Declared[]; reason?: string } {
 }
 
 // The stories the file names, in the order it writes them.
-function readStories(definition: Node | undefined, helper: string): StoriesRead {
+function readStories(definition: Node | undefined, helper: string, source: string): StoriesRead {
   // The definition first: `defineStories(A, config)` holds nothing this reader
   // can follow, so the absence of a block below would prove nothing.
   if (definition !== undefined && definition.type !== 'ObjectExpression') {
@@ -193,7 +208,7 @@ function readStories(definition: Node | undefined, helper: string): StoriesRead 
     }
 
     const name = keyOf(property['key'] as Node)
-    named.set(name, { name, ...declaredBy(property['value'] as Node, helper) })
+    named.set(name, { name, ...declaredBy(property['value'] as Node, helper, source) })
   }
 
   const stories = [...named.values()]
@@ -212,21 +227,28 @@ function readStories(definition: Node | undefined, helper: string): StoriesRead 
 // Three forms carry the same thing. A bare object is the props. `story(props,
 // options)` keeps the two apart. The literal `{ props, options }` is what the
 // helper returns, and section 2.3 accepts it written by hand.
-function declaredBy(value: Node, helper: string) {
+function declaredBy(value: Node, helper: string, source: string) {
   if (value.type === 'CallExpression') {
     const callee = value['callee'] as Node
     if (callee?.type !== 'Identifier' || callee['name'] !== helper) {
-      return { own: new Map<string, Node | undefined>(), options: undefined }
+      return { own: new Map<string, Node | undefined>(), options: undefined, unread: [] }
     }
 
     const args = value['arguments'] as Node[]
-    return { own: propsOf(args[0] ?? null), options: args[1] }
+    const own = args[0] ?? null
+    return { own: propsOf(own), options: args[1], unread: unreadOf(own, source) }
   }
 
   const shaped = asStoryLiteral(value)
-  if (shaped) return { own: propsOf(shaped.props), options: shaped.options ?? undefined }
+  if (shaped) {
+    return {
+      own: propsOf(shaped.props),
+      options: shaped.options ?? undefined,
+      unread: unreadOf(shaped.props, source),
+    }
+  }
 
-  return { own: propsOf(value), options: undefined }
+  return { own: propsOf(value), options: undefined, unread: unreadOf(value, source) }
 }
 
 // A `Story` written by hand rather than through the helper. Recognised by its
@@ -321,6 +343,29 @@ function propertyOf(object: Node | undefined, name: string): Node | null {
   )
 
   return (found?.['value'] as Node | undefined) ?? null
+}
+
+// What an object literal did not give up. A spread's names and a computed key
+// cannot be read without running the file, so the note quotes what the file
+// wrote: the missing names are precisely what nobody can read.
+function unreadOf(object: Node | null, source: string): string[] {
+  if (object?.type !== 'ObjectExpression') return []
+
+  const notes = new Set<string>()
+
+  for (const property of (object['properties'] as Node[]) ?? []) {
+    if (property.type !== 'Property') {
+      notes.add(
+        `\`${source.slice(property.start, property.end)}\` brings props this reader cannot follow`,
+      )
+      continue
+    }
+
+    if (property['computed'] === true)
+      notes.add('a prop whose key is computed at runtime is left out')
+  }
+
+  return [...notes]
 }
 
 // The props an object literal writes, kept in order and paired with their value.

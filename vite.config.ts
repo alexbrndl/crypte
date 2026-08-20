@@ -138,6 +138,7 @@ export default defineConfig({
             '**/screen.test.ts',
             '**/reopt.test.ts',
             '**/typed.test.ts',
+            '**/aside.test.ts',
             '**/adapter.test.tsx',
             '**/app.test.ts',
           ],
@@ -170,7 +171,12 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'écran',
-          include: ['**/screen.test.ts', '**/reopt.test.ts', '**/typed.test.ts'],
+          include: [
+            '**/screen.test.ts',
+            '**/reopt.test.ts',
+            '**/typed.test.ts',
+            '**/aside.test.ts',
+          ],
           sequence: { groupOrder: 1 },
           // Un fichier à la fois : ils sont trois, et « seuls sur la machine »
           // est ce que `groupOrder` achète. Deux Chromium et deux serveurs en

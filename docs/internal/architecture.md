@@ -868,6 +868,16 @@ Les deux derniers chiffres sont le prix de la redondance : chaque filtre couvre 
 
 *Le cas porte son propre délai*, 120 s comme `reopt.test.ts`. Une première version laissait un sondage de 30 s sous le `testTimeout` partagé de 20 s : vitest tuait le cas avant la fin du sondage, donc la valeur bavarde n'était jamais rapportée et l'assertion sur les plaintes du navigateur jamais atteinte. Le « 20,6 s » qu'annonçait ce paragraphe **était** ce couperet, ce qui en est la preuve.
 
+**Ce que le lecteur écarte est dit à deux étages, et ils ne se confondent pas.** `Manifest.skipped` nomme un **fichier**, `StoryEntry.partial` nomme une **entrée**. Le premier existe parce qu'une story écartée n'a justement aucune entrée où accrocher un message ; le second parce qu'une story peut rendre correctement avec une fiche incomplète.
+
+*Le compte vient des entrées, pas d'un champ.* Mesuré : `skipped[].file` et `entry.storyFile` sont le même chemin relatif à la racine, en posix. Le shell compte donc lui-même ce qu'un fichier a quand même donné, et dit « 1 story lue, il en manque » ou « aucune story lue ». Un compte porté par le manifeste serait de l'état dupliqué, donc de l'état qui peut se contredire, et le message est précisément celui que l'issue interdit de rater : « ce fichier a été ignoré » est faux d'un fichier qui a rendu trois stories sur quatre.
+
+*`partial` porte un texte, pas une liste de props.* La forme riche aurait eu pour champ utile le nom des props perdues, or c'est exactement ce qui est inconnaissable : un `...base` ne se lit pas sans exécuter le fichier. Ce que le lecteur peut citer est le texte écrit, et c'est ce qu'il cite.
+
+*Trois pertes étaient muettes avant ce lot*, mesurées : un spread de la définition qui décide `props`, un autre qui décide `meta`, et ce qu'un bloc de props n'a pas pu donner. Aucune n'apparaissait ni dans `skipped` ni sur l'entrée, donc ni dans le terminal ni à l'écran.
+
+*Ce qui casse si on l'enlève :* `aside.test.ts` rougit, mesuré sur les trois pièces séparément, l'encart, la note et le champ dans le manifeste. Et les deux étages sont éprouvés hors navigateur aussi, sept cas sur le lecteur et quatre sur le shell.
+
 **Les cas navigateur sont un projet à part.** Entrelacés avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le même. `sequence.groupOrder` les fait passer après, seuls sur la machine : trois passes vertes contre une sur quatre avant.
 
 **Les réglages partagés sont hoistés, parce qu'un projet n'hérite pas toujours de la racine.** Le projet `shell` étend `apps/shell/vite.config.ts`, qui porte le plugin Vue : il ne voyait donc ni l'ordre mélangé ni le délai d'`expect.poll`. Ses treize cas tournaient dans un ordre fixe, ce qui est exactement l'état où deux couplages nous ont coûté des heures. Un objet `partagé` est maintenant épandu dans la racine et dans ce projet, et trois lancements mélangés passent.

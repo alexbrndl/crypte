@@ -31,6 +31,8 @@ interface Ecran {
   répond: (message: PreviewMessage) => Promise<void>
   statut: () => string
   noms: () => string[]
+  écartés: () => string[]
+  partielle: () => string | false
 }
 
 // Le montage lance `refresh()`, qui attend `fetch` : deux sauts de microtâche
@@ -41,8 +43,12 @@ const vide = async (wrapper: VueWrapper) => {
   await wrapper.vm.$nextTick()
 }
 
-const monte = async (entries: StoryEntry[], échoue = false): Promise<Ecran> => {
-  const manifest: Manifest = { version: 1, entries } as never
+const monte = async (
+  entries: StoryEntry[],
+  échoue = false,
+  skipped?: { file: string; reason: string }[],
+): Promise<Ecran> => {
+  const manifest: Manifest = { version: 1, entries, ...(skipped ? { skipped } : {}) } as never
 
   vi.stubGlobal(
     'fetch',
@@ -77,6 +83,8 @@ const monte = async (entries: StoryEntry[], échoue = false): Promise<Ecran> => 
       await vide(wrapper)
     },
     statut: () => wrapper.findAll('p').at(-1)?.text() ?? '',
+    écartés: () => wrapper.findAll('.set-aside li').map((one) => one.text()),
+    partielle: () => wrapper.find('.partial').exists() && wrapper.find('.partial').text(),
     noms: () => wrapper.findAll('button').map((one) => one.text()),
   }
 }
@@ -227,5 +235,59 @@ describe('ce que la preview répond', () => {
     await écran.wrapper.vm.$nextTick()
 
     expect(écran.wrapper.find('[role="alert"]').exists()).toBe(false)
+  })
+})
+
+// Les deux étages de ce que le catalogue a laissé de côté. L'erreur est visible
+// sans qu'on la cherche, parce que la story écartée est absente de l'arbre ;
+// l'avertissement est discret, parce que la story rend. `DCJ-217`.
+describe('ce que le catalogue a laissé de côté', () => {
+  test('ne montre rien quand tout a été lu', async () => {
+    const écran = await monte([badge])
+
+    expect(écran.écartés()).toEqual([])
+    écran.wrapper.unmount()
+  })
+
+  // Le compte vient des entrées : dire « ignoré » d'un fichier qui a rendu deux
+  // stories sur trois serait faux, et c'est le piège que l'issue nomme.
+  test('dit combien le fichier a quand même donné', async () => {
+    const écran = await monte([badge, alerte], false, [
+      {
+        file: 'stories/Badge.tsx',
+        reason: 'stories left out: one whose key is computed at runtime',
+      },
+      { file: 'stories/Seul.tsx', reason: 'the stories block is not an object literal' },
+    ])
+
+    expect(écran.écartés()).toEqual([
+      'stories/Badge.tsx : 2 stories lues, il en manque. stories left out: one whose key is computed at runtime',
+      'stories/Seul.tsx : aucune story lue. the stories block is not an object literal',
+    ])
+    écran.wrapper.unmount()
+  })
+
+  test('accorde le singulier', async () => {
+    const écran = await monte([badge], false, [{ file: 'stories/Badge.tsx', reason: 'raison' }])
+
+    expect(écran.écartés()).toEqual(['stories/Badge.tsx : 1 story lue, il en manque. raison'])
+    écran.wrapper.unmount()
+  })
+
+  // La fiche partielle suit la story affichée, pas le fichier : deux stories du
+  // même fichier peuvent perdre des props différentes.
+  test('montre la note de la story affichée, et d’elle seule', async () => {
+    const partielle = { ...badge, partial: '`...base` brings props this reader cannot follow' }
+    const écran = await monte([partielle as never, alerte])
+
+    expect(écran.partielle()).toBe(
+      'Fiche partielle : `...base` brings props this reader cannot follow.',
+    )
+
+    await écran.wrapper.findAll('button')[1]?.trigger('click')
+    await écran.wrapper.vm.$nextTick()
+
+    expect(écran.partielle()).toBe(false)
+    écran.wrapper.unmount()
   })
 })

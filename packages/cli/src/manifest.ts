@@ -66,7 +66,14 @@ export function buildCatalogue(project: Project): Catalogue {
 
   assertDistinct(entries)
 
-  return { manifest: { version: MANIFEST_VERSION, entries }, skipped }
+  // `skipped` travels in the manifest too, not only in the caller's output: the
+  // terminal is not where somebody looks for a story they cannot find. Absent
+  // rather than empty, so a project with nothing to say writes the same manifest
+  // as before. Section 4.1 of docs/contracts.md.
+  return {
+    manifest: { version: MANIFEST_VERSION, entries, ...(skipped.length > 0 ? { skipped } : {}) },
+    skipped,
+  }
 }
 
 export function writeCatalogue(root: string, manifest: Manifest): string {
