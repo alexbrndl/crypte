@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import sirv from 'sirv'
 import { parseSync, type Plugin } from 'vite'
 import { ConfigError } from './errors'
+import { capture, isBareSpecifier } from './paths'
 import { storyFilesOf, type Catalogue } from './manifest'
 import { cssEntryOf, type Project } from './project'
 
@@ -199,6 +200,34 @@ function required(found: { imports: string[]; expression: string } | undefined):
   }
 
   return found
+}
+
+// The packages the configuration imports for the preview, by their bare name.
+//
+// Vite pre-bundles these rather than serving them as graph modules. A linked
+// workspace package is the awkward middle case: it sits in `node_modules` but is
+// not pre-bundled, so its rewritten dependency URLs are never invalidated when
+// the optimiser rewrites its bundles. Measured on the demo: after two
+// re-optimisations the adapter was still served with two stale hashes, and the
+// browser assembled four generations at once, which is the missing export of
+// `DCJ-221`. See docs/internal/architecture.md.
+export function configPackages(project: Project): string[] {
+  const sources = configSources(project)
+  const statements = [...(sources.adapter?.imports ?? []), ...(sources.wrap?.imports ?? [])]
+
+  // A specifier the project's own paths capture is one of its files, not a
+  // package: `@/adapters/mine` reads as bare and would be handed to the optimiser,
+  // which has no package to pre-bundle. Judged by the resolver's own `capture`
+  // rather than by a rule about `@`. Measured at exploration.
+  const aliased = (one: string) =>
+    Object.keys(project.paths?.paths ?? {}).some((pattern) => capture(pattern, one) !== null)
+
+  const named = statements
+    .map((one) => /from\s+['"]([^'"]+)['"]/.exec(one)?.[1])
+    .filter((one): one is string => one !== undefined)
+    .filter((one) => isBareSpecifier(one) && !aliased(one))
+
+  return [...new Set(named)]
 }
 
 // Both fields the browser needs from the configuration, read in one parse: the
@@ -403,6 +432,10 @@ function bindings(node: Node | undefined): string[] {
       if (key === 'right' && inner.type === 'AssignmentPattern') continue
       if (key === 'key' && inner.type === 'Property') continue
       if (key === 'typeAnnotation') continue
+      // A decorator is an expression too, and `TSParameterProperty` is the only
+      // node that reaches this key: `constructor(@field() public a)` binds `a`,
+      // and reading `field` as a binding lost its import.
+      if (key === 'decorators') continue
       walk(held)
     }
   }
@@ -415,8 +448,36 @@ function bindings(node: Node | undefined): string[] {
 const FUNCTIONS = new Set(['ArrowFunctionExpression', 'FunctionExpression', 'FunctionDeclaration'])
 
 // The node types that carry their own names, so that a parameter shadowing a
-// name of the file does not make the expression look like it uses that name.
-const CARRIES = new Set([...FUNCTIONS, 'CatchClause'])
+// name of the file does not make the expression look like it uses that name. A
+// class expression is one: it carries its own `id` and its static blocks.
+const CARRIES = new Set([
+  ...FUNCTIONS,
+  'CatchClause',
+  'ClassExpression',
+  'ClassDeclaration',
+  'StaticBlock',
+])
+
+// A class member names itself, so `class { make() {} }` does not read a `make`
+// of the file. Measured: it produced a false « builds itself » refusal.
+const MEMBERS = new Set(['MethodDefinition', 'PropertyDefinition', 'AccessorProperty'])
+
+// The `TS…` nodes that hold a value, so the only ones the walk enters. All five
+// hold it under `expression`. A declaration that holds one too, an enum or a
+// namespace, is left out on purpose: the entry is served as `.js`, so no such
+// form runs at all. Voir docs/internal/architecture.md.
+const VALUED = new Set([
+  'TSAsExpression',
+  'TSSatisfiesExpression',
+  'TSNonNullExpression',
+  'TSTypeAssertion',
+  'TSInstantiationExpression',
+])
+
+// The keys by which a value node points at a type. Doubled with the family
+// above on purpose: a name has to be missing from both lists to travel.
+// Voir docs/internal/architecture.md.
+const TYPED = new Set(['typeAnnotation', 'typeArguments', 'typeParameters', 'returnType'])
 
 // The names an expression takes from outside itself. A string is not one, and
 // neither is a name that only sits where a name cannot be read: the key of an
@@ -435,6 +496,10 @@ function referenced(node: Node): Set<string> {
 
     const inner = current as Node
 
+    // Types name nothing the browser loads, and a type position is any `TS…`
+    // node outside `VALUED`. Voir docs/internal/architecture.md.
+    if (inner.type.startsWith('TS') && !VALUED.has(inner.type)) return
+
     // Named, then walked through: `constructor(@field() x)` hangs `field` off
     // the identifier, and stopping here left its import behind.
     if (inner.type === 'Identifier') {
@@ -452,10 +517,19 @@ function referenced(node: Node): Set<string> {
 
       for (const name of bindings(inner['param'] as Node | undefined)) inside.add(name)
 
-      const body = inner['body'] as Node | undefined
-      if (body?.type === 'BlockStatement') {
-        for (const name of declared((body['body'] as Node[]) ?? [])) inside.add(name)
-      }
+      // A named expression names itself: `new (class Frame {})()` reads no
+      // `Frame` of the file. Measured, it produced a false « builds itself ».
+      for (const name of bindings(inner['id'] as Node | undefined)) inside.add(name)
+
+      // A static block holds its statements directly, a function under a block.
+      const body = inner['body'] as Node | Node[] | undefined
+      const statements = Array.isArray(body)
+        ? body
+        : body?.type === 'BlockStatement'
+          ? ((body['body'] as Node[]) ?? [])
+          : []
+
+      for (const name of declared(statements)) inside.add(name)
     }
 
     const fixed =
@@ -465,11 +539,12 @@ function referenced(node: Node): Set<string> {
           ? 'key'
           : inner.type === 'MemberExpression'
             ? 'property'
-            : undefined
+            : MEMBERS.has(inner.type)
+              ? 'key'
+              : undefined
 
     for (const [key, held] of Object.entries(inner)) {
-      if (key === fixed) continue
-      if (key === 'typeAnnotation') continue
+      if (key === fixed || TYPED.has(key)) continue
       walk(held, inside)
     }
   }

@@ -806,13 +806,55 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 *La leçon, plus large :* un chiffre de budget se change en relisant ce que le registre en dit. Celui-ci annonçait « 9 min 11 » et « tient dans le budget de 20 minutes », deux lignes que le retrait du contrôle de mutation n'a pas lues.
 
+**Les paquets que la configuration importe sont pré-empaquetés.** Un paquet de l'espace de travail lié dans `node_modules` est le cas intermédiaire : Vite ne l'invalide pas comme un module du projet, et il n'est pas pré-empaqueté, donc les URL de dépendances qu'il porte survivent à une réoptimisation. Le navigateur finissait par assembler **quatre générations** de paquets, et l'export manquant qu'il signalait était un paquet d'une génération interrogeant le runtime partagé d'une autre.
+
+*Reproduit à la demande*, après quatre occurrences qui ne l'avaient jamais permis, et il suffit de **ne pas préchauffer** : la première visite d'une copie fraîche découvre les dépendances du paquet lié pendant que la page charge. Déclenchée sur une page posée, la même réoptimisation ne casse rien, Vite recharge l'iframe et la preview repart seule.
+
+*Deux causes, pas une, et les deux sont nécessaires.* Un cache d'optimisation **hérité** d'une copie produit la même erreur, ce que `suivi.md` avait diagnostiqué au lot 5b avant que la réécriture en fixtures n'en perde le remède. Mesuré : le remède rétabli seul laisse le cas rouge, le pré-empaquetage seul le rend vert, et les deux sont en place.
+
+*C'est le préchauffage de `screen.test.ts` qui masquait la panne*, et le `retry` qui la contournait : `reopt.test.ts` est le même scénario sans préchauffage. Une première version de ce cas écrivait une story tirant une dépendance neuve, et passait **sans avoir rien déclenché** : le dossier des dépendances optimisées ne contenait pas ce paquet quand l'assertion passait. Trouvé en doutant d'un cas navigateur qui rendait en 1,2 s.
+
+*La liste vient des imports de la configuration*, donc aucun nom n'est codé en dur, et un alias que le projet déclare en est écarté par le `capture` du résolveur : `@/adapters/mine` se lit comme un nom nu et n'a pourtant aucun paquet derrière. Trouvé à l'exploration.
+
+*Les positions de type sont écartées par nœud, pas par clé.* Un `import type` parti dans `optimizeDeps.include` n'a aucun paquet derrière et Vite le dit à chaque démarrage. Une liste de clés se re-oublie : `typeAnnotation` et `typeArguments` laissaient passer `<T extends Q>(x: T) => …`, qui nomme `Q` par `typeParameters`. La règle est donc **un nœud `TS…`, sauf les cinq qui portent une valeur** : `TSAsExpression`, `TSSatisfiesExpression`, `TSNonNullExpression`, `TSTypeAssertion`, `TSInstantiationExpression`, tous sous `expression`.
+
+*Le préfixe `TSType` ne suffit pas*, et s'en contenter a coûté un tour de revue : `TSAsExpression.typeAnnotation` porte le nœud de type directement, et `TSFunctionType`, `TSConstructorType`, `TSImportType`, `TSTupleType`, `TSUnionType` n'ont pas ce préfixe. Leurs identifiants ne sont pas des types mais des **noms** : un nom de paramètre, un `qualifier`, un `label` de tuple. Mesuré, `adapter: make as (Opts: number) => unknown` faisait repartir `@acme/opts` chez l'optimiseur, et `const runtime = 'react'` avec `make as (runtime: string) => unknown` faisait **refuser une configuration valide** avec un message faux.
+
+*Les deux filtres sont doublés exprès*, la famille de nœuds **et** les quatre clés par lesquelles un nœud de valeur désigne un type (`typeAnnotation`, `typeArguments`, `typeParameters`, `returnType`). Un nom doit manquer aux deux listes pour voyager. Chacune a son sens d'erreur : une clé oubliée envoie un type chez l'optimiseur, où Vite ne trouve aucun paquet, un nœud à valeur oublié **retire un import dont l'entrée servie a besoin**. Le second est le plus grave, et il s'est produit : `TSParameterProperty` porte sa valeur sous `parameter`, `constructor(public a = fait)` perdait donc `@acme/valeur` de l'entrée alors qu'elle y était utilisée.
+
+*La liste des nœuds à valeur tient aux cinq expressions*, qui portent toutes leur valeur sous `expression`. Les déclarations qui en portent une aussi, une énumération, un `namespace`, une propriété de paramètre, en sont volontairement absentes : **l'entrée est servie en `.js`**, donc aucune de ces formes ne s'exécute, et chacune ajoutée aux tours 3 et 4 a ouvert une fuite. Un membre d'énumération faisait voyager son propre nom, `enum E { Kind = 1 }` emportant l'`import type { Kind }` chez l'optimiseur ; un corps de `namespace` n'étant pas une portée, un `export const runtime` y masquant un `runtime` du fichier faisait **refuser une configuration valide**.
+
+*Un nom qui se nomme lui-même n'est pas un nom du fichier.* Trois formes de la même espèce produisaient un faux « builds itself » sur du JavaScript parfaitement valide : un membre de classe (`new (class { make() {} })()` avec un `make` dans le fichier), le nom propre d'une expression nommée (`new (class Nom {})()`, `(function Nom() {})()`), et un bloc statique, qui porte ses déclarations directement là où une fonction les porte sous un bloc. Le refus reste vivant pour un nom que l'expression lit vraiment, un cas le tient.
+
+*Ce qui est surveillé, et ce qui ne l'est pas.* Mesuré pièce par pièce en retirant chacune :
+
+| Pièce retirée | Cas rouges |
+| -- | --: |
+| `TSAsExpression` de `VALUED` | 7 |
+| `TSTypeAssertion` | 2 |
+| `TSSatisfiesExpression`, `TSNonNullExpression`, `TSInstantiationExpression` | 1 chacune |
+| `MEMBERS` de la chaîne `fixed` | 2 |
+| l'`id` d'une expression nommée | 2 |
+| `StaticBlock` de `CARRIES` | 1 |
+| le `continue` sur `decorators` | 1 |
+| **le garde par nœud** | **0** |
+| **le filtre par clé `TYPED`** | **0** |
+
+Les deux derniers chiffres sont le prix de la redondance : chaque filtre couvre seul toutes les formes connues, donc retirer l'un ne rougit pas. Ce qui les tient est le commentaire du code, pas un test. C'est assumé, et le chiffre est écrit ici pour qu'on ne relise pas la redondance comme surveillée : une version antérieure de ce paragraphe annonçait dix rouges, chiffre vrai au tour 3 et faux depuis que `TYPED` existe, exactement le genre d'affirmation qu'une revue a dû corriger.
+
+*Le couplage avec `DCJ-224` est tenu par un cas.* Les déclarations restent hors de `VALUED` **parce que** l'entrée est servie en `.js`. Un cas affirme cette extension, donc le jour où l'entrée passe en `.ts`, il rougit et renvoie à cette décision plutôt que de laisser la fuite revenir en silence.
+
+*Le cache est posé avant d'être retiré*, dans les deux fichiers navigateur. Affirmer son absence après un `rmSync` récursif ne surveillait rien : `apps/demo/node_modules/.crypte` n'existe pas dans un dépôt frais, donc l'affirmation était vraie sans condition et retirer le `rmSync` laissait les cas verts en intégration continue. Un `mkdirSync` d'un cache factice donne au retrait quelque chose à retirer, et la ligne perdue par `7483a9c` redevient impossible à perdre en silence.
+
+*Ce qui casse si on l'enlève :* `reopt.test.ts` rougit avec l'erreur exacte, mesuré : 31 s et `does not provide an export named 't'` sans le pré-empaquetage, 1,19 s au vert avec. Le chiffre bas est le chemin vert, pas un cas vide, et c'est la vérification qu'un cas navigateur rapide mérite toujours. Et le contournement retiré de `screen.test.ts`, un `retry` sur condition, redeviendrait nécessaire.
+
 **Les cas navigateur sont un projet à part.** Entrelacés avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le même. `sequence.groupOrder` les fait passer après, seuls sur la machine : trois passes vertes contre une sur quatre avant.
 
 **Les réglages partagés sont hoistés, parce qu'un projet n'hérite pas toujours de la racine.** Le projet `shell` étend `apps/shell/vite.config.ts`, qui porte le plugin Vue : il ne voyait donc ni l'ordre mélangé ni le délai d'`expect.poll`. Ses treize cas tournaient dans un ordre fixe, ce qui est exactement l'état où deux couplages nous ont coûté des heures. Un objet `partagé` est maintenant épandu dans la racine et dans ce projet, et trois lancements mélangés passent.
 
 **Les réglages sont dans la configuration, plus dans les fichiers.** `testTimeout`, `hookTimeout` et surtout `expect.poll.timeout`, dont **le défaut d'une seconde** était la cause d'une partie de l'instabilité que j'attribuais à la charge.
 
-**Un réessai sur condition, pas un réessai global.** `retry: { condition: /does not provide an export/ }` ne réessaie que pour `DCJ-221`, la réoptimisation de dépendances que la preview ne surmonte pas. Le message remonte dans le diagnostic du cas, donc la condition le voit.
+**Plus de réessai sur condition.** `retry: { condition: /does not provide an export/ }` contournait `DCJ-221` en attendant sa cause ; la cause étant traitée, le réessai est retiré. Un réessai qui survit à sa panne rend vert un cas qui échoue une fois sur deux.
 
 *Ce qui casse si on l'enlève :* les couplages entre cas redeviennent invisibles, et les délais repartent se disperser dans les fichiers, où ils avaient atteint la trentaine.
 

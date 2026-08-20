@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test as base } from 'vitest'
 import { ConfigError } from '../src/errors'
-import { adapterSource, previewEntry } from '../src/serve'
+import { adapterSource, configPackages, PREVIEW_ENTRY, previewEntry } from '../src/serve'
 
 // Ce que la preview reprend de `crypte.config.ts`, lu et jamais exécuté.
 //
@@ -654,5 +654,223 @@ describe('les noms que l’entrée déclare', () => {
 
     expect(entry).toContain('const __crypte_adapter = createAdapter()')
     expect(entry).not.toMatch(/^const adapter =/m)
+  })
+})
+
+// Les paquets que l'optimiseur doit pré-empaqueter, tirés des mêmes imports. Un
+// paquet lié servi comme module du graphe garde des URL de dépendances périmées,
+// ce qui est `DCJ-221`. Voir docs/internal/architecture.md.
+describe('les paquets de la configuration', () => {
+  const paquets = (
+    spec: string,
+    projet: (source: string) => never,
+    paths?: Record<string, string[]>,
+  ) =>
+    configPackages({
+      ...(projet(`
+        import { A } from '${spec}'
+        export default { stories: 's', adapter: A }
+      `) as unknown as { root: string }),
+      config: { stories: 's' },
+      paths: paths ? { paths, base: '/', files: [] } : undefined,
+    } as never)
+
+  test.for([
+    ['un paquet nu', 'ma-lib', ['ma-lib']],
+    ['un paquet scopé', '@crypte/react', ['@crypte/react']],
+    ['un sous-chemin de paquet', 'react-dom/client', ['react-dom/client']],
+  ] as const)('retient %s', ([, spec, attendu], { projet }) => {
+    expect(paquets(spec, projet)).toEqual(attendu)
+  })
+
+  // Un relatif est déjà réécrit en chemin de racine, donc il n'a rien de nu.
+  test.for([
+    ['un relatif', './src/adapter'],
+    ['un module natif', 'node:fs'],
+  ] as const)('écarte %s', ([, spec], { projet }) => {
+    expect(paquets(spec, projet)).toEqual([])
+  })
+
+  // Le cas trouvé à l'exploration : un alias du projet se lit comme un nom nu, et
+  // l'optimiseur n'a aucun paquet à pré-empaqueter derrière.
+  test('écarte un alias que le projet déclare', ({ projet }) => {
+    expect(paquets('@/adapters/mine', projet, { '@/*': ['src/*'] })).toEqual([])
+    expect(paquets('@/adapters/mine', projet)).toEqual(['@/adapters/mine'])
+  })
+
+  test('ne nomme qu’une fois le paquet que les deux champs partagent', ({ projet }) => {
+    const project = projet(`
+      import { createAdapter, Panel } from '@crypte/react'
+      export default { stories: 's', adapter: createAdapter(), wrap: Panel }
+    `)
+
+    expect(configPackages(project)).toEqual(['@crypte/react'])
+  })
+
+  test('ne rend rien quand la configuration n’importe rien', ({ projet }) => {
+    expect(configPackages(projet("export default { stories: 's', adapter: {} }"))).toEqual([])
+  })
+})
+
+// La nature de l'import, second axe : un paquet de types n'a aucun paquet à
+// pré-empaqueter derrière, et Vite le disait à chaque démarrage.
+describe('un import de types', () => {
+  test('ne part ni dans l’entrée ni chez l’optimiseur', ({ projet }) => {
+    const project = projet(`
+      import { createAdapter } from '@crypte/react'
+      import type { P } from '@acme/types'
+      export default { stories: 's', adapter: createAdapter<P>() }
+    `)
+
+    expect(configPackages(project)).toEqual(['@crypte/react'])
+    expect(adapterSource(project).imports).toEqual([
+      "import { createAdapter } from '@crypte/react'",
+    ])
+  })
+
+  // Les formes qu'un tri par clé n'atteignait pas, et qu'un tri sur le seul
+  // préfixe `TSType` faisait voyager : mesuré, chacune emportait son paquet.
+  test.for([
+    ['un paramètre de type contraint', '(<T extends P>(x: T) => x)(createAdapter())'],
+    ['un type de fonction qui nomme un import', 'createAdapter as (Autre: number) => unknown'],
+    ['un type de constructeur', 'createAdapter as new (Autre: number) => unknown'],
+    ['un import de type en ligne', "createAdapter as import('@acme/types').P"],
+    ['un membre de tuple nommé', 'createAdapter as [Autre: string]'],
+  ] as const)('écarte %s', ([, expression], { projet }) => {
+    const project = projet(`
+      import { createAdapter } from '@crypte/react'
+      import type { P } from '@acme/types'
+      import { Autre } from '@acme/autre'
+      export default { stories: 's', adapter: ${expression} }
+    `)
+
+    expect(configPackages(project)).toEqual(['@crypte/react'])
+  })
+
+  // L'exception : une assertion à l'ancienne porte une valeur, et le saut sur la
+  // famille entière perdait le paquet de cette valeur.
+  test('garde la valeur d’une assertion à l’ancienne', ({ projet }) => {
+    const project = projet(`
+      import type { P } from '@acme/types'
+      import { fait } from '@acme/valeur'
+      export default { stories: 's', adapter: <P>fait }
+    `)
+
+    expect(configPackages(project)).toEqual(['@acme/valeur'])
+  })
+
+  // Le couplage avec `DCJ-224`, sinon il se perd : les déclarations restent hors
+  // de `VALUED` **parce que** l'entrée est servie en `.js`, donc Vite la
+  // transforme comme du JavaScript et aucune forme TypeScript n'y survit. Le
+  // jour où l'entrée passe en `.ts`, ce cas rougit et renvoie ici.
+  test('sert l’entrée en .js, ce qui est pourquoi les déclarations sont écartées', () => {
+    expect(PREVIEW_ENTRY.endsWith('.js')).toBe(true)
+  })
+
+  // L'autre sens, et le plus grave : un nœud `TS…` qui porte une valeur et qu'on
+  // saute fait disparaître un import dont l'entrée servie a besoin. Les cinq
+  // expressions sont les seules entrées, et une assertion à l'ancienne est celle
+  // qui perdrait sa valeur.
+  test.for([
+    ['une assertion à l’ancienne', '<P>fait'],
+    ['un as', 'fait as P'],
+    ['un satisfies', 'fait satisfies P'],
+    ['un non-null', 'fait!'],
+    ['une instanciation', 'fait<P>'],
+  ] as const)('garde la valeur derrière %s', ([, expression], { projet }) => {
+    const project = projet(`
+      import type { P } from '@acme/types'
+      import { fait } from '@acme/valeur'
+      export default { stories: 's', adapter: ${expression} }
+    `)
+
+    expect(configPackages(project)).toEqual(['@acme/valeur'])
+    expect(adapterSource(project).imports).toEqual(["import { fait } from '@acme/valeur'"])
+  })
+
+  // Un décorateur est une expression, et `TSParameterProperty` est le seul nœud
+  // qui atteigne la clé : le lire comme une liaison perdait son import.
+  test('garde la valeur derrière un décorateur de propriété de paramètre', ({ projet }) => {
+    const project = projet(`
+      import { fait } from '@acme/valeur'
+      export default {
+        stories: 's',
+        adapter: new (class { constructor(@fait() public a = 1) { void fait } })(),
+      }
+    `)
+
+    expect(adapterSource(project).imports).toEqual(["import { fait } from '@acme/valeur'"])
+  })
+
+  // Un membre de classe se nomme lui-même : le lire comme un nom du fichier
+  // produisait un faux refus sur du JavaScript valide.
+  test.for([
+    ['une méthode', 'make() { return 2 }'],
+    ['un champ', 'make = 2'],
+  ] as const)('n’accuse pas la configuration à cause de %s', ([, membre], { projet }) => {
+    const project = projet(`
+      import { createAdapter } from '@crypte/react'
+      const make = () => 1
+      export default {
+        stories: 's',
+        adapter: new (class { mount() { return createAdapter() } ${membre} })(),
+      }
+    `)
+
+    expect(configPackages(project)).toEqual(['@crypte/react'])
+  })
+
+  // Même espèce : une expression nommée porte son nom, un bloc statique porte
+  // ses déclarations. Chacune produisait un faux refus sur du JavaScript valide.
+  test.for([
+    ['une classe nommée', 'new (class Nom { mount() { return createAdapter() } })()'],
+    ['une fonction nommée', '(function Nom() { return createAdapter() })()'],
+    [
+      'un bloc statique',
+      'new (class { static { const Nom = 2; void Nom } mount() { return createAdapter() } })()',
+    ],
+  ] as const)('n’accuse pas la configuration à cause de %s', ([, expression], { projet }) => {
+    const project = projet(`
+      import { createAdapter } from '@crypte/react'
+      const Nom = 1
+      export default { stories: 's', adapter: ${expression} }
+    `)
+
+    expect(configPackages(project)).toEqual(['@crypte/react'])
+  })
+
+  // Et le refus reste vivant pour un nom que l'expression lit vraiment.
+  test('refuse toujours un nom que la configuration construit', ({ projet }) => {
+    const project = projet(`
+      import { createAdapter } from '@crypte/react'
+      const Nom = 1
+      export default { stories: 's', adapter: new (class { mount() { return createAdapter(Nom) } })() }
+    `)
+
+    expect(() => configPackages(project)).toThrow('builds itself')
+  })
+
+  // Un nom du fichier réutilisé comme nom de paramètre dans un type n'est pas un
+  // nom que la configuration construit : la refuser était le bloquant du tour 3.
+  test('n’accuse pas la configuration de construire un nom de type', ({ projet }) => {
+    const project = projet(`
+      import { createAdapter } from '@crypte/react'
+      const runtime = 'react'
+      export default { stories: 's', adapter: createAdapter as (runtime: string) => unknown }
+    `)
+
+    expect(configPackages(project)).toEqual(['@crypte/react'])
+  })
+
+  // `as` et `satisfies` passaient déjà par `typeAnnotation` : le cas les garde,
+  // pour que le tri ne se réduise pas à `typeArguments`.
+  test('écarte aussi un type nommé par as', ({ projet }) => {
+    const project = projet(`
+      import { createAdapter } from '@crypte/react'
+      import type { P } from '@acme/types'
+      export default { stories: 's', adapter: createAdapter() as P }
+    `)
+
+    expect(configPackages(project)).toEqual(['@crypte/react'])
   })
 })

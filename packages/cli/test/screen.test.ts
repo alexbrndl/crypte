@@ -1,4 +1,12 @@
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium, type Browser, type Frame, type Page } from 'playwright'
@@ -56,6 +64,16 @@ const test = base.extend<{ ecran: Ecran }>({
     const root = mkdtempSync(join(demo, '..', 'tmp-demo-'))
     cpSync(demo, root, { recursive: true })
 
+    // Le cache d'optimisation hérité de la copie s'en va : un cache écrit par une
+    // autre configuration fait réoptimiser sous la page, ce qui est `DCJ-221`, et
+    // le préchauffage ci-dessous suppose de partir froid. Affirmé plutôt que
+    // supposé : `7483a9c` a perdu cette ligne en silence.
+    // Posé avant d'être retiré : `apps/demo` n'a pas toujours de cache, donc
+    // l'affirmation ci-dessous passait sans rien surveiller.
+    mkdirSync(join(root, 'node_modules', '.crypte', 'deps'), { recursive: true })
+    rmSync(join(root, 'node_modules', '.crypte'), { recursive: true, force: true })
+    expect(existsSync(join(root, 'node_modules', '.crypte', 'deps'))).toBe(false)
+
     const started = await startDev(root)
     await started.server.listen()
 
@@ -112,11 +130,11 @@ const test = base.extend<{ ecran: Ecran }>({
   },
 })
 
-// `retry` sur une condition, et une seule : `DCJ-221`, une réoptimisation des
-// dépendances que la preview ne surmonte pas. Le message remonte dans `vu()`,
-// donc dans l'échec, donc la condition le voit. Un réessai repart d'une copie et
-// d'un serveur neufs. À retirer avec l'issue.
-describe('l’écran', { retry: { count: 1, condition: /does not provide an export/ } }, () => {
+// Plus de `retry` : celui d'avant contournait `DCJ-221`, une réoptimisation des
+// dépendances dont la preview ne se relevait pas. La cause est corrigée, les
+// paquets que la configuration nomme étant pré-empaquetés, et `reopt.test.ts`
+// reproduit la course à la demande.
+describe('l’écran', () => {
   test('affiche l’arbre des stories', async ({ ecran }) => {
     await expect.poll(() => ecran.page.getByRole('button').count()).toBe(4)
     await expect

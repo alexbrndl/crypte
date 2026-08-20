@@ -136,6 +136,7 @@ export default defineConfig({
           exclude: [
             '**/node_modules/**',
             '**/screen.test.ts',
+            '**/reopt.test.ts',
             '**/adapter.test.tsx',
             '**/app.test.ts',
           ],
@@ -168,8 +169,13 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'écran',
-          include: ['**/screen.test.ts'],
+          include: ['**/screen.test.ts', '**/reopt.test.ts'],
           sequence: { groupOrder: 1 },
+          // Un fichier à la fois : ils sont deux depuis `reopt.test.ts`, et
+          // « seuls sur la machine » est ce que `groupOrder` achète. Deux
+          // Chromium et deux serveurs en parallèle rendraient au second cas la
+          // charge que le premier existe pour éprouver.
+          fileParallelism: false,
         },
       },
     ],
