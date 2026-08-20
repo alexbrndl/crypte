@@ -2,7 +2,7 @@
 // keeps them in step with the files. See docs/internal/architecture.md.
 
 import { join } from 'node:path'
-import { readFileSync, watch } from 'node:fs'
+import { readFileSync, watch, type FSWatcher } from 'node:fs'
 import { createServer, type ViteDevServer } from 'vite'
 import { fingerprintOf, writeFingerprint } from './fingerprint'
 import { buildCatalogue, writeCatalogue, type Catalogue } from './manifest'
@@ -18,6 +18,9 @@ export interface Started {
   // Why the manifest and the fingerprint could not be written, when they could
   // not. Serving does not depend on them.
   written: string | undefined
+  // Closes the file watchers this registered, without going through the server:
+  // see the comment where they are collected.
+  unwatch: () => void
   // What the watched files held when this read them. Compared by `dev` to decide
   // whether a change is still pending: taken after the server is up, an edit
   // landing during the start was compared against itself and lost. Measured.
@@ -50,11 +53,8 @@ export async function startDev(
   // on every save would dirty the working tree while the author is still
   // typing, including on the half-written states of a rename.
   //
-  // At start-up only, in the other sense too: a restart does not write. The
-  // fingerprint is committed, so rewriting it on each valid edit of the
-  // configuration would dirty the tree while the author tries out a `stories`
-  // path. Section 4 of docs/contracts.md says at start-up, and means it.
-  const written = again ? undefined : write(project.root, held.catalogue)
+  // The fingerprint only on a first start, the manifest every time: see `write`.
+  const written = write(project.root, held.catalogue, !again)
 
   const config = viteConfigOf(project)
 
@@ -68,13 +68,28 @@ export async function startDev(
     plugins: [...(config.plugins ?? []), servePlugin(project, () => held.catalogue)],
   })
 
-  watchStories(server, project, held, log)
-  watchConfig(server, project, () => onConfig?.())
+  // Returned rather than left to the server's `close`: Vite resolves that close
+  // without emitting `'close'` when the server never listened, so a server built
+  // and then abandoned kept its watchers for ever, and each leaked set doubled
+  // the restarts of every save that followed. Read in Vite 8.2.1's own source.
+  const watching = [
+    watchStories(server, project, held, log),
+    watchConfig(server, project, () => onConfig?.()),
+  ].flat()
 
   // The digest of what this read, not of what the files hold once the server is
   // up: an edit landing in between was compared against a state nobody had read,
   // and was dropped for ever. Measured.
-  return { server, project, held, written, read }
+  return {
+    server,
+    project,
+    held,
+    written,
+    read,
+    unwatch: () => {
+      for (const one of watching) one.close()
+    },
+  }
 }
 
 // What the shell and the preview's entry read from the catalogue: the tree, the
@@ -106,7 +121,7 @@ function watchStories(
   project: Project,
   held: Held,
   log: (line: string) => void,
-): void {
+): FSWatcher[] {
   let pending: ReturnType<typeof setTimeout> | undefined
 
   // What the last build left out, held apart from the catalogue: a skipped file
@@ -183,12 +198,14 @@ function watchStories(
   })
 
   server.httpServer?.on('close', () => watcher.close())
+
+  return [watcher]
 }
 
 // `crypte.config.ts` and what it imports. Reloading it means rebuilding the
 // server, since the project's own plugins come from there: out of this lot, and
 // a line is what turns a silence into an instruction.
-function watchConfig(server: ViteDevServer, project: Project, changed: () => void): void {
+function watchConfig(server: ViteDevServer, project: Project, changed: () => void): FSWatcher[] {
   // One watcher per file rather than a filter on a folder's events: the list is
   // short, and it says exactly what is watched.
   //
@@ -215,6 +232,8 @@ function watchConfig(server: ViteDevServer, project: Project, changed: () => voi
   server.httpServer?.on('close', () => {
     for (const one of watchers) one.close()
   })
+
+  return watchers
 }
 
 // The watched files as they are on disk. Their content and not their mtime: an
@@ -238,10 +257,19 @@ function reason(error: unknown): string {
 // The two artefacts, and what stopped them. Reported rather than thrown: the
 // shell reads the catalogue from memory, so a build that cannot write still
 // serves everything.
-function write(root: string, catalogue: Catalogue): string | undefined {
+function write(root: string, catalogue: Catalogue, fingerprint: boolean): string | undefined {
   try {
+    // The manifest is an artefact the shell may read, so it follows the
+    // catalogue and is written on a restart too: left behind, the file on disk
+    // and the one served drifted apart for the rest of the session with nothing
+    // to say so.
     writeCatalogue(root, catalogue.manifest)
-    writeFingerprint(root, fingerprintOf(catalogue.manifest))
+
+    // The fingerprint is committed, so it is written at start-up only: rewriting
+    // it on each valid edit of the configuration would dirty the working tree
+    // while the author tries out a `stories` path.
+    if (fingerprint) writeFingerprint(root, fingerprintOf(catalogue.manifest))
+
     return undefined
   } catch (error) {
     return error instanceof Error ? error.message : String(error)
@@ -312,41 +340,60 @@ export async function dev(input: string, log = console.log): Promise<Running> {
       return
     }
 
-    // Set from what the new server actually read, so an edit that lands while it
-    // starts is still pending afterwards rather than compared against itself.
-    seen = next.read
+    // `now`, taken before the load, and not what the new server read: `read` is
+    // computed after `loadProject`, so a save landing while the configuration
+    // bundles gives a project holding the old content and a digest holding the
+    // new one. The next event then found them equal and dropped the change, and
+    // the server served a configuration nobody had. Measured in review.
+    seen = now
 
     // The port of the server that runs, held across the restart: without it the
     // search starts from 5173 again, so a server that had fallen back to 5174
     // moved under the open tab. And the URLs are printed again, since they are
     // the only place that says where to look.
-    const port = (running.started ?? started).server.config.server.port
+    const before = running.started ?? started
+    const port = before.server.config.server.port
 
     try {
-      await (running.started ?? started).server.close()
-      running.started = next
+      await before.server.close()
+    } catch (error) {
+      // The old server still holds the port, and `running.started` still names
+      // it: dropping that handle would leave nothing able to close it.
+      next.unwatch()
+      await next.server.close().catch(() => undefined)
+      log(`the server could not be restarted, run \`crypte dev\` again: ${reason(error)}`)
+      return
+    }
+
+    running.started = next
+
+    try {
+      if (closed) return
       await next.server.listen(port)
     } catch (error) {
-      // The new server exists already, so it has to go: its watchers hang off a
-      // `close` that would never come, and each leaked set doubles the restarts
-      // of every save that follows.
+      // Its watchers go first: Vite resolves the close of a server that never
+      // listened without emitting anything, so they would outlive it.
+      next.unwatch()
       await next.server.close().catch(() => undefined)
       running.started = undefined
       log(`the server could not be restarted, run \`crypte dev\` again: ${reason(error)}`)
       return
     }
 
-    // Everything the start-up says, said again: the files left out and the write
-    // that failed. The new server's `watchStories` seeds itself from the new
-    // catalogue, so without this they would never be printed at all, which is
-    // the silence `DCJ-217` closed.
-    if (next.written) log(`neither manifest nor fingerprint could be written: ${next.written}`)
+    // Everything the start-up says, said again, minus what has not changed: the
+    // files left out are compared with the previous server's, since reprinting
+    // twenty lines on every save of the configuration buries the one that
+    // matters, the rule `watchStories` already follows.
+    const dites = reported(next.held.catalogue)
+    const avant = reported(before.held.catalogue)
+    const fresh = dites.filter((one) => !avant.includes(one))
 
-    const lines = reported(next.held.catalogue)
-    if (lines.length > 0) {
+    if (fresh.length > 0) {
       log(`${next.held.catalogue.skipped.length} story file(s) left out:`)
-      for (const line of lines) log(line)
+      for (const line of fresh) log(line)
     }
+
+    if (next.written) log(`neither manifest nor fingerprint could be written: ${next.written}`)
 
     log(`crypte.config.ts changed, ${next.held.catalogue.manifest.entries.length} stories`)
     next.server.printUrls()
@@ -378,10 +425,10 @@ export async function dev(input: string, log = console.log): Promise<Running> {
 
   if (written) log(`neither manifest nor fingerprint could be written: ${written}`)
 
-  const lines = reported(held.catalogue)
-  if (lines.length > 0) {
+  const dites = reported(held.catalogue)
+  if (dites.length > 0) {
     log(`${held.catalogue.skipped.length} story file(s) left out:`)
-    for (const line of lines) log(line)
+    for (const line of dites) log(line)
   }
 
   log(`${held.catalogue.manifest.entries.length} stories`)
@@ -395,8 +442,10 @@ export async function dev(input: string, log = console.log): Promise<Running> {
       // Disarmed first: a queued restart, or a debounce already armed, would
       // otherwise build and listen a server after this returned, and the test
       // that closes then deletes its project would leave one behind.
+      // Disarmed rather than awaited: `once` checks this flag before it listens,
+      // so nothing comes up after this returns, and stopping does not wait on a
+      // `loadProject` that a slow import could hold.
       closed = true
-      await queue
       await running.started?.server.close()
     },
   }

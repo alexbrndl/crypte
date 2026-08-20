@@ -920,9 +920,13 @@ Les deux derniers chiffres sont le prix de la redondance : chaque filtre couvre 
 
 *Le port du serveur qui tourne est repris*, et non recherché depuis le défaut : un serveur tombé sur 5174 au démarrage bougeait sous l'onglet ouvert dès que 5173 se libérait. Les URL sont réimprimées, seul endroit qui dit où regarder.
 
-*L'empreinte ne s'écrit qu'au démarrage, dans les deux sens.* Un redémarrage ne l'écrit pas : elle est versionnée, donc la réécrire à chaque essai sur `stories` salirait l'arbre de travail pendant que l'auteur tape, ce que le contrat dit depuis le lot 4 et que ce lot avait cassé sans le voir.
+*L'empreinte et le manifeste ne suivent pas la même règle.* L'empreinte est versionnée, donc elle ne s'écrit qu'au **premier** démarrage : la réécrire à chaque essai sur `stories` salirait l'arbre de travail pendant que l'auteur tape, ce que le contrat dit depuis le lot 4 et que ce lot avait cassé sans le voir. Le manifeste sur disque, lui, est un artefact que le shell peut lire, donc il suit le catalogue à chaque redémarrage : laissé derrière, il divergeait du manifeste servi pour toute la session sans que rien ne le dise. Les deux écritures ont été séparées pour ça.
 
-*Un serveur neuf qui n'arrive pas à écouter est refermé*, sinon ses surveillants pendent à un `close` qui ne viendrait jamais et chaque jeu fuité doublait les redémarrages de toutes les sauvegardes suivantes.
+*Un serveur neuf qui n'arrive pas à écouter est refermé, et ses surveillants avec, explicitement.* Le fermer ne suffisait pas : Vite résout la fermeture d'un serveur qui n'a jamais écouté **sans émettre** `'close'`, donc les deux `fs.watch` accrochés à cet événement survivaient, chaque jeu fuité doublait les redémarrages suivants, et le processus ne pouvait plus se terminer. Lu dans la source de Vite 8.2.1 par la revue. `startDev` remonte donc de quoi les fermer.
+
+*Et la poignée ne se vide que si la fermeture de l'ancien a réussi*, sinon on jetait le seul moyen de fermer un serveur encore debout sur son port.
+
+*Ce qui n'a pas changé ne se redit pas :* les fichiers écartés d'un redémarrage sont comparés à ceux du serveur d'avant, faute de quoi vingt fichiers d'aide réimprimaient vingt et une lignes à chaque essai sur `stories`, et la répétition enterre la ligne qui compte. C'est la règle que `watchStories` suit déjà.
 
 *Ce qui casse si on l'enlève :* les huit cas de `restart.test.ts` rougissent, mesuré, dont celui du navigateur qui suit l'arbre du shell. Chaque pièce est éprouvée séparément : l'écriture au démarrage seulement, la reprise du port et les fichiers redits rougissent un cas chacune, la comparaison de contenu est tenue par le cas qui réécrit le même contenu cassé.
 

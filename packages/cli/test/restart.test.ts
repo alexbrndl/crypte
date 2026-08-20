@@ -187,10 +187,10 @@ describe('la configuration relue sans commande', () => {
     },
   )
 
-  // Ce que le démarrage dit, un redémarrage le redit : les fichiers écartés et
-  // l'échec d'écriture. Le `watchStories` du serveur neuf s'amorce sur son propre
-  // catalogue, donc sans ça ces lignes ne seraient **jamais** imprimées, ce qui
-  // est le silence que `DCJ-217` a fermé.
+  // Ce que le démarrage dit, un redémarrage le redit : les fichiers écartés, et
+  // l'échec d'écriture quand il y en a un. Le `watchStories` du serveur neuf
+  // s'amorce sur son propre catalogue, donc sans ça ces lignes ne seraient
+  // **jamais** imprimées, ce qui est le silence que `DCJ-217` a fermé.
   test('redit les fichiers écartés après un redémarrage', { timeout: 120_000 }, async () => {
     const root = copie(fixture, 'tmp-hot-')
     const config = join(root, 'crypte.config.ts')
@@ -248,6 +248,63 @@ describe('la configuration relue sans commande', () => {
       await expect.poll(compteSur(portDe(running)), { timeout: 30_000 }).toBe(3)
 
       expect(statSync(empreinte).mtimeMs).toBe(écrite)
+    } finally {
+      await running.close()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  // Le manifeste sur disque est un artefact que le shell peut lire, donc il suit
+  // le catalogue : laissé derrière, il divergeait du manifeste servi pour toute
+  // la session, sans que rien ne le dise.
+  test('réécrit le manifeste sur un redémarrage', { timeout: 120_000 }, async () => {
+    const root = copie(fixture, 'tmp-hot-')
+    const config = join(root, 'crypte.config.ts')
+    const avant = readFileSync(config, 'utf8')
+
+    const running = await dev(root, () => {})
+    const fichier = join(root, '.crypte', 'manifest.json')
+    const départ = readFileSync(fichier, 'utf8')
+
+    try {
+      const réduit = avant.replace("stories: 'stories'", "stories: 'stories/checkout'")
+      expect(réduit).not.toBe(avant)
+      writeFileSync(config, réduit)
+
+      await expect.poll(compteSur(portDe(running)), { timeout: 30_000 }).toBe(3)
+      await expect.poll(() => readFileSync(fichier, 'utf8'), { timeout: 30_000 }).not.toBe(départ)
+    } finally {
+      await running.close()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  // Ce qui n'a pas changé ne se redit pas : vingt fichiers d'aide écartés
+  // réimprimaient vingt et une lignes à chaque essai sur `stories`, et la
+  // répétition enterre la ligne qui compte. C'est la règle de `watchStories`.
+  test('ne redit pas un fichier écarté déjà dit', { timeout: 120_000 }, async () => {
+    const root = copie(fixture, 'tmp-hot-')
+    const config = join(root, 'crypte.config.ts')
+    const avant = readFileSync(config, 'utf8')
+
+    // Un fichier illisible que les deux configurations verront.
+    writeFileSync(join(root, 'stories', 'Muette.js'), 'export default 12\n')
+
+    const dites: string[] = []
+    const running = await dev(root, (une: string) => dites.push(une))
+
+    try {
+      const css = avant.replace("css: 'src/styles/app.css'", "css: 'src/styles/app.css' ")
+      expect(css).not.toBe(avant)
+      writeFileSync(config, css)
+
+      await expect
+        .poll(() => dites.filter((une) => une.includes('changed')).length, { timeout: 30_000 })
+        .toBe(1)
+
+      // Le fichier écarté était déjà nommé au démarrage : le redémarrage ne le
+      // renomme pas.
+      expect(dites.filter((une) => une.includes('Muette.js'))).toHaveLength(1)
     } finally {
       await running.close()
       rmSync(root, { recursive: true, force: true })

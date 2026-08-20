@@ -236,6 +236,10 @@ Le bandeau du shell ne montre que ce qui est **certain** d'avoir voulu être une
 
 **La fenêtre de chevauchement de deux redémarrages**, une vingtaine de millisecondes, puisqu'un redémarrage prend 43 ms mesurées dont 20 de temporisation. Le cas des deux sauvegardes tient l'**ordre**, pas la file : une version à drapeau y passerait à l'identique, et son commentaire le dit.
 
+**Une sauvegarde qui tombe pendant le chargement de la configuration.** `seen` prend `now`, le digest lu **avant** `startDev`, et non `next.read`, calculé après `loadProject` : sur `read`, une sauvegarde arrivée pendant l'empaquetage donnait un projet portant l'ancien contenu et un digest portant le nouveau, donc l'événement suivant les trouvait égaux et jetait le changement. Trouvé en revue, après que ma correction du tour précédent avait **déplacé** la course au lieu de la fermer.
+
+*Pourquoi aucun cas ne la tient :* elle vit entre la temporisation de 20 ms et la fin du chargement, soit une vingtaine de millisecondes sur cette machine. Un cas visant ce créneau serait instable, et un test instable coûte plus qu'il ne garde.
+
 ### Assumé : le garde du redémarrage raté n'est pas éprouvé (`DCJ-220`)
 
 `once()` entoure la fermeture de l'ancien serveur et l'écoute du neuf d'un `try`, et dit ce qui a échoué au lieu de laisser une promesse fuir. Ces deux lignes ne sont **jamais exécutées** par la suite, mesuré à la couverture.
