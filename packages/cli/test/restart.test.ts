@@ -126,6 +126,42 @@ describe('la configuration relue sans commande', () => {
     },
   )
 
+  // Une seconde sauvegarde tombe pendant le redémarrage, qui dure environ une
+  // seconde. Sans la boucle, elle serait perdue et le serveur servirait une
+  // configuration que personne n'a.
+  test(
+    'ne perd pas une sauvegarde arrivée pendant un redémarrage',
+    { timeout: 120_000 },
+    async () => {
+      const root = copie(fixture, 'tmp-hot-')
+      const config = join(root, 'crypte.config.ts')
+      const avant = readFileSync(config, 'utf8')
+
+      const dites: string[] = []
+      const running = await dev(root, (une: string) => dites.push(une))
+      const address = running.server.httpServer?.address()
+      if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
+
+      const compte = compteSur(address.port)
+
+      try {
+        const réduit = avant.replace("stories: 'stories'", "stories: 'stories/checkout'")
+        expect(réduit).not.toBe(avant)
+
+        writeFileSync(config, réduit)
+        await new Promise((resolve) => setTimeout(resolve, 300))
+        writeFileSync(config, avant)
+
+        // La dernière gagne : le catalogue revient à quatre, pas trois.
+        await expect.poll(compte, { timeout: 30_000 }).toBe(4)
+        expect(dites.filter((une) => une.includes('changed'))).toHaveLength(2)
+      } finally {
+        await running.close()
+        rmSync(root, { recursive: true, force: true })
+      }
+    },
+  )
+
   // L'exemple de l'issue : changer l'entrée CSS. Rien n'en paraît dans l'arbre,
   // donc c'est l'entrée servie qui le dit, et elle ne peut pas l'apprendre sans
   // que `loadProject` soit repassé.

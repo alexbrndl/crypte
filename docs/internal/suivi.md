@@ -228,6 +228,22 @@ Le bandeau du shell ne montre que ce qui est **certain** d'avoir voulu être une
 
 *La leçon du lot, plus large que le lot :* trois des quatre tours ont porté sur la même question, « ce fichier voulait-il être une story », et j'ai proposé trois règles fausses chacune dans un sens différent. Ce qui a fini par tenir n'est pas une meilleure heuristique mais un changement de question : **un journal au démarrage et une interface permanente n'ont pas le même coût pour une ligne en trop**, donc ils n'ont pas le même seuil. Quand une frontière résiste à trois règles, c'est la question qu'il faut changer, pas la règle.
 
+### Assumé : le garde du redémarrage raté n'est pas éprouvé (`DCJ-220`)
+
+`once()` entoure la fermeture de l'ancien serveur et l'écoute du neuf d'un `try`, et dit ce qui a échoué au lieu de laisser une promesse fuir. Ces deux lignes ne sont **jamais exécutées** par la suite, mesuré à la couverture.
+
+*Pourquoi elles restent :* `restart` est appelé depuis un rappel de surveillance, donc personne n'attend sa promesse. Ce n'est pas une supposition sur le comportement de Vite mais une propriété du site d'appel, et une promesse rejetée non rattrapée arrête le processus, c'est-à-dire le serveur de développement, avec une trace et aucun conseil.
+
+*Ce qui a été cherché et n'a rien donné*, chaque fois mesuré : un port invalide dans `vite.server.port` (999999) est ignoré par Vite et `listen` réussit ; `strictPort: true` sur un port qu'un autre processus tient ne lève pas non plus ; un dossier de stories absent et un `crypte.config.ts` supprimé lèvent tous deux **avant**, dans `startDev`, donc dans la branche déjà couverte.
+
+*Ce qui la rouvrirait :* un rapport où `crypte dev` meurt sur une édition de configuration. Le message existe déjà pour ce jour-là.
+
+### Leçon de méthode : une sonde qui réécrit un fichier doit affirmer qu'elle l'a changé
+
+Deux sondes de ce lot n'ont rien mesuré et je l'ai d'abord lu comme un résultat. Elles faisaient `avant.replace('export default {', …)` sur une configuration écrite `export default defineConfig({ … })` : le remplacement était inerte, le fichier réécrit à l'identique, et le contrôle de contenu écartait l'événement **à raison**. J'ai donc conclu deux fois qu'un redémarrage ne se produisait pas alors que rien ne l'avait demandé.
+
+C'est le même défaut que la revue de la PR #39 avait signalé sur un `.replace` non gardé dans un test. La règle : toute sonde qui édite un fichier affirme que l'édition a changé quelque chose, `expect(après).not.toBe(avant)`, avant de regarder le reste.
+
 ### Ouvert : le terminal ne dit pas les fiches partielles
 
 `crypte dev` imprime les fichiers écartés, un par ligne avec sa raison, mais rien des `partial` que `DCJ-217` a ajoutés. Un utilisateur qui lit son terminal voit donc les stories perdues, pas les fiches incomplètes.

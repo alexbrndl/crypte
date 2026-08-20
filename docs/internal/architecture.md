@@ -912,11 +912,11 @@ Les deux derniers chiffres sont le prix de la redondance : chaque filtre couvre 
 
 *Un changement se reconnaît au contenu, pas à l'événement.* Une sauvegarde émet plusieurs événements, et un éditeur touche la date d'un fichier qu'il n'a pas changé ; un redémarrage coûte tout le serveur. Le contenu des fichiers surveillés est donc comparé, et la temporisation de 20 ms ne suffisait pas : mesuré, le doublon revenait selon le rythme des événements. Ce garde a rendu inutile un second mécanisme, la déduplication du dernier message d'échec, qui a été retiré.
 
-*Un redémarrage à la fois, et aucune sauvegarde perdue.* Un redémarrage dure environ une seconde, donc une seconde sauvegarde tombe dedans ; et entre le serveur neuf et la fermeture de l'ancien, les deux jeux de surveillants sont vivants. Sans la boucle, le serveur servirait une configuration que personne n'a.
+*Les redémarrages sont mis en file, pas gardés par un drapeau.* Un redémarrage dure **43 ms**, mesuré sur la démonstration comme sur la fixture, `createServer` ne faisant pas le travail coûteux : la fenêtre où une sauvegarde tombe dans un redémarrage fait donc une vingtaine de millisecondes. Une file d'une ligne les ordonne et n'en perd aucune, et le contrôle de contenu rend un doublon en file sans effet. Une première version tenait un drapeau et une reprise, six lignes pour la même garantie.
 
 *`dev` rend une poignée, pas le premier serveur.* Fermer celui-là laissait son remplaçant à l'écoute, et le démarrage suivant prenait un autre port. Mesuré : le port glissait de 5173 à 5175 en deux cas de test.
 
-*Ce qui casse si on l'enlève :* les quatre cas de `restart.test.ts` rougissent, mesuré, dont celui du navigateur qui suit l'arbre du shell. La comparaison de contenu est tenue par le cas qui réécrit deux fois le même contenu cassé.
+*Ce qui casse si on l'enlève :* les cinq cas de `restart.test.ts` rougissent, mesuré, dont celui du navigateur qui suit l'arbre du shell. La comparaison de contenu est tenue par le cas qui réécrit deux fois le même contenu cassé.
 
 **Les cas navigateur sont un projet à part.** Entrelacés avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le même. `sequence.groupOrder` les fait passer après, seuls sur la machine : trois passes vertes contre une sur quatre avant.
 

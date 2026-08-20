@@ -288,35 +288,31 @@ export async function dev(input: string, log = console.log): Promise<Running> {
       return
     }
 
-    await running.started?.server.close()
-    running.started = next
-    await next.server.listen()
+    // Nobody awaits a restart: it is called from a watcher. So a failure here
+    // has to be said rather than left as a rejection nobody handles, which would
+    // take the process down. No trigger was found for it, `strictPort` on a port
+    // another process holds included, so this is the shape of the call site and
+    // not a measured failure.
+    try {
+      await running.started?.server.close()
+      running.started = next
+      await next.server.listen()
+    } catch (error) {
+      log(`the server could not be restarted, run \`crypte dev\` again: ${reason(error)}`)
+      return
+    }
 
     log(`crypte.config.ts changed, ${next.held.catalogue.manifest.entries.length} stories`)
   }
 
-  // One restart at a time, and never a save dropped. A restart takes about a
-  // second, so a second save lands inside it; and between the new server and the
-  // old one closing, both sets of watchers are live, so one save calls this
-  // twice. Without the loop, the server would serve a configuration nobody has.
-  let busy = false
-  let again = false
+  // Queued rather than guarded: a restart takes about 40 ms, measured, so a save
+  // can land inside one, and between the new server and the old one closing both
+  // sets of watchers are live. A chain runs them in order and drops none, and the
+  // content check inside makes a queued duplicate a no-op.
+  let queue = Promise.resolve()
 
-  const restart = async () => {
-    if (busy) {
-      again = true
-      return
-    }
-
-    busy = true
-    try {
-      do {
-        again = false
-        await once()
-      } while (again)
-    } finally {
-      busy = false
-    }
+  const restart = () => {
+    queue = queue.then(once)
   }
 
   const started = await startDev(input, log, restart)
