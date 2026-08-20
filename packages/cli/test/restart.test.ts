@@ -12,7 +12,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium, type Browser } from 'playwright'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
-import { dev } from '../src/dev'
+import { dev, type Running } from '../src/dev'
 import { MANIFEST_ROUTE } from '../src/serve'
 
 // Éditer `crypte.config.ts` remet les deux pages en marche sans commande.
@@ -42,6 +42,15 @@ const copie = (source: string, dans: string) => {
   cpSync(source, root, { recursive: true })
 
   return root
+}
+
+// Le port du serveur qui tourne, sans cast : la poignée peut avoir changé de
+// serveur, donc il se lit à chaque fois.
+const portDe = (running: Running) => {
+  const address = running.server.httpServer?.address()
+  if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
+
+  return address.port
 }
 
 const compteSur = (port: number) => async () => {
@@ -236,11 +245,7 @@ describe('la configuration relue sans commande', () => {
       expect(réduit).not.toBe(avant)
       writeFileSync(config, réduit)
 
-      await expect
-        .poll(compteSur((running.server.httpServer?.address() as { port: number }).port), {
-          timeout: 30_000,
-        })
-        .toBe(3)
+      await expect.poll(compteSur(portDe(running)), { timeout: 30_000 }).toBe(3)
 
       expect(statSync(empreinte).mtimeMs).toBe(écrite)
     } finally {
@@ -261,7 +266,7 @@ describe('la configuration relue sans commande', () => {
     const avant = readFileSync(config, 'utf8')
 
     const running = await dev(root, () => {})
-    const départ = (running.server.httpServer?.address() as { port: number }).port
+    const départ = portDe(running)
 
     try {
       expect(départ).not.toBe(5173)
@@ -274,7 +279,7 @@ describe('la configuration relue sans commande', () => {
       writeFileSync(config, réduit)
 
       await expect.poll(compteSur(départ), { timeout: 30_000 }).toBe(3)
-      expect((running.server.httpServer?.address() as { port: number }).port).toBe(départ)
+      expect(portDe(running)).toBe(départ)
     } finally {
       await running.close()
       squatteur.close()
