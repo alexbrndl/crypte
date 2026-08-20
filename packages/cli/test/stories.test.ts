@@ -562,6 +562,36 @@ describe('ce que la fiche ne dit pas', () => {
     expect(entries[0]?.props).toEqual(['size'])
   })
 
+  // La citation tient sur une ligne : un spread peut s'étaler sur dix lignes, et
+  // le message va dans un élément de liste ou une ligne de terminal.
+  it('met la citation sur une ligne et la coupe si elle est longue', () => {
+    const multiligne = fileWith(
+      'Multiligne.js',
+      `import { Badge } from './Badge'
+       const base = {}
+       export default defineStories(Badge, { stories: { Un: { ...(
+         base
+       ), a: 1 } } })`,
+    )
+
+    expect(multiligne.entries[0]?.partial).toBe(
+      '`...( base )` brings props this reader cannot follow',
+    )
+
+    const long = fileWith(
+      'Long.js',
+      `import { Badge } from './Badge'
+       const faire = () => ({})
+       export default defineStories(Badge, {
+         stories: { Un: { ...faire({ un: 1, deux: 2, trois: 3, quatre: 4 }), a: 1 } },
+       })`,
+    )
+
+    expect(long.entries[0]?.partial).toBe(
+      '`...faire({ un: 1, deux: 2, trois: 3, qu…` brings props this reader cannot follow',
+    )
+  })
+
   it('dit la clé de prop calculée sans nommer ce qu’elle vaut', () => {
     const { entries } = fileWith(
       'Calculee.js',

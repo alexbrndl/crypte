@@ -355,9 +355,7 @@ function unreadOf(object: Node | null, source: string): string[] {
 
   for (const property of (object['properties'] as Node[]) ?? []) {
     if (property.type !== 'Property') {
-      notes.add(
-        `\`${source.slice(property.start, property.end)}\` brings props this reader cannot follow`,
-      )
+      notes.add(`\`${written(source, property)}\` brings props this reader cannot follow`)
       continue
     }
 
@@ -366,6 +364,14 @@ function unreadOf(object: Node | null, source: string): string[] {
   }
 
   return [...notes]
+}
+
+// What the file wrote, on one line and short enough for a list item or a
+// terminal line: a spread can span ten lines, and its own text is the message.
+function written(source: string, node: Node): string {
+  const one = source.slice(node.start, node.end).replace(/\s+/gu, ' ')
+
+  return one.length > 40 ? `${one.slice(0, 39)}…` : one
 }
 
 // The props an object literal writes, kept in order and paired with their value.

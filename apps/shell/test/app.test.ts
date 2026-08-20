@@ -290,4 +290,43 @@ describe('ce que le catalogue a laissé de côté', () => {
     expect(écran.partielle()).toBe(false)
     écran.wrapper.unmount()
   })
+
+  // Le cas qui compte pour l'utilisateur : il corrige son fichier, la preview
+  // redit `ready`, et le bandeau doit partir. Un avertissement qui survit à sa
+  // cause apprend à ne plus le lire.
+  test('retire le bandeau quand le fichier corrigé ne l’exige plus', async () => {
+    const manifests: Manifest[] = [
+      {
+        version: 1,
+        entries: [badge],
+        skipped: [{ file: 'stories/Badge.tsx', reason: 'raison' }],
+      } as never,
+      { version: 1, entries: [badge, alerte] } as never,
+    ]
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ json: async () => manifests.shift() ?? manifests[0] }) as Response),
+    )
+
+    const wrapper = mount(App, { attachTo: document.body })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('.set-aside li')).toHaveLength(1)
+
+    const frame = wrapper.find('iframe').element as HTMLIFrameElement
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'ready', protocolVersion: 1 },
+        origin: window.location.origin,
+        source: frame.contentWindow,
+      }),
+    )
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('.set-aside li')).toHaveLength(0)
+    wrapper.unmount()
+  })
 })

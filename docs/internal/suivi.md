@@ -214,6 +214,18 @@ Le troisième, la colonne « props propres » de la page composant, veut les seu
 
 *Ce que `expectTypeOf` n'a pas eu à faire ici :* les trois garanties de type que le contrôle de mutation portait sont déjà attrapées par `vp check`, mesuré en affaiblissant `Wrap` et `Manifest.version`.
 
+### Ouvert : le terminal ne dit pas les fiches partielles
+
+`crypte dev` imprime les fichiers écartés, un par ligne avec sa raison, mais rien des `partial` que `DCJ-217` a ajoutés. Un utilisateur qui lit son terminal voit donc les stories perdues, pas les fiches incomplètes.
+
+*Pourquoi ce n'est pas fait ici :* le critère de fin de `DCJ-217` porte sur le shell, qui est l'endroit où l'on cherche une story qu'on ne trouve pas. Ajouter les notes au terminal demande de décider quoi faire quand vingt entrées portent la même note d'un bloc partagé, ce qui est un choix de sortie et non une fuite d'information.
+
+*Ce qui reste vrai en attendant :* l'information existe dans le manifeste, donc rien n'est perdu, seulement non imprimé.
+
+### Non couvert, et pourquoi : deux raisons pour un même fichier
+
+`Manifest.skipped` pourrait en théorie porter deux lignes pour un même fichier, ce que le shell afficherait deux fois. C'est impossible par construction : `entriesOf` rend **une** raison par fichier, et `buildCatalogue` en pousse une entrée. L'espace est fermé, donc aucun cas ne le garde.
+
 ### Arrêt explicite : la limite de la lecture statique d'un fichier de story
 
 **Ce qui est arrêté.** La boucle de revue du lot 4, après cinq tours et huit constats. Les cinq derniers commits corrigent tous la même question, et le rythme ne ralentissait pas.
@@ -222,15 +234,17 @@ Le troisième, la colonne « props propres » de la page composant, veut les seu
 
 **Les sept formes trouvées**, dans l'ordre où elles sont apparues :
 
-| Forme | Ce que le lecteur en fait |
-| -- | -- |
-| une clé de prop calculée | la prop est laissée de côté |
-| une clé de story calculée | la story est écartée, et comptée |
-| un spread dans un bloc de props | les noms apportés sont laissés de côté |
-| un spread dans le bloc `stories` | la story apportée est comptée, et celles qui la précèdent sont écartées |
-| un bloc `stories` non littéral, ou vide | aucune entrée, avec la raison |
-| une définition non littérale, ou dont un spread suit la clé lue | aucune entrée, avec la raison |
-| une clé écrite deux fois | la dernière gagne, comme à l'exécution |
+La troisième colonne est arrivée avec `DCJ-217` : elle dit **où l'utilisateur le voit**, ce qui manquait à chacune de ces lignes.
+
+| Forme | Ce que le lecteur en fait | Où ça se voit |
+| -- | -- | -- |
+| une clé de prop calculée | la prop est laissée de côté | `partial` sur l'entrée |
+| une clé de story calculée | la story est écartée, et comptée | `skipped` sur le fichier |
+| un spread dans un bloc de props | les noms apportés sont laissés de côté | `partial` sur l'entrée |
+| un spread dans le bloc `stories` | la story apportée est comptée, et celles qui la précèdent sont écartées | `skipped` sur le fichier |
+| un bloc `stories` non littéral, ou vide | aucune entrée, avec la raison | `skipped` sur le fichier |
+| une définition non littérale, ou dont un spread suit la clé lue | aucune entrée, avec la raison | `skipped`, et `partial` quand la clé lue est `props` ou `meta` |
+| une clé écrite deux fois | la dernière gagne, comme à l'exécution | nulle part, et c'est voulu : le fichier dit la même chose à l'exécution |
 
 **Ce qui reste non éprouvé.** Rien ne garantit qu'il n'existe pas une huitième forme. Un `Object.assign`, une définition construite par un appel, une clé issue d'un `as const` importé : chacune rendrait une valeur indécidable par un chemin que ce lecteur ne regarde pas.
 
