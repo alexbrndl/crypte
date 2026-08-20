@@ -890,7 +890,13 @@ Les deux derniers chiffres sont le prix de la redondance : chaque filtre couvre 
 
 *Ce que le tri par la forme ne pouvait pas faire.* Deviner l'intention depuis l'export par défaut a un contre-exemple par branche, mesuré : `export default memo(Frame)` et `forwardRef(...)`, idiomatiques en React, sont des appels ; `export default 12` n'est pas un composant mais peut être n'importe quoi ; un identifiant réexporté ne dit rien. Chaque règle de forme mettait un bandeau permanent sur un fichier voisin légitime, ou taisait une vraie story.
 
-*La disparition demande un état de la session*, `Catalogue.wasStory`, hors du manifeste. Lu des entrées précédentes seulement, la note ne durait **qu'une** reconstruction, puisque le fichier quitte les entrées dès qu'elle est posée : le premier enregistrement sans rapport retirait le bandeau et envoyait un second rechargement. Mesuré sur six reconstructions. Et elle s'oublie quand le fichier n'est plus sur le disque, supprimer une story étant délibéré.
+*La disparition demande un état de la session*, `Catalogue.wasStory`, hors du manifeste. Lu des entrées précédentes seulement, la note ne durait **qu'une** reconstruction, puisque le fichier quitte les entrées dès qu'elle est posée : le premier enregistrement sans rapport retirait le bandeau et envoyait un second rechargement. Mesuré sur six reconstructions.
+
+*Elle s'oublie quand le fichier n'est pas de la passe*, et non quand `existsSync` le dit absent : sur un système de fichiers insensible à la casse, renommer `Badge.ts` en `badge.ts` laissait l'ancienne graphie exister, donc le bandeau nommait un fichier disparu sous ce nom et ne partait plus jamais. Le lecteur vient de parcourir les fichiers, donc l'ensemble est déjà là.
+
+*Et la disparition mène le message*, la raison propre du fichier suivant : « no default export calling defineStories » seul se lit comme un utilitaire, alors que ce fichier était une story une seconde plus tôt.
+
+*Un appel se lit au niveau du module.* Une fabrique, `export const make = (C) => defineStories(C, {})`, appelle `defineStories` quand **elle** tourne, pas quand le module tourne : la compter donnait un bandeau permanent à un utilitaire. Et le nom lu est le nom **local** de l'import, donc `import { defineStories as define }` produit sa story au lieu de n'en produire aucune en silence.
 
 *Six pertes étaient muettes, pas trois.* La revue a trouvé les trois autres : un bloc de props qui est une **référence** (`props: shared`, légal en section 2.3) perdait toutes ses props, un `meta` dont une valeur n'est pas littérale disparaissait du manifeste **et de l'empreinte**, qui disait alors `status: 'none'`, et un `options` non littéral devenait `{}`. Chacune se dit maintenant.
 

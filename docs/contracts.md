@@ -403,6 +403,8 @@ The manifest feeds the shell: navigation tree, search, props table, controls pan
 **What the reader set aside travels with it.** A story file is read without being run, so what cannot be read without running it is set aside and said, never guessed. Both halves of that rule are in the manifest:
 
 - `skipped` names a **file**, once per reason, when the file gave no story or gave only part of them. It is a file and not an entry because a story that was set aside has no entry to hang a message on. A reader that wants the count compares `file` with the `storyFile` of the entries: the two are the same project-relative path.
+
+  It holds only what is **certain to be a story**: a `defineStories` call no default export carries, a file that does not parse, and a file that produced stories and produces none any more. A file that gave no story without naming `defineStories` is a helper, a wrapper or a type file as far as anybody can tell, so the CLI names it in its own output and the manifest leaves it out. Reading intent from the shape of the default export was measured to have a counterexample per branch.
 - `partial` names one **entry** whose record is incomplete: the story is there and renders, but a spread or a computed key kept props out of its table. Its text quotes what the file wrote, since the missing names are precisely what cannot be read.
 
 Both are optional, so a manifest written before them stays valid and the version does not move.

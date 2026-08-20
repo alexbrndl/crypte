@@ -55,8 +55,12 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
   // The files the reader is sure meant to be stories. See `StoryFileRead.meant`.
   const sure = new Set<string>()
 
+  // The files of this pass, which is what decides whether a story disappeared.
+  const walked = new Set<string>()
+
   for (const file of storyFiles(storiesRoot)) {
     const read = entriesOf(file, project.root, storiesRoot)
+    walked.add(posix(relative(project.root, file)))
 
     if (read.skipped) {
       const named = posix(relative(project.root, file))
@@ -96,15 +100,26 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
   // the file as soon as it stops producing, so the note lasted exactly one
   // rebuild and the next unrelated save took the banner away. Measured.
   //
-  // Dropped when the file is gone: deleting or renaming a story is deliberate,
-  // and a banner for it is a line nobody can act on.
-  const was = (before?.wasStory ?? []).filter((file) => existsSync(join(project.root, file)))
+  // Dropped when the file is not one of those just walked, rather than when
+  // `existsSync` says it is gone: on a case-insensitive file system, renaming
+  // `Badge.ts` to `badge.ts` left the old spelling existing, so the banner named
+  // a file gone under that name and never went away. Measured.
+  const was = (before?.wasStory ?? []).filter((file) => walked.has(file))
 
   for (const file of was) {
     if (gave.has(file)) continue
 
     sure.add(file)
-    if (!reasons.has(file)) skipped.push({ file, reason: GONE })
+
+    // The disappearance leads, the file's own reason follows: « no default export
+    // calling defineStories » alone reads like a helper, and this file was a
+    // story a moment ago. Its own reason says why it stopped.
+    const why = reasons.get(file)
+    const said = why === undefined ? GONE : `${GONE}: ${why}`
+    const at = skipped.findIndex((one) => one.file === file)
+
+    if (at === -1) skipped.push({ file, reason: said })
+    else skipped[at] = { file, reason: said }
   }
 
   skipped.sort((one, other) => one.file.localeCompare(other.file, 'en'))
@@ -113,7 +128,7 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
   // found, a file that does not parse, a file that stopped producing. The rest
   // stays a guess, so it goes to the terminal, which is a log at start-up and
   // not a banner above the preview.
-  const certain = skipped.filter((one) => sure.has(one.file) || one.reason === GONE)
+  const certain = skipped.filter((one) => sure.has(one.file))
 
   return {
     manifest: {

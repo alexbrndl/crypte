@@ -46,7 +46,12 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
   }
 
   const body = parsed.program.body as unknown as Node[]
-  const call = defineStoriesCall(body)
+
+  // The local name of the import, so `import { defineStories as define }` works
+  // and is reported when it fails. Without it, an aliased story produced nothing
+  // and said nothing.
+  const named = boundTo(parsed.module, 'defineStories') ?? 'defineStories'
+  const call = defineStoriesCall(body, named)
 
   if (!call) {
     // The only sure signal is a call. A file that calls `defineStories` without
@@ -57,7 +62,7 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
     // re-exports `defineStories`, a helper that imports it to wrap it, all read
     // as a story under one shape rule or another. Measured, one counterexample
     // per branch. Voir docs/internal/architecture.md.
-    const called = calls(body, 'defineStories')
+    const called = calls(body, named)
 
     return {
       entries: [],
@@ -368,25 +373,32 @@ function boundTo(module: unknown, exported: string): string | undefined {
 
 // `export default defineStories(…)`, and nothing else. A named export is not a
 // story module: section 2.3 of docs/contracts.md.
-function defineStoriesCall(body: Node[]): Node | undefined {
+function defineStoriesCall(body: Node[], name: string): Node | undefined {
   const exported = body.find((node) => node.type === 'ExportDefaultDeclaration')
   const call = exported?.['declaration'] as Node | undefined
   if (call?.type !== 'CallExpression') return undefined
 
   const callee = call['callee'] as Node
-  return callee?.type === 'Identifier' && callee['name'] === 'defineStories' ? call : undefined
+  return callee?.type === 'Identifier' && callee['name'] === name ? call : undefined
 }
 
-// Whether the file calls something, anywhere. A call and not a mention: an
-// import specifier, a re-export and an object key all name `defineStories`
-// without calling it, and each made a helper look like a failed story.
+// Whether the file calls something **at the top level of the module**. Three
+// forms named `defineStories` without being a story: an import specifier, a
+// re-export, an object key ; and one called it while being a helper, a factory
+// written `export const make = (C) => defineStories(C, {})`. A story calls it
+// where the module runs, so that is the only place worth reading. Measured.
 function calls(body: Node[], name: string): boolean {
-  const walk = (current: unknown): boolean => {
+  const called = (current: unknown): boolean => {
     if (current === null || typeof current !== 'object') return false
 
-    if (Array.isArray(current)) return current.some((one) => walk(one))
+    if (Array.isArray(current)) return current.some((one) => called(one))
 
     const inner = current as Node
+
+    // A function body is somebody else's code: whatever it calls, it calls when
+    // that function runs, not when the module does.
+    if (FUNCTIONS_AND_CLASSES.has(inner.type)) return false
+
     const callee = inner['callee'] as Node | undefined
 
     if (
@@ -397,11 +409,21 @@ function calls(body: Node[], name: string): boolean {
       return true
     }
 
-    return Object.values(inner).some((held) => walk(held))
+    return Object.values(inner).some((held) => called(held))
   }
 
-  return walk(body)
+  return called(body)
 }
+
+// The nodes whose body runs later, so a call inside one says nothing about what
+// the module does.
+const FUNCTIONS_AND_CLASSES = new Set([
+  'FunctionDeclaration',
+  'FunctionExpression',
+  'ArrowFunctionExpression',
+  'ClassDeclaration',
+  'ClassExpression',
+])
 
 // A key can be quoted, so `{ 'meta': … }` has to be found too. A computed key
 // is never a match: nothing says what it holds without running the file.

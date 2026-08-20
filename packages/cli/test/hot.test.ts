@@ -328,14 +328,21 @@ describe('un fichier qui cesse de produire', () => {
         (await fetch(`${projet.origin}${MANIFEST_ROUTE}`).then((answer) =>
           answer.json(),
         )) as Manifest
-      ).skipped?.map((one) => one.file) ?? []
+      ).skipped?.map((one) => `${one.file} : ${one.reason}`) ?? []
 
-    await expect.poll(dit).toContain('stories/Badge.js')
+    // La disparition mène, la raison propre du fichier suit : « no default export
+    // calling defineStories » seul se lit comme un utilitaire, et ce fichier
+    // était une story il y a une seconde.
+    await expect
+      .poll(dit)
+      .toContain(
+        'stories/Badge.js : this file no longer produces any story: no default export calling defineStories',
+      )
 
     // Un enregistrement sans rapport : le bandeau doit rester.
     writeFileSync(join(projet.root, 'stories', 'Autre.js'), story('Badge'))
     await expect.poll(projet.noms).toContain('autre--default')
 
-    expect(await dit()).toContain('stories/Badge.js')
+    expect((await dit()).some((une) => une.startsWith('stories/Badge.js'))).toBe(true)
   })
 })

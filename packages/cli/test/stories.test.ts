@@ -160,6 +160,41 @@ describe('la lecture des stories', () => {
     expect(lu.meant).toBeUndefined()
   })
 
+  // Un appel dans un corps de fonction est celui d'une fabrique, pas d'une story :
+  // il s'exécute quand la fonction tourne, pas quand le module tourne.
+  it.for([
+    ['une flèche', 'export const make = (C) => defineStories(C, {})'],
+    ['une fonction', 'export function make(C) { return defineStories(C, {}) }'],
+    ['une méthode de classe', 'export class F { make(C) { return defineStories(C, {}) } }'],
+  ] as const)('ne prend pas pour une story un appel dans %s', ([, source]) => {
+    const lu = fileWith('Fabrique.ts', `import { defineStories } from '@crypte/react'\n${source}`)
+
+    expect(lu.meant).toBeUndefined()
+  })
+
+  // L'alias marche, et échouait en silence avant : ni story, ni message.
+  it('lit une story dont defineStories est importé sous un autre nom', () => {
+    const { entries } = fileWith(
+      'Alias.ts',
+      `import { defineStories as define } from '@crypte/react'
+       import { A } from '../a'
+       export default define(A)`,
+    )
+
+    expect(entries.map((entry) => entry.id)).toEqual(['alias--default'])
+  })
+
+  it('signale un alias que son export nommé rend introuvable', () => {
+    const lu = fileWith(
+      'AliasNomme.ts',
+      `import { defineStories as define } from '@crypte/react'
+       import { A } from '../a'
+       export const stories = define(A)`,
+    )
+
+    expect(lu.meant).toBe(true)
+  })
+
   // Un appel dans un commentaire ou une chaîne n'est pas un appel : la lecture
   // passe par l'arbre.
   it.for([
