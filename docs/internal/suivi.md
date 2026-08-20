@@ -240,17 +240,13 @@ Le bandeau du shell ne montre que ce qui est **certain** d'avoir voulu être une
 
 *Pourquoi aucun cas ne la tient :* elle vit entre la temporisation de 20 ms et la fin du chargement, soit une vingtaine de millisecondes sur cette machine. Un cas visant ce créneau serait instable, et un test instable coûte plus qu'il ne garde.
 
-### Assumé : le garde du redémarrage raté n'est pas éprouvé (`DCJ-220`)
+### Assumé : un seul chemin d'échec du redémarrage reste non exécuté (`DCJ-220`)
 
-`once()` entoure la fermeture de l'ancien serveur et l'écoute du neuf d'un `try`, et dit ce qui a échoué au lieu de laisser une promesse fuir. Ces deux lignes ne sont **jamais exécutées** par la suite, mesuré à la couverture.
+Trois lignes, le `catch` de `next.server.listen(port)`. Le reste est éprouvé : un cas force la fermeture de l'ancien serveur à lever, ce qui traverse le chemin partagé, `unwatch()` compris.
 
-*Pourquoi elles restent :* `restart` est appelé depuis un rappel de surveillance, donc personne n'attend sa promesse. Ce n'est pas une supposition sur le comportement de Vite mais une propriété du site d'appel, et une promesse rejetée non rattrapée arrête le processus, c'est-à-dire le serveur de développement, avec une trace et aucun conseil.
+*Pourquoi celui-là résiste :* faire échouer l'écoute demande que le port soit pris entre la fermeture de l'ancien serveur et l'écoute du neuf, une fenêtre que rien ne peut occuper de l'extérieur. `strictPort` sur un port tenu ne lève pas, mesuré, et un port invalide est ignoré par Vite.
 
-*Ce qui a été cherché et n'a rien donné*, chaque fois mesuré : un port invalide dans `vite.server.port` (999999) est ignoré par Vite et `listen` réussit ; `strictPort: true` sur un port qu'un autre processus tient ne lève pas non plus ; un dossier de stories absent et un `crypte.config.ts` supprimé lèvent tous deux **avant**, dans `startDev`, donc dans la branche déjà couverte.
-
-*Le `catch` de la chaîne, lui, n'est pas un luxe :* la revue a montré qu'une seule levée non rattrapée gelait **tous** les redémarrages suivants, `then` ne rappelant plus jamais `once` sur une chaîne rejetée. Le garde interne ne couvrait ni le digest, ni la lecture du catalogue, ni le journal.
-
-*Ce qui la rouvrirait :* un rapport où `crypte dev` meurt sur une édition de configuration. Le message existe déjà pour ce jour-là.
+*Ce que la couverture a coûté :* la première version portait onze lignes non exécutées et faisait tomber deux seuils du dépôt. Les deux chemins d'échec partagent maintenant un `abandon`, et il en reste trois. Baisser un seuil pour faire passer le lot était exclu, la règle du dépôt étant qu'un seuil qu'on baisse ne garde plus rien.
 
 ### Leçon de méthode : une sonde qui réécrit un fichier doit affirmer qu'elle l'a changé
 

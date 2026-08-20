@@ -311,6 +311,47 @@ describe('la configuration relue sans commande', () => {
     }
   })
 
+  // Un redémarrage qui échoue le dit, et ne laisse pas le serveur neuf derrière
+  // lui : Vite résout la fermeture d'un serveur qui n'a jamais écouté sans rien
+  // émettre, donc ses surveillants survivraient et doubleraient les
+  // redémarrages suivants. La fermeture de l'ancien est forcée à lever ici, seul
+  // moyen d'atteindre ce chemin.
+  test(
+    'dit un redémarrage qui échoue, sans rien laisser derrière',
+    { timeout: 120_000 },
+    async () => {
+      const root = copie(fixture, 'tmp-hot-')
+      const config = join(root, 'crypte.config.ts')
+      const avant = readFileSync(config, 'utf8')
+
+      const dites: string[] = []
+      const running = await dev(root, (une: string) => dites.push(une))
+      const serveur = running.server
+      const vraie = serveur.close.bind(serveur)
+      serveur.close = () => Promise.reject(new Error('fermeture refusée'))
+
+      try {
+        const réduit = avant.replace("stories: 'stories'", "stories: 'stories/checkout'")
+        expect(réduit).not.toBe(avant)
+        writeFileSync(config, réduit)
+
+        await expect
+          .poll(() => dites.filter((une) => une.includes('could not be restarted')).length, {
+            timeout: 30_000,
+          })
+          .toBe(1)
+
+        // L'ancien tient toujours le port, donc la poignée le désigne encore et il
+        // sert encore son catalogue.
+        expect(await compteSur(portDe(running))()).toBe(4)
+      } finally {
+        serveur.close = vraie
+        await running.close()
+        rmSync(root, { recursive: true, force: true })
+      }
+    },
+  )
+
   // Le port du serveur qui tourne est repris, et non recherché depuis 5173 : un
   // serveur tombé sur 5174 au démarrage bougeait sous l'onglet ouvert dès que le
   // port par défaut se libérait.

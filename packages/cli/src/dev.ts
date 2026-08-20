@@ -354,14 +354,22 @@ export async function dev(input: string, log = console.log): Promise<Running> {
     const before = running.started ?? started
     const port = before.server.config.server.port
 
-    try {
-      await before.server.close()
-    } catch (error) {
-      // The old server still holds the port, and `running.started` still names
-      // it: dropping that handle would leave nothing able to close it.
+    // The one way out of a failed restart, shared by both steps: the watchers go
+    // first, since Vite resolves the close of a server that never listened
+    // without emitting anything, so they would outlive it and double every
+    // restart that follows.
+    const abandon = async (error: unknown) => {
       next.unwatch()
       await next.server.close().catch(() => undefined)
       log(`the server could not be restarted, run \`crypte dev\` again: ${reason(error)}`)
+    }
+
+    try {
+      await before.server.close()
+    } catch (error) {
+      // The handle is left alone: the old server still holds the port and still
+      // answers, so dropping it would leave nothing able to close it.
+      await abandon(error)
       return
     }
 
@@ -371,12 +379,8 @@ export async function dev(input: string, log = console.log): Promise<Running> {
       if (closed) return
       await next.server.listen(port)
     } catch (error) {
-      // Its watchers go first: Vite resolves the close of a server that never
-      // listened without emitting anything, so they would outlive it.
-      next.unwatch()
-      await next.server.close().catch(() => undefined)
       running.started = undefined
-      log(`the server could not be restarted, run \`crypte dev\` again: ${reason(error)}`)
+      await abandon(error)
       return
     }
 
@@ -410,9 +414,7 @@ export async function dev(input: string, log = console.log): Promise<Running> {
   let queue = Promise.resolve()
 
   const restart = () => {
-    queue = queue.then(once).catch((error: unknown) => {
-      log(`the restart failed, run \`crypte dev\` again: ${reason(error)}`)
-    })
+    queue = queue.then(once).catch((error: unknown) => log(`the restart failed: ${reason(error)}`))
   }
 
   const started = await startDev(input, log, restart)
