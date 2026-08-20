@@ -1,8 +1,8 @@
 // `crypte dev`: reads the project, writes the catalogue, serves both pages, and
 // keeps them in step with the files. See docs/internal/architecture.md.
 
-import { join, relative } from 'node:path'
-import { watch } from 'node:fs'
+import { join } from 'node:path'
+import { readFileSync, watch } from 'node:fs'
 import { createServer, type ViteDevServer } from 'vite'
 import { fingerprintOf, writeFingerprint } from './fingerprint'
 import { buildCatalogue, writeCatalogue, type Catalogue } from './manifest'
@@ -30,6 +30,7 @@ export interface Held {
 export async function startDev(
   input: string,
   log: (line: string) => void = () => {},
+  onConfig?: () => void,
 ): Promise<Started> {
   const project = await loadProject(input)
   const held: Held = { catalogue: buildCatalogue(project) }
@@ -57,7 +58,7 @@ export async function startDev(
   })
 
   watchStories(server, project, held, log)
-  watchConfig(server, project, log)
+  watchConfig(server, project, () => onConfig?.())
 
   return { server, project, held, written }
 }
@@ -173,17 +174,24 @@ function watchStories(
 // `crypte.config.ts` and what it imports. Reloading it means rebuilding the
 // server, since the project's own plugins come from there: out of this lot, and
 // a line is what turns a silence into an instruction.
-function watchConfig(server: ViteDevServer, project: Project, log: (line: string) => void): void {
+function watchConfig(server: ViteDevServer, project: Project, changed: () => void): void {
   // One watcher per file rather than a filter on a folder's events: the list is
   // short, and it says exactly what is watched.
   //
   // `watch` throws on a file that is not there. `project.watch` names what the
   // configuration depends on, and a project may declare a `tsconfig.json` it
   // does not have: skipped rather than fatal.
+  let pending: ReturnType<typeof setTimeout> | undefined
+
   const watchers = project.watch.flatMap((file) => {
     try {
       return [
-        watch(file, () => log(`${relative(project.root, file)} changed, restart \`crypte dev\``)),
+        watch(file, () => {
+          // One save fires several events, as for the stories: restarting on
+          // each rebuilt the server twice per keystroke. Measured.
+          clearTimeout(pending)
+          pending = setTimeout(changed, 20)
+        }),
       ]
     } catch {
       return []
@@ -193,6 +201,20 @@ function watchConfig(server: ViteDevServer, project: Project, log: (line: string
   server.httpServer?.on('close', () => {
     for (const one of watchers) one.close()
   })
+}
+
+// The watched files as they are on disk. Their content and not their mtime: an
+// editor that saves without changing anything must not cost a server.
+function digest(project: Project): string {
+  return project.watch
+    .map((file) => {
+      try {
+        return `${file}:${readFileSync(file, 'utf8')}`
+      } catch {
+        return `${file}:absent`
+      }
+    })
+    .join('\u0000')
 }
 
 function reason(error: unknown): string {
@@ -224,8 +246,84 @@ export function reported(catalogue: Catalogue): string[] {
   return lines(catalogue)
 }
 
-export async function dev(input: string, log = console.log): Promise<ViteDevServer> {
-  const { server, held, written } = await startDev(input, log)
+// What `dev` hands back. A restart replaces the server, so the caller is given a
+// handle rather than the first one: closing that first one left the replacement
+// listening, and the next start took another port. Measured.
+export interface Running {
+  readonly server: ViteDevServer
+  close: () => Promise<void>
+}
+
+export async function dev(input: string, log = console.log): Promise<Running> {
+  // Held in a box because a restart replaces it: the caller keeps the first
+  // server, so it is this box, and not the caller, that knows the current one.
+  const running: { started?: Started } = {}
+
+  // Reading the configuration again is what `server.restart()` of Vite cannot
+  // do: ours is read by `loadProject`, outside Vite, and the serve plugin
+  // captures the project. Aliases, the CSS entry, the adapter and the user's own
+  // plugins all come from there. Voir docs/internal/architecture.md.
+  //
+  // The new server is built **before** the old one closes: a half-written
+  // configuration throws here and leaves the running server alone, which is the
+  // same rule the catalogue's rebuild follows. Closing last also hands the port
+  // over with nothing in between, so the browser reconnects on its own.
+  let seen: string | undefined
+
+  const once = async () => {
+    // What the watched files hold now. Compared rather than trusted: one save
+    // fires several events, and an editor touches the mtime of files it has not
+    // changed. A duplicate here costs a whole server, so the debounce alone was
+    // not enough, measured.
+    const now = digest(running.started?.project ?? started.project)
+    if (now === seen) return
+    seen = now
+
+    let next: Started
+
+    try {
+      next = await startDev(input, log, restart)
+    } catch (error) {
+      log(`crypte.config.ts could not be read, keeping the server that runs: ${reason(error)}`)
+      return
+    }
+
+    await running.started?.server.close()
+    running.started = next
+    await next.server.listen()
+
+    log(`crypte.config.ts changed, ${next.held.catalogue.manifest.entries.length} stories`)
+  }
+
+  // One restart at a time, and never a save dropped. A restart takes about a
+  // second, so a second save lands inside it; and between the new server and the
+  // old one closing, both sets of watchers are live, so one save calls this
+  // twice. Without the loop, the server would serve a configuration nobody has.
+  let busy = false
+  let again = false
+
+  const restart = async () => {
+    if (busy) {
+      again = true
+      return
+    }
+
+    busy = true
+    try {
+      do {
+        again = false
+        await once()
+      } while (again)
+    } finally {
+      busy = false
+    }
+  }
+
+  const started = await startDev(input, log, restart)
+  running.started = started
+  seen = digest(started.project)
+
+  const { server, held, written } = started
 
   await server.listen()
 
@@ -240,5 +338,12 @@ export async function dev(input: string, log = console.log): Promise<ViteDevServ
   log(`${held.catalogue.manifest.entries.length} stories`)
   server.printUrls()
 
-  return server
+  return {
+    get server() {
+      return running.started?.server ?? server
+    },
+    close: async () => {
+      await running.started?.server.close()
+    },
+  }
 }

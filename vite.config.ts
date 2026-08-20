@@ -139,6 +139,7 @@ export default defineConfig({
             '**/reopt.test.ts',
             '**/typed.test.ts',
             '**/aside.test.ts',
+            '**/restart.test.ts',
             '**/adapter.test.tsx',
             '**/app.test.ts',
           ],
@@ -176,6 +177,7 @@ export default defineConfig({
             '**/reopt.test.ts',
             '**/typed.test.ts',
             '**/aside.test.ts',
+            '**/restart.test.ts',
           ],
           sequence: { groupOrder: 1 },
           // Un fichier à la fois : ils sont quatre, et « seuls sur la machine »

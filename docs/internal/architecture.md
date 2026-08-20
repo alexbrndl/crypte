@@ -904,6 +904,20 @@ Les deux derniers chiffres sont le prix de la redondance : chaque filtre couvre 
 
 *Ce qui casse si on l'enlève :* `aside.test.ts` rougit, mesuré sur les trois pièces séparément, l'encart, la note et le champ dans le manifeste. Et les deux étages sont éprouvés hors navigateur aussi, sept cas sur le lecteur et quatre sur le shell.
 
+**`crypte.config.ts` est relu sans commande, en reconstruisant tout le serveur.** `server.restart()` de Vite ne suffit pas : notre configuration est lue par `loadProject`, hors de Vite, et le plugin de service capture le projet, d'où viennent les alias, l'entrée CSS, l'adaptateur et les plugins de l'utilisateur.
+
+*Le serveur neuf est construit avant que l'ancien ne ferme.* Une configuration à moitié écrite lève donc là, et laisse debout celui qui tourne, la même règle que la reconstruction du catalogue suit déjà. Fermer en dernier passe aussi le port sans rien entre les deux, ce qui est ce qui permet au navigateur de se reconnecter seul.
+
+*Le shell n'est pas rechargé, et n'a pas à l'être.* Mesuré en écrivant un cas faux : il attendait un rechargement de la page du haut, qui n'arrive jamais, le shell étant un bundle préconstruit sans client HMR. L'iframe, elle, est transformée par Vite : elle se recharge, dit `ready`, et le shell relit son catalogue à ce moment. C'est exactement le mécanisme sur lequel le lot 5b comptait.
+
+*Un changement se reconnaît au contenu, pas à l'événement.* Une sauvegarde émet plusieurs événements, et un éditeur touche la date d'un fichier qu'il n'a pas changé ; un redémarrage coûte tout le serveur. Le contenu des fichiers surveillés est donc comparé, et la temporisation de 20 ms ne suffisait pas : mesuré, le doublon revenait selon le rythme des événements. Ce garde a rendu inutile un second mécanisme, la déduplication du dernier message d'échec, qui a été retiré.
+
+*Un redémarrage à la fois, et aucune sauvegarde perdue.* Un redémarrage dure environ une seconde, donc une seconde sauvegarde tombe dedans ; et entre le serveur neuf et la fermeture de l'ancien, les deux jeux de surveillants sont vivants. Sans la boucle, le serveur servirait une configuration que personne n'a.
+
+*`dev` rend une poignée, pas le premier serveur.* Fermer celui-là laissait son remplaçant à l'écoute, et le démarrage suivant prenait un autre port. Mesuré : le port glissait de 5173 à 5175 en deux cas de test.
+
+*Ce qui casse si on l'enlève :* les quatre cas de `restart.test.ts` rougissent, mesuré, dont celui du navigateur qui suit l'arbre du shell. La comparaison de contenu est tenue par le cas qui réécrit deux fois le même contenu cassé.
+
 **Les cas navigateur sont un projet à part.** Entrelacés avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le même. `sequence.groupOrder` les fait passer après, seuls sur la machine : trois passes vertes contre une sur quatre avant.
 
 **Les réglages partagés sont hoistés, parce qu'un projet n'hérite pas toujours de la racine.** Le projet `shell` étend `apps/shell/vite.config.ts`, qui porte le plugin Vue : il ne voyait donc ni l'ordre mélangé ni le délai d'`expect.poll`. Ses treize cas tournaient dans un ordre fixe, ce qui est exactement l'état où deux couplages nous ont coûté des heures. Un objet `partagé` est maintenant épandu dans la racine et dans ce projet, et trois lancements mélangés passent.
