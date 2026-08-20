@@ -62,13 +62,26 @@ export async function startDev(
   return { server, project, held, written }
 }
 
-// What the shell and the preview's entry read from the catalogue: the tree, and
-// the file each entry comes from. Props and meta are deliberately out, so that
-// editing a story's props stays a hot update instead of a page reload.
+// What the shell and the preview's entry read from the catalogue: the tree, the
+// file each entry comes from, and what the reader had to set aside. Props and
+// meta are deliberately out, so that editing a story's props stays a hot update
+// instead of a page reload.
+//
+// `partial` and `skipped` are in because the shell only reads them on `ready`,
+// which a reload emits: without them here, adding a broken story file or a
+// spread showed nothing until a manual reload. Measured, `DCJ-217`. They cost
+// no reload on an ordinary edit: changing a prop's value leaves both untouched.
 function shape(catalogue: Catalogue): string {
-  return JSON.stringify(
-    catalogue.manifest.entries.map((entry) => [entry.id, entry.name, entry.path, entry.storyFile]),
-  )
+  return JSON.stringify([
+    catalogue.manifest.entries.map((entry) => [
+      entry.id,
+      entry.name,
+      entry.path,
+      entry.storyFile,
+      entry.partial,
+    ]),
+    catalogue.skipped,
+  ])
 }
 
 // A story file changed: read the catalogue again, and reload the preview when
@@ -97,7 +110,7 @@ function watchStories(
   const rebuild = (): void => {
     let next: Catalogue
     try {
-      next = buildCatalogue(project)
+      next = buildCatalogue(project, held.catalogue)
     } catch (error) {
       // A half-written file is an ordinary state while typing: two stories
       // briefly share a name, an import is half deleted. Keeping the last good

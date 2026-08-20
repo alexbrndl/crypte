@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Manifest, StoryEntry } from '@crypte/core/protocol'
+import type { Manifest, SkippedFile, StoryEntry } from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/ui'
 import { computed, onMounted, ref, useTemplateRef } from 'vue'
 import { landing, unreadable, type Shown } from './recover'
@@ -13,6 +13,7 @@ const MANIFEST = '/@crypte/manifest.json'
 
 const frame = useTemplateRef<HTMLIFrameElement>('frame')
 const entries = ref<StoryEntry[]>([])
+const skipped = ref<SkippedFile[]>([])
 const current = ref<string | null>(null)
 const status = ref('chargement du catalogue')
 
@@ -28,6 +29,36 @@ const failure = ref<{ id: string; message: string; stack?: string } | null>(null
 
 let channel: ReturnType<typeof createShellChannel> | null = null
 let ready = false
+
+// Ce qu'un fichier écarté a quand même donné, compté sur les entrées plutôt que
+// lu d'un champ : `skipped.file` et `entry.storyFile` sont le même chemin, donc
+// un compte de plus dans le manifeste pourrait le contredire.
+//
+// Le message dépend du compte, sinon il mentirait : « ce fichier a été ignoré »
+// est faux d'un fichier qui a rendu trois stories sur quatre.
+const setAside = computed(() =>
+  skipped.value.map((one) => {
+    const read = entries.value.filter((entry) => entry.storyFile === one.file).length
+
+    return {
+      file: one.file,
+      reason: one.reason,
+      read,
+      title:
+        read === 0
+          ? 'aucune story lue'
+          : read === 1
+            ? '1 story lue, il en manque'
+            : `${read} stories lues, il en manque`,
+    }
+  }),
+)
+
+// La note de l'entrée affichée, quand sa fiche est partielle. Discrète et non
+// bloquante : la story rend, il manque des lignes à sa table de props.
+const partial = computed(
+  () => entries.value.find((entry) => entry.id === current.value)?.partial ?? null,
+)
 
 // Groupées par dossier, dans l'ordre du manifeste : l'arbre vient du chemin, et
 // aucun titre n'est déclaré nulle part. Section 1.1 des contrats.
@@ -68,6 +99,7 @@ async function refresh() {
   const before = entries.value
 
   entries.value = manifest.entries
+  skipped.value = manifest.skipped ?? []
   status.value = `${manifest.entries.length} stories`
 
   const next = landing(shown, before, manifest.entries)
@@ -95,7 +127,9 @@ onMounted(() => {
         failure.value = null
         status.value = `${message.id} rendu en ${message.durationMs.toFixed(1)} ms`
       }
-      if (message.type === 'error') {
+      // Rattachée à la story affichée : cliquer B pendant que A rend laissait
+      // l'erreur de A couvrir B, et masquer la note partielle de B.
+      if (message.type === 'error' && message.id === current.value) {
         failure.value = { id: message.id, message: message.message, stack: message.stack }
         status.value = 'erreur de rendu'
       }
@@ -124,7 +158,21 @@ onMounted(() => {
       </section>
       <p v-if="entries.length === 0">aucune story</p>
     </nav>
+
     <div>
+      <!-- Visible sans qu'on la cherche, et au-dessus de la preview : une story
+           écartée est absente de l'arbre, donc rien d'autre ne la nomme. Jamais
+           bloquant, un fichier en cours d'écriture ne doit pas coûter le
+           catalogue. -->
+      <section v-if="setAside.length > 0" class="set-aside" role="status">
+        <h2>Ce que Crypte n'a pas pu lire</h2>
+        <ul>
+          <li v-for="one of setAside" :key="one.file">
+            <code>{{ one.file }}</code> : {{ one.title }}. {{ one.reason }}
+          </li>
+        </ul>
+      </section>
+
       <!-- L'erreur couvre la preview plutôt que de l'accompagner : ce qui reste
            affiché dessous appartient à la story d'avant, et le laisser voir
            ferait croire que celle-ci a rendu. -->
@@ -134,6 +182,11 @@ onMounted(() => {
         <pre v-if="failure.stack">{{ failure.stack }}</pre>
       </div>
       <iframe v-show="!failure" ref="frame" src="/preview.html" title="preview"></iframe>
+
+      <!-- Sous la preview, pas dessus : la story rend, et l'avertissement ne dit
+           que ce qui manque à sa fiche. Le ton dit ce que l'outil ne sait pas
+           lire, jamais que le fichier est mal écrit. -->
+      <p v-if="partial && !failure" class="partial">Fiche partielle : {{ partial }}.</p>
       <p>{{ status }}</p>
     </div>
   </main>
@@ -174,6 +227,29 @@ iframe {
   padding: 12px 16px;
   min-height: 70vh;
   box-sizing: border-box;
+}
+
+.set-aside {
+  border: 1px solid #fcd34d;
+  background: #fffbeb;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.set-aside h2 {
+  font-size: 13px;
+  margin: 0 0 4px;
+}
+
+.set-aside ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.partial {
+  color: #92400e;
+  font-size: 13px;
 }
 
 .failure pre {

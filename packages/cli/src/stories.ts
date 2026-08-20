@@ -26,6 +26,11 @@ interface Node {
 export interface StoryFileRead {
   entries: StoryEntry[]
   skipped?: string
+  // Whether the file meant to be a story, which decides where the reason goes:
+  // the terminal takes everything, the shell only what is certain. Guessing it
+  // from the shape of the default export had a counterexample per branch,
+  // measured. Voir docs/internal/architecture.md.
+  meant?: boolean
 }
 
 export function entriesOf(file: string, root: string, storiesRoot: string): StoryFileRead {
@@ -33,44 +38,101 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
   const parsed = parseSync(file, source)
 
   if (parsed.errors.length > 0) {
-    return { entries: [], skipped: parsed.errors[0]?.message ?? 'the file could not be parsed' }
+    return {
+      entries: [],
+      skipped: parsed.errors[0]?.message ?? 'the file could not be parsed',
+      meant: true,
+    }
   }
 
-  const call = defineStoriesCall(parsed.program.body as unknown as Node[])
-  if (!call) return { entries: [], skipped: 'no default export calling defineStories' }
+  const body = parsed.program.body as unknown as Node[]
+
+  // The local name of the import, so `import { defineStories as define }` works
+  // and is reported when it fails. Without it, an aliased story produced nothing
+  // and said nothing.
+  const named = boundTo(parsed.module, 'defineStories') ?? 'defineStories'
+  const call = defineStoriesCall(body, named)
+
+  if (!call) {
+    // The only sure signal is a call. A file that calls `defineStories` without
+    // exporting it by default is a story nobody will find, which is section 2.3.
+    //
+    // Anything else stays a guess, so it goes to the terminal and not to the
+    // shell: a wrapper written `export default memo(Frame)`, a barrel that
+    // re-exports `defineStories`, a helper that imports it to wrap it, all read
+    // as a story under one shape rule or another. Measured, one counterexample
+    // per branch. Voir docs/internal/architecture.md.
+    const called = calls(body, named)
+
+    return {
+      entries: [],
+      skipped: called
+        ? 'defineStories is called but not the default export'
+        : 'no default export calling defineStories',
+      ...(called ? { meant: true } : {}),
+    }
+  }
 
   const [target, definition] = (call['arguments'] as Node[]) ?? []
   if (target?.type !== 'Identifier') {
-    return { entries: [], skipped: 'the component is not a plain identifier' }
+    return { entries: [], skipped: 'the component is not a plain identifier', meant: true }
   }
 
   const name = target['name'] as string
   const component = componentRef(parsed.module, name)
   if (!component) {
-    return { entries: [], skipped: `${name} is not imported by a form this reader can follow` }
+    return {
+      entries: [],
+      skipped: `${name} is not imported by a form this reader can follow`,
+      meant: true,
+    }
   }
 
   const path = pathOf(file, storiesRoot)
   const storyFile = posix(relative(root, file))
 
   // Read only what a spread does not decide, the same rule the stories follow.
-  const shared = shadowed(definition, 'props')
-    ? new Map<string, Node>()
-    : propsOf(propertyOf(definition, 'props'))
+  const sharedProps = propertyOf(definition, 'props')
+  const shared = shadowed(definition, 'props') ? new Map<string, Node>() : propsOf(sharedProps)
 
   // `meta` travels untouched: section 4.4. `details` does not travel yet, since
   // the manifest carries the resolved form, whose `type` and `required` come
   // from an adapter's inference and not from the file.
-  const meta = shadowed(definition, 'meta') ? undefined : record(propertyOf(definition, 'meta'))
+  const metaNode = propertyOf(definition, 'meta')
+  const meta = shadowed(definition, 'meta') ? undefined : record(metaNode)
+
+  // What the file lost above its stories, so every entry of the file says it.
+  // Three losses were silent: a spread deciding the shared block, a spread
+  // deciding `meta`, and what the shared block itself could not give up.
+  const above = [
+    ...(shadowed(definition, 'props')
+      ? ['a spread in the definition decides the props, so the shared block is not read']
+      : unreadOf(sharedProps, source)),
+    ...(shadowed(definition, 'meta')
+      ? ['a spread in the definition decides `meta`, so no status or owner is read']
+      : metaNode !== null && meta === undefined
+        ? ['`meta` holds a value this reader cannot read, so no status or owner is read']
+        : []),
+  ]
 
   // The helper can be imported under another name, and any other call is
   // somebody else's function whose arguments say nothing about props.
   const helper = boundTo(parsed.module, 'story') ?? 'story'
-  const { stories, reason } = produced(readStories(definition, helper))
+  const { stories, reason } = produced(readStories(definition, helper, source))
 
   return {
     entries: stories.map((story) => {
       const props = new Map([...shared, ...story.own])
+      const options = record(story.options)
+      const partial = [
+        ...new Set([
+          ...above,
+          ...story.unread,
+          ...(story.options !== undefined && options === undefined
+            ? ['`options` holds a value this reader cannot read, so none of it is read']
+            : []),
+        ]),
+      ]
 
       return {
         type: 'story',
@@ -79,14 +141,15 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
         name: story.name,
         component: { ...component },
         storyFile,
-        options: record(story.options) ?? {},
+        options: options ?? {},
         details: {},
         props: [...props.keys()].sort(),
         source: callOf(name, props, source),
         ...(meta ? { meta } : {}),
+        ...(partial.length > 0 ? { partial: partial.join('; ') } : {}),
       } satisfies StoryEntry
     }),
-    ...(reason ? { skipped: reason } : {}),
+    ...(reason ? { skipped: reason, meant: true } : {}),
   }
 }
 
@@ -99,6 +162,8 @@ interface Declared {
   // name is certain, the value is not. See `propsOf`.
   own: Map<string, Node | undefined>
   options: Node | undefined
+  // What its own props block did not give up. See `unreadOf`.
+  unread: string[]
 }
 
 // What a file says about its stories. Three answers, never two: this reader can
@@ -118,7 +183,7 @@ type StoriesRead =
 function produced(read: StoriesRead): { stories: Declared[]; reason?: string } {
   switch (read.kind) {
     case 'noBlock':
-      return { stories: [{ name: ONLY_STORY, own: new Map(), options: undefined }] }
+      return { stories: [{ name: ONLY_STORY, own: new Map(), options: undefined, unread: [] }] }
     case 'these':
       return { stories: read.stories, reason: read.reason }
     case 'unusable':
@@ -134,7 +199,7 @@ function produced(read: StoriesRead): { stories: Declared[]; reason?: string } {
 }
 
 // The stories the file names, in the order it writes them.
-function readStories(definition: Node | undefined, helper: string): StoriesRead {
+function readStories(definition: Node | undefined, helper: string, source: string): StoriesRead {
   // The definition first: `defineStories(A, config)` holds nothing this reader
   // can follow, so the absence of a block below would prove nothing.
   if (definition !== undefined && definition.type !== 'ObjectExpression') {
@@ -193,7 +258,7 @@ function readStories(definition: Node | undefined, helper: string): StoriesRead 
     }
 
     const name = keyOf(property['key'] as Node)
-    named.set(name, { name, ...declaredBy(property['value'] as Node, helper) })
+    named.set(name, { name, ...declaredBy(property['value'] as Node, helper, source) })
   }
 
   const stories = [...named.values()]
@@ -212,21 +277,32 @@ function readStories(definition: Node | undefined, helper: string): StoriesRead 
 // Three forms carry the same thing. A bare object is the props. `story(props,
 // options)` keeps the two apart. The literal `{ props, options }` is what the
 // helper returns, and section 2.3 accepts it written by hand.
-function declaredBy(value: Node, helper: string) {
+function declaredBy(value: Node, helper: string, source: string) {
   if (value.type === 'CallExpression') {
     const callee = value['callee'] as Node
     if (callee?.type !== 'Identifier' || callee['name'] !== helper) {
-      return { own: new Map<string, Node | undefined>(), options: undefined }
+      return {
+        own: new Map<string, Node | undefined>(),
+        options: undefined,
+        unread: unreadOf(value, source),
+      }
     }
 
     const args = value['arguments'] as Node[]
-    return { own: propsOf(args[0] ?? null), options: args[1] }
+    const own = args[0] ?? null
+    return { own: propsOf(own), options: args[1], unread: unreadOf(own, source) }
   }
 
   const shaped = asStoryLiteral(value)
-  if (shaped) return { own: propsOf(shaped.props), options: shaped.options ?? undefined }
+  if (shaped) {
+    return {
+      own: propsOf(shaped.props),
+      options: shaped.options ?? undefined,
+      unread: unreadOf(shaped.props, source),
+    }
+  }
 
-  return { own: propsOf(value), options: undefined }
+  return { own: propsOf(value), options: undefined, unread: unreadOf(value, source) }
 }
 
 // A `Story` written by hand rather than through the helper. Recognised by its
@@ -297,14 +373,57 @@ function boundTo(module: unknown, exported: string): string | undefined {
 
 // `export default defineStories(…)`, and nothing else. A named export is not a
 // story module: section 2.3 of docs/contracts.md.
-function defineStoriesCall(body: Node[]): Node | undefined {
+function defineStoriesCall(body: Node[], name: string): Node | undefined {
   const exported = body.find((node) => node.type === 'ExportDefaultDeclaration')
   const call = exported?.['declaration'] as Node | undefined
   if (call?.type !== 'CallExpression') return undefined
 
   const callee = call['callee'] as Node
-  return callee?.type === 'Identifier' && callee['name'] === 'defineStories' ? call : undefined
+  return callee?.type === 'Identifier' && callee['name'] === name ? call : undefined
 }
+
+// Whether the file calls something **at the top level of the module**. Three
+// forms named `defineStories` without being a story: an import specifier, a
+// re-export, an object key ; and one called it while being a helper, a factory
+// written `export const make = (C) => defineStories(C, {})`. A story calls it
+// where the module runs, so that is the only place worth reading. Measured.
+function calls(body: Node[], name: string): boolean {
+  const called = (current: unknown): boolean => {
+    if (current === null || typeof current !== 'object') return false
+
+    if (Array.isArray(current)) return current.some((one) => called(one))
+
+    const inner = current as Node
+
+    // A function body is somebody else's code: whatever it calls, it calls when
+    // that function runs, not when the module does.
+    if (FUNCTIONS_AND_CLASSES.has(inner.type)) return false
+
+    const callee = inner['callee'] as Node | undefined
+
+    if (
+      inner.type === 'CallExpression' &&
+      callee?.type === 'Identifier' &&
+      callee['name'] === name
+    ) {
+      return true
+    }
+
+    return Object.values(inner).some((held) => called(held))
+  }
+
+  return called(body)
+}
+
+// The nodes whose body runs later, so a call inside one says nothing about what
+// the module does.
+const FUNCTIONS_AND_CLASSES = new Set([
+  'FunctionDeclaration',
+  'FunctionExpression',
+  'ArrowFunctionExpression',
+  'ClassDeclaration',
+  'ClassExpression',
+])
 
 // A key can be quoted, so `{ 'meta': … }` has to be found too. A computed key
 // is never a match: nothing says what it holds without running the file.
@@ -321,6 +440,53 @@ function propertyOf(object: Node | undefined, name: string): Node | null {
   )
 
   return (found?.['value'] as Node | undefined) ?? null
+}
+
+// What an object literal did not give up. A spread's names and a computed key
+// cannot be read without running the file, so the note quotes what the file
+// wrote: the missing names are precisely what nobody can read.
+function unreadOf(object: Node | null | undefined, source: string): string[] {
+  // Absent, nothing to say. Present without being a literal, everything is lost,
+  // which is the largest silent loss of them all: `props: shared` is legal by
+  // section 2.3, and gave an empty table that read as a complete one.
+  if (object === null || object === undefined) return []
+
+  if (object.type !== 'ObjectExpression') {
+    return [
+      `\`${written(source, object)}\` is not written inline, so the props it holds are not read`,
+    ]
+  }
+
+  const notes = new Set<string>()
+
+  for (const property of (object['properties'] as Node[]) ?? []) {
+    if (property.type !== 'Property') {
+      notes.add(`\`${written(source, property)}\` brings props this reader cannot follow`)
+      continue
+    }
+
+    if (property['computed'] === true)
+      notes.add('a prop whose key is computed at runtime is left out')
+  }
+
+  return [...notes]
+}
+
+// Pinned to a locale, like the sort in `manifest.ts`: this note travels in the
+// manifest and in the committed fingerprint, so two machines must cut the same.
+const GRAPHEMES = new Intl.Segmenter('en')
+
+// What the file wrote, on one line and short enough for a list item or a
+// terminal line: a spread can span ten lines, and its own text is the message.
+function written(source: string, node: Node): string {
+  const one = source.slice(node.start, node.end).replace(/\s+/gu, ' ')
+
+  // By graphemes, not by UTF-16 units: cutting inside a surrogate pair sent half
+  // a character into the manifest, and cutting inside a composed emoji would
+  // break it in two.
+  const signes = [...GRAPHEMES.segment(one)].map((un) => un.segment)
+
+  return signes.length > 40 ? `${signes.slice(0, 39).join('')}…` : one
 }
 
 // The props an object literal writes, kept in order and paired with their value.
@@ -484,6 +650,8 @@ function pathOf(file: string, storiesRoot: string): string[] {
   return [...parts, last.replace(/\.[jt]sx?$/, '')]
 }
 
-function posix(path: string): string {
+// Shared with `manifest.ts`: the two produced the same string by two different
+// rules, and the shell compares `skipped[].file` with `entry.storyFile`.
+export function posix(path: string): string {
   return path.split(sep).join('/')
 }

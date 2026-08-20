@@ -128,10 +128,80 @@ describe('la lecture des stories', () => {
     expect(skipped).toBeTruthy()
   })
 
-  it('passe un fichier sans export par défaut appelant defineStories', () => {
-    const named = "import { A } from '../a'\nexport const stories = defineStories(A)\n"
+  // Deux versions de ce tri se sont trompées, chacune dans un sens, avant celle-ci.
+  // Ce qui est **certain** est un appel à `defineStories` : le reste reste une
+  // supposition, donc part au terminal et pas dans le bandeau du shell. C'est
+  // `meant` qui porte la distinction.
+  it.for([
+    [
+      'un appel non exporté par défaut',
+      "import { A } from '../a'\nexport const stories = defineStories(A)",
+    ],
+  ] as const)('est certain pour %s', ([, source], { expect }) => {
+    const lu = fileWith('Certain.ts', source)
 
-    expect(fileWith('A.ts', named).skipped).toBe('no default export calling defineStories')
+    expect(lu.skipped).toBe('defineStories is called but not the default export')
+    expect(lu.meant).toBe(true)
+  })
+
+  // Les formes qui ne sont qu'une supposition : chacune a fait passer un
+  // utilitaire pour une story ratée sous une règle de forme ou une autre.
+  it.for([
+    ['un composant enveloppé', "import { memo } from 'react'\nexport default memo(() => null)"],
+    ['une flèche', 'export default () => null'],
+    ['un barrel qui réexporte defineStories', "export { defineStories } from '@crypte/react'"],
+    ['un import sans appel', "import { defineStories } from '@crypte/react'\nexport default 1"],
+    ['un nombre', 'export default 12'],
+    ['aucun export par défaut', 'const base = { a: 1 }\nexport { base }'],
+  ] as const)('reste une supposition pour %s', ([, source], { expect }) => {
+    const lu = fileWith('Suppose.ts', source)
+
+    expect(lu.skipped).toBe('no default export calling defineStories')
+    expect(lu.meant).toBeUndefined()
+  })
+
+  // Un appel dans un corps de fonction est celui d'une fabrique, pas d'une story :
+  // il s'exécute quand la fonction tourne, pas quand le module tourne.
+  it.for([
+    ['une flèche', 'export const make = (C) => defineStories(C, {})'],
+    ['une fonction', 'export function make(C) { return defineStories(C, {}) }'],
+    ['une méthode de classe', 'export class F { make(C) { return defineStories(C, {}) } }'],
+  ] as const)('ne prend pas pour une story un appel dans %s', ([, source]) => {
+    const lu = fileWith('Fabrique.ts', `import { defineStories } from '@crypte/react'\n${source}`)
+
+    expect(lu.meant).toBeUndefined()
+  })
+
+  // L'alias marche, et échouait en silence avant : ni story, ni message.
+  it('lit une story dont defineStories est importé sous un autre nom', () => {
+    const { entries } = fileWith(
+      'Alias.ts',
+      `import { defineStories as define } from '@crypte/react'
+       import { A } from '../a'
+       export default define(A)`,
+    )
+
+    expect(entries.map((entry) => entry.id)).toEqual(['alias--default'])
+  })
+
+  it('signale un alias que son export nommé rend introuvable', () => {
+    const lu = fileWith(
+      'AliasNomme.ts',
+      `import { defineStories as define } from '@crypte/react'
+       import { A } from '../a'
+       export const stories = define(A)`,
+    )
+
+    expect(lu.meant).toBe(true)
+  })
+
+  // Un appel dans un commentaire ou une chaîne n'est pas un appel : la lecture
+  // passe par l'arbre.
+  it.for([
+    ['un commentaire', '// defineStories(A)\nexport default 1'],
+    ['une chaîne', "export default { nom: 'defineStories' }"],
+  ] as const)('ne prend pas %s pour un appel', ([, source], { expect }) => {
+    expect(fileWith('Faux.ts', source).meant).toBeUndefined()
   })
 
   // Les noms d'un spread ne se lisent pas sans exécuter le fichier, et les
@@ -543,5 +613,147 @@ describe('la lecture des stories', () => {
 
     expect(entries[0]?.meta).toEqual({ status: 'stable' })
     expect(entries[0]?.props).toEqual(['a'])
+  })
+})
+
+// La seconde moitié de la règle du lot 4 : ce qui est laissé de côté est dit.
+// L'étage du fichier vit dans `skipped`, celui de l'entrée dans `partial`, et
+// une story dont la fiche est partielle rend quand même. `DCJ-217`.
+describe('ce que la fiche ne dit pas', () => {
+  it('cite le spread que le fichier a écrit', () => {
+    const { entries } = fileWith(
+      'Spread.js',
+      `import { Badge } from './Badge'
+       const base = { title: 'x' }
+       export default defineStories(Badge, { stories: { Un: { ...base, size: 'lg' } } })`,
+    )
+
+    expect(entries[0]?.partial).toBe('`...base` brings props this reader cannot follow')
+    expect(entries[0]?.props).toEqual(['size'])
+  })
+
+  // La citation tient sur une ligne : un spread peut s'étaler sur dix lignes, et
+  // le message va dans un élément de liste ou une ligne de terminal.
+  it('met la citation sur une ligne et la coupe si elle est longue', () => {
+    const multiligne = fileWith(
+      'Multiligne.js',
+      `import { Badge } from './Badge'
+       const base = {}
+       export default defineStories(Badge, { stories: { Un: { ...(
+         base
+       ), a: 1 } } })`,
+    )
+
+    expect(multiligne.entries[0]?.partial).toBe(
+      '`...( base )` brings props this reader cannot follow',
+    )
+
+    const long = fileWith(
+      'Long.js',
+      `import { Badge } from './Badge'
+       const faire = () => ({})
+       export default defineStories(Badge, {
+         stories: { Un: { ...faire({ un: 1, deux: 2, trois: 3, quatre: 4 }), a: 1 } },
+       })`,
+    )
+
+    expect(long.entries[0]?.partial).toBe(
+      '`...faire({ un: 1, deux: 2, trois: 3, qu…` brings props this reader cannot follow',
+    )
+  })
+
+  // La coupe compte des graphèmes : sur des unités UTF-16 elle envoyait un
+  // demi-caractère dans le manifeste, qui s'affiche en glyphe de remplacement.
+  // Le nom `ab` décale la citation d'une unité, ce qui met la coupe au milieu
+  // d'une paire de substitution : sans ce décalage, elle tombait par chance sur
+  // une frontière et le cas ne surveillait rien. Mesuré.
+  it('ne coupe pas un caractère en deux', () => {
+    const { entries } = fileWith(
+      'Astral.js',
+      `import { Badge } from './Badge'
+       const faire = () => ({})
+       export default defineStories(Badge, {
+         stories: { Un: { ...faire({ ab: '${'𝐀'.repeat(30)}' }), b: 1 } },
+       })`,
+    )
+
+    const note = entries[0]?.partial ?? ''
+
+    expect(note).toContain('…')
+    expect(
+      /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(note),
+    ).toBe(false)
+  })
+
+  it('dit la clé de prop calculée sans nommer ce qu’elle vaut', () => {
+    const { entries } = fileWith(
+      'Calculee.js',
+      `import { Badge } from './Badge'
+       const cle = 'taille'
+       export default defineStories(Badge, { stories: { Un: { [cle]: 'lg', size: 'sm' } } })`,
+    )
+
+    expect(entries[0]?.partial).toBe('a prop whose key is computed at runtime is left out')
+  })
+
+  // Le bloc partagé vaut pour tout le fichier, donc sa note aussi.
+  it('porte la note du bloc partagé sur chaque entrée', () => {
+    const { entries } = fileWith(
+      'Partage.js',
+      `import { Badge } from './Badge'
+       const base = { title: 'x' }
+       export default defineStories(Badge, {
+         props: { ...base, size: 'lg' },
+         stories: { Un: {}, Deux: {} },
+       })`,
+    )
+
+    expect(entries).toHaveLength(2)
+    expect(entries.map((entry) => entry.partial)).toEqual([
+      '`...base` brings props this reader cannot follow',
+      '`...base` brings props this reader cannot follow',
+    ])
+  })
+
+  // Deux pertes que rien ne disait avant ce lot : un spread de la définition
+  // décide `props`, un autre décide `meta`, et l'entrée sortait muette.
+  it('dit un spread qui décide le bloc partagé et le meta', () => {
+    const { entries } = fileWith(
+      'Definition.js',
+      `import { Badge } from './Badge'
+       const autre = {}
+       export default defineStories(Badge, {
+         props: { size: 'lg' },
+         meta: { status: 'stable' },
+         ...autre,
+         stories: { Un: {} },
+       })`,
+    )
+
+    expect(entries[0]?.partial).toBe(
+      'a spread in the definition decides the props, so the shared block is not read; ' +
+        'a spread in the definition decides `meta`, so no status or owner is read',
+    )
+  })
+
+  // Une même raison deux fois ne se dit qu'une fois.
+  it('ne répète pas la même raison', () => {
+    const { entries } = fileWith(
+      'Deux.js',
+      `import { Badge } from './Badge'
+       export default defineStories(Badge, {
+         stories: { Un: { [a]: 1, [b]: 2, size: 'lg' } },
+       })`,
+    )
+
+    expect(entries[0]?.partial).toBe('a prop whose key is computed at runtime is left out')
+  })
+
+  // Le cas courant reste muet : un champ posé sur toutes les entrées ferait
+  // porter à chaque fiche un avertissement qui ne veut rien dire.
+  it('ne pose rien sur une story que le lecteur lit entièrement', () => {
+    const { entries } = entriesOf(join(stories, 'checkout', 'OrderSummary.jsx'), fixture, stories)
+
+    expect(entries.every((entry) => entry.partial === undefined)).toBe(true)
   })
 })

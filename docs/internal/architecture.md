@@ -868,6 +868,42 @@ Les deux derniers chiffres sont le prix de la redondance : chaque filtre couvre 
 
 *Le cas porte son propre délai*, 120 s comme `reopt.test.ts`. Une première version laissait un sondage de 30 s sous le `testTimeout` partagé de 20 s : vitest tuait le cas avant la fin du sondage, donc la valeur bavarde n'était jamais rapportée et l'assertion sur les plaintes du navigateur jamais atteinte. Le « 20,6 s » qu'annonçait ce paragraphe **était** ce couperet, ce qui en est la preuve.
 
+**Ce que le lecteur écarte est dit à deux étages, et ils ne se confondent pas.** `Manifest.skipped` nomme un **fichier**, `StoryEntry.partial` nomme une **entrée**. Le premier existe parce qu'une story écartée n'a justement aucune entrée où accrocher un message ; le second parce qu'une story peut rendre correctement avec une fiche incomplète.
+
+*Le compte vient des entrées, pas d'un champ.* Mesuré : `skipped[].file` et `entry.storyFile` sont le même chemin relatif à la racine, en posix. Le shell compte donc lui-même ce qu'un fichier a quand même donné, et dit « 1 story lue, il en manque » ou « aucune story lue ». Un compte porté par le manifeste serait de l'état dupliqué, donc de l'état qui peut se contredire, et le message est précisément celui que l'issue interdit de rater : « ce fichier a été ignoré » est faux d'un fichier qui a rendu trois stories sur quatre.
+
+*`partial` porte un texte, pas une liste de props.* La forme riche aurait eu pour champ utile le nom des props perdues, or c'est exactement ce qui est inconnaissable : un `...base` ne se lit pas sans exécuter le fichier. Ce que le lecteur peut citer est le texte écrit, et c'est ce qu'il cite.
+
+*Trois pertes étaient muettes avant ce lot*, mesurées : un spread de la définition qui décide `props`, un autre qui décide `meta`, et ce qu'un bloc de props n'a pas pu donner. Aucune n'apparaissait ni dans `skipped` ni sur l'entrée, donc ni dans le terminal ni à l'écran.
+
+*Les deux signaux sont dans la forme du catalogue*, celle qui décide du rechargement. Le shell ne relit le manifeste que sur `ready`, qu'un rechargement émet : sans `partial` et `skipped` dans `shape()`, ajouter un fichier de story cassé ou un `...base` ne montrait rien avant un rechargement à la main. Trouvé en revue. Et l'optimisation que `shape()` protège tient toujours, mesuré : changer la **valeur** d'une prop ne touche ni l'un ni l'autre, donc reste une mise à jour à chaud.
+
+**Ce qui est signalé va au terminal ; ce qui est certain va au bandeau.** Trois versions de ce tri se sont trompées, chacune dans un sens, et la mesure a tranché à chaque fois. La règle qui tient sépare les deux sorties au lieu de chercher une frontière unique : le terminal est un journal au démarrage, où trop dire coûte une ligne, le bandeau est une interface permanente, où trop dire apprend à ne plus la lire.
+
+*Le terminal garde tout*, comme le lot 4 l'a posé : tout fichier du dossier des stories qui ne produit rien y laisse sa raison.
+
+*Le bandeau ne montre que le certain*, et trois choses seulement le sont :
+
+- **un appel à `defineStories`** que l'export par défaut ne porte pas, ce qu'interdit la section 2.3. Un appel, pas une mention : un barrel qui réexporte le nom, un import dans un utilitaire, une clé d'objet, chacun a fait passer un utilitaire pour une story ratée.
+- **un fichier qui ne parse pas**, ou dont l'appel est là mais malformé.
+- **un fichier qui produisait des stories et n'en produit plus.** Sa raison devient certaine, quelle qu'elle soit : c'est une story qui a cessé de marcher, pas un utilitaire sur lequel on suppose.
+
+*Ce que le tri par la forme ne pouvait pas faire.* Deviner l'intention depuis l'export par défaut a un contre-exemple par branche, mesuré : `export default memo(Frame)` et `forwardRef(...)`, idiomatiques en React, sont des appels ; `export default 12` n'est pas un composant mais peut être n'importe quoi ; un identifiant réexporté ne dit rien. Chaque règle de forme mettait un bandeau permanent sur un fichier voisin légitime, ou taisait une vraie story.
+
+*La disparition demande un état de la session*, `Catalogue.wasStory`, hors du manifeste. Lu des entrées précédentes seulement, la note ne durait **qu'une** reconstruction, puisque le fichier quitte les entrées dès qu'elle est posée : le premier enregistrement sans rapport retirait le bandeau et envoyait un second rechargement. Mesuré sur six reconstructions.
+
+*Elle s'oublie quand le fichier n'est pas de la passe*, et non quand `existsSync` le dit absent : sur un système de fichiers insensible à la casse, renommer `Badge.ts` en `badge.ts` laissait l'ancienne graphie exister, donc le bandeau nommait un fichier disparu sous ce nom et ne partait plus jamais. Le lecteur vient de parcourir les fichiers, donc l'ensemble est déjà là.
+
+*Et la disparition mène le message*, la raison propre du fichier suivant : « no default export calling defineStories » seul se lit comme un utilitaire, alors que ce fichier était une story une seconde plus tôt.
+
+*Un appel se lit au niveau du module.* Une fabrique, `export const make = (C) => defineStories(C, {})`, appelle `defineStories` quand **elle** tourne, pas quand le module tourne : la compter donnait un bandeau permanent à un utilitaire. Et le nom lu est le nom **local** de l'import, donc `import { defineStories as define }` produit sa story au lieu de n'en produire aucune en silence.
+
+*Six pertes étaient muettes, pas trois.* La revue a trouvé les trois autres : un bloc de props qui est une **référence** (`props: shared`, légal en section 2.3) perdait toutes ses props, un `meta` dont une valeur n'est pas littérale disparaissait du manifeste **et de l'empreinte**, qui disait alors `status: 'none'`, et un `options` non littéral devenait `{}`. Chacune se dit maintenant.
+
+*La citation coupe par graphèmes.* Sur des unités UTF-16, un demi-caractère partait dans `manifest.json`. Le cas qui le garde a demandé une mesure : avec un nom de prop de longueur paire, la coupe tombait par chance sur une frontière et ne surveillait rien.
+
+*Ce qui casse si on l'enlève :* `aside.test.ts` rougit, mesuré sur les trois pièces séparément, l'encart, la note et le champ dans le manifeste. Et les deux étages sont éprouvés hors navigateur aussi, sept cas sur le lecteur et quatre sur le shell.
+
 **Les cas navigateur sont un projet à part.** Entrelacés avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le même. `sequence.groupOrder` les fait passer après, seuls sur la machine : trois passes vertes contre une sur quatre avant.
 
 **Les réglages partagés sont hoistés, parce qu'un projet n'hérite pas toujours de la racine.** Le projet `shell` étend `apps/shell/vite.config.ts`, qui porte le plugin Vue : il ne voyait donc ni l'ordre mélangé ni le délai d'`expect.poll`. Ses treize cas tournaient dans un ordre fixe, ce qui est exactement l'état où deux couplages nous ont coûté des heures. Un objet `partagé` est maintenant épandu dans la racine et dans ce projet, et trois lancements mélangés passent.

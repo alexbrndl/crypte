@@ -31,6 +31,8 @@ interface Ecran {
   répond: (message: PreviewMessage) => Promise<void>
   statut: () => string
   noms: () => string[]
+  écartés: () => string[]
+  partielle: () => string | false
 }
 
 // Le montage lance `refresh()`, qui attend `fetch` : deux sauts de microtâche
@@ -41,8 +43,12 @@ const vide = async (wrapper: VueWrapper) => {
   await wrapper.vm.$nextTick()
 }
 
-const monte = async (entries: StoryEntry[], échoue = false): Promise<Ecran> => {
-  const manifest: Manifest = { version: 1, entries } as never
+const monte = async (
+  entries: StoryEntry[],
+  échoue = false,
+  skipped?: { file: string; reason: string }[],
+): Promise<Ecran> => {
+  const manifest: Manifest = { version: 1, entries, ...(skipped ? { skipped } : {}) } as never
 
   vi.stubGlobal(
     'fetch',
@@ -77,6 +83,8 @@ const monte = async (entries: StoryEntry[], échoue = false): Promise<Ecran> => 
       await vide(wrapper)
     },
     statut: () => wrapper.findAll('p').at(-1)?.text() ?? '',
+    écartés: () => wrapper.findAll('.set-aside li').map((one) => one.text()),
+    partielle: () => wrapper.find('.partial').exists() && wrapper.find('.partial').text(),
     noms: () => wrapper.findAll('button').map((one) => one.text()),
   }
 }
@@ -227,5 +235,136 @@ describe('ce que la preview répond', () => {
     await écran.wrapper.vm.$nextTick()
 
     expect(écran.wrapper.find('[role="alert"]').exists()).toBe(false)
+  })
+})
+
+// Les deux étages de ce que le catalogue a laissé de côté. L'erreur est visible
+// sans qu'on la cherche, parce que la story écartée est absente de l'arbre ;
+// l'avertissement est discret, parce que la story rend. `DCJ-217`.
+describe('ce que le catalogue a laissé de côté', () => {
+  test('ne montre rien quand tout a été lu', async () => {
+    const écran = await monte([badge])
+
+    expect(écran.écartés()).toEqual([])
+    écran.wrapper.unmount()
+  })
+
+  // Le compte vient des entrées : dire « ignoré » d'un fichier qui a rendu deux
+  // stories sur trois serait faux, et c'est le piège que l'issue nomme.
+  test('dit combien le fichier a quand même donné', async () => {
+    const écran = await monte([badge, alerte], false, [
+      {
+        file: 'stories/Badge.tsx',
+        reason: 'stories left out: one whose key is computed at runtime',
+      },
+      { file: 'stories/Seul.tsx', reason: 'the stories block is not an object literal' },
+    ])
+
+    expect(écran.écartés()).toEqual([
+      'stories/Badge.tsx : 2 stories lues, il en manque. stories left out: one whose key is computed at runtime',
+      'stories/Seul.tsx : aucune story lue. the stories block is not an object literal',
+    ])
+    écran.wrapper.unmount()
+  })
+
+  test('accorde le singulier', async () => {
+    const écran = await monte([badge], false, [{ file: 'stories/Badge.tsx', reason: 'raison' }])
+
+    expect(écran.écartés()).toEqual(['stories/Badge.tsx : 1 story lue, il en manque. raison'])
+    écran.wrapper.unmount()
+  })
+
+  // La fiche partielle suit la story affichée, pas le fichier : deux stories du
+  // même fichier peuvent perdre des props différentes.
+  test('montre la note de la story affichée, et d’elle seule', async () => {
+    const partielle = { ...badge, partial: '`...base` brings props this reader cannot follow' }
+    const écran = await monte([partielle as never, alerte])
+
+    expect(écran.partielle()).toBe(
+      'Fiche partielle : `...base` brings props this reader cannot follow.',
+    )
+
+    await écran.wrapper.findAll('button')[1]?.trigger('click')
+    await écran.wrapper.vm.$nextTick()
+
+    expect(écran.partielle()).toBe(false)
+    écran.wrapper.unmount()
+  })
+
+  // La note dit « la story rend », donc elle ne s'affiche pas à côté d'un échec
+  // de rendu, où l'encart rouge remplace justement l'iframe.
+  test('retire la note quand la story ne rend pas', async () => {
+    const partielle = { ...badge, partial: '`...base` brings props this reader cannot follow' }
+    const écran = await monte([partielle as never])
+
+    expect(écran.partielle()).toContain('Fiche partielle')
+
+    await écran.répond({
+      type: 'error',
+      id: 'badge--defaut',
+      message: 'ce composant ne rend jamais',
+    } as PreviewMessage)
+
+    expect(écran.partielle()).toBe(false)
+    écran.wrapper.unmount()
+  })
+
+  // Une erreur qui arrive après un changement de story ne concerne plus l'écran :
+  // elle couvrait la story suivante et masquait sa note. Mesuré en revue.
+  test('ignore l’erreur d’une story qu’on a quittée', async () => {
+    const partielle = { ...alerte, partial: '`...base` brings props this reader cannot follow' }
+    const écran = await monte([badge, partielle as never])
+
+    await écran.wrapper.findAll('button')[1]?.trigger('click')
+    await écran.wrapper.vm.$nextTick()
+
+    await écran.répond({
+      type: 'error',
+      id: 'badge--defaut',
+      message: 'ce composant ne rend jamais',
+    } as PreviewMessage)
+
+    expect(écran.wrapper.find('.failure').exists()).toBe(false)
+    expect(écran.partielle()).toContain('Fiche partielle')
+    écran.wrapper.unmount()
+  })
+
+  // Le cas qui compte pour l'utilisateur : il corrige son fichier, la preview
+  // redit `ready`, et le bandeau doit partir. Un avertissement qui survit à sa
+  // cause apprend à ne plus le lire.
+  test('retire le bandeau quand le fichier corrigé ne l’exige plus', async () => {
+    const manifests: Manifest[] = [
+      {
+        version: 1,
+        entries: [badge],
+        skipped: [{ file: 'stories/Badge.tsx', reason: 'raison' }],
+      } as never,
+      { version: 1, entries: [badge, alerte] } as never,
+    ]
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ json: async () => manifests.shift() ?? manifests[0] }) as Response),
+    )
+
+    const wrapper = mount(App, { attachTo: document.body })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('.set-aside li')).toHaveLength(1)
+
+    const frame = wrapper.find('iframe').element as HTMLIFrameElement
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'ready', protocolVersion: 1 },
+        origin: window.location.origin,
+        source: frame.contentWindow,
+      }),
+    )
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('.set-aside li')).toHaveLength(0)
+    wrapper.unmount()
   })
 })

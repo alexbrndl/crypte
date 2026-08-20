@@ -84,6 +84,43 @@ describe('le catalogue', () => {
     ])
   })
 
+  // Le bandeau du shell ne montre que le certain, le terminal garde tout : deux
+  // règles de forme se sont trompées avant celle-ci, chacune dans un sens, donc
+  // ce qui reste une supposition ne va pas dans une interface permanente.
+  it('ne met dans le manifeste que ce qui est certain', async () => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      'stories/A.ts': "import { A } from '../a'\nexport default defineStories(A)\n",
+      // Une supposition : un composant enveloppé, idiomatique en React.
+      'stories/Frame.tsx': "import { memo } from 'react'\nexport default memo(() => null)\n",
+      // Une certitude : l'appel est là, mais pas en export par défaut.
+      'stories/Nomme.ts': "import { A } from '../a'\nexport const stories = defineStories(A)\n",
+    })
+
+    const { manifest, skipped } = buildCatalogue(await loadProject(root))
+
+    expect(skipped.map((one) => one.file)).toEqual(['stories/Frame.tsx', 'stories/Nomme.ts'])
+    expect(manifest.skipped?.map((one) => one.file)).toEqual(['stories/Nomme.ts'])
+  })
+
+  // Supprimer une story est délibéré : un bandeau pour elle serait une ligne sur
+  // laquelle personne ne peut agir.
+  it('oublie un fichier qui a été supprimé', async () => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      'stories/A.ts': "import { A } from '../a'\nexport default defineStories(A)\n",
+    })
+
+    const avant = buildCatalogue(await loadProject(root))
+    expect(avant.wasStory).toEqual(['stories/A.ts'])
+
+    rmSync(join(root, 'stories', 'A.ts'))
+    const après = buildCatalogue(await loadProject(root), avant)
+
+    expect(après.manifest.skipped).toBeUndefined()
+    expect(après.wasStory).toEqual([])
+  })
+
   it('signale un fichier illisible sans perdre les autres', async () => {
     const root = projectWith({
       'crypte.config.ts': CONFIG,

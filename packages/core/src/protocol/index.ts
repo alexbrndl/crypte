@@ -16,7 +16,7 @@ export type {
 } from './story'
 
 // What the CLI writes from it, and the shell reads
-export type { Manifest, ManifestEntry, StoryEntry, ComponentRef } from './manifest'
+export type { Manifest, ManifestEntry, StoryEntry, SkippedFile, ComponentRef } from './manifest'
 export { MANIFEST_VERSION } from './manifest'
 
 // How a story is named

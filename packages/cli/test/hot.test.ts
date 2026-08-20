@@ -33,6 +33,8 @@ interface Projet {
   entrees: () => Promise<Manifest['entries']>
   // Ce que le serveur a dit, depuis le démarrage de ce cas.
   dites: (motif: string) => () => string[]
+  // Les rechargements complets envoyés, depuis le démarrage de ce cas.
+  rechargements: () => number
 }
 
 const test = base.extend<{ projet: Projet }>({
@@ -52,6 +54,16 @@ const test = base.extend<{ projet: Projet }>({
 
     const origin = `http://localhost:${address.port}`
 
+    // La forme du catalogue décide du rechargement, donc c'est lui qu'on compte :
+    // le shell ne relit le manifeste que sur `ready`, qu'un rechargement émet.
+    let reloads = 0
+    const sent = started.server.hot.send.bind(started.server.hot)
+    started.server.hot.send = ((payload: { type?: string }) => {
+      if (payload?.type === 'full-reload') reloads += 1
+
+      return sent(payload as never)
+    }) as typeof started.server.hot.send
+
     const entrees = async () => {
       const manifest = (await fetch(`${origin}${MANIFEST_ROUTE}`).then((answer) =>
         answer.json(),
@@ -66,6 +78,7 @@ const test = base.extend<{ projet: Projet }>({
       retenu: () => started.held.catalogue.manifest.entries.map((entry) => entry.id),
       noms: async () => (await entrees()).map((entry) => entry.id),
       entrees,
+      rechargements: () => reloads,
       dites: (motif) => {
         const debut = lines.length
 
@@ -235,5 +248,101 @@ describe('le catalogue pendant que le serveur tourne', () => {
     )
 
     expect(source).toContain('Tardive.js')
+  })
+})
+
+// La forme du catalogue décide du rechargement, et le shell ne lit `skipped` ni
+// `partial` que sur `ready`, qu'un rechargement émet. Sans ces deux champs dans
+// la forme, les deux signaux du lot 5c n'apparaissaient qu'après un rechargement
+// à la main : trouvé en revue, `DCJ-217`.
+describe('ce qui déclenche un rechargement', () => {
+  test('recharge quand un fichier ajouté n’est pas lisible', async ({ projet }) => {
+    const avant = projet.rechargements()
+
+    writeFileSync(
+      join(projet.root, 'stories', 'Cassee.js'),
+      "import { Badge } from '@/components/Badge'\nconst tout = {}\nexport default defineStories(Badge, { stories: tout })\n",
+    )
+
+    await expect.poll(() => projet.rechargements()).toBeGreaterThan(avant)
+  })
+
+  test('recharge quand une story existante devient partielle', async ({ projet }) => {
+    const file = join(projet.root, 'stories', 'Badge.js')
+    const avant = projet.rechargements()
+
+    writeFileSync(
+      file,
+      `import { Badge } from '@/components/Badge'
+const base = { tone: 'warning' }
+export default defineStories(Badge, { props: { ...base, size: 'lg' } })
+`,
+    )
+
+    await expect.poll(async () => (await projet.entrees())[0]?.partial).toContain('...base')
+    expect(projet.rechargements()).toBeGreaterThan(avant)
+  })
+
+  // Et le contraire, qui est ce que la forme protège : éditer une valeur de prop
+  // reste une mise à jour à chaud.
+  test('ne recharge pas quand une valeur de prop change', async ({ projet }) => {
+    const file = join(projet.root, 'stories', 'Badge.js')
+
+    writeFileSync(
+      file,
+      "import { Badge } from '@/components/Badge'\nexport default defineStories(Badge, { props: { tone: 'calm' } })\n",
+    )
+    await expect.poll(async () => (await projet.entrees())[0]?.props).toContain('tone')
+
+    const avant = projet.rechargements()
+
+    writeFileSync(
+      file,
+      "import { Badge } from '@/components/Badge'\nexport default defineStories(Badge, { props: { tone: 'warning' } })\n",
+    )
+
+    // Attendre la reconstruction par un signal, pas par un délai : `source`
+    // change et n'est pas dans la forme, donc il dit que le catalogue a été relu
+    // sans dire quoi que ce soit du rechargement.
+    await expect.poll(async () => (await projet.entrees())[0]?.source).toContain('warning')
+
+    expect(projet.rechargements()).toBe(avant)
+  })
+})
+
+// La disparition, l'autre moitié : un fichier qui produisait des stories et n'en
+// produit plus le dit, ce que le lecteur seul ne peut pas savoir puisqu'il juge
+// un fichier à la fois. Sa raison devient certaine, donc elle atteint le shell,
+// et elle **dure** : une première version ne survivait pas à la reconstruction
+// suivante, donc le premier enregistrement sans rapport retirait le bandeau.
+describe('un fichier qui cesse de produire', () => {
+  test('le dit au shell, et le redit à la reconstruction suivante', async ({ projet }) => {
+    const file = join(projet.root, 'stories', 'Badge.js')
+
+    // Un composant en export par défaut : le lecteur ne le tiendrait que pour
+    // une supposition, donc le shell ne le verrait pas sans le passé du fichier.
+    writeFileSync(file, 'export default function Badge() { return null }\n')
+
+    const dit = async () =>
+      (
+        (await fetch(`${projet.origin}${MANIFEST_ROUTE}`).then((answer) =>
+          answer.json(),
+        )) as Manifest
+      ).skipped?.map((one) => `${one.file} : ${one.reason}`) ?? []
+
+    // La disparition mène, la raison propre du fichier suit : « no default export
+    // calling defineStories » seul se lit comme un utilitaire, et ce fichier
+    // était une story il y a une seconde.
+    await expect
+      .poll(dit)
+      .toContain(
+        'stories/Badge.js : this file no longer produces any story: no default export calling defineStories',
+      )
+
+    // Un enregistrement sans rapport : le bandeau doit rester.
+    writeFileSync(join(projet.root, 'stories', 'Autre.js'), story('Badge'))
+    await expect.poll(projet.noms).toContain('autre--default')
+
+    expect((await dit()).some((une) => une.startsWith('stories/Badge.js'))).toBe(true)
   })
 })
