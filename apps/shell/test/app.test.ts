@@ -309,6 +309,26 @@ describe('ce que le catalogue a laissé de côté', () => {
     écran.wrapper.unmount()
   })
 
+  // Une erreur qui arrive après un changement de story ne concerne plus l'écran :
+  // elle couvrait la story suivante et masquait sa note. Mesuré en revue.
+  test('ignore l’erreur d’une story qu’on a quittée', async () => {
+    const partielle = { ...alerte, partial: '`...base` brings props this reader cannot follow' }
+    const écran = await monte([badge, partielle as never])
+
+    await écran.wrapper.findAll('button')[1]?.trigger('click')
+    await écran.wrapper.vm.$nextTick()
+
+    await écran.répond({
+      type: 'error',
+      id: 'badge--defaut',
+      message: 'ce composant ne rend jamais',
+    } as PreviewMessage)
+
+    expect(écran.wrapper.find('.failure').exists()).toBe(false)
+    expect(écran.partielle()).toContain('Fiche partielle')
+    écran.wrapper.unmount()
+  })
+
   // Le cas qui compte pour l'utilisateur : il corrige son fichier, la preview
   // redit `ready`, et le bandeau doit partir. Un avertissement qui survit à sa
   // cause apprend à ne plus le lire.

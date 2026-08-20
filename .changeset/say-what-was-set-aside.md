@@ -13,4 +13,6 @@ Both fields are optional, so a manifest written before them stays valid and its 
 
 Six losses were silent and are now said: a spread in the definition deciding the shared props block or `meta`, what a props block itself could not give up, a props block that is a reference rather than written inline, and a `meta` or `options` holding a value this reader cannot read. The last two took the status out of the manifest and out of the fingerprint without a word.
 
-A file with no default export is not reported at all: a helper, a barrel or a type file next to the stories is not a story file, and naming it would put a permanent line above the preview for something its author never meant to be one.
+What gets reported is what meant to be a story. A file naming `defineStories` is one even when the call leaves by a named export, so it is reported rather than lost. A file whose default export is not a component is a story an edit broke, so it is reported too. A wrapper, a helper, a barrel or a type file posed next to the stories stays silent, since a permanent line above the preview for one of those would teach the reader to ignore the banner.
+
+And a file that produced stories and produces none any more says so, which the reader alone cannot know: it judges one file at a time, and a story edited into a component is indistinguishable from a helper.

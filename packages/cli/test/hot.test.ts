@@ -300,8 +300,36 @@ export default defineStories(Badge, { props: { ...base, size: 'lg' } })
       file,
       "import { Badge } from '@/components/Badge'\nexport default defineStories(Badge, { props: { tone: 'warning' } })\n",
     )
-    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    // Attendre la reconstruction par un signal, pas par un délai : `source`
+    // change et n'est pas dans la forme, donc il dit que le catalogue a été relu
+    // sans dire quoi que ce soit du rechargement.
+    await expect.poll(async () => (await projet.entrees())[0]?.source).toContain('warning')
 
     expect(projet.rechargements()).toBe(avant)
+  })
+})
+
+// La disparition, l'autre moitié : un fichier qui produisait des stories et n'en
+// produit plus le dit, ce que le lecteur seul ne peut pas savoir puisqu'il juge
+// un fichier à la fois. Trouvé en corrigeant le signal, `DCJ-217`.
+describe('un fichier qui cesse de produire', () => {
+  test('le dit, et le porte jusqu’au manifeste', async ({ projet }) => {
+    const file = join(projet.root, 'stories', 'Badge.js')
+    const dites = projet.dites('no longer produces')
+
+    // Un composant en export par défaut : le lecteur le prend pour un utilitaire,
+    // donc il ne dirait rien de lui-même.
+    writeFileSync(file, 'export default function Badge() { return null }\n')
+
+    await expect.poll(dites).not.toEqual([])
+
+    const manifest = (await fetch(`${projet.origin}${MANIFEST_ROUTE}`).then((answer) =>
+      answer.json(),
+    )) as Manifest
+
+    expect(manifest.skipped?.map((one) => one.reason)).toContain(
+      'this file no longer produces any story',
+    )
   })
 })

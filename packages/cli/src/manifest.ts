@@ -30,7 +30,13 @@ export function storyFilesOf(catalogue: Catalogue): string[] {
   return [...new Set(catalogue.manifest.entries.map((entry) => entry.storyFile))]
 }
 
-export function buildCatalogue(project: Project): Catalogue {
+// `before` is the catalogue this one replaces, and it exists for one message:
+// a file that produced stories and produces none any more says so. The reader
+// alone cannot know it, since it judges one file at a time and a file that no
+// longer names `defineStories` is indistinguishable from a helper. Without it,
+// editing a story into something unreadable took it out of the tree in silence,
+// which is what lot 4 closed. See docs/internal/architecture.md.
+export function buildCatalogue(project: Project, before?: Catalogue): Catalogue {
   const storiesRoot = join(project.root, project.config.stories)
   if (!existsSync(storiesRoot)) {
     throw new ConfigError(
@@ -65,6 +71,17 @@ export function buildCatalogue(project: Project): Catalogue {
   }
 
   assertDistinct(entries)
+
+  const gave = new Set(entries.map((entry) => entry.storyFile))
+  const said = new Set(skipped.map((one) => one.file))
+
+  for (const file of new Set((before?.manifest.entries ?? []).map((entry) => entry.storyFile))) {
+    if (gave.has(file) || said.has(file)) continue
+
+    skipped.push({ file, reason: 'this file no longer produces any story' })
+  }
+
+  skipped.sort((one, other) => one.file.localeCompare(other.file, 'en'))
 
   // `skipped` travels in the manifest too, not only in the caller's output: the
   // terminal is not where somebody looks for a story they cannot find. Absent

@@ -110,7 +110,7 @@ function watchStories(
   const rebuild = (): void => {
     let next: Catalogue
     try {
-      next = buildCatalogue(project)
+      next = buildCatalogue(project, held.catalogue)
     } catch (error) {
       // A half-written file is an ordinary state while typing: two stories
       // briefly share a name, an import is half deleted. Keeping the last good

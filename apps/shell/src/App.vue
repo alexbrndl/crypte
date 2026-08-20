@@ -127,7 +127,9 @@ onMounted(() => {
         failure.value = null
         status.value = `${message.id} rendu en ${message.durationMs.toFixed(1)} ms`
       }
-      if (message.type === 'error') {
+      // Rattachée à la story affichée : cliquer B pendant que A rend laissait
+      // l'erreur de A couvrir B, et masquer la note partielle de B.
+      if (message.type === 'error' && message.id === current.value) {
         failure.value = { id: message.id, message: message.message, stack: message.stack }
         status.value = 'erreur de rendu'
       }

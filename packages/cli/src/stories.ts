@@ -40,13 +40,28 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
   const call = defineStoriesCall(body)
 
   if (!call) {
-    // A file with no default export is a helper, a barrel or a type file that
-    // happens to sit next to the stories: not a story file, so nothing to
-    // report. Said, it would make a permanent line in the shell for a file
-    // whose author never meant it to be one.
-    if (!body.some((node) => node.type === 'ExportDefaultDeclaration')) return { entries: [] }
+    // Said only for a file that meant to be a story. Two signals, because one
+    // alone missed a case each way, measured:
+    //
+    // - it names `defineStories`, so `export const stories = defineStories(A)`
+    //   is a story nobody will find rather than a helper (section 2.3) ;
+    // - or its default export is not a component, so `export default 12` is a
+    //   story an edit broke, the silence lot 4 closed.
+    //
+    // A file exporting a component by default is a wrapper posed next to the
+    // stories, and a permanent line for it would train the reader to ignore the
+    // banner. Same for a helper, a barrel or a type file, which export no
+    // default at all.
+    if (mentions(body, 'defineStories')) {
+      return { entries: [], skipped: 'defineStories is called but not the default export' }
+    }
 
-    return { entries: [], skipped: 'its default export does not call defineStories' }
+    const exported = body.find((node) => node.type === 'ExportDefaultDeclaration')
+    if (exported === undefined || component_(exported['declaration'] as Node | undefined)) {
+      return { entries: [] }
+    }
+
+    return { entries: [], skipped: 'its default export is not a defineStories call' }
   }
 
   const [target, definition] = (call['arguments'] as Node[]) ?? []
@@ -354,6 +369,38 @@ function defineStoriesCall(body: Node[]): Node | undefined {
   return callee?.type === 'Identifier' && callee['name'] === 'defineStories' ? call : undefined
 }
 
+// A function or a class, which is what a wrapper posed next to the stories
+// exports. Anything else in that place is a story the reader could not use.
+function component_(node: Node | undefined): boolean {
+  return (
+    node !== undefined &&
+    [
+      'FunctionDeclaration',
+      'FunctionExpression',
+      'ArrowFunctionExpression',
+      'ClassDeclaration',
+      'ClassExpression',
+    ].includes(node.type)
+  )
+}
+
+// Whether the file names something at all, anywhere. Read from the tree rather
+// than the text: a name in a comment or a string is not a call.
+function mentions(body: Node[], name: string): boolean {
+  const walk = (current: unknown): boolean => {
+    if (current === null || typeof current !== 'object') return false
+
+    if (Array.isArray(current)) return current.some((one) => walk(one))
+
+    const inner = current as Node
+    if (inner.type === 'Identifier' && inner['name'] === name) return true
+
+    return Object.values(inner).some((held) => walk(held))
+  }
+
+  return walk(body)
+}
+
 // A key can be quoted, so `{ 'meta': … }` has to be found too. A computed key
 // is never a match: nothing says what it holds without running the file.
 function propertyOf(object: Node | undefined, name: string): Node | null {
@@ -381,7 +428,9 @@ function unreadOf(object: Node | null | undefined, source: string): string[] {
   if (object === null || object === undefined) return []
 
   if (object.type !== 'ObjectExpression') {
-    return [`\`${written(source, object)}\` is not written inline, so no prop is read`]
+    return [
+      `\`${written(source, object)}\` is not written inline, so the props it holds are not read`,
+    ]
   }
 
   const notes = new Set<string>()
@@ -399,6 +448,10 @@ function unreadOf(object: Node | null | undefined, source: string): string[] {
   return [...notes]
 }
 
+// Pinned to a locale, like the sort in `manifest.ts`: this note travels in the
+// manifest and in the committed fingerprint, so two machines must cut the same.
+const GRAPHEMES = new Intl.Segmenter('en')
+
 // What the file wrote, on one line and short enough for a list item or a
 // terminal line: a spread can span ten lines, and its own text is the message.
 function written(source: string, node: Node): string {
@@ -407,7 +460,7 @@ function written(source: string, node: Node): string {
   // By graphemes, not by UTF-16 units: cutting inside a surrogate pair sent half
   // a character into the manifest, and cutting inside a composed emoji would
   // break it in two.
-  const signes = [...new Intl.Segmenter().segment(one)].map((un) => un.segment)
+  const signes = [...GRAPHEMES.segment(one)].map((un) => un.segment)
 
   return signes.length > 40 ? `${signes.slice(0, 39).join('')}…` : one
 }

@@ -878,7 +878,13 @@ Les deux derniers chiffres sont le prix de la redondance : chaque filtre couvre 
 
 *Les deux signaux sont dans la forme du catalogue*, celle qui décide du rechargement. Le shell ne relit le manifeste que sur `ready`, qu'un rechargement émet : sans `partial` et `skipped` dans `shape()`, ajouter un fichier de story cassé ou un `...base` ne montrait rien avant un rechargement à la main. Trouvé en revue. Et l'optimisation que `shape()` protège tient toujours, mesuré : changer la **valeur** d'une prop ne touche ni l'un ni l'autre, donc reste une mise à jour à chaud.
 
-*Un fichier sans export par défaut n'est pas signalé*, parce que ce n'est pas un fichier de story : un utilitaire colocalisé, un `index.ts` de réexport, un `types.d.ts`. Une ligne au démarrage du terminal était tolérable ; un bandeau permanent au-dessus de la preview aurait appris à ignorer le bandeau. Un export par défaut qui n'appelle pas `defineStories` est en revanche une story ratée, donc signalé.
+**Ce qui est signalé, et ce qui reste muet, tient à trois signaux.** Deux versions de ce tri se sont trompées avant celle-ci, chacune dans un sens, et la mesure a tranché à chaque fois.
+
+- **Le fichier nomme `defineStories`** : c'est une story, même si l'appel part en export nommé, ce que la section 2.3 interdit. Signalé, sinon l'auteur d'une vraie story n'obtient rien du tout. Lu de l'arbre, donc un nom en commentaire ou dans une chaîne ne compte pas.
+- **Son export par défaut n'est pas un composant** : un nombre, un objet nu. C'est une story qu'une édition a cassée, le silence que le lot 4 avait fermé. Signalé. Une fonction, une flèche ou une classe en export par défaut est au contraire un wrapper posé à côté des stories, donc muet, comme un utilitaire ou un `types.d.ts` qui n'exportent rien par défaut. Un bandeau permanent pour eux apprendrait à ignorer le bandeau.
+- **Il produisait des stories et n'en produit plus** : `buildCatalogue` reçoit le catalogue précédent pour ce seul message. Le lecteur ne peut pas le savoir, puisqu'il juge un fichier à la fois : une story éditée en composant est indistinguable d'un utilitaire.
+
+*Ce qui reste :* `export default Frame`, un composant réexporté par son identifiant, est signalé à tort. Aucun usage ne le démontre, et le fermer demanderait de suivre l'identifiant jusqu'à sa déclaration.
 
 *Six pertes étaient muettes, pas trois.* La revue a trouvé les trois autres : un bloc de props qui est une **référence** (`props: shared`, légal en section 2.3) perdait toutes ses props, un `meta` dont une valeur n'est pas littérale disparaissait du manifeste **et de l'empreinte**, qui disait alors `status: 'none'`, et un `options` non littéral devenait `{}`. Chacune se dit maintenant.
 

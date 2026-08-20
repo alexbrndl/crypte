@@ -128,19 +128,40 @@ describe('la lecture des stories', () => {
     expect(skipped).toBeTruthy()
   })
 
-  // Deux cas que le lot 5c a séparés : un fichier sans export par défaut est un
-  // utilitaire posé à côté des stories, donc il n'a rien à signaler ; un export
-  // par défaut qui n'appelle pas `defineStories` est une story ratée, donc si.
-  it('ne signale rien pour un fichier qui n’est pas une story', () => {
-    const named = "import { A } from '../a'\nexport const stories = defineStories(A)\n"
-
-    expect(fileWith('A.ts', named)).toEqual({ entries: [] })
+  // Le signal est `defineStories`, pas `export default` : la première version de
+  // ce garde-fou ratait les deux sens, mesuré en revue. Un fichier qui ne nomme
+  // jamais `defineStories` n'est pas un fichier de story, quoi qu'il exporte ;
+  // un fichier qui le nomme sans l'exporter par défaut est une story qu'on ne
+  // trouvera pas, donc elle se dit.
+  it.for([
+    ['un composant', 'export default function Frame({ children }) { return children }'],
+    ['une classe', 'export default class Frame {}'],
+    ['une flèche', 'export default () => null'],
+    ['aucun export par défaut', 'const base = { a: 1 }\nexport { base }'],
+    ['`defineStories` en commentaire', '// defineStories(A)\nexport default function Frame() {}'],
+  ] as const)('ne signale rien pour %s', ([, source], { expect }) => {
+    expect(fileWith('Muet.ts', source)).toEqual({ entries: [] })
   })
 
-  it('signale un export par défaut qui n’appelle pas defineStories', () => {
-    const autre = 'export default { stories: {} }\n'
+  // Et l'inverse : un export par défaut qui n'est pas un composant est une story
+  // que le lecteur n'a pas pu utiliser, ce que le lot 4 avait fermé et que la
+  // première version de ce garde-fou avait rouvert.
+  it.for([
+    ['un nombre', 'export default 12'],
+    ['un objet nu', 'export default { stories: {} }'],
+    ['une chaîne nommant defineStories', "export default { nom: 'defineStories' }"],
+  ] as const)('signale %s en export par défaut', ([, source], { expect }) => {
+    expect(fileWith('Casse.ts', source).skipped).toBe(
+      'its default export is not a defineStories call',
+    )
+  })
 
-    expect(fileWith('B.ts', autre).skipped).toBe('its default export does not call defineStories')
+  it('signale une story que son export nommé rend introuvable', () => {
+    const named = "import { A } from '../a'\nexport const stories = defineStories(A)\n"
+
+    expect(fileWith('A.ts', named).skipped).toBe(
+      'defineStories is called but not the default export',
+    )
   })
 
   // Les noms d'un spread ne se lisent pas sans exécuter le fichier, et les
