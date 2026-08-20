@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test as base } from 'vitest'
 import { ConfigError } from '../src/errors'
+import { loadProject } from '../src/project'
 import { adapterSource, configPackages, previewEntry } from '../src/serve'
 
 // Ce que la preview reprend de `crypte.config.ts`, lu et jamais exécuté.
@@ -780,6 +781,27 @@ describe('un import de types', () => {
 
     expect(configPackages(project)).toEqual(['@acme/valeur'])
     expect(adapterSource(project).imports).toEqual(["import { fait } from '@acme/valeur'"])
+  })
+
+  // Le garde-fou de ce qui n'est pas couvert : un décorateur laisserait un nom
+  // pendant dans l'entrée servie, et rien ne le rattrape depuis que le `continue`
+  // sur `decorators` est parti. On dépend donc du refus du chargeur, et c'est lui
+  // qu'on affirme : le jour où une montée de Vite les accepte, ce cas rougit.
+  test('compte sur le chargeur pour refuser un décorateur', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'crypte-decorateur-'))
+    writeFileSync(
+      join(root, 'crypte.config.ts'),
+      `export default {
+        stories: 'stories',
+        adapter: new (class { constructor(@Object() public a = { name: 'x' }) {} })().a,
+      }`,
+    )
+
+    try {
+      await expect(loadProject(root)).rejects.toThrow('Invalid or unexpected token')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 
   // Depuis que l'entrée est compilée (`DCJ-224`), les formes de déclaration

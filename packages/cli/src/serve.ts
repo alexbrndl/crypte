@@ -145,7 +145,9 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
       // its extension, measured. The entry copies the configuration's own
       // expression, so `adapter: createAdapter() as Kind` reached the browser as
       // TypeScript and died on a `SyntaxError`. `DCJ-224`.
-      return compiled(previewEntry(project, storyFilesOf(current())), project.root, dev)
+      return compiled(previewEntry(project, storyFilesOf(current())), project.root, dev, (one) =>
+        this.warn(one),
+      )
     },
   }
 }
@@ -514,8 +516,9 @@ function referenced(node: Node): Set<string> {
     // node outside `VALUED`. Voir docs/internal/architecture.md.
     if (inner.type.startsWith('TS') && !VALUED.has(inner.type)) return
 
-    // Named, then walked through: `constructor(@field() x)` hangs `field` off
-    // the identifier, and stopping here left its import behind.
+    // Named, then walked through: a name can hang off an identifier, and stopping
+    // here left its import behind. Measured on `opts.react`, where `react` is
+    // read from the property of an access, not from the file.
     if (inner.type === 'Identifier') {
       const name = inner['name'] as string
       if (!bound.has(name)) found.add(name)
@@ -629,7 +632,12 @@ function hot(files: string[]): string[] {
 // The entry, stripped of the types it carries from the configuration. Named
 // after a `.ts` file so oxc reads it as TypeScript, and placed in the project so
 // its `tsconfig.json` is the one that applies.
-async function compiled(entry: string, root: string, dev: ViteDevServer | undefined) {
+async function compiled(
+  entry: string,
+  root: string,
+  dev: ViteDevServer | undefined,
+  warn: (one: { message: string }) => void,
+) {
   const { code, map, warnings } = await transformWithOxc(
     entry,
     join(root, 'crypte-preview.ts'),
@@ -639,10 +647,21 @@ async function compiled(entry: string, root: string, dev: ViteDevServer | undefi
     dev?.watcher,
   )
 
-  for (const warning of warnings ?? []) dev?.config.logger.warn(String(warning.message ?? warning))
+  // Through the plugin context, which keeps the location and the frame, and once
+  // per message: the entry is recompiled on every full reload of the preview, so
+  // an unsupported `tsconfig` option would print again each time.
+  for (const one of warnings ?? []) {
+    const message = String(one.message ?? one)
+    if (said.has(message)) continue
+    said.add(message)
+    warn({ ...one, message })
+  }
 
   return { code, map }
 }
+
+// The warnings already printed, so a reload does not repeat them.
+const said = new Set<string>()
 
 // The preview's entry, written as source and compiled before it is served.
 //

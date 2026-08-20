@@ -826,6 +826,8 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 *Un membre d'énumération se nomme lui-même*, donc sa clé `id` rejoint la chaîne `fixed` : sans elle, `enum E { Kind = 1 }` emportait l'`import type { Kind }` chez l'optimiseur, où Vite n'a aucun paquet à pré-empaqueter. Trois cas rougissent si la ligne repart.
 
+*Ce dont on dépend est affirmé, pas supposé.* Un cas éprouve que `loadProject` **refuse** un décorateur, puisque c'est ce refus qui rend la forme inatteignable et qui a permis de retirer le tri sur la clé `decorators`. Le jour où une montée de Vite les accepte, ce cas rougit et ramène ici, au lieu de laisser un nom pendant dans l'entrée servie. Vérifié non vide : sans le décorateur, le chargeur résout et le cas rougit.
+
 *Le `namespace` et le décorateur sont dehors, et la mesure a dû être faite au bon niveau.* Ma première mesure passait par `parseSync`, bien plus permissif que le chargeur de configuration : `loadProject` refuse un `namespace` niché dans une expression (`A namespace declaration is only allowed at the top level of a namespace or module`) et refuse un décorateur, de paramètre comme de classe, avec ou sans `experimentalDecorators`. Ces formes sont donc inatteignables, et oxc n'abaisse d'ailleurs un `namespace` qu'au niveau supérieur du module. Un cas qui les couvrirait verrouillerait du vide.
 
 *Un nom qui se nomme lui-même n'est pas un nom du fichier.* Trois formes de la même espèce produisaient un faux « builds itself » sur du JavaScript parfaitement valide : un membre de classe (`new (class { make() {} })()` avec un `make` dans le fichier), le nom propre d'une expression nommée (`new (class Nom {})()`, `(function Nom() {})()`), et un bloc statique, qui porte ses déclarations directement là où une fonction les porte sous un bloc. Le refus reste vivant pour un nom que l'expression lit vraiment, un cas le tient.
@@ -857,6 +859,8 @@ Les deux derniers chiffres sont le prix de la redondance : chaque filtre couvre 
 *Mesuré, et ce n'est pas ce que l'issue supposait :* renommer le module virtuel en `.ts` ne change rien, Vite ne le transforme pas par son extension. La transformation doit donc être faite par le plugin, pas déléguée.
 
 *Le nom passé à oxc est `crypte-preview.ts`, dans la racine du projet*, pour qu'il lise du TypeScript et que le `tsconfig.json` du projet soit celui qui s'applique. Vérifié par différence de comportement : `useDefineForClassFields: false` déplace un champ de classe dans le constructeur, `true` le laisse en place.
+
+*Les avertissements d'oxc passent par le contexte du plugin*, qui garde la position et le cadre, et une seule fois par message : l'entrée est recompilée à chaque rechargement complet de la preview, donc une option de `tsconfig` non supportée se réimprimerait à chaque fois.
 
 *La configuration résolue et le veilleur sont passés à oxc*, cinquième et sixième arguments. Sans eux, oxc lit un cache de `tsconfig` différent de celui que Vite vide quand le fichier change : tout le graphe recompilait avec les nouvelles options et l'entrée gardait seule les anciennes jusqu'au redémarrage. Le veilleur, lui, donne à l'entrée une dépendance envers le fichier dont on vient de dire qu'il s'applique. Les avertissements d'oxc sont journalisés, comme le fait son plugin dans Vite.
 

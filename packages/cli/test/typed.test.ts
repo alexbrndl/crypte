@@ -33,20 +33,13 @@ afterAll(async () => {
 
 describe('une configuration qui porte de la syntaxe TypeScript', () => {
   test('laisse la preview rendre', { timeout: 120_000 }, async () => {
-    const root = mkdtempSync(join(demo, '..', 'tmp-demo-'))
-    cpSync(demo, root, { recursive: true })
-
-    // Comme les deux autres cas navigateur : un cache d'optimisation hérité de la
-    // copie fait réoptimiser sous la page, donc ce cas rougirait pour `DCJ-221`
-    // et l'accusation tomberait sur la compilation de l'entrée. Posé avant d'être
-    // retiré, sinon l'affirmation ne surveille rien.
-    mkdirSync(join(root, 'node_modules', '.crypte', 'deps'), { recursive: true })
-    rmSync(join(root, 'node_modules', '.crypte'), { recursive: true, force: true })
-    expect(existsSync(join(root, 'node_modules', '.crypte', 'deps'))).toBe(false)
-
     // Les trois formes qu'un auteur écrit vraiment : une assertion, un argument
     // de type, un `satisfies`. Chacune seule suffisait à vider le cadre.
-    const source = readFileSync(join(root, 'crypte.config.ts'), 'utf8')
+    //
+    // Construites et affirmées **avant** la copie : une assertion qui rougit ici
+    // laisserait sinon une copie entière d'`apps/demo` sur le disque, invisible
+    // puisque `apps/tmp-demo-*` est ignoré par git.
+    const source = readFileSync(join(demo, 'crypte.config.ts'), 'utf8')
     const typée = source
       .replace(
         "import { createAdapter } from '@crypte/react'",
@@ -58,14 +51,21 @@ describe('une configuration qui porte de la syntaxe TypeScript', () => {
       )
       .replace('wrap: Panel,', 'wrap: Panel as typeof Panel,')
 
-    writeFileSync(join(root, 'crypte.config.ts'), typée)
-
-    // Les trois remplacements sont affirmés : un renommage dans la configuration
-    // de la démonstration les ferait échouer en silence, et le cas resterait vert
-    // en n'éprouvant plus rien.
     expect(typée).toContain('type Adapter')
     expect(typée).toContain('satisfies Adapter as Adapter')
     expect(typée).toContain('wrap: Panel as typeof Panel')
+
+    const root = mkdtempSync(join(demo, '..', 'tmp-demo-'))
+    cpSync(demo, root, { recursive: true })
+    writeFileSync(join(root, 'crypte.config.ts'), typée)
+
+    // Comme les deux autres cas navigateur : un cache d'optimisation hérité de la
+    // copie fait réoptimiser sous la page, donc ce cas rougirait pour `DCJ-221`
+    // et l'accusation tomberait sur la compilation de l'entrée. Posé avant d'être
+    // retiré, sinon l'affirmation ne surveille rien.
+    mkdirSync(join(root, 'node_modules', '.crypte', 'deps'), { recursive: true })
+    rmSync(join(root, 'node_modules', '.crypte'), { recursive: true, force: true })
+    expect(existsSync(join(root, 'node_modules', '.crypte', 'deps'))).toBe(false)
 
     const started = await startDev(root, () => {})
     await started.server.listen()
