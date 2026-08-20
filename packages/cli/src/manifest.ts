@@ -22,6 +22,10 @@ export interface Catalogue {
   // nothing at all or only part of its stories. The caller reports it: a build
   // that swallows this looks like a project with fewer stories than it has.
   skipped: { file: string; reason: string }[]
+  // The files that produced a story at some point in this run. State of the run
+  // and not of the catalogue, so it stays out of the manifest: it exists so that
+  // a file which stops producing keeps saying so beyond one rebuild.
+  wasStory: string[]
 }
 
 // The story files that produced an entry, each once. Only those: the preview
@@ -36,6 +40,8 @@ export function storyFilesOf(catalogue: Catalogue): string[] {
 // longer names `defineStories` is indistinguishable from a helper. Without it,
 // editing a story into something unreadable took it out of the tree in silence,
 // which is what lot 4 closed. See docs/internal/architecture.md.
+const GONE = 'this file no longer produces any story'
+
 export function buildCatalogue(project: Project, before?: Catalogue): Catalogue {
   const storiesRoot = join(project.root, project.config.stories)
   if (!existsSync(storiesRoot)) {
@@ -46,12 +52,18 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
 
   const entries: StoryEntry[] = []
   const skipped: Catalogue['skipped'] = []
+  // The files the reader is sure meant to be stories. See `StoryFileRead.meant`.
+  const sure = new Set<string>()
 
   for (const file of storyFiles(storiesRoot)) {
     const read = entriesOf(file, project.root, storiesRoot)
 
-    if (read.skipped)
-      skipped.push({ file: posix(relative(project.root, file)), reason: read.skipped })
+    if (read.skipped) {
+      const named = posix(relative(project.root, file))
+
+      skipped.push({ file: named, reason: read.skipped })
+      if (read.meant) sure.add(named)
+    }
 
     // Once per file, not once per story: every entry of a file names the same
     // component, and each resolution probes the file system.
@@ -73,23 +85,44 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
   assertDistinct(entries)
 
   const gave = new Set(entries.map((entry) => entry.storyFile))
-  const said = new Set(skipped.map((one) => one.file))
+  const reasons = new Map(skipped.map((one) => [one.file, one.reason]))
 
-  for (const file of new Set((before?.manifest.entries ?? []).map((entry) => entry.storyFile))) {
-    if (gave.has(file) || said.has(file)) continue
+  // A file that produced a story in this run and produces none now. Its own
+  // reason becomes certain, whatever it is: the file is a story that stopped
+  // working, not a helper the reader guessed about. With no reason at all, the
+  // disappearance is the reason.
+  //
+  // Carried by `wasStory` rather than read from the previous entries: those lose
+  // the file as soon as it stops producing, so the note lasted exactly one
+  // rebuild and the next unrelated save took the banner away. Measured.
+  //
+  // Dropped when the file is gone: deleting or renaming a story is deliberate,
+  // and a banner for it is a line nobody can act on.
+  const was = (before?.wasStory ?? []).filter((file) => existsSync(join(project.root, file)))
 
-    skipped.push({ file, reason: 'this file no longer produces any story' })
+  for (const file of was) {
+    if (gave.has(file)) continue
+
+    sure.add(file)
+    if (!reasons.has(file)) skipped.push({ file, reason: GONE })
   }
 
   skipped.sort((one, other) => one.file.localeCompare(other.file, 'en'))
 
-  // `skipped` travels in the manifest too, not only in the caller's output: the
-  // terminal is not where somebody looks for a story they cannot find. Absent
-  // rather than empty, so a project with nothing to say writes the same manifest
-  // as before. Section 4.1 of docs/contracts.md.
+  // The shell sees only what is certain: a `defineStories` call that will not be
+  // found, a file that does not parse, a file that stopped producing. The rest
+  // stays a guess, so it goes to the terminal, which is a log at start-up and
+  // not a banner above the preview.
+  const certain = skipped.filter((one) => sure.has(one.file) || one.reason === GONE)
+
   return {
-    manifest: { version: MANIFEST_VERSION, entries, ...(skipped.length > 0 ? { skipped } : {}) },
+    manifest: {
+      version: MANIFEST_VERSION,
+      entries,
+      ...(certain.length > 0 ? { skipped: certain } : {}),
+    },
     skipped,
+    wasStory: [...new Set([...gave, ...was])],
   }
 }
 

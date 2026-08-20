@@ -312,24 +312,30 @@ export default defineStories(Badge, { props: { ...base, size: 'lg' } })
 
 // La disparition, l'autre moitié : un fichier qui produisait des stories et n'en
 // produit plus le dit, ce que le lecteur seul ne peut pas savoir puisqu'il juge
-// un fichier à la fois. Trouvé en corrigeant le signal, `DCJ-217`.
+// un fichier à la fois. Sa raison devient certaine, donc elle atteint le shell,
+// et elle **dure** : une première version ne survivait pas à la reconstruction
+// suivante, donc le premier enregistrement sans rapport retirait le bandeau.
 describe('un fichier qui cesse de produire', () => {
-  test('le dit, et le porte jusqu’au manifeste', async ({ projet }) => {
+  test('le dit au shell, et le redit à la reconstruction suivante', async ({ projet }) => {
     const file = join(projet.root, 'stories', 'Badge.js')
-    const dites = projet.dites('no longer produces')
 
-    // Un composant en export par défaut : le lecteur le prend pour un utilitaire,
-    // donc il ne dirait rien de lui-même.
+    // Un composant en export par défaut : le lecteur ne le tiendrait que pour
+    // une supposition, donc le shell ne le verrait pas sans le passé du fichier.
     writeFileSync(file, 'export default function Badge() { return null }\n')
 
-    await expect.poll(dites).not.toEqual([])
+    const dit = async () =>
+      (
+        (await fetch(`${projet.origin}${MANIFEST_ROUTE}`).then((answer) =>
+          answer.json(),
+        )) as Manifest
+      ).skipped?.map((one) => one.file) ?? []
 
-    const manifest = (await fetch(`${projet.origin}${MANIFEST_ROUTE}`).then((answer) =>
-      answer.json(),
-    )) as Manifest
+    await expect.poll(dit).toContain('stories/Badge.js')
 
-    expect(manifest.skipped?.map((one) => one.reason)).toContain(
-      'this file no longer produces any story',
-    )
+    // Un enregistrement sans rapport : le bandeau doit rester.
+    writeFileSync(join(projet.root, 'stories', 'Autre.js'), story('Badge'))
+    await expect.poll(projet.noms).toContain('autre--default')
+
+    expect(await dit()).toContain('stories/Badge.js')
   })
 })

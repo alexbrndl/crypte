@@ -878,13 +878,19 @@ Les deux derniers chiffres sont le prix de la redondance : chaque filtre couvre 
 
 *Les deux signaux sont dans la forme du catalogue*, celle qui décide du rechargement. Le shell ne relit le manifeste que sur `ready`, qu'un rechargement émet : sans `partial` et `skipped` dans `shape()`, ajouter un fichier de story cassé ou un `...base` ne montrait rien avant un rechargement à la main. Trouvé en revue. Et l'optimisation que `shape()` protège tient toujours, mesuré : changer la **valeur** d'une prop ne touche ni l'un ni l'autre, donc reste une mise à jour à chaud.
 
-**Ce qui est signalé, et ce qui reste muet, tient à trois signaux.** Deux versions de ce tri se sont trompées avant celle-ci, chacune dans un sens, et la mesure a tranché à chaque fois.
+**Ce qui est signalé va au terminal ; ce qui est certain va au bandeau.** Trois versions de ce tri se sont trompées, chacune dans un sens, et la mesure a tranché à chaque fois. La règle qui tient sépare les deux sorties au lieu de chercher une frontière unique : le terminal est un journal au démarrage, où trop dire coûte une ligne, le bandeau est une interface permanente, où trop dire apprend à ne plus la lire.
 
-- **Le fichier nomme `defineStories`** : c'est une story, même si l'appel part en export nommé, ce que la section 2.3 interdit. Signalé, sinon l'auteur d'une vraie story n'obtient rien du tout. Lu de l'arbre, donc un nom en commentaire ou dans une chaîne ne compte pas.
-- **Son export par défaut n'est pas un composant** : un nombre, un objet nu. C'est une story qu'une édition a cassée, le silence que le lot 4 avait fermé. Signalé. Une fonction, une flèche ou une classe en export par défaut est au contraire un wrapper posé à côté des stories, donc muet, comme un utilitaire ou un `types.d.ts` qui n'exportent rien par défaut. Un bandeau permanent pour eux apprendrait à ignorer le bandeau.
-- **Il produisait des stories et n'en produit plus** : `buildCatalogue` reçoit le catalogue précédent pour ce seul message. Le lecteur ne peut pas le savoir, puisqu'il juge un fichier à la fois : une story éditée en composant est indistinguable d'un utilitaire.
+*Le terminal garde tout*, comme le lot 4 l'a posé : tout fichier du dossier des stories qui ne produit rien y laisse sa raison.
 
-*Ce qui reste :* `export default Frame`, un composant réexporté par son identifiant, est signalé à tort. Aucun usage ne le démontre, et le fermer demanderait de suivre l'identifiant jusqu'à sa déclaration.
+*Le bandeau ne montre que le certain*, et trois choses seulement le sont :
+
+- **un appel à `defineStories`** que l'export par défaut ne porte pas, ce qu'interdit la section 2.3. Un appel, pas une mention : un barrel qui réexporte le nom, un import dans un utilitaire, une clé d'objet, chacun a fait passer un utilitaire pour une story ratée.
+- **un fichier qui ne parse pas**, ou dont l'appel est là mais malformé.
+- **un fichier qui produisait des stories et n'en produit plus.** Sa raison devient certaine, quelle qu'elle soit : c'est une story qui a cessé de marcher, pas un utilitaire sur lequel on suppose.
+
+*Ce que le tri par la forme ne pouvait pas faire.* Deviner l'intention depuis l'export par défaut a un contre-exemple par branche, mesuré : `export default memo(Frame)` et `forwardRef(...)`, idiomatiques en React, sont des appels ; `export default 12` n'est pas un composant mais peut être n'importe quoi ; un identifiant réexporté ne dit rien. Chaque règle de forme mettait un bandeau permanent sur un fichier voisin légitime, ou taisait une vraie story.
+
+*La disparition demande un état de la session*, `Catalogue.wasStory`, hors du manifeste. Lu des entrées précédentes seulement, la note ne durait **qu'une** reconstruction, puisque le fichier quitte les entrées dès qu'elle est posée : le premier enregistrement sans rapport retirait le bandeau et envoyait un second rechargement. Mesuré sur six reconstructions. Et elle s'oublie quand le fichier n'est plus sur le disque, supprimer une story étant délibéré.
 
 *Six pertes étaient muettes, pas trois.* La revue a trouvé les trois autres : un bloc de props qui est une **référence** (`props: shared`, légal en section 2.3) perdait toutes ses props, un `meta` dont une valeur n'est pas littérale disparaissait du manifeste **et de l'empreinte**, qui disait alors `status: 'none'`, et un `options` non littéral devenait `{}`. Chacune se dit maintenant.
 

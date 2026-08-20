@@ -26,6 +26,11 @@ interface Node {
 export interface StoryFileRead {
   entries: StoryEntry[]
   skipped?: string
+  // Whether the file meant to be a story, which decides where the reason goes:
+  // the terminal takes everything, the shell only what is certain. Guessing it
+  // from the shape of the default export had a counterexample per branch,
+  // measured. Voir docs/internal/architecture.md.
+  meant?: boolean
 }
 
 export function entriesOf(file: string, root: string, storiesRoot: string): StoryFileRead {
@@ -33,46 +38,49 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
   const parsed = parseSync(file, source)
 
   if (parsed.errors.length > 0) {
-    return { entries: [], skipped: parsed.errors[0]?.message ?? 'the file could not be parsed' }
+    return {
+      entries: [],
+      skipped: parsed.errors[0]?.message ?? 'the file could not be parsed',
+      meant: true,
+    }
   }
 
   const body = parsed.program.body as unknown as Node[]
   const call = defineStoriesCall(body)
 
   if (!call) {
-    // Said only for a file that meant to be a story. Two signals, because one
-    // alone missed a case each way, measured:
+    // The only sure signal is a call. A file that calls `defineStories` without
+    // exporting it by default is a story nobody will find, which is section 2.3.
     //
-    // - it names `defineStories`, so `export const stories = defineStories(A)`
-    //   is a story nobody will find rather than a helper (section 2.3) ;
-    // - or its default export is not a component, so `export default 12` is a
-    //   story an edit broke, the silence lot 4 closed.
-    //
-    // A file exporting a component by default is a wrapper posed next to the
-    // stories, and a permanent line for it would train the reader to ignore the
-    // banner. Same for a helper, a barrel or a type file, which export no
-    // default at all.
-    if (mentions(body, 'defineStories')) {
-      return { entries: [], skipped: 'defineStories is called but not the default export' }
-    }
+    // Anything else stays a guess, so it goes to the terminal and not to the
+    // shell: a wrapper written `export default memo(Frame)`, a barrel that
+    // re-exports `defineStories`, a helper that imports it to wrap it, all read
+    // as a story under one shape rule or another. Measured, one counterexample
+    // per branch. Voir docs/internal/architecture.md.
+    const called = calls(body, 'defineStories')
 
-    const exported = body.find((node) => node.type === 'ExportDefaultDeclaration')
-    if (exported === undefined || component_(exported['declaration'] as Node | undefined)) {
-      return { entries: [] }
+    return {
+      entries: [],
+      skipped: called
+        ? 'defineStories is called but not the default export'
+        : 'no default export calling defineStories',
+      ...(called ? { meant: true } : {}),
     }
-
-    return { entries: [], skipped: 'its default export is not a defineStories call' }
   }
 
   const [target, definition] = (call['arguments'] as Node[]) ?? []
   if (target?.type !== 'Identifier') {
-    return { entries: [], skipped: 'the component is not a plain identifier' }
+    return { entries: [], skipped: 'the component is not a plain identifier', meant: true }
   }
 
   const name = target['name'] as string
   const component = componentRef(parsed.module, name)
   if (!component) {
-    return { entries: [], skipped: `${name} is not imported by a form this reader can follow` }
+    return {
+      entries: [],
+      skipped: `${name} is not imported by a form this reader can follow`,
+      meant: true,
+    }
   }
 
   const path = pathOf(file, storiesRoot)
@@ -136,7 +144,7 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
         ...(partial.length > 0 ? { partial: partial.join('; ') } : {}),
       } satisfies StoryEntry
     }),
-    ...(reason ? { skipped: reason } : {}),
+    ...(reason ? { skipped: reason, meant: true } : {}),
   }
 }
 
@@ -369,31 +377,25 @@ function defineStoriesCall(body: Node[]): Node | undefined {
   return callee?.type === 'Identifier' && callee['name'] === 'defineStories' ? call : undefined
 }
 
-// A function or a class, which is what a wrapper posed next to the stories
-// exports. Anything else in that place is a story the reader could not use.
-function component_(node: Node | undefined): boolean {
-  return (
-    node !== undefined &&
-    [
-      'FunctionDeclaration',
-      'FunctionExpression',
-      'ArrowFunctionExpression',
-      'ClassDeclaration',
-      'ClassExpression',
-    ].includes(node.type)
-  )
-}
-
-// Whether the file names something at all, anywhere. Read from the tree rather
-// than the text: a name in a comment or a string is not a call.
-function mentions(body: Node[], name: string): boolean {
+// Whether the file calls something, anywhere. A call and not a mention: an
+// import specifier, a re-export and an object key all name `defineStories`
+// without calling it, and each made a helper look like a failed story.
+function calls(body: Node[], name: string): boolean {
   const walk = (current: unknown): boolean => {
     if (current === null || typeof current !== 'object') return false
 
     if (Array.isArray(current)) return current.some((one) => walk(one))
 
     const inner = current as Node
-    if (inner.type === 'Identifier' && inner['name'] === name) return true
+    const callee = inner['callee'] as Node | undefined
+
+    if (
+      inner.type === 'CallExpression' &&
+      callee?.type === 'Identifier' &&
+      callee['name'] === name
+    ) {
+      return true
+    }
 
     return Object.values(inner).some((held) => walk(held))
   }

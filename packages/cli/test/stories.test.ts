@@ -128,40 +128,45 @@ describe('la lecture des stories', () => {
     expect(skipped).toBeTruthy()
   })
 
-  // Le signal est `defineStories`, pas `export default` : la première version de
-  // ce garde-fou ratait les deux sens, mesuré en revue. Un fichier qui ne nomme
-  // jamais `defineStories` n'est pas un fichier de story, quoi qu'il exporte ;
-  // un fichier qui le nomme sans l'exporter par défaut est une story qu'on ne
-  // trouvera pas, donc elle se dit.
+  // Deux versions de ce tri se sont trompées, chacune dans un sens, avant celle-ci.
+  // Ce qui est **certain** est un appel à `defineStories` : le reste reste une
+  // supposition, donc part au terminal et pas dans le bandeau du shell. C'est
+  // `meant` qui porte la distinction.
   it.for([
-    ['un composant', 'export default function Frame({ children }) { return children }'],
-    ['une classe', 'export default class Frame {}'],
+    [
+      'un appel non exporté par défaut',
+      "import { A } from '../a'\nexport const stories = defineStories(A)",
+    ],
+  ] as const)('est certain pour %s', ([, source], { expect }) => {
+    const lu = fileWith('Certain.ts', source)
+
+    expect(lu.skipped).toBe('defineStories is called but not the default export')
+    expect(lu.meant).toBe(true)
+  })
+
+  // Les formes qui ne sont qu'une supposition : chacune a fait passer un
+  // utilitaire pour une story ratée sous une règle de forme ou une autre.
+  it.for([
+    ['un composant enveloppé', "import { memo } from 'react'\nexport default memo(() => null)"],
     ['une flèche', 'export default () => null'],
-    ['aucun export par défaut', 'const base = { a: 1 }\nexport { base }'],
-    ['`defineStories` en commentaire', '// defineStories(A)\nexport default function Frame() {}'],
-  ] as const)('ne signale rien pour %s', ([, source], { expect }) => {
-    expect(fileWith('Muet.ts', source)).toEqual({ entries: [] })
-  })
-
-  // Et l'inverse : un export par défaut qui n'est pas un composant est une story
-  // que le lecteur n'a pas pu utiliser, ce que le lot 4 avait fermé et que la
-  // première version de ce garde-fou avait rouvert.
-  it.for([
+    ['un barrel qui réexporte defineStories', "export { defineStories } from '@crypte/react'"],
+    ['un import sans appel', "import { defineStories } from '@crypte/react'\nexport default 1"],
     ['un nombre', 'export default 12'],
-    ['un objet nu', 'export default { stories: {} }'],
-    ['une chaîne nommant defineStories', "export default { nom: 'defineStories' }"],
-  ] as const)('signale %s en export par défaut', ([, source], { expect }) => {
-    expect(fileWith('Casse.ts', source).skipped).toBe(
-      'its default export is not a defineStories call',
-    )
+    ['aucun export par défaut', 'const base = { a: 1 }\nexport { base }'],
+  ] as const)('reste une supposition pour %s', ([, source], { expect }) => {
+    const lu = fileWith('Suppose.ts', source)
+
+    expect(lu.skipped).toBe('no default export calling defineStories')
+    expect(lu.meant).toBeUndefined()
   })
 
-  it('signale une story que son export nommé rend introuvable', () => {
-    const named = "import { A } from '../a'\nexport const stories = defineStories(A)\n"
-
-    expect(fileWith('A.ts', named).skipped).toBe(
-      'defineStories is called but not the default export',
-    )
+  // Un appel dans un commentaire ou une chaîne n'est pas un appel : la lecture
+  // passe par l'arbre.
+  it.for([
+    ['un commentaire', '// defineStories(A)\nexport default 1'],
+    ['une chaîne', "export default { nom: 'defineStories' }"],
+  ] as const)('ne prend pas %s pour un appel', ([, source], { expect }) => {
+    expect(fileWith('Faux.ts', source).meant).toBeUndefined()
   })
 
   // Les noms d'un spread ne se lisent pas sans exécuter le fichier, et les
