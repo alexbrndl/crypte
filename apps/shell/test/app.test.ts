@@ -291,6 +291,24 @@ describe('ce que le catalogue a laissé de côté', () => {
     écran.wrapper.unmount()
   })
 
+  // La note dit « la story rend », donc elle ne s'affiche pas à côté d'un échec
+  // de rendu, où l'encart rouge remplace justement l'iframe.
+  test('retire la note quand la story ne rend pas', async () => {
+    const partielle = { ...badge, partial: '`...base` brings props this reader cannot follow' }
+    const écran = await monte([partielle as never])
+
+    expect(écran.partielle()).toContain('Fiche partielle')
+
+    await écran.répond({
+      type: 'error',
+      id: 'badge--defaut',
+      message: 'ce composant ne rend jamais',
+    } as PreviewMessage)
+
+    expect(écran.partielle()).toBe(false)
+    écran.wrapper.unmount()
+  })
+
   // Le cas qui compte pour l'utilisateur : il corrige son fichier, la preview
   // redit `ready`, et le bandeau doit partir. Un avertissement qui survit à sa
   // cause apprend à ne plus le lire.
