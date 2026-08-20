@@ -18,6 +18,10 @@ export interface Started {
   // Why the manifest and the fingerprint could not be written, when they could
   // not. Serving does not depend on them.
   written: string | undefined
+  // What the watched files held when this read them. Compared by `dev` to decide
+  // whether a change is still pending: taken after the server is up, an edit
+  // landing during the start was compared against itself and lost. Measured.
+  read: string
 }
 
 export interface Held {
@@ -31,8 +35,10 @@ export async function startDev(
   input: string,
   log: (line: string) => void = () => {},
   onConfig?: () => void,
+  again = false,
 ): Promise<Started> {
   const project = await loadProject(input)
+  const read = digest(project)
   const held: Held = { catalogue: buildCatalogue(project) }
 
   // Written before the server starts. They are artefacts, so a failure to write
@@ -43,7 +49,12 @@ export async function startDev(
   // At startup only. The fingerprint is a committed lock file, so rewriting it
   // on every save would dirty the working tree while the author is still
   // typing, including on the half-written states of a rename.
-  const written = write(project.root, held.catalogue)
+  //
+  // At start-up only, in the other sense too: a restart does not write. The
+  // fingerprint is committed, so rewriting it on each valid edit of the
+  // configuration would dirty the tree while the author tries out a `stories`
+  // path. Section 4 of docs/contracts.md says at start-up, and means it.
+  const written = again ? undefined : write(project.root, held.catalogue)
 
   const config = viteConfigOf(project)
 
@@ -60,7 +71,10 @@ export async function startDev(
   watchStories(server, project, held, log)
   watchConfig(server, project, () => onConfig?.())
 
-  return { server, project, held, written }
+  // The digest of what this read, not of what the files hold once the server is
+  // up: an edit landing in between was compared against a state nobody had read,
+  // and was dropped for ever. Measured.
+  return { server, project, held, written, read }
 }
 
 // What the shell and the preview's entry read from the catalogue: the tree, the
@@ -269,55 +283,94 @@ export async function dev(input: string, log = console.log): Promise<Running> {
   // same rule the catalogue's rebuild follows. Closing last also hands the port
   // over with nothing in between, so the browser reconnects on its own.
   let seen: string | undefined
+  let closed = false
 
   const once = async () => {
-    // What the watched files hold now. Compared rather than trusted: one save
-    // fires several events, and an editor touches the mtime of files it has not
-    // changed. A duplicate here costs a whole server, so the debounce alone was
-    // not enough, measured.
+    if (closed) return
+
+    // What the watched files hold now, compared with what the running server
+    // read. Compared rather than trusted: one save fires several events, and an
+    // editor touches the mtime of files it has not changed. A duplicate costs a
+    // whole server, so the debounce alone was not enough, measured.
     const now = digest(running.started?.project ?? started.project)
     if (now === seen) return
-    seen = now
 
     let next: Started
 
     try {
-      next = await startDev(input, log, restart)
+      next = await startDev(input, log, restart, true)
     } catch (error) {
-      log(`crypte.config.ts could not be read, keeping the server that runs: ${reason(error)}`)
+      // Named for what it is: the throw can come from the configuration, from a
+      // `stories` folder that is not there, or from one of the user's own
+      // plugins. And a file the new configuration imports is not watched yet, so
+      // the way out is another save of `crypte.config.ts` itself.
+      log(
+        `the configuration could not be read, keeping the server that runs: ${reason(error)}. ` +
+          'Save crypte.config.ts again to retry.',
+      )
+      seen = now
       return
     }
 
-    // Nobody awaits a restart: it is called from a watcher. So a failure here
-    // has to be said rather than left as a rejection nobody handles, which would
-    // take the process down. No trigger was found for it, `strictPort` on a port
-    // another process holds included, so this is the shape of the call site and
-    // not a measured failure.
+    // Set from what the new server actually read, so an edit that lands while it
+    // starts is still pending afterwards rather than compared against itself.
+    seen = next.read
+
+    // The port of the server that runs, held across the restart: without it the
+    // search starts from 5173 again, so a server that had fallen back to 5174
+    // moved under the open tab. And the URLs are printed again, since they are
+    // the only place that says where to look.
+    const port = (running.started ?? started).server.config.server.port
+
     try {
-      await running.started?.server.close()
+      await (running.started ?? started).server.close()
       running.started = next
-      await next.server.listen()
+      await next.server.listen(port)
     } catch (error) {
+      // The new server exists already, so it has to go: its watchers hang off a
+      // `close` that would never come, and each leaked set doubles the restarts
+      // of every save that follows.
+      await next.server.close().catch(() => undefined)
+      running.started = undefined
       log(`the server could not be restarted, run \`crypte dev\` again: ${reason(error)}`)
       return
     }
 
+    // Everything the start-up says, said again: the files left out and the write
+    // that failed. The new server's `watchStories` seeds itself from the new
+    // catalogue, so without this they would never be printed at all, which is
+    // the silence `DCJ-217` closed.
+    if (next.written) log(`neither manifest nor fingerprint could be written: ${next.written}`)
+
+    const lines = reported(next.held.catalogue)
+    if (lines.length > 0) {
+      log(`${next.held.catalogue.skipped.length} story file(s) left out:`)
+      for (const line of lines) log(line)
+    }
+
     log(`crypte.config.ts changed, ${next.held.catalogue.manifest.entries.length} stories`)
+    next.server.printUrls()
   }
 
   // Queued rather than guarded: a restart takes about 40 ms, measured, so a save
   // can land inside one, and between the new server and the old one closing both
   // sets of watchers are live. A chain runs them in order and drops none, and the
   // content check inside makes a queued duplicate a no-op.
+  //
+  // The `catch` is what keeps the chain alive: rejected once, `then` would never
+  // call `once` again and every later save would be dropped in silence, which is
+  // also the unhandled rejection this whole shape exists to avoid.
   let queue = Promise.resolve()
 
   const restart = () => {
-    queue = queue.then(once)
+    queue = queue.then(once).catch((error: unknown) => {
+      log(`the restart failed, run \`crypte dev\` again: ${reason(error)}`)
+    })
   }
 
   const started = await startDev(input, log, restart)
   running.started = started
-  seen = digest(started.project)
+  seen = started.read
 
   const { server, held, written } = started
 
@@ -339,6 +392,11 @@ export async function dev(input: string, log = console.log): Promise<Running> {
       return running.started?.server ?? server
     },
     close: async () => {
+      // Disarmed first: a queued restart, or a debounce already armed, would
+      // otherwise build and listen a server after this returned, and the test
+      // that closes then deletes its project would leave one behind.
+      closed = true
+      await queue
       await running.started?.server.close()
     },
   }

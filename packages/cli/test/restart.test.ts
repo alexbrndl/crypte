@@ -1,4 +1,13 @@
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
+import { createServer } from 'node:net'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium, type Browser } from 'playwright'
@@ -61,7 +70,9 @@ describe('la configuration relue sans commande', () => {
 
       // Le dossier des stories se réduit : tout l'arbre change, ce qui est le cas
       // que `recovered` doit encaisser côté shell.
-      writeFileSync(config, avant.replace("stories: 'stories'", "stories: 'stories/checkout'"))
+      const réduit = avant.replace("stories: 'stories'", "stories: 'stories/checkout'")
+      expect(réduit).not.toBe(avant)
+      writeFileSync(config, réduit)
 
       // Le même port, ce qui est ce qui permet au navigateur de se reconnecter
       // sans que personne ne touche à rien.
@@ -117,7 +128,9 @@ describe('la configuration relue sans commande', () => {
         expect(dites.filter((une) => une.includes('could not be read'))).toHaveLength(2)
 
         // Et il repart quand le fichier redevient lisible.
-        writeFileSync(config, avant.replace("stories: 'stories'", "stories: 'stories/checkout'"))
+        const réparé = avant.replace("stories: 'stories'", "stories: 'stories/checkout'")
+        expect(réparé).not.toBe(avant)
+        writeFileSync(config, réparé)
         await expect.poll(compte, { timeout: 30_000 }).toBe(3)
       } finally {
         await running.close()
@@ -126,9 +139,12 @@ describe('la configuration relue sans commande', () => {
     },
   )
 
-  // Une seconde sauvegarde tombe pendant le redémarrage, qui dure environ une
-  // seconde. Sans la boucle, elle serait perdue et le serveur servirait une
-  // configuration que personne n'a.
+  // Deux sauvegardes de suite finissent sur la dernière. Ce cas **n'éprouve pas**
+  // la fenêtre de chevauchement : un redémarrage prend 43 ms mesurées, donc la
+  // seconde sauvegarde arrive après la fin de la première, et une version à
+  // drapeau passerait à l'identique. La fenêtre fait une vingtaine de
+  // millisecondes et aucun test ne la force de façon fiable, ce qui est consigné
+  // dans `docs/internal/suivi.md`. Ce que ce cas tient est l'ordre : la dernière gagne.
   test(
     'ne perd pas une sauvegarde arrivée pendant un redémarrage',
     { timeout: 120_000 },
@@ -161,6 +177,110 @@ describe('la configuration relue sans commande', () => {
       }
     },
   )
+
+  // Ce que le démarrage dit, un redémarrage le redit : les fichiers écartés et
+  // l'échec d'écriture. Le `watchStories` du serveur neuf s'amorce sur son propre
+  // catalogue, donc sans ça ces lignes ne seraient **jamais** imprimées, ce qui
+  // est le silence que `DCJ-217` a fermé.
+  test('redit les fichiers écartés après un redémarrage', { timeout: 120_000 }, async () => {
+    const root = copie(fixture, 'tmp-hot-')
+    const config = join(root, 'crypte.config.ts')
+    const avant = readFileSync(config, 'utf8')
+
+    // Le dossier est **hors** de celui qui est surveillé au démarrage : sinon la
+    // ligne du démarrage satisfait l'assertion et le cas ne surveille rien,
+    // mesuré.
+    mkdirSync(join(root, 'autres'), { recursive: true })
+    writeFileSync(join(root, 'autres', 'Muette.js'), 'export default 12\n')
+    writeFileSync(
+      join(root, 'autres', 'Bonne.js'),
+      "import { A } from '../a'\nexport default defineStories(A)\n",
+    )
+
+    const dites: string[] = []
+    const running = await dev(root, (une: string) => dites.push(une))
+
+    // Rien au démarrage : le dossier d'avant n'a aucun fichier illisible.
+    expect(dites.filter((une) => une.includes('left out'))).toHaveLength(0)
+
+    try {
+      const part = avant.replace("stories: 'stories'", "stories: 'autres'")
+      expect(part).not.toBe(avant)
+      writeFileSync(config, part)
+
+      await expect
+        .poll(() => dites.filter((une) => une.includes('left out')).length, { timeout: 30_000 })
+        .toBe(1)
+
+      expect(dites.some((une) => une.includes('Muette.js'))).toBe(true)
+    } finally {
+      await running.close()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  // L'empreinte est un fichier versionné, donc elle ne s'écrit qu'au démarrage :
+  // la réécrire à chaque essai sur `stories` salirait l'arbre de travail pendant
+  // que l'auteur tape. Section 4 des contrats.
+  test('n’écrit pas l’empreinte sur un redémarrage', { timeout: 120_000 }, async () => {
+    const root = copie(fixture, 'tmp-hot-')
+    const config = join(root, 'crypte.config.ts')
+    const avant = readFileSync(config, 'utf8')
+
+    const running = await dev(root, () => {})
+    const empreinte = join(root, '.crypte', 'fingerprint.json')
+    const écrite = statSync(empreinte).mtimeMs
+
+    try {
+      const réduit = avant.replace("stories: 'stories'", "stories: 'stories/checkout'")
+      expect(réduit).not.toBe(avant)
+      writeFileSync(config, réduit)
+
+      await expect
+        .poll(compteSur((running.server.httpServer?.address() as { port: number }).port), {
+          timeout: 30_000,
+        })
+        .toBe(3)
+
+      expect(statSync(empreinte).mtimeMs).toBe(écrite)
+    } finally {
+      await running.close()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  // Le port du serveur qui tourne est repris, et non recherché depuis 5173 : un
+  // serveur tombé sur 5174 au démarrage bougeait sous l'onglet ouvert dès que le
+  // port par défaut se libérait.
+  test('garde le port du serveur qui tournait', { timeout: 120_000 }, async () => {
+    const squatteur = createServer()
+    await new Promise<void>((resolve) => squatteur.listen(5173, resolve))
+
+    const root = copie(fixture, 'tmp-hot-')
+    const config = join(root, 'crypte.config.ts')
+    const avant = readFileSync(config, 'utf8')
+
+    const running = await dev(root, () => {})
+    const départ = (running.server.httpServer?.address() as { port: number }).port
+
+    try {
+      expect(départ).not.toBe(5173)
+
+      // Le port par défaut se libère : sans reprise, le serveur neuf le prendrait.
+      await new Promise<void>((resolve) => squatteur.close(() => resolve()))
+
+      const réduit = avant.replace("stories: 'stories'", "stories: 'stories/checkout'")
+      expect(réduit).not.toBe(avant)
+      writeFileSync(config, réduit)
+
+      await expect.poll(compteSur(départ), { timeout: 30_000 }).toBe(3)
+      expect((running.server.httpServer?.address() as { port: number }).port).toBe(départ)
+    } finally {
+      await running.close()
+      squatteur.close()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
 
   // L'exemple de l'issue : changer l'entrée CSS. Rien n'en paraît dans l'arbre,
   // donc c'est l'entrée servie qui le dit, et elle ne peut pas l'apprendre sans
@@ -249,7 +369,9 @@ export default defineStories(Badge, { props: { label: 'Seule' } })
 
       // Le dossier des stories change : tout l'arbre en dépend, et le plugin de
       // service capture le projet, donc c'est bien tout le serveur qui repart.
-      writeFileSync(config, avant.replace("stories: 'stories'", "stories: 'stories/seul'"))
+      const seul = avant.replace("stories: 'stories'", "stories: 'stories/seul'")
+      expect(seul).not.toBe(avant)
+      writeFileSync(config, seul)
 
       // L'arbre du shell suit, sans commande : la preview s'est rechargée, a dit
       // `ready`, et le shell a relu son catalogue.

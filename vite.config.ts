@@ -180,7 +180,7 @@ export default defineConfig({
             '**/restart.test.ts',
           ],
           sequence: { groupOrder: 1 },
-          // Un fichier à la fois : ils sont quatre, et « seuls sur la machine »
+          // Un fichier à la fois : ils sont cinq, et « seuls sur la machine »
           // est ce que `groupOrder` achète. Deux Chromium et deux serveurs en
           // parallèle rendraient à l'un la charge que l'autre existe pour
           // éprouver.

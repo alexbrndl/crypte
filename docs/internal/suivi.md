@@ -228,6 +228,14 @@ Le bandeau du shell ne montre que ce qui est **certain** d'avoir voulu être une
 
 *La leçon du lot, plus large que le lot :* trois des quatre tours ont porté sur la même question, « ce fichier voulait-il être une story », et j'ai proposé trois règles fausses chacune dans un sens différent. Ce qui a fini par tenir n'est pas une meilleure heuristique mais un changement de question : **un journal au démarrage et une interface permanente n'ont pas le même coût pour une ligne en trop**, donc ils n'ont pas le même seuil. Quand une frontière résiste à trois règles, c'est la question qu'il faut changer, pas la règle.
 
+### Assumé : deux courses du redémarrage ne sont éprouvées par aucun cas (`DCJ-220`)
+
+**Une édition qui tombe pendant le démarrage.** `seen` vaut désormais le digest de ce que `startDev` a réellement lu, `started.read`, et non l'état des fichiers après que le serveur est debout : une sauvegarde arrivée entre les deux était comparée à elle-même et perdue pour de bon. Trouvé en revue.
+
+*Pourquoi aucun cas ne le tient :* la fenêtre est faite des microtâches entre le retour de `startDev` et la ligne suivante. Écrire avant, et le surveillant n'existe pas encore, ce qui est une autre limite, préexistante et non fermée ici.
+
+**La fenêtre de chevauchement de deux redémarrages**, une vingtaine de millisecondes, puisqu'un redémarrage prend 43 ms mesurées dont 20 de temporisation. Le cas des deux sauvegardes tient l'**ordre**, pas la file : une version à drapeau y passerait à l'identique, et son commentaire le dit.
+
 ### Assumé : le garde du redémarrage raté n'est pas éprouvé (`DCJ-220`)
 
 `once()` entoure la fermeture de l'ancien serveur et l'écoute du neuf d'un `try`, et dit ce qui a échoué au lieu de laisser une promesse fuir. Ces deux lignes ne sont **jamais exécutées** par la suite, mesuré à la couverture.
@@ -235,6 +243,8 @@ Le bandeau du shell ne montre que ce qui est **certain** d'avoir voulu être une
 *Pourquoi elles restent :* `restart` est appelé depuis un rappel de surveillance, donc personne n'attend sa promesse. Ce n'est pas une supposition sur le comportement de Vite mais une propriété du site d'appel, et une promesse rejetée non rattrapée arrête le processus, c'est-à-dire le serveur de développement, avec une trace et aucun conseil.
 
 *Ce qui a été cherché et n'a rien donné*, chaque fois mesuré : un port invalide dans `vite.server.port` (999999) est ignoré par Vite et `listen` réussit ; `strictPort: true` sur un port qu'un autre processus tient ne lève pas non plus ; un dossier de stories absent et un `crypte.config.ts` supprimé lèvent tous deux **avant**, dans `startDev`, donc dans la branche déjà couverte.
+
+*Le `catch` de la chaîne, lui, n'est pas un luxe :* la revue a montré qu'une seule levée non rattrapée gelait **tous** les redémarrages suivants, `then` ne rappelant plus jamais `once` sur une chaîne rejetée. Le garde interne ne couvrait ni le digest, ni la lecture du catalogue, ni le journal.
 
 *Ce qui la rouvrirait :* un rapport où `crypte dev` meurt sur une édition de configuration. Le message existe déjà pour ce jour-là.
 

@@ -916,7 +916,15 @@ Les deux derniers chiffres sont le prix de la redondance : chaque filtre couvre 
 
 *`dev` rend une poignée, pas le premier serveur.* Fermer celui-là laissait son remplaçant à l'écoute, et le démarrage suivant prenait un autre port. Mesuré : le port glissait de 5173 à 5175 en deux cas de test.
 
-*Ce qui casse si on l'enlève :* les cinq cas de `restart.test.ts` rougissent, mesuré, dont celui du navigateur qui suit l'arbre du shell. La comparaison de contenu est tenue par le cas qui réécrit deux fois le même contenu cassé.
+*Un redémarrage redit tout ce que le démarrage dit*, les fichiers écartés et l'échec d'écriture compris. Le `watchStories` du serveur neuf s'amorce sur son propre catalogue, donc sans ça ces lignes n'auraient plus **jamais** été imprimées : c'est le silence que `DCJ-217` a fermé, et la revue l'a retrouvé ici.
+
+*Le port du serveur qui tourne est repris*, et non recherché depuis le défaut : un serveur tombé sur 5174 au démarrage bougeait sous l'onglet ouvert dès que 5173 se libérait. Les URL sont réimprimées, seul endroit qui dit où regarder.
+
+*L'empreinte ne s'écrit qu'au démarrage, dans les deux sens.* Un redémarrage ne l'écrit pas : elle est versionnée, donc la réécrire à chaque essai sur `stories` salirait l'arbre de travail pendant que l'auteur tape, ce que le contrat dit depuis le lot 4 et que ce lot avait cassé sans le voir.
+
+*Un serveur neuf qui n'arrive pas à écouter est refermé*, sinon ses surveillants pendent à un `close` qui ne viendrait jamais et chaque jeu fuité doublait les redémarrages de toutes les sauvegardes suivantes.
+
+*Ce qui casse si on l'enlève :* les huit cas de `restart.test.ts` rougissent, mesuré, dont celui du navigateur qui suit l'arbre du shell. Chaque pièce est éprouvée séparément : l'écriture au démarrage seulement, la reprise du port et les fichiers redits rougissent un cas chacune, la comparaison de contenu est tenue par le cas qui réécrit le même contenu cassé.
 
 **Les cas navigateur sont un projet à part.** Entrelacés avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le même. `sequence.groupOrder` les fait passer après, seuls sur la machine : trois passes vertes contre une sur quatre avant.
 
