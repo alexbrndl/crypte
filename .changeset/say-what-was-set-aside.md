@@ -11,4 +11,6 @@ The manifest carries both halves. `Manifest.skipped` names a file, with the reas
 
 Both fields are optional, so a manifest written before them stays valid and its version does not move. Neither is ever fatal: a file being written must not cost the catalogue.
 
-Three losses were silent and are now said: a spread in the definition deciding the shared props block, another deciding `meta`, and what a props block itself could not give up.
+Six losses were silent and are now said: a spread in the definition deciding the shared props block or `meta`, what a props block itself could not give up, a props block that is a reference rather than written inline, and a `meta` or `options` holding a value this reader cannot read. The last two took the status out of the manifest and out of the fingerprint without a word.
+
+A file with no default export is not reported at all: a helper, a barrel or a type file next to the stories is not a story file, and naming it would put a permanent line above the preview for something its author never meant to be one.

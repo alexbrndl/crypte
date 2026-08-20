@@ -876,6 +876,14 @@ Les deux derniers chiffres sont le prix de la redondance : chaque filtre couvre 
 
 *Trois pertes étaient muettes avant ce lot*, mesurées : un spread de la définition qui décide `props`, un autre qui décide `meta`, et ce qu'un bloc de props n'a pas pu donner. Aucune n'apparaissait ni dans `skipped` ni sur l'entrée, donc ni dans le terminal ni à l'écran.
 
+*Les deux signaux sont dans la forme du catalogue*, celle qui décide du rechargement. Le shell ne relit le manifeste que sur `ready`, qu'un rechargement émet : sans `partial` et `skipped` dans `shape()`, ajouter un fichier de story cassé ou un `...base` ne montrait rien avant un rechargement à la main. Trouvé en revue. Et l'optimisation que `shape()` protège tient toujours, mesuré : changer la **valeur** d'une prop ne touche ni l'un ni l'autre, donc reste une mise à jour à chaud.
+
+*Un fichier sans export par défaut n'est pas signalé*, parce que ce n'est pas un fichier de story : un utilitaire colocalisé, un `index.ts` de réexport, un `types.d.ts`. Une ligne au démarrage du terminal était tolérable ; un bandeau permanent au-dessus de la preview aurait appris à ignorer le bandeau. Un export par défaut qui n'appelle pas `defineStories` est en revanche une story ratée, donc signalé.
+
+*Six pertes étaient muettes, pas trois.* La revue a trouvé les trois autres : un bloc de props qui est une **référence** (`props: shared`, légal en section 2.3) perdait toutes ses props, un `meta` dont une valeur n'est pas littérale disparaissait du manifeste **et de l'empreinte**, qui disait alors `status: 'none'`, et un `options` non littéral devenait `{}`. Chacune se dit maintenant.
+
+*La citation coupe par graphèmes.* Sur des unités UTF-16, un demi-caractère partait dans `manifest.json`. Le cas qui le garde a demandé une mesure : avec un nom de prop de longueur paire, la coupe tombait par chance sur une frontière et ne surveillait rien.
+
 *Ce qui casse si on l'enlève :* `aside.test.ts` rougit, mesuré sur les trois pièces séparément, l'encart, la note et le champ dans le manifeste. Et les deux étages sont éprouvés hors navigateur aussi, sept cas sur le lecteur et quatre sur le shell.
 
 **Les cas navigateur sont un projet à part.** Entrelacés avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le même. `sequence.groupOrder` les fait passer après, seuls sur la machine : trois passes vertes contre une sur quatre avant.

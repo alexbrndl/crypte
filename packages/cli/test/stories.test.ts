@@ -128,10 +128,19 @@ describe('la lecture des stories', () => {
     expect(skipped).toBeTruthy()
   })
 
-  it('passe un fichier sans export par défaut appelant defineStories', () => {
+  // Deux cas que le lot 5c a séparés : un fichier sans export par défaut est un
+  // utilitaire posé à côté des stories, donc il n'a rien à signaler ; un export
+  // par défaut qui n'appelle pas `defineStories` est une story ratée, donc si.
+  it('ne signale rien pour un fichier qui n’est pas une story', () => {
     const named = "import { A } from '../a'\nexport const stories = defineStories(A)\n"
 
-    expect(fileWith('A.ts', named).skipped).toBe('no default export calling defineStories')
+    expect(fileWith('A.ts', named)).toEqual({ entries: [] })
+  })
+
+  it('signale un export par défaut qui n’appelle pas defineStories', () => {
+    const autre = 'export default { stories: {} }\n'
+
+    expect(fileWith('B.ts', autre).skipped).toBe('its default export does not call defineStories')
   })
 
   // Les noms d'un spread ne se lisent pas sans exécuter le fichier, et les
@@ -590,6 +599,29 @@ describe('ce que la fiche ne dit pas', () => {
     expect(long.entries[0]?.partial).toBe(
       '`...faire({ un: 1, deux: 2, trois: 3, qu…` brings props this reader cannot follow',
     )
+  })
+
+  // La coupe compte des graphèmes : sur des unités UTF-16 elle envoyait un
+  // demi-caractère dans le manifeste, qui s'affiche en glyphe de remplacement.
+  // Le nom `ab` décale la citation d'une unité, ce qui met la coupe au milieu
+  // d'une paire de substitution : sans ce décalage, elle tombait par chance sur
+  // une frontière et le cas ne surveillait rien. Mesuré.
+  it('ne coupe pas un caractère en deux', () => {
+    const { entries } = fileWith(
+      'Astral.js',
+      `import { Badge } from './Badge'
+       const faire = () => ({})
+       export default defineStories(Badge, {
+         stories: { Un: { ...faire({ ab: '${'𝐀'.repeat(30)}' }), b: 1 } },
+       })`,
+    )
+
+    const note = entries[0]?.partial ?? ''
+
+    expect(note).toContain('…')
+    expect(
+      /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(note),
+    ).toBe(false)
   })
 
   it('dit la clé de prop calculée sans nommer ce qu’elle vaut', () => {

@@ -6,7 +6,7 @@ import { dirname, extname, join, relative, resolve } from 'node:path'
 import { MANIFEST_VERSION, type Manifest, type StoryEntry } from '@crypte/core/protocol'
 import { ConfigError } from './errors'
 import { best, isBareSpecifier, ordered } from './paths'
-import { entriesOf, STORY_EXTENSIONS } from './stories'
+import { entriesOf, posix, STORY_EXTENSIONS } from './stories'
 import type { Project } from './project'
 
 // The build writes here, and Git ignores it: see docs/decisions.md.
@@ -190,8 +190,4 @@ function assertDistinct(entries: StoryEntry[]): void {
 
     seen.set(entry.id, entry)
   }
-}
-
-function posix(path: string): string {
-  return path.split(/[\\/]/).join('/')
 }

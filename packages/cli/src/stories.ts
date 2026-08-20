@@ -36,8 +36,18 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
     return { entries: [], skipped: parsed.errors[0]?.message ?? 'the file could not be parsed' }
   }
 
-  const call = defineStoriesCall(parsed.program.body as unknown as Node[])
-  if (!call) return { entries: [], skipped: 'no default export calling defineStories' }
+  const body = parsed.program.body as unknown as Node[]
+  const call = defineStoriesCall(body)
+
+  if (!call) {
+    // A file with no default export is a helper, a barrel or a type file that
+    // happens to sit next to the stories: not a story file, so nothing to
+    // report. Said, it would make a permanent line in the shell for a file
+    // whose author never meant it to be one.
+    if (!body.some((node) => node.type === 'ExportDefaultDeclaration')) return { entries: [] }
+
+    return { entries: [], skipped: 'its default export does not call defineStories' }
+  }
 
   const [target, definition] = (call['arguments'] as Node[]) ?? []
   if (target?.type !== 'Identifier') {
@@ -57,6 +67,12 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
   const sharedProps = propertyOf(definition, 'props')
   const shared = shadowed(definition, 'props') ? new Map<string, Node>() : propsOf(sharedProps)
 
+  // `meta` travels untouched: section 4.4. `details` does not travel yet, since
+  // the manifest carries the resolved form, whose `type` and `required` come
+  // from an adapter's inference and not from the file.
+  const metaNode = propertyOf(definition, 'meta')
+  const meta = shadowed(definition, 'meta') ? undefined : record(metaNode)
+
   // What the file lost above its stories, so every entry of the file says it.
   // Three losses were silent: a spread deciding the shared block, a spread
   // deciding `meta`, and what the shared block itself could not give up.
@@ -66,13 +82,10 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
       : unreadOf(sharedProps, source)),
     ...(shadowed(definition, 'meta')
       ? ['a spread in the definition decides `meta`, so no status or owner is read']
-      : []),
+      : metaNode !== null && meta === undefined
+        ? ['`meta` holds a value this reader cannot read, so no status or owner is read']
+        : []),
   ]
-
-  // `meta` travels untouched: section 4.4. `details` does not travel yet, since
-  // the manifest carries the resolved form, whose `type` and `required` come
-  // from an adapter's inference and not from the file.
-  const meta = shadowed(definition, 'meta') ? undefined : record(propertyOf(definition, 'meta'))
 
   // The helper can be imported under another name, and any other call is
   // somebody else's function whose arguments say nothing about props.
@@ -82,7 +95,16 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
   return {
     entries: stories.map((story) => {
       const props = new Map([...shared, ...story.own])
-      const partial = [...new Set([...above, ...story.unread])]
+      const options = record(story.options)
+      const partial = [
+        ...new Set([
+          ...above,
+          ...story.unread,
+          ...(story.options !== undefined && options === undefined
+            ? ['`options` holds a value this reader cannot read, so none of it is read']
+            : []),
+        ]),
+      ]
 
       return {
         type: 'story',
@@ -91,7 +113,7 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
         name: story.name,
         component: { ...component },
         storyFile,
-        options: record(story.options) ?? {},
+        options: options ?? {},
         details: {},
         props: [...props.keys()].sort(),
         source: callOf(name, props, source),
@@ -231,7 +253,11 @@ function declaredBy(value: Node, helper: string, source: string) {
   if (value.type === 'CallExpression') {
     const callee = value['callee'] as Node
     if (callee?.type !== 'Identifier' || callee['name'] !== helper) {
-      return { own: new Map<string, Node | undefined>(), options: undefined, unread: [] }
+      return {
+        own: new Map<string, Node | undefined>(),
+        options: undefined,
+        unread: unreadOf(value, source),
+      }
     }
 
     const args = value['arguments'] as Node[]
@@ -348,8 +374,15 @@ function propertyOf(object: Node | undefined, name: string): Node | null {
 // What an object literal did not give up. A spread's names and a computed key
 // cannot be read without running the file, so the note quotes what the file
 // wrote: the missing names are precisely what nobody can read.
-function unreadOf(object: Node | null, source: string): string[] {
-  if (object?.type !== 'ObjectExpression') return []
+function unreadOf(object: Node | null | undefined, source: string): string[] {
+  // Absent, nothing to say. Present without being a literal, everything is lost,
+  // which is the largest silent loss of them all: `props: shared` is legal by
+  // section 2.3, and gave an empty table that read as a complete one.
+  if (object === null || object === undefined) return []
+
+  if (object.type !== 'ObjectExpression') {
+    return [`\`${written(source, object)}\` is not written inline, so no prop is read`]
+  }
 
   const notes = new Set<string>()
 
@@ -371,7 +404,12 @@ function unreadOf(object: Node | null, source: string): string[] {
 function written(source: string, node: Node): string {
   const one = source.slice(node.start, node.end).replace(/\s+/gu, ' ')
 
-  return one.length > 40 ? `${one.slice(0, 39)}…` : one
+  // By graphemes, not by UTF-16 units: cutting inside a surrogate pair sent half
+  // a character into the manifest, and cutting inside a composed emoji would
+  // break it in two.
+  const signes = [...new Intl.Segmenter().segment(one)].map((un) => un.segment)
+
+  return signes.length > 40 ? `${signes.slice(0, 39).join('')}…` : one
 }
 
 // The props an object literal writes, kept in order and paired with their value.
@@ -535,6 +573,8 @@ function pathOf(file: string, storiesRoot: string): string[] {
   return [...parts, last.replace(/\.[jt]sx?$/, '')]
 }
 
-function posix(path: string): string {
+// Shared with `manifest.ts`: the two produced the same string by two different
+// rules, and the shell compares `skipped[].file` with `entry.storyFile`.
+export function posix(path: string): string {
   return path.split(sep).join('/')
 }

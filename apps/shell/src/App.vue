@@ -184,7 +184,7 @@ onMounted(() => {
       <!-- Sous la preview, pas dessus : la story rend, et l'avertissement ne dit
            que ce qui manque à sa fiche. Le ton dit ce que l'outil ne sait pas
            lire, jamais que le fichier est mal écrit. -->
-      <p v-if="partial" class="partial">Fiche partielle : {{ partial }}.</p>
+      <p v-if="partial && !failure" class="partial">Fiche partielle : {{ partial }}.</p>
       <p>{{ status }}</p>
     </div>
   </main>
