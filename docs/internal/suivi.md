@@ -334,7 +334,7 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 
 *À la prochaine occurrence :* garder la graine, la rejouer par `--sequence.seed`, et regarder si le cas dépasse le délai ou reçoit un événement pour un autre chemin. S'il devient fréquent, il rejoint le projet `écran`, qui existe pour les cas que la charge dérange.
 
-### Ouvert : l'entrée de preview est servie en JavaScript (`DCJ-224`)
+### Clos : l'entrée de preview était servie sans être compilée (`DCJ-224`)
 
 `PREVIEW_ENTRY` vaut `/@crypte/preview.js`, donc Vite la transforme comme du JavaScript et l'expression que `crypte.config.ts` donne à `adapter` y est recopiée telle quelle.
 
@@ -342,7 +342,11 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 
 *Ce que ça interdit :* toute syntaxe purement TypeScript dans cette expression, `as`, `satisfies`, une énumération, un `namespace`, une propriété de paramètre, un `createAdapter<P>()`. Le tri des positions de type reste utile pour autant, parce qu'un `import type` parti dans `optimizeDeps.include` fait échouer le **démarrage du serveur**, avant tout navigateur.
 
-*Trouvé au tour 5 de la PR #38*, hors périmètre de `DCJ-221`, et suivi par `DCJ-224`. Le remède tient probablement en un identifiant de module virtuel en `.ts`, mais il change la chaîne de transformation de l'entrée servie, donc il vaut son lot et sa revue.
+*Trouvé au tour 5 de la PR #38*, hors périmètre de `DCJ-221`.
+
+*Clos par* `transformWithOxc` dans le hook `load`, du même outil que le `parseSync` que le lecteur de configuration utilise déjà.
+
+*La piste que l'issue annonçait était fausse, et la mesure l'a dit avant le code :* renommer le module virtuel en `.ts` ne change rien, Vite ne transforme pas un module virtuel par son extension. Le chemin public reste donc `/@crypte/preview.js`, ce qui est exact puisque ce qui part est du JavaScript, et la section 4.1 de `contracts.md` n'a pas bougé.
 
 *Arrêté au tour 5 :* les huit noms de déclaration ajoutés aux tours 3 et 4 sont retirés. Chacun couvrait une forme que l'entrée ne peut pas servir, et chacun a ouvert une fuite, dont deux bloquants. La liste des nœuds à valeur tient aux cinq expressions, ce que l'usage démontre.
 

@@ -848,6 +848,14 @@ Les deux derniers chiffres sont le prix de la redondance : chaque filtre couvre 
 
 *Ce qui casse si on l'enlève :* `reopt.test.ts` rougit avec l'erreur exacte, mesuré : 31 s et `does not provide an export named 't'` sans le pré-empaquetage, 1,19 s au vert avec. Le chiffre bas est le chemin vert, pas un cas vide, et c'est la vérification qu'un cas navigateur rapide mérite toujours. Et le contournement retiré de `screen.test.ts`, un `retry` sur condition, redeviendrait nécessaire.
 
+**L'entrée de preview est compilée avant d'être servie.** Elle recopie l'expression que `crypte.config.ts` donne à `adapter` et à `wrap`, donc elle porte la syntaxe TypeScript de l'auteur, et `transformWithOxc` la retire dans le hook `load`.
+
+*Mesuré, et ce n'est pas ce que l'issue supposait :* renommer le module virtuel en `.ts` ne change rien, Vite ne le transforme pas par son extension. La transformation doit donc être faite par le plugin, pas déléguée.
+
+*Le nom passé à oxc est `crypte-preview.ts`, dans la racine du projet*, pour qu'il lise du TypeScript et que le `tsconfig.json` du projet soit celui qui s'applique.
+
+*Ce qui casse si on l'enlève :* `packages/cli/test/typed.test.ts` rougit sur `SyntaxError: Unexpected identifier`, mesuré, et le cadre reste vide puisque l'échec précède le canal, donc aucun `ready` ne part. 20,6 s au rouge contre 1,46 s au vert : le chiffre bas est le chemin vert.
+
 **Les cas navigateur sont un projet à part.** Entrelacés avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le même. `sequence.groupOrder` les fait passer après, seuls sur la machine : trois passes vertes contre une sur quatre avant.
 
 **Les réglages partagés sont hoistés, parce qu'un projet n'hérite pas toujours de la racine.** Le projet `shell` étend `apps/shell/vite.config.ts`, qui porte le plugin Vue : il ne voyait donc ni l'ordre mélangé ni le délai d'`expect.poll`. Ses treize cas tournaient dans un ordre fixe, ce qui est exactement l'état où deux couplages nous ont coûté des heures. Un objet `partagé` est maintenant épandu dans la racine et dans ce projet, et trois lancements mélangés passent.

@@ -137,6 +137,7 @@ export default defineConfig({
             '**/node_modules/**',
             '**/screen.test.ts',
             '**/reopt.test.ts',
+            '**/typed.test.ts',
             '**/adapter.test.tsx',
             '**/app.test.ts',
           ],
@@ -169,7 +170,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'écran',
-          include: ['**/screen.test.ts', '**/reopt.test.ts'],
+          include: ['**/screen.test.ts', '**/reopt.test.ts', '**/typed.test.ts'],
           sequence: { groupOrder: 1 },
           // Un fichier à la fois : ils sont deux depuis `reopt.test.ts`, et
           // « seuls sur la machine » est ce que `groupOrder` achète. Deux

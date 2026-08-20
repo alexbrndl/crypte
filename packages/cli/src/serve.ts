@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sirv from 'sirv'
-import { parseSync, type Plugin } from 'vite'
+import { parseSync, transformWithOxc, type Plugin } from 'vite'
 import { ConfigError } from './errors'
 import { capture, isBareSpecifier } from './paths'
 import { storyFilesOf, type Catalogue } from './manifest'
@@ -132,7 +132,13 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
     },
 
     load(id) {
-      return id === PREVIEW_ENTRY_ID ? previewEntry(project, storyFilesOf(current())) : undefined
+      if (id !== PREVIEW_ENTRY_ID) return undefined
+
+      // Typed here rather than by Vite: a virtual module is not transformed by
+      // its extension, measured. The entry copies the configuration's own
+      // expression, so `adapter: createAdapter() as Kind` reached the browser as
+      // TypeScript and died on a `SyntaxError`. `DCJ-224`.
+      return compiled(previewEntry(project, storyFilesOf(current())), project.root)
     },
   }
 }
@@ -616,6 +622,15 @@ function hot(files: string[]): string[] {
 // at once, so switching story is a lookup rather than a round trip, and the
 // props stay real, functions and elements included, since none of them crosses
 // the channel.
+// The entry, stripped of the types it carries from the configuration. Named
+// after a `.ts` file so oxc reads it as TypeScript, and placed in the project so
+// its `tsconfig.json` is the one that applies.
+async function compiled(entry: string, root: string) {
+  const { code, map } = await transformWithOxc(entry, join(root, 'crypte-preview.ts'))
+
+  return { code, map }
+}
+
 export function previewEntry(project: Project, files: string[] = []): string {
   const css = cssEntryOf(project)
 
