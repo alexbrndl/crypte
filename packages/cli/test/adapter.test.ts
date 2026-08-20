@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test as base } from 'vitest'
 import { ConfigError } from '../src/errors'
-import { adapterSource, configPackages, previewEntry } from '../src/serve'
+import { adapterSource, configPackages, PREVIEW_ENTRY, previewEntry } from '../src/serve'
 
 // Ce que la preview reprend de `crypte.config.ts`, lu et jamais exécuté.
 //
@@ -759,6 +759,14 @@ describe('un import de types', () => {
     expect(configPackages(project)).toEqual(['@acme/valeur'])
   })
 
+  // Le couplage avec `DCJ-224`, sinon il se perd : les déclarations restent hors
+  // de `VALUED` **parce que** l'entrée est servie en `.js`, donc Vite la
+  // transforme comme du JavaScript et aucune forme TypeScript n'y survit. Le
+  // jour où l'entrée passe en `.ts`, ce cas rougit et renvoie ici.
+  test('sert l’entrée en .js, ce qui est pourquoi les déclarations sont écartées', () => {
+    expect(PREVIEW_ENTRY.endsWith('.js')).toBe(true)
+  })
+
   // L'autre sens, et le plus grave : un nœud `TS…` qui porte une valeur et qu'on
   // saute fait disparaître un import dont l'entrée servie a besoin. Les cinq
   // expressions sont les seules entrées, et une assertion à l'ancienne est celle
@@ -768,6 +776,7 @@ describe('un import de types', () => {
     ['un as', 'fait as P'],
     ['un satisfies', 'fait satisfies P'],
     ['un non-null', 'fait!'],
+    ['une instanciation', 'fait<P>'],
   ] as const)('garde la valeur derrière %s', ([, expression], { projet }) => {
     const project = projet(`
       import type { P } from '@acme/types'
@@ -776,6 +785,20 @@ describe('un import de types', () => {
     `)
 
     expect(configPackages(project)).toEqual(['@acme/valeur'])
+    expect(adapterSource(project).imports).toEqual(["import { fait } from '@acme/valeur'"])
+  })
+
+  // Un décorateur est une expression, et `TSParameterProperty` est le seul nœud
+  // qui atteigne la clé : le lire comme une liaison perdait son import.
+  test('garde la valeur derrière un décorateur de propriété de paramètre', ({ projet }) => {
+    const project = projet(`
+      import { fait } from '@acme/valeur'
+      export default {
+        stories: 's',
+        adapter: new (class { constructor(@fait() public a = 1) { void fait } })(),
+      }
+    `)
+
     expect(adapterSource(project).imports).toEqual(["import { fait } from '@acme/valeur'"])
   })
 
@@ -795,6 +818,36 @@ describe('un import de types', () => {
     `)
 
     expect(configPackages(project)).toEqual(['@crypte/react'])
+  })
+
+  // Même espèce : une expression nommée porte son nom, un bloc statique porte
+  // ses déclarations. Chacune produisait un faux refus sur du JavaScript valide.
+  test.for([
+    ['une classe nommée', 'new (class Nom { mount() { return createAdapter() } })()'],
+    ['une fonction nommée', '(function Nom() { return createAdapter() })()'],
+    [
+      'un bloc statique',
+      'new (class { static { const Nom = 2; void Nom } mount() { return createAdapter() } })()',
+    ],
+  ] as const)('n’accuse pas la configuration à cause de %s', ([, expression], { projet }) => {
+    const project = projet(`
+      import { createAdapter } from '@crypte/react'
+      const Nom = 1
+      export default { stories: 's', adapter: ${expression} }
+    `)
+
+    expect(configPackages(project)).toEqual(['@crypte/react'])
+  })
+
+  // Et le refus reste vivant pour un nom que l'expression lit vraiment.
+  test('refuse toujours un nom que la configuration construit', ({ projet }) => {
+    const project = projet(`
+      import { createAdapter } from '@crypte/react'
+      const Nom = 1
+      export default { stories: 's', adapter: new (class { mount() { return createAdapter(Nom) } })() }
+    `)
+
+    expect(() => configPackages(project)).toThrow('builds itself')
   })
 
   // Un nom du fichier réutilisé comme nom de paramètre dans un type n'est pas un

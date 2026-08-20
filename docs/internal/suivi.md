@@ -318,6 +318,12 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 
 *Ce qui reste :* un paquet lié qu'une story importe sans que la configuration le nomme ne serait pas pré-empaqueté. Aucun usage ne le démontre, et le remède serait le même, une entrée de plus dans `include`.
 
+*Un alias du projet est écarté de cette liste*, et il a fallu le mesurer : `@/adapters/mine` se lit comme un nom nu, donc il partait à l'optimiseur, qui n'a aucun paquet à pré-empaqueter derrière. Le tri se fait par le `capture` du résolveur, pas par une règle sur `@`.
+
+*Un import de types aussi*, trouvé à la revue : `referenced` sautait `typeAnnotation` mais pas `typeArguments`, donc `createAdapter<P>()` emportait `import type { P } from '@acme/types'` dans la liste, et Vite écrivait `Failed to resolve dependency` à chaque démarrage. Mesuré : bruyant, jamais fatal.
+
+*Les deux causes sont nécessaires, mesuré.* Avec le retrait du cache hérité rétabli mais sans le pré-empaquetage, le cas reste **rouge** : le cache hérité et la découverte tardive du paquet lié sont deux mécanismes distincts qui produisent la même erreur.
+
 ### Ouvert : un cas de veille tombe rarement sous la charge
 
 `hot.test.ts > reconstruit sur une racine derrière un lien symbolique` a rougi **une fois sur six** lancements complets de la suite, le 19 août 2026. Seul, le fichier passe en 1,38 s.
@@ -340,13 +346,11 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 
 *Arrêté au tour 5 :* les huit noms de déclaration ajoutés aux tours 3 et 4 sont retirés. Chacun couvrait une forme que l'entrée ne peut pas servir, et chacun a ouvert une fuite, dont deux bloquants. La liste des nœuds à valeur tient aux cinq expressions, ce que l'usage démontre.
 
-*À ne pas rouvrir sans une forme mesurée à l'appui :* la redondance des deux filtres n'est surveillée par aucun test, chacun couvrant seul les vingt-huit formes croisées. Ce qui la tient est le commentaire du code. Un test qui affirmerait la présence d'une ligne serait le contrôle du contrôle retiré du projet, et un sixième tour sur le même tri coûterait davantage qu'il ne rapporte.
+*Le couplage est tenu par un cas*, ajouté au tour 6 : un test affirme que `PREVIEW_ENTRY` finit en `.js`. Sans lui, le remède de `DCJ-224` réactiverait la fuite en silence, puisque les déclarations sont hors de `VALUED` **parce que** l'entrée est servie en JavaScript.
 
-*Un alias du projet est écarté de cette liste*, et il a fallu le mesurer : `@/adapters/mine` se lit comme un nom nu, donc il partait à l'optimiseur, qui n'a aucun paquet à pré-empaqueter derrière. Le tri se fait par le `capture` du résolveur, pas par une règle sur `@`.
+*À ne pas rouvrir sans une forme mesurée à l'appui :* la redondance des deux filtres n'est surveillée par aucun test, chacun couvrant seul toutes les formes connues. Mesuré au tour 6, et c'est zéro cas rouge des deux côtés, non dix comme une version de `architecture.md` l'a annoncé : le chiffre datait du tour 3, avant que `TYPED` existe. Ce qui tient la redondance est le commentaire du code. Un test qui affirmerait la présence d'une ligne serait le contrôle du contrôle retiré du projet.
 
-*Un import de types aussi*, trouvé à la revue : `referenced` sautait `typeAnnotation` mais pas `typeArguments`, donc `createAdapter<P>()` emportait `import type { P } from '@acme/types'` dans la liste, et Vite écrivait `Failed to resolve dependency` à chaque démarrage. Mesuré : bruyant, jamais fatal.
-
-*Les deux causes sont nécessaires, mesuré.* Avec le retrait du cache hérité rétabli mais sans le pré-empaquetage, le cas reste **rouge** : le cache hérité et la découverte tardive du paquet lié sont deux mécanismes distincts qui produisent la même erreur.
+*Leçon du tour 6, et elle vaut au-delà de ce tri :* un chiffre mesuré vieillit. Celui-là est resté vrai deux commits, puis a désigné une pièce devenue redondante, et il aurait fait supprimer le garde à qui l'aurait cru. Un chiffre recopié d'un tour à l'autre se remesure ou se retire.
 
 ### Le cache de dépendances ne se copie pas avec un projet
 

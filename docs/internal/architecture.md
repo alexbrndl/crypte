@@ -824,11 +824,25 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 *La liste des nœuds à valeur tient aux cinq expressions*, qui portent toutes leur valeur sous `expression`. Les déclarations qui en portent une aussi, une énumération, un `namespace`, une propriété de paramètre, en sont volontairement absentes : **l'entrée est servie en `.js`**, donc aucune de ces formes ne s'exécute, et chacune ajoutée aux tours 3 et 4 a ouvert une fuite. Un membre d'énumération faisait voyager son propre nom, `enum E { Kind = 1 }` emportant l'`import type { Kind }` chez l'optimiseur ; un corps de `namespace` n'étant pas une portée, un `export const runtime` y masquant un `runtime` du fichier faisait **refuser une configuration valide**.
 
-*Un membre de classe se nomme lui-même*, comme la propriété d'un accès membre. Sans lui dans la chaîne `fixed`, `new (class { make() {} })()` avec un `make` dans le fichier produisait un faux « builds itself », sur du JavaScript parfaitement valide. Mesuré, et deux cas rougissent si la ligne repart.
+*Un nom qui se nomme lui-même n'est pas un nom du fichier.* Trois formes de la même espèce produisaient un faux « builds itself » sur du JavaScript parfaitement valide : un membre de classe (`new (class { make() {} })()` avec un `make` dans le fichier), le nom propre d'une expression nommée (`new (class Nom {})()`, `(function Nom() {})()`), et un bloc statique, qui porte ses déclarations directement là où une fonction les porte sous un bloc. Le refus reste vivant pour un nom que l'expression lit vraiment, un cas le tient.
 
-*Vingt-huit formes croisées* sur les cinq tours, dont `typeof fait` dans un argument de type, écarté à raison puisqu'un nom effacé à l'exécution n'a rien à pré-empaqueter, et `<Q>fait`, qui garde sa valeur par l'exception qui compte. Chaque pièce est surveillée séparément, mesuré : le garde par nœud retiré, dix cas rougissent ; `MEMBERS` retiré de la chaîne `fixed`, deux ; le `continue` sur `decorators`, un.
+*Ce qui est surveillé, et ce qui ne l'est pas.* Mesuré pièce par pièce en retirant chacune :
 
-*Ce que la redondance ne surveille pas :* retirer l'un des deux filtres laisse toutes les formes vertes, puisque chacun les couvre seul. Ce qui la tient est le commentaire du code, pas un test, et c'est assumé : un test qui affirmerait la présence d'une ligne serait un contrôle du contrôle.
+| Pièce retirée | Cas rouges |
+| -- | --: |
+| `TSAsExpression` de `VALUED` | 7 |
+| `TSTypeAssertion` | 2 |
+| `TSSatisfiesExpression`, `TSNonNullExpression`, `TSInstantiationExpression` | 1 chacune |
+| `MEMBERS` de la chaîne `fixed` | 2 |
+| l'`id` d'une expression nommée | 2 |
+| `StaticBlock` de `CARRIES` | 1 |
+| le `continue` sur `decorators` | 1 |
+| **le garde par nœud** | **0** |
+| **le filtre par clé `TYPED`** | **0** |
+
+Les deux derniers chiffres sont le prix de la redondance : chaque filtre couvre seul toutes les formes connues, donc retirer l'un ne rougit pas. Ce qui les tient est le commentaire du code, pas un test. C'est assumé, et le chiffre est écrit ici pour qu'on ne relise pas la redondance comme surveillée : une version antérieure de ce paragraphe annonçait dix rouges, chiffre vrai au tour 3 et faux depuis que `TYPED` existe, exactement le genre d'affirmation qu'une revue a dû corriger.
+
+*Le couplage avec `DCJ-224` est tenu par un cas.* Les déclarations restent hors de `VALUED` **parce que** l'entrée est servie en `.js`. Un cas affirme cette extension, donc le jour où l'entrée passe en `.ts`, il rougit et renvoie à cette décision plutôt que de laisser la fuite revenir en silence.
 
 *Le cache est posé avant d'être retiré*, dans les deux fichiers navigateur. Affirmer son absence après un `rmSync` récursif ne surveillait rien : `apps/demo/node_modules/.crypte` n'existe pas dans un dépôt frais, donc l'affirmation était vraie sans condition et retirer le `rmSync` laissait les cas verts en intégration continue. Un `mkdirSync` d'un cache factice donne au retrait quelque chose à retirer, et la ligne perdue par `7483a9c` redevient impossible à perdre en silence.
 

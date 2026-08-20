@@ -432,8 +432,9 @@ function bindings(node: Node | undefined): string[] {
       if (key === 'right' && inner.type === 'AssignmentPattern') continue
       if (key === 'key' && inner.type === 'Property') continue
       if (key === 'typeAnnotation') continue
-      // A decorator is an expression too: `@field() class …` binds nothing named
-      // `field`, and reading it as a binding lost its import.
+      // A decorator is an expression too, and `TSParameterProperty` is the only
+      // node that reaches this key: `constructor(@field() public a)` binds `a`,
+      // and reading `field` as a binding lost its import.
       if (key === 'decorators') continue
       walk(held)
     }
@@ -447,8 +448,15 @@ function bindings(node: Node | undefined): string[] {
 const FUNCTIONS = new Set(['ArrowFunctionExpression', 'FunctionExpression', 'FunctionDeclaration'])
 
 // The node types that carry their own names, so that a parameter shadowing a
-// name of the file does not make the expression look like it uses that name.
-const CARRIES = new Set([...FUNCTIONS, 'CatchClause'])
+// name of the file does not make the expression look like it uses that name. A
+// class expression is one: it carries its own `id` and its static blocks.
+const CARRIES = new Set([
+  ...FUNCTIONS,
+  'CatchClause',
+  'ClassExpression',
+  'ClassDeclaration',
+  'StaticBlock',
+])
 
 // A class member names itself, so `class { make() {} }` does not read a `make`
 // of the file. Measured: it produced a false « builds itself » refusal.
@@ -509,10 +517,19 @@ function referenced(node: Node): Set<string> {
 
       for (const name of bindings(inner['param'] as Node | undefined)) inside.add(name)
 
-      const body = inner['body'] as Node | undefined
-      if (body?.type === 'BlockStatement') {
-        for (const name of declared((body['body'] as Node[]) ?? [])) inside.add(name)
-      }
+      // A named expression names itself: `new (class Frame {})()` reads no
+      // `Frame` of the file. Measured, it produced a false « builds itself ».
+      for (const name of bindings(inner['id'] as Node | undefined)) inside.add(name)
+
+      // A static block holds its statements directly, a function under a block.
+      const body = inner['body'] as Node | Node[] | undefined
+      const statements = Array.isArray(body)
+        ? body
+        : body?.type === 'BlockStatement'
+          ? ((body['body'] as Node[]) ?? [])
+          : []
+
+      for (const name of declared(statements)) inside.add(name)
     }
 
     const fixed =
