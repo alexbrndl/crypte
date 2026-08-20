@@ -789,7 +789,6 @@ describe('un import de types', () => {
   test.for([
     ['une propriété de paramètre', 'new (class { constructor(public a = fait) {} })()'],
     ['un membre d’énumération', '(() => { enum E { A = fait } return E.A })()'],
-    ['un corps de namespace', '(() => { namespace N { export const a = fait } return N.a })()'],
   ] as const)('garde la valeur derrière %s', ([, expression], { projet }) => {
     const project = projet(`
       import { fait } from '@acme/valeur'
@@ -800,9 +799,9 @@ describe('un import de types', () => {
     expect(adapterSource(project).imports).toEqual(["import { fait } from '@acme/valeur'"])
   })
 
-  // Et les trois pièges de ces formes, chacun trouvé par une revue : un membre
-  // d'énumération se nomme lui-même, un corps de namespace est une portée, et
-  // une déclaration nichée dans un bloc ne nomme rien du fichier.
+  // Et les pièges de ces formes, trouvés par deux revues : un membre
+  // d'énumération se nomme lui-même, et une déclaration nichée dans un bloc ne
+  // nomme rien du fichier.
   test.for([
     [
       'un nom de membre homonyme d’un type',
@@ -813,11 +812,6 @@ describe('un import de types', () => {
       'une énumération sans initialiseur',
       '(() => { enum E { P, Q } return createAdapter(E.P) })()',
       '',
-    ],
-    [
-      'un namespace qui masque un nom du fichier',
-      '(() => { namespace N { export const runtime = 1 } return createAdapter(N.runtime) })()',
-      "const runtime = 'react'",
     ],
     [
       'une énumération dans un bloc',
@@ -833,20 +827,6 @@ describe('un import de types', () => {
     `)
 
     expect(configPackages(project)).toEqual(['@crypte/react'])
-  })
-
-  // Un décorateur est une expression, et `TSParameterProperty` est le seul nœud
-  // qui atteigne la clé : le lire comme une liaison perdait son import.
-  test('garde la valeur derrière un décorateur de propriété de paramètre', ({ projet }) => {
-    const project = projet(`
-      import { fait } from '@acme/valeur'
-      export default {
-        stories: 's',
-        adapter: new (class { constructor(@fait() public a = 1) { void fait } })(),
-      }
-    `)
-
-    expect(adapterSource(project).imports).toEqual(["import { fait } from '@acme/valeur'"])
   })
 
   // Un membre de classe se nomme lui-même : le lire comme un nom du fichier

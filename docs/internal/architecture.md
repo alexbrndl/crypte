@@ -822,9 +822,11 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 *Les deux filtres sont doublés exprès*, la famille de nœuds **et** les quatre clés par lesquelles un nœud de valeur désigne un type (`typeAnnotation`, `typeArguments`, `typeParameters`, `returnType`). Un nom doit manquer aux deux listes pour voyager. Chacune a son sens d'erreur : une clé oubliée envoie un type chez l'optimiseur, où Vite ne trouve aucun paquet, un nœud à valeur oublié **retire un import dont l'entrée servie a besoin**. Le second est le plus grave, et il s'est produit : `TSParameterProperty` porte sa valeur sous `parameter`, `constructor(public a = fait)` perdait donc `@acme/valeur` de l'entrée alors qu'elle y était utilisée.
 
-*La liste des nœuds à valeur porte les cinq expressions et six déclarations*, depuis que l'entrée est compilée : ces formes s'exécutent, donc leur import doit voyager, sinon l'entrée lit un nom qu'elle n'importe pas et le cadre reste vide sur un `ReferenceError`. Mesuré avant de les rajouter, `imports=0` pour une propriété de paramètre, une énumération et un `namespace`.
+*La liste des nœuds à valeur porte les cinq expressions et quatre déclarations*, depuis que l'entrée est compilée : ces formes s'exécutent, donc leur import doit voyager, sinon l'entrée lit un nom qu'elle n'importe pas et le cadre reste vide sur un `ReferenceError`. Mesuré avant de les rajouter, `imports=0` pour une propriété de paramètre et une énumération.
 
-*Elles demandent deux gardes*, chacun trouvé par une revue quand ces noms avaient été ajoutés trop tôt. **Un membre d'énumération se nomme lui-même**, donc sa clé `id` rejoint la chaîne `fixed` : sans elle, `enum E { Kind = 1 }` emportait l'`import type { Kind }` chez l'optimiseur, où Vite n'a aucun paquet à pré-empaqueter. **Un corps de `namespace` est une portée**, donc `TSModuleBlock` rejoint `CARRIES` : sans lui, un `export const runtime` y masquant un `runtime` du fichier faisait refuser une configuration valide.
+*Un membre d'énumération se nomme lui-même*, donc sa clé `id` rejoint la chaîne `fixed` : sans elle, `enum E { Kind = 1 }` emportait l'`import type { Kind }` chez l'optimiseur, où Vite n'a aucun paquet à pré-empaqueter. Trois cas rougissent si la ligne repart.
+
+*Le `namespace` et le décorateur sont dehors, et la mesure a dû être faite au bon niveau.* Ma première mesure passait par `parseSync`, bien plus permissif que le chargeur de configuration : `loadProject` refuse un `namespace` niché dans une expression (`A namespace declaration is only allowed at the top level of a namespace or module`) et refuse un décorateur, de paramètre comme de classe, avec ou sans `experimentalDecorators`. Ces formes sont donc inatteignables, et oxc n'abaisse d'ailleurs un `namespace` qu'au niveau supérieur du module. Un cas qui les couvrirait verrouillerait du vide.
 
 *Un nom qui se nomme lui-même n'est pas un nom du fichier.* Trois formes de la même espèce produisaient un faux « builds itself » sur du JavaScript parfaitement valide : un membre de classe (`new (class { make() {} })()` avec un `make` dans le fichier), le nom propre d'une expression nommée (`new (class Nom {})()`, `(function Nom() {})()`), et un bloc statique, qui porte ses déclarations directement là où une fonction les porte sous un bloc. Le refus reste vivant pour un nom que l'expression lit vraiment, un cas le tient.
 
@@ -854,9 +856,13 @@ Les deux derniers chiffres sont le prix de la redondance : chaque filtre couvre 
 
 *Mesuré, et ce n'est pas ce que l'issue supposait :* renommer le module virtuel en `.ts` ne change rien, Vite ne le transforme pas par son extension. La transformation doit donc être faite par le plugin, pas déléguée.
 
-*Le nom passé à oxc est `crypte-preview.ts`, dans la racine du projet*, pour qu'il lise du TypeScript et que le `tsconfig.json` du projet soit celui qui s'applique.
+*Le nom passé à oxc est `crypte-preview.ts`, dans la racine du projet*, pour qu'il lise du TypeScript et que le `tsconfig.json` du projet soit celui qui s'applique. Vérifié par différence de comportement : `useDefineForClassFields: false` déplace un champ de classe dans le constructeur, `true` le laisse en place.
 
-*Ce qui casse si on l'enlève :* `packages/cli/test/typed.test.ts` rougit sur `SyntaxError: Unexpected identifier`, mesuré, et le cadre reste vide puisque l'échec précède le canal, donc aucun `ready` ne part. 20,6 s au rouge contre 1,46 s au vert : le chiffre bas est le chemin vert.
+*La configuration résolue et le veilleur sont passés à oxc*, cinquième et sixième arguments. Sans eux, oxc lit un cache de `tsconfig` différent de celui que Vite vide quand le fichier change : tout le graphe recompilait avec les nouvelles options et l'entrée gardait seule les anciennes jusqu'au redémarrage. Le veilleur, lui, donne à l'entrée une dépendance envers le fichier dont on vient de dire qu'il s'applique. Les avertissements d'oxc sont journalisés, comme le fait son plugin dans Vite.
+
+*Ce qui casse si on l'enlève :* `packages/cli/test/typed.test.ts` rougit sur `SyntaxError: Unexpected identifier`, mesuré, et le cadre reste vide puisque l'échec précède le canal, donc aucun `ready` ne part. 31,3 s au rouge contre 1,46 s au vert.
+
+*Le cas porte son propre délai*, 120 s comme `reopt.test.ts`. Une première version laissait un sondage de 30 s sous le `testTimeout` partagé de 20 s : vitest tuait le cas avant la fin du sondage, donc la valeur bavarde n'était jamais rapportée et l'assertion sur les plaintes du navigateur jamais atteinte. Le « 20,6 s » qu'annonçait ce paragraphe **était** ce couperet, ce qui en est la preuve.
 
 **Les cas navigateur sont un projet à part.** Entrelacés avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le même. `sequence.groupOrder` les fait passer après, seuls sur la machine : trois passes vertes contre une sur quatre avant.
 

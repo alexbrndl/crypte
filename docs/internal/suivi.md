@@ -352,7 +352,7 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 
 *Le garde-fou avait tort de porter sur le chemin.* `PREVIEW_ENTRY.endsWith('.js')` devait rougir le jour où la prémisse tomberait ; la correction a gardé le chemin, donc il est resté vert pendant que la prémisse disparaissait. Retenir : un garde-fou affirme la chose dont on dépend, pas un symptôme attendu de cette chose.
 
-*Le couplage est tenu par un cas*, ajouté au tour 6 : un test affirme que `PREVIEW_ENTRY` finit en `.js`. Sans lui, le remède de `DCJ-224` réactiverait la fuite en silence, puisque les déclarations sont hors de `VALUED` **parce que** l'entrée est servie en JavaScript.
+*Et deux formes restent dehors pour une raison mesurée, non supposée :* le chargeur de configuration refuse un `namespace` niché dans une expression et refuse un décorateur, de paramètre comme de classe, avec ou sans `experimentalDecorators`. Les avoir crues atteignables venait d'une mesure faite par `parseSync`, qui accepte tout ce que le chargeur refuse. Retenir : mesurer à l'étage où le produit s'exécute, pas à celui qui est commode.
 
 *À ne pas rouvrir sans une forme mesurée à l'appui :* la redondance des deux filtres n'est surveillée par aucun test, chacun couvrant seul toutes les formes connues. Mesuré au tour 6, et c'est zéro cas rouge des deux côtés, non dix comme une version de `architecture.md` l'a annoncé : le chiffre datait du tour 3, avant que `TYPED` existe. Ce qui tient la redondance est le commentaire du code. Un test qui affirmerait la présence d'une ligne serait le contrôle du contrôle retiré du projet.
 

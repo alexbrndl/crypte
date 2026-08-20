@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sirv from 'sirv'
-import { parseSync, transformWithOxc, type Plugin } from 'vite'
+import { parseSync, transformWithOxc, type Plugin, type ViteDevServer } from 'vite'
 import { ConfigError } from './errors'
 import { capture, isBareSpecifier } from './paths'
 import { storyFilesOf, type Catalogue } from './manifest'
@@ -74,6 +74,11 @@ export function shellAssets(): string {
 export function servePlugin(project: Project, current: () => Catalogue): Plugin {
   const shell = shellAssets()
 
+  // Held for `compiled`: without the resolved config, oxc reads a different
+  // tsconfig cache than the one Vite clears when the file changes, and the entry
+  // keeps the old `compilerOptions` until the process restarts. Measured.
+  let dev: ViteDevServer | undefined
+
   return {
     name: 'crypte:serve',
 
@@ -93,6 +98,8 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
     },
 
     configureServer(server) {
+      dev = server
+
       // The shell's own files, `/assets/…`, served from where they were copied.
       // Without this the page loads and its bundle answers 404: Vite is rooted
       // in the project, which knows nothing of them. Measured, blank screen.
@@ -138,7 +145,7 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
       // its extension, measured. The entry copies the configuration's own
       // expression, so `adapter: createAdapter() as Kind` reached the browser as
       // TypeScript and died on a `SyntaxError`. `DCJ-224`.
-      return compiled(previewEntry(project, storyFilesOf(current())), project.root)
+      return compiled(previewEntry(project, storyFilesOf(current())), project.root, dev)
     },
   }
 }
@@ -438,10 +445,6 @@ function bindings(node: Node | undefined): string[] {
       if (key === 'right' && inner.type === 'AssignmentPattern') continue
       if (key === 'key' && inner.type === 'Property') continue
       if (key === 'typeAnnotation') continue
-      // A decorator is an expression too, and `TSParameterProperty` is the only
-      // node that reaches this key: `constructor(@field() public a)` binds `a`,
-      // and reading `field` as a binding lost its import.
-      if (key === 'decorators') continue
       walk(held)
     }
   }
@@ -462,7 +465,6 @@ const CARRIES = new Set([
   'ClassExpression',
   'ClassDeclaration',
   'StaticBlock',
-  'TSModuleBlock',
 ])
 
 // A class member names itself, so `class { make() {} }` does not read a `make`
@@ -471,9 +473,9 @@ const MEMBERS = new Set(['MethodDefinition', 'PropertyDefinition', 'AccessorProp
 
 // The `TS…` nodes that hold a value, so the only ones the walk enters. The five
 // expressions hold it under `expression`, a parameter property under
-// `parameter`, an enum member under `initializer`, a namespace under its block.
-// They belong here since the entry is compiled: these forms now run, so their
-// imports have to travel. Voir docs/internal/architecture.md.
+// `parameter`, an enum member under `initializer`. A `namespace` is left out:
+// the configuration loader refuses one nested in an expression, measured, and
+// there is no other place for it. Voir docs/internal/architecture.md.
 const VALUED = new Set([
   'TSAsExpression',
   'TSSatisfiesExpression',
@@ -484,8 +486,6 @@ const VALUED = new Set([
   'TSEnumDeclaration',
   'TSEnumBody',
   'TSEnumMember',
-  'TSModuleDeclaration',
-  'TSModuleBlock',
 ])
 
 // The keys by which a value node points at a type. Doubled with the family
@@ -626,21 +626,30 @@ function hot(files: string[]): string[] {
   ]
 }
 
-// The preview's entry, written as source and compiled by the project's Vite.
+// The entry, stripped of the types it carries from the configuration. Named
+// after a `.ts` file so oxc reads it as TypeScript, and placed in the project so
+// its `tsconfig.json` is the one that applies.
+async function compiled(entry: string, root: string, dev: ViteDevServer | undefined) {
+  const { code, map, warnings } = await transformWithOxc(
+    entry,
+    join(root, 'crypte-preview.ts'),
+    undefined,
+    undefined,
+    dev?.config,
+    dev?.watcher,
+  )
+
+  for (const warning of warnings ?? []) dev?.config.logger.warn(String(warning.message ?? warning))
+
+  return { code, map }
+}
+
+// The preview's entry, written as source and compiled before it is served.
 //
 // `import.meta.glob` is eager on purpose. The preview holds every story module
 // at once, so switching story is a lookup rather than a round trip, and the
 // props stay real, functions and elements included, since none of them crosses
 // the channel.
-// The entry, stripped of the types it carries from the configuration. Named
-// after a `.ts` file so oxc reads it as TypeScript, and placed in the project so
-// its `tsconfig.json` is the one that applies.
-async function compiled(entry: string, root: string) {
-  const { code, map } = await transformWithOxc(entry, join(root, 'crypte-preview.ts'))
-
-  return { code, map }
-}
-
 export function previewEntry(project: Project, files: string[] = []): string {
   const css = cssEntryOf(project)
 

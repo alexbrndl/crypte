@@ -10,4 +10,4 @@ The generated preview entry copies the expression `crypte.config.ts` gives to `a
 
 Renaming the virtual module to `.ts` was measured and does not work: Vite does not transform a virtual module by its extension, so the entry is compiled by the plugin itself. The public path stays `/@crypte/preview.js`, which is what it serves.
 
-Compiling the entry also makes TypeScript declarations run inside that expression, so the imports they name now travel with it: a parameter property, an enum member and a namespace body used to leave the entry reading a name it never imported.
+Compiling the entry also makes TypeScript declarations run inside that expression, so the imports they name now travel with it: a parameter property and an enum member used to leave the entry reading a name it never imported. A namespace and a decorator stay unsupported, measured: the configuration loader refuses both.
