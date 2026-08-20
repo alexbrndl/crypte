@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test as base } from 'vitest'
 import { ConfigError } from '../src/errors'
-import { adapterSource, configPackages, PREVIEW_ENTRY, previewEntry } from '../src/serve'
+import { loadProject } from '../src/project'
+import { adapterSource, configPackages, previewEntry } from '../src/serve'
 
 // Ce que la preview reprend de `crypte.config.ts`, lu et jamais exécuté.
 //
@@ -606,6 +607,8 @@ describe('adapter et wrap ensemble', () => {
 // espace que le préambule, et `import { adapter }` à côté de `const adapter =
 // adapter` ne chargeait pas du tout. Mesuré, sur une douzaine de noms.
 describe('les noms que l’entrée déclare', () => {
+  // Node lit du JavaScript : une configuration en TypeScript dans cette table
+  // ferait échouer le contrôle sur la syntaxe, pas sur une redéclaration.
   const accepteParNode = (entry: string) => {
     try {
       execFileSync('node', ['--input-type=module', '--check'], { input: entry, stdio: 'pipe' })
@@ -759,14 +762,6 @@ describe('un import de types', () => {
     expect(configPackages(project)).toEqual(['@acme/valeur'])
   })
 
-  // Le couplage avec `DCJ-224`, sinon il se perd : les déclarations restent hors
-  // de `VALUED` **parce que** l'entrée est servie en `.js`, donc Vite la
-  // transforme comme du JavaScript et aucune forme TypeScript n'y survit. Le
-  // jour où l'entrée passe en `.ts`, ce cas rougit et renvoie ici.
-  test('sert l’entrée en .js, ce qui est pourquoi les déclarations sont écartées', () => {
-    expect(PREVIEW_ENTRY.endsWith('.js')).toBe(true)
-  })
-
   // L'autre sens, et le plus grave : un nœud `TS…` qui porte une valeur et qu'on
   // saute fait disparaître un import dont l'entrée servie a besoin. Les cinq
   // expressions sont les seules entrées, et une assertion à l'ancienne est celle
@@ -788,18 +783,72 @@ describe('un import de types', () => {
     expect(adapterSource(project).imports).toEqual(["import { fait } from '@acme/valeur'"])
   })
 
-  // Un décorateur est une expression, et `TSParameterProperty` est le seul nœud
-  // qui atteigne la clé : le lire comme une liaison perdait son import.
-  test('garde la valeur derrière un décorateur de propriété de paramètre', ({ projet }) => {
+  // Le garde-fou de ce qui n'est pas couvert : un décorateur laisserait un nom
+  // pendant dans l'entrée servie, et rien ne le rattrape depuis que le `continue`
+  // sur `decorators` est parti. On dépend donc du refus du chargeur, et c'est lui
+  // qu'on affirme : le jour où une montée de Vite les accepte, ce cas rougit.
+  test('compte sur le chargeur pour refuser un décorateur', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'crypte-decorateur-'))
+    writeFileSync(
+      join(root, 'crypte.config.ts'),
+      `export default {
+        stories: 'stories',
+        adapter: new (class { constructor(@Object() public a = { name: 'x' }) {} })().a,
+      }`,
+    )
+
+    try {
+      await expect(loadProject(root)).rejects.toThrow('Invalid or unexpected token')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  // Depuis que l'entrée est compilée (`DCJ-224`), les formes de déclaration
+  // s'exécutent, donc leur import doit voyager. Sauter le nœud laissait l'entrée
+  // lire un nom qu'elle n'importait pas, c'est-à-dire un `ReferenceError` et un
+  // cadre vide.
+  test.for([
+    ['une propriété de paramètre', 'new (class { constructor(public a = fait) {} })()'],
+    ['un membre d’énumération', '(() => { enum E { A = fait } return E.A })()'],
+  ] as const)('garde la valeur derrière %s', ([, expression], { projet }) => {
     const project = projet(`
       import { fait } from '@acme/valeur'
-      export default {
-        stories: 's',
-        adapter: new (class { constructor(@fait() public a = 1) { void fait } })(),
-      }
+      export default { stories: 's', adapter: ${expression} }
     `)
 
+    expect(configPackages(project)).toEqual(['@acme/valeur'])
     expect(adapterSource(project).imports).toEqual(["import { fait } from '@acme/valeur'"])
+  })
+
+  // Et les pièges de ces formes, trouvés par deux revues : un membre
+  // d'énumération se nomme lui-même, et une déclaration nichée dans un bloc ne
+  // nomme rien du fichier.
+  test.for([
+    [
+      'un nom de membre homonyme d’un type',
+      '(() => { enum E { P = 1 } return createAdapter(E.P) })()',
+      '',
+    ],
+    [
+      'une énumération sans initialiseur',
+      '(() => { enum E { P, Q } return createAdapter(E.P) })()',
+      '',
+    ],
+    [
+      'une énumération dans un bloc',
+      '(() => { if (1) { enum E { P = 1 } return createAdapter(E.P) } return createAdapter() })()',
+      '',
+    ],
+  ] as const)('écarte %s', ([, expression, tête], { projet }) => {
+    const project = projet(`
+      import { createAdapter } from '@crypte/react'
+      import type { P } from '@acme/types'
+      ${tête}
+      export default { stories: 's', adapter: ${expression} }
+    `)
+
+    expect(configPackages(project)).toEqual(['@crypte/react'])
   })
 
   // Un membre de classe se nomme lui-même : le lire comme un nom du fichier

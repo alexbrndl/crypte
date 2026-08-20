@@ -334,7 +334,7 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 
 *À la prochaine occurrence :* garder la graine, la rejouer par `--sequence.seed`, et regarder si le cas dépasse le délai ou reçoit un événement pour un autre chemin. S'il devient fréquent, il rejoint le projet `écran`, qui existe pour les cas que la charge dérange.
 
-### Ouvert : l'entrée de preview est servie en JavaScript (`DCJ-224`)
+### Clos : l'entrée de preview était servie sans être compilée (`DCJ-224`)
 
 `PREVIEW_ENTRY` vaut `/@crypte/preview.js`, donc Vite la transforme comme du JavaScript et l'expression que `crypte.config.ts` donne à `adapter` y est recopiée telle quelle.
 
@@ -342,11 +342,17 @@ L'entrée n'importe plus que les fichiers qui ont produit une entrée, donc un f
 
 *Ce que ça interdit :* toute syntaxe purement TypeScript dans cette expression, `as`, `satisfies`, une énumération, un `namespace`, une propriété de paramètre, un `createAdapter<P>()`. Le tri des positions de type reste utile pour autant, parce qu'un `import type` parti dans `optimizeDeps.include` fait échouer le **démarrage du serveur**, avant tout navigateur.
 
-*Trouvé au tour 5 de la PR #38*, hors périmètre de `DCJ-221`, et suivi par `DCJ-224`. Le remède tient probablement en un identifiant de module virtuel en `.ts`, mais il change la chaîne de transformation de l'entrée servie, donc il vaut son lot et sa revue.
+*Trouvé au tour 5 de la PR #38*, hors périmètre de `DCJ-221`.
 
-*Arrêté au tour 5 :* les huit noms de déclaration ajoutés aux tours 3 et 4 sont retirés. Chacun couvrait une forme que l'entrée ne peut pas servir, et chacun a ouvert une fuite, dont deux bloquants. La liste des nœuds à valeur tient aux cinq expressions, ce que l'usage démontre.
+*Clos par* `transformWithOxc` dans le hook `load`, du même outil que le `parseSync` que le lecteur de configuration utilise déjà.
 
-*Le couplage est tenu par un cas*, ajouté au tour 6 : un test affirme que `PREVIEW_ENTRY` finit en `.js`. Sans lui, le remède de `DCJ-224` réactiverait la fuite en silence, puisque les déclarations sont hors de `VALUED` **parce que** l'entrée est servie en JavaScript.
+*La piste que l'issue annonçait était fausse, et la mesure l'a dit avant le code :* renommer le module virtuel en `.ts` ne change rien, Vite ne transforme pas un module virtuel par son extension. Le chemin public reste donc `/@crypte/preview.js`, ce qui est exact puisque ce qui part est du JavaScript, et la section 4.1 de `contracts.md` n'a pas bougé.
+
+*Arrêté au tour 5, puis rouvert par la correction :* les huit noms de déclaration retirés au tour 5 reviennent à six, `DCJ-224` ayant rendu ces formes exécutables. `TSImportEqualsDeclaration` et `TSQualifiedName` restent dehors, la seule forme qui les atteindrait étant refusée par `tsc`.
+
+*Le garde-fou avait tort de porter sur le chemin.* `PREVIEW_ENTRY.endsWith('.js')` devait rougir le jour où la prémisse tomberait ; la correction a gardé le chemin, donc il est resté vert pendant que la prémisse disparaissait. Retenir : un garde-fou affirme la chose dont on dépend, pas un symptôme attendu de cette chose.
+
+*Et deux formes restent dehors pour une raison mesurée, non supposée :* le chargeur de configuration refuse un `namespace` niché dans une expression et refuse un décorateur, de paramètre comme de classe, avec ou sans `experimentalDecorators`. Les avoir crues atteignables venait d'une mesure faite par `parseSync`, qui accepte tout ce que le chargeur refuse. Retenir : mesurer à l'étage où le produit s'exécute, pas à celui qui est commode.
 
 *À ne pas rouvrir sans une forme mesurée à l'appui :* la redondance des deux filtres n'est surveillée par aucun test, chacun couvrant seul toutes les formes connues. Mesuré au tour 6, et c'est zéro cas rouge des deux côtés, non dix comme une version de `architecture.md` l'a annoncé : le chiffre datait du tour 3, avant que `TYPED` existe. Ce qui tient la redondance est le commentaire du code. Un test qui affirmerait la présence d'une ligne serait le contrôle du contrôle retiré du projet.
 

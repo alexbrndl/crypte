@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sirv from 'sirv'
-import { parseSync, type Plugin } from 'vite'
+import { parseSync, transformWithOxc, type Plugin, type ViteDevServer } from 'vite'
 import { ConfigError } from './errors'
 import { capture, isBareSpecifier } from './paths'
 import { storyFilesOf, type Catalogue } from './manifest'
@@ -74,6 +74,11 @@ export function shellAssets(): string {
 export function servePlugin(project: Project, current: () => Catalogue): Plugin {
   const shell = shellAssets()
 
+  // Held for `compiled`: without the resolved config, oxc reads a different
+  // tsconfig cache than the one Vite clears when the file changes, and the entry
+  // keeps the old `compilerOptions` until the process restarts. Measured.
+  let dev: ViteDevServer | undefined
+
   return {
     name: 'crypte:serve',
 
@@ -93,6 +98,8 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
     },
 
     configureServer(server) {
+      dev = server
+
       // The shell's own files, `/assets/…`, served from where they were copied.
       // Without this the page loads and its bundle answers 404: Vite is rooted
       // in the project, which knows nothing of them. Measured, blank screen.
@@ -132,7 +139,15 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
     },
 
     load(id) {
-      return id === PREVIEW_ENTRY_ID ? previewEntry(project, storyFilesOf(current())) : undefined
+      if (id !== PREVIEW_ENTRY_ID) return undefined
+
+      // Typed here rather than by Vite: a virtual module is not transformed by
+      // its extension, measured. The entry copies the configuration's own
+      // expression, so `adapter: createAdapter() as Kind` reached the browser as
+      // TypeScript and died on a `SyntaxError`. `DCJ-224`.
+      return compiled(previewEntry(project, storyFilesOf(current())), project.root, dev, (one) =>
+        this.warn(one),
+      )
     },
   }
 }
@@ -432,10 +447,6 @@ function bindings(node: Node | undefined): string[] {
       if (key === 'right' && inner.type === 'AssignmentPattern') continue
       if (key === 'key' && inner.type === 'Property') continue
       if (key === 'typeAnnotation') continue
-      // A decorator is an expression too, and `TSParameterProperty` is the only
-      // node that reaches this key: `constructor(@field() public a)` binds `a`,
-      // and reading `field` as a binding lost its import.
-      if (key === 'decorators') continue
       walk(held)
     }
   }
@@ -462,16 +473,21 @@ const CARRIES = new Set([
 // of the file. Measured: it produced a false « builds itself » refusal.
 const MEMBERS = new Set(['MethodDefinition', 'PropertyDefinition', 'AccessorProperty'])
 
-// The `TS…` nodes that hold a value, so the only ones the walk enters. All five
-// hold it under `expression`. A declaration that holds one too, an enum or a
-// namespace, is left out on purpose: the entry is served as `.js`, so no such
-// form runs at all. Voir docs/internal/architecture.md.
+// The `TS…` nodes that hold a value, so the only ones the walk enters. The five
+// expressions hold it under `expression`, a parameter property under
+// `parameter`, an enum member under `initializer`. A `namespace` is left out:
+// the configuration loader refuses one nested in an expression, measured, and
+// there is no other place for it. Voir docs/internal/architecture.md.
 const VALUED = new Set([
   'TSAsExpression',
   'TSSatisfiesExpression',
   'TSNonNullExpression',
   'TSTypeAssertion',
   'TSInstantiationExpression',
+  'TSParameterProperty',
+  'TSEnumDeclaration',
+  'TSEnumBody',
+  'TSEnumMember',
 ])
 
 // The keys by which a value node points at a type. Doubled with the family
@@ -500,8 +516,9 @@ function referenced(node: Node): Set<string> {
     // node outside `VALUED`. Voir docs/internal/architecture.md.
     if (inner.type.startsWith('TS') && !VALUED.has(inner.type)) return
 
-    // Named, then walked through: `constructor(@field() x)` hangs `field` off
-    // the identifier, and stopping here left its import behind.
+    // Named, then walked through: a name can hang off an identifier, and stopping
+    // here left its import behind. Measured on `opts.react`, where `react` is
+    // read from the property of an access, not from the file.
     if (inner.type === 'Identifier') {
       const name = inner['name'] as string
       if (!bound.has(name)) found.add(name)
@@ -541,7 +558,9 @@ function referenced(node: Node): Set<string> {
             ? 'property'
             : MEMBERS.has(inner.type)
               ? 'key'
-              : undefined
+              : inner.type === 'TSEnumMember'
+                ? 'id'
+                : undefined
 
     for (const [key, held] of Object.entries(inner)) {
       if (key === fixed || TYPED.has(key)) continue
@@ -610,7 +629,41 @@ function hot(files: string[]): string[] {
   ]
 }
 
-// The preview's entry, written as source and compiled by the project's Vite.
+// The entry, stripped of the types it carries from the configuration. Named
+// after a `.ts` file so oxc reads it as TypeScript, and placed in the project so
+// its `tsconfig.json` is the one that applies.
+async function compiled(
+  entry: string,
+  root: string,
+  dev: ViteDevServer | undefined,
+  warn: (one: { message: string }) => void,
+) {
+  const { code, map, warnings } = await transformWithOxc(
+    entry,
+    join(root, 'crypte-preview.ts'),
+    undefined,
+    undefined,
+    dev?.config,
+    dev?.watcher,
+  )
+
+  // Through the plugin context, which keeps the location and the frame, and once
+  // per message: the entry is recompiled on every full reload of the preview, so
+  // an unsupported `tsconfig` option would print again each time.
+  for (const one of warnings ?? []) {
+    const message = String(one.message ?? one)
+    if (said.has(message)) continue
+    said.add(message)
+    warn({ ...one, message })
+  }
+
+  return { code, map }
+}
+
+// The warnings already printed, so a reload does not repeat them.
+const said = new Set<string>()
+
+// The preview's entry, written as source and compiled before it is served.
 //
 // `import.meta.glob` is eager on purpose. The preview holds every story module
 // at once, so switching story is a lookup rather than a round trip, and the
