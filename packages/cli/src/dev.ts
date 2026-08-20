@@ -53,8 +53,9 @@ export async function startDev(
   // on every save would dirty the working tree while the author is still
   // typing, including on the half-written states of a rename.
   //
-  // The fingerprint only on a first start, the manifest every time: see `write`.
-  const written = write(project.root, held.catalogue, !again)
+  // Nothing on a restart: `dev` writes after the swap, so a restart that does
+  // not complete leaves the file describing what is actually served.
+  const written = again ? undefined : write(project.root, held.catalogue, true)
 
   const config = viteConfigOf(project)
 
@@ -340,12 +341,12 @@ export async function dev(input: string, log = console.log): Promise<Running> {
       return
     }
 
-    // `now`, taken before the load, and not what the new server read: `read` is
-    // computed after `loadProject`, so a save landing while the configuration
-    // bundles gives a project holding the old content and a digest holding the
-    // new one. The next event then found them equal and dropped the change, and
-    // the server served a configuration nobody had. Measured in review.
-    seen = now
+    // `next.read`, the digest of the new server's own watch list: `now` was taken
+    // over the **old** list, so as soon as an edit changed the configuration's
+    // imports the two could not be equal and the duplicate events of that one
+    // save restarted a second time, measured. What `read` can miss, a save that
+    // landed while the configuration bundled, is caught below instead.
+    seen = next.read
 
     // The port of the server that runs, held across the restart: without it the
     // search starts from 5173 again, so a server that had fallen back to 5174
@@ -354,14 +355,23 @@ export async function dev(input: string, log = console.log): Promise<Running> {
     const before = running.started ?? started
     const port = before.server.config.server.port
 
-    // The one way out of a failed restart, shared by both steps: the watchers go
-    // first, since Vite resolves the close of a server that never listened
-    // without emitting anything, so they would outlive it and double every
-    // restart that follows.
-    const abandon = async (error: unknown) => {
+    // The one way out of a restart that does not complete, whatever the reason:
+    // the watchers go first, since Vite resolves the close of a server that
+    // never listened without emitting anything, so they would outlive it and
+    // double every restart that follows.
+    const abandon = async (error?: unknown) => {
       next.unwatch()
       await next.server.close().catch(() => undefined)
-      log(`the server could not be restarted, run \`crypte dev\` again: ${reason(error)}`)
+      if (error !== undefined) {
+        log(`the server could not be restarted, run \`crypte dev\` again: ${reason(error)}`)
+      }
+    }
+
+    // Checked before touching anything: `close` may have been called while the
+    // configuration was loading, and the new server must not outlive it.
+    if (closed) {
+      await abandon()
+      return
     }
 
     try {
@@ -376,13 +386,34 @@ export async function dev(input: string, log = console.log): Promise<Running> {
     running.started = next
 
     try {
-      if (closed) return
       await next.server.listen(port)
     } catch (error) {
       running.started = undefined
       await abandon(error)
       return
     }
+
+    // And checked again, because `close` runs while this listens: it closed
+    // `running.started`, which is this very server, in concurrence with the
+    // `listen` above, and the listen wins. Measured: without this, a port
+    // answered four seconds after `close()` had resolved.
+    if (closed) {
+      running.started = undefined
+      await abandon()
+      return
+    }
+
+    // Written after the swap, not inside `startDev`: a restart that never
+    // completed had already rewritten `.crypte/manifest.json`, so the file
+    // described a catalogue no server served while the one still standing served
+    // the old. That is the divergence this lot exists to remove.
+    const failed = write(next.project.root, next.held.catalogue, false)
+    if (failed) log(`the manifest could not be written: ${failed}`)
+
+    // What the files hold now, against what the new server read: a save that
+    // landed while the configuration bundled is still pending, and this is where
+    // it is picked up rather than dropped.
+    if (digest(next.project) !== next.read) restart()
 
     // Everything the start-up says, said again, minus what has not changed: the
     // files left out are compared with the previous server's, since reprinting
@@ -393,11 +424,9 @@ export async function dev(input: string, log = console.log): Promise<Running> {
     const fresh = dites.filter((one) => !avant.includes(one))
 
     if (fresh.length > 0) {
-      log(`${next.held.catalogue.skipped.length} story file(s) left out:`)
+      log(`${fresh.length} story file(s) left out:`)
       for (const line of fresh) log(line)
     }
-
-    if (next.written) log(`neither manifest nor fingerprint could be written: ${next.written}`)
 
     log(`crypte.config.ts changed, ${next.held.catalogue.manifest.entries.length} stories`)
     next.server.printUrls()

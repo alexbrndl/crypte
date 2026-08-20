@@ -236,9 +236,11 @@ Le bandeau du shell ne montre que ce qui est **certain** d'avoir voulu être une
 
 **La fenêtre de chevauchement de deux redémarrages**, une vingtaine de millisecondes, puisqu'un redémarrage prend 43 ms mesurées dont 20 de temporisation. Le cas des deux sauvegardes tient l'**ordre**, pas la file : une version à drapeau y passerait à l'identique, et son commentaire le dit.
 
-**Une sauvegarde qui tombe pendant le chargement de la configuration.** `seen` prend `now`, le digest lu **avant** `startDev`, et non `next.read`, calculé après `loadProject` : sur `read`, une sauvegarde arrivée pendant l'empaquetage donnait un projet portant l'ancien contenu et un digest portant le nouveau, donc l'événement suivant les trouvait égaux et jetait le changement. Trouvé en revue, après que ma correction du tour précédent avait **déplacé** la course au lieu de la fermer.
+**Une sauvegarde qui tombe pendant le chargement de la configuration.** Trois versions de ce point se sont succédé, chacune fermant une course en ouvrant une autre, ce que la revue a mesuré chaque fois.
 
-*Pourquoi aucun cas ne la tient :* elle vit entre la temporisation de 20 ms et la fin du chargement, soit une vingtaine de millisecondes sur cette machine. Un cas visant ce créneau serait instable, et un test instable coûte plus qu'il ne garde.
+*Ce qui tient maintenant :* `seen` vaut `next.read`, le digest sur la liste surveillée du **nouveau** projet, ce qui rend les comparaisons suivantes possibles même quand les imports de la configuration ont changé, un digest pris sur l'ancienne liste ayant produit un redémarrage en double, mesuré. Et ce que `read` peut manquer, une sauvegarde arrivée pendant l'empaquetage, est rattrapé après la bascule par un `digest(next.project) !== next.read` qui relance.
+
+*Ce qui reste non éprouvé :* ce rattrapage, dont la fenêtre est le temps d'empaquetage de la configuration, et le second contrôle de `closed`, qui vit pendant l'écoute. Le premier serait testable par une configuration lente, comme le cas de la fermeture l'est ; il ne l'est pas encore.
 
 ### Assumé : un seul chemin d'échec du redémarrage reste non exécuté (`DCJ-220`)
 

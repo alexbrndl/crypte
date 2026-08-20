@@ -926,6 +926,10 @@ Les deux derniers chiffres sont le prix de la redondance : chaque filtre couvre 
 
 *Et la poignée ne se vide que si la fermeture de l'ancien a réussi*, sinon on jetait le seul moyen de fermer un serveur encore debout sur son port.
 
+*`closed` est vérifié deux fois, avant la bascule et après l'écoute*, parce que `close()` tombe pendant le redémarrage : la seconde fois, il a fermé le serveur neuf **en concurrence de son propre `listen`**, que `listen` gagne, donc un port répondait encore quatre secondes après que la fermeture avait rendu. Un cas le garde, avec une configuration lente pour que la fenêtre soit large et déterministe : sans ce ralentissement, il passait par hasard, le redémarrage étant déjà fini. Les deux contrôles sont redondants pour ce cas, il faut les retirer tous les deux pour le faire rougir.
+
+*Le manifeste s'écrit après la bascule*, et non dans `startDev` : un redémarrage qui n'aboutit pas avait déjà réécrit le fichier, qui décrivait alors un catalogue qu'aucun serveur ne servait pendant que celui resté debout servait l'ancien. C'est la divergence même que ce lot supprime, réintroduite sur le chemin d'échec.
+
 *Ce qui n'a pas changé ne se redit pas :* les fichiers écartés d'un redémarrage sont comparés à ceux du serveur d'avant, faute de quoi vingt fichiers d'aide réimprimaient vingt et une lignes à chaque essai sur `stories`, et la répétition enterre la ligne qui compte. C'est la règle que `watchStories` suit déjà.
 
 *Ce qui casse si on l'enlève :* les huit cas de `restart.test.ts` rougissent, mesuré, dont celui du navigateur qui suit l'arbre du shell. Chaque pièce est éprouvée séparément : l'écriture au démarrage seulement, la reprise du port et les fichiers redits rougissent un cas chacune, la comparaison de contenu est tenue par le cas qui réécrit le même contenu cassé.

@@ -222,6 +222,9 @@ describe('la configuration relue sans commande', () => {
         .toBe(1)
 
       expect(dites.some((une) => une.includes('Muette.js'))).toBe(true)
+
+      // L'en-tête compte ce qu'il montre, et non le total du catalogue.
+      expect(dites).toContain('1 story file(s) left out:')
     } finally {
       await running.close()
       rmSync(root, { recursive: true, force: true })
@@ -346,6 +349,83 @@ describe('la configuration relue sans commande', () => {
         expect(await compteSur(portDe(running))()).toBe(4)
       } finally {
         serveur.close = vraie
+        await running.close()
+        rmSync(root, { recursive: true, force: true })
+      }
+    },
+  )
+
+  // `close()` pendant un redémarrage en vol. La fenêtre est rendue large et
+  // déterministe par une configuration lente : sans ça le cas passait par hasard,
+  // le redémarrage étant déjà fini au moment de la fermeture, et il ne
+  // surveillait donc rien. Mesuré.
+  test(
+    'ne laisse rien derrière quand on ferme pendant un redémarrage',
+    { timeout: 120_000 },
+    async () => {
+      const root = copie(fixture, 'tmp-hot-')
+      const config = join(root, 'crypte.config.ts')
+
+      const running = await dev(root, () => {})
+      const port = portDe(running)
+
+      // Une configuration qui met plus d'une demi-seconde à se charger : la
+      // fermeture tombe donc pendant `loadProject`, à coup sûr.
+      writeFileSync(
+        config,
+        `import { defineConfig } from '@crypte/cli'
+
+await new Promise((resolve) => setTimeout(resolve, 600))
+
+export default defineConfig({
+  stories: 'stories/checkout',
+  css: 'src/styles/app.css',
+  adapter: { name: 'fixture' },
+})
+`,
+      )
+
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      await running.close()
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+
+      // Le serveur neuf ne monte pas après la fermeture, et l'ancien est parti.
+      await expect(fetch(`http://localhost:${port}${MANIFEST_ROUTE}`)).rejects.toThrow()
+
+      rmSync(root, { recursive: true, force: true })
+    },
+  )
+
+  // Une édition qui change les imports de la configuration change aussi la liste
+  // surveillée : comparer le digest d'avant le chargement à celui d'après faisait
+  // repartir un second redémarrage pour la même sauvegarde.
+  test(
+    'ne redémarre qu’une fois quand la liste surveillée change',
+    { timeout: 120_000 },
+    async () => {
+      const root = copie(fixture, 'tmp-hot-')
+      const config = join(root, 'crypte.config.ts')
+      const avant = readFileSync(config, 'utf8')
+      writeFileSync(join(root, 'extra.ts'), "export const dossier = 'stories/checkout'\n")
+
+      const dites: string[] = []
+      const running = await dev(root, (une: string) => dites.push(une))
+
+      try {
+        const importé = avant
+          .replace(
+            "import { defineConfig } from '@crypte/cli'",
+            "import { defineConfig } from '@crypte/cli'\nimport { dossier } from './extra'",
+          )
+          .replace("stories: 'stories'", 'stories: dossier')
+        expect(importé).not.toBe(avant)
+        writeFileSync(config, importé)
+
+        await expect.poll(compteSur(portDe(running)), { timeout: 30_000 }).toBe(3)
+        await new Promise((resolve) => setTimeout(resolve, 800))
+
+        expect(dites.filter((une) => une.includes('changed'))).toHaveLength(1)
+      } finally {
         await running.close()
         rmSync(root, { recursive: true, force: true })
       }

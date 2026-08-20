@@ -709,8 +709,8 @@ This document is a contract. This section is the only place that says what exist
 | 1.5, project configuration | the config is read, and the declared style sheet is loaded by the preview |
 | 1.5, path aliases | built |
 | 2 and 3, the types | built, and `defineStories` and `story` with them. Inference is not: `details` is still written empty |
-| 4, the manifest | built, and written by `crypte dev` at start-up |
-| 4.6, the fingerprint | built, and written beside the manifest by `crypte dev` |
+| 4, the manifest | built, and written by `crypte dev` at start-up and on every restart, so the file says what is served |
+| 4.6, the fingerprint | built, and written by `crypte dev` at start-up only: it is committed, so a restart leaves the working tree alone |
 | 5, the channel | built and exercised on both sides |
 | 6, plugin contract | not built, and provisional |
 
