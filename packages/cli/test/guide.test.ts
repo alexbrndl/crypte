@@ -34,11 +34,21 @@ function example(name: string): { language: string; code: string } {
   return { language: found?.[1] ?? '', code: found?.[2] ?? '' }
 }
 
+// L'entrée d'un paquet du dépôt, et rien d'autre : `pkg.replace('@crypte/', '')`
+// rendait `react` pour `'react'` comme pour `'@crypte/react'`, donc un
+// `import React from 'react'` dans le guide était validé en lisant notre paquet,
+// c'est-à-dire la classe de bug que ces deux cas existent pour attraper.
+function entryOf(pkg: string): string {
+  if (!pkg.startsWith('@crypte/')) throw new Error(`paquet hors du dépôt : ${pkg}`)
+
+  const name = pkg.slice('@crypte/'.length)
+
+  return join(here, '..', '..', name, 'src', name === 'cli' ? 'config.ts' : 'index.ts')
+}
+
 // Ce qu'un paquet du dépôt exporte vraiment, lu à la source.
 function exportsOf(pkg: string): string[] {
-  const name = pkg.replace('@crypte/', '')
-  const entry = name === 'cli' ? 'config.ts' : 'index.ts'
-  const source = readFileSync(join(here, '..', '..', name, 'src', entry), 'utf8')
+  const source = readFileSync(entryOf(pkg), 'utf8')
 
   return [...source.matchAll(/^export (?:type |interface |const |function )(\w+)/gm)].map(
     (match) => match[1] as string,
@@ -49,11 +59,7 @@ function exportsOf(pkg: string): string[] {
 // l'adaptateur en a un, et un nom d'import par défaut ne dit rien de ce que le
 // paquet exporte, donc c'est la seule chose vérifiable de ce côté.
 function hasDefault(pkg: string): boolean {
-  const name = pkg.replace('@crypte/', '')
-  const entry = name === 'cli' ? 'config.ts' : 'index.ts'
-  const source = readFileSync(join(here, '..', '..', name, 'src', entry), 'utf8')
-
-  return /^export default /m.test(source)
+  return /^export default /m.test(readFileSync(entryOf(pkg), 'utf8'))
 }
 
 function projectWith(files: Record<string, string>): string {
@@ -116,6 +122,14 @@ describe('les exemples du guide', () => {
     for (const [, pkg = ''] of défauts) {
       expect(hasDefault(pkg), `${pkg} n’a pas d’export par défaut`).toBe(true)
     }
+  })
+
+  // Le guide n'importe aujourd'hui que des paquets du dépôt. Le jour où il
+  // montrera `react` ou `zod`, les deux cas ci-dessus doivent le dire plutôt que
+  // de lire notre paquet du même nom.
+  it('refuse de vérifier un paquet hors du dépôt', () => {
+    expect(() => exportsOf('react')).toThrow(/hors du dépôt/)
+    expect(() => hasDefault('zod')).toThrow(/hors du dépôt/)
   })
 
   it('la configuration est acceptée par le CLI', async () => {

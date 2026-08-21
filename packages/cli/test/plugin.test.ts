@@ -1,4 +1,12 @@
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium, type Browser } from 'playwright'
@@ -34,12 +42,20 @@ describe('une configuration sans plugin React', () => {
       .replace('  vite: { plugins: [react({ babel: { plugins: [compiler] } })] },\n', '')
 
     expect(nue).not.toContain('@vitejs/plugin-react')
+    expect(nue).not.toContain('babel-plugin-react-compiler')
     expect(nue).not.toContain('vite:')
     expect(nue).toContain('adapter: crypte()')
 
     const root = mkdtempSync(join(demo, '..', 'tmp-demo-'))
     cpSync(demo, root, { recursive: true })
     writeFileSync(join(root, 'crypte.config.ts'), nue)
+
+    // Comme les autres cas navigateur : le cache hérité fait réoptimiser sous la
+    // page, ce qui est `DCJ-221`, et l'accusation tomberait sur ce lot. Posé
+    // avant d'être retiré, sinon l'affirmation ne surveille rien.
+    mkdirSync(join(root, 'node_modules', '.crypte', 'deps'), { recursive: true })
+    rmSync(join(root, 'node_modules', '.crypte'), { recursive: true, force: true })
+    expect(existsSync(join(root, 'node_modules', '.crypte', 'deps'))).toBe(false)
 
     const started = await startDev(root, () => {})
     await started.server.listen()
@@ -92,6 +108,13 @@ describe('React Compiler, déclaré par le projet', () => {
     // racine qu'il reçoit, et la démonstration est suivie par git.
     const root = mkdtempSync(join(demo, '..', 'tmp-demo-'))
     cpSync(demo, root, { recursive: true })
+
+    // Comme les autres cas navigateur : le cache hérité fait réoptimiser sous la
+    // page, ce qui est `DCJ-221`, et l'accusation tomberait sur ce lot. Posé
+    // avant d'être retiré, sinon l'affirmation ne surveille rien.
+    mkdirSync(join(root, 'node_modules', '.crypte', 'deps'), { recursive: true })
+    rmSync(join(root, 'node_modules', '.crypte'), { recursive: true, force: true })
+    expect(existsSync(join(root, 'node_modules', '.crypte', 'deps'))).toBe(false)
 
     const started = await startDev(root, () => {})
 

@@ -978,11 +978,13 @@ Un cas garde la paire porteuse, avec une **configuration lente**, un `await` de 
 
 *Ce qui casse si on l'enlève :* quatre cas sur dix-sept rougissent, mesuré en remplaçant le `createElement` de `nested` par un appel. Trois portent sur les enveloppes elles-mêmes, le quatrième sur la règle, en affirmant que la fonction reçoit des props avec `children` dedans et non l'élément rendu.
 
-*Cinq formes d'import mesurées*, l'export par défaut n'étant pas le même nœud qu'un import nommé pour le lecteur de configuration : `import crypte from`, `import crypte, { createAdapter } from` avec l'un ou l'autre appelé, `import * as crypte from` suivi de `crypte.default()`, et un import par défaut inutilisé. Les quatre premières traversent telles quelles, la cinquième est retirée de l'entrée.
+*Cinq formes d'import, gardées par `packages/cli/test/adapter.test.ts`*, l'export par défaut n'étant pas le même nœud qu'un import nommé pour le lecteur de configuration : `import crypte from`, `import crypte, { createAdapter } from` avec l'un ou l'autre appelé, `import * as crypte from` suivi de `crypte.default()`, et un import par défaut inutilisé. Les quatre premières traversent telles quelles, la cinquième est retirée de l'entrée.
 
 *Le critère de fin de l'issue est mesuré de bout en bout.* « Un composant compilé se monte et se rafraîchit correctement » : `screen.test.ts` édite `src/components/Badge.tsx`, le fichier même dont `plugin.test.ts` prouve la compilation, et le cadre suit sans navigation. Le compilateur change la taille de son cache de mémoïsation à cette édition, et Fast Refresh s'applique quand même. Le changement d'args passe par le fichier de story, que Fast Refresh ne prend pas, donc par le chemin chaud de l'entrée.
 
 **Le plugin Vite reste au projet.** `packages/cli/test/plugin.test.ts` sert la démonstration privée de ses deux imports de plugin et de son bloc `vite` entier : la story et ses deux enveloppes rendent, console vide. Vite transforme le JSX par oxc, donc `@vitejs/plugin-react` n'est pas nécessaire au rendu. Ce qu'il ajoute est Fast Refresh, dont la preview ne se sert pas puisque le shell est un bundle préconstruit sans client HMR et que l'iframe se recharge entière. Décision et ce qui la rouvrirait dans `docs/decisions.md`.
+
+*Le cache d'optimisation hérité de la copie est effacé*, comme dans les cinq autres fichiers navigateur. Mesuré par la revue : avec `apps/demo/node_modules/.crypte/deps` peuplé, l'état de qui a lancé la démonstration une fois, le cas réoptimisait et rechargeait la page sous les affirmations qui suivent le sondage. Le symptôme n'a pas été revu de mon côté, vitest avalant la sortie du serveur ; ce qui est vérifiable directement est que le cache hérité part, ce que les trois lignes affirment.
 
 *Le champ `vite` ne porte que `plugins`*, par contrat, section 4 de `docs/contracts.md`. Une sonde a essayé de casser le rendu par `vite: { oxc: { jsx: 'preserve' } }` puis `{ runtime: 'classic' }` : les deux passent au vert, parce que le champ est ignoré. Elle ne mesurait rien, et c'est le contrat qui le dit, pas le hasard.
 
@@ -992,9 +994,9 @@ Un cas garde la paire porteuse, avec une **configuration lente**, un `await` de 
 
 *Il passe par `transformRequest`, pas par une requête.* La chaîne de plugins est la même, sans serveur à l'écoute ni socket à fermer. Mesuré : une requête HTTP laissait `server.close()` bloqué jusqu'au couperet de 120 s, `fetch` comme `node:http` avec `agent: false`, et l'en-tête `connection: close` n'y changeait rien. Le cas complet tourne en 1,6 s.
 
-*Ce qui casse si on l'enlève :* le compilateur retiré des plugins Babel de la démonstration passe inaperçu, mesuré, le cas rougit en 41 ms.
+*Ce qui casse si on l'enlève :* le compilateur retiré des plugins Babel passe inaperçu. Mesuré en le retirant sur la copie, à l'intérieur du cas : il rougit en 41 ms. Retiré sur la démonstration elle-même, **deux** cas rougissent, et le premier pour une raison qui n'a rien à voir avec le compilateur, son `replace` exact ne matchant plus, donc c'est son garde-fou de substitution muette qui tire.
 
-*Et le cas copie la démonstration*, comme les autres : `startDev` écrit le manifeste sous la racine qu'il reçoit, et `apps/demo` est suivi par git. L'arbre restait propre par chance, le manifeste écrit étant identique à celui commité.
+*Et le cas copie la démonstration*, comme les autres : `startDev` écrit sous la racine qu'il reçoit, et `apps/demo` est suivi par git. Le manifeste, lui, ne salirait rien, `**/.crypte/manifest.json` étant ignoré ; l'artefact suivi est `apps/demo/.crypte/fingerprint.json`, écrit au premier démarrage. C'est lui que la copie protège.
 
 ---
 

@@ -51,6 +51,65 @@ describe('la source de l’adaptateur', () => {
     expect(read.imports).toEqual(["import { createAdapter } from '@crypte/react'"])
   })
 
+  // Les formes que le guide montre depuis que l'adaptateur a un export par
+  // défaut. Un `ImportDefaultSpecifier` n'est pas le même nœud qu'un
+  // `ImportSpecifier`, et un projet nomme cet import comme il veut.
+  test('reprend un import par défaut', ({ projet }) => {
+    const read = adapterSource(
+      projet(
+        ["import crypte from '@crypte/react'", 'export default { adapter: crypte() }'].join('\n'),
+      ),
+    )
+
+    expect(read.expression).toBe('crypte()')
+    expect(read.imports).toEqual(["import crypte from '@crypte/react'"])
+  })
+
+  test('reprend un import mixte, que l’appel prenne l’un ou l’autre nom', ({ projet }) => {
+    const mixte = "import crypte, { createAdapter } from '@crypte/react'"
+
+    const parDéfaut = adapterSource(
+      projet([mixte, 'export default { adapter: crypte() }'].join('\n')),
+    )
+    const parLeNom = adapterSource(
+      projet([mixte, 'export default { adapter: createAdapter() }'].join('\n')),
+    )
+
+    expect(parDéfaut.expression).toBe('crypte()')
+    expect(parDéfaut.imports).toEqual([mixte])
+    expect(parLeNom.expression).toBe('createAdapter()')
+    expect(parLeNom.imports).toEqual([mixte])
+  })
+
+  test('reprend un import d’espace de noms', ({ projet }) => {
+    const read = adapterSource(
+      projet(
+        [
+          "import * as crypte from '@crypte/react'",
+          'export default { adapter: crypte.default() }',
+        ].join('\n'),
+      ),
+    )
+
+    expect(read.expression).toBe('crypte.default()')
+    expect(read.imports).toEqual(["import * as crypte from '@crypte/react'"])
+  })
+
+  // Et un import par défaut que l'expression ne nomme pas ne part pas dans
+  // l'entrée, comme un import nommé inutilisé.
+  test('ne retient pas un import par défaut que l’expression ne nomme pas', ({ projet }) => {
+    const read = adapterSource(
+      projet(
+        [
+          "import crypte from '@crypte/react'",
+          "export default { adapter: { name: 'react' } }",
+        ].join('\n'),
+      ),
+    )
+
+    expect(read.imports).toEqual([])
+  })
+
   // Un test de mots sur le texte brut retenait l'import parce que le nom du
   // plugin apparaissait dans une chaîne de l'expression. Mesuré : la preview
   // chargeait `@vitejs/plugin-react`, donc `node:module`, donc rien.
