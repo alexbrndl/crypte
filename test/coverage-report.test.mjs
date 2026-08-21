@@ -582,17 +582,85 @@ describe('le workflow', () => {
 
   // Un `needs` qui nomme un job absent rend le fichier invalide, et GitHub
   // échoue en zéro seconde sans rien dire de plus. Mesuré : en retirant un job,
-  // j'ai emporté son voisin `dependency-review`, que `ci-passed` attend.
-  it('ne nomme dans aucun `needs` un job qui n’existe pas', () => {
-    const jobs = [...workflow.matchAll(/^ {2}([a-z-]+):$/gm)].map((une) => une[1])
-    const attendus = [...workflow.matchAll(/^ {4}needs: (.+)$/gm)].flatMap((une) =>
-      une[1]
-        .replaceAll(/[[\]]/g, '')
-        .split(',')
-        .map((un) => un.trim()),
-    )
+  // mon découpage a emporté son voisin `dependency-review`, que `ci-passed`
+  // attend.
+  //
+  // La lecture est séparée du contrôle pour être éprouvée sur des fichiers
+  // fabriqués : la première version se trompait dans les deux sens, refusant les
+  // chiffres d'un nom de job et ramassant le `push` de `on:` comme un job.
+  const TÊTE = 'on:\n  push:\n    branches: [main]\n\njobs:\n  check:\n    runs-on: x\n  '
 
-    expect(attendus.length).toBeGreaterThan(2)
-    expect(attendus.filter((un) => !jobs.includes(un))).toEqual([])
+  it.for([
+    [
+      'un needs en ligne qui nomme un absent',
+      TÊTE + 'ci-passed:\n    needs: [check, fantome]\n',
+      ['fantome'],
+    ],
+    [
+      'un needs en bloc qui nomme un absent',
+      TÊTE + 'ci-passed:\n    needs:\n      - check\n      - fantome\n',
+      ['fantome'],
+    ],
+    ['un needs simple qui nomme un absent', TÊTE + 'ci-passed:\n    needs: fantome\n', ['fantome']],
+    [
+      'un nom de job avec un chiffre',
+      TÊTE + 'check-node-22:\n    runs-on: x\n  autre:\n    needs: check-node-22\n',
+      [],
+    ],
+    [
+      'un nom de job avec un underscore',
+      TÊTE + 'ts7_probe:\n    runs-on: x\n  autre:\n    needs: ts7_probe\n',
+      [],
+    ],
+    [
+      'le déclencheur `push`, qui n’est pas un job',
+      TÊTE + 'ci-passed:\n    needs: push\n',
+      ['push'],
+    ],
+  ])('trouve %s', ([, faux, attendu]) => {
+    expect(manquants(faux)).toEqual(attendu)
+  })
+
+  it('ne trouve rien à reprocher au workflow du dépôt', () => {
+    expect(manquants(workflow)).toEqual([])
   })
 })
+
+// Les jobs d'un workflow et les `needs` qu'ils nomment, sans dépendance : les
+// noms se lisent dans le bloc `jobs:` seulement, pour que le `push` de `on:` n'en
+// soit pas un, et `needs` se lit sous ses trois formes, en ligne, en liste et en
+// séquence de bloc, la dernière étant la plus courante.
+function manquants(workflow) {
+  const bloc = workflow.slice(workflow.indexOf('\njobs:\n'))
+  const jobs = [...bloc.matchAll(/^ {2}([\w-]+):$/gm)].map((une) => une[1])
+  const attendus = []
+
+  const lignes = bloc.split('\n')
+  for (const [index, ligne] of lignes.entries()) {
+    const trouvé = /^ {4}needs:(.*)$/.exec(ligne)
+    if (!trouvé) continue
+
+    const reste = (trouvé[1] ?? '').trim()
+
+    if (reste !== '') {
+      attendus.push(
+        ...reste
+          .replaceAll(/[[\]]/g, '')
+          .split(',')
+          .map((un) => un.trim())
+          .filter(Boolean),
+      )
+      continue
+    }
+
+    // La séquence de bloc : les lignes qui suivent, tant qu'elles sont des
+    // éléments de liste plus indentés.
+    for (const suivante of lignes.slice(index + 1)) {
+      const élément = /^ {6}- (.+)$/.exec(suivante)
+      if (!élément) break
+      attendus.push(élément[1].trim())
+    }
+  }
+
+  return attendus.filter((un) => !jobs.includes(un))
+}

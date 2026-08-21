@@ -340,7 +340,11 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 *Un cas de plus garde le fichier de workflow lui-même :* aucun `needs` ne doit nommer un job absent. Un fichier invalide fait échouer GitHub **en zéro seconde**, sans job, sans annotation, avec pour seule trace « this run likely failed because of a workflow file issue ». Mesuré en le provoquant : en retirant le job du badge, mon découpage a emporté son voisin `dependency-review`, que `ci-passed` attend. Le contrôle rougit sur cette faute exacte.
 
-*Le risque assumé :* si la couverture mesurée en local et en intégration continue diffèrent d'un point autour d'un entier, la comparaison rougit et `pnpm ready` la referme. Le badge n'affichant qu'un entier arrondi vers le bas, il faut une dérive de presque un point pour y arriver.
+*Ce que la comparaison coûte, et il faut le dire en entier.* Elle est une étape du job de couverture, donc elle bloque `ci-passed`, seul contrôle exigé, sur **chaque** pull request. Trois conséquences :
+
+- si les couvertures locale et d'intégration continue diffèrent autour d'un entier, elle rougit. Le badge n'affichant qu'un entier arrondi vers le bas, il faut presque un point de dérive pour y arriver ;
+- une pull request qui ne touche pas la couverture peut être bloquée par un badge périmé, quand sa base a bougé. Fusionner `main` dedans suffit, et le message le dit, pour ne pas envoyer relancer une construction et un Chromium pour un chiffre sans rapport ;
+- `main` peut donc encore rougir, si une pull request est fusionnée depuis une base non à jour. Le symptôme de `DCJ-225` est **réduit, pas supprimé** : ce qui a disparu est le job qui échouait à chaque fusion, ce qui reste est un cas de base périmée que le ruleset n'interdit pas.
 
 **Les échecs sont annotés dans le diff.** Le rapporteur `github-actions` de vitest place chaque échec sur son fichier et sa ligne, ce qui évite d'ouvrir les journaux pour savoir quoi.
 
@@ -1010,7 +1014,7 @@ Règle à retenir si un autre workflow apparaît : `cancel-in-progress: true` po
 
 **Ce qui casse si on l'enlève.** Rien visiblement, et c'est le problème : une action compromise ou une dépendance malveillante disposerait de droits d'écriture sur un dépôt public.
 
-**Deux exceptions, chacune sur un job.** `coverage` déclare `pull-requests: write` pour son commentaire, `badge` déclare `contents: write` pour le chiffre du README. La portée est le job, donc celui qui exécute les tests n'écrit nulle part. Et le jeton d'une pull request venue d'une bifurcation reste en lecture seule quoi qu'on écrive ici : le commentaire est donc gardé sur l'origine de la branche, sinon il échouerait chez un contributeur extérieur.
+**Une exception, sur un job.** `coverage` déclare `pull-requests: write` pour son commentaire, et c'est tout : **aucun job n'a de droit d'écriture sur le dépôt**. Il y en avait un, `badge`, qui poussait le chiffre du README sur `main` ; il n'existe plus, `DCJ-225`. La portée est le job, donc celui qui exécute les tests n'écrit nulle part. Et le jeton d'une pull request venue d'une bifurcation reste en lecture seule quoi qu'on écrive ici : le commentaire est donc gardé sur l'origine de la branche, sinon il échouerait chez un contributeur extérieur.
 
 ### `timeout-minutes: 10`
 

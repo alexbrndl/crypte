@@ -150,7 +150,7 @@ jobs:
         run: |
           node test/coverage-report.mjs --badge /tmp/coverage.json > /dev/null
           diff /tmp/coverage.json .github/coverage.json && exit 0
-          echo "::error::Le badge de .github/coverage.json est périmé : lancer \`pnpm ready\` et commiter le fichier."
+          echo "::error::Le badge de .github/coverage.json est périmé. Si cette branche ne touche pas la couverture, fusionner \`main\` dedans suffit : le badge y est déjà à jour. Sinon, lancer \`vp test --coverage && node test/coverage-report.mjs --badge .github/coverage.json\` et commiter le fichier."
           exit 1
 
   dependency-review:
@@ -161,6 +161,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
 
+  # Seul job exigé par le ruleset. Voir docs/internal/architecture.md.
   ci-passed:
     if: always()
     needs: [check, coverage, dependency-review]
