@@ -10,6 +10,22 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 ---
 
+## A panel with nothing to say says `inapplicable`, and why
+
+_2026-08-21_
+
+**Decided.** One state, two spellings, and which one rules where. The identifier is **`inapplicable`**: that is what code carries, what `UIContribution` will name when it is written, and what the Figma frame state is called. French prose says **« sans objet »**, in `placement-ui.md` and `pistes-shell.md` only, the way the rest of those notes are written. Neither is a synonym to be aligned onto the other: prose reads, identifiers are typed. A third word invented at the contract is what this entry exists to prevent.
+
+**The state is one value with two branches, per render.** Either a body, or `inapplicable` with its reason. Never both, never a reason alone. A boolean plus an optional reason would let both illegal forms be written, which is the defect `StoriesRead` already cost us. And per render, not declared once: `a11y` has no violation on one story and several on the next, so a state declared alongside the contribution zones could not express it.
+
+**Scope of what we turn down.** « silence » as the name of *this state*, which the notes used until now: it reads as a panel saying nothing, the very behaviour the rule forbids. Nothing else. The repository uses « silence » and « en silence » some forty times for another notion, a defect that does not report itself, in `architecture.md`, `suivi.md`, `CLAUDE.md` and published comments. Those stay, and a review that renames them is reading this entry too widely.
+
+**Where the identifier comes from.** The interface exploration in Figma, which named the frame state. The library itself is a lot 7 deliverable: its three pages are still to be created, so this entry is what carries the name *into* it, not a fact read back from it. Nothing in the repository can verify the Figma side today, which is why the name is written here rather than only there.
+
+**What would reopen it.** A framework or a design language that already owns `inapplicable` for something else, a second surface where it does not read, or lot 7 finding a better name while the library is built, in which case both spellings move together.
+
+---
+
 ## The shell ships prebuilt inside the CLI, the preview is built in the project
 
 _2026-08-14_
@@ -211,13 +227,3 @@ The real difference is who reads a document. The language follows from that.
 **Why the demonstration keeps it anyway.** React Compiler runs on Babel, so it needs the plugin. It is active on the target project, which is the risk `DCJ-170` asked to lift, and it is lifted by a project-supplied plugin rather than by one of ours.
 
 **What would reopen it.** A framework whose adapter cannot render without a transform of its own, or Fast Refresh becoming reachable from the preview.
-
-## A panel with nothing to say is `inapplicable`, and says why
-
-**What we do.** One word for the state, in three places that must agree. The interface notes say « sans objet » in French prose; the Figma library names the state `inapplicable`; and the plugin contract, which is in English, will use `inapplicable` when `UIContribution` is written. The reason string travels with the state, never without it.
-
-**What we rule out.** « silence », which the notes used until now. It reads as a panel saying nothing, which is the behaviour the rule exists to forbid: a panel with nothing to say must say so, and say why. And a third word invented at the contract, which is what an English section asked to carry a French phrase invites.
-
-**The state is per render, not declared once.** `a11y` has no violation on one story and several on the next, so a state declared alongside the contribution zones cannot express it: the shell would collapse the panel for every story or for none.
-
-**What would reopen it.** A framework or a design language that already owns one of these words for something else, or a second surface where the state has to be named and `inapplicable` does not read.

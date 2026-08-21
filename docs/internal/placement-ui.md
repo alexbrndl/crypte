@@ -47,7 +47,11 @@ Le catalogue impose les deux. Quatre plugins n'ajoutent qu'un corps, quatre ont 
 | `comments` | fils, filtre des résolus, champ de saisie en pied | complète |
 | `interactions` | étapes et verdicts, commandes de lecture | complète |
 
-**Forme simple.** Le plugin rend un corps et déclare, à chaque rendu, s'il est sans objet et pourquoi. Le shell dessine le cadre, décide du repli, et applique la règle du sans objet lui-même.
+**L'état est une valeur à deux branches, rendue à chaque rendu :** soit un corps, soit « sans objet » avec sa raison. Jamais les deux, jamais une raison seule. Un corps rendu avec l'état sans objet et une raison sans état sont les deux formes qu'un booléen plus une raison optionnelle laisserait écrire, et c'est le défaut que `StoriesRead` a déjà coûté, une question à trois réponses écrasée dans un booléen.
+
+**La règle vaut pour les deux formes**, et c'est la forme complète qui la rend nécessaire : `a11y` n'a aucune violation sur une story et plusieurs sur la suivante, et il dessine son panneau entier. Le shell ne peut pas replier ce qu'il ne dessine pas, donc l'état lui est rendu dans les deux cas ; ce qui change est qui dessine la ligne.
+
+**Forme simple.** Le plugin rend la valeur, le shell dessine le cadre, décide du repli, et écrit la ligne « sans objet » lui-même.
 
 **Forme complète.** Le plugin rend le panneau entier, **en composant la primitive publiée**. Il gagne son en-tête et son pied ; il ne gagne pas le droit de refaire le cadre. Sans cette limite, huit plugins auront huit en-têtes différents et le shell ne pourra plus replier ce qu'il ne dessine pas.
 
@@ -62,7 +66,7 @@ Le catalogue impose les deux. Quatre plugins n'ajoutent qu'un corps, quatre ont 
 | Primitive | Consommateurs |
 | -- | -- |
 | Cadre de panneau : en-tête, libellé, emplacement d'actions, corps, pied | 8 : `controls`, `a11y`, `docs`, `source`, `actions`, `comments`, `coverage`, `interactions` |
-| Ligne « sans objet », avec sa raison écrite, `inapplicable` dans la bibliothèque Figma | les mêmes 8 |
+| Ligne « sans objet », avec sa raison écrite | les mêmes 8 |
 | Ligne à gouttières fixes, quatre états | 6 : `a11y`, `actions`, `coverage`, `comments`, `docs`, `diff` |
 | Bouton et bascule de toolbar | 6 : `responsive`, `theme`, `rtl`, `inspect`, `grid`, `diff` |
 | Bloc de code, avec sa copie | 4 : `source`, `docs`, `a11y`, `diff` |
@@ -98,7 +102,7 @@ Il en découle une dégradation à prévoir : `comments` dépend de `crypte serv
 
 **`packages/core/test/isolation.test.ts`.** Il ne suit que les imports **relatifs**, donc il ne peut pas voir un import de `vue`. Il faut lui ajouter le relevé des imports nus par entrée, et l'ensemble attendu : `protocol` aucun, `preview` aucun, `ui` uniquement `vue` et `reka-ui`. Sans ça, rien n'empêche `protocol` de tirer Vue par accident.
 
-**`docs/contracts.md`, section 6.** `UIContribution` avec les deux formes de panneau, le sans objet déclaré par rendu, les commandes de palette et la zone `page`. Le contrat est en anglais : le terme y est `inapplicable`, celui de la bibliothèque Figma, et `docs/decisions.md` porte le choix. C'est `DCJ-194`.
+**`docs/contracts.md`, section 6.** `UIContribution` avec les deux formes de panneau, le sans objet déclaré par rendu, les commandes de palette et la zone `page`. Le contrat est en anglais : l'identifiant y est `inapplicable`, et `docs/decisions.md` porte le choix des deux graphies et d'où vient le nom. C'est `DCJ-194`.
 
 **`docs/internal/plugins.md`.** La ligne qui range « Sidebar, recherche, panneaux, thème de l'interface » dans `Noyau (@crypte/core/ui)` date d'avant toute décision d'interface. Elle devient `apps/shell`, à l'exception des primitives listées en 3.1. Le catalogue doit aussi passer de quinze à dix-sept plugins avec `coverage` et `diff` : c'est `DCJ-202`.
 
@@ -117,6 +121,8 @@ Deux axes de variantes viennent de règles qu'il serait coûteux de redécouvrir
 **Sur la ligne, un axe `contexte`, navigation ou panneau.** Les deux budgets de fond ne sont pas décoratifs. En navigation, le fond paie les états, repos, survol et courant, et la structure passe par le retrait, le chevron, la graisse et le guide vertical. En panneau, il n'y a pas d'état courant, donc le fond est libre et la bande veut dire « ceci se plie sur place ». Une seule ligne à un seul jeu de fonds et le survol redevient illisible sur les composants.
 
 **Sur le cadre de panneau, un axe `forme`**, simple ou complète, pour que les huit plugins se posent visiblement sur la même base.
+
+**Et un état `inapplicable` sur le cadre**, celui de la ligne « sans objet » de la liste 3.1. Le nom appartient à l'état, pas à la primitive : `docs/decisions.md` porte le choix des deux graphies, la prose française et l'identifiant.
 
 **Le focus n'est pas un état de fond** mais une bordure intérieure, précisément pour se superposer aux trois autres au lieu d'entrer en concurrence avec eux. En Figma, une variable d'effet, pas une variante de plus.
 
