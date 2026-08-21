@@ -328,23 +328,17 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 *Un lancement rouge n'écrit pas de couverture*, et la première version levait alors : le commentaire d'avant restait donc en place, affichant les chiffres **verts** du lancement précédent sous une CI rouge. Mesuré sur la PR #34, une heure après l'avoir écrit. Le commentaire dit maintenant « couverture non mesurée », garde le compte des tests, et nomme les trois premiers cas qui rougissent.
 
-**Le badge du README est écrit par la CI, pas recopié à la main.** Un fichier `coverage.json` porte le format « endpoint » que shields.io lit, et un job `badge` le réécrit sur chaque pousse vers `main`. Le pourcentage de lignes, arrondi **vers le bas** : 98,55 affiché « 99 % » flatterait. La couleur suit le seuil du dépôt, pas une échelle scolaire, parce qu'un badge vert sous le seuil mentirait sur une porte rouge.
+**Il n'y a pas de badge de couverture, et c'est une décision.** Un job l'écrivait et le poussait sur `main`, ce qu'une règle du dépôt interdit : la pousse était refusée, la CI de `main` rouge à chaque fusion qui bougeait le chiffre, et le badge affichait **98 %** pour une couverture de 97,89 pendant dix jours. Un ornement qui mentait, gardé par un mécanisme qui échouait en silence.
 
-*Il vit sur une branche à part, `badge`, orpheline et d'un seul fichier.* Une règle du dépôt exige que tout passe par une pull request : la pousse sur `main` était donc refusée, le job rougissait à chaque fusion qui bougeait le chiffre, et le badge est resté périmé dix jours en affichant 98 % pour une couverture de 97. Trois fusions rouges avant que ça se voie, `DCJ-225`.
+*Les deux façons de le garder ont été écartées.* Une branche dédiée, orpheline, aurait demandé de comprendre pourquoi elle est là pour un fichier de cinq lignes. Autoriser le robot à pousser sur `main` aurait ouvert une brèche permanente dans « tout passe par une pull request ». Un badge est un ornement du README : il ne vaut ni l'une ni l'autre.
 
-*Pourquoi pas une exception à la règle :* autoriser le robot à pousser sur `main` ouvrirait une brèche permanente dans « tout passe par une pull request » pour un fichier d'une ligne. Et pourquoi pas un contrôle plutôt qu'un écrivain : commiter le badge dans chaque pull request demanderait de s'en souvenir, ce qu'un mécanisme n'a pas à demander.
+*Où le chiffre vit maintenant :* le commentaire de couverture des pull requests, recalculé à chaque pousse, avec sa table par dossier et son verdict de seuils. C'est là que la décision se prend, et il n'a jamais été faux. Le contrôle `coverage` rougit toujours sous les seuils, indépendamment.
 
-*La branche est créée à la main, une fois.* La créer depuis le workflow aurait mis là du code qu'aucune exécution locale ne peut éprouver, pour un chemin qui ne sert qu'une seule fois.
+*Ce qui casse si on l'enlève :* rien de plus. Ce qui restait cassé, c'était le badge. `DCJ-225`.
 
-*Ce qui casse si on l'enlève :* rien ne dit plus la couverture à qui ouvre le dépôt sans lire une pull request. Le mode d'échec de ce job est le **silence**, et il n'a jamais tourné sur une pull request : c'est ce qui a laissé passer deux défauts d'affilée, le chemin de l'artefact au lot 5b et la règle de pousse ici. Le point de contrôle est la fusion suivante.
+*Le job de couverture n'écrit rien dans le dépôt.* Le résumé et le compte des tests passent de job en job par un artefact, et le `contents: write` qu'un badge demandait a disparu avec lui.
 
-*Un job à part*, pour que `contents: write` ne vaille que là : le job qui exécute les tests n'a jamais le droit d'écrire dans le dépôt, ni dans une pull request. Le résumé et le compte des tests passent de job en job par un artefact.
-
-*Deux cas gardent ce job*, qui ne tourne jamais sur une pull request : l'un lance le script en sous-processus depuis un faux artefact, sans `--resume`, donc sur le chemin par défaut ; l'autre lit `ci.yml` et refuse un `--resume` dans la ligne d'appel. Mesuré : remettre la panne fait rougir le second, la retirer le rend vert. Comparer un document au code est ce que fait déjà `spec.test.ts`.
-
-*Le chemin du résumé est celui par défaut*, et c'est une correction de l'auto-revue : le job passait `--resume coverage-summary.json`, vrai quand l'artefact ne portait qu'un fichier, faux depuis qu'il en porte deux et que `coverage/` est préservé. Le badge n'aurait jamais été écrit et ce job aurait été rouge à chaque fusion. Il ne tourne que sur `main`, donc aucune pull request ne pouvait le dire.
-
-*Sur `main` seulement*, et avec `[skip ci]` : le badge dit l'état de la branche par défaut, et sans le marqueur la pousse relancerait toute la CI pour recalculer le même chiffre. Rien n'est commité quand il n'a pas bougé, ce qui est le cas de la plupart des fusions.
+*Le chemin du résumé est celui par défaut*, et c'est une correction de l'auto-revue : le job passait `--resume coverage-summary.json`, vrai quand l'artefact ne portait qu'un fichier, faux depuis qu'il en porte deux et que `coverage/` est préservé. Un cas garde ce chemin en lançant le script en sous-processus depuis un faux artefact.
 
 **Les échecs sont annotés dans le diff.** Le rapporteur `github-actions` de vitest place chaque échec sur son fichier et sa ligne, ce qui évite d'ouvrir les journaux pour savoir quoi.
 

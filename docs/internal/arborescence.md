@@ -25,7 +25,6 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `.github/workflows/require-changeset.yml` | contrôle de présence d'une note de version | chaque pull request |
 | `.github/workflows/ts7-readiness.yml` | sonde mensuelle sur `vue-tsc` | personne, ouvre une issue |
 | `.github/dependabot.yml` | veille sur les actions GitHub | Dependabot |
-| `coverage.json`, branche `badge` | le chiffre du badge, écrit par la CI, hors de l'arbre de `main` | shields.io, via le README |
 | `.vite-hooks/pre-commit` | lance `vp staged` | Git, avant chaque commit |
 | `test/manifest-size.mjs` | ce que pèse un manifeste, et le coût d'en garder l'historique | personne, lancé à la main |
 | `test/post-review.mjs` | publie un verdict de revue, et vérifie qu'il y est arrivé | `/review` |
