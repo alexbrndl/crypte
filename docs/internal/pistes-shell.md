@@ -28,7 +28,7 @@ La palette de commandes indexe les stories et les actions. Une action de plugin 
 
 ### 1.3 Un panneau doit pouvoir dire qu'il n'a rien à dire, et pourquoi
 
-Le shell déplie les panneaux qui portent une information et laisse les autres sur une ligne, en bas, avec la raison écrite. Cette règle n'est pas implémentable si le panneau est une boîte noire : il faut soit qu'il rende un silence typé, soit que le shell l'interroge avant de le rendre.
+Le shell déplie les panneaux qui portent une information et laisse les autres sur une ligne, en bas, avec la raison écrite. Cette règle n'est pas implémentable si le panneau est une boîte noire : il faut soit qu'il rende un « sans objet » typé, soit que le shell l'interroge avant de le rendre. **Tranché depuis :** c'est la première forme, rendue à chaque rendu, `a11y` n'ayant aucune violation sur une story et plusieurs sur la suivante. Voir `docs/decisions.md`.
 
 *Pourquoi ça compte :* c'est la réponse au seul problème d'ergonomie que la concurrence n'a pas résolu, l'encombrement des panneaux quand il y en a sept. Leur piste actuelle est un réglage de configuration de plus.
 
@@ -160,7 +160,7 @@ Elles relèvent de la PRD du shell, pas des contrats, mais elles ont été tranc
 | Décision | Motif |
 | -- | -- |
 | Aucune option de disposition | La concurrence expose neuf réglages d'interface pour éviter d'avoir décidé. Une seule disposition, deux raccourcis pour replier les colonnes. |
-| Les panneaux se déplient selon ce qu'ils ont à dire | Voir 1.3. Aucun panneau grisé, aucun panneau vide silencieux. |
+| Les panneaux se déplient selon ce qu'ils ont à dire | Voir 1.3. Aucun panneau grisé, aucun panneau vide sans sa raison écrite. |
 | Pas de temps de rendu par story | Six millisecondes contre cinq ne veut rien dire. Seule la valeur aberrante est signalée, et le chiffre qui compte est le démarrage. |
 | Le statut vit sur le composant, pas sur la story | `meta` est déclaré par fichier de stories, donc il porte sur le composant. Le badge et le filtre suivent. |
 | L'arbre a trois niveaux, pas deux | Une entrée porte `path` et `name`, donc dossier, composant, story. |

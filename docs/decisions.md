@@ -10,6 +10,22 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 ---
 
+## A panel with nothing to say says `inapplicable`, and why
+
+_2026-08-21_
+
+**Decided.** One state, two spellings, and which one rules where. The identifier is **`inapplicable`**: that is what code carries, what `UIContribution` will name when it is written, and what the Figma frame state is called. French prose says **« sans objet »**, in `placement-ui.md` and `pistes-shell.md` only, the way the rest of those notes are written. Neither is a synonym to be aligned onto the other: prose reads, identifiers are typed. A third word invented at the contract is what this entry exists to prevent.
+
+**The state is one value with two branches, per render.** Either a body, or `inapplicable` with its reason. Never both, never a reason alone. A boolean plus an optional reason would let both illegal forms be written, which is the defect `StoriesRead` already cost us. And per render, not declared once: `a11y` has no violation on one story and several on the next, so a state declared alongside the contribution zones could not express it.
+
+**Scope of what we turn down.** « silence » as the name of *this state*, which the notes used until now: it reads as a panel saying nothing, the very behaviour the rule forbids. Nothing else. The repository uses « silence » and « en silence » some forty times for another notion, a defect that does not report itself, in `architecture.md`, `suivi.md`, `CLAUDE.md` and published comments. Those stay, and a review that renames them is reading this entry too widely.
+
+**Where the identifier comes from.** The interface exploration in Figma, which named the frame state. The library itself is a lot 7 deliverable: its three pages are still to be created, so this entry is what carries the name *into* it, not a fact read back from it. Nothing in the repository can verify the Figma side today, which is why the name is written here rather than only there.
+
+**What would reopen it.** A framework or a design language that already owns `inapplicable` for something else, a second surface where it does not read, or lot 7 finding a better name while the library is built, in which case both spellings move together.
+
+---
+
 ## The shell ships prebuilt inside the CLI, the preview is built in the project
 
 _2026-08-14_
