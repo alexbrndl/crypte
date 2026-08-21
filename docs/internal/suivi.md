@@ -228,6 +228,36 @@ Le bandeau du shell ne montre que ce qui est **certain** d'avoir voulu être une
 
 *La leçon du lot, plus large que le lot :* trois des quatre tours ont porté sur la même question, « ce fichier voulait-il être une story », et j'ai proposé trois règles fausses chacune dans un sens différent. Ce qui a fini par tenir n'est pas une meilleure heuristique mais un changement de question : **un journal au démarrage et une interface permanente n'ont pas le même coût pour une ligne en trop**, donc ils n'ont pas le même seuil. Quand une frontière résiste à trois règles, c'est la question qu'il faut changer, pas la règle.
 
+### Assumé : deux courses du redémarrage ne sont éprouvées par aucun cas (`DCJ-220`)
+
+**Une édition qui tombe pendant le démarrage.** `seen` vaut désormais le digest de ce que `startDev` a réellement lu, `started.read`, et non l'état des fichiers après que le serveur est debout : une sauvegarde arrivée entre les deux était comparée à elle-même et perdue pour de bon. Trouvé en revue.
+
+*Pourquoi aucun cas ne le tient :* la fenêtre est faite des microtâches entre le retour de `startDev` et la ligne suivante. Écrire avant, et le surveillant n'existe pas encore, ce qui est une autre limite, préexistante et non fermée ici.
+
+**La fenêtre de chevauchement de deux redémarrages**, une vingtaine de millisecondes, puisqu'un redémarrage prend 43 ms mesurées dont 20 de temporisation. Le cas des deux sauvegardes tient l'**ordre**, pas la file : une version à drapeau y passerait à l'identique, et son commentaire le dit.
+
+**Une sauvegarde qui tombe pendant le chargement de la configuration.** Trois versions de ce point se sont succédé, chacune fermant une course en ouvrant une autre, ce que la revue a mesuré chaque fois.
+
+*Ce qui tient maintenant :* `seen` vaut `next.read`, le digest sur la liste surveillée du **nouveau** projet, ce qui rend les comparaisons suivantes possibles même quand les imports de la configuration ont changé, un digest pris sur l'ancienne liste ayant produit un redémarrage en double, mesuré. Et ce que `read` peut manquer, une sauvegarde arrivée pendant l'empaquetage, est rattrapé après la bascule par un `digest(next.project) !== next.read` qui relance.
+
+*Ce qui reste non éprouvé :* ce rattrapage, dont la fenêtre est le temps d'empaquetage de la configuration. Il serait testable par une configuration lente, comme le cas de la fermeture l'est depuis ce tour ; il ne l'est pas encore.
+
+*Et une leçon de mesure, la troisième du lot :* j'ai déclaré les seuils de couverture tenus en lisant un résumé **périmé** sur le disque, écrit avant ma dernière modification. L'intégration continue a dit le contraire. Un rapport de couverture se relit après avoir vidé `coverage/`, sinon on lit l'état d'avant, exactement comme une sonde qui n'a rien remplacé.
+
+### Assumé : un seul chemin d'échec du redémarrage reste non exécuté (`DCJ-220`)
+
+Trois lignes, le `catch` de `next.server.listen(port)`. Le reste est éprouvé : un cas force la fermeture de l'ancien serveur à lever, ce qui traverse le chemin partagé, `unwatch()` compris.
+
+*Pourquoi celui-là résiste :* faire échouer l'écoute demande que le port soit pris entre la fermeture de l'ancien serveur et l'écoute du neuf, une fenêtre que rien ne peut occuper de l'extérieur. `strictPort` sur un port tenu ne lève pas, mesuré, et un port invalide est ignoré par Vite.
+
+*Ce que la couverture a coûté :* la première version portait onze lignes non exécutées et faisait tomber deux seuils du dépôt. Les deux chemins d'échec partagent maintenant un `abandon`, et il en reste trois. Baisser un seuil pour faire passer le lot était exclu, la règle du dépôt étant qu'un seuil qu'on baisse ne garde plus rien.
+
+### Leçon de méthode : une sonde qui réécrit un fichier doit affirmer qu'elle l'a changé
+
+Deux sondes de ce lot n'ont rien mesuré et je l'ai d'abord lu comme un résultat. Elles faisaient `avant.replace('export default {', …)` sur une configuration écrite `export default defineConfig({ … })` : le remplacement était inerte, le fichier réécrit à l'identique, et le contrôle de contenu écartait l'événement **à raison**. J'ai donc conclu deux fois qu'un redémarrage ne se produisait pas alors que rien ne l'avait demandé.
+
+C'est le même défaut que la revue de la PR #39 avait signalé sur un `.replace` non gardé dans un test. La règle : toute sonde qui édite un fichier affirme que l'édition a changé quelque chose, `expect(après).not.toBe(avant)`, avant de regarder le reste.
+
 ### Ouvert : le terminal ne dit pas les fiches partielles
 
 `crypte dev` imprime les fichiers écartés, un par ligne avec sa raison, mais rien des `partial` que `DCJ-217` a ajoutés. Un utilisateur qui lit son terminal voit donc les stories perdues, pas les fiches incomplètes.

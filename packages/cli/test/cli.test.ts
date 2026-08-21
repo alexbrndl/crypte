@@ -1,7 +1,7 @@
 import { PROTOCOL_VERSION } from '@crypte/core/protocol'
-import type { ViteDevServer } from 'vite'
 import { describe, expect, test } from 'vitest'
 import { exitCode, run } from '../src/cli'
+import type { Running } from '../src/dev'
 import { ConfigError } from '../src/errors'
 
 // Ce que la commande fait de ses arguments. Rien ne l'éprouvait : la couverture
@@ -24,7 +24,7 @@ const faux = () => {
     racines,
     dev: async (input: string) => {
       racines.push(input)
-      return undefined as unknown as ViteDevServer
+      return undefined as unknown as Running
     },
   }
 }

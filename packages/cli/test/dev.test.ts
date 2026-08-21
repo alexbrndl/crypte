@@ -1,9 +1,8 @@
 import { cpSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { ViteDevServer } from 'vite'
 import { afterAll, beforeAll, describe, expect, it, test as base } from 'vitest'
-import { dev, startDev, type Started } from '../src/dev'
+import { dev, startDev, type Started, type Running } from '../src/dev'
 import { loadProject } from '../src/project'
 import { MANIFEST_ROUTE, PREVIEW_ENTRY, PREVIEW_PAGE, previewEntry } from '../src/serve'
 
@@ -187,19 +186,19 @@ describe('ce que la commande dit au démarrage', () => {
       const root = mkdtempSync(join(fixture, '..', 'tmp-dev-'))
       cpSync(fixture, root, { recursive: true })
 
-      let server: ViteDevServer | undefined
+      let running: Running | undefined
 
       await use({
         root,
         dit: async () => {
           const lignes: string[] = []
-          server = await dev(root, (line: string) => lignes.push(line))
+          running = await dev(root, (line: string) => lignes.push(line))
 
           return lignes
         },
       })
 
-      await server?.close()
+      await running?.close()
       rmSync(root, { recursive: true, force: true })
     },
   })
