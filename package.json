@@ -12,7 +12,7 @@
     "check": "vp check",
     "test": "vp test",
     "pack": "vp run -r pack",
-    "ready": "vp check && vp run -r pack && vp test --coverage && node test/coverage-report.mjs"
+    "ready": "vp check && vp run -r pack && vp test --coverage && node test/coverage-report.mjs --badge .github/coverage.json"
   },
   "devDependencies": {
     "@changesets/changelog-github": "catalog:",

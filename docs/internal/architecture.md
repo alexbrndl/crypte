@@ -328,15 +328,23 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 *Un lancement rouge n'écrit pas de couverture*, et la première version levait alors : le commentaire d'avant restait donc en place, affichant les chiffres **verts** du lancement précédent sous une CI rouge. Mesuré sur la PR #34, une heure après l'avoir écrit. Le commentaire dit maintenant « couverture non mesurée », garde le compte des tests, et nomme les trois premiers cas qui rougissent.
 
-**Le badge du README est écrit par la CI, pas recopié à la main.** `.github/coverage.json` porte le format « endpoint » que shields.io lit, et un job `badge` le réécrit sur chaque pousse vers `main`. Le pourcentage de lignes, arrondi **vers le bas** : 98,55 affiché « 99 % » flatterait. La couleur suit le seuil du dépôt, pas une échelle scolaire, parce qu'un badge vert sous le seuil mentirait sur une porte rouge.
+**Le badge du README est commité, et la CI vérifie qu'il dit vrai.** `.github/coverage.json` porte le format « endpoint » que shields.io lit. Le pourcentage de lignes, arrondi **vers le bas** : 98,55 affiché « 99 % » flatterait. La couleur suit le seuil du dépôt, pas une échelle scolaire, parce qu'un badge vert sous le seuil mentirait sur une porte rouge.
 
-*Un job à part*, pour que `contents: write` ne vaille que là : le job qui exécute les tests n'a jamais le droit d'écrire dans le dépôt, ni dans une pull request. Le résumé et le compte des tests passent de job en job par un artefact.
+*Un job l'écrivait et le poussait sur `main`, ce qui ne pouvait pas marcher.* Une règle du dépôt exige que tout passe par une pull request : la pousse était refusée, la CI de `main` rouge à chaque fusion qui bougeait le chiffre, et le badge a affiché **98 %** pour une couverture de 97,89 pendant dix jours. Trois fusions rouges avant que ça se voie, `DCJ-225`.
 
-*Deux cas gardent ce job*, qui ne tourne jamais sur une pull request : l'un lance le script en sous-processus depuis un faux artefact, sans `--resume`, donc sur le chemin par défaut ; l'autre lit `ci.yml` et refuse un `--resume` dans la ligne d'appel. Mesuré : remettre la panne fait rougir le second, la retirer le rend vert. Comparer un document au code est ce que fait déjà `spec.test.ts`.
+*Le fichier est donc commité comme les autres.* `pnpm ready` le régénère, et cette commande lance déjà la couverture avant chaque pull request : le badge suit sans mécanisme de plus. Le job de couverture **compare** le fichier commité au chiffre mesuré et rougit s'il est périmé, en disant quoi lancer. Aucun droit d'écriture, aucun robot qui pousse, aucune branche.
 
-*Le chemin du résumé est celui par défaut*, et c'est une correction de l'auto-revue : le job passait `--resume coverage-summary.json`, vrai quand l'artefact ne portait qu'un fichier, faux depuis qu'il en porte deux et que `coverage/` est préservé. Le badge n'aurait jamais été écrit et ce job aurait été rouge à chaque fusion. Il ne tourne que sur `main`, donc aucune pull request ne pouvait le dire.
+*Deux autres voies ont été écartées.* Une branche dédiée, orpheline : elle demande de comprendre pourquoi elle est là pour cinq lignes de JSON. Autoriser le robot à pousser sur `main` : une brèche permanente dans « tout passe par une pull request » pour un fichier d'une ligne. Un badge est un ornement du README, il ne vaut ni l'une ni l'autre.
 
-*Sur `main` seulement*, et avec `[skip ci]` : le badge dit l'état de la branche par défaut, et sans le marqueur la pousse relancerait toute la CI pour recalculer le même chiffre. Rien n'est commité quand il n'a pas bougé, ce qui est le cas de la plupart des fusions.
+*Ce qui casse si on l'enlève :* le badge se remet à dériver, et cette fois en silence, puisque plus rien ne comparerait. C'était le mode d'échec exact des deux versions précédentes.
+
+*Un cas de plus garde le fichier de workflow lui-même :* aucun `needs` ne doit nommer un job absent. Un fichier invalide fait échouer GitHub **en zéro seconde**, sans job, sans annotation, avec pour seule trace « this run likely failed because of a workflow file issue ». Mesuré en le provoquant : en retirant le job du badge, mon découpage a emporté son voisin `dependency-review`, que `ci-passed` attend. Le contrôle rougit sur cette faute exacte.
+
+*Ce que la comparaison coûte, et il faut le dire en entier.* Elle est une étape du job de couverture, donc elle bloque `ci-passed`, seul contrôle exigé, sur **chaque** pull request. Trois conséquences :
+
+- si les couvertures locale et d'intégration continue diffèrent autour d'un entier, elle rougit. Le badge n'affichant qu'un entier arrondi vers le bas, il faut presque un point de dérive pour y arriver ;
+- une pull request qui ne touche pas la couverture peut être bloquée par un badge périmé, quand sa base a bougé. Fusionner `main` dedans suffit, et le message le dit, pour ne pas envoyer relancer une construction et un Chromium pour un chiffre sans rapport ;
+- `main` peut donc encore rougir, si une pull request est fusionnée depuis une base non à jour. Le symptôme de `DCJ-225` est **réduit, pas supprimé** : ce qui a disparu est le job qui échouait à chaque fusion, ce qui reste est un cas de base périmée que le ruleset n'interdit pas.
 
 **Les échecs sont annotés dans le diff.** Le rapporteur `github-actions` de vitest place chaque échec sur son fichier et sa ligne, ce qui évite d'ouvrir les journaux pour savoir quoi.
 
@@ -1006,7 +1014,7 @@ Règle à retenir si un autre workflow apparaît : `cancel-in-progress: true` po
 
 **Ce qui casse si on l'enlève.** Rien visiblement, et c'est le problème : une action compromise ou une dépendance malveillante disposerait de droits d'écriture sur un dépôt public.
 
-**Deux exceptions, chacune sur un job.** `coverage` déclare `pull-requests: write` pour son commentaire, `badge` déclare `contents: write` pour le chiffre du README. La portée est le job, donc celui qui exécute les tests n'écrit nulle part. Et le jeton d'une pull request venue d'une bifurcation reste en lecture seule quoi qu'on écrive ici : le commentaire est donc gardé sur l'origine de la branche, sinon il échouerait chez un contributeur extérieur.
+**Une exception, sur un job.** `coverage` déclare `pull-requests: write` pour son commentaire, et c'est tout : **aucun job n'a de droit d'écriture sur le dépôt**. Il y en avait un, `badge`, qui poussait le chiffre du README sur `main` ; il n'existe plus, `DCJ-225`. La portée est le job, donc celui qui exécute les tests n'écrit nulle part. Et le jeton d'une pull request venue d'une bifurcation reste en lecture seule quoi qu'on écrive ici : le commentaire est donc gardé sur l'origine de la branche, sinon il échouerait chez un contributeur extérieur.
 
 ### `timeout-minutes: 10`
 
