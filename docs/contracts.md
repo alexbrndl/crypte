@@ -632,7 +632,9 @@ interface CryptePlugin {
 | `preview` | iframe | lifecycle around a render |
 | `node` | CLI | build step, command |
 
-`UIContribution` and `NodeHooks` are named here and not yet specified. They are written when the first plugin needs them.
+`UIContribution` and `NodeHooks` are named here and not yet specified.
+
+`UIContribution` is written with the first plugin that draws a panel, tracked in DCJ-194. `NodeHooks` is the blocking prerequisite of the `tokens` entry and of everything shaped like a plugin that writes to the manifest, tracked in DCJ-227: the one capability a real use demands of it is **contributing entries to the manifest**, and `@crypte/tokens` is the plugin that proves it.
 
 ### 6.2 The golden rule
 
@@ -690,9 +692,15 @@ Left out on purpose. Some belong to a project brief, others wait for a demonstra
 - Reading CVA options automatically, in the `docs` plugin.
 - A write API for `crypte serve`, such as comments or editing. Postponed.
 
+**Out of reserve since 21 August 2026, and now planned:**
+
+- The `tokens` entry. The type belongs to the protocol, the reading belongs to `@crypte/tokens`: the line is producing data against displaying it, the same one prop extraction already follows. It is also the first plugin that writes to the manifest, so it is what exercises `NodeHooks` before that contract is frozen. Tracked in DCJ-232 and DCJ-233.
+- The `page` entry, **in two stages**. Stage one is markdown files in the repository, discovered the way stories are and rendered next to components, with no server at all. Stage two is the same files edited by designers and returned as a pull request, which needs `crypte serve`. Confusing the two is what made `page` look expensive and far away. Tracked in DCJ-250, DCJ-251 and DCJ-257.
+
+The field carrying both already exists, so neither is a manifest break. The reason they left reserve is not internal: the documentation tools this project is measured against all ship a token manager, and all sell guidelines as the thing neither Figma nor a component workshop exposes.
+
 **Held in reserve, to add when a real case asks for it:**
 
-- `page` and `tokens` entries. The field exists, the implementation does not.
 - A `render` escape hatch on a story, to make a controlled component truly interactive. Left out of v1 for lack of a demonstrated case, see 2.7. Adding it later breaks nothing; shipping it now would create a use we could not take back.
 - Documenting pass-through DOM attributes, see 3.4.
 - Path aliases inside style sheets, see 1.5.

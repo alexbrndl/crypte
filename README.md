@@ -35,13 +35,13 @@ Design notes live in `docs/internal/` and are written in French. See `docs/decis
 
 ## Roadmap
 
-**Phase 1.** Core, React adapter, `controls` plugin, Vue adapter, static build deployed on every change.
+**Now.** The core, the CLI and the React adapter, which is what `crypte dev` already runs on. Then the shell it serves: a three-level tree, search, a component page. Then the plugin contract, the only one of the four that is not settled, frozen by two plugins with opposite needs: `controls`, which writes into a story, and `a11y`, which only reads it.
 
-**Phase 2.** `visual-tests`, `docs`, `source`, `responsive`, `theme`, `actions`.
+**Next.** The Vue adapter, which is the only thing that can prove the core holds nothing React-specific. The everyday plugins: `docs`, `source`, `theme`, `responsive`, `actions`, `visual-tests`, `coverage`. Two more kinds of manifest entry, `tokens` read from the project and `page` written as markdown in the repository. And what makes Crypte installable by someone who has never heard of it: npm, a local MCP server, a static build deployed on every change.
 
-**Phase 3.** `crypte serve`: comments and guideline editing, writing back through a pull request.
+**Later.** `crypte serve`, which turns a read into a pull request: token editing first, comments next, guideline editing last. A Figma plugin that shows a designer a selective diff of the tokens.
 
-Each plugin is its own project, with its own brief and issues.
+Each of these is a project in the tracker, with its own issues.
 
 ## Licence
 

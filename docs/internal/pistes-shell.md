@@ -68,6 +68,8 @@ Heuristique proposée : un identifiant disparaît, un autre apparaît, le `compo
 
 ## 3. Versionner les manifestes
 
+> **Renversé le 21 août 2026.** L'empreinte réduite commitée, proposée en 3.2 et livrée par `DCJ-197`, est retirée par `DCJ-231` : git fait déjà les deltas, et charger une version c'est lire un commit. Les mesures de 3.1 restent vraies et sont conservées dans `decisions.md` avant la suppression du script, ce qui est le seul intérêt qu'a encore cette section. **Ne pas implémenter depuis 3.2 ni 3.3.** La frise de 3.4 survit, elle ne dépendait de l'empreinte que par commodité.
+
 L'idée : garder l'historique des manifestes dans le projet de l'utilisateur, et pouvoir en charger plusieurs pour comparer. Elle nourrit l'écran « ce qui a changé » et donne à `comments` un point d'ancrage stable.
 
 ### 3.1 Mesures
@@ -203,8 +205,3 @@ La conclusion tient, mais pour une autre raison que celle écrite : les treize p
 - **La compression à 1280 de la page composant et du mode changements.** Leurs tables ont quatre colonnes et des identifiants longs, non garantis ASCII. Se juge avec du contenu réel.
 - **L'accessibilité de ce qui n'est pas fourni par Reka** : le guide vertical de l'arbre, la bande des panneaux, l'échelle des états, et la valeur barrée de la cascade, qui ne dit rien à un lecteur d'écran. Se juge avec un lecteur d'écran.
 
----
-
-## 7. Note d'entretien
-
-`test-format-stories.md` est classé « historique » dans `arborescence.md`, mais le document lui-même ne le dit pas. Il prescrit encore le marqueur `$fn`, retiré en v0.3, et un groupe repliable « Attributs HTML », remplacé en 3.4 par la règle qui ne les extrait pas. Qui implémente depuis ce fichier implémente une version périmée : il gagnerait un avertissement en tête.
