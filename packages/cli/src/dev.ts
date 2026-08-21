@@ -393,16 +393,6 @@ export async function dev(input: string, log = console.log): Promise<Running> {
       return
     }
 
-    // And checked again, because `close` runs while this listens: it closed
-    // `running.started`, which is this very server, in concurrence with the
-    // `listen` above, and the listen wins. Measured: without this, a port
-    // answered four seconds after `close()` had resolved.
-    if (closed) {
-      running.started = undefined
-      await abandon()
-      return
-    }
-
     // Written after the swap, not inside `startDev`: a restart that never
     // completed had already rewritten `.crypte/manifest.json`, so the file
     // described a catalogue no server served while the one still standing served
@@ -473,10 +463,13 @@ export async function dev(input: string, log = console.log): Promise<Running> {
       // Disarmed first: a queued restart, or a debounce already armed, would
       // otherwise build and listen a server after this returned, and the test
       // that closes then deletes its project would leave one behind.
-      // Disarmed rather than awaited: `once` checks this flag before it listens,
-      // so nothing comes up after this returns, and stopping does not wait on a
-      // `loadProject` that a slow import could hold.
+      // Disarmed **and** awaited. Disarming alone was measured to leave a server
+      // listening: a restart already past the check closed the new server in
+      // concurrence with its own `listen`, and the listen won. Waiting on the
+      // queue costs the time of one configuration load, which is the user's own
+      // file, and only a configuration that never resolves would hold it.
       closed = true
+      await queue
       await running.started?.server.close()
     },
   }

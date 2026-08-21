@@ -240,7 +240,9 @@ Le bandeau du shell ne montre que ce qui est **certain** d'avoir voulu être une
 
 *Ce qui tient maintenant :* `seen` vaut `next.read`, le digest sur la liste surveillée du **nouveau** projet, ce qui rend les comparaisons suivantes possibles même quand les imports de la configuration ont changé, un digest pris sur l'ancienne liste ayant produit un redémarrage en double, mesuré. Et ce que `read` peut manquer, une sauvegarde arrivée pendant l'empaquetage, est rattrapé après la bascule par un `digest(next.project) !== next.read` qui relance.
 
-*Ce qui reste non éprouvé :* ce rattrapage, dont la fenêtre est le temps d'empaquetage de la configuration, et le second contrôle de `closed`, qui vit pendant l'écoute. Le premier serait testable par une configuration lente, comme le cas de la fermeture l'est ; il ne l'est pas encore.
+*Ce qui reste non éprouvé :* ce rattrapage, dont la fenêtre est le temps d'empaquetage de la configuration. Il serait testable par une configuration lente, comme le cas de la fermeture l'est depuis ce tour ; il ne l'est pas encore.
+
+*Et une leçon de mesure, la troisième du lot :* j'ai déclaré les seuils de couverture tenus en lisant un résumé **périmé** sur le disque, écrit avant ma dernière modification. L'intégration continue a dit le contraire. Un rapport de couverture se relit après avoir vidé `coverage/`, sinon on lit l'état d'avant, exactement comme une sonde qui n'a rien remplacé.
 
 ### Assumé : un seul chemin d'échec du redémarrage reste non exécuté (`DCJ-220`)
 

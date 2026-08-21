@@ -926,7 +926,11 @@ Les deux derniers chiffres sont le prix de la redondance : chaque filtre couvre 
 
 *Et la poignée ne se vide que si la fermeture de l'ancien a réussi*, sinon on jetait le seul moyen de fermer un serveur encore debout sur son port.
 
-*`closed` est vérifié deux fois, avant la bascule et après l'écoute*, parce que `close()` tombe pendant le redémarrage : la seconde fois, il a fermé le serveur neuf **en concurrence de son propre `listen`**, que `listen` gagne, donc un port répondait encore quatre secondes après que la fermeture avait rendu. Un cas le garde, avec une configuration lente pour que la fenêtre soit large et déterministe : sans ce ralentissement, il passait par hasard, le redémarrage étant déjà fini. Les deux contrôles sont redondants pour ce cas, il faut les retirer tous les deux pour le faire rougir.
+*`close()` désarme **et** attend la file.* Désarmer seul laissait un serveur à l'écoute, mesuré : un redémarrage déjà passé le contrôle fermait le serveur neuf en concurrence de son propre `listen`, que `listen` gagne, et un port répondait encore quatre secondes après. Attendre la file coûte le temps d'un chargement de configuration, c'est-à-dire du fichier de l'utilisateur, et seule une configuration qui ne se résout jamais le retiendrait.
+
+*Et `closed` est vérifié en tête de `once`*, pour qu'un redémarrage en file n'aille pas construire un serveur que la fermeture devra défaire.
+
+Un cas garde la paire, avec une **configuration lente**, un `await` de 600 ms au niveau du module, pour que la fenêtre soit large et déterministe : sans ce ralentissement, il passait par hasard, le redémarrage étant déjà fini à 40 ms. Les deux pièces étant redondantes pour ce scénario, il faut les retirer toutes les deux pour le faire rougir, ce qui est vérifié.
 
 *Le manifeste s'écrit après la bascule*, et non dans `startDev` : un redémarrage qui n'aboutit pas avait déjà réécrit le fichier, qui décrivait alors un catalogue qu'aucun serveur ne servait pendant que celui resté debout servait l'ancien. C'est la divergence même que ce lot supprime, réintroduite sur le chemin d'échec.
 
