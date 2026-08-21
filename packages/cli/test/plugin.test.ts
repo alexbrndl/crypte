@@ -13,6 +13,7 @@ import { chromium, type Browser, type Frame } from 'playwright'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 import { startDev } from '../src/dev'
 import { storyFilesOf } from '../src/manifest'
+import { PREVIEW_ENTRY } from '../src/serve'
 
 // Ce que les plugins du projet font, et ce qu'ils ne sont pas obligés de faire.
 // Vite transforme le JSX par oxc, donc `@vitejs/plugin-react` n'est pas
@@ -51,9 +52,10 @@ describe('une configuration sans plugin React', () => {
     cpSync(demo, root, { recursive: true })
     writeFileSync(join(root, 'crypte.config.ts'), nue)
 
-    // Comme les autres cas navigateur : le cache hérité fait réoptimiser sous la
-    // page, ce qui est `DCJ-221`, et l'accusation tomberait sur ce lot. Posé
-    // avant d'être retiré, sinon l'affirmation ne surveille rien.
+    // Comme les cinq autres fichiers navigateur, et pour la seule raison de leur
+    // ressembler : la racine étant un `mkdtemp` neuf, Vite jette de toute façon
+    // un cache hérité, `getConfigHash` incluant la racine. Posé avant d'être
+    // retiré, sinon l'affirmation ne surveille que `rmSync`.
     mkdirSync(join(root, 'node_modules', '.crypte', 'deps'), { recursive: true })
     rmSync(join(root, 'node_modules', '.crypte'), { recursive: true, force: true })
     expect(existsSync(join(root, 'node_modules', '.crypte', 'deps'))).toBe(false)
@@ -64,13 +66,22 @@ describe('une configuration sans plugin React', () => {
     if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
     const origin = `http://localhost:${address.port}`
 
-    // Le préchauffage de `screen.test.ts`, sans lequel le garde ci-dessus ne
-    // sert à rien : l'entrée, les modules que le navigateur va importer, puis
-    // l'attente que l'optimiseur ait fini. Sinon il découvre
-    // `react/jsx-dev-runtime` en cours de route et recharge le cadre, ce qui
-    // tombe sous les deux affirmations qui suivent le sondage.
-    await fetch(`${origin}/@crypte/preview.js`)
-    for (const file of storyFilesOf(started.held.catalogue)) await fetch(`${origin}/${file}`)
+    // Le préchauffage de `screen.test.ts` : l'entrée, puis les modules que le
+    // navigateur va importer. Il rétrécit la fenêtre de rechargement, il ne la
+    // ferme pas : `waitForRequestsIdle` rend la main à la fin du crawl, et
+    // l'optimiseur s'abonne à la même promesse, donc `runOptimizer` et son
+    // `full-reload` viennent après.
+    //
+    // Le statut est vérifié : une route qui change de forme répondrait 404 et le
+    // préchauffage ne réchaufferait plus rien, sans que rien ne le dise.
+    const chauffe = async (chemin: string) => {
+      const réponse = await fetch(`${origin}${chemin}`)
+
+      expect(réponse.ok, `préchauffage de ${chemin}`).toBe(true)
+    }
+
+    await chauffe(PREVIEW_ENTRY)
+    for (const file of storyFilesOf(started.held.catalogue)) await chauffe(`/${file}`)
     await started.server.waitForRequestsIdle()
 
     const page = await browser.newPage()
@@ -79,7 +90,12 @@ describe('une configuration sans plugin React', () => {
     page.on('framenavigated', (frame: Frame) => {
       if (frame.url().includes('/preview.html')) navigations += 1
     })
-    page.on('pageerror', (error) => plaintes.push(error.message))
+    // La console autant que les erreurs de page : « console vide » est ce que la
+    // documentation annonce de ce cas, et `pageerror` seul ne le surveillait pas.
+    page.on('console', (message) => {
+      if (message.type() === 'error') plaintes.push(`console: ${message.text()}`)
+    })
+    page.on('pageerror', (error) => plaintes.push(`page: ${error.message}`))
 
     try {
       await page.goto(origin)
@@ -103,15 +119,22 @@ describe('une configuration sans plugin React', () => {
 
       // Les enveloppes aussi : elles viennent de la configuration, et c'est le
       // reste du JSX du projet que le plugin absent aurait pu emporter.
-      const avant = navigations
-
-      expect(await cadre.locator('[data-frame="panel"] [data-frame="tone"]').count()).toBe(1)
-      expect(plaintes).toEqual([])
-
-      // Aucun rechargement sous les deux affirmations d'au-dessus : c'est la
-      // panne que le préchauffage évite, et la seule façon de la voir plutôt que
-      // de la supposer.
-      expect(navigations).toBe(avant)
+      // Sondées, et non affirmées d'un coup : `count()` ne réessaie pas, donc un
+      // rechargement qui tombe pendant l'appel rend `0` et l'échec accuserait le
+      // plugin absent. Le compte de navigations voyage dans l'objet sans être
+      // affirmé : un rechargement se lit alors dans le message, là où une
+      // affirmation dure rendrait rouge un état que `reopt.test.ts` documente
+      // comme normal sur un optimiseur froid.
+      await expect
+        .poll(
+          async () => ({
+            cadres: await cadre.locator('[data-frame="panel"] [data-frame="tone"]').count(),
+            plaintes,
+            navigations,
+          }),
+          { timeout: 15_000 },
+        )
+        .toMatchObject({ cadres: 1, plaintes: [] })
     } finally {
       await page.close()
       await started.server.close()
@@ -131,9 +154,9 @@ describe('React Compiler, déclaré par le projet', () => {
     const root = mkdtempSync(join(demo, '..', 'tmp-demo-'))
     cpSync(demo, root, { recursive: true })
 
-    // Pas de garde sur le cache d'optimisation ici : ce cas n'ouvre aucune page,
-    // donc il n'y a rien à recharger, et `transformRequest` passe par la chaîne
-    // de plugins quel que soit l'état du cache.
+    // Pas de garde sur le cache d'optimisation ici : la racine est un `mkdtemp`
+    // neuf, donc Vite jette de toute façon le cache hérité, et ce cas n'ouvre
+    // aucune page qu'un rechargement pourrait atteindre.
     const started = await startDev(root, () => {})
 
     try {

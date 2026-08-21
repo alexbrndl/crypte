@@ -12,6 +12,24 @@ Une ligne disparaît quand le point est traité, pas avant. Les niveaux sont dé
 
 ## Important
 
+### `optimizeDeps.include` ne tient que les paquets nommés par la configuration
+
+`configPackages(project)` rend les spécificateurs bare importés par `adapter` et `wrap`. `react/jsx-dev-runtime` n'apparaît nulle part dans le dépôt, et avec `appType: 'custom'` et aucun `index.html` sous la racine du projet, le scanner ne trouve rien : la revue en déduit qu'un `crypte dev` réel part d'un optimiseur froid, découvre le runtime JSX au crawl, et prend un `full-reload` sous la première page de l'utilisateur.
+
+*Pourquoi ce n'est pas fait ici :* la panne ne se reproduit pas. Mesuré trois fois sur une copie froide de la démonstration, sans préchauffage : une seule navigation du cadre, et aucune dans les quinze secondes qui suivent. Le pré-empaquetage de `@crypte/react` emporte déjà ses dépendances, dont les runtimes React, et la découverte tardive tombe avant le premier rendu du cadre. Ajouter des noms à `include` par précaution reviendrait à corriger une cause non isolée, et `optimizeDeps` est du code publié.
+
+*Ce qui rouvrirait le point :* un projet cible où le rechargement se voit, ou un adaptateur dont le pré-empaquetage n'emporte pas les runtimes de son framework.
+
+*Origine :* revue de la PR #43, troisième tour.
+
+### Le préchauffage des cas navigateur ne vérifiait pas ses réponses
+
+`screen.test.ts` préchauffe l'optimiseur par des `fetch` sur l'entrée puis sur les fichiers de story, sans regarder le statut. Une route qui change de forme répondrait 404, le préchauffage ne réchaufferait plus rien, et le cas retomberait en silence sur le comportement non préchauffé.
+
+*Pourquoi ce n'est pas fait ici :* `plugin.test.ts` vérifie maintenant le statut de ses deux formes, mais le porter dans `screen.test.ts` toucherait la fixture de dix cas navigateur, hors du périmètre de ce lot.
+
+*Origine :* revue de la PR #43, troisième tour.
+
 ### La preview n'implémente ni `update-overrides` ni `set-globals`
 
 La section 5.2 de la spécification déclare trois messages du shell vers la preview. Un seul a un effet : `render`. Les deux autres sont reçus et ignorés.
