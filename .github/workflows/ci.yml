@@ -154,23 +154,38 @@ jobs:
       - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           name: coverage-summary
+      # La branche du badge dans son propre dossier, pour que le dépôt cloné
+      # reste celui de `main` : le script lit `coverage/` de l'artefact et écrit
+      # dans `badge/`.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: badge
+          path: badge
       # Les chemins par défaut, ceux que l'artefact porte : `coverage/` est
       # préservé depuis qu'il y a deux fichiers dedans. L'override d'avant
       # cherchait le résumé à la racine, donc le badge n'était jamais écrit et ce
       # job aurait été rouge à chaque fusion. Il n'a jamais tourné sur une pull
       # request, donc rien ne l'a dit. Voir docs/internal/architecture.md.
-      - run: node test/coverage-report.mjs --badge .github/coverage.json > /dev/null
-      # `[skip ci]` : sans lui, la pousse relance toute la CI pour recalculer le
-      # même chiffre. Et rien n'est commité quand il n'a pas bougé, ce qui est le
-      # cas de la plupart des fusions.
-      - name: Commit the badge when the number moved
+      - run: node test/coverage-report.mjs --badge badge/coverage.json > /dev/null
+      # Sur la branche `badge`, pas sur `main` : une règle du dépôt exige que tout
+      # passe par une pull request, donc la pousse sur `main` était refusée et ce
+      # job rougissait à chaque fusion qui bougeait le chiffre. `DCJ-225`.
+      #
+      # La branche est orpheline et ne porte que ce fichier. Elle existe déjà,
+      # créée à la main : la créer ici aurait mis dans un workflow du code qu'on
+      # ne peut pas éprouver, pour un chemin qui ne sert qu'une fois.
+      #
+      # Aucun `[skip ci]` : les déclencheurs de ce workflow ne prennent que `main`
+      # et les pull requests, donc pousser ici ne relance rien.
+      - name: Publish the badge when the number moved
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/coverage.json
+          cd badge
+          git add coverage.json
           git diff --cached --quiet && echo "couverture inchangée" && exit 0
-          git commit -m "chore: update the coverage badge [skip ci]"
-          git push
+          git commit -m "chore: update the coverage badge"
+          git push origin HEAD:badge
 
   dependency-review:
     if: github.event_name == 'pull_request'

@@ -328,7 +328,15 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 *Un lancement rouge n'écrit pas de couverture*, et la première version levait alors : le commentaire d'avant restait donc en place, affichant les chiffres **verts** du lancement précédent sous une CI rouge. Mesuré sur la PR #34, une heure après l'avoir écrit. Le commentaire dit maintenant « couverture non mesurée », garde le compte des tests, et nomme les trois premiers cas qui rougissent.
 
-**Le badge du README est écrit par la CI, pas recopié à la main.** `.github/coverage.json` porte le format « endpoint » que shields.io lit, et un job `badge` le réécrit sur chaque pousse vers `main`. Le pourcentage de lignes, arrondi **vers le bas** : 98,55 affiché « 99 % » flatterait. La couleur suit le seuil du dépôt, pas une échelle scolaire, parce qu'un badge vert sous le seuil mentirait sur une porte rouge.
+**Le badge du README est écrit par la CI, pas recopié à la main.** Un fichier `coverage.json` porte le format « endpoint » que shields.io lit, et un job `badge` le réécrit sur chaque pousse vers `main`. Le pourcentage de lignes, arrondi **vers le bas** : 98,55 affiché « 99 % » flatterait. La couleur suit le seuil du dépôt, pas une échelle scolaire, parce qu'un badge vert sous le seuil mentirait sur une porte rouge.
+
+*Il vit sur une branche à part, `badge`, orpheline et d'un seul fichier.* Une règle du dépôt exige que tout passe par une pull request : la pousse sur `main` était donc refusée, le job rougissait à chaque fusion qui bougeait le chiffre, et le badge est resté périmé dix jours en affichant 98 % pour une couverture de 97. Trois fusions rouges avant que ça se voie, `DCJ-225`.
+
+*Pourquoi pas une exception à la règle :* autoriser le robot à pousser sur `main` ouvrirait une brèche permanente dans « tout passe par une pull request » pour un fichier d'une ligne. Et pourquoi pas un contrôle plutôt qu'un écrivain : commiter le badge dans chaque pull request demanderait de s'en souvenir, ce qu'un mécanisme n'a pas à demander.
+
+*La branche est créée à la main, une fois.* La créer depuis le workflow aurait mis là du code qu'aucune exécution locale ne peut éprouver, pour un chemin qui ne sert qu'une seule fois.
+
+*Ce qui casse si on l'enlève :* rien ne dit plus la couverture à qui ouvre le dépôt sans lire une pull request. Le mode d'échec de ce job est le **silence**, et il n'a jamais tourné sur une pull request : c'est ce qui a laissé passer deux défauts d'affilée, le chemin de l'artefact au lot 5b et la règle de pousse ici. Le point de contrôle est la fusion suivante.
 
 *Un job à part*, pour que `contents: write` ne vaille que là : le job qui exécute les tests n'a jamais le droit d'écrire dans le dépôt, ni dans une pull request. Le résumé et le compte des tests passent de job en job par un artefact.
 
