@@ -24,6 +24,17 @@ export interface Adapter {
 // once. `component` is `unknown` there, and this is the file that knows better.
 export type { PreviewWrapper }
 
+// The default export the contract shows: `adapter: react()` in section 1.5. A
+// default export because the name belongs to the import site, so a project that
+// also declares `@vitejs/plugin-react` names one of the two as it likes.
+//
+// `createAdapter` stays exported and is what this returns: the guide used it
+// before the shorter form existed, and a name that is published is not taken
+// back for the sake of one line.
+export default function react(): Adapter {
+  return createAdapter()
+}
+
 export function createAdapter(): Adapter {
   let root: Root | null = null
   let caught: unknown

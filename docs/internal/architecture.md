@@ -972,6 +972,43 @@ Un cas garde la paire porteuse, avec une **configuration lente**, un `await` de 
 
 ---
 
+## 4 quindecies. L'adaptateur React, et ce que le projet fournit
+
+**Toute fonction reçue par `wrap` est instanciée comme un composant.** En React un composant **est** une fonction, donc `wrap: (story) => …` et `wrap: Provider` ont le même type : le typage ne peut pas départager, et l'adaptateur aurait dû deviner. La section 2.5 a retiré la forme fonction, et c'est le comportement de l'adaptateur qui tient la règle.
+
+*Ce qui casse si on l'enlève :* quatre cas sur dix-sept rougissent, mesuré en remplaçant le `createElement` de `nested` par un appel. Trois portent sur les enveloppes elles-mêmes, le quatrième sur la règle, en affirmant que la fonction reçoit des props avec `children` dedans et non l'élément rendu.
+
+*Cinq formes d'import, gardées par `packages/cli/test/adapter.test.ts`*, l'export par défaut n'étant pas le même nœud qu'un import nommé pour le lecteur de configuration : `import crypte from`, `import crypte, { createAdapter } from` avec l'un ou l'autre appelé, `import * as crypte from` suivi de `crypte.default()`, et un import par défaut inutilisé. Les quatre premières traversent telles quelles, la cinquième est retirée de l'entrée.
+
+*Le critère de fin de l'issue est mesuré de bout en bout.* « Un composant compilé se monte et se rafraîchit correctement » : `screen.test.ts` édite `src/components/Badge.tsx`, le fichier même dont `plugin.test.ts` prouve la compilation, et le cadre suit sans navigation. Le compilateur change la taille de son cache de mémoïsation à cette édition, et Fast Refresh s'applique quand même. Le changement d'args passe par le fichier de story, que Fast Refresh ne prend pas, donc par le chemin chaud de l'entrée.
+
+**Le plugin Vite reste au projet.** `packages/cli/test/plugin.test.ts` sert la démonstration privée de ses deux imports de plugin et de son bloc `vite` entier : la story et ses deux enveloppes rendent, console vide. Vite transforme le JSX par oxc, donc `@vitejs/plugin-react` n'est pas nécessaire au rendu. Ce qu'il ajoute est Fast Refresh, dont la preview ne se sert pas puisque le shell est un bundle préconstruit sans client HMR et que l'iframe se recharge entière. Décision et ce qui la rouvrirait dans `docs/decisions.md`.
+
+*Le rechargement du cadre, et ce qui le pare vraiment.* Trois tours de revue ont porté là-dessus, et l'ordre des explications a changé deux fois. L'état arbitré, avec ses mesures :
+
+- *Le garde sur le cache d'optimisation hérité ne pare rien ici.* `getConfigHash` de Vite inclut la racine, et chaque cas copie sous un `mkdtemp` neuf : Vite jette donc le cache hérité de lui-même. Les trois lignes restent, pour ressembler aux cinq autres fichiers navigateur et parce que leur affirmation dit l'intention, mais leur commentaire ne les crédite plus d'un effet.
+- *Le préchauffage rétrécit la fenêtre, il ne la ferme pas.* `waitForRequestsIdle` rend la main à la fin du crawl, et l'optimiseur s'abonne à la même promesse : `runOptimizer` et son `full-reload` viennent après. Ses `fetch` vérifient leur statut, sinon une route qui change de forme répondrait 404 et ne réchaufferait plus rien en silence.
+- *Le rechargement ne se reproduit pas sur la démonstration.* Mesuré trois fois sur une copie froide, sans préchauffage : une seule navigation du cadre, et aucune dans les quinze secondes qui suivent. Puis cinq lancements avec préchauffage et cinq sans, tous verts. La revue l'a mesuré quatre fois sur cinq dans un autre état. Aucun taux ne vaut pour l'autre, donc aucun n'est écrit comme le taux du dépôt, et la cause reste non isolée : `suivi.md` porte le point.
+- *Le cas ne suppose donc rien.* Le cadre est sondé, `count()` ne réessayant pas, et le compte de navigations est nommé par `expect.any(Number)` : `toMatchObject` retire de l'objet reçu les clés que l'attendu ne nomme pas, donc une clé simplement présente ne partait dans aucun message, mesuré. Nommé sans être fixé, il s'imprime, et un rechargement se lit là où une affirmation dure rendrait rouge un état que `reopt.test.ts` documente comme normal sur un optimiseur froid. Les plaintes, elles, sont affirmées hors du sondage : une plainte ne s'efface pas, donc sondée elle coûtait les quinze secondes pleines.
+
+*Le second cas n'a pas de garde sur le cache*, pour la même raison, et parce qu'il n'ouvre aucune page qu'un rechargement pourrait atteindre.
+
+*La console est surveillée autant que les erreurs de page*, « console vide » étant ce que ce paragraphe annonce : `pageerror` seul ne le surveillait pas.
+
+*Le champ `vite` ne porte que `plugins`*, par contrat, section 4 de `docs/contracts.md`. Une sonde a essayé de casser le rendu par `vite: { oxc: { jsx: 'preserve' } }` puis `{ runtime: 'classic' }` : les deux passent au vert, parce que le champ est ignoré. Elle ne mesurait rien, et c'est le contrat qui le dit, pas le hasard.
+
+*Ce qui casse si on l'enlève :* plus rien ne vérifie la phrase du guide, « React needs none ». Le chemin rouge n'est pas simulé : il demanderait que Vite cesse de transformer le JSX, ou que l'entrée générée se mette à en dépendre, et aucune option du contrat ne le reproduit. Le cas n'est pas vide pour autant, il affirme le texte rendu et le cadre des enveloppes.
+
+**React Compiler tourne, et c'est mesuré sur le module servi.** Le risque que `DCJ-170` demandait de lever. Tous les cas navigateur tournent sur une démonstration qui le déclare, mais « vert avec le compilateur déclaré » ne dit pas qu'il a tourné : c'est la même erreur qu'une sonde qui mesure zéro. Le second cas de `plugin.test.ts` lit le module transformé et y trouve `const $ = _c(5)` et l'import de `compiler-runtime`, deux formes qu'aucune autre transformation ne produit.
+
+*Il passe par `transformRequest`, pas par une requête.* La chaîne de plugins est la même, sans serveur à l'écoute ni socket à fermer. Mesuré : une requête HTTP laissait `server.close()` bloqué jusqu'au couperet de 120 s, `fetch` comme `node:http` avec `agent: false`, et l'en-tête `connection: close` n'y changeait rien. Le cas complet tourne en 1,6 s.
+
+*Ce qui casse si on l'enlève :* le compilateur retiré des plugins Babel passe inaperçu. Mesuré en le retirant sur la copie, à l'intérieur du cas : il rougit en 41 ms. Retiré sur la démonstration elle-même, **deux** cas rougissent, et le premier pour une raison qui n'a rien à voir avec le compilateur, son `replace` exact ne matchant plus, donc c'est son garde-fou de substitution muette qui tire.
+
+*Et le cas copie la démonstration*, comme les autres : `startDev` écrit sous la racine qu'il reçoit, et `apps/demo` est suivi par git. Le manifeste, lui, ne salirait rien, `**/.crypte/manifest.json` étant ignoré ; l'artefact suivi est `apps/demo/.crypte/fingerprint.json`, écrit au premier démarrage. C'est lui que la copie protège.
+
+---
+
 ## 5. Décisions encodées dans la configuration
 
 Ces réglages ont l'air anodins et ne le sont pas. Chacun a été mis là pour une raison précise, et chacun est le genre de ligne qu'on supprime en croyant nettoyer.

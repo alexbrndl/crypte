@@ -1,5 +1,5 @@
 import { createPreviewChannel as __crypte_channelOf, propsOfStory as __crypte_propsOf, wrapsOf as __crypte_wrapsOf } from '@crypte/core/preview'
-import { createAdapter } from '@crypte/react'
+import crypte from '@crypte/react'
 import { Panel } from "/src/components/Frame"
 import "<racine>/apps/demo/src/styles.css"
 
@@ -8,7 +8,7 @@ const __crypte_modules = {
 }
 const __crypte_manifest = await fetch("/@crypte/manifest.json").then((answer) => answer.json())
 
-const __crypte_adapter = createAdapter()
+const __crypte_adapter = crypte()
 const __crypte_wrap = Panel
 
 const __crypte_container = document.getElementById('root')

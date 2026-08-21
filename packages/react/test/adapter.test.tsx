@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { describe, expect, test as base } from 'vitest'
-import { ADAPTER_NAME, createAdapter, type Adapter } from '../src/index'
+import react, { ADAPTER_NAME, createAdapter, type Adapter } from '../src/index'
 
 // L'adaptateur, monté dans un DOM. Il était le seul fichier publié qu'aucun test
 // n'exécutait : 0 % de couverture, et deux cas navigateur pour seule preuve, à
@@ -42,6 +42,17 @@ const Compteur = () => {
 describe('l’adaptateur React', () => {
   test('se nomme react', () => {
     expect(ADAPTER_NAME).toBe('react')
+  })
+
+  // La forme que le contrat montre en section 1.5, `adapter: react()`, et qui
+  // manquait : le guide et la démonstration écrivaient `createAdapter()`.
+  test('rend le même adaptateur par son export par défaut', ({ monte }) => {
+    const court = react()
+
+    court.mount(monte.hote, Badge, { label: 'Neuf' })
+
+    expect(monte.hote.textContent).toBe('Neuf')
+    court.unmount()
   })
 
   // `flushSync` : sans lui, React commet plus tard et `mount` rendrait la main
@@ -178,6 +189,31 @@ describe('les enveloppes', () => {
   test('accepte l’absence du quatrième argument', ({ monte }) => {
     monte.adapter.mount(monte.hote, Badge, { label: 'Neuf' })
 
+    expect(monte.hote.textContent).toBe('Neuf')
+  })
+
+  // La règle de la section 2.5, que le typage ne peut pas imposer : en React un
+  // composant **est** une fonction, donc `wrap: (story) => …` et
+  // `wrap: Provider` ont le même type. Toute fonction est instanciée, donc elle
+  // reçoit des props et non l'élément rendu. Qui attend l'élément obtient un
+  // rendu faux, pas une ambiguïté.
+  test('instancie une fonction reçue par wrap, au lieu de l’appeler', ({ monte }) => {
+    const reçu: unknown[] = []
+    const Fonction = (props: { children?: unknown }) => {
+      reçu.push(props)
+
+      return props.children as never
+    }
+
+    monte.adapter.mount(monte.hote, Badge, { label: 'Neuf' }, [
+      { component: Fonction, props: { ton: 'clair' } },
+    ])
+
+    expect(reçu).toHaveLength(1)
+    // Des props, avec les enfants dedans : c'est la forme d'un composant
+    // instancié. Appelée, la fonction aurait reçu l'élément lui-même.
+    expect(reçu[0]).toMatchObject({ ton: 'clair' })
+    expect(reçu[0]).toHaveProperty('children')
     expect(monte.hote.textContent).toBe('Neuf')
   })
 
