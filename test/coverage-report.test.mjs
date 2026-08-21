@@ -561,16 +561,16 @@ describe('le script, lancé pour de vrai', () => {
 })
 
 // Ce que le cas ci-dessus ne peut pas prouver : que le workflow appelle le script
-// avec les bons arguments. La panne était là, pas dans le script, et le job ne
-// tourne que sur `main`. Le dépôt compare déjà un document au code de cette
-// façon, dans `spec.test.ts`. Voir docs/internal/architecture.md.
-describe('l’appel du job badge dans le workflow', () => {
+// avec les bons arguments. La panne était là, pas dans le script. Le dépôt compare
+// déjà un document au code de cette façon, dans `spec.test.ts`.
+// Voir docs/internal/architecture.md.
+describe('le workflow', () => {
   const workflow = readFileSync('.github/workflows/ci.yml', 'utf8')
   const appel = workflow
     .split('\n')
     .find((une) => une.includes('coverage-report.mjs') && une.includes('--badge'))
 
-  it('existe', () => {
+  it('vérifie le badge commité', () => {
     expect(appel, 'aucune ligne du workflow ne lance le script avec --badge').toBeTypeOf('string')
   })
 
@@ -578,5 +578,21 @@ describe('l’appel du job badge dans le workflow', () => {
   // fichier, et faux depuis qu'il en porte deux : le badge n'était jamais écrit.
   it('laisse le chemin du résumé par défaut', () => {
     expect(appel).not.toContain('--resume')
+  })
+
+  // Un `needs` qui nomme un job absent rend le fichier invalide, et GitHub
+  // échoue en zéro seconde sans rien dire de plus. Mesuré : en retirant un job,
+  // j'ai emporté son voisin `dependency-review`, que `ci-passed` attend.
+  it('ne nomme dans aucun `needs` un job qui n’existe pas', () => {
+    const jobs = [...workflow.matchAll(/^ {2}([a-z-]+):$/gm)].map((une) => une[1])
+    const attendus = [...workflow.matchAll(/^ {4}needs: (.+)$/gm)].flatMap((une) =>
+      une[1]
+        .replaceAll(/[[\]]/g, '')
+        .split(',')
+        .map((un) => un.trim()),
+    )
+
+    expect(attendus.length).toBeGreaterThan(2)
+    expect(attendus.filter((un) => !jobs.includes(un))).toEqual([])
   })
 })

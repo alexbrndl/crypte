@@ -338,6 +338,8 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 *Ce qui casse si on l'enlève :* le badge se remet à dériver, et cette fois en silence, puisque plus rien ne comparerait. C'était le mode d'échec exact des deux versions précédentes.
 
+*Un cas de plus garde le fichier de workflow lui-même :* aucun `needs` ne doit nommer un job absent. Un fichier invalide fait échouer GitHub **en zéro seconde**, sans job, sans annotation, avec pour seule trace « this run likely failed because of a workflow file issue ». Mesuré en le provoquant : en retirant le job du badge, mon découpage a emporté son voisin `dependency-review`, que `ci-passed` attend. Le contrôle rougit sur cette faute exacte.
+
 *Le risque assumé :* si la couverture mesurée en local et en intégration continue diffèrent d'un point autour d'un entier, la comparaison rougit et `pnpm ready` la referme. Le badge n'affichant qu'un entier arrondi vers le bas, il faut une dérive de presque un point pour y arriver.
 
 **Les échecs sont annotés dans le diff.** Le rapporteur `github-actions` de vitest place chaque échec sur son fichier et sa ligne, ce qui évite d'ouvrir les journaux pour savoir quoi.

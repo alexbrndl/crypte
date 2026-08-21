@@ -153,9 +153,14 @@ jobs:
           echo "::error::Le badge de .github/coverage.json est périmé : lancer \`pnpm ready\` et commiter le fichier."
           exit 1
 
-  # Le badge du README, écrit par la CI parce qu'un chiffre recopié à la main
-  # dérive. Job à part pour que `contents: write` ne vaille que là.
-  # Voir docs/internal/architecture.md.
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+
   ci-passed:
     if: always()
     needs: [check, coverage, dependency-review]
