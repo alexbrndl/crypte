@@ -14,13 +14,25 @@ Une ligne disparaît quand le point est traité, pas avant. Les niveaux sont dé
 
 ### `optimizeDeps.include` ne tient que les paquets nommés par la configuration
 
-`configPackages(project)` rend les spécificateurs bare importés par `adapter` et `wrap`. `react/jsx-dev-runtime` n'apparaît nulle part dans le dépôt, et avec `appType: 'custom'` et aucun `index.html` sous la racine du projet, le scanner ne trouve rien : la revue en déduit qu'un `crypte dev` réel part d'un optimiseur froid, découvre le runtime JSX au crawl, et prend un `full-reload` sous la première page de l'utilisateur.
+`configPackages(project)` rend les spécificateurs bare importés par `adapter` et `wrap`, soit `['@crypte/react']` sur la démonstration. Les runtimes React ne sont donc pas dans `include` : mesuré sur `apps/demo/node_modules/.crypte/deps/_metadata.json`, `react`, `react-dom`, `react/jsx-runtime`, `react/jsx-dev-runtime` et `react/compiler-runtime` y sont des entrées optimisées **distinctes** de `@crypte/react`. L'optimiseur les découvre, il ne les emporte pas. La revue en déduit qu'un `crypte dev` réel prend un `full-reload` sous la première page de l'utilisateur.
 
-*Pourquoi ce n'est pas fait ici :* la panne ne se reproduit pas. Mesuré trois fois sur une copie froide de la démonstration, sans préchauffage : une seule navigation du cadre, et aucune dans les quinze secondes qui suivent. Le pré-empaquetage de `@crypte/react` emporte déjà ses dépendances, dont les runtimes React, et la découverte tardive tombe avant le premier rendu du cadre. Ajouter des noms à `include` par précaution reviendrait à corriger une cause non isolée, et `optimizeDeps` est du code publié.
+*Pourquoi ce n'est pas fait ici :* la panne ne se reproduit pas. Mesuré trois fois sur une copie froide de la démonstration, sans préchauffage : une seule navigation du cadre, et aucune dans les quinze secondes qui suivent. La découverte tombe donc assez tôt pour que le premier rendu du cadre soit déjà celui d'après l'optimisation, mais cette cause n'est pas isolée. Ajouter des noms à `include` sur un raisonnement plutôt que sur une mesure toucherait du code publié.
 
-*Ce qui rouvrirait le point :* un projet cible où le rechargement se voit, ou un adaptateur dont le pré-empaquetage n'emporte pas les runtimes de son framework.
+*Deux prémisses de la revue ne tiennent pas*, et elles ne changent pas sa conclusion. `apps/demo/index.html` existe, à la racine que `startDev` sert, et `appType` n'entre pas dans le calcul des entrées du scanner : `computeEntries` fait un glob sur `**/*.html` dès qu'il n'y a ni `optimizeDeps.entries` ni `input`. Si le scanner ne trouve rien ici, c'est parce que cet `index.html` ne porte aucune balise `script`, vérifié.
+
+*Ce qui rouvrirait le point :* un projet cible où le rechargement se voit, un `index.html` qui porte un `script`, ou un adaptateur dont le pré-empaquetage ne suffit pas à faire découvrir les runtimes de son framework à temps.
 
 *Origine :* revue de la PR #43, troisième tour.
+
+### Cinq fichiers navigateur créditent le garde du cache d'un effet qu'il n'a pas
+
+`screen.test.ts`, `reopt`, `typed`, `aside` et `restart` écrivent qu'« un cache écrit par une autre configuration fait réoptimiser sous la page ». Sous un `mkdtemp` neuf, `getConfigHash` diffère toujours et `loadCachedDepOptimizationMetadata` supprime le dossier à l'initialisation de l'optimiseur, avant tout chargement de page : effacer le cache hérité ne change donc rien d'observable. `plugin.test.ts` est le seul des six à le dire.
+
+*Pourquoi ce n'est pas fait ici :* la phrase n'est pas strictement fausse, la réoptimisation ayant bien lieu ; ce qui est faux est de créditer les trois lignes de l'éviter. Réécrire le commentaire de cinq fichiers sur une lecture du code de Vite, hors du sujet de ce lot, demanderait de rejouer les dix cas navigateur qu'ils portent.
+
+*Ce qui rouvrirait le point :* un lot qui touche déjà la fixture de `screen.test.ts`.
+
+*Origine :* revue de la PR #43, quatrième tour.
 
 ### Le préchauffage des cas navigateur ne vérifiait pas ses réponses
 

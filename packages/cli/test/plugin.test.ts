@@ -80,10 +80,6 @@ describe('une configuration sans plugin React', () => {
       expect(réponse.ok, `préchauffage de ${chemin}`).toBe(true)
     }
 
-    await chauffe(PREVIEW_ENTRY)
-    for (const file of storyFilesOf(started.held.catalogue)) await chauffe(`/${file}`)
-    await started.server.waitForRequestsIdle()
-
     const page = await browser.newPage()
     const plaintes: string[] = []
     let navigations = 0
@@ -98,6 +94,13 @@ describe('une configuration sans plugin React', () => {
     page.on('pageerror', (error) => plaintes.push(`page: ${error.message}`))
 
     try {
+      // Dans le `try` : une réponse non-2xx est précisément ce que l'affirmation
+      // existe pour montrer, et levée au-dessus elle laissait le serveur à
+      // l'écoute et la copie sur le disque.
+      await chauffe(PREVIEW_ENTRY)
+      for (const file of storyFilesOf(started.held.catalogue)) await chauffe(`/${file}`)
+      await started.server.waitForRequestsIdle()
+
       await page.goto(origin)
 
       const cadre = page.frameLocator('iframe[title="preview"]')
@@ -119,22 +122,28 @@ describe('une configuration sans plugin React', () => {
 
       // Les enveloppes aussi : elles viennent de la configuration, et c'est le
       // reste du JSX du projet que le plugin absent aurait pu emporter.
-      // Sondées, et non affirmées d'un coup : `count()` ne réessaie pas, donc un
-      // rechargement qui tombe pendant l'appel rend `0` et l'échec accuserait le
-      // plugin absent. Le compte de navigations voyage dans l'objet sans être
-      // affirmé : un rechargement se lit alors dans le message, là où une
-      // affirmation dure rendrait rouge un état que `reopt.test.ts` documente
-      // comme normal sur un optimiseur froid.
+      // Le cadre est sondé, `count()` ne réessayant pas : un rechargement qui
+      // tombe pendant l'appel rend `0` et l'échec accuserait le plugin absent.
+      //
+      // `expect.any(Number)` sur les navigations, et non l'absence de la clé :
+      // `toMatchObject` retire de l'objet reçu les clés que l'attendu ne nomme
+      // pas, donc le compte ne partait dans aucun message. Mesuré, `navigations:
+      // 7` était invisible. Nommé sans être fixé, il est imprimé et un
+      // rechargement se lit, là où une affirmation dure rendrait rouge un état
+      // que `reopt.test.ts` documente comme normal sur un optimiseur froid.
       await expect
         .poll(
           async () => ({
             cadres: await cadre.locator('[data-frame="panel"] [data-frame="tone"]').count(),
-            plaintes,
             navigations,
           }),
           { timeout: 15_000 },
         )
-        .toMatchObject({ cadres: 1, plaintes: [] })
+        .toMatchObject({ cadres: 1, navigations: expect.any(Number) })
+
+      // Hors du sondage : une plainte ne s'efface pas, donc sondée elle coûtait
+      // les quinze secondes pleines avant de rougir.
+      expect(plaintes).toEqual([])
     } finally {
       await page.close()
       await started.server.close()
