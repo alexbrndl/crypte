@@ -403,7 +403,14 @@ export async function dev(input: string, log = console.log): Promise<Running> {
     // What the files hold now, against what the new server read: a save that
     // landed while the configuration bundled is still pending, and this is where
     // it is picked up rather than dropped.
-    if (digest(next.project) !== next.read) restart()
+    //
+    // And nothing is announced for this one: it is already known to be stale, so
+    // its count and its URLs would be printed twice for a single save, the noise
+    // the filter below exists to avoid.
+    if (digest(next.project) !== next.read) {
+      restart()
+      return
+    }
 
     // Everything the start-up says, said again, minus what has not changed: the
     // files left out are compared with the previous server's, since reprinting
@@ -465,9 +472,12 @@ export async function dev(input: string, log = console.log): Promise<Running> {
       // that closes then deletes its project would leave one behind.
       // Disarmed **and** awaited. Disarming alone was measured to leave a server
       // listening: a restart already past the check closed the new server in
-      // concurrence with its own `listen`, and the listen won. Waiting on the
-      // queue costs the time of one configuration load, which is the user's own
-      // file, and only a configuration that never resolves would hold it.
+      // concurrence with its own `listen`, and the listen won.
+      //
+      // The price is real: every slow configuration load is added to a shutdown,
+      // and one whose top-level `await` never settles would hold this for ever.
+      // `crypte dev` never closes, so what this reaches is the test suite, where
+      // a fast assertion failure becomes a timeout.
       closed = true
       await queue
       await running.started?.server.close()

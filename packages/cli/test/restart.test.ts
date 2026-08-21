@@ -385,14 +385,21 @@ export default defineConfig({
 `,
       )
 
-      await new Promise((resolve) => setTimeout(resolve, 200))
-      await running.close()
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 200))
+        await running.close()
+        await new Promise((resolve) => setTimeout(resolve, 1500))
 
-      // Le serveur neuf ne monte pas après la fermeture, et l'ancien est parti.
-      await expect(fetch(`http://localhost:${port}${MANIFEST_ROUTE}`)).rejects.toThrow()
-
-      rmSync(root, { recursive: true, force: true })
+        // Le serveur neuf ne monte pas après la fermeture, et l'ancien est parti.
+        await expect(fetch(`http://localhost:${port}${MANIFEST_ROUTE}`)).rejects.toThrow()
+      } finally {
+        // Enveloppé comme les autres cas : quand celui-ci échoue, la raison est
+        // qu'un serveur répond encore sur ce port, donc sans `finally` le
+        // lancement fuit exactement ce que le cas existe pour attraper, dans la
+        // recherche de port du fichier suivant. Mesuré en revue.
+        await running.close().catch(() => undefined)
+        rmSync(root, { recursive: true, force: true })
+      }
     },
   )
 

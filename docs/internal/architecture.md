@@ -928,9 +928,11 @@ Les deux derniers chiffres sont le prix de la redondance : chaque filtre couvre 
 
 *`close()` désarme **et** attend la file.* Désarmer seul laissait un serveur à l'écoute, mesuré : un redémarrage déjà passé le contrôle fermait le serveur neuf en concurrence de son propre `listen`, que `listen` gagne, et un port répondait encore quatre secondes après. Attendre la file coûte le temps d'un chargement de configuration, c'est-à-dire du fichier de l'utilisateur, et seule une configuration qui ne se résout jamais le retiendrait.
 
-*Et `closed` est vérifié en tête de `once`*, pour qu'un redémarrage en file n'aille pas construire un serveur que la fermeture devra défaire.
+*Et `closed` est vérifié deux fois*, en tête de `once` pour qu'un redémarrage en file n'aille pas construire un serveur que la fermeture devra défaire, et **avant la bascule** pour qu'un redémarrage déjà commencé n'échange pas les serveurs sous une fermeture en cours.
 
-Un cas garde la paire, avec une **configuration lente**, un `await` de 600 ms au niveau du module, pour que la fenêtre soit large et déterministe : sans ce ralentissement, il passait par hasard, le redémarrage étant déjà fini à 40 ms. Les deux pièces étant redondantes pour ce scénario, il faut les retirer toutes les deux pour le faire rougir, ce qui est vérifié.
+Un cas garde la paire porteuse, avec une **configuration lente**, un `await` de 600 ms au niveau du module, pour que la fenêtre soit large et déterministe : sans ce ralentissement, il passait par hasard, le redémarrage étant déjà fini à 40 ms.
+
+*La paire porteuse est l'attente de la file et le garde d'avant la bascule*, mesuré en revue sur trois lancements : l'attente seule retirée, vert ; l'attente **et** le garde de tête, vert ; l'attente **et** le garde d'avant la bascule, rouge. Le garde de tête n'est pas éprouvé par ce cas, et ne peut pas l'être : `once` l'a déjà franchi quand la fermeture arrive. Une version antérieure de ce paragraphe nommait la mauvaise paire, ce qui aurait fait supprimer le garde porteur en croyant un test le couvrir.
 
 *Le manifeste s'écrit après la bascule*, et non dans `startDev` : un redémarrage qui n'aboutit pas avait déjà réécrit le fichier, qui décrivait alors un catalogue qu'aucun serveur ne servait pendant que celui resté debout servait l'ancien. C'est la divergence même que ce lot supprime, réintroduite sur le chemin d'échec.
 
