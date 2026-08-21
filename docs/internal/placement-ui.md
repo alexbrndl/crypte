@@ -47,7 +47,7 @@ Le catalogue impose les deux. Quatre plugins n'ajoutent qu'un corps, quatre ont 
 | `comments` | fils, filtre des résolus, champ de saisie en pied | complète |
 | `interactions` | étapes et verdicts, commandes de lecture | complète |
 
-**Forme simple.** Le plugin rend un corps et déclare son silence. Le shell dessine le cadre, décide du repli, et applique la règle du silence lui-même.
+**Forme simple.** Le plugin rend un corps et déclare qu'il est sans objet. Le shell dessine le cadre, décide du repli, et applique la règle du sans objet lui-même.
 
 **Forme complète.** Le plugin rend le panneau entier, **en composant la primitive publiée**. Il gagne son en-tête et son pied ; il ne gagne pas le droit de refaire le cadre. Sans cette limite, huit plugins auront huit en-têtes différents et le shell ne pourra plus replier ce qu'il ne dessine pas.
 
@@ -62,7 +62,7 @@ Le catalogue impose les deux. Quatre plugins n'ajoutent qu'un corps, quatre ont 
 | Primitive | Consommateurs |
 | -- | -- |
 | Cadre de panneau : en-tête, libellé, emplacement d'actions, corps, pied | 8 : `controls`, `a11y`, `docs`, `source`, `actions`, `comments`, `coverage`, `interactions` |
-| Ligne de silence, avec sa raison écrite | les mêmes 8 |
+| Ligne « sans objet », avec sa raison écrite | les mêmes 8 |
 | Ligne à gouttières fixes, quatre états | 6 : `a11y`, `actions`, `coverage`, `comments`, `docs`, `diff` |
 | Bouton et bascule de toolbar | 6 : `responsive`, `theme`, `rtl`, `inspect`, `grid`, `diff` |
 | Bloc de code, avec sa copie | 4 : `source`, `docs`, `a11y`, `diff` |
@@ -98,7 +98,7 @@ Il en découle une dégradation à prévoir : `comments` dépend de `crypte serv
 
 **`packages/core/test/isolation.test.ts`.** Il ne suit que les imports **relatifs**, donc il ne peut pas voir un import de `vue`. Il faut lui ajouter le relevé des imports nus par entrée, et l'ensemble attendu : `protocol` aucun, `preview` aucun, `ui` uniquement `vue` et `reka-ui`. Sans ça, rien n'empêche `protocol` de tirer Vue par accident.
 
-**`docs/contracts.md`, section 6.** `UIContribution` avec les deux formes de panneau, le silence déclaré, les commandes de palette et la zone `page`. C'est `DCJ-194`.
+**`docs/contracts.md`, section 6.** `UIContribution` avec les deux formes de panneau, le sans objet déclaré, les commandes de palette et la zone `page`. C'est `DCJ-194`.
 
 **`docs/internal/plugins.md`.** La ligne qui range « Sidebar, recherche, panneaux, thème de l'interface » dans `Noyau (@crypte/core/ui)` date d'avant toute décision d'interface. Elle devient `apps/shell`, à l'exception des primitives listées en 3.1. Le catalogue doit aussi passer de quinze à dix-sept plugins avec `coverage` et `diff` : c'est `DCJ-202`.
 
@@ -126,6 +126,6 @@ Deux axes de variantes viennent de règles qu'il serait coûteux de redécouvrir
 
 **La palette.** Le Lot 7 décrivait émeraude vers cobalt en ratio 75 pour 25 ; l'exploration a été menée sans charte et n'a pas suivi cette direction. À choisir avant de créer les variables, parce qu'après elles seront liées partout.
 
-**Le rendu de la ligne de silence** existe en deux endroits, écrite par le shell en forme simple, par le plugin en forme complète. À vérifier sur écran que c'est bien le même objet.
+**Le rendu de la ligne « sans objet »** existe en deux endroits, écrite par le shell en forme simple, par le plugin en forme complète. À vérifier sur écran que c'est bien le même objet.
 
 **L'hypothèse qui invaliderait tout ce fichier :** qu'un tiers doive pouvoir construire son propre shell sur `core/ui`. Rien dans le dépôt ne le suggère aujourd'hui, et `apps/shell` est privé. Si ça devient un objectif, le partage 3.1 contre 3.2 est à refaire entièrement.
