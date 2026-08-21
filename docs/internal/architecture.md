@@ -984,7 +984,13 @@ Un cas garde la paire porteuse, avec une **configuration lente**, un `await` de 
 
 **Le plugin Vite reste au projet.** `packages/cli/test/plugin.test.ts` sert la démonstration privée de ses deux imports de plugin et de son bloc `vite` entier : la story et ses deux enveloppes rendent, console vide. Vite transforme le JSX par oxc, donc `@vitejs/plugin-react` n'est pas nécessaire au rendu. Ce qu'il ajoute est Fast Refresh, dont la preview ne se sert pas puisque le shell est un bundle préconstruit sans client HMR et que l'iframe se recharge entière. Décision et ce qui la rouvrirait dans `docs/decisions.md`.
 
-*Le cache d'optimisation hérité de la copie est effacé*, comme dans les cinq autres fichiers navigateur. Mesuré par la revue : avec `apps/demo/node_modules/.crypte/deps` peuplé, l'état de qui a lancé la démonstration une fois, le cas réoptimisait et rechargeait la page sous les affirmations qui suivent le sondage. Le symptôme n'a pas été revu de mon côté, vitest avalant la sortie du serveur ; ce qui est vérifiable directement est que le cache hérité part, ce que les trois lignes affirment.
+*Le cas navigateur porte les trois parades de `screen.test.ts`*, pas une seule : le cache d'optimisation hérité effacé, le préchauffage en trois temps, et le compte des navigations du cadre.
+
+Le garde sur le cache ne suffit pas seul, et c'est la revue qui l'a dit : `getConfigHash` de Vite inclut la racine et les noms de plugins, donc un cache hérité est de toute façon jeté, la racine étant un `mkdtemp` neuf. Ce qui rechargeait la page était la découverte tardive de `react/jsx-dev-runtime`, absent d'`optimizeDeps.include`, qui ne tient que les paquets nommés par la configuration.
+
+*Le rechargement ne s'est pas reproduit ici*, cinq lancements avec le préchauffage et cinq sans, cache de la démonstration peuplé par un vrai chargement de page. La revue l'a mesuré quatre fois sur cinq puis cinq fois sur cinq, sur un cache hérité partiel. La cause n'est donc pas isolée, et le cas ne la suppose plus : il compte les navigations du cadre et affirme qu'aucune ne tombe entre le sondage et ses deux affirmations finales. Un rechargement se voit désormais au lieu de rendre `0` au lieu de `1` une fois sur dix.
+
+*Le second cas n'a pas de garde sur le cache*, n'ouvrant aucune page : il n'y a rien à recharger, et `transformRequest` traverse la chaîne de plugins quel que soit l'état du cache.
 
 *Le champ `vite` ne porte que `plugins`*, par contrat, section 4 de `docs/contracts.md`. Une sonde a essayé de casser le rendu par `vite: { oxc: { jsx: 'preserve' } }` puis `{ runtime: 'classic' }` : les deux passent au vert, parce que le champ est ignoré. Elle ne mesurait rien, et c'est le contrat qui le dit, pas le hasard.
 
