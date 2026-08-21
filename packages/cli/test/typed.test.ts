@@ -42,13 +42,10 @@ describe('une configuration qui porte de la syntaxe TypeScript', () => {
     const source = readFileSync(join(demo, 'crypte.config.ts'), 'utf8')
     const typée = source
       .replace(
-        "import { createAdapter } from '@crypte/react'",
-        "import { createAdapter, type Adapter } from '@crypte/react'",
+        "import crypte from '@crypte/react'",
+        "import crypte, { type Adapter } from '@crypte/react'",
       )
-      .replace(
-        'adapter: createAdapter(),',
-        'adapter: createAdapter() satisfies Adapter as Adapter,',
-      )
+      .replace('adapter: crypte(),', 'adapter: crypte() satisfies Adapter as Adapter,')
       .replace('wrap: Panel,', 'wrap: Panel as typeof Panel,')
 
     expect(typée).toContain('type Adapter')

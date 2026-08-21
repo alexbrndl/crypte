@@ -972,6 +972,28 @@ Un cas garde la paire porteuse, avec une **configuration lente**, un `await` de 
 
 ---
 
+## 4 quindecies. L'adaptateur React, et ce que le projet fournit
+
+**Toute fonction reçue par `wrap` est instanciée comme un composant.** En React un composant **est** une fonction, donc `wrap: (story) => …` et `wrap: Provider` ont le même type : le typage ne peut pas départager, et l'adaptateur aurait dû deviner. La section 2.5 a retiré la forme fonction, et c'est le comportement de l'adaptateur qui tient la règle.
+
+*Ce qui casse si on l'enlève :* quatre cas sur dix-sept rougissent, mesuré en remplaçant le `createElement` de `nested` par un appel. Trois portent sur les enveloppes elles-mêmes, le quatrième sur la règle, en affirmant que la fonction reçoit des props avec `children` dedans et non l'élément rendu.
+
+**Le plugin Vite reste au projet.** `packages/cli/test/plugin.test.ts` sert la démonstration privée de ses deux imports de plugin et de son bloc `vite` entier : la story et ses deux enveloppes rendent, console vide. Vite transforme le JSX par oxc, donc `@vitejs/plugin-react` n'est pas nécessaire au rendu. Ce qu'il ajoute est Fast Refresh, dont la preview ne se sert pas puisque le shell est un bundle préconstruit sans client HMR et que l'iframe se recharge entière. Décision et ce qui la rouvrirait dans `docs/decisions.md`.
+
+*Le champ `vite` ne porte que `plugins`*, par contrat, section 4 de `docs/contracts.md`. Une sonde a essayé de casser le rendu par `vite: { oxc: { jsx: 'preserve' } }` puis `{ runtime: 'classic' }` : les deux passent au vert, parce que le champ est ignoré. Elle ne mesurait rien, et c'est le contrat qui le dit, pas le hasard.
+
+*Ce qui casse si on l'enlève :* plus rien ne vérifie la phrase du guide, « React needs none ». Le chemin rouge n'est pas simulé : il demanderait que Vite cesse de transformer le JSX, ou que l'entrée générée se mette à en dépendre, et aucune option du contrat ne le reproduit. Le cas n'est pas vide pour autant, il affirme le texte rendu et le cadre des enveloppes.
+
+**React Compiler tourne, et c'est mesuré sur le module servi.** Le risque que `DCJ-170` demandait de lever. Tous les cas navigateur tournent sur une démonstration qui le déclare, mais « vert avec le compilateur déclaré » ne dit pas qu'il a tourné : c'est la même erreur qu'une sonde qui mesure zéro. Le second cas de `plugin.test.ts` lit le module transformé et y trouve `const $ = _c(5)` et l'import de `compiler-runtime`, deux formes qu'aucune autre transformation ne produit.
+
+*Il passe par `transformRequest`, pas par une requête.* La chaîne de plugins est la même, sans serveur à l'écoute ni socket à fermer. Mesuré : une requête HTTP laissait `server.close()` bloqué jusqu'au couperet de 120 s, `fetch` comme `node:http` avec `agent: false`, et l'en-tête `connection: close` n'y changeait rien. Le cas complet tourne en 1,6 s.
+
+*Ce qui casse si on l'enlève :* le compilateur retiré des plugins Babel de la démonstration passe inaperçu, mesuré, le cas rougit en 41 ms.
+
+*Et le cas copie la démonstration*, comme les autres : `startDev` écrit le manifeste sous la racine qu'il reçoit, et `apps/demo` est suivi par git. L'arbre restait propre par chance, le manifeste écrit étant identique à celui commité.
+
+---
+
 ## 5. Décisions encodées dans la configuration
 
 Ces réglages ont l'air anodins et ne le sont pas. Chacun a été mis là pour une raison précise, et chacun est le genre de ligne qu'on supprime en croyant nettoyer.

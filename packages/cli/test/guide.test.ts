@@ -45,6 +45,17 @@ function exportsOf(pkg: string): string[] {
   )
 }
 
+// Si le paquet a un export par défaut : le guide en montre un depuis que
+// l'adaptateur en a un, et un nom d'import par défaut ne dit rien de ce que le
+// paquet exporte, donc c'est la seule chose vérifiable de ce côté.
+function hasDefault(pkg: string): boolean {
+  const name = pkg.replace('@crypte/', '')
+  const entry = name === 'cli' ? 'config.ts' : 'index.ts'
+  const source = readFileSync(join(here, '..', '..', name, 'src', entry), 'utf8')
+
+  return /^export default /m.test(source)
+}
+
 function projectWith(files: Record<string, string>): string {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'crypte-guide-')))
 
@@ -81,7 +92,7 @@ describe('les exemples du guide', () => {
     const { code } = example('config')
     const imports = [...code.matchAll(/^import \{([^}]+)\} from '([^']+)'/gm)]
 
-    expect(imports.length, 'aucun import dans l’exemple').toBe(2)
+    expect(imports.length, 'aucun import nommé dans l’exemple').toBe(1)
 
     for (const [, names = '', pkg = ''] of imports) {
       const exported = exportsOf(pkg)
@@ -90,6 +101,20 @@ describe('les exemples du guide', () => {
       for (const name of names.split(',').map((one) => one.trim())) {
         expect(exported, `${pkg} n’exporte pas ${name}`).toContain(name)
       }
+    }
+  })
+
+  // Un import par défaut ne nomme rien du paquet, donc ce qui se vérifie est
+  // qu'il y en ait un. Le guide a montré `react()` pendant tout un tour sans que
+  // `@crypte/react` l'exporte, et c'est cette forme-là qu'il montre maintenant.
+  it('n’importe par défaut que d’un paquet qui en a un', () => {
+    const { code } = example('config')
+    const défauts = [...code.matchAll(/^import \w+ from '([^']+)'/gm)]
+
+    expect(défauts.length, 'aucun import par défaut dans l’exemple').toBe(1)
+
+    for (const [, pkg = ''] of défauts) {
+      expect(hasDefault(pkg), `${pkg} n’a pas d’export par défaut`).toBe(true)
     }
   })
 
@@ -102,7 +127,7 @@ describe('les exemples du guide', () => {
     // garde la forme de l'objet, qui est ce que le guide décrit.
     const source = code
       .replace(/^import .*\n/gm, '')
-      .replace('adapter: createAdapter(),', 'adapter: { name: "react" },')
+      .replace('adapter: react(),', 'adapter: { name: "react" },')
       .replace('export default defineConfig(', 'export default (')
 
     // Une substitution muette laisserait le fichier tel quel, donc `import`

@@ -197,3 +197,17 @@ The real difference is who reads a document. The language follows from that.
 **What the browser proved.** A relative import in `crypte.config.ts` could not travel into the generated entry: the entry is a virtual module, so `./src/components/Frame` resolved against its own path and failed. Config imports are now rewritten root-absolute, like story imports already were, and one that escapes the project is refused by name. This defect predates the lot: an adapter imported relatively would have failed the same way.
 
 **What would reopen it.** A framework whose composition is not a tree of components, where an ordered list is the wrong shape to hand over.
+
+## The React plugin stays the project's business
+
+**What we do.** Nothing. `@crypte/react` ships the adapter and the story helpers, no Vite plugin, and the CLI adds none. A project that wants `@vitejs/plugin-react` declares it in `vite.plugins`, as `apps/demo` does.
+
+**What the browser proved.** The demonstration, stripped of both plugin imports and of its whole `vite` block, renders the story and its two wrappers with an empty console. Vite transforms the JSX by oxc, so the plugin is not needed to render. `packages/cli/test/plugin.test.ts` holds that measurement.
+
+**What we rule out.** A `@crypte/react/vite` entry, which would ship a plugin nothing needs. And injecting the plugin when `adapter.name` is `react`, which is the package name guessed from the adapter that `dev.test.ts` already refuses: a wrapped adapter breaks the guess.
+
+**Why the plugin buys so little here.** What it adds over oxc is Fast Refresh, and the preview does not use it: the shell is a prebuilt bundle with no HMR client, so a story that changes reloads the whole iframe. Measured at 43 ms for a configuration restart.
+
+**Why the demonstration keeps it anyway.** React Compiler runs on Babel, so it needs the plugin. It is active on the target project, which is the risk `DCJ-170` asked to lift, and it is lifted by a project-supplied plugin rather than by one of ours.
+
+**What would reopen it.** A framework whose adapter cannot render without a transform of its own, or Fast Refresh becoming reachable from the preview.

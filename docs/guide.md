@@ -14,11 +14,11 @@ Crypte reads one file at the root of your project, `crypte.config.ts`.
 
 ```ts
 import { defineConfig } from '@crypte/cli'
-import { createAdapter } from '@crypte/react'
+import react from '@crypte/react'
 
 export default defineConfig({
   stories: 'stories',
-  adapter: createAdapter(),
+  adapter: react(),
   css: 'src/styles/app.css',
 })
 ```
@@ -26,9 +26,9 @@ export default defineConfig({
 Two keys are required.
 
 - **`stories`** is the folder your story files live in, relative to the project root.
-- **`adapter`** is the adapter for your framework. `@crypte/react` exports `createAdapter` today; a shorter default export will come with the adapter's own lot.
+- **`adapter`** is the adapter for your framework. `@crypte/react` exports it as its default, so the name is yours to choose at the import: a project that also declares `@vitejs/plugin-react` names one of the two as it likes. `createAdapter` is the same thing under a fixed name.
 
-Everything else is optional: `css` for the style sheet the preview loads, `wrap` for a wrapper around every story, `plugins`, and `vite.plugins` for a transform your framework needs.
+Everything else is optional: `css` for the style sheet the preview loads, `wrap` for a wrapper around every story, `plugins`, and `vite.plugins` for a transform your framework needs. React needs none: Vite transforms the JSX itself, and `@vitejs/plugin-react` only earns its place when you want something from Babel, React Compiler for instance.
 
 If one of the two required keys is missing, Crypte says which one:
 

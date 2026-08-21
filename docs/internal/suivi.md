@@ -32,6 +32,8 @@ Le retrait de la branche fonction de l'union ne suffit pas côté React, où un 
 
 *Pourquoi ce n'est toujours pas fait :* distinguer un composant d'une fonction quelconque n'a pas de réponse fiable en React, où un composant est une fonction. La section 2.5 en a fait une règle plutôt qu'une vérification, et un rendu faux se voit à l'écran là où un silence ne se voyait pas.
 
+*La règle est gardée depuis le lot 6.* `packages/react/test/adapter.test.tsx` affirme que la fonction reçoit des props avec `children` dedans, et non l'élément rendu. Mesuré : quatre cas sur dix-sept rougissent si l'adaptateur l'appelle au lieu de l'instancier. Ce qui reste ouvert est le diagnostic, pas le comportement.
+
 *Origine :* revue de la PR #16, requalifiée à la revue du lot 5d.
 
 ### `has-review` ne regarde pas la date de la revue

@@ -101,6 +101,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/screen.test.ts` | ce que l'utilisateur voit, dans Chromium, lecture puis édition | — |
 | `test/reopt.test.ts` | la course d'une dépendance découverte pendant le chargement | — |
 | `test/typed.test.ts` | une configuration en TypeScript, servie à un navigateur | — |
+| `test/plugin.test.ts` | une configuration sans plugin React, servie à un navigateur | — |
 | `test/aside.test.ts` | ce que le catalogue a écarté, vu à l'écran | — |
 | `test/restart.test.ts` | `crypte.config.ts` relu sans commande | — |
 | `test/adapter.test.ts` | ce que l'entrée reprend de `crypte.config.ts`, et ce qu'elle refuse | — |
