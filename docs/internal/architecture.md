@@ -328,17 +328,17 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 *Un lancement rouge n'écrit pas de couverture*, et la première version levait alors : le commentaire d'avant restait donc en place, affichant les chiffres **verts** du lancement précédent sous une CI rouge. Mesuré sur la PR #34, une heure après l'avoir écrit. Le commentaire dit maintenant « couverture non mesurée », garde le compte des tests, et nomme les trois premiers cas qui rougissent.
 
-**Il n'y a pas de badge de couverture, et c'est une décision.** Un job l'écrivait et le poussait sur `main`, ce qu'une règle du dépôt interdit : la pousse était refusée, la CI de `main` rouge à chaque fusion qui bougeait le chiffre, et le badge affichait **98 %** pour une couverture de 97,89 pendant dix jours. Un ornement qui mentait, gardé par un mécanisme qui échouait en silence.
+**Le badge du README est commité, et la CI vérifie qu'il dit vrai.** `.github/coverage.json` porte le format « endpoint » que shields.io lit. Le pourcentage de lignes, arrondi **vers le bas** : 98,55 affiché « 99 % » flatterait. La couleur suit le seuil du dépôt, pas une échelle scolaire, parce qu'un badge vert sous le seuil mentirait sur une porte rouge.
 
-*Les deux façons de le garder ont été écartées.* Une branche dédiée, orpheline, aurait demandé de comprendre pourquoi elle est là pour un fichier de cinq lignes. Autoriser le robot à pousser sur `main` aurait ouvert une brèche permanente dans « tout passe par une pull request ». Un badge est un ornement du README : il ne vaut ni l'une ni l'autre.
+*Un job l'écrivait et le poussait sur `main`, ce qui ne pouvait pas marcher.* Une règle du dépôt exige que tout passe par une pull request : la pousse était refusée, la CI de `main` rouge à chaque fusion qui bougeait le chiffre, et le badge a affiché **98 %** pour une couverture de 97,89 pendant dix jours. Trois fusions rouges avant que ça se voie, `DCJ-225`.
 
-*Où le chiffre vit maintenant :* le commentaire de couverture des pull requests, recalculé à chaque pousse, avec sa table par dossier et son verdict de seuils. C'est là que la décision se prend, et il n'a jamais été faux. Le contrôle `coverage` rougit toujours sous les seuils, indépendamment.
+*Le fichier est donc commité comme les autres.* `pnpm ready` le régénère, et cette commande lance déjà la couverture avant chaque pull request : le badge suit sans mécanisme de plus. Le job de couverture **compare** le fichier commité au chiffre mesuré et rougit s'il est périmé, en disant quoi lancer. Aucun droit d'écriture, aucun robot qui pousse, aucune branche.
 
-*Ce qui casse si on l'enlève :* rien de plus. Ce qui restait cassé, c'était le badge. `DCJ-225`.
+*Deux autres voies ont été écartées.* Une branche dédiée, orpheline : elle demande de comprendre pourquoi elle est là pour cinq lignes de JSON. Autoriser le robot à pousser sur `main` : une brèche permanente dans « tout passe par une pull request » pour un fichier d'une ligne. Un badge est un ornement du README, il ne vaut ni l'une ni l'autre.
 
-*Le job de couverture n'écrit rien dans le dépôt.* Le résumé et le compte des tests passent de job en job par un artefact, et le `contents: write` qu'un badge demandait a disparu avec lui.
+*Ce qui casse si on l'enlève :* le badge se remet à dériver, et cette fois en silence, puisque plus rien ne comparerait. C'était le mode d'échec exact des deux versions précédentes.
 
-*Le chemin du résumé est celui par défaut*, et c'est une correction de l'auto-revue : le job passait `--resume coverage-summary.json`, vrai quand l'artefact ne portait qu'un fichier, faux depuis qu'il en porte deux et que `coverage/` est préservé. Un cas garde ce chemin en lançant le script en sous-processus depuis un faux artefact.
+*Le risque assumé :* si la couverture mesurée en local et en intégration continue diffèrent d'un point autour d'un entier, la comparaison rougit et `pnpm ready` la referme. Le badge n'affichant qu'un entier arrondi vers le bas, il faut une dérive de presque un point pour y arriver.
 
 **Les échecs sont annotés dans le diff.** Le rapporteur `github-actions` de vitest place chaque échec sur son fichier et sa ligne, ce qui évite d'ouvrir les journaux pour savoir quoi.
 

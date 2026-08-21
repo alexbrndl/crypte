@@ -6,6 +6,7 @@ import { describe, expect, it, test as base } from 'vitest'
 import {
   MARKER,
   METRICS,
+  badge,
   bar,
   byFolder,
   byTotal,
@@ -290,14 +291,16 @@ describe('le verdict des seuils', () => {
 
 describe('les arguments', () => {
   it('lit les chemins par défaut', () => {
-    // Les quatre clés : `toEqual` ignore une clé absente valant
+    // Les cinq clés, `badge` comprise : `toEqual` ignore une clé absente valant
     // `undefined`, donc l'omettre laissait passer son retrait.
     expect(options([])).toEqual({
       pr: undefined,
       resume: 'coverage/coverage-summary.json',
       tests: 'vitest-report.json',
       sha: undefined,
+      badge: undefined,
     })
+    expect(options(['--badge', 'x.json']).badge).toBe('x.json')
   })
 
   // Sans `--pr`, le corps part sur la sortie standard et rien n'est publié :
@@ -305,6 +308,29 @@ describe('les arguments', () => {
   it('ne publie que sur --pr', () => {
     expect(options(['--pr', '34']).pr).toBe('34')
     expect(options(['--sha', 'abc']).pr).toBeUndefined()
+  })
+})
+
+describe('le badge du README', () => {
+  // Arrondi vers le bas : 98,55 affiché « 99 % » flatterait.
+  it('rend le format que shields.io lit, arrondi vers le bas', () => {
+    expect(badge(resume(98.55))).toEqual({
+      schemaVersion: 1,
+      label: 'coverage',
+      message: '98%',
+      color: 'brightgreen',
+    })
+  })
+
+  // Un badge vert sous le seuil mentirait sur une porte rouge.
+  it('n’est vert vif qu’au-dessus du seuil de lignes', () => {
+    expect(badge(resume(97)).color).toBe('brightgreen')
+    expect(badge(resume(96.9)).color).toBe('yellow')
+    expect(badge(resume(86)).color).toBe('red')
+  })
+
+  it('lève sur un résumé sans pourcentage de lignes', () => {
+    expect(() => badge({ total: {} })).toThrow('résumé de couverture illisible')
   })
 })
 
@@ -465,12 +491,9 @@ describe('le script, lancé pour de vrai', () => {
                 stdio: 'pipe',
                 cwd: racine,
               }),
-              err: '',
             }
           } catch (error) {
-            // La sortie d'erreur aussi : le verdict de couverture y va, et sans
-            // elle un cas ne pouvait affirmer que le code de sortie.
-            return { code: error.status, out: error.stdout ?? '', err: error.stderr ?? '' }
+            return { code: error.status, out: error.stdout ?? '' }
           }
         },
       })
@@ -479,24 +502,81 @@ describe('le script, lancé pour de vrai', () => {
     },
   })
 
-  // Aucun `--resume`, donc le chemin par défaut, celui que le job de couverture
-  // utilise et dont la mauvaise résolution avait rendu un job rouge.
-  test('trouve le résumé au chemin par défaut', ({ dossier }) => {
+  // Le cas du job `badge` : aucun `--resume`, donc le chemin par défaut, celui
+  // dont la mauvaise résolution aurait rendu ce job rouge à chaque fusion.
+  test('trouve le résumé au chemin par défaut, comme le job badge', ({ dossier }) => {
     dossier.écrit(99)
+    const cible = join(dossier.racine, 'badge.json')
 
-    const { code, out } = dossier.lance([])
+    const { code } = dossier.lance(['--badge', cible])
 
     expect(code).toBe(0)
-    expect(out).toContain('Seuils tenus')
+    expect(JSON.parse(readFileSync(cible, 'utf8')).message).toBe('99%')
   })
 
-  // Le verdict est le code de sortie, et il vient en dernier.
-  test('sort en un sous le seuil', ({ dossier }) => {
-    const résumé = dossier.écrit(50, 'résumé.json')
+  test('écrit le badge que shields.io lit, et sort en zéro', ({ dossier }) => {
+    const résumé = dossier.écrit(99, 'résumé.json')
+    const cible = join(dossier.racine, 'badge.json')
 
-    const { code, err } = dossier.lance(['--resume', résumé])
+    const { code } = dossier.lance(['--resume', résumé, '--badge', cible])
+
+    expect(code).toBe(0)
+    expect(JSON.parse(readFileSync(cible, 'utf8'))).toEqual({
+      schemaVersion: 1,
+      label: 'coverage',
+      message: '99%',
+      color: 'brightgreen',
+    })
+  })
+
+  // Pas de couverture, pas de badge : un badge écrit sans chiffre annoncerait
+  // une mesure qui n'a pas eu lieu.
+  test('n’écrit aucun badge et sort en un quand le résumé manque', ({ dossier }) => {
+    const cible = join(dossier.racine, 'badge.json')
+
+    const { code } = dossier.lance([
+      '--resume',
+      join(dossier.racine, 'absent.json'),
+      '--badge',
+      cible,
+    ])
 
     expect(code).toBe(1)
-    expect(err).toContain('couverture insuffisante')
+    // L'erreur nommée, pas n'importe laquelle : `toThrow()` nu passerait aussi
+    // sur un badge écrit mais illisible.
+    expect(() => readFileSync(cible, 'utf8')).toThrow(/ENOENT/)
+  })
+
+  // Le verdict vient en dernier : le badge est écrit, puis le code de sortie dit
+  // que le seuil n'est pas tenu.
+  test('sort en un sous le seuil, en ayant écrit le badge', ({ dossier }) => {
+    const résumé = dossier.écrit(50, 'résumé.json')
+    const cible = join(dossier.racine, 'badge.json')
+
+    const { code } = dossier.lance(['--resume', résumé, '--badge', cible])
+
+    expect(code).toBe(1)
+    expect(JSON.parse(readFileSync(cible, 'utf8')).color).toBe('red')
+  })
+})
+
+// Ce que le cas ci-dessus ne peut pas prouver : que le workflow appelle le script
+// avec les bons arguments. La panne était là, pas dans le script, et le job ne
+// tourne que sur `main`. Le dépôt compare déjà un document au code de cette
+// façon, dans `spec.test.ts`. Voir docs/internal/architecture.md.
+describe('l’appel du job badge dans le workflow', () => {
+  const workflow = readFileSync('.github/workflows/ci.yml', 'utf8')
+  const appel = workflow
+    .split('\n')
+    .find((une) => une.includes('coverage-report.mjs') && une.includes('--badge'))
+
+  it('existe', () => {
+    expect(appel, 'aucune ligne du workflow ne lance le script avec --badge').toBeTypeOf('string')
+  })
+
+  // `--resume coverage-summary.json` était vrai quand l'artefact ne portait qu'un
+  // fichier, et faux depuis qu'il en porte deux : le badge n'était jamais écrit.
+  it('laisse le chemin du résumé par défaut', () => {
+    expect(appel).not.toContain('--resume')
   })
 })

@@ -5,7 +5,7 @@
 // n'ouvre. Voir docs/internal/architecture.md.
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { argv, exit } from 'node:process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -201,6 +201,24 @@ export function compose(summary, results, sha) {
   return lignes.join('\n')
 }
 
+// Le badge du README, au format « endpoint » que shields.io sait lire. Les
+// lignes plutôt qu'une autre métrique : c'est celle que tout le monde entend par
+// « couverture ». Arrondi vers le bas : 98,55 affiché « 99 % » flatterait.
+// Voir docs/internal/architecture.md.
+export function badge(summary) {
+  const pct = summary?.total?.lines?.pct
+  if (typeof pct !== 'number')
+    throw new Error('résumé de couverture illisible : pas de `lines.pct`')
+
+  // Les paliers sont les seuils du dépôt, pas une échelle scolaire : vert vif
+  // au-dessus du seuil de lignes, jaune entre le seuil et dix points sous lui,
+  // rouge en dessous. Un badge vert sous le seuil mentirait sur une porte rouge.
+  const color =
+    pct >= THRESHOLDS.lines ? 'brightgreen' : pct >= THRESHOLDS.lines - 10 ? 'yellow' : 'red'
+
+  return { schemaVersion: 1, label: 'coverage', message: `${Math.floor(pct)}%`, color }
+}
+
 function gh(args) {
   return execFileSync('gh', args, { stdio: 'pipe', encoding: 'utf8' }).trim()
 }
@@ -270,11 +288,12 @@ export function options(args) {
     resume: read('--resume', 'coverage/coverage-summary.json'),
     tests: read('--tests', 'vitest-report.json'),
     sha: read('--sha'),
+    badge: read('--badge'),
   }
 }
 
 function main(args) {
-  const { pr, resume, tests: chemin, sha } = options(args)
+  const { pr, resume, tests: chemin, sha, badge: cible } = options(args)
   const summary = readJson(resume)
 
   if (!summary) console.error(`résumé de couverture introuvable : ${resume}`)
@@ -284,6 +303,9 @@ function main(args) {
   console.log(body)
 
   if (pr) console.error(`commentaire ${publish(body, pr)} sur la pull request ${pr}`)
+
+  // Le badge exige un chiffre : pas de couverture, pas de badge.
+  if (cible && summary) writeFileSync(cible, `${JSON.stringify(badge(summary), undefined, 2)}\n`)
 
   // Le verdict en dernier, pour que le commentaire existe même quand il est
   // mauvais. C'est le seul endroit où les seuils sont évalués : la configuration

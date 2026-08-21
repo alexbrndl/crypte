@@ -139,6 +139,23 @@ jobs:
             ${PR:+--pr "$PR"} \
             --sha "${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
 
+      # Le badge du README est commité, pas poussé par un robot : une règle du
+      # dépôt exige que tout passe par une pull request, donc la pousse d'un job
+      # était refusée et la CI de `main` rougissait à chaque fusion qui bougeait
+      # le chiffre. `DCJ-225`.
+      #
+      # Ici on vérifie seulement que le fichier commité dit le chiffre mesuré.
+      # Aucun droit d'écriture, aucune branche, et `pnpm ready` le régénère.
+      - name: Le badge commité dit le chiffre mesuré
+        run: |
+          node test/coverage-report.mjs --badge /tmp/coverage.json > /dev/null
+          diff /tmp/coverage.json .github/coverage.json && exit 0
+          echo "::error::Le badge de .github/coverage.json est périmé : lancer \`pnpm ready\` et commiter le fichier."
+          exit 1
+
+  # Le badge du README, écrit par la CI parce qu'un chiffre recopié à la main
+  # dérive. Job à part pour que `contents: write` ne vaille que là.
+  # Voir docs/internal/architecture.md.
   ci-passed:
     if: always()
     needs: [check, coverage, dependency-review]
