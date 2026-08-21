@@ -28,7 +28,7 @@ La palette de commandes indexe les stories et les actions. Une action de plugin 
 
 ### 1.3 Un panneau doit pouvoir dire qu'il n'a rien à dire, et pourquoi
 
-Le shell déplie les panneaux qui portent une information et laisse les autres sur une ligne, en bas, avec la raison écrite. Cette règle n'est pas implémentable si le panneau est une boîte noire : il faut soit qu'il déclare qu'il est sans objet, dans une forme typée, soit que le shell l'interroge avant de le rendre.
+Le shell déplie les panneaux qui portent une information et laisse les autres sur une ligne, en bas, avec la raison écrite. Cette règle n'est pas implémentable si le panneau est une boîte noire : il faut soit qu'il rende un « sans objet » typé, soit que le shell l'interroge avant de le rendre. Rendu et non déclaré une fois : `a11y` n'a aucune violation sur une story et plusieurs sur la suivante.
 
 *Pourquoi ça compte :* c'est la réponse au seul problème d'ergonomie que la concurrence n'a pas résolu, l'encombrement des panneaux quand il y en a sept. Leur piste actuelle est un réglage de configuration de plus.
 

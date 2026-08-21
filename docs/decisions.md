@@ -211,3 +211,13 @@ The real difference is who reads a document. The language follows from that.
 **Why the demonstration keeps it anyway.** React Compiler runs on Babel, so it needs the plugin. It is active on the target project, which is the risk `DCJ-170` asked to lift, and it is lifted by a project-supplied plugin rather than by one of ours.
 
 **What would reopen it.** A framework whose adapter cannot render without a transform of its own, or Fast Refresh becoming reachable from the preview.
+
+## A panel with nothing to say is `inapplicable`, and says why
+
+**What we do.** One word for the state, in three places that must agree. The interface notes say « sans objet » in French prose; the Figma library names the state `inapplicable`; and the plugin contract, which is in English, will use `inapplicable` when `UIContribution` is written. The reason string travels with the state, never without it.
+
+**What we rule out.** « silence », which the notes used until now. It reads as a panel saying nothing, which is the behaviour the rule exists to forbid: a panel with nothing to say must say so, and say why. And a third word invented at the contract, which is what an English section asked to carry a French phrase invites.
+
+**The state is per render, not declared once.** `a11y` has no violation on one story and several on the next, so a state declared alongside the contribution zones cannot express it: the shell would collapse the panel for every story or for none.
+
+**What would reopen it.** A framework or a design language that already owns one of these words for something else, or a second surface where the state has to be named and `inapplicable` does not read.
