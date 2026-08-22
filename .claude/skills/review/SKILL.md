@@ -27,12 +27,27 @@ La distinction tient en une phrase : **des faits, jamais d'interprétation.**
 
 Le critère est mécanique, pour ne pas être rejugé à chaque revue :
 
-| Le diff touche                                                       | Modèle         |
-| -------------------------------------------------------------------- | -------------- |
-| uniquement de la documentation, de la configuration ou des workflows | petit modèle   |
-| au moins un fichier sous `packages/*/src/**` ou `apps/**`            | modèle courant |
+| Le diff touche                                                                                                  | Modèle         |
+| --------------------------------------------------------------------------------------------------------------- | -------------- |
+| de la prose, de la configuration ou des workflows                                                               | petit modèle   |
+| ce qui fait foi : `docs/contracts.md`, `docs/decisions.md`, `docs/internal/suivi.md`, `CLAUDE.md`, `.claude/**` | modèle courant |
+| au moins un fichier sous `packages/*/src/**` ou `apps/**`                                                       | modèle courant |
 
 Le code garde donc toujours le modèle courant : le petit modèle ne s'applique jamais là où le raisonnement est le plus exigeant. En cas de doute sur la nature du diff, prends le modèle courant.
+
+**Cinq formes valent du code, malgré leur extension.** Les trois premières font foi : `docs/contracts.md` le dit de lui-même, et `docs/internal/suivi.md` porte les défauts arbitrés avec leur mesure et la raison de ne pas les corriger. `CLAUDE.md` et les skills encodent les règles de travail, donc une erreur dedans se propage à toutes les sessions suivantes.
+
+_Mesuré :_ la pull request qui a produit cette ligne réécrivait neuf entrées de `docs/decisions.md` sur 908 lignes de diff. Le petit modèle l'a relue en trois appels d'outils et rendu un verdict vide, alors qu'une relecture manuelle du même diff avait trouvé deux erreurs. Le critère par emplacement ne suit pas ce qu'il représente, et une liste de noms suffit à le corriger sans rendre la table jugeable au cas par cas.
+
+### Quand la revue n'est pas exigée du tout
+
+**Un diff dont tous les fichiers sont des `.md`, aucun n'étant l'une des formes ci-dessus, n'a pas besoin de revue.** `require-review.yml` le constate et passe au vert tout seul, donc la pull request se fusionne sans qu'aucun marqueur existe.
+
+Le classement vit dans `test/review-check.mjs`, couvert par `test/review-check.test.mjs`. Ne le réimplémente pas de tête : `node test/review-check.mjs <numéro>` dit ce qu'il en pense.
+
+Ne lance pas `/review` dans ce cas : deux verdicts vides d'affilée sur de la prose sont ce qui apprend à ne plus lire les suivants, et c'est le seul mode d'échec qui compte ici.
+
+Dès qu'un fichier du diff n'est pas de la prose, la revue redevient exigée pour tout le diff. Il n'y a pas de revue partielle.
 
 ### Forme du prompt
 
