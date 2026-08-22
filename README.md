@@ -43,6 +43,16 @@ Design notes live in `docs/internal/` and are written in French. See `docs/decis
 
 Each of these is a project in the tracker, with its own issues.
 
-## Licence
+## Licence, and what will cost money
 
-MIT
+**Everything in this repository is MIT**, and none of it is for sale. That covers `crypte dev`, `crypte build`, and every plugin published from here.
+
+**Nothing is for sale today at all.** No package is published, so there is no key to buy and nowhere to buy it. What follows is written before the first publish rather than left to be discovered at install time.
+
+**What will be paid.** `crypte serve` in multi-user mode, and a set of plugins that have never been published and are therefore not covered by the licence above. Neither will live in this repository.
+
+**The line is one editor against many, not local against deployed.** Whether a server listens on `0.0.0.0`, owns a domain or runs in a container is one line away from changing, which makes a poor boundary. The number of people who write is not. And a single-identity `serve` does not answer a team's need in the first place: every contribution would be signed by the same person, so there is nothing there anybody would want unlocked.
+
+**No telemetry in the CLI.** Not now, not later. Whatever `serve` reports in its paid mode will be documented before it exists rather than after.
+
+[`docs/decisions.md`](docs/decisions.md) carries the reasoning and what was turned down. `docs/internal/plugins.md` carries the status of each plugin, one line each.
