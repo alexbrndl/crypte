@@ -10,6 +10,30 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 ---
 
+## Two repositories, and the line between them is not public against private
+
+_2026-08-22_
+
+**Decided.** Crypte lives in two repositories, both monorepos. This one is public and MIT. A second one is closed, and holds three things: `crypte serve`, the twelve plugins meant for the licence, and the web application that will serve the site and the account area.
+
+That is why `docs/internal/plugins.md` can name `serve` and those plugins without them being here. The catalogue is the catalogue; it does not follow that everything in it ships from this repository.
+
+**Rejected.** Keeping the closed code here as private packages, which would leave it readable in a public repository and cancel the point of closing it. A third repository for the platform, whose strongest argument dissolves on inspection: the signing private key lives in an edge function's secret store, never in a repository, so the blast radius of a repository leak is the same either way.
+
+**The line, and it is the part worth writing down.** Not public against private, but **engineering notes against business analysis**.
+
+Engineering notes stay here, and the reason is measured rather than felt: `docs/internal/architecture.md` is cited by 53 files, including comments in published source, and `docs/internal/suivi.md` is read by the review itself, which is what stops an already-arbitrated point from being raised again every round. Moving either would break `test/doc-links.test.mjs` and orphan those citations. An outside contributor to an MIT project needs `architecture.md`: it is the file that says what breaks if you remove a mechanism.
+
+Competitive analysis and the licensing scheme went the other way, and they were written here first before being moved out. That is the mistake this entry exists to keep from being repeated.
+
+**Two things stay public and are not negotiable.** The free/paid boundary itself, because transparency about what costs money is a commitment to keep in the README rather than something to discover at install time. And the signed-key mechanism: algorithm, format and verification code, because a signature draws no strength from the secrecy of how it works, and hiding it buys an incomprehensible failure the day a date expires.
+
+**What it costs.** Two CI pipelines, two dependency-update surfaces, and one contract that spans both: the shape of the signed key. `serve` will consume `@crypte/core` and `@crypte/cli` as **published versions**, not as workspace links, which slows local iteration and in exchange exercises the public API from outside the monorepo. That is the only honest check on the isolation of the core's three entry points, which is structural constraint 3.
+
+**What would reopen it.** A platform deploy cadence that gets in the way of publishing packages, which would argue for a third repository. Or a contributor who should see the platform but not `serve`.
+
+---
+
 ## The published catalogue is MIT, and the paid line is one editor against many
 
 _2026-08-21_
