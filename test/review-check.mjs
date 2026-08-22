@@ -10,16 +10,20 @@ import { pathToFileURL } from 'node:url'
 const MARKER = '<!-- crypte-review -->'
 
 // Ce qui fait foi, ou ce qui porte les règles de travail. De la prose se relit
-// sans procédure ; ces quatre formes non, malgré leur extension.
+// sans procédure ; ces cinq formes non, malgré leur extension.
 //
 // Les dossiers sont acceptés à côté des fichiers : le jour où `docs/contracts.md`
-// se scinde, l'exemption ne doit pas s'élargir en silence. Et `CLAUDE.md` compte à
-// n'importe quelle profondeur, même si la règle dit de ne pas en créer d'autre.
+// se scinde, l'exemption ne doit pas s'élargir en silence.
+//
+// `CLAUDE.md` et `.claude/` comptent à n'importe quelle profondeur. Les skills à
+// portée de dossier sont une forme supportée, donc `apps/x/.claude/` doit compter
+// comme la racine, sinon le mécanisme de revue se modifie sans revue d'un niveau
+// plus bas.
 const AUTHORITY = [
   /^docs\/(contracts|decisions)(\.md$|\/)/,
   /^docs\/internal\/suivi(\.md$|\/)/,
   /(^|\/)CLAUDE\.md$/,
-  /^\.claude\//,
+  /(^|\/)\.claude\//,
 ]
 
 // Rend ce qui a été vu, et si le diff se relit tout seul.

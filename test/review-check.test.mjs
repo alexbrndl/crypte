@@ -3,7 +3,7 @@
 // Voir docs/internal/architecture.md.
 
 import { expect, test } from 'vitest'
-import { decide, marked } from './review-check.mjs'
+import { decide, filesOf, marked, reviewsOf } from './review-check.mjs'
 
 const prose = (...files) => decide(files).prose
 
@@ -35,6 +35,20 @@ test('les dossiers comptent comme les fichiers, pour que scinder ne relâche rie
 test('CLAUDE.md compte à toute profondeur', () => {
   expect(prose('packages/core/CLAUDE.md')).toBe(false)
   expect(prose('apps/shell/CLAUDE.md')).toBe(false)
+})
+
+// Les skills à portée de dossier sont une forme supportée : ancrer `.claude/` à la
+// seule racine laissait le mécanisme de revue se modifier sans revue d'un niveau
+// plus bas. Constat de la seconde revue de la PR 47.
+test('un dossier .claude compte à toute profondeur, pas seulement à la racine', () => {
+  expect(prose('.claude/skills/review/SKILL.md')).toBe(false)
+  expect(prose('apps/shell/.claude/skills/deploy/SKILL.md')).toBe(false)
+  expect(prose('packages/cli/.claude/settings.json')).toBe(false)
+})
+
+test('un nom qui contient claude sans être le dossier reste de la prose', () => {
+  expect(prose('docs/claude.md')).toBe(true)
+  expect(prose('docs/notes-claude.md')).toBe(true)
 })
 
 test('tout ce qui n_est pas markdown demande une revue', () => {
@@ -84,4 +98,51 @@ test('un marqueur approchant ne compte pas', () => {
   expect(
     marked(['<!-- crypte review -->', '<!--crypte-review-->', '<!-- Crypte-Review -->']),
   ).toEqual([])
+})
+
+// Le compte qui décide du vert vient de deux points d'API : l'éprouver demande le
+// paramètre d'injection, comme `changeset-check.test.mjs` le fait pour le sien.
+const api =
+  ({ comments = [], reviews = [] }) =>
+  (args) =>
+    JSON.stringify([args[1].includes('/comments') ? comments : reviews])
+
+test('les pages de l_API sont aplaties', () => {
+  const run = () => JSON.stringify([[{ filename: 'a.md' }], [{ filename: 'b.ts' }]])
+
+  expect(filesOf('47', 'alexbrndl/crypte', run)).toEqual(['a.md', 'b.ts'])
+})
+
+test('le compte additionne les commentaires et les revues marqués', () => {
+  const run = api({
+    comments: [{ body: '<!-- crypte-review -->' }, { body: 'autre chose' }],
+    reviews: [{ body: '<!-- crypte-review -->', submitted_at: '2026-08-22T10:00:00Z' }],
+  })
+
+  expect(reviewsOf('47', 'alexbrndl/crypte', run).count).toBe(2)
+})
+
+test('sans marqueur, le compte est nul et la date vide', () => {
+  const run = api({ comments: [{ body: 'rien' }], reviews: [{ body: 'rien non plus' }] })
+
+  expect(reviewsOf('47', 'alexbrndl/crypte', run)).toEqual({ count: 0, latest: '' })
+})
+
+test('la date retenue est celle de la revue marquée la plus récente', () => {
+  const run = api({
+    reviews: [
+      { body: '<!-- crypte-review -->', submitted_at: '2026-08-20T10:00:00Z' },
+      { body: '<!-- crypte-review -->', submitted_at: '2026-08-22T10:00:00Z' },
+      { body: 'non marquée', submitted_at: '2026-08-23T10:00:00Z' },
+    ],
+  })
+
+  expect(reviewsOf('47', 'alexbrndl/crypte', run).latest).toBe('2026-08-22T10:00:00Z')
+})
+
+test('un commentaire marqué ne fournit pas de date, seule une revue ancrée en donne', () => {
+  const run = api({ comments: [{ body: '<!-- crypte-review -->' }] })
+  const { count, latest } = reviewsOf('47', 'alexbrndl/crypte', run)
+
+  expect({ count, latest }).toEqual({ count: 1, latest: '' })
 })

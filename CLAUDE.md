@@ -52,7 +52,7 @@ gh pr ready <numéro>                 # 7. une fois les points traités
 
 **La seule exception, et elle est mécanique.** Un diff dont tous les fichiers sont des `.md`, aucun n'étant `docs/contracts.md`, `docs/decisions.md`, `docs/internal/suivi.md`, un `CLAUDE.md` ni quoi que ce soit sous `.claude/`, saute les étapes 3 et 4. `require-review.yml` le constate tout seul et passe au vert.
 
-Ces quatre formes ne sont pas de la prose malgré leur extension : les trois premières font foi, la dernière porte ces règles-ci, donc une erreur dedans se propage à toutes les sessions suivantes.
+Ces cinq formes ne sont pas de la prose malgré leur extension : les trois premières font foi, les deux dernières portent ces règles-ci, donc une erreur dedans se propage à toutes les sessions suivantes.
 
 Le classement vit dans `test/review-check.mjs` et non dans le workflow, pour que `test/review-check.test.mjs` puisse vérifier ce qu'il refuse. Le mode d'échec est une exemption qui s'élargit en silence, et c'est le seul endroit où on le verrait.
 

@@ -1175,7 +1175,7 @@ Mesuré sur deux pull requests. La #45 portait neuf entrées de `decisions.md`, 
 
 Donc le petit modèle n'est pas incapable, et « revenir au modèle courant partout » aurait puni le cas où il fonctionne. Ce qui a échoué est le **critère** : l'emplacement des fichiers ne suit pas le raisonnement qu'un diff demande, et `decisions.md` en est la preuve, documentation par son dossier et registre de décisions par son contenu.
 
-D'où quatre noms ajoutés au côté « modèle courant » plutôt qu'une bascule générale. Le critère reste mécanique, ce qui était le point de départ.
+D'où une liste de noms ajoutée au côté « modèle courant » plutôt qu'une bascule générale. Le critère reste mécanique, ce qui était le point de départ.
 
 *Ce qui rouvrirait la bascule générale :* une revue vide sur de la prose **ordinaire**, celle qui n'est ni contrat ni règle de travail. Les deux verdicts vides mesurés portaient tous les deux sur des diffs touchant `decisions.md`, donc aucun des deux ne dit quoi que ce soit du petit modèle sur de la prose ordinaire. Le jour où ça arrive, le remède du garde-fou s'applique tel qu'il est écrit.
 
