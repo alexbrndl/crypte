@@ -1,6 +1,7 @@
 name: Require review
 
-# Ce workflow ne produit aucune revue. Il vérifie seulement qu'une revue existe.
+# Ce workflow ne produit aucune revue. Il vérifie seulement qu'une revue existe,
+# et seulement quand le diff en mérite une.
 # La revue est produite en local par le skill /review. Voir docs/internal/architecture.md.
 
 on:
@@ -31,9 +32,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      # Seuls des nombres sortent de ces appels, jamais le corps des commentaires :
-      # un texte produit par un agent pourrait contenir des commandes de workflow.
-      - name: Chercher le marqueur de revue
+      # Le numéro de pull request est résolu une fois pour les deux étapes, et la
+      # nature du diff avec lui : dupliquer la résolution ferait dériver les deux.
+      #
+      # Rien ne sort d'ici que des nombres et un booléen, jamais un nom de fichier,
+      # pour la même raison que l'étape suivante ne sort jamais le corps d'un
+      # commentaire : une chaîne venue du dépôt pourrait porter une commande de
+      # workflow, `::error::` ou `::add-mask::`.
+      - name: Contexte, et nature du diff
+        id: ctx
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
@@ -41,7 +48,6 @@ jobs:
           BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          marker='<!-- crypte-review -->'
 
           # Sur workflow_dispatch, l'événement ne porte aucun numéro de PR : le retrouver
           # depuis la branche, sinon le contrôle passerait au vert sans avoir rien lu.
@@ -54,6 +60,60 @@ jobs:
             echo "::error::Aucune pull request ouverte pour cette branche."
             exit 1
           fi
+
+          echo "pr=$PR" >> "$GITHUB_OUTPUT"
+
+          # --slurp agrège les pages et jq travaille en aval, comme pour le comptage
+          # des revues : avec --paginate, un filtre agrégeant passé à --jq s'applique
+          # page par page et rend un résultat faux.
+          files=$(gh api "repos/$REPO/pulls/$PR/files" --paginate --slurp \
+            | jq -r '.[][].filename')
+
+          # Une liste vide veut dire qu'on n'a rien pu lire, pas que le diff est vide.
+          # On exige alors une revue : bloquer est la direction sûre.
+          if [ -z "$files" ]; then
+            echo "Aucun fichier listé, une revue est exigée."
+            echo "prose=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # De la prose se relit sans procédure. Quatre formes n'en sont pas, malgré
+          # leur extension : deux font foi, et `CLAUDE.md` comme les skills portent les
+          # règles de travail, donc une erreur dedans se propage à toutes les sessions.
+          #
+          # Les skills ont été ajoutés après avoir éprouvé ce classement sur onze cas :
+          # un diff ne touchant que `.claude/skills/review/SKILL.md` passait pour de la
+          # prose, et se serait donc exempté de la revue du mécanisme de revue.
+          prose=true
+          total=0
+          while IFS= read -r f; do
+            total=$((total + 1))
+            case "$f" in
+              docs/contracts.md|docs/decisions.md|CLAUDE.md) prose=false ;;
+              .claude/*) prose=false ;;
+              *.md) ;;
+              *) prose=false ;;
+            esac
+          done <<< "$files"
+
+          echo "prose=$prose" >> "$GITHUB_OUTPUT"
+          echo "Fichiers au diff : $total"
+
+          if [ "$prose" = true ]; then
+            echo "Prose seule, aucune revue exigée."
+          fi
+
+      # Seuls des nombres sortent de ces appels, jamais le corps des commentaires :
+      # un texte produit par un agent pourrait contenir des commandes de workflow.
+      - name: Chercher le marqueur de revue
+        if: steps.ctx.outputs.prose != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.ctx.outputs.pr }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          marker='<!-- crypte-review -->'
 
           # --paginate avec --jq applique le filtre page par page et renvoie une ligne
           # par page, ce qui casse l'addition au-delà de 30 commentaires. --slurp agrège

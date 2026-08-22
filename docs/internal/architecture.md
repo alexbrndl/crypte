@@ -1145,10 +1145,13 @@ La distinction est fine mais tient à peu de chose : fournir le diff n'est pas l
 
 | Le diff touche | Modèle |
 | -- | -- |
-| documentation, configuration, workflows uniquement | petit modèle |
+| prose, configuration, workflows | petit modèle |
+| `docs/contracts.md`, `docs/decisions.md`, `CLAUDE.md` ou `.claude/**` | modèle courant |
 | au moins un fichier sous `packages/*/src/**` ou `apps/**` | modèle courant |
 
 Le code garde toujours le modèle courant. C'est ce qui rend la règle sûre : le petit modèle ne s'applique jamais là où le raisonnement est le plus exigeant.
+
+**Quatre formes valent du code malgré leur extension.** Les deux premières font foi. `CLAUDE.md` et les skills portent les règles de travail, donc une erreur dedans se propage à toutes les sessions suivantes.
 
 *Pourquoi :* le coût ne venait pas des points remontés mais du chemin, le sous-agent redécouvrant le dépôt à chaque fois.
 
@@ -1165,6 +1168,16 @@ Comparaison indicative et non toutes choses égales : les diffs relus n'étaient
 *Ce qui casse si on l'enlève :* rien de visible, et c'est le piège. La revue continue de fonctionner, simplement elle coûte plusieurs fois son prix, et un mécanisme trop cher finit par être contourné.
 
 *Garde-fou :* si une revue sur de la documentation rate un point qu'une relecture humaine attrape, revenir au modèle courant partout. Une revue économique qui ne trouve rien est le pire des deux mondes, puisqu'on croit avoir été relu.
+
+**Le garde-fou a déclenché, et le remède appliqué est plus étroit que celui qu'il prescrivait.**
+
+Mesuré sur deux pull requests. La #45 portait neuf entrées de `decisions.md`, les sections 6 et 7 des contrats et le catalogue de plugins réécrit, sur 908 lignes : le petit modèle l'a relue en **trois** appels d'outils et rendu un verdict vide, alors qu'une relecture manuelle du même diff avait trouvé deux erreurs, un compte de plugins faux et un raisonnement attribué au document qui disait l'inverse. La #46, 120 lignes, a été relue en **vingt** appels et le relecteur a réellement vérifié.
+
+Donc le petit modèle n'est pas incapable, et « revenir au modèle courant partout » aurait puni le cas où il fonctionne. Ce qui a échoué est le **critère** : l'emplacement des fichiers ne suit pas le raisonnement qu'un diff demande, et `decisions.md` en est la preuve, documentation par son dossier et registre de décisions par son contenu.
+
+D'où quatre noms ajoutés au côté « modèle courant » plutôt qu'une bascule générale. Le critère reste mécanique, ce qui était le point de départ.
+
+*Ce qui rouvrirait la bascule générale :* une seconde revue vide sur de la prose ordinaire, celle qui n'est ni contrat ni règle de travail. Alors le remède du garde-fou s'appliquerait tel qu'il est écrit.
 
 ### Les points sont résolvables, et bloquants
 
@@ -1191,6 +1204,26 @@ Première ligne du commentaire. Invisible au rendu, cherché tel quel par le wor
 **Pourquoi ce découpage plutôt qu'une action de revue.** Une action qui appelle une API de modèle demande une clé, facturée à chaque poussée. Ici le coût est couvert par l'abonnement, et le prompt vit dans le dépôt, donc versionné et améliorable. Le compromis assumé : ce n'est pas automatique.
 
 **Ce qui casse si on l'enlève.** Le mécanisme repose entièrement sur la discipline de lancer `/review`. Sans le contrôle, cette discipline tient quelques semaines puis s'efface, et on croit être relu alors qu'on ne l'est plus.
+
+### L'exemption de la prose
+
+**Ce que ça fait.** `require-review.yml` passe au vert sans chercher de marqueur quand tous les fichiers du diff sont des `.md` et qu'aucun n'est `docs/contracts.md`, `docs/decisions.md`, `CLAUDE.md` ni sous `.claude/`. Une correction de coquille se fusionne donc sans revue.
+
+**Pourquoi.** Deux verdicts vides d'affilée sur des diffs de documentation. Le skill nomme lui-même le seul mode d'échec qui compte : une revue qui invente des remarques pour se justifier apprend à ne plus lire les suivantes, et une suite de revues vides fait exactement ça. Exiger une procédure là où elle ne rend rien est le meilleur moyen de la voir contournée là où elle rend quelque chose.
+
+`CLAUDE.md` était muet sur la première revue d'une pull request : sa règle sur la documentation porte sur le fait de **relancer** un tour après du code ajouté post-revue. Le workflow remplissait ce silence par « toujours ».
+
+**Ce qui casse si on l'enlève.** Rien immédiatement, et c'est le risque : chaque correction de prose redemande un tour de revue, les verdicts vides s'accumulent, et le jour où un verdict porte un vrai point bloquant il est lu comme les précédents.
+
+**Trois détails d'implémentation qui ont une raison.**
+
+Le job **s'exécute et rend un succès**, il n'est pas sauté par un `paths-ignore`. Un contrôle sauté et un contrôle réussi ne se valent pas le jour où `main` sera protégée.
+
+Une liste de fichiers vide **exige une revue** au lieu de l'exempter. Une liste vide veut dire qu'on n'a rien pu lire, pas que le diff est vide, et bloquer est la direction sûre.
+
+Le job **ne sort jamais un nom de fichier**, seulement un compte et un booléen, pour la même raison que l'étape suivante ne sort jamais le corps d'un commentaire : une chaîne venue du dépôt pourrait porter une commande de workflow.
+
+*Éprouvé :* le classement a été passé sur onze cas avant d'être commité, et le onzième a trouvé un trou. Un diff ne touchant que `.claude/skills/review/SKILL.md` passait pour de la prose, donc le mécanisme de revue pouvait se modifier sans revue. D'où `.claude/**` dans la liste.
 
 ### Deux détails d'implémentation qui ont une raison
 
