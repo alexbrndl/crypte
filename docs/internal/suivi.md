@@ -12,6 +12,19 @@ Une ligne disparaît quand le point est traité, pas avant. Les niveaux sont dé
 
 ## Important
 
+### Le chemin « prose seule » de `require-review.yml` n'a jamais été exécuté en CI
+
+`test/review-check.mjs` classe un diff et n'exige la revue que s'il ne se relit pas tout seul. Les deux branches sont couvertes par `test/review-check.test.mjs`, vingt cas, et la branche **« fait foi »** est en plus vérifiée en conditions réelles : l'exécution du contrôle sur la PR 47 a écrit « Nature du diff : fait foi », trouvé les deux revues et signalé l'écart de dates.
+
+La branche **« prose seule »**, celle qui fait passer le contrôle au vert sans chercher de marqueur, n'a en revanche jamais tourné sur une vraie pull request. Il faudrait pour ça une pull request dont tous les fichiers soient des `.md` hors des cinq formes qui font foi, et cette pull request-ci n'en est pas une.
+
+*Pourquoi ce n'est pas éprouvé ici :* fabriquer une pull request de prose jetable pour voir le vert coûte un aller-retour complet, et le mode d'échec serait visible immédiatement au prochain diff de prose réel, sans conséquence : un contrôle qui exige une revue quand il ne devrait pas se voit tout de suite, alors que l'inverse serait silencieux. C'est la direction sûre qui est éprouvée.
+
+*Ce qui le tranchera :* la prochaine pull request de prose seule. Si `has-review` y échoue au lieu de passer, le classement se trompe, et le log dira laquelle des deux raisons il a retenue.
+
+*Origine :* auto-relecture de la PR #47, après la seconde revue.
+
+
 ### `optimizeDeps.include` ne tient que les paquets nommés par la configuration
 
 `configPackages(project)` rend les spécificateurs bare importés par `adapter` et `wrap`, soit `['@crypte/react']` sur la démonstration. Les runtimes React ne sont donc pas dans `include` : mesuré sur `apps/demo/node_modules/.crypte/deps/_metadata.json`, `react`, `react-dom`, `react/jsx-runtime`, `react/jsx-dev-runtime` et `react/compiler-runtime` y sont des entrées optimisées **distinctes** de `@crypte/react`. L'optimiseur les découvre, il ne les emporte pas. La revue en déduit qu'un `crypte dev` réel prend un `full-reload` sous la première page de l'utilisateur.
