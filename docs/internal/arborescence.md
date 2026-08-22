@@ -165,9 +165,8 @@ Construit à l'avance et copié dans `packages/cli/dist/shell`. La page de la pr
 | -- | -- | -- |
 | `architecture.md` | rôle de chaque mécanisme et ce qui casse sans lui | qui modifie le dépôt |
 | `arborescence.md` | ce fichier | qui cherche où se trouve quoi |
-| `plugins.md` | catalogue des dix-sept plugins et des phases | la planification |
+| `plugins.md` | catalogue des plugins, leur statut gratuit ou payant, et le chantier qui les porte | la planification |
 | `suivi.md` | points de revue arbitrés, non corrigés | la revue, qui ne les re-signale plus |
 | `pistes-shell.md` | propositions issues de l'exploration d'interface, non arbitrées | qui ouvrira les lots du shell |
 | `placement-ui.md` | ce qui est public dans `core/ui`, ce qui reste dans le shell, et le prix | les lots 7 à 9, la bibliothèque Figma |
 | `spec-journal.md` | l'historique des versions de la spécification, v0.1 à v0.9 | qui cherche pourquoi un contrat a changé |
-| `test-format-stories.md` | test du format sur cinq composants réels, **périmé sur trois points** | historique |

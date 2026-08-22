@@ -10,6 +10,190 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 ---
 
+## The published catalogue is MIT, and the paid line is one editor against many
+
+_2026-08-21_
+
+**Decided.** Everything the catalogue publishes goes to npm under MIT: the core, the CLI, the adapters, and every plugin named in `docs/internal/plugins.md` as free. What is sold is `crypte serve` in **multi-user** mode, and a reserve of twelve plugins that have never been published and so are still free of any licence.
+
+Two plugins were candidates for the paid side and stay free. `visual-tests` carries the visual rendering of pull requests, which none of the four competitors offers and which Backlight had put at the head of its pitch: pricing it removes it from the adoption argument exactly where it earns the most. `coverage` computes a metric from the code, which **is** the project's differentiator rather than an extra.
+
+**Rejected.** Three lines. « Local is free, a server is paid », which the Nuxt UI Pro model breaks: local code under licence, free in development, a key to build in production, no infrastructure to operate. « Local against deployed », which cannot be detected honestly: listening on `0.0.0.0`, owning a domain, running in a container, each is one line away. And per-feature gating, the most fragmenting of the three possible tiers.
+
+**Why one editor against many.** Nobody deploys a single-identity `serve` for their team: every contribution would be signed by the same person and review loses its point. This is not a crippled feature somebody would want to uncripple, it is a mode that does not answer a team's need, so the boundary holds without a lock.
+
+**Why now, and only now.** A version published under MIT stays MIT forever. The licence of later versions can change, a contributor whose code changes licence does not come back. Nothing is published yet, which is the one window where this costs nothing. **The order of the moves matters more than the moves.** Tracked in DCJ-234, which blocks DCJ-178.
+
+**One contradiction closed with it.** `plugins.md` has carried « Télémétrie. Non. » since the first pass, and the strategy notes describe reported analytics. The resolution: **no telemetry in the free CLI, announced analytics in paid `serve`.** On a tool that lives inside its users' code, telemetry discovered costs infinitely more than telemetry announced.
+
+**What would reopen it.** A plugin on the free list turning out to be the only thing anybody would pay for, which would mean the sorting criterion is wrong rather than the licence. Or a fork that sells what we give away, which the Sentry precedent says happens only on massive success and mostly captures people who would never have paid.
+
+---
+
+## The committed fingerprint stays, and the reason is written down this time
+
+_2026-08-21_
+
+**Decided.** `fingerprint.ts`, the committed reduced fingerprint and its CI lock stay exactly as the entry of 2026-08-13 put them. `test/manifest-size.mjs` stays with them, because it is what produced the figures below.
+
+**What this entry is really for.** A planning note of 2026-08-20 announced the removal of all three « à la passe de roadmap, une autre solution plus simple étant retenue », and **never named the simpler solution**. Worse, the paragraph above that announcement argues the other way: « git fait déjà les deltas. Une empreinte commitée à chaque version, c'est une version complète en apparence et une suite de deltas dans le stockage » is a case *for* committing the fingerprint, not against it. The note contradicts itself.
+
+The first draft of this entry removed the fingerprint and quoted that sentence as the reason. That reading was wrong, and it is the reason this entry exists rather than the removal.
+
+**Rejected.** Removing it on the strength of an announcement whose reason cannot be found.
+
+**Why, and the repository has already paid for this lesson once.** DCJ-167 carried « pas de `tsconfig.json` mais un `jsconfig.json` » without its reason. When the time came to implement it the reason was nowhere, and **the decision ended up inverted after an entire exchange spent looking for it.** Inverting a decision whose rationale is missing is not neutral: it is the documented failure mode of this project, and the fingerprint is the same shape, with code already written.
+
+**What it buys that nothing replaces.** A catalogue change visible in a pull request diff. Rename a story or add a prop, and the committed fingerprint moves, so a reviewer sees it without running anything. « Rebuild the manifest at two commits » covers the changes screen and the comment anchor, at a cost, but it cannot cover this one: **a reviewer reading a diff does not run a build.** Nothing else in the repository makes a catalogue change visible at review time, and making silent changes loud is most of what the controls here exist for.
+
+**What keeping it costs, stated rather than glossed.** One generated-but-committed file with a lock, which `suivi.md` already notes has a narrower scope than the mechanism suggests. And one known wart: reordering a props block changes `source`, so it changes the digest, though the render is identical. That is diff noise on a change that means nothing, and it is the one thing worth fixing.
+
+**The measurements, kept here so they outlive the script.** A synthetic manifest with eight documented props per component: 34.1 KB raw and 5.2 KB gzipped at 23 stories, 140.1 KB and 17.8 KB at 100, 706.2 KB and 83.9 KB at 500, 2.8 MB and 330.5 KB at 2000. The reduced fingerprint: 268 bytes per story, so 130.9 KB raw and 9.4 KB gzipped at 500 stories, with the committed fixture confirming 261 bytes per entry. **The ratio between the two files is 5.4**, not the 6.5 first published nor the 8.5 that followed: the figure moved three times, each time because the measurement was not taken on the shape the producer actually writes.
+
+Full copies of the manifest do not hold: 500 versions of a 500-story project weigh 41 MB gzipped. That is what the fingerprint exists instead of.
+
+**What would reopen it.** Someone naming the simpler solution, which nobody has yet. Or a project whose fingerprint changes on every build anyway, which would mean the reduced form keeps something it should not, and which would be measured before moving.
+
+---
+
+## The manifest carries more than stories: `tokens` now, `page` in two stages
+
+_2026-08-21_
+
+**Decided.** Two entry kinds leave the reserve of section 7.
+
+**`tokens` splits in two.** The `TokensEntry` type belongs to the protocol, discovery and reading belong to `@crypte/tokens`: CSS variables, DTCG, a `tokens.ts` module, Tailwind, and that list will only grow, which is the definition of a plugin. The plugin has two surfaces, not one, because `getComputedStyle` is the only way to read a value that is correct in both light and dark, and a `node` hook runs before any browser exists.
+
+**`page` splits by stage.** Stage one is markdown in the repository, discovered the way stories are, rendered next to components, no server. Stage two is the same files edited by designers and returned as a pull request, which needs `crypte serve`.
+
+**Rejected.** Putting the token formats in the core, which would make every new format a core release. Treating `page` as one piece of work, which is what made it look expensive and far away. And a token manager in the sense zeroheight and Supernova mean it, being the store of record and syncing from Figma as the source: that is a separate product, and its direction of travel is the opposite of ours.
+
+**Why the split is not new.** It is the line prop extraction already follows. The CLI and the adapter fill `details`, and `@crypte/docs` only draws a table from it. The line is not important against unimportant, it is **producing data against displaying it**.
+
+**Why now.** Not internal tidiness. zeroheight and Supernova both ship a token manager, and both sell guidelines as the thing neither Figma nor Storybook exposes. And `tokens` is the first plugin that writes to the manifest, so it is what exercises `NodeHooks` before that contract is frozen: if the API has to move, one plugin has to be fixed.
+
+**A hard prerequisite this creates.** No plugin can contribute manifest entries today. `NodeHooks` is named in section 6 and never specified, and it is now the bottleneck of three separate pieces of work. Tracked in DCJ-227.
+
+**What would reopen it.** A project whose tokens cannot be read without running its build, which would put us back into reading a `vite.config` and is refused by the first principle.
+
+---
+
+## Three plugins are on by default, and a named `plugins` list gets exactly those
+
+_2026-08-21_
+
+**Decided.** `docs`, `controls` and `tokens` are enabled by default and can be switched off. The CLI declares them as dependencies and enables them when no configuration says otherwise, so the dependency runs the right way: the CLI depends on plugins, the core never does.
+
+No configuration file, or a file with no `plugins` field: the preset. A `plugins` field that is defined: **exactly** what it lists. The CLI exports a `defaultPlugins` array to spread for anyone who wants the preset plus their own.
+
+**Rejected.** No preset at all, which leaves a first run showing components and nothing else. And a defined `plugins` field that still keeps the preset, which is the magic this convention exists to prevent: **nobody should ever wonder where a plugin they did not write came from.**
+
+**Why.** The difference between a tool that displays components and a tool that is useful on the first command is a props table, an edit panel and the project's tokens. All three are derived from what the project already contains, so none of them asks the user for anything.
+
+**What it makes mandatory rather than nice.** A default plugin must be **invisible when it has nothing to say**. No empty section in the sidebar, no « no tokens found » message. That is the `inapplicable` rule of the entry above, and it stops being a comfort here: these three run for people who never asked for them.
+
+**A tension to hold rather than hide.** The README promises that nothing you have not installed is ever loaded. Three defaults do not contradict the sentence, they are installed, but they make it less striking. The counterweight is DCJ-193: each plugin's weight shown in the status bar makes the claim checkable instead of rhetorical.
+
+**What would reopen it.** A preset plugin that costs enough at start-up to be felt, or one that turns out to be wrong often enough that switching it off becomes the normal move.
+
+---
+
+## The manifest is published; the Storybook format is an export, never ours
+
+_2026-08-21_
+
+**Decided.** The manifest format is published, documented and versioned. It is what we ask other tools to read.
+
+Separately, and never confused with it, `crypte build` can also write an `index.json` in Storybook's shape and serve an `iframe.html?id=` with the same identifier convention. That is **an export labelled as compatibility**, not the format of Crypte. If Storybook breaks its format, we break an export, not an identity.
+
+**Rejected.** Keeping the manifest internal, which would leave « our source of truth is computed » unverifiable by anyone. And presenting the Storybook shape as a supported format of ours, which would tie a contract to somebody else's release notes.
+
+**Why publish.** zeroheight, Supernova and Knapsack all read Storybook's `index.json`. A public format is what lets the question be turned around: not « Crypte against zeroheight », which is meaningless since they are not the same product, but « why your documentation tool can read a Crypte ». That turns three competitors into channels.
+
+**Why the export waits.** The rule « only cover what real use has shown » **cannot decide this one**: nobody can ask for the compatibility because nobody uses Crypte. It is the only case in the project where the rule is silent rather than binding, which is why it is written down as a known lever with a trigger instead of being built. The trigger: the first user who already runs zeroheight, Supernova or Knapsack. Tracked in DCJ-241.
+
+**What it costs.** A public format is a contract that does not get broken, so `MANIFEST_VERSION` stops being an internal number. And the licence of the format has to be chosen when it is published, not two years later: the Sentry precedent is that a compatible reimplementation does appear, GlitchTip and Bugsink both exist, and that the defence is being better than free rather than being closed.
+
+**What would reopen it.** A consumer that reimplements the producer rather than the reader, which is the one case where an open format costs more than it brings.
+
+---
+
+## MCP for agents, HTTP or the GitHub API for the plugin
+
+_2026-08-21_
+
+**Decided.** The same data sits behind two doors. Agents get MCP: a local stdio server that reads the manifest, roughly a hundred lines, no network and nothing to host. The Figma plugin gets HTTP and the GitHub API. **MCP is never the transport between the plugin and `serve`.**
+
+**Rejected.** One MCP endpoint serving both, which is the shape that looks tidiest on a diagram.
+
+**Why.** MCP is designed for a model calling tools, not as an application-to-application protocol. Proof by example: figma-console-mcp exposes MCP to agents and its own Figma plugin talks to its server over WebSocket.
+
+**Why the local server is free on purpose.** It is a distribution channel, not a feature: an agent that knows Crypte recommends it, and that costs less than a comparison page. It is also the differentiator made concrete, since a manifest derived from the source cannot go stale the way hand-written context does. For scale, zeroheight caps its hosted MCP at 500 calls a month on Free and Starter; a local server has neither a quota nor a bill.
+
+**The boundary, stated rather than hidden.** A local manifest serves neither a designer in Figma nor a product manager in Slack. Those need a remote endpoint, so a server, so `serve`, so later. The boundary is comfortable: the agent writing the code is the one that needs the most exact context.
+
+**What would reopen it.** MCP growing a transport story for application-to-application use, or a remote endpoint arriving for other reasons and making a second protocol the more expensive option.
+
+---
+
+## Nobody has a Crypte account except the person who paid
+
+_2026-08-21_
+
+**Decided.** `serve` never asks a Crypte database who a designer is. **GitHub is the authentication**, through the device flow, the same one the Figma plugin uses. Identity is the GitHub account, authorisation is write access to the configured repository, and the repository's collaborator list is the team.
+
+Seats are counted without identities. `serve` generates a random salt at install and never sends it; on a new account's first write it sends the salted hash of the numeric id and nothing else; the service answers with a signed seat token valid thirty-five days.
+
+Licence validation is online and mandatory, and **degrades instead of stopping**: on failure `serve` falls back to single-user mode. An expired date is non-payment and degrades immediately with no grace; a failed check on a still-valid licence is an incident, the buffer runs and the user sees nothing. **The buffer never covers non-payment, only unavailability.**
+
+**Rejected.** Accounts for the clients' designers, which would mean holding the identity of other companies' employees, becoming a critical point of failure in their work, and a GDPR scope that explodes. A local-only seat registry, which a script that deletes it defeats in seconds. And « signed key offline, never block », which was asserted as the industry norm and **was not**: Sentry sells nothing at that point at all, GitLab had exactly that model and abandoned it on 7 July 2022 for cloud activation codes with daily sync, and Metabase disables the paid features when `token-check.metabase.com` cannot be reached.
+
+**Why the salt is the mechanism and not a detail.** The space of GitHub numeric ids is far too small for an unsalted hash to be irreversible. And the id **is** an identity: `GET /user/{id}` returns the login, the name and the avatar with no authentication. Public accessibility does not make it less personal data, because the GDPR governs the processing and not the difficulty of obtaining it.
+
+**What counting has to be.** Not unforgeable, **observable**. The distinction decides everything, because the second one is free: deleting the local registry stops helping once rebuilding it means asking for tokens again and meeting the counter.
+
+**Three Metabase bugs avoided by construction.** Validation never sits in a request path, or an expired token becomes a denial of service against your own endpoint. Backoff is exponential and capped, or a thousand clients failing at once finish off the endpoint as it tries to come back. Log transitions, not attempts.
+
+**What would reopen it.** A client that cannot reach the internet at all, which GitLab handles as a commercially approved exception rather than a product mode, and which we would handle the same way.
+
+---
+
+## Story generation reads calls, not signatures
+
+_2026-08-21_
+
+**Decided.** The story-generation skill reads **where a component is called in the application**, not its type signature. `crypte check` already lists components with no story; the agent starts from that list, looks at the real call sites, and proposes the cases it finds. The human keeps some, drops others, and above all **names** them.
+
+**Rejected.** Enumerating prop combinations, which yields Knapsack's output with one more step and a folder of stories nobody chose.
+
+**Why.** This is the substance of the disagreement with Knapsack, whose thesis is that writing stories by hand is wasted work and the tool should read the component and generate demos and controls itself.
+
+**Inference gives the surface, a story gives the case.** Inference knows `ProgressLoader` has a `progress` prop between 0 and 100. It will never know that 30 deserves to exist, that it is called « Étape 2 », and that it is worth a baseline. Their position holds for a button, where prop combinations exhaust the cases. It falls apart the moment a component has a lifecycle.
+
+The name is the one thing no inference produces, and it is also what makes a story readable six months later.
+
+**Why it is a shipping decision and not just an argument.** A skill versioned in the repository, that any Claude Code user runs on their own project, costs less than a comparison page and convinces better. Tracked in DCJ-238.
+
+**What would reopen it.** A component library where call sites turn out to be less informative than the type surface, which would most likely mean the components are pure presentation and have no lifecycle to describe.
+
+---
+
+## The Figma reference state lives in the DTCG file's `$extensions`
+
+_2026-08-21_
+
+**Decided.** Figma variable ids are kept in the `$extensions` of the DTCG file itself. A token carrying an id that no longer exists in Figma was deleted on the design side; a token with no id is new on the code side.
+
+**Rejected.** A separate reference file committed next to the manifest, which was the first idea.
+
+**Why two states are not enough.** One-way, code to Figma, needs two. As soon as it is bidirectional a variable present in Figma and absent from the code has two possible histories: the designer just added it, or the developer just removed it. Seen head-on the two situations are identical and they call for opposite actions. Carrying the id makes the distinction fall out on its own, with no third file to maintain, commit and reconcile. The mechanism is figma-console-mcp's, and it is MIT.
+
+**What comes with it.** The link from a Figma file to a repository lives in `figma.root.setPluginData`, so the whole team inherits the same one and the file is explicitly the design system file of that repository; `figma.clientStorage` would be per user and per machine, and two people could point at two repositories without knowing. The access token lives in `clientStorage`, per user. **The link is shared, the identity is not.**
+
+**What would reopen it.** A DTCG consumer that rejects unknown `$extensions`, which the specification allows for but nothing observed does.
+
+---
+
 ## A panel with nothing to say says `inapplicable`, and why
 
 _2026-08-21_
