@@ -50,16 +50,20 @@ Un plugin peut être coupé en deux, basique gratuit et avancé sous licence. Tr
 
 Les phases `Isoler / Outiller / Collaborer` sont retirées. Elles portaient la mention « à confirmer, les changer ne coûte rien » depuis l'origine, et le séquencement issu de la refonte ne les suit plus.
 
-| Préfixe | Ce qui change à l'issue |
+| Phase | Ce qui change à l'issue |
 | --- | --- |
-| `[1]` | l'outil est utilisable et son quatrième contrat est figé |
-| `[2]` | il est différencié, et installable par quelqu'un qui ne nous connaît pas |
-| `[3]` | on écrit dedans, et il y a quelque chose à vendre |
-| `[R]` | réserve, sans engagement de date |
+| `1` | l'outil est utilisable et son quatrième contrat est figé |
+| `2` | il est différencié, et installable par quelqu'un qui ne nous connaît pas |
+| `3` | on écrit dedans, et il y a quelque chose à vendre |
+| `R` | réserve, sans engagement de date |
+
+Chaque projet du tracker porte un **sous-numéro** qui donne son ordre dans la phase, de `1.1` à `3.3`. `R` n'en a pas : il n'a aucun voisin à départager, et lui donner une position dans une séquence contredirait « sans engagement de date ».
+
+**La liste des projets n'est pas recopiée ici.** Ce fichier explique la convention, le tracker porte les instances : treize noms recopiés dans un document pourriraient au premier renommage. Les titres ci-dessous portent le numéro du projet qui les tient, et c'est le seul endroit où les deux se touchent.
 
 ---
 
-## `[1]` Contrat de plugin
+## `1.3` Contrat de plugin
 
 | Paquet | Rôle | Surfaces | Statut |
 | --- | --- | --- | --- |
@@ -74,7 +78,7 @@ Tant que les deux n'existent pas, la section 6 change sans procédure. Après, t
 
 ---
 
-## `[2]` Entrée tokens
+## `2.3` Entrée tokens
 
 | Paquet | Rôle | Surfaces | Statut |
 | --- | --- | --- | --- |
@@ -88,7 +92,7 @@ Deux surfaces et non une : `node` découvre les noms et les sources, `preview` r
 
 ---
 
-## `[2]` Outillage quotidien
+## `2.2` Outillage quotidien
 
 | Paquet | Rôle | Surfaces | Statut |
 | --- | --- | --- | --- |
@@ -116,7 +120,7 @@ La version qui se vend est ailleurs : `visual-regression` multi-navigateurs, en 
 
 ---
 
-## `[2]` Plugins par défaut
+## Plugins par défaut
 
 **Décision : `docs`, `controls` et `tokens` sont activés par défaut, et désactivables.**
 
@@ -134,7 +138,7 @@ Le CLI exporte un tableau `defaultPlugins` à étaler, pour qui veut le prérég
 
 ---
 
-## `[R]` Réserve gratuite
+## `R` Réserve gratuite
 
 Sept plugins au catalogue, sans engagement de date.
 
@@ -158,7 +162,7 @@ Sept plugins au catalogue, sans engagement de date.
 
 ---
 
-## `[R]` Réserve sous licence
+## `R` Réserve sous licence
 
 Douze plugins pensés pour la frontière payante. **Aucun n'a jamais été publié, donc tous restent libres de licence.** Aucun ne se développe avant que la frontière soit écrite.
 
@@ -183,7 +187,7 @@ Douze plugins pensés pour la frontière payante. **Aucun n'a jamais été publi
 
 ---
 
-## `[3]` Ce qui dépend de `crypte serve`
+## `3.2` Ce qui dépend de `crypte serve`
 
 | Paquet | Rôle | Surfaces | Statut |
 | --- | --- | --- | --- |
