@@ -21,13 +21,14 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | -- | -- | -- |
 | `.github/workflows/ci.yml` | format, lint, types, build, tests | chaque pull request et push |
 | `.github/workflows/version.yml` | maintien de la PR de version | chaque fusion sur `main` |
-| `.github/workflows/require-review.yml` | contrôle de présence d'une revue | chaque pull request |
+| `.github/workflows/require-review.yml` | contrôle de présence d'une revue | chaque pull request dont le diff n'est pas de la prose seule |
 | `.github/workflows/require-changeset.yml` | contrôle de présence d'une note de version | chaque pull request |
 | `.github/workflows/ts7-readiness.yml` | sonde mensuelle sur `vue-tsc` | personne, ouvre une issue |
 | `.github/dependabot.yml` | veille sur les actions GitHub | Dependabot |
 | `.github/coverage.json` | le chiffre du badge, commité et vérifié par la CI | shields.io, via le README |
 | `.vite-hooks/pre-commit` | lance `vp staged` | Git, avant chaque commit |
 | `test/manifest-size.mjs` | ce que pèse un manifeste, et le coût d'en garder l'historique | personne, lancé à la main |
+| `test/review-check.mjs` | classe le diff, et cherche le marqueur de revue s'il en faut une | `require-review.yml` |
 | `test/post-review.mjs` | publie un verdict de revue, et vérifie qu'il y est arrivé | `/review` |
 | `test/post-review.test.mjs` | ce que le script refuse de publier | — |
 | `test/changeset-check.mjs` | décide si une pull request doit porter une note | `require-changeset.yml` |

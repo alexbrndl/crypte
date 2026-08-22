@@ -38,7 +38,7 @@ Mesuré : au rafraîchissement du tracker de ce jour, trois issues sur quatre ci
 
 **Commits.** Conventional commits, en anglais, à l'impératif.
 
-**Pull requests : brouillon, revue, puis ouverture.** Dans cet ordre, sans exception.
+**Pull requests : brouillon, revue, puis ouverture.** Dans cet ordre, sans exception, **sauf pour un diff de prose seule**.
 
 ```bash
 gh pr create --draft --title "…"    # 1. jamais directement ouverte
@@ -49,6 +49,14 @@ gh pr create --draft --title "…"    # 1. jamais directement ouverte
 /review                              # 6. si les corrections touchent du code
 gh pr ready <numéro>                 # 7. une fois les points traités
 ```
+
+**La seule exception, et elle est mécanique.** Un diff dont tous les fichiers sont des `.md`, aucun n'étant `docs/contracts.md`, `docs/decisions.md`, `docs/internal/suivi.md`, un `CLAUDE.md` ni quoi que ce soit sous `.claude/`, saute les étapes 3 et 4. `require-review.yml` le constate tout seul et passe au vert.
+
+Ces quatre formes ne sont pas de la prose malgré leur extension : les trois premières font foi, la dernière porte ces règles-ci, donc une erreur dedans se propage à toutes les sessions suivantes.
+
+Le classement vit dans `test/review-check.mjs` et non dans le workflow, pour que `test/review-check.test.mjs` puisse vérifier ce qu'il refuse. Le mode d'échec est une exemption qui s'élargit en silence, et c'est le seul endroit où on le verrait.
+
+_Pourquoi cette exception existe :_ deux revues d'affilée ont rendu un verdict vide sur de la documentation. Le skill nomme lui-même le seul mode d'échec qui compte, une revue qui ne trouve rien apprend à ne plus lire les suivantes. Exiger la procédure là où elle ne rend rien est le meilleur moyen de la voir contournée là où elle rend quelque chose.
 
 **Le statut du tracker suit le travail, pas la fin du travail.** En ouvrant la branche, l'issue passe **In Progress** ; en sortant du brouillon, **Review Tech** ; à la fusion, **Done**. C'est ce qui permet de savoir où en est un lot sans lire une conversation, et ça s'oublie exactement quand le lot devient intéressant.
 

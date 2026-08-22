@@ -10,6 +10,30 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 ---
 
+## The review gate reads authority, not extensions
+
+_2026-08-22_
+
+**Decided.** Two things, which together make one rule: review what carries authority, do not review what merely narrates.
+
+A diff whose every file is a `.md`, none of them `docs/contracts.md`, `docs/decisions.md`, `docs/internal/suivi.md`, a `CLAUDE.md` or anything under `.claude/`, needs no review at all. `require-review.yml` establishes that on its own and passes. Everything else needs one, and those same five forms get the stronger reviewer despite their extension.
+
+The classification lives in `test/review-check.mjs`, covered by `test/review-check.test.mjs`, not in the workflow's YAML.
+
+**Rejected.** Three things. Reviewing everything, which is what the gate did: two consecutive verdicts came back empty on documentation, and the review skill names that failure itself, a review that finds nothing teaches nobody to read the next one. Exempting all documentation, which would have exempted the contracts and the decision record, the one place a review earns its cost. And the guard rail's own remedy, "revenir au modèle courant partout", for the reason below.
+
+**Why those five forms and not a folder.** The old criterion was file location, standing in for how much reasoning a diff demands. It broke on this repository's own shape: `decisions.md` is documentation by its folder and the decision record by its content, and `suivi.md` holds deferred defects with the measurement and the reason not to fix them, which the review reads so it stops re-raising them.
+
+**Why the remedy is narrower than the guard rail asked for.** `architecture.md` already carried the trigger, and it fired: a review missed points a manual re-read caught. But the same measurement shows the cheap reviewer is not the problem. PR #45, 908 lines over nine decision entries, was reviewed in three tool calls and returned nothing, while a manual re-read found two errors. PR #46, 120 lines, was reviewed in twenty calls and genuinely verified. Switching everything back would have punished the case that works. What failed was the criterion, so the criterion is what changed.
+
+**Why the classification is a tested module rather than shell in the workflow.** Its failure mode is an exemption that widens silently, and a `case` block inside a `run:` can only be exercised by pushing. The sibling control had already solved the identical problem this way, `require-changeset.yml` being one line calling `test/changeset-check.mjs`. Measured before extracting: a `CLAUDE.md` nested inside a package, and a contracts file split into a folder, both classified as prose. Neither shape exists today, which is exactly why nobody would have noticed.
+
+**What it cost.** `CLAUDE.md` said "brouillon, revue, puis ouverture, dans cet ordre, sans exception", so this contradicted it and it was amended in the same diff. The exception is now written there too, with the same list, because two documents disagreeing about the review gate is worse than either rule alone.
+
+**What would reopen it.** An empty verdict on **ordinary** prose, the kind that is neither a contract nor a working rule. Both measured empty verdicts touched `decisions.md`, so neither says anything about the cheap reviewer on ordinary prose. The day one does, the guard rail's remedy applies as written.
+
+---
+
 ## Two repositories, and the line between them is not public against private
 
 _2026-08-22_
