@@ -739,9 +739,11 @@ const CONTRIBUTABLE = ['tokens'] as const
 
 **A hook is a plain function, not a method.** Its context arrives as an argument, so it never reads `this`.
 
-**Stories are excluded from what a plugin may contribute.** They come from story files, and a plugin injecting one would bypass discovery and the reporting that goes with it. `Exclude` rather than a list of natures, so a nature added to the manifest widens this on its own.
+**Stories are excluded from what a plugin may contribute.** They come from story files, and a plugin injecting one would bypass discovery and the reporting that goes with it.
 
 **`CONTRIBUTABLE` is the same set at run time, and it is not a duplicate.** `ContributedEntry` holds at compile time, and a plugin is installed compiled: nothing in a published package stops it from handing over `type: 'story'`, which would then enter the manifest and, through the story readers, the committed fingerprint. The producer checks the shape of every entry it is handed before reading anything else from it: an object, a non-empty `id`, and a nature on this list.
+
+**Adding a nature to the manifest means adding it here too.** `Exclude` widens on its own and the list does not, so the two are held together by a type test rather than by good intentions: `packages/core/test/plugin.test-d.ts` stops compiling when they diverge. Without it, a new nature compiled and was then refused at run time with « is not a nature a plugin may contribute ».
 
 **The context carries the project root and nothing else.** The producer runs before any server exists, so there is no Vite resolution to hand over: no plugin, no `exports` field, the same limit 8 records for `component.file`. A plugin's own settings come from its factory, not from here.
 
@@ -753,7 +755,9 @@ const CONTRIBUTABLE = ['tokens'] as const
 
 **This is where 4.5 stops being free.** Everything else the CLI writes is read from source text and serialisable by construction. An entry built by a plugin is the first input that is not, so the CLI checks it rather than letting `JSON.stringify` drop a function without a word.
 
-Both remedies 4.5 names are used, and the line between them is whether dropping changes the value. **A key whose value is `undefined` is left out**, which is what JSON does with it and what leaves the entry unchanged; an optional property spread from a variable that happened to be empty is the common accident, not a defect. **Everything JSON would rewrite is refused instead**, named and located: a function, a `Date` or any non-plain value, `NaN` and the infinities which come back as `null`, an `undefined` inside an array which comes back as `null` too, and a genuine cycle. Two references to one object are not a cycle, and are kept.
+**Anything JSON would not give back as it was is refused**, named and located: a function, a `Date` or any non-plain value, `NaN` and the infinities which come back as `null`, an `undefined` value, and a genuine cycle. Two references to one object are not a cycle, and are kept.
+
+Refusing rather than leaving out, though 4.5 offers both remedies: **no nature a plugin may contribute has an optional property today**, so dropping a key whose value is `undefined` would silently write an entry that no longer satisfies 4.2. That was tried and taken back. A loud refusal naming the key costs the plugin author one line; a silent drop costs a reader a field that should have been there.
 
 ### 6.4 `ctx.props` can be changed before mount
 

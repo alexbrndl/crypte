@@ -15,6 +15,6 @@ A plugin can contribute entries to the manifest.
 
 **The shape of every entry is checked at run time, not only in the types.** `ContributedEntry` holds while a plugin is compiled, and a plugin is installed compiled: nothing in a published package stops it from handing over `type: 'story'`, which would enter the manifest and the committed fingerprint. `CONTRIBUTABLE` is that same set at run time.
 
-Section 4.5 stops being free here: everything else the CLI writes is read from source text and serialisable by construction, so a contributed entry is the first input it checks rather than trusts. Both remedies 4.5 names are used, and the line between them is whether dropping changes the value. A key whose value is `undefined` is left out. A function, a `Date`, `NaN`, an infinity, an `undefined` inside an array, a genuine cycle: refused, named and located. Two references to one object are not a cycle.
+Section 4.5 stops being free here: everything else the CLI writes is read from source text and serialisable by construction, so a contributed entry is the first input it checks rather than trusts. Anything JSON would not give back as it was is refused, named and located: a function, a `Date`, `NaN`, an infinity, an `undefined` value, a genuine cycle. Two references to one object are not a cycle, and are kept.
 
 `UIContribution` and `PreviewHooks` stay opaque. Neither has a caller yet.

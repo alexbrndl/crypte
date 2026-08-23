@@ -65,6 +65,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/plugin-simulation.d.ts` | augmentations simulant un plugin installé | tous les tests sauf `no-plugin/` |
 | `test/protocol/story.test.ts` | points d'extension et format de story | — |
 | `test/protocol/manifest.test.ts` | conformité du catalogue à la spécification | — |
+| `test/plugin.test-d.ts` | lie `CONTRIBUTABLE` aux natures de `ContributedEntry` | — |
 | `test/protocol/channel.test.ts` | formes des messages | — |
 | `test/fake-window.ts` | deux contextes qui s'envoient de vrais messages | les trois tests ci-dessous |
 | `test/ui.test.ts` | filtres et désabonnement du côté shell | — |

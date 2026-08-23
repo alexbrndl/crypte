@@ -179,9 +179,10 @@ describe('la garantie de sérialisation', () => {
     ])
   })
 
-  // Dans un tableau, `undefined` devient `null`, donc le lecteur aurait à le
-  // gérer : seule une clé se laisse tomber.
-  it('refuse un undefined dans un tableau, là où une clé serait laissée tomber', async () => {
+  it('refuse une valeur undefined, en la situant', async () => {
+    expect(await refused(undefined)).toEqual([
+      { plugin: 'p', reason: 'an entry carries undefined at extra' },
+    ])
     expect(await refused([1, undefined])).toEqual([
       { plugin: 'p', reason: 'an entry carries undefined at extra[1]' },
     ])
@@ -245,15 +246,18 @@ describe('la garantie de sérialisation', () => {
     ])
   })
 
-  // Le remède que 4.5 prescrit est « leaving out or rewriting », pas refuser :
-  // une propriété optionnelle laissée à `undefined` est l'accident courant.
-  it('laisse tomber une propriété undefined au lieu de refuser l’entrée', async () => {
+  // Laisser tomber la clé plutôt que refuser a été essayé et repris : aucune
+  // nature contribuable n'a de propriété optionnelle, donc l'abandon écrivait en
+  // silence une entrée qui ne satisfait plus le format. Revue de la PR #51.
+  it('refuse une clé requise laissée à undefined plutôt que de l’abandonner', async () => {
     const catalogue = await build(
-      contributing('p', () => [{ ...tokens('color--brand'), description: undefined }]),
+      contributing('p', () => [{ ...tokens('color--brand'), tokens: undefined }]),
     )
 
-    expect(catalogue.skippedPlugins).toEqual([])
-    expect(catalogue.manifest.entries.at(-1)).not.toHaveProperty('description')
+    expect(catalogue.skippedPlugins).toEqual([
+      { plugin: 'p', reason: 'an entry carries undefined at tokens' },
+    ])
+    expect(ids(catalogue)).not.toContain('color--brand')
   })
 
   it('accepte une entrée que JSON rend telle quelle', async () => {

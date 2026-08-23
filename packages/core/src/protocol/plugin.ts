@@ -35,5 +35,5 @@ export type ContributedEntry = Exclude<ManifestEntry, StoryEntry>
 
 // The same set at run time, because `ContributedEntry` holds at compile time and
 // a plugin arrives compiled: nothing in a published plugin stops it from handing
-// over `type: 'story'`. Kept beside the type so the two are read together.
+// over `type: 'story'`. A type test holds the two in step, `test/plugin.test-d.ts`.
 export const CONTRIBUTABLE = ['tokens'] as const

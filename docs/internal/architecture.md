@@ -982,9 +982,9 @@ Un contrôle plutôt qu'une confiance, parce que le mode d'échec est muet : `JS
 
 `notAnEntry` existe pour la même raison mais contre un autre angle : `ContributedEntry` ne tient qu'à la compilation, et un plugin s'installe compilé. Une entrée `type: 'story'` arrive donc jusqu'ici, et non refusée elle entrerait dans le manifeste puis, par `storiesOf`, dans `fingerprint.json` qui est commité. C'est la revue de la PR #51 qui l'a mesuré.
 
-**Deux remèdes, et la ligne entre eux.** La section 4.5 dit « leaving out or rewriting ». Une clé dont la valeur est `undefined` est laissée tomber, parce que c'est ce que JSON en fait et que l'entrée reste la même : une propriété optionnelle étalée depuis une variable vide est l'accident courant, pas un défaut. Tout ce que JSON réécrirait est refusé, parce que laisser tomber ne le répare pas.
+**Un seul remède, et pourquoi pas les deux.** La section 4.5 dit « leaving out or rewriting », donc laisser tomber une clé dont la valeur est `undefined` était permis, et a été essayé. Repris au tour suivant : aucune nature contribuable n'a de propriété optionnelle, donc l'abandon écrivait en silence une entrée qui ne satisfait plus la section 4.2. Tout est refusé, nommé et situé.
 
-**Ce qui casse si on l'enlève.** Rien tout de suite, et c'est le problème : les stories continuent, le serveur démarre, et un plugin dont une entrée porte une fonction écrit un manifeste amputé en silence. Cinq cas de `packages/cli/test/contributions.test.ts` gardent chaque forme, et mesuré, retirer le seul `if (offends)` en fait rougir cinq.
+**Ce qui casse si on l'enlève.** Rien tout de suite, et c'est le problème : les stories continuent, le serveur démarre, et un plugin dont une entrée porte une fonction écrit un manifeste amputé en silence. `packages/cli/test/contributions.test.ts` garde chaque forme sur vingt-et-un cas. Mesuré : neutraliser `serialisable` en fait rougir huit, retirer `notAnEntry` trois, ignorer `CONTRIBUTABLE` deux, et ne pas relâcher `seen` un.
 
 Le parcours porte un ensemble `seen` pour la même raison : un cycle ferait boucler la fonction, ce qui est pire qu'une erreur. `JSON.stringify` lèverait, lui, mais on ne l'appelle pas, précisément parce que les cas qui comptent sont ceux où il ne lève pas.
 

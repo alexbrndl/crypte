@@ -237,10 +237,11 @@ function notAnEntry(value: unknown): string | undefined {
   return undefined
 }
 
-// Section 4.5's guarantee, whose two remedies are its own words: leave out, or
-// refuse. A key whose value is `undefined` is dropped, since that is what JSON
-// does with it and the entry stays what it was. Everything that JSON would
-// rewrite instead of dropping is refused, named and located.
+// Section 4.5's guarantee: the first value JSON would not return as it was,
+// named and located, or the value itself. Refusing rather than dropping, even
+// for a key JSON would merely leave out: no nature a plugin may contribute has
+// an optional property today, so dropping one silently writes an entry that no
+// longer satisfies the format, which is what this exists to prevent.
 function serialisable(
   value: unknown,
   at = '',
@@ -249,6 +250,7 @@ function serialisable(
   const where = at || 'the entry'
 
   if (value === null) return { value }
+  if (value === undefined) return { offends: `undefined at ${where}` }
   if (typeof value === 'function') return { offends: `a function at ${where}` }
   if (typeof value === 'bigint' || typeof value === 'symbol')
     return { offends: `a ${typeof value} at ${where}` }
@@ -271,10 +273,6 @@ function serialisable(
       const out: unknown[] = []
 
       for (const [index, one] of value.entries()) {
-        // In an array `undefined` becomes `null`, a value the reader would then
-        // have to handle. Only a key can be dropped.
-        if (one === undefined) return { offends: `undefined at ${at}[${index}]` }
-
         const checked = serialisable(one, `${at}[${index}]`, seen)
         if ('offends' in checked) return checked
         out.push(checked.value)
@@ -293,8 +291,6 @@ function serialisable(
     const out: Record<string, unknown> = {}
 
     for (const [key, one] of Object.entries(value)) {
-      if (one === undefined) continue
-
       const checked = serialisable(one, at ? `${at}.${key}` : key, seen)
       if ('offends' in checked) return checked
       out[key] = checked.value

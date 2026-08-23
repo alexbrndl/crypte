@@ -16,7 +16,7 @@ _2026-08-24_
 
 **Decided.** `NodeHooks` carries one hook, `entries`, a plain function taking a context and returning entries. It is **synchronous**. It runs **after the stories**, in the order `plugins` declares. A contribution may not be a story, and the producer checks that at run time as well as in the types. Anything that goes wrong with a contribution, a throw, a wrong return, an entry that is not one, a taken identifier, a value JSON would rewrite, **refuses that contribution and says which plugin it came from**, and nothing stops the server.
 
-The one exception is a key whose value is `undefined`: it is **left out** rather than refused. Both are remedies 4.5 names, and the line between them is whether dropping changes the value.
+4.5 offers two remedies, leaving out and refusing, and only refusing is used. Leaving out a key whose value is `undefined` was tried and taken back within the same pull request: no nature a plugin may contribute has an optional property, so dropping one silently wrote an entry that no longer satisfied 4.2, which is the failure this check exists to prevent.
 
 `CryptePlugin` becomes a real type in the protocol; `@crypte/cli` re-exports it instead of redeclaring it as `unknown`. `UIContribution` and `PreviewHooks` stay opaque.
 
@@ -28,7 +28,7 @@ What makes that safe rather than short-sighted: **nothing is published, and 6.5 
 
 **Why refusing rather than blocking, when a story collision is fatal.** `assertDistinct` throws on two stories sharing an identifier, and that is right: both files belong to the author, who can rename one. A plugin is not the author's text. Two plugins colliding may only be fixable by uninstalling one, and a dev server that will not start is a worse answer than a catalogue missing a panel and a line saying why.
 
-**Why a run-time list beside `Exclude`.** `CONTRIBUTABLE` is not a duplicate of the type: one holds while a plugin is compiled, the other while it runs, and a published plugin only ever does the second. The two live in the same file so they are read together, which is the only thing that keeps them in step.
+**Why a run-time list beside `Exclude`.** `CONTRIBUTABLE` is not a duplicate of the type: one holds while a plugin is compiled, the other while it runs, and a published plugin only ever does the second. What keeps them in step is a type test, `packages/core/test/plugin.test-d.ts`, and not their being in the same file: living side by side was the first answer, and a review pointed out that nobody verified it.
 
 **What would reopen it.** A plugin whose source is genuinely asynchronous, a network call or a database, which makes the promise-tolerant signature worth its race. A plugin that must run before the stories, which no ordering rule covers today. Or a third-party plugin with its own nature of entry, which is what `PluginManifestEntries` would be for, on the model of `PluginPropDetails`.
 
