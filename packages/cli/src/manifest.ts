@@ -237,11 +237,8 @@ function notAnEntry(value: unknown): string | undefined {
   return undefined
 }
 
-// Section 4.5's guarantee: the first value JSON would not return as it was,
-// named and located, or the value itself. Refusing rather than dropping, even
-// for a key JSON would merely leave out: no nature a plugin may contribute has
-// an optional property today, so dropping one silently writes an entry that no
-// longer satisfies the format, which is what this exists to prevent.
+// The first value JSON would not return as it was, named and located, or the
+// value itself. Why refusing rather than dropping: docs/internal/architecture.md.
 function serialisable(
   value: unknown,
   at = '',

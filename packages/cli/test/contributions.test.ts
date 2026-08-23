@@ -246,9 +246,7 @@ describe('la garantie de sérialisation', () => {
     ])
   })
 
-  // Laisser tomber la clé plutôt que refuser a été essayé et repris : aucune
-  // nature contribuable n'a de propriété optionnelle, donc l'abandon écrivait en
-  // silence une entrée qui ne satisfait plus le format. Revue de la PR #51.
+  // Laisser tomber la clé a été essayé et repris, voir docs/internal/architecture.md.
   it('refuse une clé requise laissée à undefined plutôt que de l’abandonner', async () => {
     const catalogue = await build(
       contributing('p', () => [{ ...tokens('color--brand'), tokens: undefined }]),

@@ -757,7 +757,7 @@ const CONTRIBUTABLE = ['tokens'] as const
 
 **Anything JSON would not give back as it was is refused**, named and located: a function, a `Date` or any non-plain value, `NaN` and the infinities which come back as `null`, an `undefined` value, and a genuine cycle. Two references to one object are not a cycle, and are kept.
 
-Refusing rather than leaving out, though 4.5 offers both remedies: **no nature a plugin may contribute has an optional property today**, so dropping a key whose value is `undefined` would silently write an entry that no longer satisfies 4.2. That was tried and taken back. A loud refusal naming the key costs the plugin author one line; a silent drop costs a reader a field that should have been there.
+**Refusing is a third answer, and 4.5 does not offer it.** Its two remedies, leaving out and rewriting, both assume the value is the CLI's to repair; a plugin's entry is not, and rewriting somebody else's data without a word is worse than refusing it. Dropping was tried here and taken back: **no nature a plugin may contribute has an optional property today**, held by a type test in `packages/core/test/plugin.test-d.ts`, so dropping a key whose value is `undefined` silently wrote an entry that no longer satisfied 4.2. A loud refusal naming the key costs the plugin author one line; a silent drop costs a reader a field that should have been there.
 
 ### 6.4 `ctx.props` can be changed before mount
 

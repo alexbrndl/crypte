@@ -7,3 +7,10 @@ import { CONTRIBUTABLE, type ContributedEntry } from '../src/protocol'
 test('la liste d’exécution couvre exactement les natures contribuables', () => {
   expectTypeOf<(typeof CONTRIBUTABLE)[number]>().toEqualTypeOf<ContributedEntry['type']>()
 })
+
+// L'autre invariant que le refus de tout `undefined` invoque : aucune nature
+// contribuable n'a de propriété optionnelle. Le jour où l'une en gagne, refuser
+// devient une sur-restriction, et sans ce cas rien ne le dirait.
+test('aucune nature contribuable ne porte de propriété optionnelle', () => {
+  expectTypeOf<Required<ContributedEntry>>().toEqualTypeOf<ContributedEntry>()
+})

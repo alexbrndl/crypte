@@ -16,7 +16,7 @@ _2026-08-24_
 
 **Decided.** `NodeHooks` carries one hook, `entries`, a plain function taking a context and returning entries. It is **synchronous**. It runs **after the stories**, in the order `plugins` declares. A contribution may not be a story, and the producer checks that at run time as well as in the types. Anything that goes wrong with a contribution, a throw, a wrong return, an entry that is not one, a taken identifier, a value JSON would rewrite, **refuses that contribution and says which plugin it came from**, and nothing stops the server.
 
-4.5 offers two remedies, leaving out and refusing, and only refusing is used. Leaving out a key whose value is `undefined` was tried and taken back within the same pull request: no nature a plugin may contribute has an optional property, so dropping one silently wrote an entry that no longer satisfied 4.2, which is the failure this check exists to prevent.
+4.5's own remedies are leaving out and rewriting, and neither is used: both assume the value is ours to repair, and a plugin's entry is not. Refusing is a third answer, added here. Leaving out was tried and taken back within the same pull request: no nature a plugin may contribute has an optional property, held by a type test, so dropping one silently wrote an entry that no longer satisfied 4.2, which is the failure this check exists to prevent.
 
 `CryptePlugin` becomes a real type in the protocol; `@crypte/cli` re-exports it instead of redeclaring it as `unknown`. `UIContribution` and `PreviewHooks` stay opaque.
 
