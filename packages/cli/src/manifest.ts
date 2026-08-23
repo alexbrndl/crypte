@@ -28,10 +28,16 @@ export interface Catalogue {
   wasStory: string[]
 }
 
+// The story entries of a manifest. A manifest carries other natures, `tokens`
+// among them, and every reader below wants fields only a story has.
+export function storiesOf(manifest: Manifest): StoryEntry[] {
+  return manifest.entries.filter((entry): entry is StoryEntry => entry.type === 'story')
+}
+
 // The story files that produced an entry, each once. Only those: the preview
 // imports them by name, so a file the reader set aside must not be in the list.
 export function storyFilesOf(catalogue: Catalogue): string[] {
-  return [...new Set(catalogue.manifest.entries.map((entry) => entry.storyFile))]
+  return [...new Set(storiesOf(catalogue.manifest).map((entry) => entry.storyFile))]
 }
 
 // `before` is the catalogue this one replaces, and it exists for one message:

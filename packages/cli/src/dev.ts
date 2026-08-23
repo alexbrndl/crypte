@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { readFileSync, watch, type FSWatcher } from 'node:fs'
 import { createServer, type ViteDevServer } from 'vite'
 import { fingerprintOf, writeFingerprint } from './fingerprint'
-import { buildCatalogue, writeCatalogue, type Catalogue } from './manifest'
+import { buildCatalogue, storiesOf, writeCatalogue, type Catalogue } from './manifest'
 import { loadProject, viteConfigOf, type Project } from './project'
 import { configPackages, servePlugin, PREVIEW_ENTRY_ID, PREVIEW_PAGE } from './serve'
 
@@ -104,7 +104,7 @@ export async function startDev(
 // no reload on an ordinary edit: changing a prop's value leaves both untouched.
 function shape(catalogue: Catalogue): string {
   return JSON.stringify([
-    catalogue.manifest.entries.map((entry) => [
+    storiesOf(catalogue.manifest).map((entry) => [
       entry.id,
       entry.name,
       entry.path,
@@ -425,7 +425,7 @@ export async function dev(input: string, log = console.log): Promise<Running> {
       for (const line of fresh) log(line)
     }
 
-    log(`crypte.config.ts changed, ${next.held.catalogue.manifest.entries.length} stories`)
+    log(`crypte.config.ts changed, ${storiesOf(next.held.catalogue.manifest).length} stories`)
     next.server.printUrls()
   }
 
@@ -459,7 +459,7 @@ export async function dev(input: string, log = console.log): Promise<Running> {
     for (const line of dites) log(line)
   }
 
-  log(`${held.catalogue.manifest.entries.length} stories`)
+  log(`${storiesOf(held.catalogue.manifest).length} stories`)
   server.printUrls()
 
   return {

@@ -7,15 +7,21 @@ import App from '../src/App.vue'
 // rien n'exécutait hors navigateur : 184 lignes, et la couverture ne pouvait même
 // pas le lire faute d'un test qui le charge. Voir docs/internal/architecture.md.
 
-const entry = (id: string, name: string, path: string[], storyFile: string): StoryEntry =>
-  ({
-    id,
-    name,
-    path,
-    storefile: storyFile,
-    storyFile,
-    component: { name: 'Badge', file: 'x' },
-  }) as never
+// Entrée complète, et sans `as never` : la version d'avant n'avait pas de champ
+// `type`, ce que le transtypage taisait. Le shell ne lisait donc que des entrées
+// qu'aucun producteur n'écrit, et douze cas d'ici en dépendaient.
+const entry = (id: string, name: string, path: string[], storyFile: string): StoryEntry => ({
+  type: 'story',
+  id,
+  name,
+  path,
+  storyFile,
+  component: { name: 'Badge', file: 'x', export: 'default' },
+  options: {},
+  details: {},
+  props: [],
+  source: '<Badge />',
+})
 
 const badge = entry('badge--defaut', 'Par défaut', ['Badge'], 'stories/Badge.tsx')
 const alerte = entry('badge--alerte', 'Alerte', ['Badge'], 'stories/Badge.tsx')

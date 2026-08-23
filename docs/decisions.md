@@ -10,6 +10,24 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 ---
 
+## A tokens entry is a family, and every token is read per theme
+
+_2026-08-23_
+
+**Decided.** Four shapes, and they are together because getting any one wrong is a manifest break rather than an added field.
+
+One `TokensEntry` carries a **family**, not a single token. `path` and `name` place it in the tree the way a story's do, and `tokens` is keyed by token name, so the value has no `name` of its own. `themes` is **required**, so a project with a single theme holds one key. `value` is always the resolved literal and `alias` is the chain that led to it, ordered from the token towards the literal. `MANIFEST_VERSION` stays at `1`.
+
+**Rejected.** One entry per token, which a three-hundred-token design system turns into three hundred entries for a thing nobody navigates to on its own. A single `value` with themes added later, which would have changed the shape of every token in every manifest. An `alias` that replaces `value` instead of accompanying it, which would make drawing a swatch depend on resolving a chain. An open `type: string`, which no negative test can hold. And a `PluginTokenValue` extension point, since no plugin asks for one and the lot's own frontier excludes `PluginManifestEntries` for the same reason.
+
+**Why keyed rather than listed.** The precedent is already in the file: `StoryEntry.details` is a `Record` keyed by prop name for exactly this reason, and a token identifier is derived the same way a story's is, per section 4.3. So a comment or a diff still anchors on one token without one token being one entry.
+
+**Why the version does not move.** `"tokens"` was a reserved value of a `type` field that has existed since v1.0, and the reserve was put there for this. Nothing required moved on `StoryEntry`, so a reader that only knows stories skips what it does not recognise. The rule that does force a bump, adding a required field once a published version writes manifests, is in `suivi.md` and is untouched: nothing is published.
+
+**What would reopen it.** A real reader in `@crypte/tokens` finding a token whose kinds do not fit the six, which widens `TokenKind` and costs nothing. A format where a family cannot be decided without reading the file, which would move the grouping out of the entry. Or a consumer that needs to know which file a family came from, which is an optional field and deliberately deferred to the plugin that will demonstrate it.
+
+---
+
 ## The review gate reads authority, not extensions
 
 _2026-08-22_

@@ -6,6 +6,7 @@
 
 import type { ResolvedPropDetails } from './prop'
 import type { StoryMeta } from './story'
+import type { TokenValue } from './tokens'
 
 export interface Manifest {
   // Not `typeof MANIFEST_VERSION`: this field exists to spot a manifest written
@@ -25,9 +26,9 @@ export interface SkippedFile {
   reason: string
 }
 
-// `page` and `tokens` are reserved for design-system work: the field is here so
-// that they will not force a migration.
-export type ManifestEntry = StoryEntry
+// `page` stays reserved for design-system work: the field is here so that it
+// will not force a migration.
+export type ManifestEntry = StoryEntry | TokensEntry
 
 export interface StoryEntry {
   type: 'story'
@@ -59,4 +60,17 @@ export interface ComponentRef {
   export: string
 }
 
+// One entry is a family shown as a page, not a single token. No `options`:
+// nobody writes a tokens entry by hand, a plugin produces it.
+export interface TokensEntry {
+  type: 'tokens'
+  id: string
+  path: string[]
+  name: string
+  // Keyed by token name, hence no `name` field in the value, as `details` is.
+  tokens: Record<string, TokenValue>
+}
+
+// Unchanged by `tokens`: the reserved `type` is what a new nature was for, and
+// nothing required moved on `StoryEntry`. See docs/internal/suivi.md.
 export const MANIFEST_VERSION = 1

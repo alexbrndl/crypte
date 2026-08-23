@@ -12,6 +12,28 @@ Une ligne disparaît quand le point est traité, pas avant. Les niveaux sont dé
 
 ## Important
 
+### Rien dans le dépôt ne type les fichiers `.vue`
+
+`vp check` a `typeCheck: true` et couvre les `.ts`, tests compris. Il ne lit pas les SFC. `apps/shell/package.json` porte bien un script `typecheck` qui lance `vue-tsc --noEmit`, mais **aucune commande du dépôt ne l'appelle** : ni `vp check`, ni `vp test`, ni le script `ready`, ni un workflow.
+
+*Mesuré :* en élargissant `ManifestEntry` à `StoryEntry | TokensEntry`, `apps/shell/src/App.vue` cassait sur deux lignes, 101 et 105. `vp check` a rendu « 0 errors », la suite a rendu 675 passés, et `pnpm typecheck` lancé à la main dans `apps/shell` a rendu les deux `TS2322` et `TS2345`. Le trou est donc constaté, pas supposé.
+
+*Pourquoi ce n'est pas fait ici :* brancher `vue-tsc` dans `ready` ou dans l'intégration continue ajoute une pièce mobile, donc une décision, donc une issue. La corriger au passage la ferait partir sans revue, ce qui est exactement le mode d'échec que `CLAUDE.md` nomme. Suivi dans `DCJ-269`.
+
+*Ce qui l'aggrave :* `vp test` typecheck via `tsconfig.types.json`, dont l'`include` ne porte que `**/*.test-d.ts`. Un `@ts-expect-error` dans un `.test.ts` n'est donc vérifié que par `vp check`, et pas du tout dans un `.vue`.
+
+*Origine :* lot du contrat de plugin, étape 1, en élargissant l'union du manifeste.
+
+### Une fixture du shell fabriquait des entrées sans champ `type`
+
+Le `entry()` de `apps/shell/test/app.test.ts` rendait un objet transtypé `as never`, sans `type`, avec un champ `storefile` en trop à côté de `storyFile`, et un `component` sans `export`. Douze cas lisaient donc des entrées qu'aucun producteur n'écrit.
+
+*Corrigé dans ce lot*, l'entrée est complète et le transtypage est parti. La ligne reste ici parce que la cause ne l'est pas : `as never` sur une fixture désarme le contrôle de forme, et rien n'interdit d'en réécrire un demain.
+
+*Ce qui l'a révélé :* le filtre sur `entry.type === 'story'` dans `App.vue`, qui a vidé l'arbre des douze cas d'un coup.
+
+*Origine :* lot du contrat de plugin, étape 1.
+
 ### `optimizeDeps.include` ne tient que les paquets nommés par la configuration
 
 `configPackages(project)` rend les spécificateurs bare importés par `adapter` et `wrap`, soit `['@crypte/react']` sur la démonstration. Les runtimes React ne sont donc pas dans `include` : mesuré sur `apps/demo/node_modules/.crypte/deps/_metadata.json`, `react`, `react-dom`, `react/jsx-runtime`, `react/jsx-dev-runtime` et `react/compiler-runtime` y sont des entrées optimisées **distinctes** de `@crypte/react`. L'optimiseur les découvre, il ne les emporte pas. La revue en déduit qu'un `crypte dev` réel prend un `full-reload` sous la première page de l'utilisateur.
@@ -158,6 +180,16 @@ Le contrôle de note de version exempte toute ligne commençant par `//`. Or `//
 *Origine :* revue de la PR #23.
 
 ## Observations
+
+### `storyId` dérivera aussi l'identifiant d'une entrée tokens
+
+La section 4.3 fait de `storyId` la façon de nommer une entrée, et une entrée tokens en a besoin comme une story. Son nom dit `story`.
+
+*Pourquoi ce n'est pas fait ici :* renommer une fonction exportée du protocole est une rupture d'API publique pour un gain de lisibilité, et le producteur des entrées tokens n'existe pas encore. C'est `DCJ-233` qui dira si la fonction convient telle quelle.
+
+*Ce qui rouvrirait le point :* un troisième appelant, ou un identifiant de token que la normalisation actuelle rend ambigu.
+
+*Origine :* lot du contrat de plugin, étape 1.
 
 ### Clos : le contrôle de la spécification lisait moins de formes que celui du barrel
 
