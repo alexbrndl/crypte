@@ -1235,13 +1235,18 @@ Le script **ne sort jamais un nom de fichier** ni un corps de commentaire, seule
 
 **Les deux branches tournent en conditions réelles, et leurs sorties sont citées ici plutôt que résumées.** Un chemin dont on dit qu'il marche sans montrer ce qu'il a écrit est une affirmation, pas une mesure.
 
-La branche qui exige la revue, sur la pull request qui a livré ce mécanisme, huit fichiers dont `CLAUDE.md` et un skill :
+La branche qui exige la revue, sur la pull request qui a livré ce mécanisme, neuf fichiers dont `CLAUDE.md` et un skill :
 
 ```
-Fichiers au diff : 8
+Fichiers au diff : 9
 Nature du diff : fait foi
 Revues trouvées : 2
+Revue la plus récente : 2026-08-22T21:53:54Z
+Dernier commit        : 2026-08-22T21:58:53Z
+::warning::La revue la plus récente précède le dernier commit.
 ```
+
+Les trois dernières lignes valent d'être gardées : c'est le seul endroit du dépôt où l'on voit que l'avertissement d'écart de dates se déclenche vraiment. Il dit l'écart sans bloquer, parce que corriger un point non bloquant sans relancer de tour est permis, et le durcir rendrait ces deux règles contradictoires.
 
 La branche qui l'exempte, sur la pull request suivante, un seul `README.md` :
 

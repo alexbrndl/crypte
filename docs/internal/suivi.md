@@ -106,7 +106,7 @@ Un `@import '@/vars.css'` dans le CSS du projet ne résout pas. Le pipeline CSS 
 
 ### Des échecs isolés, jamais reproduits
 
-Quatre fois sur le lot 3, puis une fois sur le lot 0 decies, une commande a échoué sans raison visible puis a réussi à l'identique juste après :
+Six fois : quatre sur le lot 3, une sur le lot 0 decies, une à la passe de roadmap. Une commande a échoué ou s'est bloquée sans raison visible, puis a réussi à l'identique juste après :
 
 | Ce qui a échoué | Ce qu'on a vu ensuite |
 |---|---|
@@ -117,7 +117,7 @@ Quatre fois sur le lot 3, puis une fois sur le lot 0 decies, une commande a éch
 | un test de `post-review`, dans la foulée d'un `vp check --fix` | quatre lancements verts sur un fichier identique au fichier rouge |
 | la suite entière **bloquée**, tuée à dix minutes, dans la foulée d'un `vp check` | 666 tests verts en 31 s juste après, sur le même arbre |
 
-*Ce qui a été fait :* donner un dossier de cache propre à chaque serveur de test, la seule cause plausible qui ait été mesurée, à savoir qu'ils partageaient `node_modules/.vite`. Les trois autres occurrences sont postérieures.
+*Ce qui a été fait :* donner un dossier de cache propre à chaque serveur de test, la seule cause plausible qui ait été mesurée, à savoir qu'ils partageaient `node_modules/.vite`. Les quatre autres occurrences sont postérieures.
 
 *Ce qui reste :* aucune cause démontrée pour ces cinq-là. Les quatre premières surviennent autour d'un commit ou d'un enchaînement de commandes, ce qui suggère une course avec le cache de tâches, mais rien ne l'établit. Deux des outils cités n'existent plus, donc deux de ces occurrences ne se reproduiront pas.
 
