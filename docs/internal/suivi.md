@@ -12,19 +12,6 @@ Une ligne disparaît quand le point est traité, pas avant. Les niveaux sont dé
 
 ## Important
 
-### Le chemin « prose seule » de `require-review.yml` n'a jamais été exécuté en CI
-
-`test/review-check.mjs` classe un diff et n'exige la revue que s'il ne se relit pas tout seul. Les deux branches sont couvertes par `test/review-check.test.mjs`, vingt cas, et la branche **« fait foi »** est en plus vérifiée en conditions réelles : l'exécution du contrôle sur la PR 47 a écrit « Nature du diff : fait foi », trouvé les deux revues et signalé l'écart de dates.
-
-La branche **« prose seule »**, celle qui fait passer le contrôle au vert sans chercher de marqueur, n'a en revanche jamais tourné sur une vraie pull request. Il faudrait pour ça une pull request dont tous les fichiers soient des `.md` hors des cinq formes qui font foi, et cette pull request-ci n'en est pas une.
-
-*Pourquoi ce n'est pas éprouvé ici :* fabriquer une pull request de prose jetable pour voir le vert coûte un aller-retour complet, et le mode d'échec serait visible immédiatement au prochain diff de prose réel, sans conséquence : un contrôle qui exige une revue quand il ne devrait pas se voit tout de suite, alors que l'inverse serait silencieux. C'est la direction sûre qui est éprouvée.
-
-*Ce qui le tranchera :* la prochaine pull request de prose seule. Si `has-review` y échoue au lieu de passer, le classement se trompe, et le log dira laquelle des deux raisons il a retenue.
-
-*Origine :* auto-relecture de la PR #47, après la seconde revue.
-
-
 ### `optimizeDeps.include` ne tient que les paquets nommés par la configuration
 
 `configPackages(project)` rend les spécificateurs bare importés par `adapter` et `wrap`, soit `['@crypte/react']` sur la démonstration. Les runtimes React ne sont donc pas dans `include` : mesuré sur `apps/demo/node_modules/.crypte/deps/_metadata.json`, `react`, `react-dom`, `react/jsx-runtime`, `react/jsx-dev-runtime` et `react/compiler-runtime` y sont des entrées optimisées **distinctes** de `@crypte/react`. L'optimiseur les découvre, il ne les emporte pas. La revue en déduit qu'un `crypte dev` réel prend un `full-reload` sous la première page de l'utilisateur.
@@ -119,7 +106,7 @@ Un `@import '@/vars.css'` dans le CSS du projet ne résout pas. Le pipeline CSS 
 
 ### Des échecs isolés, jamais reproduits
 
-Quatre fois sur le lot 3, puis une fois sur le lot 0 decies, une commande a échoué sans raison visible puis a réussi à l'identique juste après :
+Six fois : quatre sur le lot 3, une sur le lot 0 decies, une à la passe de roadmap. Une commande a échoué ou s'est bloquée sans raison visible, puis a réussi à l'identique juste après :
 
 | Ce qui a échoué | Ce qu'on a vu ensuite |
 |---|---|
@@ -128,10 +115,13 @@ Quatre fois sur le lot 3, puis une fois sur le lot 0 decies, une commande a éch
 | `vp run -r pack`, code 2 | « Build complete » affiché, trois relances à zéro |
 | un test, juste avant un commit | treize lancements verts |
 | un test de `post-review`, dans la foulée d'un `vp check --fix` | quatre lancements verts sur un fichier identique au fichier rouge |
+| la suite entière **bloquée**, tuée à dix minutes, dans la foulée d'un `vp check` | 666 tests verts en 31 s juste après, sur le même arbre |
 
-*Ce qui a été fait :* donner un dossier de cache propre à chaque serveur de test, la seule cause plausible qui ait été mesurée, à savoir qu'ils partageaient `node_modules/.vite`. Les trois autres occurrences sont postérieures.
+*Ce qui a été fait :* donner un dossier de cache propre à chaque serveur de test, la seule cause plausible qui ait été mesurée, à savoir qu'ils partageaient `node_modules/.vite`. Les quatre autres occurrences sont postérieures.
 
 *Ce qui reste :* aucune cause démontrée pour ces cinq-là. Les quatre premières surviennent autour d'un commit ou d'un enchaînement de commandes, ce qui suggère une course avec le cache de tâches, mais rien ne l'établit. Deux des outils cités n'existent plus, donc deux de ces occurrences ne se reproduiront pas.
+
+*La sixième n'est pas un échec mais un blocage*, ce qui est une forme nouvelle : les cinq premières rendaient un rouge, celle-ci ne rendait rien. Un indice, le seul : `apps/demo/node_modules/.crypte/deps_temp_*` était resté sur le disque, donc un cas navigateur était en pleine réoptimisation de dépendances quand la suite a été tuée. Pas une cause démontrée, la réoptimisation pouvant être la conséquence du blocage autant que l'inverse. À rapprocher des deux entrées voisines sur `optimizeDeps` et sur le cache de dépendances si une septième arrive.
 
 *Une occurrence de la même famille a fini par avoir une cause*, et elle n'était pas dans l'environnement : le rouge intermittent de `project.test.ts` venait de son assertion, pas d'une course. C'est le premier endroit à regarder devant un rouge qui ne se reproduit pas.
 
