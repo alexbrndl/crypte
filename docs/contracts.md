@@ -773,14 +773,14 @@ This document is a contract. This section is the only place that says what exist
 | 1.5, project configuration | the config is read, and the declared style sheet is loaded by the preview |
 | 1.5, path aliases | built |
 | 2 and 3, the types | built, and `defineStories` and `story` with them. Inference is not: `details` is still written empty |
-| 4, the manifest | built, and written by `crypte dev` at start-up and on every restart of the configuration. A story file added or broken changes what is served without rewriting the file |
+| 4, the manifest | built, and written by `crypte dev` at start-up and on every restart of the configuration. A story file added or broken changes what is served without rewriting the file. Of the two natures of entry it can carry, only `story` is produced |
 | 4.6, the fingerprint | built, and written by `crypte dev` at start-up only: it is committed, so a restart leaves the working tree alone |
 | 5, the channel | built and exercised on both sides |
 | 6, plugin contract | not built, and provisional |
 
 **`crypte dev` is built, `crypte check` is not.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled by the project's own Vite. A story renders, switching story works, and a story that throws shows its error instead of an empty frame.
 
-Eight known gaps between this document and the code:
+Nine known gaps between this document and the code:
 
 - `update-overrides` and `set-globals` are part of the protocol and have no effect yet. The preview drops them.
 - A path alias cannot replace an installed package. `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because the resolver runs after Vite's own. TypeScript would return the replacement file.
@@ -789,6 +789,7 @@ Eight known gaps between this document and the code:
 - Nothing reloads. Editing a component or a story needs a restart until DCJ-218.
 - **`plugins` is read and never used.** Section 6 is provisional and no plugin exists, so the field is validated and dropped.
 - The CLI does not yet guarantee the serialisation promised in 4.5. What it writes today is read from source text and is serialisable by construction, so the guarantee is not exercised.
+- **A `tokens` entry is specified and nothing produces one.** Section 4.2 describes `TokensEntry`, and `buildCatalogue` writes stories only. The readers are ready for it: the fingerprint and the preview skip it, and the shell keeps it out of the tree. `@crypte/tokens` is what will write the first one.
 - `component.file` is resolved without Vite. The producer runs before any server exists, so it applies the project's `paths` and tries the usual extensions, with no plugin and no `exports` field. A component reached through a plugin keeps the identifier the story wrote.
 
 ---
@@ -802,7 +803,7 @@ Eight known gaps between this document and the code:
 | `"tokens"` was a reserved `type` nobody could write | `TokensEntry` is specified, and one entry carries a family rather than a single token |
 | nothing said whether a token had one value or several | `themes` is required, so a single-theme project holds one key instead of a second shape existing |
 | nothing said what an alias was | `value` is always the literal and `alias` is the chain that led to it, so a swatch resolves nothing |
-| every consumer read `entry.storyFile` off any entry | they narrow on `type` first, and `MANIFEST_VERSION` stays at 1 because the reserve was there for this |
+| every reader took `entry.storyFile` off any entry | they narrow on `type` first, the preview's generated module included, and `MANIFEST_VERSION` stays at 1 because the reserve was there for this |
 
 **v1.1.** The manifest producer written, which is what turned three of these lines from a contract into a measurement.
 

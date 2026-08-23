@@ -13,4 +13,4 @@ No file format is part of this: CSS variables, DTCG and Tailwind belong to `@cry
 
 `MANIFEST_VERSION` stays at `1`. `"tokens"` was already a reserved value of a `type` field, which is what the reserve was for, and nothing required moved on `StoryEntry`.
 
-Readers of a manifest now narrow on `type` before reading a story's fields. `@crypte/cli` exports `storiesOf` for that.
+Readers of a manifest now narrow on `type` before reading a story's fields, and the shell shows the natures it understands rather than everything the file holds. Nothing changes for a project whose manifest holds only stories, which is every project today.
