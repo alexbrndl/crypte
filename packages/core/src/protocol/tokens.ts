@@ -3,8 +3,8 @@
 export interface TokenValue {
   type: TokenKind
   description?: string
-  // Keyed by theme name, never empty. A single-theme project holds one key, so a
-  // reader never has two shapes to handle.
+  // Keyed by theme name. A single-theme project holds one key, so a reader never
+  // has two shapes to handle. The producer guarantees at least one, see 4.2.
   themes: Record<string, TokenInTheme>
 }
 
@@ -13,7 +13,7 @@ export interface TokenInTheme {
   // Always set: a swatch renders from this alone, never by walking `alias`.
   value: string
   // The names walked to reach `value`, from the token towards the literal.
-  // Absent when the token holds a literal itself.
+  // Absent, never empty, when the token holds a literal itself.
   alias?: string[]
 }
 

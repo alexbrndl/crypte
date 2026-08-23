@@ -486,7 +486,9 @@ Every entry carries a `type`. **Two values are implemented: `"story"` and `"toke
 
 **A tokens entry is a family, not one token.** `path` and `name` place it in the tree the same way a story's do, and `tokens` is keyed by token name, so the value carries no `name` of its own. That is the same shape as `details` inside a story entry, and it is what keeps a catalogue of three hundred tokens from becoming three hundred entries.
 
-**Every token is read per theme, and `themes` is never empty.** A single-theme project holds one key. Storing one value and adding themes later would change the shape of every token, which is a break; a project with one theme costs one extra key today.
+**Every token is read per theme.** A single-theme project holds one key. Storing one value and adding themes later would change the shape of every token, which is a break; a project with one theme costs one extra key today.
+
+**`themes` holds at least one key, and that is the producer's guarantee rather than the type's.** A `Record` cannot be typed non-empty without making it painful to build, so this is the same arrangement as serialisation in 4.5: the type says what the shape is, and whoever writes the manifest is answerable for the rest. An empty `alias` is out for the same reason, since a chain that led nowhere is what an absent `alias` already says.
 
 **`value` is always the literal, and `alias` is the chain that led to it.** A real token points at another token, sometimes through several hops. Whoever draws a swatch reads `value` alone and never resolves anything; whoever explains a token walks `alias`, ordered from the token towards the literal. A token that holds a literal itself has no `alias`.
 

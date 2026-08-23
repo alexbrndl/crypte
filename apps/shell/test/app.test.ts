@@ -1,4 +1,11 @@
-import type { Manifest, PreviewMessage, ShellMessage, StoryEntry } from '@crypte/core/protocol'
+import type {
+  Manifest,
+  ManifestEntry,
+  PreviewMessage,
+  ShellMessage,
+  StoryEntry,
+  TokensEntry,
+} from '@crypte/core/protocol'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, test as base, vi } from 'vitest'
 import App from '../src/App.vue'
@@ -27,6 +34,14 @@ const badge = entry('badge--defaut', 'Par défaut', ['Badge'], 'stories/Badge.ts
 const alerte = entry('badge--alerte', 'Alerte', ['Badge'], 'stories/Badge.tsx')
 const bouton = entry('bouton--defaut', 'Par défaut', ['Bouton'], 'stories/Bouton.tsx')
 
+const jetons: TokensEntry = {
+  type: 'tokens',
+  id: 'color--brand',
+  path: ['Color'],
+  name: 'Brand',
+  tokens: { primary: { type: 'color', themes: { light: { value: '#4fe0a0' } } } },
+}
+
 interface Ecran {
   wrapper: VueWrapper
   // Les messages que le shell a envoyés à l'iframe.
@@ -50,7 +65,7 @@ const vide = async (wrapper: VueWrapper) => {
 }
 
 const monte = async (
-  entries: StoryEntry[],
+  entries: ManifestEntry[],
   échoue = false,
   skipped?: { file: string; reason: string }[],
 ): Promise<Ecran> => {
@@ -121,6 +136,25 @@ describe('l’arbre du shell', () => {
 
   test('compte les stories dans la ligne d’état', async ({ écran }) => {
     expect(écran.statut()).toBe('3 stories')
+  })
+
+  // Mesuré : retirer le filtre de `refresh` laissait les 675 cas au vert, aucun
+  // n'envoyant autre chose que des stories dans le manifeste.
+  test('n’affiche pas une entrée dont il ne sait rien faire', async () => {
+    const écran = await monte([badge, jetons])
+
+    expect(écran.noms()).toEqual(['Par défaut'])
+    expect(écran.wrapper.findAll('h2').map((one) => one.text())).toEqual(['Badge'])
+    écran.wrapper.unmount()
+  })
+
+  // La ligne d'état dit des stories, donc elle compte des stories. Sans ce cas,
+  // elle annonçait le total des entrées sous le mot « stories ».
+  test('ne compte que les stories dans la ligne d’état', async () => {
+    const écran = await monte([badge, alerte, jetons])
+
+    expect(écran.statut()).toBe('2 stories')
+    écran.wrapper.unmount()
   })
 
   test('dit qu’il n’y a aucune story sur un catalogue vide', async () => {

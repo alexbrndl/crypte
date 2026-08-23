@@ -181,6 +181,18 @@ Le contrôle de note de version exempte toute ligne commençant par `//`. Or `//
 
 ## Observations
 
+### Un manifeste sans champ `entries` fait lever les lecteurs du CLI
+
+`storiesOf`, et donc `fingerprintOf`, `storyFilesOf` et `shape`, lèvent un `TypeError` sur un manifeste dont `entries` est absent. Le commentaire de `fingerprintOf` annonce pourtant qu'il « takes any manifest, including one read from a file somebody else wrote ».
+
+*Ce n'est pas une régression :* la version d'avant appelait `.map` sur le même champ et levait pareil. Le changement de ce lot remplace `.map` par `.filter`, comportement identique sur `undefined`.
+
+*Pourquoi ce n'est pas fait ici :* valider la forme d'un manifeste étranger est un mécanisme à part, pas une ligne, et rien ne lit aujourd'hui de manifeste qu'on n'a pas écrit soi-même. Le seul chemin réel est `crypte check`, qui n'existe pas encore, `DCJ-175`.
+
+*Ce qui rouvrirait le point :* le premier lecteur de manifeste écrit par quelqu'un d'autre, c'est-à-dire l'export Storybook ou le serveur MCP de `2.1 Distribution et adoption`.
+
+*Origine :* exploration du lot du contrat de plugin, étape 1.
+
 ### `storyId` dérivera aussi l'identifiant d'une entrée tokens
 
 La section 4.3 fait de `storyId` la façon de nommer une entrée, et une entrée tokens en a besoin comme une story. Son nom dit `story`.
