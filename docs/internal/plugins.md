@@ -106,7 +106,7 @@ Deux surfaces et non une : `node` découvre les noms et les sources, `preview` r
 
 `theme` absorbe ce que Storybook sépare en `themes` et `backgrounds`.
 
-`actions` est le premier et seul usage démontré de `ctx.props` modifiable dans `beforeMount`, cas écrit en `contracts.md` §6.3.
+`actions` est le premier et seul usage démontré de `ctx.props` modifiable dans `beforeMount`, cas écrit en `contracts.md` §6.4.
 
 `coverage` fait deux choses. Sans rien scanner, il croise `details` et les props propres de chaque story pour dire ce qui n'est documenté nulle part. En prolongeant le parcours de `crypte check`, il compte les usages réels dans l'application. Le second point justifie à lui seul que ce soit un plugin : le noyau n'a aucune raison de savoir lire le code applicatif.
 

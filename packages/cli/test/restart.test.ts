@@ -62,6 +62,45 @@ const compteSur = (port: number) => async () => {
 }
 
 describe('la configuration relue sans commande', () => {
+  // Le compte-rendu des refus est la seule trace qu'un plugin cassé laisse. Ses
+  // deux chemins : au démarrage, puis à la relecture, où seul ce qui est neuf
+  // s'imprime, la règle que les fichiers écartés suivent déjà.
+  test('dit ce qu’un plugin s’est vu refuser, sans le répéter', { timeout: 120_000 }, async () => {
+    const root = copie(fixture, 'tmp-hot-')
+    const config = join(root, 'crypte.config.ts')
+
+    const avec = (nom: string, raison: string) => `import { defineConfig } from '@crypte/cli'
+
+export default defineConfig({
+  stories: 'stories',
+  adapter: { name: 'fixture' },
+  plugins: [{ name: '${nom}', node: { entries: () => { throw new Error('${raison}') } } }],
+})
+`
+
+    writeFileSync(config, avec('premier', 'aucun fichier de tokens'))
+
+    const dites: string[] = []
+    const running = await dev(root, (une: string) => dites.push(une))
+
+    try {
+      expect(dites).toContain('1 plugin contribution(s) refused:')
+      expect(dites).toContain('  premier : aucun fichier de tokens')
+
+      writeFileSync(config, avec('second', 'toujours aucun'))
+
+      await expect
+        .poll(() => dites.filter((une) => une.includes('second')).length, { timeout: 30_000 })
+        .toBe(1)
+
+      // Le premier n'est pas réimprimé : la relecture ne dit que ce qui a changé.
+      expect(dites.filter((une) => une.includes('premier : aucun'))).toHaveLength(1)
+    } finally {
+      await running.close()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   test('reprend le même port et sert le catalogue neuf', { timeout: 120_000 }, async () => {
     const root = copie(fixture, 'tmp-hot-')
     const config = join(root, 'crypte.config.ts')

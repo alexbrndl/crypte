@@ -41,6 +41,7 @@ export type {
   NodeContext,
   ContributedEntry,
 } from './plugin'
+export { CONTRIBUTABLE } from './plugin'
 
 // How the shell and the preview talk
 export type {

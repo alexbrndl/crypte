@@ -11,8 +11,10 @@ A plugin can contribute entries to the manifest.
 
 **Hooks are synchronous, and they run after the stories in the order `plugins` declares.** No `order` field, which every plugin would set to zero. Being last means a contribution landing on an identifier a story already owns is the one that gives way.
 
-**Nothing a plugin does is fatal, and nothing is silent.** A hook that throws, returns something other than entries, lands on a taken identifier, or produces a value that would not survive JSON has that contribution refused, and `crypte dev` prints which plugin it came from and why. A broken plugin costs a panel, never the server.
+**Nothing a plugin does is fatal, and nothing is silent.** A hook that throws, returns something other than entries, hands over an entry that is not one, lands on a taken identifier, or produces a value JSON would rewrite has that contribution refused, and `crypte dev` prints which plugin it came from and why. A broken plugin costs a panel, never the server.
 
-That last case is where section 4.5 stops being free: everything else the CLI writes is read from source text and serialisable by construction, so a contributed entry is the first input it has to check rather than trust.
+**The shape of every entry is checked at run time, not only in the types.** `ContributedEntry` holds while a plugin is compiled, and a plugin is installed compiled: nothing in a published package stops it from handing over `type: 'story'`, which would enter the manifest and the committed fingerprint. `CONTRIBUTABLE` is that same set at run time.
+
+Section 4.5 stops being free here: everything else the CLI writes is read from source text and serialisable by construction, so a contributed entry is the first input it checks rather than trusts. Both remedies 4.5 names are used, and the line between them is whether dropping changes the value. A key whose value is `undefined` is left out. A function, a `Date`, `NaN`, an infinity, an `undefined` inside an array, a genuine cycle: refused, named and located. Two references to one object are not a cycle.
 
 `UIContribution` and `PreviewHooks` stay opaque. Neither has a caller yet.

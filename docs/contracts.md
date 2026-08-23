@@ -669,7 +669,7 @@ type PluginMessage<T extends { type: LiteralOnly<T['type']> }> = T
 
 ## 6. Plugin contract
 
-> **Provisional.** This section is the only one that is not frozen. See 6.4.
+> **Provisional.** This section is the only one that is not frozen. See 6.5.
 
 ### 6.1 Shape
 
@@ -733,11 +733,15 @@ interface NodeContext {
 }
 
 type ContributedEntry = Exclude<ManifestEntry, StoryEntry>
+
+const CONTRIBUTABLE = ['tokens'] as const
 ```
 
 **A hook is a plain function, not a method.** Its context arrives as an argument, so it never reads `this`.
 
 **Stories are excluded from what a plugin may contribute.** They come from story files, and a plugin injecting one would bypass discovery and the reporting that goes with it. `Exclude` rather than a list of natures, so a nature added to the manifest widens this on its own.
+
+**`CONTRIBUTABLE` is the same set at run time, and it is not a duplicate.** `ContributedEntry` holds at compile time, and a plugin is installed compiled: nothing in a published package stops it from handing over `type: 'story'`, which would then enter the manifest and, through the story readers, the committed fingerprint. The producer checks the shape of every entry it is handed before reading anything else from it: an object, a non-empty `id`, and a nature on this list.
 
 **The context carries the project root and nothing else.** The producer runs before any server exists, so there is no Vite resolution to hand over: no plugin, no `exports` field, the same limit 8 records for `component.file`. A plugin's own settings come from its factory, not from here.
 
@@ -745,9 +749,11 @@ type ContributedEntry = Exclude<ManifestEntry, StoryEntry>
 
 **They run in the order `plugins` declares them**, and after the stories. Nothing carries an `order` field, which every plugin would set to zero. Being last means a contribution that lands on an identifier a story already owns is the one that gives way: a story comes from the author's own file, a contributed entry does not.
 
-**Nothing here is fatal, and nothing here is silent.** A hook that throws, that returns something other than entries, that lands on a taken identifier, or that produces a value which would not survive JSON, has that contribution refused with its reason. The catalogue keeps everything it already read, and the CLI says what it refused and which plugin it came from. A plugin is not the author's text, so it must not be able to stop a dev server.
+**Nothing here is fatal, and nothing here is silent.** A hook that throws, that returns something other than entries, that hands over an entry which is not one, that lands on a taken identifier, or that produces a value which would not survive JSON, has that contribution refused with its reason. The catalogue keeps everything it already read, and the CLI says what it refused and which plugin it came from. A plugin is not the author's text, so it must not be able to stop a dev server.
 
-**This is where 4.5 stops being free.** Everything else the CLI writes is read from source text and serialisable by construction. An entry built by a plugin is the first input that is not, so the CLI checks it and names what offends rather than letting `JSON.stringify` drop a function without a word.
+**This is where 4.5 stops being free.** Everything else the CLI writes is read from source text and serialisable by construction. An entry built by a plugin is the first input that is not, so the CLI checks it rather than letting `JSON.stringify` drop a function without a word.
+
+Both remedies 4.5 names are used, and the line between them is whether dropping changes the value. **A key whose value is `undefined` is left out**, which is what JSON does with it and what leaves the entry unchanged; an optional property spread from a variable that happened to be empty is the common accident, not a defect. **Everything JSON would rewrite is refused instead**, named and located: a function, a `Date` or any non-plain value, `NaN` and the infinities which come back as `null`, an `undefined` inside an array which comes back as `null` too, and a genuine cycle. Two references to one object are not a cycle, and are kept.
 
 ### 6.4 `ctx.props` can be changed before mount
 

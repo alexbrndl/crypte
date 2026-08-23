@@ -32,3 +32,8 @@ export interface NodeContext {
 // would bypass discovery. `Exclude` rather than a list, so a nature added to the
 // manifest widens this on its own.
 export type ContributedEntry = Exclude<ManifestEntry, StoryEntry>
+
+// The same set at run time, because `ContributedEntry` holds at compile time and
+// a plugin arrives compiled: nothing in a published plugin stops it from handing
+// over `type: 'story'`. Kept beside the type so the two are read together.
+export const CONTRIBUTABLE = ['tokens'] as const

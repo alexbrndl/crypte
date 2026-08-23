@@ -4,6 +4,7 @@
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import {
+  CONTRIBUTABLE,
   MANIFEST_VERSION,
   type ContributedEntry,
   type Manifest,
@@ -185,14 +186,26 @@ function contributionsOf(
       const produced = hook({ root: project.root })
       if (!Array.isArray(produced)) throw new TypeError('the hook returned no array of entries')
 
-      for (const entry of produced) {
-        const offends = notSerialisable(entry)
+      for (const one of produced as unknown[]) {
+        // Shape first: everything below reads `id`, and a plugin arrives
+        // compiled, so nothing has checked that this is an entry at all.
+        const malformed = notAnEntry(one)
+        if (malformed) {
+          skipped.push({ plugin: plugin.name, reason: malformed })
+          continue
+        }
 
         // Section 4.5 asks the CLI to guarantee what it writes. Everything else
         // it writes is read from source text and serialisable by construction;
         // this input is the first that is not, so the guarantee is owed here.
-        if (offends) skipped.push({ plugin: plugin.name, reason: `an entry carries ${offends}` })
-        else if (taken.has(entry.id))
+        const checked = serialisable(one)
+        if ('offends' in checked) {
+          skipped.push({ plugin: plugin.name, reason: `an entry carries ${checked.offends}` })
+          continue
+        }
+
+        const entry = checked.value as ContributedEntry
+        if (taken.has(entry.id))
           skipped.push({ plugin: plugin.name, reason: `\`${entry.id}\` is already taken` })
         else {
           taken.add(entry.id)
@@ -207,46 +220,90 @@ function contributionsOf(
   return { entries, skipped }
 }
 
-// The first value that would not survive a JSON round trip, named and located,
-// or nothing. `JSON.stringify` drops a function and an `undefined` value without
-// a word, so what comes back would differ from what went in with no error at
-// all. Section 4.5 of docs/contracts.md.
-function notSerialisable(value: unknown, at = '', seen = new Set<object>()): string | undefined {
-  const where = at || 'the entry'
+// What a plugin's return value has to be before anything else reads it.
+// `ContributedEntry` holds at compile time and a plugin arrives compiled, so an
+// entry typed `story` reaches here; unrefused, it would enter the manifest and,
+// through `storiesOf`, the committed fingerprint.
+function notAnEntry(value: unknown): string | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return 'an entry is not an object'
 
-  if (value === null) return undefined
-  if (typeof value === 'function') return `a function at ${where}`
-  if (typeof value === 'undefined') return `undefined at ${where}`
-  if (typeof value === 'bigint' || typeof value === 'symbol') return `a ${typeof value} at ${where}`
-  if (typeof value !== 'object') return undefined
+  const { id, type } = value as { id?: unknown; type?: unknown }
 
-  // A cycle makes `JSON.stringify` throw, and would make this walk hang, which
-  // is the worse of the two.
-  if (seen.has(value)) return `a cycle at ${where}`
-  seen.add(value)
-
-  if (Array.isArray(value)) {
-    for (const [index, one] of value.entries()) {
-      const found = notSerialisable(one, `${at}[${index}]`, seen)
-      if (found) return found
-    }
-
-    return undefined
-  }
-
-  // A `Date`, a `Map`, a class instance: each survives `JSON.stringify` as
-  // something other than itself, so plain objects only.
-  if (Object.getPrototypeOf(value) !== Object.prototype) {
-    const named = (value as { constructor?: { name?: string } }).constructor?.name
-    return `a ${named ?? 'non-plain'} value at ${where}`
-  }
-
-  for (const [key, one] of Object.entries(value)) {
-    const found = notSerialisable(one, at ? `${at}.${key}` : key, seen)
-    if (found) return found
-  }
+  if (typeof id !== 'string' || id === '') return 'an entry has no identifier'
+  if (typeof type !== 'string' || !(CONTRIBUTABLE as readonly string[]).includes(type))
+    return `\`${id}\` is not a nature a plugin may contribute`
 
   return undefined
+}
+
+// Section 4.5's guarantee, whose two remedies are its own words: leave out, or
+// refuse. A key whose value is `undefined` is dropped, since that is what JSON
+// does with it and the entry stays what it was. Everything that JSON would
+// rewrite instead of dropping is refused, named and located.
+function serialisable(
+  value: unknown,
+  at = '',
+  seen = new Set<object>(),
+): { value: unknown } | { offends: string } {
+  const where = at || 'the entry'
+
+  if (value === null) return { value }
+  if (typeof value === 'function') return { offends: `a function at ${where}` }
+  if (typeof value === 'bigint' || typeof value === 'symbol')
+    return { offends: `a ${typeof value} at ${where}` }
+
+  // `JSON.stringify` writes `null` for these three, so the value that comes back
+  // is a different number, or none. Dropping cannot fix that.
+  if (typeof value === 'number' && !Number.isFinite(value))
+    return { offends: `${String(value)} at ${where}` }
+
+  if (typeof value !== 'object') return { value }
+
+  // Released on the way back up, so two references to the same object are not a
+  // cycle: two token names resolving to one value is the plausible case, and
+  // `JSON.stringify` serialises it without complaint.
+  if (seen.has(value)) return { offends: `a cycle at ${where}` }
+  seen.add(value)
+
+  try {
+    if (Array.isArray(value)) {
+      const out: unknown[] = []
+
+      for (const [index, one] of value.entries()) {
+        // In an array `undefined` becomes `null`, a value the reader would then
+        // have to handle. Only a key can be dropped.
+        if (one === undefined) return { offends: `undefined at ${at}[${index}]` }
+
+        const checked = serialisable(one, `${at}[${index}]`, seen)
+        if ('offends' in checked) return checked
+        out.push(checked.value)
+      }
+
+      return { value: out }
+    }
+
+    // A `Date`, a `Map`, a class instance: each survives `JSON.stringify` as
+    // something other than itself, so plain objects only.
+    if (Object.getPrototypeOf(value) !== Object.prototype) {
+      const named = (value as { constructor?: { name?: string } }).constructor?.name
+      return { offends: `a ${named ?? 'non-plain'} value at ${where}` }
+    }
+
+    const out: Record<string, unknown> = {}
+
+    for (const [key, one] of Object.entries(value)) {
+      if (one === undefined) continue
+
+      const checked = serialisable(one, at ? `${at}.${key}` : key, seen)
+      if ('offends' in checked) return checked
+      out[key] = checked.value
+    }
+
+    return { value: out }
+  } finally {
+    seen.delete(value)
+  }
 }
 
 export function writeCatalogue(root: string, manifest: Manifest): string {
