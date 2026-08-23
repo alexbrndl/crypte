@@ -28,8 +28,8 @@ export interface Catalogue {
   wasStory: string[]
 }
 
-// The story entries of a manifest. A manifest carries other natures, `tokens`
-// among them, and every reader below wants fields only a story has.
+// The story entries of a manifest, for the three readers in this package that
+// want fields only a story has. The preview's generated module filters its own.
 export function storiesOf(manifest: Manifest): StoryEntry[] {
   return manifest.entries.filter((entry): entry is StoryEntry => entry.type === 'story')
 }
