@@ -16,7 +16,7 @@ Une ligne disparaît quand le point est traité, pas avant. Les niveaux sont dé
 
 `vp check` a `typeCheck: true` et couvre les `.ts`, tests compris, mais ne lit pas les composants monofichiers. C'est `vue-tsc` qui les lit, par le script `typecheck` d'`apps/shell`.
 
-**L'intégration continue l'exécute** : `.github/workflows/ci.yml:43` lance `vp run -r typecheck`, juste après `vp check`, et la ligne 41 porte déjà la raison. Le script `ready` de la racine, lui, ne l'appelle pas : `vp check && vp run -r pack && vp test --coverage && node test/coverage-report.mjs`.
+**L'intégration continue l'exécute** : `.github/workflows/ci.yml:43` lance `vp run -r typecheck`, juste après `vp check`, et la ligne 41 porte déjà la raison. Le script `ready` de la racine, lui, ne l'appelle pas : `vp check && vp run -r pack && vp test --coverage && node test/coverage-report.mjs --badge .github/coverage.json`.
 
 *Le trou est donc local, pas dans la CI.* Une session peut enchaîner `vp check` et `vp test` au vert, commiter, pousser, et voir la CI rougir sur un template.
 
@@ -198,6 +198,16 @@ Le contrôle de note de version exempte toute ligne commençant par `//`. Or `//
 *Ce qui rouvrirait le point :* le premier lecteur de manifeste écrit par quelqu'un d'autre, c'est-à-dire l'export Storybook ou le serveur MCP de `2.1 Distribution et adoption`.
 
 *Origine :* exploration du lot du contrat de plugin, étape 1.
+
+### L'empreinte committée ne verra pas un changement de tokens
+
+`fingerprintOf` mappe `storiesOf(manifest)`, donc une famille tokens ajoutée, modifiée ou retirée laisse `fingerprint.json` identique. La section 4.6 dit maintenant que c'est son périmètre, et non un oubli, mais la question reste ouverte : un jeu de tokens mérite-t-il son propre historique commité ?
+
+*Pourquoi ce n'est pas tranché ici :* les cinq champs de l'empreinte sont ceux d'une story, un composant, un statut, des noms de props. Décider ce que serait le condensé d'une famille de tokens sans avoir lu un seul fichier de tokens serait deviner.
+
+*Ce qui rouvrirait le point :* `DCJ-233`, dès que de vraies familles existent et qu'un diff de tokens se relit.
+
+*Origine :* revue de la PR #50, tour de correction.
 
 ### Un token numérique voyage en chaîne, et le contrat ne le dit pas
 
