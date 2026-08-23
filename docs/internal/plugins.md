@@ -70,7 +70,7 @@ Chaque projet du tracker porte un **sous-numéro** qui donne son ordre dans la p
 | `@crypte/controls` | édition des props en live | ui, preview | gratuit |
 | `@crypte/a11y` | vérification d'accessibilité, axe-core | ui, preview | gratuit |
 
-**Ces deux-là ne sont pas dans le chantier d'outillage, et c'est voulu : ils ont une fonction de contrat.** `contracts.md` §6.4 pose la condition, le contrat de plugin est stable une fois éprouvé par deux plugins aux besoins opposés. `controls` écrit dans la story, `a11y` se contente de la lire.
+**Ces deux-là ne sont pas dans le chantier d'outillage, et c'est voulu : ils ont une fonction de contrat.** `contracts.md` §6.5 pose la condition, le contrat de plugin est stable une fois éprouvé par deux plugins aux besoins opposés. `controls` écrit dans la story, `a11y` se contente de la lire.
 
 Tant que les deux n'existent pas, la section 6 change sans procédure. Après, tout changement est une rupture.
 

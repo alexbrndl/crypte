@@ -972,6 +972,20 @@ Un cas garde la paire porteuse, avec une **configuration lente**, un `await` de 
 
 ---
 
+## 4 sexdecies. Le contrôle de sérialisation d'une entrée contribuée
+
+**Ce que ça fait.** `notSerialisable`, dans `packages/cli/src/manifest.ts`, parcourt une entrée rendue par un plugin et rend la première valeur qui ne survivrait pas à un aller-retour JSON, avec son chemin : « a function at extra », « a Date value at extra », « a cycle at extra.self ». La contribution est alors refusée, avec le nom du plugin, et le serveur continue.
+
+**Pourquoi ça existe.** La section 4.5 des contrats promet que le CLI garantit ce qu'il écrit. Jusqu'ici la promesse ne coûtait rien : tout ce qu'il écrivait était lu depuis du texte source, donc sérialisable par construction. Une entrée construite par un plugin est la première entrée qui ne l'est pas.
+
+Un contrôle plutôt qu'une confiance, parce que le mode d'échec est muet : `JSON.stringify` laisse tomber une fonction et une valeur `undefined` **sans un mot**. Le manifeste écrit serait alors différent de l'entrée produite, sans aucune erreur nulle part, et le symptôme apparaîtrait dans le shell.
+
+**Ce qui casse si on l'enlève.** Rien tout de suite, et c'est le problème : les stories continuent, le serveur démarre, et un plugin dont une entrée porte une fonction écrit un manifeste amputé en silence. Cinq cas de `packages/cli/test/contributions.test.ts` gardent chaque forme, et mesuré, retirer le seul `if (offends)` en fait rougir cinq.
+
+Le parcours porte un ensemble `seen` pour la même raison : un cycle ferait boucler la fonction, ce qui est pire qu'une erreur. `JSON.stringify` lèverait, lui, mais on ne l'appelle pas, précisément parce que les cas qui comptent sont ceux où il ne lève pas.
+
+---
+
 ## 4 quindecies. L'adaptateur React, et ce que le projet fournit
 
 **Toute fonction reçue par `wrap` est instanciée comme un composant.** En React un composant **est** une fonction, donc `wrap: (story) => …` et `wrap: Provider` ont le même type : le typage ne peut pas départager, et l'adaptateur aurait dû deviner. La section 2.5 a retiré la forme fonction, et c'est le comportement de l'adaptateur qui tient la règle.

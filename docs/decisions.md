@@ -10,6 +10,26 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 ---
 
+## A plugin contributes entries, synchronously, and never fatally
+
+_2026-08-24_
+
+**Decided.** `NodeHooks` carries one hook, `entries`, a plain function taking a context and returning entries. It is **synchronous**. It runs **after the stories**, in the order `plugins` declares. A contribution may not be a story. Anything that goes wrong with it, a throw, a wrong return, a taken identifier, a value that would not survive JSON, **refuses that contribution and says which plugin it came from**, and nothing stops the server.
+
+`CryptePlugin` becomes a real type in the protocol; `@crypte/cli` re-exports it instead of redeclaring it as `unknown`. `UIContribution` and `PreviewHooks` stay opaque.
+
+**Rejected.** Asynchronous hooks, for the reason below. A generic build step or a CLI command, neither of which has a consumer. An `order` field, which every plugin would set to zero. Making a plugin's failure fatal, which lets one broken dependency stop a dev server. Putting plugin failures in `Catalogue.skipped`, whose `file` is contractually the path of a story file. And a `PluginManifestEntries` extension point, since no third-party plugin exists.
+
+**Why synchronous, when Rollup and Vite are not.** A hook that may return a promise is the shape that never needs revisiting, and it was the tempting choice. But `buildCatalogue` is called from a watcher callback, `dev.ts:144`, where the debounce guards against bursts of events and not against two overlapping rebuilds. Making it async buys a real race today, in the most measured part of the CLI, for a capability nobody needs: `@crypte/tokens` reads local files, which is what the story reader already does synchronously.
+
+What makes that safe rather than short-sighted: **nothing is published, and 6.5 says this contract is not frozen.** Changing the signature later breaks no user, because there are none. The lot's own order says the consumer corrects the surface, and this is exactly the kind of thing it will correct.
+
+**Why refusing rather than blocking, when a story collision is fatal.** `assertDistinct` throws on two stories sharing an identifier, and that is right: both files belong to the author, who can rename one. A plugin is not the author's text. Two plugins colliding may only be fixable by uninstalling one, and a dev server that will not start is a worse answer than a catalogue missing a panel and a line saying why.
+
+**What would reopen it.** A plugin whose source is genuinely asynchronous, a network call or a database, which makes the promise-tolerant signature worth its race. A plugin that must run before the stories, which no ordering rule covers today. Or a third-party plugin with its own nature of entry, which is what `PluginManifestEntries` would be for, on the model of `PluginPropDetails`.
+
+---
+
 ## A tokens entry is a family, and every token is read per theme
 
 _2026-08-23_

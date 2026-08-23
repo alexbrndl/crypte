@@ -4,6 +4,7 @@
 import { join } from 'node:path'
 import { readFileSync, watch, type FSWatcher } from 'node:fs'
 import { createServer, type ViteDevServer } from 'vite'
+import { reason } from './errors'
 import { fingerprintOf, writeFingerprint } from './fingerprint'
 import { buildCatalogue, storiesOf, writeCatalogue, type Catalogue } from './manifest'
 import { loadProject, viteConfigOf, type Project } from './project'
@@ -251,10 +252,6 @@ function digest(project: Project): string {
     .join('\u0000')
 }
 
-function reason(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
-
 // The two artefacts, and what stopped them. Reported rather than thrown: the
 // shell reads the catalogue from memory, so a build that cannot write still
 // serves everything.
@@ -277,16 +274,25 @@ function write(root: string, catalogue: Catalogue, fingerprint: boolean): string
   }
 }
 
-// The lines a catalogue's skipped files make, in the shape `reported` prints.
+// Everything a build left out, in the shape the reports below print. Both halves
+// together, since this is what `watchStories` compares between two builds and a
+// plugin that keeps failing must not repeat its line on every keystroke either.
 function lines(catalogue: Catalogue): string[] {
-  return catalogue.skipped.map(({ file, reason: why }) => `  ${file} : ${why}`)
+  return [...reported(catalogue), ...refused(catalogue)]
 }
 
 // What a story file did not produce, and why. One line each, before the
 // server's address: a story its author wrote and the reader could not read must
 // not vanish in silence. The in-app version is DCJ-217.
 export function reported(catalogue: Catalogue): string[] {
-  return lines(catalogue)
+  return catalogue.skipped.map(({ file, reason: why }) => `  ${file} : ${why}`)
+}
+
+// What a plugin's `entries` hook did not get to contribute. Named by plugin and
+// not by file: nothing here is fatal, so the only trace is this line, and it has
+// to say which plugin to go and look at. Section 6.3 of docs/contracts.md.
+export function refused(catalogue: Catalogue): string[] {
+  return catalogue.skippedPlugins.map(({ plugin, reason: why }) => `  ${plugin} : ${why}`)
 }
 
 // What `dev` hands back. A restart replaces the server, so the caller is given a
@@ -425,6 +431,15 @@ export async function dev(input: string, log = console.log): Promise<Running> {
       for (const line of fresh) log(line)
     }
 
+    const refusals = refused(next.held.catalogue).filter(
+      (one) => !refused(before.held.catalogue).includes(one),
+    )
+
+    if (refusals.length > 0) {
+      log(`${refusals.length} plugin contribution(s) refused:`)
+      for (const line of refusals) log(line)
+    }
+
     log(`crypte.config.ts changed, ${storiesOf(next.held.catalogue.manifest).length} stories`)
     next.server.printUrls()
   }
@@ -457,6 +472,12 @@ export async function dev(input: string, log = console.log): Promise<Running> {
   if (dites.length > 0) {
     log(`${held.catalogue.skipped.length} story file(s) left out:`)
     for (const line of dites) log(line)
+  }
+
+  const refusals = refused(held.catalogue)
+  if (refusals.length > 0) {
+    log(`${refusals.length} plugin contribution(s) refused:`)
+    for (const line of refusals) log(line)
   }
 
   log(`${storiesOf(held.catalogue.manifest).length} stories`)

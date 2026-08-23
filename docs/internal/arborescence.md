@@ -54,6 +54,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `src/protocol/prop.ts` | ce qu'on peut dire d'une prop | `story.ts`, `manifest.ts` |
 | `src/protocol/manifest.ts` | forme du catalogue | le CLI qui l'écrit, le shell qui le lit |
 | `src/protocol/tokens.ts` | ce qu'on peut dire d'un token | `manifest.ts` |
+| `src/protocol/plugin.ts` | contrat de plugin et surface `node` | le CLI, la configuration |
 | `src/protocol/channel.ts` | messages du canal | `core/ui`, `core/preview` |
 | `src/protocol/id.ts` | dérivation des identifiants | le CLI, le shell |
 | `src/ui/index.ts` | côté shell du canal | `apps/shell`, les futurs plugins |
@@ -99,6 +100,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/stories.test.ts` | ce que la lecture d'un fichier refuse de deviner | — |
 | `test/manifest.test.ts` | parcours, résolution, collisions d'identifiants | — |
 | `test/manifest-shape.test.ts` | fige la forme du manifeste, champ pour champ | — |
+| `test/contributions.test.ts` | ce qu'un plugin contribue, et ce qui lui est refusé | — |
 | `test/dev.test.ts` | ce que le serveur sert vraiment, sur un serveur qui écoute | — |
 | `test/screen.test.ts` | ce que l'utilisateur voit, dans Chromium, lecture puis édition | — |
 | `test/reopt.test.ts` | la course d'une dépendance découverte pendant le chargement | — |
