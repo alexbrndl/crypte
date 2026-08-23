@@ -1217,7 +1217,7 @@ Première ligne du commentaire. Invisible au rendu, cherché tel quel par le wor
 
 **Ce qui casse si on l'enlève.** Rien immédiatement, et c'est le risque : chaque correction de prose redemande un tour de revue, les verdicts vides s'accumulent, et le jour où un verdict porte un vrai point bloquant il est lu comme les précédents.
 
-**Le classement vit dans `test/review-check.mjs`, pas dans le YAML.** Le workflow est réduit à `node test/review-check.mjs $PR`, comme son frère `require-changeset.yml` l'est déjà à `node test/changeset-check.mjs $PR`. `decide()` et `marked()` sont exportés, et `test/review-check.test.mjs` les couvre en treize cas.
+**Le classement vit dans `test/review-check.mjs`, pas dans le YAML.** Le workflow est réduit à `node test/review-check.mjs $PR`, comme son frère `require-changeset.yml` l'est déjà à `node test/changeset-check.mjs $PR`. `decide()` et `marked()` sont exportés, et `test/review-check.test.mjs` les couvre en vingt cas.
 
 *Pourquoi l'extraction plutôt que du shell dans le YAML :* le mode d'échec est **une exemption qui s'élargit en silence**. Un `case` dans un `run:` ne s'éprouve qu'en poussant, et rien ne rougit quand il se met à laisser passer plus que prévu. Le contrôle frère avait déjà résolu le même problème de la même façon ; ne pas le suivre était l'écart.
 
@@ -1232,6 +1232,26 @@ Une liste de fichiers vide **exige une revue** au lieu de l'exempter. Une liste 
 Le script **ne sort jamais un nom de fichier** ni un corps de commentaire, seulement des comptes et une raison : une chaîne venue du dépôt pourrait porter une commande de workflow.
 
 *Éprouvé, et les deux fois le test a trouvé un trou.* Le classement en shell a été passé sur onze cas, et le onzième a montré qu'un diff ne touchant que `.claude/skills/review/SKILL.md` passait pour de la prose : le mécanisme de revue pouvait se modifier sans revue. Puis la revue de la pull request a montré que `docs/internal/suivi.md` avait le même trou, alors que la revue le lit pour ne pas re-signaler un point arbitré.
+
+**Les deux branches tournent en conditions réelles, et leurs sorties sont citées ici plutôt que résumées.** Un chemin dont on dit qu'il marche sans montrer ce qu'il a écrit est une affirmation, pas une mesure.
+
+La branche qui exige la revue, sur la pull request qui a livré ce mécanisme, huit fichiers dont `CLAUDE.md` et un skill :
+
+```
+Fichiers au diff : 8
+Nature du diff : fait foi
+Revues trouvées : 2
+```
+
+La branche qui l'exempte, sur la pull request suivante, un seul `README.md` :
+
+```
+Fichiers au diff : 1
+Nature du diff : prose seule
+Prose seule, aucune revue exigée.
+```
+
+Le second n'imprime pas « Revues trouvées », ce qui est la preuve qu'il court-circuite avant de chercher un marqueur plutôt que d'en trouver un par accident. C'est la distinction qui compte : un contrôle qui passe et un contrôle qui passe pour la bonne raison ne se valent pas.
 
 ### Deux détails d'implémentation qui ont une raison
 
