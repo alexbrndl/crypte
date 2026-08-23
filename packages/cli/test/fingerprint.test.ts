@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Manifest, StoryEntry } from '@crypte/core/protocol'
+import type { Manifest, StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { describe, expect, it } from 'vitest'
 import { FINGERPRINT, fingerprintOf, writeFingerprint } from '../src/fingerprint'
 import { buildCatalogue } from '../src/manifest'
@@ -34,6 +34,41 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 const one = (over: Partial<StoryEntry> = {}): Manifest => ({
   version: 1,
   entries: [{ ...entry, ...over }],
+})
+
+const tokens: TokensEntry = {
+  type: 'tokens',
+  id: 'color--brand',
+  path: ['Color'],
+  name: 'Brand',
+  tokens: { primary: { type: 'color', themes: { light: { value: '#4fe0a0' } } } },
+}
+
+describe('les natures que l’empreinte retient', () => {
+  // Mesuré : retirer le filtre de `storiesOf` laissait les 675 cas au vert,
+  // parce qu'aucun n'envoyait autre chose que des stories dans la chaîne.
+  it('ne retient que les stories d’un manifeste mêlé', () => {
+    const mixed: Manifest = { version: 1, entries: [entry, tokens] }
+
+    expect(fingerprintOf(mixed).entries.map((one) => one.id)).toEqual(['badge--default'])
+  })
+
+  it('rend une empreinte vide sur un manifeste sans story', () => {
+    const only: Manifest = { version: 1, entries: [tokens] }
+
+    expect(fingerprintOf(only).entries).toEqual([])
+  })
+
+  // Une nature qu'aucune version ne connaît : le lecteur l'ignore plutôt que de
+  // la traiter comme une story, ce que ferait un filtre écrit en négatif.
+  it('ignore une nature qu’il ne connaît pas', () => {
+    const foreign = {
+      version: 9,
+      entries: [entry, { type: 'page', id: 'guide--intro', path: ['Guide'], name: 'Intro' }],
+    } as unknown as Manifest
+
+    expect(fingerprintOf(foreign).entries.map((one) => one.id)).toEqual(['badge--default'])
+  })
 })
 
 describe('l’empreinte réduite', () => {

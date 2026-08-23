@@ -12,6 +12,34 @@ Une ligne disparaît quand le point est traité, pas avant. Les niveaux sont dé
 
 ## Important
 
+### `ready` ne lance pas la vérification des `.vue`, la CI si
+
+`vp check` a `typeCheck: true` et couvre les `.ts`, tests compris, mais ne lit pas les composants monofichiers. C'est `vue-tsc` qui les lit, par le script `typecheck` d'`apps/shell`.
+
+**L'intégration continue l'exécute** : `.github/workflows/ci.yml:43` lance `vp run -r typecheck`, juste après `vp check`, et la ligne 41 porte déjà la raison. Le script `ready` de la racine, lui, ne l'appelle pas : `vp check && vp run -r pack && vp test --coverage && node test/coverage-report.mjs --badge .github/coverage.json`.
+
+*Le trou est donc local, pas dans la CI.* Une session peut enchaîner `vp check` et `vp test` au vert, commiter, pousser, et voir la CI rougir sur un template.
+
+*Mesuré :* en élargissant `ManifestEntry`, `vp check` a rendu « 0 errors » et la suite 675 passés pendant qu'`App.vue` cassait sur ses lignes 101 et 105. `pnpm exec vp run -r typecheck` les rendait, lui.
+
+*Pourquoi ce n'est pas fait ici :* ajouter une commande à `ready` est une pièce mobile, donc une décision, et la faire partir dans ce lot l'enverrait sans revue. Suivi dans `DCJ-269`.
+
+*Correction d'une version antérieure de cette entrée*, écrite dans le même lot : elle affirmait qu'aucune commande du dépôt ne lançait `vue-tsc`, « ni un workflow ». Faux, et trouvé par la revue de la PR #50. La conclusion avait été tirée de `node_modules/.bin` et des scripts de la racine, sans avoir grepé `.github/workflows/`.
+
+*Ce qui l'aggrave, et qui reste vrai :* `vp test` typecheck via `tsconfig.types.json`, dont l'`include` ne porte que `**/*.test-d.ts`. Un `@ts-expect-error` dans un `.test.ts` n'est donc vérifié que par `vp check`.
+
+*Origine :* lot du contrat de plugin, étape 1, puis revue de la PR #50.
+
+### Une fixture du shell fabriquait des entrées sans champ `type`
+
+Le `entry()` de `apps/shell/test/app.test.ts` rendait un objet transtypé `as never`, sans `type`, avec un champ `storefile` en trop à côté de `storyFile`, et un `component` sans `export`. Douze cas lisaient donc des entrées qu'aucun producteur n'écrit.
+
+*Corrigé dans ce lot*, l'entrée est complète et le transtypage est parti. La ligne reste ici parce que la cause ne l'est pas : `as never` sur une fixture désarme le contrôle de forme, et rien n'interdit d'en réécrire un demain.
+
+*Ce qui l'a révélé :* le filtre sur `entry.type === 'story'` dans `App.vue`, qui a vidé l'arbre des douze cas d'un coup.
+
+*Origine :* lot du contrat de plugin, étape 1.
+
 ### `optimizeDeps.include` ne tient que les paquets nommés par la configuration
 
 `configPackages(project)` rend les spécificateurs bare importés par `adapter` et `wrap`, soit `['@crypte/react']` sur la démonstration. Les runtimes React ne sont donc pas dans `include` : mesuré sur `apps/demo/node_modules/.crypte/deps/_metadata.json`, `react`, `react-dom`, `react/jsx-runtime`, `react/jsx-dev-runtime` et `react/compiler-runtime` y sont des entrées optimisées **distinctes** de `@crypte/react`. L'optimiseur les découvre, il ne les emporte pas. La revue en déduit qu'un `crypte dev` réel prend un `full-reload` sous la première page de l'utilisateur.
@@ -158,6 +186,66 @@ Le contrôle de note de version exempte toute ligne commençant par `//`. Or `//
 *Origine :* revue de la PR #23.
 
 ## Observations
+
+### Un manifeste sans champ `entries` fait lever les lecteurs du CLI
+
+`storiesOf`, et donc `fingerprintOf`, `storyFilesOf` et `shape`, lèvent un `TypeError` sur un manifeste dont `entries` est absent. Le commentaire de `fingerprintOf` annonce pourtant qu'il « takes any manifest, including one read from a file somebody else wrote ».
+
+*Ce n'est pas une régression :* la version d'avant appelait `.map` sur le même champ et levait pareil. Le changement de ce lot remplace `.map` par `.filter`, comportement identique sur `undefined`.
+
+*Pourquoi ce n'est pas fait ici :* valider la forme d'un manifeste étranger est un mécanisme à part, pas une ligne, et rien ne lit aujourd'hui de manifeste qu'on n'a pas écrit soi-même. Le seul chemin réel est `crypte check`, qui n'existe pas encore, `DCJ-175`.
+
+*Ce qui rouvrirait le point :* le premier lecteur de manifeste écrit par quelqu'un d'autre, c'est-à-dire l'export Storybook ou le serveur MCP de `2.1 Distribution et adoption`.
+
+*Origine :* exploration du lot du contrat de plugin, étape 1.
+
+### L'empreinte committée ne verra pas un changement de tokens
+
+`fingerprintOf` mappe `storiesOf(manifest)`, donc une famille tokens ajoutée, modifiée ou retirée laisse `fingerprint.json` identique. La section 4.6 dit maintenant que c'est son périmètre, et non un oubli, mais la question reste ouverte : un jeu de tokens mérite-t-il son propre historique commité ?
+
+*Pourquoi ce n'est pas tranché ici :* les cinq champs de l'empreinte sont ceux d'une story, un composant, un statut, des noms de props. Décider ce que serait le condensé d'une famille de tokens sans avoir lu un seul fichier de tokens serait deviner.
+
+*Ce qui rouvrirait le point :* `DCJ-233`, dès que de vraies familles existent et qu'un diff de tokens se relit.
+
+*Origine :* revue de la PR #50, tour de correction.
+
+### Un token numérique voyage en chaîne, et le contrat ne le dit pas
+
+`TokenKind` porte `number` et `dimension`, et `TokenInTheme.value` est un `string` : un token numérique s'écrit donc `'4'`. La section 4.5 ne parle que de sérialisabilité, pas de la forme du littéral.
+
+*Pourquoi ce n'est pas fait ici :* c'est une phrase à écrire dans 4.2, et le premier producteur, `DCJ-233`, dira s'il lui faut aussi une unité à côté de la valeur. L'écrire avant lui fixerait la réponse à une question qu'on n'a pas encore posée.
+
+*Origine :* revue de la PR #50.
+
+### `id` devient un espace de noms partagé par deux natures d'entrée
+
+Une story à `['Color']` / `Brand` et une famille tokens à `['Color']` / `Brand` rendent le même `color--brand`. Le `byId` de `serve.ts` et le `current` du shell clés sur `id` seul, donc l'une écraserait l'autre en silence. La section 4.3 ne décrit que la dérivation.
+
+*Distinct de l'observation sur le nom de* `storyId` *ci-dessous*, qui porte sur le nom de la fonction et non sur la collision.
+
+*Pourquoi ce n'est pas fait ici :* aucun producteur n'écrit d'entrée tokens, donc la collision n'est atteignable par rien. Le remède, préfixer par la nature ou refuser un doublon à l'écriture, est une décision de forme d'identifiant, et `DCJ-233` est ce qui la rendra concrète.
+
+*Ce qui rouvrirait le point :* la première entrée tokens écrite par un producteur réel.
+
+*Origine :* revue de la PR #50.
+
+### Les huit écarts de la section 8 n'ont pas été recomptés
+
+Deux puces citent des lots terminés : « Nothing reloads. Editing a component or a story needs a restart until `DCJ-218` » alors que le rechargement à chaud existe et que `packages/cli/test/hot.test.ts` l'éprouve, et celle qui renvoie à `DCJ-217` pour l'affichage des fichiers écartés, également terminé.
+
+*Pourquoi ce n'est pas fait ici :* vérifier les huit une par une est un audit, pas une ligne, et il n'a rien à voir avec les tokens. Le faire au passage l'enverrait sans revue.
+
+*Origine :* revue de la PR #50, en ajoutant la neuvième puce.
+
+### `storyId` dérivera aussi l'identifiant d'une entrée tokens
+
+La section 4.3 fait de `storyId` la façon de nommer une entrée, et une entrée tokens en a besoin comme une story. Son nom dit `story`.
+
+*Pourquoi ce n'est pas fait ici :* renommer une fonction exportée du protocole est une rupture d'API publique pour un gain de lisibilité, et le producteur des entrées tokens n'existe pas encore. C'est `DCJ-233` qui dira si la fonction convient telle quelle.
+
+*Ce qui rouvrirait le point :* un troisième appelant, ou un identifiant de token que la normalisation actuelle rend ambigu.
+
+*Origine :* lot du contrat de plugin, étape 1.
 
 ### Clos : le contrôle de la spécification lisait moins de formes que celui du barrel
 

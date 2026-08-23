@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.1, reference document. A project brief points here instead of restating these shapes.
+> Version 1.2, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -425,7 +425,7 @@ interface SkippedFile {
   reason: string
 }
 
-type ManifestEntry = StoryEntry
+type ManifestEntry = StoryEntry | TokensEntry
 
 interface StoryEntry {
   type: 'story'
@@ -448,18 +448,51 @@ interface ComponentRef {
   export: string
 }
 
+interface TokensEntry {
+  type: 'tokens'
+  id: string
+  path: string[]
+  name: string
+  tokens: Record<string, TokenValue>
+}
+
+interface TokenValue {
+  type: TokenKind
+  description?: string
+  themes: Record<string, TokenInTheme>
+}
+
+interface TokenInTheme {
+  value: string
+  alias?: string[]
+}
+
+type TokenKind = 'color' | 'dimension' | 'fontFamily' | 'fontWeight' | 'number' | 'unknown'
+
 const MANIFEST_VERSION = 1
 ```
 
 `version` is a plain number rather than the literal type of `MANIFEST_VERSION`. Its job is to spot a manifest written by another version, and a frozen type would make that comparison impossible.
 
-Every entry carries a `type`. **One value is implemented: `"story"`.** `"page"` and `"tokens"` are reserved for design-system work and must not be implemented now. The reserve costs one field today and saves a migration later.
+Every entry carries a `type`. **Two values are implemented: `"story"` and `"tokens"`.** `"page"` is reserved for design-system work and must not be implemented now. The reserve costs one field today and saves a migration later.
+
+**`MANIFEST_VERSION` does not move when a nature is added.** The reserved `type` field is precisely what that reserve was for, and nothing required moved on `StoryEntry`, so a reader that only knows stories skips what it does not recognise instead of failing. The rule that does force a bump, adding a required field once a version that writes manifests is published, is in `docs/internal/suivi.md`.
 
 `props` and `source` are read from the story file, not declared in it. `props` lists the names the story passes to the component, from the shared block and its own, sorted, with no value attached: a prop set to a function is still a prop the story exercises, and prop coverage counts it. `source` rebuilds the call from the text the user wrote, so an expression the CLI cannot evaluate still reads the way they typed it.
 
 **A prop spread with `...` is in neither field**, and neither is a key computed at runtime. Their names cannot be read without running the file, and guessing them would put wrong names in a coverage figure.
 
 **A story key computed at runtime produces no entry at all.** A story name is a URL, a baseline key and the anchor of a comment, so a wrong one costs more than a missing one. The CLI reports what it dropped.
+
+**A tokens entry is a family, not one token.** `path` and `name` place it in the tree the same way a story's do, and `tokens` is keyed by token name, so the value carries no `name` of its own. That is the same shape as `details` inside a story entry, and it is what keeps a catalogue of three hundred tokens from becoming three hundred entries.
+
+**Every token is read per theme.** A single-theme project holds one key. Storing one value and adding themes later would change the shape of every token, which is a break; a project with one theme costs one extra key today.
+
+**`themes` holds at least one key, and that is the producer's guarantee rather than the type's.** A `Record` cannot be typed non-empty without making it painful to build, so this is the same arrangement as serialisation in 4.5: the type says what the shape is, and whoever writes the manifest is answerable for the rest. An empty `alias` is out for the same reason, since a chain that led nowhere is what an absent `alias` already says.
+
+**`value` is always the literal, and `alias` is the chain that led to it.** A real token points at another token, sometimes through several hops. Whoever draws a swatch reads `value` alone and never resolves anything; whoever explains a token walks `alias`, ordered from the token towards the literal. A token that holds a literal itself has no `alias`.
+
+**The core carries the shape, a plugin carries the reading.** No file format is part of this contract: CSS variables, DTCG, Tailwind and everything after them live in `@crypte/tokens`. Same split as props, where the core defines `ResolvedPropDetails` and `@crypte/docs` only draws a table from it.
 
 ```json
 {
@@ -481,6 +514,29 @@ Every entry carries a `type`. **One value is implemented: `"story"`.** `"page"` 
       "props": ["benefits", "reference", "title"],
       "source": "<OrderSummary title=\"Full plan\" benefits={['Full history']} reference=\"REF-4821\" />",
       "meta": { "status": "stable" }
+    },
+    {
+      "type": "tokens",
+      "id": "color--brand",
+      "path": ["Color"],
+      "name": "Brand",
+      "tokens": {
+        "primary": {
+          "type": "color",
+          "themes": {
+            "light": { "value": "#4fe0a0" },
+            "dark": { "value": "#1f5fd6" }
+          }
+        },
+        "button-background": {
+          "type": "color",
+          "description": "Filled buttons only.",
+          "themes": {
+            "light": { "value": "#4fe0a0", "alias": ["color-brand-primary"] },
+            "dark": { "value": "#1f5fd6", "alias": ["color-brand-primary"] }
+          }
+        }
+      }
     }
   ]
 }
@@ -526,7 +582,9 @@ The CLI writes two files side by side in `.crypte/`.
 
 **The manifest is the truth.** It is regenerated from the story files on every build, so when the two disagree it is the fingerprint that is out of date, never the other way round.
 
-The fingerprint is not a smaller manifest and nothing reads it to render. It exists so that Git holds the history of a catalogue: per entry, the identifier, the component as `file#export`, the status, the sorted prop names, and one digest folding everything else. That is enough to say what changed between two versions, and small enough to commit on every build. The reasoning and the measurements are in [`decisions.md`](decisions.md).
+The fingerprint is not a smaller manifest and nothing reads it to render. It exists so that Git holds the history of a catalogue: per **story** entry, the identifier, the component as `file#export`, the status, the sorted prop names, and one digest folding everything else. That is enough to say what changed between two versions, and small enough to commit on every build. The reasoning and the measurements are in [`decisions.md`](decisions.md).
+
+**Story entries only, and that is a boundary rather than an oversight.** Every field above is a story's: a component reference, a status, prop names. A `tokens` family changing therefore leaves the committed fingerprint untouched, so this file answers "what changed in the component catalogue", not "what changed in the manifest". Whether a token set deserves its own committed history is a separate question, `decisions.md` predating it by ten days, and the first producer is what will settle it.
 
 **A missing or stale fingerprint is never fatal to a build.** It is a record, so the build writes it and moves on. Telling a project that its record is behind is the job of `crypte check`.
 
@@ -717,14 +775,14 @@ This document is a contract. This section is the only place that says what exist
 | 1.5, project configuration | the config is read, and the declared style sheet is loaded by the preview |
 | 1.5, path aliases | built |
 | 2 and 3, the types | built, and `defineStories` and `story` with them. Inference is not: `details` is still written empty |
-| 4, the manifest | built, and written by `crypte dev` at start-up and on every restart of the configuration. A story file added or broken changes what is served without rewriting the file |
+| 4, the manifest | built, and written by `crypte dev` at start-up and on every restart of the configuration. A story file added or broken changes what is served without rewriting the file. Of the two natures of entry it can carry, only `story` is produced |
 | 4.6, the fingerprint | built, and written by `crypte dev` at start-up only: it is committed, so a restart leaves the working tree alone |
 | 5, the channel | built and exercised on both sides |
 | 6, plugin contract | not built, and provisional |
 
 **`crypte dev` is built, `crypte check` is not.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled by the project's own Vite. A story renders, switching story works, and a story that throws shows its error instead of an empty frame.
 
-Eight known gaps between this document and the code:
+Nine known gaps between this document and the code:
 
 - `update-overrides` and `set-globals` are part of the protocol and have no effect yet. The preview drops them.
 - A path alias cannot replace an installed package. `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because the resolver runs after Vite's own. TypeScript would return the replacement file.
@@ -733,11 +791,21 @@ Eight known gaps between this document and the code:
 - Nothing reloads. Editing a component or a story needs a restart until DCJ-218.
 - **`plugins` is read and never used.** Section 6 is provisional and no plugin exists, so the field is validated and dropped.
 - The CLI does not yet guarantee the serialisation promised in 4.5. What it writes today is read from source text and is serialisable by construction, so the guarantee is not exercised.
+- **A `tokens` entry is specified and nothing produces one.** Section 4.2 describes `TokensEntry`, and `buildCatalogue` writes stories only. Two readers are ready for it, in the sense that skipping is what they should do: the preview, which renders one nature, and the shell, which keeps out of the tree what it cannot draw. The fingerprint skips it too, and there 4.6 says why that is its scope rather than a reader being ready. `@crypte/tokens` is what will write the first entry.
 - `component.file` is resolved without Vite. The producer runs before any server exists, so it applies the project's `paths` and tries the usual extensions, with no plugin and no `exports` field. A component reached through a plugin keeps the identifier the story wrote.
 
 ---
 
 ## 9. Version log
+
+**v1.2.** A second entry nature, `tokens`, which is what makes `ManifestEntry` a union rather than an alias.
+
+| Before | After |
+| --- | --- |
+| `"tokens"` was a reserved `type` nobody could write | `TokensEntry` is specified, and one entry carries a family rather than a single token |
+| nothing said whether a token had one value or several | `themes` is required, so a single-theme project holds one key instead of a second shape existing |
+| nothing said what an alias was | `value` is always the literal and `alias` is the chain that led to it, so a swatch resolves nothing |
+| every reader took `entry.storyFile` off any entry | they narrow on `type` first, the preview's generated module included, and `MANIFEST_VERSION` stays at 1 because the reserve was there for this |
 
 **v1.1.** The manifest producer written, which is what turned three of these lines from a contract into a measurement.
 

@@ -1,9 +1,10 @@
 import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Manifest } from '@crypte/core/protocol'
+import type { Manifest, StoryEntry } from '@crypte/core/protocol'
 import { describe, expect, test as base } from 'vitest'
 import { startDev } from '../src/dev'
+import { storiesOf } from '../src/manifest'
 import { MANIFEST_ROUTE } from '../src/serve'
 
 // Ce que le serveur fait des fichiers pendant qu'il tourne. Sur une copie de la
@@ -29,8 +30,9 @@ interface Projet {
   retenu: () => string[]
   // Les identifiants que la route sert maintenant.
   noms: () => Promise<string[]>
-  // Les entrées du manifeste servies maintenant.
-  entrees: () => Promise<Manifest['entries']>
+  // Les entrées de story servies maintenant. Les stories seules : ces cas
+  // lisent `props`, `partial` et `source`, qu'une entrée tokens ne porte pas.
+  entrees: () => Promise<StoryEntry[]>
   // Ce que le serveur a dit, depuis le démarrage de ce cas.
   dites: (motif: string) => () => string[]
   // Les rechargements complets envoyés, depuis le démarrage de ce cas.
@@ -69,13 +71,13 @@ const test = base.extend<{ projet: Projet }>({
         answer.json(),
       )) as Manifest
 
-      return manifest.entries
+      return storiesOf(manifest)
     }
 
     await use({
       root,
       origin,
-      retenu: () => started.held.catalogue.manifest.entries.map((entry) => entry.id),
+      retenu: () => storiesOf(started.held.catalogue.manifest).map((entry) => entry.id),
       noms: async () => (await entrees()).map((entry) => entry.id),
       entrees,
       rechargements: () => reloads,

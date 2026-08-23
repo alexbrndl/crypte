@@ -14,8 +14,13 @@ const __crypte_container = document.getElementById('root')
 if (!__crypte_container) throw new Error('preview container not found')
 
 // An entry carries the path of its story file, so finding its module is a
-// lookup and never a guess about a name.
-const __crypte_byId = new Map(__crypte_manifest.entries.map((entry) => [entry.id, entry]))
+// lookup and never a guess about a name. Stories only: the manifest carries
+// other natures, and this frame renders one.
+const __crypte_byId = new Map(
+  __crypte_manifest.entries
+    .filter((entry) => entry.type === 'story')
+    .map((entry) => [entry.id, entry]),
+)
 
 function __crypte_render(id, overrides) {
   const entry = __crypte_byId.get(id)

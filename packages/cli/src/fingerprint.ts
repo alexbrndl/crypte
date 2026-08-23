@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Manifest, StoryEntry } from '@crypte/core/protocol'
+import { storiesOf } from './manifest'
 
 // Beside the manifest, and committed where the manifest is not.
 export const FINGERPRINT = join('.crypte', 'fingerprint.json')
@@ -39,7 +40,9 @@ const SHOWN = new Set(['id', 'props'])
 export function fingerprintOf(manifest: Manifest): Fingerprint {
   return {
     version: manifest.version,
-    entries: manifest.entries.map((entry) => ({
+    // Stories only: the fingerprint records what a component catalogue was, and
+    // a token has neither props nor a status to compare.
+    entries: storiesOf(manifest).map((entry) => ({
       id: entry.id,
       component: `${entry.component.file}#${entry.component.export}`,
       // A story with no `meta` still has a status in the fingerprint, otherwise

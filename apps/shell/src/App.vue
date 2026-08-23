@@ -98,11 +98,15 @@ async function refresh() {
 
   const before = entries.value
 
-  entries.value = manifest.entries
-  skipped.value = manifest.skipped ?? []
-  status.value = `${manifest.entries.length} stories`
+  // Les stories seules : le manifeste porte d'autres natures d'entrée, et cet
+  // écran n'en montre qu'une. Ce qu'il ne sait pas afficher, il l'ignore.
+  const stories = manifest.entries.filter((entry): entry is StoryEntry => entry.type === 'story')
 
-  const next = landing(shown, before, manifest.entries)
+  entries.value = stories
+  skipped.value = manifest.skipped ?? []
+  status.value = `${stories.length} stories`
+
+  const next = landing(shown, before, stories)
   shown = next.shown
   if (next.status) status.value = next.status
 

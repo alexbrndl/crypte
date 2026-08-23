@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
-import { buildCatalogue, OUTPUT, storyFiles, writeCatalogue } from '../src/manifest'
+import { buildCatalogue, OUTPUT, storiesOf, storyFiles, writeCatalogue } from '../src/manifest'
 import { loadProject } from '../src/project'
 
 // Le catalogue écrit à partir du dossier de stories. Voir docs/contracts.md § 4.
@@ -165,7 +165,7 @@ describe('le catalogue', () => {
   it('résout le composant en chemin de projet', async () => {
     const { manifest } = buildCatalogue(await loadProject(fixture))
 
-    expect(manifest.entries.map((entry) => entry.component.file)).toEqual([
+    expect(storiesOf(manifest).map((entry) => entry.component.file)).toEqual([
       'src/components/Badge.jsx',
       'src/components/checkout/OrderSummary.jsx',
       'src/components/checkout/OrderSummary.jsx',
@@ -182,7 +182,7 @@ describe('le catalogue', () => {
 
     const { manifest } = buildCatalogue(await loadProject(root))
 
-    expect(manifest.entries[0]?.component.file).toBe('src/Card.jsx')
+    expect(storiesOf(manifest)[0]?.component.file).toBe('src/Card.jsx')
   })
 
   // Rendre un chemin inventé serait pire que rendre l'identifiant : un écran
@@ -195,7 +195,7 @@ describe('le catalogue', () => {
 
     const { manifest } = buildCatalogue(await loadProject(root))
 
-    expect(manifest.entries[0]?.component.file).toBe('../src/Card')
+    expect(storiesOf(manifest)[0]?.component.file).toBe('../src/Card')
   })
 
   // La résolution tournait une fois par story, sur un objet de composant
@@ -218,7 +218,7 @@ describe('le catalogue', () => {
 
     const { manifest } = buildCatalogue(await loadProject(root))
 
-    expect(manifest.entries.map((entry) => entry.component.file)).toEqual([
+    expect(storiesOf(manifest).map((entry) => entry.component.file)).toEqual([
       'src/Card.jsx',
       'src/Card.jsx',
     ])
@@ -237,7 +237,7 @@ describe('le catalogue', () => {
 
     const { manifest } = buildCatalogue(await loadProject(root))
 
-    expect(manifest.entries[0]?.component.file).toBe('src/Card.js')
+    expect(storiesOf(manifest)[0]?.component.file).toBe('src/Card.js')
   })
 
   // Chaque fichier avant tout `index`, l'ordre de Node. L'extension du fichier
@@ -253,7 +253,7 @@ describe('le catalogue', () => {
 
     const { manifest } = buildCatalogue(await loadProject(root))
 
-    expect(manifest.entries[0]?.component.file).toBe('src/Card.ts')
+    expect(storiesOf(manifest)[0]?.component.file).toBe('src/Card.ts')
   })
 
   it('écrit un JSON relu tel quel', async () => {
