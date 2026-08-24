@@ -224,6 +224,16 @@ Le contrôle de note de version exempte toute ligne commençant par `//`. Or `//
 
 *Origine :* revue de la PR #51.
 
+### `aliasOf` compte les parenthèses sans connaître les chaînes
+
+`var(--a, "),")` voit une fermeture prématurée dans la chaîne et n'est plus reconnu comme alias : la valeur reste littérale. Mesuré à la revue de la PR #52.
+
+*Pourquoi ce n'est pas fait ici :* l'échec est sûr, le token garde son texte et rien ne disparaît. Reconnaître les chaînes demande un vrai découpage en jetons, pour une forme qu'une feuille de tokens n'écrit pas.
+
+*Ce qui rouvrirait le point :* un token dont la valeur porte une chaîne, ce qui arriverait avec `content` ou une famille de police citée.
+
+*Origine :* revue de la PR #52, troisième tour.
+
 ### `@crypte/tokens` ne lit ni les at-rules autres que le thème sombre, ni les imports
 
 Une variable déclarée dans un `@supports`, un `@layer` ou un `@container` est lue **comme si elle appartenait au thème par défaut** : `blocks()` prend le bloc intérieur sans regarder ce qui l'enveloppe, et seul `@media (prefers-color-scheme: dark)` est extrait avant. Un `@import` n'est pas suivi non plus, donc une feuille qui délègue ses tokens à une autre ne donne rien.

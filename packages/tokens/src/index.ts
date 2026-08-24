@@ -251,6 +251,10 @@ function aliasOf(value: string): { name: string; fallback?: string } | undefined
     }
   }
 
+  // Never closed, so the balance the comment promises does not hold: reading it
+  // anyway handed back a truncated literal, `calc(1px` for `var(--a, calc(1px)`.
+  if (depth !== 0) return undefined
+
   // The fallback of `var(--x, y)` is part of the form and is used when nothing
   // declares `--x`, which is exactly what an author writes it for.
   const inside = value.slice(4, -1)
@@ -259,8 +263,11 @@ function aliasOf(value: string): { name: string; fallback?: string } | undefined
   if (!/^--[\w-]+$/.test(named)) return undefined
 
   const name = named.slice(2)
+  // An empty fallback is no fallback: taken as one it put an empty `value` in
+  // the manifest, and nothing draws that.
+  const fallback = comma === -1 ? '' : inside.slice(comma + 1).trim()
 
-  return comma === -1 ? { name } : { name, fallback: inside.slice(comma + 1).trim() }
+  return fallback === '' ? { name } : { name, fallback }
 }
 
 // Four kinds are read from the value itself. `fontFamily` and `fontWeight` are

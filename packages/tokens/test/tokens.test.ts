@@ -320,6 +320,22 @@ describe('un var() qui n’est pas toute la valeur', () => {
     expect(family(entries, 'a')?.two?.themes.default).toEqual({ value: 'var()' })
   })
 
+  it('ne prend pas pour un alias un var() jamais refermé', () => {
+    const entries = read(':root { --a-one: var(--a, calc(1px) }')
+
+    expect(family(entries, 'a')?.one?.themes.default).toEqual({ value: 'var(--a, calc(1px)' })
+  })
+
+  // Un repli vide n'est pas un repli : pris pour tel, il écrivait `value: ''`.
+  it('garde le texte quand le repli est vide', () => {
+    const entries = read(':root { --a-one: var(--absente,) }')
+
+    expect(family(entries, 'a')?.one?.themes.default).toEqual({
+      value: 'var(--absente,)',
+      alias: ['absente'],
+    })
+  })
+
   it('suit un repli qui est lui-même un var()', () => {
     const entries = read(':root { --a-base: 8px; --a-one: var(--absente, var(--a-base)) }')
 
