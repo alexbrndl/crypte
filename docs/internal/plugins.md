@@ -80,9 +80,13 @@ Tant que les deux n'existent pas, la section 6 change sans procédure. Après, t
 
 ## `2.3` Entrée tokens
 
+**Écrit, moitié `node`, le 24 août 2026.** Il lit les variables CSS de la feuille que le projet déclare et en contribue des entrées `TokensEntry`, une par famille. La moitié `preview`, qui résoudrait les valeurs effectives par `getComputedStyle`, attend que `PreviewHooks` soit spécifié, ce qui demande son propre consommateur.
+
+Les trois autres sources de la fiche, DTCG, `tokens.ts` et Tailwind, ne sont pas écrites : ce plugin existait pour éprouver la surface `node` avant qu'elle soit figée, pas pour être complet.
+
 | Paquet | Rôle | Surfaces | Statut |
 | --- | --- | --- | --- |
-| `@crypte/tokens` | découverte et lecture des tokens | node, preview | gratuit |
+| `@crypte/tokens` | découverte et lecture des tokens | node, puis preview | gratuit |
 
 Sorti de la réserve de `contracts.md` §7 à la refonte. Deux raisons : zeroheight et Supernova ont tous les deux un Token Manager, et c'est **le premier plugin à écrire dans le manifeste**, donc celui qui éprouve `NodeHooks` avant qu'il soit figé.
 

@@ -1,4 +1,23 @@
+/* Les tokens du projet témoin. Ils portent les trois formes que `@crypte/tokens`
+   doit savoir lire : un littéral, un alias, et un thème sombre. */
 :root {
   font-family: system-ui, sans-serif;
   color-scheme: light dark;
+
+  --color-neutral: #e5e7eb;
+  --color-warning: #fde68a;
+  --color-text: #111827;
+  --color-badge-background: var(--color-neutral);
+
+  --radius-pill: 999px;
+  --space-badge: 2px 10px;
+  --size-label: 13px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-neutral: #374151;
+    --color-warning: #78350f;
+    --color-text: #f9fafb;
+  }
 }

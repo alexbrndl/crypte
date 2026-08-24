@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import type { Manifest, StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { describe, expect, it } from 'vitest'
 import { FINGERPRINT, fingerprintOf, writeFingerprint } from '../src/fingerprint'
-import { buildCatalogue } from '../src/manifest'
+import { buildCatalogue, storiesOf } from '../src/manifest'
 import { loadProject } from '../src/project'
 
 // L'empreinte commitée. Voir docs/decisions.md, « The manifest is a build
@@ -184,7 +184,12 @@ describe('l’empreinte de la fixture', () => {
       const built = fingerprintOf(manifest)
       const file = writeFingerprint(root, built)
 
-      expect(built.entries, root).toHaveLength(manifest.entries.length)
+      // Une ligne par **story**, pas par entrée : la section 4.6 dit que
+      // l'empreinte répond « ce qui a changé au catalogue de composants », pas
+      // « ce qui a changé au manifeste ». La démonstration porte des entrées
+      // tokens depuis `DCJ-233`, donc les deux comptes diffèrent chez elle.
+      expect(built.entries, root).toHaveLength(storiesOf(manifest).length)
+      expect(built.entries.length, root).toBeLessThanOrEqual(manifest.entries.length)
       expect(file, root).toBe(join(root, FINGERPRINT))
       expect(JSON.parse(readFileSync(file, 'utf8')), root).toEqual(built)
     }

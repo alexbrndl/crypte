@@ -10,6 +10,8 @@ import { loadProject } from '../src/project'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const fixture = join(here, 'fixture')
+// Le seul projet du dépôt qui déclare un vrai plugin dans sa configuration.
+const demo = join(here, '..', '..', '..', 'apps', 'demo')
 
 // La fixture porte quatre stories, dont celle-ci, qui sert aux collisions.
 const STORY = 'badge--default'
@@ -264,5 +266,40 @@ describe('la garantie de sérialisation', () => {
 
     expect(catalogue.skippedPlugins).toEqual([])
     expect(written).toEqual(catalogue.manifest)
+  })
+})
+
+// Le critère de fin du lot : un vrai plugin, déclaré par un vrai projet, écrit
+// une entrée dans son manifeste sans qu'aucune ligne du noyau ne connaisse les
+// tokens. Sur la démonstration, pas sur la fixture, parce que c'est elle qui
+// porte une feuille de style et un `crypte.config.ts` complet.
+describe('la démonstration, de bout en bout', () => {
+  it('porte une entrée tokens que @crypte/tokens a produite', async () => {
+    const catalogue = buildCatalogue(await loadProject(demo))
+    const entries = catalogue.manifest.entries.filter((entry) => entry.type === 'tokens')
+
+    expect(catalogue.skippedPlugins).toEqual([])
+    expect(entries.map((entry) => entry.id)).toEqual([
+      'tokens--color',
+      'tokens--radius',
+      'tokens--size',
+      'tokens--space',
+    ])
+  })
+
+  // Le thème sombre vient d'un `@media`, et l'alias d'un `var()` : les deux
+  // formes que la lecture naïve manque.
+  it('lit le thème sombre et la chaîne d’alias de la démonstration', async () => {
+    const catalogue = buildCatalogue(await loadProject(demo))
+    const colors = catalogue.manifest.entries.find((entry) => entry.id === 'tokens--color')
+
+    expect(colors?.type === 'tokens' && colors.tokens.neutral?.themes).toEqual({
+      default: { value: '#e5e7eb' },
+      dark: { value: '#374151' },
+    })
+    expect(colors?.type === 'tokens' && colors.tokens['badge-background']?.themes.default).toEqual({
+      value: '#e5e7eb',
+      alias: ['color-neutral'],
+    })
   })
 })

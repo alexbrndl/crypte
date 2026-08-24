@@ -183,7 +183,10 @@ function contributionsOf(
     // The whole loop is inside the try: a plugin that returns something other
     // than entries throws while being read, not while being called.
     try {
-      const produced = hook({ root: project.root })
+      const produced = hook({
+        root: project.root,
+        ...(project.config.css === undefined ? {} : { css: project.config.css }),
+      })
       if (!Array.isArray(produced)) throw new TypeError('the hook returned no array of entries')
 
       for (const one of produced as unknown[]) {
