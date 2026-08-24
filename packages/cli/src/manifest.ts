@@ -3,8 +3,14 @@
 
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, extname, join, relative, resolve } from 'node:path'
-import { MANIFEST_VERSION, type Manifest, type StoryEntry } from '@crypte/core/protocol'
-import { ConfigError } from './errors'
+import {
+  CONTRIBUTABLE,
+  MANIFEST_VERSION,
+  type ContributedEntry,
+  type Manifest,
+  type StoryEntry,
+} from '@crypte/core/protocol'
+import { ConfigError, reason } from './errors'
 import { best, isBareSpecifier, ordered } from './paths'
 import { entriesOf, posix, STORY_EXTENSIONS } from './stories'
 import type { Project } from './project'
@@ -26,6 +32,10 @@ export interface Catalogue {
   // and not of the catalogue, so it stays out of the manifest: it exists so that
   // a file which stops producing keeps saying so beyond one rebuild.
   wasStory: string[]
+  // What a plugin's `entries` hook did not get to contribute, and why. Its own
+  // field rather than `skipped`, whose `file` is contractually the path of a
+  // story file, section 4.1. The caller reports it.
+  skippedPlugins: { plugin: string; reason: string }[]
 }
 
 // The story entries of a manifest, for the three readers in this package that
@@ -136,14 +146,156 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
   // not a banner above the preview.
   const certain = skipped.filter((one) => sure.has(one.file))
 
+  // After the stories, never before: a contribution that lands on an identifier
+  // a story already owns is the one that gives way, since a story comes from the
+  // author's own file and a plugin's entry does not.
+  const contributed = contributionsOf(project, new Set(entries.map((entry) => entry.id)))
+
   return {
     manifest: {
       version: MANIFEST_VERSION,
-      entries,
+      entries: [...entries, ...contributed.entries],
       ...(certain.length > 0 ? { skipped: certain } : {}),
     },
     skipped,
     wasStory: [...new Set([...gave, ...was])],
+    skippedPlugins: contributed.skipped,
+  }
+}
+
+// What the `node` surface of each plugin contributes, in the order `plugins`
+// declares them, and what was refused of it. Section 6.3 of docs/contracts.md.
+//
+// Nothing here is fatal. A plugin is not the author's text: one that throws, or
+// that lands on a taken identifier, must not stop a dev server from serving the
+// stories it already read.
+function contributionsOf(
+  project: Project,
+  taken: Set<string>,
+): { entries: ContributedEntry[]; skipped: Catalogue['skippedPlugins'] } {
+  const entries: ContributedEntry[] = []
+  const skipped: Catalogue['skippedPlugins'] = []
+
+  for (const plugin of project.config.plugins ?? []) {
+    const hook = plugin?.node?.entries
+    if (!hook) continue
+
+    // The whole loop is inside the try: a plugin that returns something other
+    // than entries throws while being read, not while being called.
+    try {
+      const produced = hook({ root: project.root })
+      if (!Array.isArray(produced)) throw new TypeError('the hook returned no array of entries')
+
+      for (const one of produced as unknown[]) {
+        // Shape first: everything below reads `id`, and a plugin arrives
+        // compiled, so nothing has checked that this is an entry at all.
+        const malformed = notAnEntry(one)
+        if (malformed) {
+          skipped.push({ plugin: plugin.name, reason: malformed })
+          continue
+        }
+
+        // Section 4.5 asks the CLI to guarantee what it writes. Everything else
+        // it writes is read from source text and serialisable by construction;
+        // this input is the first that is not, so the guarantee is owed here.
+        const checked = serialisable(one)
+        if ('offends' in checked) {
+          skipped.push({ plugin: plugin.name, reason: `an entry carries ${checked.offends}` })
+          continue
+        }
+
+        const entry = checked.value as ContributedEntry
+        if (taken.has(entry.id))
+          skipped.push({ plugin: plugin.name, reason: `\`${entry.id}\` is already taken` })
+        else {
+          taken.add(entry.id)
+          entries.push(entry)
+        }
+      }
+    } catch (error) {
+      skipped.push({ plugin: plugin.name, reason: reason(error) })
+    }
+  }
+
+  return { entries, skipped }
+}
+
+// What a plugin's return value has to be before anything else reads it.
+// `ContributedEntry` holds at compile time and a plugin arrives compiled, so an
+// entry typed `story` reaches here; unrefused, it would enter the manifest and,
+// through `storiesOf`, the committed fingerprint.
+function notAnEntry(value: unknown): string | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return 'an entry is not an object'
+
+  const { id, type } = value as { id?: unknown; type?: unknown }
+
+  if (typeof id !== 'string' || id === '') return 'an entry has no identifier'
+  if (typeof type !== 'string' || !(CONTRIBUTABLE as readonly string[]).includes(type))
+    return `\`${id}\` is not a nature a plugin may contribute`
+
+  return undefined
+}
+
+// The first value JSON would not return as it was, named and located, or the
+// value itself. Why refusing rather than dropping: docs/internal/architecture.md.
+function serialisable(
+  value: unknown,
+  at = '',
+  seen = new Set<object>(),
+): { value: unknown } | { offends: string } {
+  const where = at || 'the entry'
+
+  if (value === null) return { value }
+  if (value === undefined) return { offends: `undefined at ${where}` }
+  if (typeof value === 'function') return { offends: `a function at ${where}` }
+  if (typeof value === 'bigint' || typeof value === 'symbol')
+    return { offends: `a ${typeof value} at ${where}` }
+
+  // `JSON.stringify` writes `null` for these three, so the value that comes back
+  // is a different number, or none. Dropping cannot fix that.
+  if (typeof value === 'number' && !Number.isFinite(value))
+    return { offends: `${String(value)} at ${where}` }
+
+  if (typeof value !== 'object') return { value }
+
+  // Released on the way back up, so two references to the same object are not a
+  // cycle: two token names resolving to one value is the plausible case, and
+  // `JSON.stringify` serialises it without complaint.
+  if (seen.has(value)) return { offends: `a cycle at ${where}` }
+  seen.add(value)
+
+  try {
+    if (Array.isArray(value)) {
+      const out: unknown[] = []
+
+      for (const [index, one] of value.entries()) {
+        const checked = serialisable(one, `${at}[${index}]`, seen)
+        if ('offends' in checked) return checked
+        out.push(checked.value)
+      }
+
+      return { value: out }
+    }
+
+    // A `Date`, a `Map`, a class instance: each survives `JSON.stringify` as
+    // something other than itself, so plain objects only.
+    if (Object.getPrototypeOf(value) !== Object.prototype) {
+      const named = (value as { constructor?: { name?: string } }).constructor?.name
+      return { offends: `a ${named ?? 'non-plain'} value at ${where}` }
+    }
+
+    const out: Record<string, unknown> = {}
+
+    for (const [key, one] of Object.entries(value)) {
+      const checked = serialisable(one, at ? `${at}.${key}` : key, seen)
+      if ('offends' in checked) return checked
+      out[key] = checked.value
+    }
+
+    return { value: out }
+  } finally {
+    seen.delete(value)
   }
 }
 

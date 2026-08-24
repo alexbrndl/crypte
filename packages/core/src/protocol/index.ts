@@ -32,6 +32,17 @@ export { MANIFEST_VERSION } from './manifest'
 // How a story is named
 export { normalizeSegment, storyId } from './id'
 
+// What a plugin is, and what its node surface may contribute
+export type {
+  CryptePlugin,
+  UIContribution,
+  PreviewHooks,
+  NodeHooks,
+  NodeContext,
+  ContributedEntry,
+} from './plugin'
+export { CONTRIBUTABLE } from './plugin'
+
 // How the shell and the preview talk
 export type {
   ShellMessage,

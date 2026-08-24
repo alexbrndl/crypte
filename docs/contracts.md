@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.2, reference document. A project brief points here instead of restating these shapes.
+> Version 1.3, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -669,7 +669,7 @@ type PluginMessage<T extends { type: LiteralOnly<T['type']> }> = T
 
 ## 6. Plugin contract
 
-> **Provisional.** This section is the only one that is not frozen. See 6.4.
+> **Provisional.** This section is the only one that is not frozen. See 6.5.
 
 ### 6.1 Shape
 
@@ -690,9 +690,9 @@ interface CryptePlugin {
 | `preview` | iframe | lifecycle around a render |
 | `node` | CLI | build step, command |
 
-`UIContribution` and `NodeHooks` are named here and not yet specified.
+`NodeHooks` is specified in 6.3. `UIContribution` is not: it is written with the first plugin that draws a panel, tracked in DCJ-194, and until then the core declares it opaque, the way it declares an adapter opaque.
 
-`UIContribution` is written with the first plugin that draws a panel, tracked in DCJ-194. `NodeHooks` is the blocking prerequisite of the `tokens` entry and of everything shaped like a plugin that writes to the manifest, tracked in DCJ-227: the one capability a real use demands of it is **contributing entries to the manifest**, and `@crypte/tokens` is the plugin that proves it.
+**`PreviewHooks` is specified in 6.2 and the core declares it opaque too.** The shapes below are what it will be; no preview calls them yet, and nothing would be gained by typing a surface with no caller. Section 8 carries that gap.
 
 ### 6.2 The golden rule
 
@@ -719,7 +719,47 @@ Without this rule every plugin would be rewritten for every framework, which wou
 
 Anything that needs a framework context, such as `ThemeProvider` or `QueryClientProvider`, belongs to `wrap`, not to a plugin.
 
-### 6.3 `ctx.props` can be changed before mount
+### 6.3 `node` contributes entries to the manifest
+
+One capability, because one use demands it: a plugin adds entries the CLI could not have read from a story file. `@crypte/tokens` is what proves it.
+
+```ts
+interface NodeHooks {
+  entries?: (ctx: NodeContext) => ContributedEntry[]
+}
+
+interface NodeContext {
+  root: string
+}
+
+type ContributedEntry = Exclude<ManifestEntry, StoryEntry>
+
+const CONTRIBUTABLE = ['tokens'] as const
+```
+
+**A hook is a plain function, not a method.** Its context arrives as an argument, so it never reads `this`.
+
+**Stories are excluded from what a plugin may contribute.** They come from story files, and a plugin injecting one would bypass discovery and the reporting that goes with it.
+
+**`CONTRIBUTABLE` is the same set at run time, and it is not a duplicate.** `ContributedEntry` holds at compile time, and a plugin is installed compiled: nothing in a published package stops it from handing over `type: 'story'`, which would then enter the manifest and, through the story readers, the committed fingerprint. The producer checks the shape of every entry it is handed before reading anything else from it: an object, a non-empty `id`, and a nature on this list.
+
+**Adding a nature to the manifest means adding it here too.** `Exclude` widens on its own and the list does not, so the two are held together by a type test rather than by good intentions: `packages/core/test/plugin.test-d.ts` stops compiling when they diverge. Without it, a new nature compiled and was then refused at run time with « is not a nature a plugin may contribute ».
+
+**The context carries the project root and nothing else.** The producer runs before any server exists, so there is no Vite resolution to hand over: no plugin, no `exports` field, the same limit 8 records for `component.file`. A plugin's own settings come from its factory, not from here.
+
+**Hooks are synchronous.** Everything the CLI reads today it reads synchronously, and the catalogue is rebuilt from a watcher callback where two overlapping rebuilds would be a new race. A plugin reads its files the way the story reader reads story files.
+
+**They run in the order `plugins` declares them**, and after the stories. Nothing carries an `order` field, which every plugin would set to zero. Being last means a contribution that lands on an identifier a story already owns is the one that gives way: a story comes from the author's own file, a contributed entry does not.
+
+**Nothing here is fatal, and nothing here is silent.** A hook that throws, that returns something other than entries, that hands over an entry which is not one, that lands on a taken identifier, or that produces a value which would not survive JSON, has that contribution refused with its reason. The catalogue keeps everything it already read, and the CLI says what it refused and which plugin it came from. A plugin is not the author's text, so it must not be able to stop a dev server.
+
+**This is where 4.5 stops being free.** Everything else the CLI writes is read from source text and serialisable by construction. An entry built by a plugin is the first input that is not, so the CLI checks it rather than letting `JSON.stringify` drop a function without a word.
+
+**Anything JSON would not give back as it was is refused**, named and located: a function, a `Date` or any non-plain value, `NaN` and the infinities which come back as `null`, an `undefined` value, and a genuine cycle. Two references to one object are not a cycle, and are kept.
+
+**Refusing is a third answer, and 4.5 does not offer it.** Its two remedies, leaving out and rewriting, both assume the value is the CLI's to repair; a plugin's entry is not, and rewriting somebody else's data without a word is worse than refusing it. Dropping was tried here and taken back: **no nature a plugin may contribute has an optional property today**, held by a type test in `packages/core/test/plugin.test-d.ts`, so dropping a key whose value is `undefined` silently wrote an entry that no longer satisfied 4.2. A loud refusal naming the key costs the plugin author one line; a silent drop costs a reader a field that should have been there.
+
+### 6.4 `ctx.props` can be changed before mount
 
 Inside `beforeMount`, a plugin may change `ctx.props`. That is the only moment props are mutable; everywhere else the context is read-only.
 
@@ -727,7 +767,7 @@ This exists for one demonstrated case: a function prop the story author did not 
 
 The core knows nothing about this. With the `actions` plugin absent, the author declares the function themselves.
 
-### 6.4 How this contract becomes stable
+### 6.5 How this contract becomes stable
 
 The contract counts as stable only once **two plugins with opposite needs** have used it:
 
@@ -778,25 +818,33 @@ This document is a contract. This section is the only place that says what exist
 | 4, the manifest | built, and written by `crypte dev` at start-up and on every restart of the configuration. A story file added or broken changes what is served without rewriting the file. Of the two natures of entry it can carry, only `story` is produced |
 | 4.6, the fingerprint | built, and written by `crypte dev` at start-up only: it is committed, so a restart leaves the working tree alone |
 | 5, the channel | built and exercised on both sides |
-| 6, plugin contract | not built, and provisional |
+| 6, plugin contract | the `node` surface is built and called by the producer. `ui` and `preview` are named and declared opaque. Provisional throughout |
 
 **`crypte dev` is built, `crypte check` is not.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled by the project's own Vite. A story renders, switching story works, and a story that throws shows its error instead of an empty frame.
 
-Nine known gaps between this document and the code:
+Seven known gaps between this document and the code:
 
 - `update-overrides` and `set-globals` are part of the protocol and have no effect yet. The preview drops them.
 - A path alias cannot replace an installed package. `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because the resolver runs after Vite's own. TypeScript would return the replacement file.
 - `details` is written empty. Section 4.4 says it travels from the story file untouched, but the manifest carries the **resolved** form, whose `type` and `required` come from an adapter's inference and not from what the author wrote. `meta` and `options` do travel today.
-- What a story file cannot be read from is reported in the server's output, one line per file, and not yet in the shell. The in-app version, with its two levels, is DCJ-217.
-- Nothing reloads. Editing a component or a story needs a restart until DCJ-218.
-- **`plugins` is read and never used.** Section 6 is provisional and no plugin exists, so the field is validated and dropped.
-- The CLI does not yet guarantee the serialisation promised in 4.5. What it writes today is read from source text and is serialisable by construction, so the guarantee is not exercised.
-- **A `tokens` entry is specified and nothing produces one.** Section 4.2 describes `TokensEntry`, and `buildCatalogue` writes stories only. Two readers are ready for it, in the sense that skipping is what they should do: the preview, which renders one nature, and the shell, which keeps out of the tree what it cannot draw. The fingerprint skips it too, and there 4.6 says why that is its scope rather than a reader being ready. `@crypte/tokens` is what will write the first entry.
+- **`UIContribution` and `PreviewHooks` are declared opaque by the core**, though 6.2 specifies the second one in full. Neither has a caller: no shell panel comes from a plugin, and no preview runs a lifecycle hook. Typing a surface nobody calls would buy nothing and could not be taken back.
+- The serialisation of 4.5 is guaranteed on **contributed** entries and merely true of the others. A plugin's entry is checked and refused with what offends named; everything the CLI reads itself comes from source text and is serialisable by construction, so nothing exercises the guarantee there.
+- **A `tokens` entry can now be contributed and no plugin contributes one.** 4.2 describes `TokensEntry`, 6.3 describes the hook that carries it, and the producer calls that hook: what is missing is a plugin. Two readers skip such an entry because skipping is what they should do, the preview which renders one nature and the shell which keeps out of the tree what it cannot draw. The fingerprint skips it too, and 4.6 says why that is its scope. `@crypte/tokens` is what will write the first entry.
 - `component.file` is resolved without Vite. The producer runs before any server exists, so it applies the project's `paths` and tries the usual extensions, with no plugin and no `exports` field. A component reached through a plugin keeps the identifier the story wrote.
 
 ---
 
 ## 9. Version log
+
+**v1.3.** The `node` surface of a plugin, which is what a manifest entry coming from anywhere but a story file needs.
+
+| Before | After |
+| --- | --- |
+| `CryptePlugin` was described here and `unknown` in the code | it is a real type in the protocol, and the CLI re-exports it rather than redeclaring it |
+| `NodeHooks` was named and never specified | 6.3 specifies it: one hook, contributing entries, synchronous, plain functions |
+| nothing said what a plugin could not contribute | stories, since they come from story files and a plugin injecting one would bypass discovery |
+| nothing said what happened when a plugin misbehaved | nothing is fatal and nothing is silent: the contribution is refused with its reason, named by plugin |
+| 4.5 was a promise nothing exercised | it is enforced on the one input that is not serialisable by construction |
 
 **v1.2.** A second entry nature, `tokens`, which is what makes `ManifestEntry` a union rather than an alias.
 

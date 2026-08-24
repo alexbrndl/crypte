@@ -972,6 +972,26 @@ Un cas garde la paire porteuse, avec une **configuration lente**, un `await` de 
 
 ---
 
+## 4 sexdecies. Le contrôle de sérialisation d'une entrée contribuée
+
+**Ce que ça fait.** Deux fonctions de `packages/cli/src/manifest.ts`, dans cet ordre. `notAnEntry` vérifie qu'on tient bien une entrée : un objet, un `id` non vide, une nature de `CONTRIBUTABLE`. `serialisable` parcourt ensuite la valeur et rend soit l'entrée débarrassée de ce que JSON laisserait tomber, soit la première valeur que JSON **réécrirait**, avec son chemin : « a function at extra », « a Date value at extra », « NaN at extra », « a cycle at extra.self ». Un refus porte le nom du plugin, et le serveur continue.
+
+**Pourquoi ça existe.** La section 4.5 des contrats promet que le CLI garantit ce qu'il écrit. Jusqu'ici la promesse ne coûtait rien : tout ce qu'il écrivait était lu depuis du texte source, donc sérialisable par construction. Une entrée construite par un plugin est la première entrée qui ne l'est pas.
+
+Un contrôle plutôt qu'une confiance, parce que le mode d'échec est muet : `JSON.stringify` laisse tomber une fonction **sans un mot**, et rend `null` pour `NaN` et les infinis. Le manifeste écrit serait alors différent de l'entrée produite, sans aucune erreur nulle part, et le symptôme apparaîtrait dans le shell.
+
+`notAnEntry` existe pour la même raison mais contre un autre angle : `ContributedEntry` ne tient qu'à la compilation, et un plugin s'installe compilé. Une entrée `type: 'story'` arrive donc jusqu'ici, et non refusée elle entrerait dans le manifeste puis, par `storiesOf`, dans `fingerprint.json` qui est commité. C'est la revue de la PR #51 qui l'a mesuré.
+
+**Un seul remède, et pourquoi pas les deux.** La section 4.5 dit « leaving out or rewriting », donc laisser tomber une clé dont la valeur est `undefined` était permis, et a été essayé. Repris au tour suivant : aucune nature contribuable n'a de propriété optionnelle, donc l'abandon écrivait en silence une entrée qui ne satisfait plus la section 4.2. Tout est refusé, nommé et situé.
+
+**Ce qui casse si on l'enlève.** Rien tout de suite, et c'est le problème : les stories continuent, le serveur démarre, et un plugin dont une entrée porte une fonction écrit un manifeste amputé en silence. `packages/cli/test/contributions.test.ts` garde chaque forme sur vingt-et-un cas. Mesuré : neutraliser `serialisable` en fait rougir huit, retirer `notAnEntry` trois, ignorer `CONTRIBUTABLE` deux, et ne pas relâcher `seen` un.
+
+Le parcours porte un ensemble `seen` pour la même raison : un cycle ferait boucler la fonction, ce qui est pire qu'une erreur. `JSON.stringify` lèverait, lui, mais on ne l'appelle pas, précisément parce que les cas qui comptent sont ceux où il ne lève pas.
+
+**`seen` est relâché à la remontée**, et c'est ce qui distingue un cycle de deux références au même objet. Sans le `finally`, deux noms de tokens résolus vers une seule valeur, qui est la forme la plus plausible pour `@crypte/tokens`, étaient refusés comme un cycle avec une raison fausse. Mesuré par la revue de la PR #51.
+
+---
+
 ## 4 quindecies. L'adaptateur React, et ce que le projet fournit
 
 **Toute fonction reçue par `wrap` est instanciée comme un composant.** En React un composant **est** une fonction, donc `wrap: (story) => …` et `wrap: Provider` ont le même type : le typage ne peut pas départager, et l'adaptateur aurait dû deviner. La section 2.5 a retiré la forme fonction, et c'est le comportement de l'adaptateur qui tient la règle.

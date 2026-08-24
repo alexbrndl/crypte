@@ -209,6 +209,28 @@ Le contrôle de note de version exempte toute ligne commençant par `//`. Or `//
 
 *Origine :* revue de la PR #50, tour de correction.
 
+### Dans le watcher, un refus de plugin s'imprime sans en-tête
+
+`lines()` fusionne les fichiers écartés et les refus de plugin, pour que le watcher ne réimprime ni les uns ni les autres à chaque frappe. Mais il imprime alors la ligne nue, à la forme `  x : y`, et sa moitié gauche est un nom de plugin là où le lecteur attend un chemin de fichier. Les deux en-têtes qui les distinguent n'existent qu'au démarrage et à la relecture de la configuration.
+
+*Pourquoi ce n'est pas fait ici :* séparer les deux dans le watcher demande deux ensembles de dédoublonnage au lieu d'un, donc un mécanisme de plus pour une ambiguïté qui ne s'atteint qu'avec un plugin cassé pendant qu'on édite une story.
+
+*Ce qui rouvrirait le point :* un plugin réel, `@crypte/tokens`, dont un refus tombe pendant une session d'édition.
+
+*Origine :* revue de la PR #51.
+
+### Le contrôle d'anglais du code publié ne voit que les accents
+
+`test/published-english.test.mjs` cherche `/[àâäçéèêëîïôöùûüÿœæ]/i`. Un identifiant français sans accent passe donc : `packages/cli/src/dev.ts` porte `dites` et `avant`, mesuré, dans du code publié.
+
+*Ce que ça a attrapé quand même :* un `refusés` ajouté dans ce lot, renommé en `refusals`. Le contrôle sert, il ne couvre juste pas tout.
+
+*Pourquoi ce n'est pas fait ici :* élargir le motif à une liste de mots est une décision, pas une ligne, et elle demande de choisir la liste. Renommer les deux identifiants existants est du code publié modifié hors du périmètre du lot.
+
+*Ce qui rouvrirait le point :* un troisième identifiant français sans accent, ou un premier contributeur.
+
+*Origine :* lot du contrat de plugin, étape 2.
+
 ### Un token numérique voyage en chaîne, et le contrat ne le dit pas
 
 `TokenKind` porte `number` et `dimension`, et `TokenInTheme.value` est un `string` : un token numérique s'écrit donc `'4'`. La section 4.5 ne parle que de sérialisabilité, pas de la forme du littéral.
@@ -229,13 +251,11 @@ Une story à `['Color']` / `Brand` et une famille tokens à `['Color']` / `Brand
 
 *Origine :* revue de la PR #50.
 
-### Les huit écarts de la section 8 n'ont pas été recomptés
+### Clos : les deux écarts périmés de la section 8
 
-Deux puces citent des lots terminés : « Nothing reloads. Editing a component or a story needs a restart until `DCJ-218` » alors que le rechargement à chaud existe et que `packages/cli/test/hot.test.ts` l'éprouve, et celle qui renvoie à `DCJ-217` pour l'affichage des fichiers écartés, également terminé.
+Deux puces citaient des lots terminés. **Corrigées à l'étape 2 du lot**, une fois mesurées : `full-reload` est bien envoyé par `dev.ts` et `hot.test.ts` porte quinze cas, donc « Nothing reloads … until `DCJ-218` » était faux ; `App.vue` porte la section `.set-aside`, donc le renvoi à `DCJ-217` pour la version dans le shell l'était aussi. Les deux issues sont `Done`.
 
-*Pourquoi ce n'est pas fait ici :* vérifier les huit une par une est un audit, pas une ligne, et il n'a rien à voir avec les tokens. Le faire au passage l'enverrait sans revue.
-
-*Origine :* revue de la PR #50, en ajoutant la neuvième puce.
+*Ce qui reste non audité :* les cinq puces restantes n'ont pas été reprises une par une. Trois sont adossées à une entrée de ce fichier, donc arbitrées ; les deux autres, l'alias de chemin et `component.file`, ne l'ont pas été depuis leur écriture.
 
 ### `storyId` dérivera aussi l'identifiant d'une entrée tokens
 

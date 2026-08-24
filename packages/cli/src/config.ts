@@ -1,5 +1,6 @@
 // What a project writes in `crypte.config.ts`. See section 1.5 of docs/contracts.md.
 
+import type { CryptePlugin } from '@crypte/core/protocol'
 import type { PluginOption } from 'vite'
 
 export interface CrypteConfig {
@@ -24,7 +25,10 @@ export function defineConfig(config: CrypteConfig): CrypteConfig {
 }
 
 // Opaque here: the CLI carries them and never reads them. Their shape belongs
-// to the adapter and to the plugins, which lot 6 introduces.
+// to the adapter, whose own lot introduces it.
 export type Adapter = unknown
-export type CryptePlugin = unknown
 export type GlobalWrap = unknown
+
+// Re-exported rather than redeclared: the plugin contract spans the three
+// surfaces, so it lives in the protocol and not in one consumer's config.
+export type { CryptePlugin }
