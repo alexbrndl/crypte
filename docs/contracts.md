@@ -821,7 +821,7 @@ This document is a contract. This section is the only place that says what exist
 | 4, the manifest | built, and written by `crypte dev` at start-up and on every restart of the configuration. A story file added or broken changes what is served without rewriting the file. Of the two natures of entry it can carry, only `story` is produced |
 | 4.6, the fingerprint | built, and written by `crypte dev` at start-up only: it is committed, so a restart leaves the working tree alone |
 | 5, the channel | built and exercised on both sides |
-| 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. `ui` and `preview` are named and declared opaque. Provisional throughout, since 6.5 asks for two plugins with opposite needs and there is one |
+| 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. `ui` and `preview` are named and declared opaque. **Provisional, and not one step closer to stable**: 6.5 asks for `controls` and `a11y`, and `tokens` is neither |
 
 **`crypte dev` is built, `crypte check` is not.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled by the project's own Vite. A story renders, switching story works, and a story that throws shows its error instead of an empty frame.
 
@@ -845,7 +845,7 @@ Seven known gaps between this document and the code:
 | --- | --- |
 | `NodeContext` carried only the root | it carries the declared style sheet too, since a plugin reading CSS could otherwise only guess which file was meant |
 | nothing said what a numeric token's `value` held | it is a string like every other value, and the kind says how to read it |
-| section 6 was written against no consumer | `@crypte/tokens` is written against it, which is what 6.5 asks for, one of the two plugins it wants |
+| section 6 was written against no consumer | `@crypte/tokens` is written against its `node` surface, which is what turned 6.3 from prose into something measured. It is not one of the two plugins 6.5 waits for, both of which use `ui` |
 
 **v1.3.** The `node` surface of a plugin, which is what a manifest entry coming from anywhere but a story file needs.
 

@@ -297,9 +297,11 @@ describe('la démonstration, de bout en bout', () => {
       default: { value: '#e5e7eb' },
       dark: { value: '#374151' },
     })
-    expect(colors?.type === 'tokens' && colors.tokens['badge-background']?.themes.default).toEqual({
-      value: '#e5e7eb',
-      alias: ['color-neutral'],
+    // `themes` entier, pas `.default` seul : c'est ce raccourci qui a laissé
+    // passer un alias sans valeur sombre alors que sa cible en avait une.
+    expect(colors?.type === 'tokens' && colors.tokens['badge-background']?.themes).toEqual({
+      default: { value: '#e5e7eb', alias: ['color-neutral'] },
+      dark: { value: '#374151', alias: ['color-neutral'] },
     })
   })
 })

@@ -2,7 +2,7 @@
 // See section 6.3 of docs/contracts.md.
 
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { resolve as resolvePath } from 'node:path'
 import {
   storyId,
   type CryptePlugin,
@@ -40,7 +40,7 @@ function entriesOf(ctx: NodeContext, options: TokensOptions): TokensEntry[] {
   for (const file of files) {
     let css: string
     try {
-      css = readFileSync(join(ctx.root, file), 'utf8')
+      css = readFileSync(resolvePath(ctx.root, file), 'utf8')
     } catch {
       // A declared style sheet that is not there is the project's business, and
       // `crypte dev` already fails on it elsewhere. Nothing to contribute.
@@ -56,20 +56,38 @@ function entriesOf(ctx: NodeContext, options: TokensOptions): TokensEntry[] {
 
   const families = new Map<string, Map<string, TokenValue>>()
 
-  for (const [theme, values] of declared) {
-    for (const [name, raw] of values) {
-      const [family, key] = split(name)
-      const tokens = families.get(family) ?? new Map<string, TokenValue>()
-      const resolved = resolve(raw, values)
-      const value = tokens.get(key) ?? { type: 'unknown' as TokenKind, themes: {} }
+  // The default first, then the rest by name, so the manifest does not depend on
+  // which theme the sheet happened to declare first and neither does the kind.
+  const themes = [...declared.keys()].sort((one, other) =>
+    one === DEFAULT_THEME ? -1 : other === DEFAULT_THEME ? 1 : one.localeCompare(other, 'en'),
+  )
+  const base = declared.get(DEFAULT_THEME) ?? new Map<string, string>()
+  const names = new Set([...declared.values()].flatMap((one) => [...one.keys()]))
 
-      // The first theme that says something. A `var()` nobody declared reads as
-      // `unknown`, and another theme resolving properly should still name it.
+  for (const name of [...names].sort((one, other) => one.localeCompare(other, 'en'))) {
+    const [family, key] = split(name)
+    const tokens = families.get(family) ?? new Map<string, TokenValue>()
+    const value: TokenValue = { type: 'unknown', themes: {} }
+
+    // Every token in every theme, because a reader picks `themes[current]` and
+    // has to find something there. Section 4.2.
+    for (const theme of themes) {
+      // The theme's own declarations folded over the default's, so an alias
+      // written once in `:root` still lands on what the theme redefined. Without
+      // it a token aliasing a colour that changes in the dark had no dark value
+      // at all, and the pastille had nothing to draw.
+      const values =
+        theme === DEFAULT_THEME ? base : new Map([...base, ...(declared.get(theme) ?? [])])
+      const raw = values.get(name)
+      if (raw === undefined) continue
+
+      const resolved = resolve(raw, values)
       if (value.type === 'unknown') value.type = kindOf(resolved.value)
       value.themes[theme] = resolved
-      tokens.set(key, value)
-      families.set(family, tokens)
     }
+
+    tokens.set(key, value)
+    families.set(family, tokens)
   }
 
   return [...families]
@@ -128,19 +146,22 @@ function liftDark(css: string): { dark: string; rest: string } {
 
   while ((match = opening.exec(css)) !== null) {
     const start = match.index + match[0].length
+    // Unclosed, the block runs to the end of the sheet, which is what a browser
+    // does with it. Leaving it in `rest` instead would put its `:root` back in
+    // the default theme and overwrite it, the very failure this prevents.
     const end = closing(css, start)
-    if (end === -1) break
+    const to = end === -1 ? css.length : end
 
     rest += css.slice(from, match.index)
-    dark += `${css.slice(start, end)}\n`
-    from = end + 1
+    dark += `${css.slice(start, to)}\n`
+    from = to + 1
     opening.lastIndex = from
   }
 
   return { dark, rest: rest + css.slice(from) }
 }
 
-// Where the block opened at `from` closes, or -1 on an unbalanced sheet.
+// Where the block opened at `from` closes, or -1 when the sheet never closes it.
 function closing(css: string, from: number): number {
   let depth = 1
 
@@ -190,7 +211,10 @@ function resolve(raw: string, values: Map<string, string>): TokenInTheme {
   let value = raw
 
   for (;;) {
-    const name = /^var\(\s*--([\w-]+)\s*\)$/.exec(value)?.[1]
+    // The fallback of `var(--x, y)` is part of the form and is used when nothing
+    // declares `--x`, which is exactly what an author writes it for.
+    const pointed = /^var\(\s*--([\w-]+)\s*(?:,([\s\S]+))?\)$/.exec(value)
+    const name = pointed?.[1]
     // A name already walked is a cycle, and stopping leaves `value` on the
     // `var()` text that closed the loop, which is what the reader will see.
     if (name === undefined || seen.has(name)) break
@@ -198,7 +222,7 @@ function resolve(raw: string, values: Map<string, string>): TokenInTheme {
     seen.add(name)
     alias.push(name)
 
-    const next = values.get(name)
+    const next = values.get(name) ?? pointed?.[2]?.trim()
     if (next === undefined) break
     value = next
   }

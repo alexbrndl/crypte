@@ -185,9 +185,108 @@ describe('la nature d’un token', () => {
     expect(kindOf('cubic-bezier(0.2, 0, 0, 1)')).toBe('unknown')
   })
 
-  it('prend la nature du premier thème qui en donne une', () => {
+  // Le thème par défaut est consulté en premier, mais un `unknown` de sa part ne
+  // ferme pas la question : la nature décrit le token, pas la valeur d'un thème.
+  it('laisse un autre thème nommer la nature que le défaut n’a pas nommée', () => {
     const entries = read(':root { --a-one: var(--absente) }\n[data-theme="dark"] { --a-one: #000 }')
 
     expect(family(entries, 'a')?.one?.type).toBe('color')
+  })
+
+  // L'ordre des thèmes ne suit pas celui du fichier : sans l'ordre imposé, un
+  // thème sombre venu d'un `@media` était parcouru en premier, et `themes` se
+  // sérialisait `dark` avant `default`. Mesuré.
+  it('range le thème par défaut en premier, quel que soit l’ordre du fichier', () => {
+    const media = read(
+      ':root { --a-one: #fff }\n@media (prefers-color-scheme: dark) { :root { --a-one: #000 } }',
+    )
+
+    expect(Object.keys(family(media, 'a')?.one?.themes ?? {})).toEqual(['default', 'dark'])
+  })
+})
+
+// Le croisement que la première version de ces cas n'a pas fait : chaque forme de
+// valeur, littéral / alias / repli, contre chaque forme de thème. Le bloquant de
+// la revue de #52 vivait dans une de ces cases.
+describe('une valeur croisée avec un thème', () => {
+  // Sans repli du thème sur le défaut, ce token n'avait aucune valeur sombre, et
+  // la pastille n'avait rien à dessiner en sombre.
+  it('suit un alias jusqu’à ce que le thème a redéfini', () => {
+    const entries = read(
+      ':root { --color-base: #e5e7eb; --color-bg: var(--color-base) }\n@media (prefers-color-scheme: dark) { :root { --color-base: #374151 } }',
+    )
+
+    expect(family(entries, 'color')?.bg?.themes).toEqual({
+      default: { value: '#e5e7eb', alias: ['color-base'] },
+      dark: { value: '#374151', alias: ['color-base'] },
+    })
+  })
+
+  // Un lecteur prend `themes[courant]` et doit y trouver quelque chose, donc un
+  // token que le thème ne redéfinit pas y porte quand même sa valeur.
+  it('donne à chaque token chaque thème, même sans redéfinition', () => {
+    const entries = read(
+      ':root { --a-one: 4px; --a-two: #fff }\n[data-theme="dark"] { --a-two: #000 }',
+    )
+
+    expect(family(entries, 'a')?.one?.themes).toEqual({
+      default: { value: '4px' },
+      dark: { value: '4px' },
+    })
+  })
+
+  it('ne donne qu’un thème quand la feuille n’en déclare qu’un', () => {
+    expect(Object.keys(family(read(':root { --a-one: 4px }'), 'a')?.one?.themes ?? {})).toEqual([
+      'default',
+    ])
+  })
+
+  it('lit un token qu’un thème seul déclare', () => {
+    const entries = read(':root { --a-one: 4px }\n[data-theme="dark"] { --a-two: 8px }')
+
+    expect(family(entries, 'a')?.two?.themes).toEqual({ dark: { value: '8px' } })
+  })
+})
+
+describe('les formes que la revue a mesurées', () => {
+  it('emploie le repli d’un var() quand rien ne déclare sa cible', () => {
+    expect(family(read(':root { --a-one: var(--jamais, 4px) }'), 'a')?.one?.themes.default).toEqual(
+      {
+        value: '4px',
+        alias: ['jamais'],
+      },
+    )
+  })
+
+  it('préfère la cible déclarée au repli', () => {
+    const entries = read(':root { --a-base: #fff; --a-one: var(--a-base, #000) }')
+
+    expect(family(entries, 'a')?.one?.themes.default?.value).toBe('#fff')
+  })
+
+  // Le CLI résout ce champ par `resolve`, donc un `css` absolu marche chez lui.
+  // Le plugin joignait, et lisait `<root>/<root>/…` sans que rien ne le dise.
+  it('lit une feuille déclarée par un chemin absolu', () => {
+    const root = mkdtempSync(join(tmpdir(), 'crypte-tokens-'))
+    roots.push(root)
+    writeFileSync(join(root, 'styles.css'), ':root { --a-one: #fff }')
+
+    const entries = tokens().node?.entries?.({ root, css: join(root, 'styles.css') })
+
+    expect(entries?.map((one) => one.name)).toEqual(['a'])
+  })
+
+  // Un bloc jamais refermé court jusqu'à la fin, ce qu'un navigateur en fait.
+  // Le laisser dans le reste remettait son `:root` dans le thème par défaut et
+  // l'écrasait, c'est-à-dire la panne même que `liftDark` empêche.
+  it('traite un @media sombre jamais refermé comme allant jusqu’à la fin', () => {
+    const entries = read(
+      ':root { --a-one: #fff }\n@media (prefers-color-scheme: dark) { :root { --a-one: #000 }',
+    )
+
+    expect(family(entries, 'a')?.one?.themes).toEqual({
+      default: { value: '#fff' },
+      dark: { value: '#000' },
+    })
   })
 })
