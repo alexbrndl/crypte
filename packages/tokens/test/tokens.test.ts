@@ -290,3 +290,42 @@ describe('les formes que la revue a mesurées', () => {
     })
   })
 })
+
+// Un `var()` n'est un alias que s'il **est** toute la valeur. Traiter le premier
+// d'une expression comme tel a fait disparaître le reste, en silence, et c'était
+// une régression du tour de correction précédent. Revue de la PR #52.
+describe('un var() qui n’est pas toute la valeur', () => {
+  it('garde une valeur composite entière, sans alias', () => {
+    const entries = read(
+      ':root { --dur-fast: 200ms; --transition-base: var(--dur-fast, 150ms) var(--ease-out, ease) }',
+    )
+    const base = family(entries, 'transition')?.base?.themes.default
+
+    expect(base?.value).toBe('var(--dur-fast, 150ms) var(--ease-out, ease)')
+    expect('alias' in (base ?? {})).toBe(false)
+  })
+
+  it('garde une expression qui enveloppe un var()', () => {
+    const entries = read(':root { --a-one: 4px; --a-two: calc(var(--a-one) * 2) }')
+
+    expect(family(entries, 'a')?.two?.themes.default).toEqual({ value: 'calc(var(--a-one) * 2)' })
+  })
+
+  // Sans contrôle du nom, `var(4px)` faisait chercher un token appelé `px`,
+  // le préfixe étant retiré sans vérifier qu'il était là. Mesuré.
+  it('ne prend pas pour un alias un var() dont l’intérieur n’est pas un nom', () => {
+    const entries = read(':root { --a-one: var(4px); --a-two: var() }')
+
+    expect(family(entries, 'a')?.one?.themes.default).toEqual({ value: 'var(4px)' })
+    expect(family(entries, 'a')?.two?.themes.default).toEqual({ value: 'var()' })
+  })
+
+  it('suit un repli qui est lui-même un var()', () => {
+    const entries = read(':root { --a-base: 8px; --a-one: var(--absente, var(--a-base)) }')
+
+    expect(family(entries, 'a')?.one?.themes.default).toEqual({
+      value: '8px',
+      alias: ['absente', 'a-base'],
+    })
+  })
+})

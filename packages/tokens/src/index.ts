@@ -64,20 +64,27 @@ function entriesOf(ctx: NodeContext, options: TokensOptions): TokensEntry[] {
   const base = declared.get(DEFAULT_THEME) ?? new Map<string, string>()
   const names = new Set([...declared.values()].flatMap((one) => [...one.keys()]))
 
+  // Each theme's own declarations folded over the default's, so an alias written
+  // once in `:root` still lands on what the theme redefined. Without it a token
+  // aliasing a colour that changes in the dark had no dark value at all, and the
+  // swatch had nothing to draw. Built once per theme: it does not vary by name.
+  const folded = new Map(
+    themes.map((theme) => [
+      theme,
+      theme === DEFAULT_THEME ? base : new Map([...base, ...(declared.get(theme) ?? [])]),
+    ]),
+  )
+
   for (const name of [...names].sort((one, other) => one.localeCompare(other, 'en'))) {
     const [family, key] = split(name)
     const tokens = families.get(family) ?? new Map<string, TokenValue>()
     const value: TokenValue = { type: 'unknown', themes: {} }
 
-    // Every token in every theme, because a reader picks `themes[current]` and
-    // has to find something there. Section 4.2.
+    // A token carries every theme that declares it, its own or the default's. A
+    // theme is absent when the sheet says nothing there, which a token written
+    // only under `[data-theme="dark"]` does: inventing a default would be worse.
     for (const theme of themes) {
-      // The theme's own declarations folded over the default's, so an alias
-      // written once in `:root` still lands on what the theme redefined. Without
-      // it a token aliasing a colour that changes in the dark had no dark value
-      // at all, and the pastille had nothing to draw.
-      const values =
-        theme === DEFAULT_THEME ? base : new Map([...base, ...(declared.get(theme) ?? [])])
+      const values = folded.get(theme) ?? base
       const raw = values.get(name)
       if (raw === undefined) continue
 
@@ -211,23 +218,49 @@ function resolve(raw: string, values: Map<string, string>): TokenInTheme {
   let value = raw
 
   for (;;) {
-    // The fallback of `var(--x, y)` is part of the form and is used when nothing
-    // declares `--x`, which is exactly what an author writes it for.
-    const pointed = /^var\(\s*--([\w-]+)\s*(?:,([\s\S]+))?\)$/.exec(value)
-    const name = pointed?.[1]
+    const pointed = aliasOf(value)
     // A name already walked is a cycle, and stopping leaves `value` on the
     // `var()` text that closed the loop, which is what the reader will see.
-    if (name === undefined || seen.has(name)) break
+    if (pointed === undefined || seen.has(pointed.name)) break
 
-    seen.add(name)
-    alias.push(name)
+    seen.add(pointed.name)
+    alias.push(pointed.name)
 
-    const next = values.get(name) ?? pointed?.[2]?.trim()
+    const next = values.get(pointed.name) ?? pointed.fallback
     if (next === undefined) break
     value = next
   }
 
   return alias.length === 0 ? { value } : { value, alias }
+}
+
+// The name a value points at, when the **whole** value is one `var()`. Balanced
+// parentheses and nothing after the closing one: `var(--a, 1ms) var(--b, ease)`
+// is a composite, not an alias, and reading it as one dropped everything past
+// the first parenthesis. Measured.
+function aliasOf(value: string): { name: string; fallback?: string } | undefined {
+  if (!value.startsWith('var(') || !value.endsWith(')')) return undefined
+
+  let depth = 1
+
+  for (let at = 4; at < value.length; at += 1) {
+    if (value[at] === '(') depth += 1
+    else if (value[at] === ')') {
+      depth -= 1
+      if (depth === 0 && at !== value.length - 1) return undefined
+    }
+  }
+
+  // The fallback of `var(--x, y)` is part of the form and is used when nothing
+  // declares `--x`, which is exactly what an author writes it for.
+  const inside = value.slice(4, -1)
+  const comma = inside.indexOf(',')
+  const named = (comma === -1 ? inside : inside.slice(0, comma)).trim()
+  if (!/^--[\w-]+$/.test(named)) return undefined
+
+  const name = named.slice(2)
+
+  return comma === -1 ? { name } : { name, fallback: inside.slice(comma + 1).trim() }
 }
 
 // Four kinds are read from the value itself. `fontFamily` and `fontWeight` are

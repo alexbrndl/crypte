@@ -488,6 +488,8 @@ Every entry carries a `type`. **Two values are implemented: `"story"` and `"toke
 
 **Every token is read per theme.** A single-theme project holds one key. Storing one value and adding themes later would change the shape of every token, which is a break; a project with one theme costs one extra key today.
 
+**A theme missing from a token means the source says nothing there**, not that the value is the default one. A token written only under a dark selector carries `dark` and no `default`, and a reader drawing the default theme has nothing to draw for it, which is the truth. Inventing a value would be worse than showing none.
+
 **`themes` holds at least one key, and that is the producer's guarantee rather than the type's.** A `Record` cannot be typed non-empty without making it painful to build, so this is the same arrangement as serialisation in 4.5: the type says what the shape is, and whoever writes the manifest is answerable for the rest. An empty `alias` is out for the same reason, since a chain that led nowhere is what an absent `alias` already says.
 
 **A value is always a string, whatever its kind.** A `number` token carries `"1.5"`, a `dimension` carries `"4px"`. The kind says how to read it; the field says what was written. Parsing on the reader's side is one line, and a union of string and number would put that choice in every reader instead.
