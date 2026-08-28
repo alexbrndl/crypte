@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.3, reference document. A project brief points here instead of restating these shapes.
+> Version 1.4, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -17,11 +17,17 @@ This document covers the four surfaces that are expensive to change once the pro
 
 Everything else belongs to a project brief and can change freely.
 
-**Two guiding rules.**
+**Three guiding rules.**
 
 Crypte never reads a project's `vite.config`. It reads standard, framework-neutral formats, plus what the project declares to it.
 
 This document does not try to cover every case. It covers what real use has shown, and lets the rest arrive through bug reports. A mechanism added just in case creates a use you can no longer take back; a mechanism added after a real need breaks nothing.
+
+**What a project already writes is read, never declared a second time. Stories are the exception, and section 2 exists because of it.** Which state of a component is worth showing is a judgement no reading of the code produces: nobody can work out that the interesting case is the order without a reference. So stories are written by hand, and they are the only thing that is.
+
+Everything else already exists somewhere in the project, and asking for it again would create a second source of truth that drifts from the first. Tokens are the case that shows it: they live in the style sheet, so there is no token format to learn and no token file to keep in step. The project says **where**, in one line it already had, and the reading is a plugin's business. Prop details, the call code, the component a story points at: same rule, all read.
+
+That is also the difference this project is built on. The tools it is measured against hold a description of a design system that someone maintains by hand; this one holds what the code says, and goes stale only when the code does.
 
 ---
 
@@ -488,7 +494,11 @@ Every entry carries a `type`. **Two values are implemented: `"story"` and `"toke
 
 **Every token is read per theme.** A single-theme project holds one key. Storing one value and adding themes later would change the shape of every token, which is a break; a project with one theme costs one extra key today.
 
+**A theme missing from a token means the source says nothing there**, not that the value is the default one. A token written only under a dark selector carries `dark` and no `default`, and a reader drawing the default theme has nothing to draw for it, which is the truth. Inventing a value would be worse than showing none.
+
 **`themes` holds at least one key, and that is the producer's guarantee rather than the type's.** A `Record` cannot be typed non-empty without making it painful to build, so this is the same arrangement as serialisation in 4.5: the type says what the shape is, and whoever writes the manifest is answerable for the rest. An empty `alias` is out for the same reason, since a chain that led nowhere is what an absent `alias` already says.
+
+**A value is always a string, whatever its kind.** A `number` token carries `"1.5"`, a `dimension` carries `"4px"`. The kind says how to read it; the field says what was written. Parsing on the reader's side is one line, and a union of string and number would put that choice in every reader instead.
 
 **`value` is always the literal, and `alias` is the chain that led to it.** A real token points at another token, sometimes through several hops. Whoever draws a swatch reads `value` alone and never resolves anything; whoever explains a token walks `alias`, ordered from the token towards the literal. A token that holds a literal itself has no `alias`.
 
@@ -730,6 +740,7 @@ interface NodeHooks {
 
 interface NodeContext {
   root: string
+  css?: string
 }
 
 type ContributedEntry = Exclude<ManifestEntry, StoryEntry>
@@ -745,7 +756,7 @@ const CONTRIBUTABLE = ['tokens'] as const
 
 **Adding a nature to the manifest means adding it here too.** `Exclude` widens on its own and the list does not, so the two are held together by a type test rather than by good intentions: `packages/core/test/plugin.test-d.ts` stops compiling when they diverge. Without it, a new nature compiled and was then refused at run time with « is not a nature a plugin may contribute ».
 
-**The context carries the project root and nothing else.** The producer runs before any server exists, so there is no Vite resolution to hand over: no plugin, no `exports` field, the same limit 8 records for `component.file`. A plugin's own settings come from its factory, not from here.
+**The context carries what the project declared, and nothing a plugin could work out itself.** The root, and the style sheet of 1.5 when there is one: a plugin that reads CSS has no other way to know which file is meant, and guessing a path is what section 0 forbids. The producer runs before any server exists, so there is no Vite resolution to hand over: no plugin, no `exports` field, the same limit 8 records for `component.file`. A plugin's own settings come from its factory, not from here.
 
 **Hooks are synchronous.** Everything the CLI reads today it reads synchronously, and the catalogue is rebuilt from a watcher callback where two overlapping rebuilds would be a new race. A plugin reads its files the way the story reader reads story files.
 
@@ -818,7 +829,7 @@ This document is a contract. This section is the only place that says what exist
 | 4, the manifest | built, and written by `crypte dev` at start-up and on every restart of the configuration. A story file added or broken changes what is served without rewriting the file. Of the two natures of entry it can carry, only `story` is produced |
 | 4.6, the fingerprint | built, and written by `crypte dev` at start-up only: it is committed, so a restart leaves the working tree alone |
 | 5, the channel | built and exercised on both sides |
-| 6, plugin contract | the `node` surface is built and called by the producer. `ui` and `preview` are named and declared opaque. Provisional throughout |
+| 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. `ui` and `preview` are named and declared opaque. **Provisional, and not one step closer to stable**: 6.5 asks for `controls` and `a11y`, and `tokens` is neither |
 
 **`crypte dev` is built, `crypte check` is not.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled by the project's own Vite. A story renders, switching story works, and a story that throws shows its error instead of an empty frame.
 
@@ -829,12 +840,21 @@ Seven known gaps between this document and the code:
 - `details` is written empty. Section 4.4 says it travels from the story file untouched, but the manifest carries the **resolved** form, whose `type` and `required` come from an adapter's inference and not from what the author wrote. `meta` and `options` do travel today.
 - **`UIContribution` and `PreviewHooks` are declared opaque by the core**, though 6.2 specifies the second one in full. Neither has a caller: no shell panel comes from a plugin, and no preview runs a lifecycle hook. Typing a surface nobody calls would buy nothing and could not be taken back.
 - The serialisation of 4.5 is guaranteed on **contributed** entries and merely true of the others. A plugin's entry is checked and refused with what offends named; everything the CLI reads itself comes from source text and is serialisable by construction, so nothing exercises the guarantee there.
-- **A `tokens` entry can now be contributed and no plugin contributes one.** 4.2 describes `TokensEntry`, 6.3 describes the hook that carries it, and the producer calls that hook: what is missing is a plugin. Two readers skip such an entry because skipping is what they should do, the preview which renders one nature and the shell which keeps out of the tree what it cannot draw. The fingerprint skips it too, and 4.6 says why that is its scope. `@crypte/tokens` is what will write the first entry.
+- **A `tokens` entry is written and nothing displays one.** `@crypte/tokens` contributes families read from a project's CSS custom properties, and the demonstration carries four. No screen shows them: the shell keeps out of its tree what it cannot draw, so they travel in the manifest and stop there. The page that draws them belongs to the shell's own project.
 - `component.file` is resolved without Vite. The producer runs before any server exists, so it applies the project's `paths` and tries the usual extensions, with no plugin and no `exports` field. A component reached through a plugin keeps the identifier the story wrote.
 
 ---
 
 ## 9. Version log
+
+**v1.4.** The first plugin, which is what turned 6.3 from a written contract into a measured one.
+
+| Before | After |
+| --- | --- |
+| `NodeContext` carried only the root | it carries the declared style sheet too, since a plugin reading CSS could otherwise only guess which file was meant |
+| nothing said what a numeric token's `value` held | it is a string like every other value, and the kind says how to read it |
+| section 6 was written against no consumer | `@crypte/tokens` is written against its `node` surface, which is what turned 6.3 from prose into something measured. It is not one of the two plugins 6.5 waits for, both of which use `ui` |
+| section 0 held two guiding rules | it holds three: what a project already writes is read and not declared again, and stories are the one exception. Writing the first plugin is what made the asymmetry worth stating |
 
 **v1.3.** The `node` surface of a plugin, which is what a manifest entry coming from anywhere but a story file needs.
 

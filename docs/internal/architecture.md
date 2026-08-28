@@ -27,7 +27,7 @@ Porte la sévérité TypeScript, partagée par tous les paquets : `strict`, `noU
 *Sans lui :* chaque paquet redéfinirait sa propre sévérité et elles divergeraient. Sans `moduleResolution: "bundler"` en particulier, les sous-chemins d'exports comme `@crypte/core/protocol` ne se résolvent pas correctement.
 
 **`tsconfig.json`**
-Ne contient aucun fichier, seulement des références vers les trois paquets. C'est le point d'entrée de la vérification de types sur l'ensemble du dépôt.
+Ne contient aucun fichier, seulement des références vers les quatre paquets publiés. C'est le point d'entrée de la vérification de types sur l'ensemble du dépôt.
 *Sans lui :* la vérification de types doit être lancée paquet par paquet.
 
 **`.github/workflows/ci.yml`**
@@ -187,7 +187,7 @@ L'outillage est en version pré-1.0 et des ruptures sont attendues. La règle ga
 
 ## 4. Les tests
 
-Huit fichiers dans `packages/core/test`, plus un dans `packages/react/test` pour la raison dite plus bas.
+Huit fichiers dans `packages/core/test`, plus un dans `packages/react/test` pour la raison dite plus bas, plus `packages/tokens/test/tokens.test.ts` : ce que le premier plugin lit d'une feuille de style et ce qu'il refuse de deviner, section 4 septdecies.
 
 **`test/protocol/id.test.ts`**
 Couvre la dérivation des identifiants : accents, casse, séparateurs, segments vides, et le fait que deux noms ne différant que par un accent tombent sur le même identifiant, ce qui est assumé.
@@ -969,6 +969,18 @@ Un cas garde la paire porteuse, avec une **configuration lente**, un `await` de 
 *Ce qui casse si on l'enlève :* le seul contrôle qui voit ce que l'utilisateur voit devient vert sur du code qui n'est pas celui qu'on vient d'écrire. C'est un vert pour la mauvaise raison, le mode d'échec le plus coûteux du dépôt.
 
 *Ce qu'il ne couvre pas :* une reconstruction qui échoue à mi-chemin et laisse une copie récente mais fausse. `vp run -r pack` échoue bruyamment dans ce cas.
+
+---
+
+## 4 septdecies. `@crypte/tokens`, le premier plugin
+
+**Ce que ça fait.** Le paquet lit les propriétés personnalisées CSS de la feuille que le projet déclare en `css`, et contribue au manifeste une entrée `TokensEntry` par famille, une famille étant le premier segment d'un nom. Il est branché par la surface `node` du contrat de plugin, section 6.3 des contrats, et la démonstration le déclare vraiment dans son `crypte.config.ts`.
+
+**Pourquoi ça existe.** Pas pour lire des tokens : pour **éprouver `NodeHooks` avant qu'il soit figé**. La section 6.4 des contrats interdit de figer ce contrat sans consommateur réel, et l'écrire sans lui reviendrait à le deviner. Il a d'ailleurs rapporté une correction, `NodeContext` ne portant que `root` alors qu'un plugin lisant du CSS n'avait aucun moyen de savoir quelle feuille était visée.
+
+**Ce qui casse si on l'enlève.** La section 6.3 redevient un contrat écrit contre personne, donc invérifiable : `contributions.test.ts` continuerait de passer, ses plugins étant fabriqués sur place et rendant des entrées bien formées. Ce qu'un vrai plugin apporte est exactement ce que ces plugins-là ne font pas, c'est-à-dire se tromper de façons qu'on n'a pas prévues. Deux exemples mesurés à la revue de la PR #52 : un alias dont la cible est redéfinie par un thème perdait ce thème entier, et un `@media` jamais refermé remettait ses valeurs sombres dans le thème par défaut.
+
+**Trois choses que sa lecture ne fait pas**, et qui se lisent comme des défauts sans cette ligne. Elle ne suit pas les `@import`. Elle ne distingue pas les at-rules autres que `prefers-color-scheme: dark`, donc une variable dans un `@layer` compte pour le thème par défaut. Et elle n'infère ni `fontFamily` ni `fontWeight`, qui demandent la propriété sur laquelle la variable est employée. Les trois sont dans `suivi.md`.
 
 ---
 

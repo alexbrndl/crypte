@@ -134,7 +134,7 @@ Un `@import '@/vars.css'` dans le CSS du projet ne résout pas. Le pipeline CSS 
 
 ### Des échecs isolés, jamais reproduits
 
-Six fois : quatre sur le lot 3, une sur le lot 0 decies, une à la passe de roadmap. Une commande a échoué ou s'est bloquée sans raison visible, puis a réussi à l'identique juste après :
+Sept fois : quatre sur le lot 3, une sur le lot 0 decies, une à la passe de roadmap, une sur le lot du contrat de plugin. Une commande a échoué ou s'est bloquée sans raison visible, puis a réussi à l'identique juste après :
 
 | Ce qui a échoué | Ce qu'on a vu ensuite |
 |---|---|
@@ -144,10 +144,13 @@ Six fois : quatre sur le lot 3, une sur le lot 0 decies, une à la passe de road
 | un test, juste avant un commit | treize lancements verts |
 | un test de `post-review`, dans la foulée d'un `vp check --fix` | quatre lancements verts sur un fichier identique au fichier rouge |
 | la suite entière **bloquée**, tuée à dix minutes, dans la foulée d'un `vp check` | 666 tests verts en 31 s juste après, sur le même arbre |
+| `coverage-report.mjs` rendant « couverture non mesurée » | trois lectures vertes ensuite, dont deux sur le même `coverage-summary.json` |
 
 *Ce qui a été fait :* donner un dossier de cache propre à chaque serveur de test, la seule cause plausible qui ait été mesurée, à savoir qu'ils partageaient `node_modules/.vite`. Les quatre autres occurrences sont postérieures.
 
 *Ce qui reste :* aucune cause démontrée pour ces cinq-là. Les quatre premières surviennent autour d'un commit ou d'un enchaînement de commandes, ce qui suggère une course avec le cache de tâches, mais rien ne l'établit. Deux des outils cités n'existent plus, donc deux de ces occurrences ne se reproduiront pas.
+
+*La septième est d'une troisième forme :* ni rouge ni blocage, mais une **mesure absente**. `coverage/coverage-summary.json` portait bien sa clé `total`, vérifié après coup, et le script rend ce message précisément quand elle manque. Relancé deux fois sur ce fichier inchangé, il rend vert. Le mode d'échec qui compte ici est qu'un « non mesurée » se lit comme un rouge et pousse à corriger une couverture qui va bien.
 
 *La sixième n'est pas un échec mais un blocage*, ce qui est une forme nouvelle : les cinq premières rendaient un rouge, celle-ci ne rendait rien. Un indice, le seul : `apps/demo/node_modules/.crypte/deps_temp_*` était resté sur le disque, donc un cas navigateur était en pleine réoptimisation de dépendances quand la suite a été tuée. Pas une cause démontrée, la réoptimisation pouvant être la conséquence du blocage autant que l'inverse. À rapprocher des deux entrées voisines sur `optimizeDeps` et sur le cache de dépendances si une septième arrive.
 
@@ -203,9 +206,11 @@ Le contrôle de note de version exempte toute ligne commençant par `//`. Or `//
 
 `fingerprintOf` mappe `storiesOf(manifest)`, donc une famille tokens ajoutée, modifiée ou retirée laisse `fingerprint.json` identique. La section 4.6 dit maintenant que c'est son périmètre, et non un oubli, mais la question reste ouverte : un jeu de tokens mérite-t-il son propre historique commité ?
 
-*Pourquoi ce n'est pas tranché ici :* les cinq champs de l'empreinte sont ceux d'une story, un composant, un statut, des noms de props. Décider ce que serait le condensé d'une famille de tokens sans avoir lu un seul fichier de tokens serait deviner.
+*Mesuré à l'étape 3 du lot :* la démonstration porte désormais quatre familles de tokens, et son `fingerprint.json` commité n'a pas bougé d'un octet. La frontière de 4.6 tient donc en pratique, et le trou aussi.
 
-*Ce qui rouvrirait le point :* `DCJ-233`, dès que de vraies familles existent et qu'un diff de tokens se relit.
+*Pourquoi ce n'est toujours pas tranché :* les cinq champs de l'empreinte sont ceux d'une story, un composant, un statut, des noms de props. Ce que serait le condensé d'une famille de tokens reste à décider, et personne ne relit encore de diff de tokens.
+
+*Ce qui rouvrirait le point :* l'édition de tokens dans `serve`, `DCJ-256`, qui produit précisément des diffs de tokens à relire.
 
 *Origine :* revue de la PR #50, tour de correction.
 
@@ -219,6 +224,36 @@ Le contrôle de note de version exempte toute ligne commençant par `//`. Or `//
 
 *Origine :* revue de la PR #51.
 
+### `aliasOf` compte les parenthèses sans connaître les chaînes
+
+`var(--a, "),")` voit une fermeture prématurée dans la chaîne et n'est plus reconnu comme alias : la valeur reste littérale. Mesuré à la revue de la PR #52.
+
+*Pourquoi ce n'est pas fait ici :* l'échec est sûr, le token garde son texte et rien ne disparaît. Reconnaître les chaînes demande un vrai découpage en jetons, pour une forme qu'une feuille de tokens n'écrit pas.
+
+*Ce qui rouvrirait le point :* un token dont la valeur porte une chaîne, ce qui arriverait avec `content` ou une famille de police citée.
+
+*Origine :* revue de la PR #52, troisième tour.
+
+### `@crypte/tokens` ne lit ni les at-rules autres que le thème sombre, ni les imports
+
+Une variable déclarée dans un `@supports`, un `@layer` ou un `@container` est lue **comme si elle appartenait au thème par défaut** : `blocks()` prend le bloc intérieur sans regarder ce qui l'enveloppe, et seul `@media (prefers-color-scheme: dark)` est extrait avant. Un `@import` n'est pas suivi non plus, donc une feuille qui délègue ses tokens à une autre ne donne rien.
+
+*Pourquoi ce n'est pas fait ici :* la fiche demandait un plugin « juste assez complet pour éprouver la surface ». Suivre les imports demande une résolution de chemins, et traiter les at-rules demande de décider ce qu'un `@layer` veut dire pour un thème, ce qu'aucun usage ne montre.
+
+*Ce qui rouvrirait le point :* un projet réel dont les tokens ne sortent pas, et `@layer` est le candidat le plus probable.
+
+*Origine :* lot du contrat de plugin, étape 3.
+
+### Une sonde de mutation a compté « 0 échec » sur un worker mort
+
+En éprouvant la garde de cycle de `resolve`, la sonde filtrait la sortie de vitest sur `[0-9]+ failed` et n'a rien trouvé, ce qui se lit comme « le test ne garde rien ». La sortie réelle disait `Errors 1 error` : le worker mourait sur la boucle infinie, sans qu'aucun cas ne soit marqué en échec.
+
+*Ce que ça vaut :* la garde est bien éprouvée. C'est la mesure qui mentait, et elle mentait dans le sens qui pousse à retirer un garde utile.
+
+*Pourquoi ce n'est pas outillé :* une sonde de mutation est écrite à la main pour un lot, pas un mécanisme du dépôt. La leçon est de lire la sortie plutôt que de la filtrer.
+
+*Origine :* lot du contrat de plugin, étape 3.
+
 ### Le contrôle d'anglais du code publié ne voit que les accents
 
 `test/published-english.test.mjs` cherche `/[àâäçéèêëîïôöùûüÿœæ]/i`. Un identifiant français sans accent passe donc : `packages/cli/src/dev.ts` porte `dites` et `avant`, mesuré, dans du code publié.
@@ -231,13 +266,11 @@ Le contrôle de note de version exempte toute ligne commençant par `//`. Or `//
 
 *Origine :* lot du contrat de plugin, étape 2.
 
-### Un token numérique voyage en chaîne, et le contrat ne le dit pas
+### Clos : un token numérique voyage en chaîne, et le contrat le dit
 
-`TokenKind` porte `number` et `dimension`, et `TokenInTheme.value` est un `string` : un token numérique s'écrit donc `'4'`. La section 4.5 ne parle que de sérialisabilité, pas de la forme du littéral.
+`TokenKind` porte `number` et `dimension`, et `TokenInTheme.value` est un `string`. **Tranché à l'étape 3 du lot**, une fois qu'un vrai producteur a existé : la section 4.2 dit maintenant qu'une valeur est toujours une chaîne, quelle que soit sa nature, et que c'est la nature qui dit comment la lire.
 
-*Pourquoi ce n'est pas fait ici :* c'est une phrase à écrire dans 4.2, et le premier producteur, `DCJ-233`, dira s'il lui faut aussi une unité à côté de la valeur. L'écrire avant lui fixerait la réponse à une question qu'on n'a pas encore posée.
-
-*Origine :* revue de la PR #50.
+*Pourquoi pas une union :* mettre `string | number` dans le contrat déplacerait le choix chez chaque lecteur, alors que l'analyse tient en une ligne du côté qui en a besoin.
 
 ### `id` devient un espace de noms partagé par deux natures d'entrée
 
@@ -245,9 +278,11 @@ Une story à `['Color']` / `Brand` et une famille tokens à `['Color']` / `Brand
 
 *Distinct de l'observation sur le nom de* `storyId` *ci-dessous*, qui porte sur le nom de la fonction et non sur la collision.
 
-*Pourquoi ce n'est pas fait ici :* aucun producteur n'écrit d'entrée tokens, donc la collision n'est atteignable par rien. Le remède, préfixer par la nature ou refuser un doublon à l'écriture, est une décision de forme d'identifiant, et `DCJ-233` est ce qui la rendra concrète.
+*Ce que le premier producteur en a fait :* `@crypte/tokens` place ses entrées sous `path: ['Tokens']`, donc ses identifiants commencent tous par `tokens--`. La collision reste possible, une story racine nommée `Tokens` la produirait, mais elle n'est plus accidentelle. Et le producteur la refuse déjà, la story gardant l'identifiant, ce qu'un cas de `contributions.test.ts` éprouve.
 
-*Ce qui rouvrirait le point :* la première entrée tokens écrite par un producteur réel.
+*Pourquoi ce n'est pas fait ici :* le remède restant, préfixer par la nature dans l'identifiant lui-même, changerait la dérivation de la section 4.3, qui est une donnée stable, une URL et une clé de baseline. Ça ne se fait pas pour une collision que personne n'a rencontrée.
+
+*Ce qui rouvrirait le point :* quelqu'un qui la rencontre, ou une troisième nature d'entrée.
 
 *Origine :* revue de la PR #50.
 

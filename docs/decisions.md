@@ -10,6 +10,24 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 ---
 
+## `@crypte/tokens` reads what the project declared, and refuses to guess the rest
+
+_2026-08-24_
+
+**Decided.** The plugin reads CSS custom properties, and only from the style sheet the project declared as `css`, which `NodeContext` now carries. One entry per **family**, a family being the first segment of a name, so `--color-brand-primary` lands in `color` under the key `brand-primary`. Two theme sources are read and no others: an unqualified `:root`, which writes into a theme named `default`, and `[data-theme="x"]`, which writes into `x`. A `@media (prefers-color-scheme: dark)` block is lifted out with its braces balanced and read as `dark`. Kinds are inferred from the value alone: `color`, `dimension`, `number`, and `unknown` for everything else.
+
+**Rejected.** Globbing the project for style sheets, which is the guess section 0 forbids and would be slow on a plugin that is on by default. Reading `.dark` or any class as a theme, since nothing declared it as one and a wrong theme is worse than a missing one. Inferring `fontFamily` and `fontWeight`, which needs the property a variable is used on and which a variable does not carry. And the three other sources, DTCG, `tokens.ts` and Tailwind: this plugin exists to prove a surface, not to be complete.
+
+**Why the theme is called `default` and not `light`.** Nothing says the unqualified values are the light ones. A project can write its dark values in `:root` and its light ones behind a media query, and naming the first `light` would then be a lie in the manifest rather than a guess in a comment.
+
+**Why `@media` is handled when the rest of at-rules are not.** It is the shape that makes `themes` non-trivial, and the one a real project writes. Reading it naively is worse than not reading it: the inner `:root` would be taken for a second helping of the default theme and its values would overwrite the first, silently. Measured on the demonstration.
+
+**What the consumer taught the surface**, which is what the lot was for: `NodeContext` carried only the root, so a plugin reading CSS had no way to know which file was meant. That is the one change 6.3 took from writing this.
+
+**What would reopen it.** A project whose tokens are not in the declared style sheet, which is what `files` in the plugin's own options is for and what a second source would settle properly. A family split that turns out wrong on a real design system, `--color-brand-primary` being three levels and not two. Or `getComputedStyle`, which resolves what a browser actually applies and needs `PreviewHooks`, so it needs its own consumer first.
+
+---
+
 ## A plugin contributes entries, synchronously, and never fatally
 
 _2026-08-24_

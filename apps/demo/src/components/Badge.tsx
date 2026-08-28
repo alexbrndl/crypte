@@ -9,10 +9,11 @@ export function Badge({ label, tone = 'neutral' }: BadgeProps) {
   return (
     <span
       style={{
-        background: tone === 'warning' ? '#fde68a' : '#e5e7eb',
-        borderRadius: '999px',
-        padding: '2px 10px',
-        fontSize: '13px',
+        background: `var(${tone === 'warning' ? '--color-warning' : '--color-badge-background'})`,
+        color: 'var(--color-text)',
+        borderRadius: 'var(--radius-pill)',
+        padding: 'var(--space-badge)',
+        fontSize: 'var(--size-label)',
       }}
     >
       {label}

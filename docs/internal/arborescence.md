@@ -117,6 +117,13 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/cli.test.ts` | version, aide, racine par défaut, code de sortie | — |
 | `test/guide.test.ts` | exécute les exemples de `docs/guide.md` | — |
 
+## `packages/tokens` — `@crypte/tokens`
+
+| Fichier | Rôle | Lu par |
+| --- | --- | --- |
+| `src/index.ts` | lit les variables CSS d'un projet et les contribue au manifeste | le CLI, par la surface `node` |
+| `test/tokens.test.ts` | ce qu'il lit d'une feuille, et ce qu'il refuse de deviner | — |
+
 ## `packages/react` — `@crypte/react`
 
 | Fichier | Contient | Consommé par |

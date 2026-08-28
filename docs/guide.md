@@ -38,6 +38,41 @@ crypte.config.ts must declare `stories`, the root of the story files.
 
 **Crypte never reads your `vite.config`.** Whatever it needs, you declare. That is what lets it run on a project without taking over its build.
 
+## Design tokens
+
+The `tokens` plugin reads your CSS custom properties and puts them in the manifest, one entry per family. You write no token file: they are the ones already in your style sheet.
+
+<!-- checked: tokens -->
+
+```ts
+import { defineConfig } from '@crypte/cli'
+import react from '@crypte/react'
+import tokens from '@crypte/tokens'
+
+export default defineConfig({
+  stories: 'stories',
+  adapter: react(),
+  css: 'src/styles/app.css',
+  plugins: [tokens({ files: ['src/styles/tokens.css'] })],
+})
+```
+
+**Its settings go to the plugin, not to the config.** `plugins` carries objects Crypte passes along without opening them, so a plugin's options travel inside the one it belongs to. That is why there is no `tokens` key beside `css`: the core would then have to know what a token is, and would need one key per plugin you install.
+
+**`files` is optional, and the default is the style sheet you declared as `css`.** It is the only file your project has named to Crypte, and guessing another path is what Crypte does not do. Give `files` when your tokens live somewhere else, or in more than one place — they are read in order, and a later file wins on a name declared twice.
+
+**One case where you will need it:** the plugin does not follow `@import`. If `app.css` imports `tokens.css`, point `files` at `tokens.css` itself.
+
+What it reads, and what it leaves alone:
+
+- `:root` writes into a theme named `default`. Not `light`: nothing says your unqualified values are the light ones.
+- `[data-theme="dark"]` writes into `dark`, and so does `@media (prefers-color-scheme: dark)`.
+- A class such as `.dark` is **not** read. Nothing declared it a theme, and a wrong theme is worse than a missing one.
+- `var(--other)` is followed to the literal it ends on, so what the manifest carries is a value, with the names walked beside it.
+- Kinds come from the value: colours, dimensions and numbers are named, everything else is `unknown`.
+
+**Finds nothing, produces nothing.** No empty section, no "no tokens detected".
+
 ## Path aliases
 
 If your project uses aliases such as `@/components/Button`, Crypte picks them up on its own. You declare nothing.

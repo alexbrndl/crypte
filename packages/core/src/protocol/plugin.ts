@@ -22,10 +22,15 @@ export interface NodeHooks {
   entries?: (ctx: NodeContext) => ContributedEntry[]
 }
 
-// Only the root. The producer runs before any server, so there is no Vite
-// resolution to hand over, and a plugin's own options come from its factory.
+// What the project declared, never what a plugin guesses. The producer runs
+// before any server, so there is no Vite resolution to hand over, and a plugin's
+// own settings come from its factory.
 export interface NodeContext {
   root: string
+  // The style sheet of 1.5, project-relative, when the project declares one.
+  // A plugin that reads CSS has no other way to know which file is meant, and
+  // guessing a path is what section 0 forbids.
+  css?: string
 }
 
 // Stories excluded: they are read from story files, and a plugin injecting one
