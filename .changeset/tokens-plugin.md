@@ -17,3 +17,5 @@ It reads CSS custom properties from the style sheet the project declared and con
 **It finds nothing, it produces nothing.** No empty section, no "no tokens detected". It is meant for the default preset, so it runs on projects that never asked for it.
 
 Two changes come with it. `NodeContext` now carries the declared `css`, because a plugin reading style sheets had no other way to know which file was meant and guessing a path is what the contract forbids. And section 4.2 says a token's `value` is a string whatever its kind, so a `number` carries `"1.5"`.
+
+The guide gains a **Design tokens** section, and its example is run by a test like every other one on that page. Section 0 of the contracts gains a third guiding rule, which the first plugin is what made worth stating: what a project already writes is read, never declared a second time, and stories are the one exception.

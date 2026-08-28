@@ -17,11 +17,17 @@ This document covers the four surfaces that are expensive to change once the pro
 
 Everything else belongs to a project brief and can change freely.
 
-**Two guiding rules.**
+**Three guiding rules.**
 
 Crypte never reads a project's `vite.config`. It reads standard, framework-neutral formats, plus what the project declares to it.
 
 This document does not try to cover every case. It covers what real use has shown, and lets the rest arrive through bug reports. A mechanism added just in case creates a use you can no longer take back; a mechanism added after a real need breaks nothing.
+
+**What a project already writes is read, never declared a second time. Stories are the exception, and section 2 exists because of it.** Which state of a component is worth showing is a judgement no reading of the code produces: nobody can work out that the interesting case is the order without a reference. So stories are written by hand, and they are the only thing that is.
+
+Everything else already exists somewhere in the project, and asking for it again would create a second source of truth that drifts from the first. Tokens are the case that shows it: they live in the style sheet, so there is no token format to learn and no token file to keep in step. The project says **where**, in one line it already had, and the reading is a plugin's business. Prop details, the call code, the component a story points at: same rule, all read.
+
+That is also the difference this project is built on. The tools it is measured against hold a description of a design system that someone maintains by hand; this one holds what the code says, and goes stale only when the code does.
 
 ---
 
@@ -848,6 +854,7 @@ Seven known gaps between this document and the code:
 | `NodeContext` carried only the root | it carries the declared style sheet too, since a plugin reading CSS could otherwise only guess which file was meant |
 | nothing said what a numeric token's `value` held | it is a string like every other value, and the kind says how to read it |
 | section 6 was written against no consumer | `@crypte/tokens` is written against its `node` surface, which is what turned 6.3 from prose into something measured. It is not one of the two plugins 6.5 waits for, both of which use `ui` |
+| section 0 held two guiding rules | it holds three: what a project already writes is read and not declared again, and stories are the one exception. Writing the first plugin is what made the asymmetry worth stating |
 
 **v1.3.** The `node` surface of a plugin, which is what a manifest entry coming from anywhere but a story file needs.
 

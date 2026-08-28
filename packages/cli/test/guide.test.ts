@@ -82,7 +82,7 @@ describe('les exemples du guide', () => {
   it('sont tous rattachés à un cas', () => {
     const markers = [...guide.matchAll(/<!-- checked: (\w+) -->/g)].map((m) => m[1])
 
-    expect([...markers].sort()).toEqual(['aliases', 'config'])
+    expect([...markers].sort()).toEqual(['aliases', 'config', 'tokens'])
   })
 
   // `indexOf` rend -1 sur un marqueur absent, et la découpe ramenait alors le
@@ -122,6 +122,34 @@ describe('les exemples du guide', () => {
     for (const [, pkg = ''] of défauts) {
       expect(hasDefault(pkg), `${pkg} n’a pas d’export par défaut`).toBe(true)
     }
+  })
+
+  // Le même contrôle sur l'exemple des tokens, qui porte un import par défaut de
+  // plus. Sans lui, seule la liste des marqueurs le regardait, donc un
+  // `tokens({ … })` que le paquet n'exporte pas passait comme `react()` avant lui.
+  it('montre des tokens que le paquet exporte vraiment', () => {
+    const { language, code } = example('tokens')
+    expect(language).toBe('ts')
+
+    const nommés = [...code.matchAll(/^import \{([^}]+)\} from '([^']+)'/gm)]
+    const défauts = [...code.matchAll(/^import \w+ from '([^']+)'/gm)]
+
+    expect(nommés.length, 'aucun import nommé dans l’exemple').toBe(1)
+    expect(défauts.length, 'deux imports par défaut attendus').toBe(2)
+
+    for (const [, names = '', pkg = ''] of nommés) {
+      for (const name of names.split(',').map((one) => one.trim())) {
+        expect(exportsOf(pkg), `${pkg} n’exporte pas ${name}`).toContain(name)
+      }
+    }
+
+    for (const [, pkg = ''] of défauts) {
+      expect(hasDefault(pkg), `${pkg} n’a pas d’export par défaut`).toBe(true)
+    }
+
+    // La forme que le guide promet, et le nom de l'option : `files`, pas `file`.
+    expect(code).toContain("plugins: [tokens({ files: ['src/styles/tokens.css'] })]")
+    expect(exportsOf('@crypte/tokens')).toContain('TokensOptions')
   })
 
   // Le guide n'importe aujourd'hui que des paquets du dépôt. Le jour où il
