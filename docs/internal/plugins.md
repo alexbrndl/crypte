@@ -114,7 +114,7 @@ Chaque projet du tracker porte un **sous-numéro** qui donne son ordre dans la p
 
 Les surfaces des payants restent à décider : aucun n'est développé, et les nommer par anticipation serait deviner.
 
-`test/plugins-catalogue.test.ts` refuse un nom en double, un statut hors des trois valeurs et une ligne sans chantier. Ce sont les trois formes qu'ont prises les six incohérences du catalogue à cinq tableaux.
+`test/plugins-catalogue.test.mjs` refuse un nom en double, un statut hors des trois valeurs et une ligne sans chantier. Ce sont les trois formes qu'ont prises les six incohérences du catalogue à cinq tableaux.
 
 ---
 

@@ -1115,16 +1115,7 @@ typescript@7.0.2
 
 Deux compilateurs cohabitent donc : la 6 vérifie, la 7 émet les types publiés. Les deux fonctionnent, mais leur comportement n'est pas garanti identique. Quitter cette situation demanderait d'abandonner `vp pack`, ce qui coûterait plus cher que le risque.
 
-*Condition de réouverture :* quand `vue-tsc` fonctionnera avec TypeScript 7, repasser le catalogue en 7 et supprimer cette section.
-
-### Ce qui n'est pas éprouvé
-
-Ce workflow a été relu deux fois et testé en local dans l'ordre exact de ses étapes, mais **il n'a jamais tourné en conditions réelles**. Trois choses restent non vérifiées jusqu'à sa première exécution : le comportement de `gh issue create` avec le jeton du workflow, le garde contre l'ouverture répétée d'issues, et l'installation de la chaîne sur l'image du runner.
-
-C'est un arrêt assumé, pas un oubli. La raison : la vérification par relecture y donne un rendement décroissant, alors qu'une seule exécution réelle tranchera. Et l'enjeu est faible, si le contrôle meurt, le dépôt reste sur TypeScript 6, c'est-à-dire son état actuel et fonctionnel.
-
-*Ce qui casse si on l'enlève :* le dépôt reste sur TypeScript 6 indéfiniment, sans que personne ne sache que la raison a disparu.
-
+*Condition de réouverture :* quand `vue-tsc` fonctionnera avec TypeScript 7, repasser le catalogue en 7 et supprimer cette section. Plus rien ne la surveille depuis le retrait de la sonde mensuelle, c'est une vérification à faire à la main.
 ### La construction doit précéder la vérification
 
 Les paquets exposent leurs types depuis `dist/`. Tant que rien n'est construit, `@crypte/core/protocol` et `@crypte/react` sont introuvables pour le compilateur, et la vérification de types échoue sur des modules pourtant présents.

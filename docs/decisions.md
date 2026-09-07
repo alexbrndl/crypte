@@ -74,6 +74,8 @@ _2026-09-07_
 
 **Rejected.** Cutting `contracts.md`, whose 764 normative lines are the definition of the four contracts rather than fat. Cutting the package tests, 9 208 lines for 4 282 of source, which are the guarantee. Deleting `spec-journal.md`, which `spec.test.ts` reads as the one place a retired name may still appear. And deleting `manifest-size.mjs`, which the entry of 2026-08-13 keeps on purpose: reversing a written decision to save 207 dormant lines is not a trade.
 
+**Three work rules leave with them, named here so the removal is deliberate rather than noticed later.** « Classer avant de corriger » goes, because `test/post-review.mjs` already refuses a verdict whose point carries no level. « Auto-review, relis-toi » goes, being what `/explore` is for. « Arrêt explicite » goes with the only file that ever applied it. The rule that survives the move is « tout code exécutable ajouté après une revue n'a pas été relu », which now lives in the `/review` skill: it is a guarantee, not a habit, and the review of PR #59 caught its removal.
+
 **What is lost, said rather than glossed.** The 57 live entries of `suivi` were real findings. They live in git, recoverable with `git show`, and the ones that describe unfixed behaviour become issues. The TypeScript 7 probe is gone, so nothing watches for `vue-tsc` catching up; DCJ-184 already said the probe had never run for real.
 
 **What would reopen it.** A second maintainer, for whom `arborescence` would answer a question the disk answers slowly. A finding that gets raised twice by two reviews because no file holds arbitrated points any more, which is what `suivi` prevented. Or `architecture.md` growing back past a thousand lines, which would mean the softened rule is still too broad.

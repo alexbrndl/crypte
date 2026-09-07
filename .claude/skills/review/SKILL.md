@@ -63,6 +63,10 @@ Diff :
 <sortie de git diff origin/main...HEAD>
 ```
 
+**Tout code exécutable ajouté après une revue n'a, par définition, pas été relu.** Corriger un point remonté, mais aussi ajouter une fonctionnalité en cours de route ou répondre à une demande arrivée après coup : dans les trois cas, du code part vers la branche par défaut sans qu'aucun regard ne s'y soit posé. **Relancer une revue sur ces changements seuls.** S'en passer s'ils ne touchent que de la documentation ou de la configuration déjà éprouvée par l'intégration continue.
+
+La formulation compte : une première version de cette règle ne parlait que des « corrections », et laissait donc passer un workflow entier ajouté après la troisième revue du lot 1. Et la seconde revue du lot 1 a trouvé que le correctif d'un point de la première laissait passer `react-dom/client`, c'est-à-dire exactement l'import que la règle corrigée existait pour bloquer.
+
 Le sous-agent rend son verdict et se termine. Écris-le dans un fichier JSON au format de la section 6, et **publie-le immédiatement, avant de lire les points en détail et avant toute correction** :
 
 ```bash
@@ -121,7 +125,7 @@ Si tu trouves un point bloquant portant sur une **entrée jamais éprouvée**, d
 1. **Les quatre contraintes structurelles de `CLAUDE.md`.** Une dépendance interne embarquée en copie, un composant placé dans `core/ui` sans qu'un plugin réel le demande, un import de `vite-plus` dans du code publié, une entrée de `core` qui en tire une autre.
 2. **Les contrats de `docs/contracts.md`**, s'ils sont concernés. Ils font foi et ne se rediscutent pas ici.
 3. **Les contradictions internes.** Une décision consignée dans la documentation et prise à l'envers dans le code, un mécanisme rendu inopérant par un autre changement, un test qui ne peut plus échouer.
-4. **La règle de documentation.** Le diff ajoute-t-il une pièce mobile, un workflow, un script, une configuration qui encode une décision, un test dont l'assertion n'est pas évidente ? Si oui, `docs/internal/architecture.md` doit être mis à jour dans le même diff, avec les trois questions dont la troisième, « ce qui casse si on l'enlève ».
+4. **La règle de documentation.** Le diff ajoute-t-il un mécanisme dont on pourrait oublier la raison, et qu'on supprimerait alors par erreur ? Si oui, et seulement si oui, `docs/internal/architecture.md` doit être mis à jour dans le même diff, avec ce qui casse si on l'enlève. Un mécanisme qui se lit tout seul n'y va pas.
 
 **Ce qui n'est pas recherché.** Le style, le nommage, le formatage, la structure des fichiers : `vp check` s'en occupe déjà. Les arbitrages non plus, publier maintenant ou plus tard, telle bibliothèque plutôt qu'une autre : ce sont des décisions humaines, pas des écarts.
 
