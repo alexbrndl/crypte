@@ -136,10 +136,10 @@ const test = base.extend<{ ecran: Ecran }>({
 // reproduit la course à la demande.
 describe('l’écran', () => {
   test('affiche l’arbre des stories', async ({ ecran }) => {
-    await expect.poll(() => ecran.page.getByRole('button').count()).toBe(4)
+    await expect.poll(() => ecran.page.getByRole('button').count()).toBe(6)
     await expect
       .poll(() => ecran.page.getByRole('heading', { level: 2 }).allTextContents())
-      .toEqual(['Badge', 'Boom'])
+      .toEqual(['Badge', 'Boom', 'Tag'])
   })
 
   // Le rendu se lit dans l'iframe, pas dans la page du shell : c'est là que la
@@ -247,7 +247,7 @@ describe('l’écran', () => {
   })
 
   test('fait apparaître dans l’arbre une story ajoutée', async ({ ecran }) => {
-    await expect.poll(() => ecran.page.getByRole('button').count()).toBe(4)
+    await expect.poll(() => ecran.page.getByRole('button').count()).toBe(6)
 
     writeFileSync(
       join(ecran.root, 'stories', 'Tardive.tsx'),

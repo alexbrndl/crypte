@@ -92,6 +92,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `src/errors.ts` | l'erreur montrée à l'utilisateur | `project.ts`, `config-paths.ts` |
 | `src/stories.ts` | lecture d'un fichier de story, sans l'exécuter | `manifest.ts` |
 | `src/manifest.ts` | parcours du dossier, résolution, écriture du catalogue | `dev.ts` |
+| `src/props.ts` | lit les props d'un fichier de composant, sans l'exécuter | `manifest.ts` |
 | `src/dev.ts` | `crypte dev` : catalogue, empreinte, serveur | `index.ts` |
 | `src/serve.ts` | les deux pages servies, et l'entrée de la preview | `dev.ts` |
 | `scripts/copy-shell.mjs` | copie le shell construit dans `dist/shell` | le script `pack` |
@@ -101,6 +102,7 @@ Une ligne par fichier : ce qu'il contient, et qui le consomme. Pour le pourquoi 
 | `test/stories.test.ts` | ce que la lecture d'un fichier refuse de deviner | — |
 | `test/manifest.test.ts` | parcours, résolution, collisions d'identifiants | — |
 | `test/manifest-shape.test.ts` | fige la forme du manifeste, champ pour champ | — |
+| `test/props.test.ts` | ce qu'un fichier de composant déclare, et ce qu'il refuse de deviner | — |
 | `test/contributions.test.ts` | ce qu'un plugin contribue, et ce qui lui est refusé | — |
 | `test/dev.test.ts` | ce que le serveur sert vraiment, sur un serveur qui écoute | — |
 | `test/screen.test.ts` | ce que l'utilisateur voit, dans Chromium, lecture puis édition | — |

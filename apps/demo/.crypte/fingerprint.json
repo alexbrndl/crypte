@@ -8,7 +8,7 @@
       "props": [
         "label"
       ],
-      "rest": "1670454ddc20c121"
+      "rest": "be9c563a4da36fae"
     },
     {
       "id": "badge--avertissement",
@@ -18,7 +18,7 @@
         "label",
         "tone"
       ],
-      "rest": "1b8f1e664f75f54a"
+      "rest": "54a31b4de671cf72"
     },
     {
       "id": "badge--libelle-long",
@@ -27,7 +27,7 @@
       "props": [
         "label"
       ],
-      "rest": "fa5f3c697224c590"
+      "rest": "1d6cbd698ead7ed9"
     },
     {
       "id": "boom--echoue-au-rendu",
@@ -36,7 +36,26 @@
       "props": [
         "reason"
       ],
-      "rest": "10a9de85cbdc3031"
+      "rest": "a5a405de3b24ccb5"
+    },
+    {
+      "id": "tag--nue",
+      "component": "src/components/Tag.tsx#Tag",
+      "status": "none",
+      "props": [
+        "children"
+      ],
+      "rest": "9761944e0fd3fb13"
+    },
+    {
+      "id": "tag--avec-une-classe",
+      "component": "src/components/Tag.tsx#Tag",
+      "status": "none",
+      "props": [
+        "children",
+        "className"
+      ],
+      "rest": "d37022ec7f444bf5"
     }
   ]
 }

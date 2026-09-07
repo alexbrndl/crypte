@@ -267,3 +267,75 @@ describe('le catalogue', () => {
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual(manifest)
   })
 })
+
+// La règle de fusion de la section 3.2 : `details` **complète** l'inférence, par
+// prop et champ par champ. Elle était écrite sans qu'aucun cas ne la garde.
+describe('details, l’inférence complétée par le fichier', () => {
+  const component = `export interface P {
+  /** Lue du composant. */
+  label: string
+  tone?: 'a' | 'b'
+}
+export function Card({ label, tone }: P) { return null }
+`
+
+  const story = (details: string) =>
+    `import { Card } from '../src/Card'\nexport default defineStories(Card, ${details})\n`
+
+  const detailsOn = async (declared: string) => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      'src/Card.tsx': component,
+      'stories/Card.ts': story(declared),
+    })
+    const { manifest } = buildCatalogue(await loadProject(root))
+    const entry = manifest.entries[0]
+
+    return entry?.type === 'story' ? entry.details : undefined
+  }
+
+  it('rend l’inférence seule quand le fichier ne déclare rien', async () => {
+    expect(await detailsOn('{}')).toEqual({
+      label: { type: 'string', required: true, description: 'Lue du composant.' },
+      tone: { type: 'enum', required: false, options: ['a', 'b'] },
+    })
+  })
+
+  // Un champ explicite remplace **lui seul**. Le type, la description et le
+  // caractère requis viennent toujours de l'inférence.
+  it('remplace le champ écrit, et garde les autres', async () => {
+    expect(await detailsOn("{ details: { label: { description: 'écrite à la main' } } }")).toEqual({
+      label: { type: 'string', required: true, description: 'écrite à la main' },
+      tone: { type: 'enum', required: false, options: ['a', 'b'] },
+    })
+  })
+
+  it('ajoute un champ que l’inférence ne connaît pas', async () => {
+    const details = await detailsOn('{ details: { tone: { min: 0 } } }')
+
+    expect(details?.tone).toEqual({ type: 'enum', required: false, options: ['a', 'b'], min: 0 })
+  })
+
+  // Une prop que le fichier nomme et que l'inférence n'a pas vue : l'auteur
+  // documente ce que le lecteur ne pouvait pas voir, et la perdre perdrait le
+  // seul mot écrit à son sujet.
+  it('garde une prop que l’inférence n’a pas trouvée', async () => {
+    const details = await detailsOn("{ details: { hidden: { description: 'via un spread' } } }")
+
+    expect(details?.hidden).toEqual({
+      type: 'unknown',
+      required: false,
+      description: 'via un spread',
+    })
+  })
+
+  it('ignore une entrée de details qui n’est pas un objet', async () => {
+    const details = await detailsOn("{ details: { label: 'pas un objet' } }")
+
+    expect(details?.label).toEqual({
+      type: 'string',
+      required: true,
+      description: 'Lue du composant.',
+    })
+  })
+})

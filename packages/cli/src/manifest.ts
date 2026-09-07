@@ -8,10 +8,12 @@ import {
   MANIFEST_VERSION,
   type ContributedEntry,
   type Manifest,
+  type ResolvedPropDetails,
   type StoryEntry,
 } from '@crypte/core/protocol'
 import { ConfigError, reason } from './errors'
 import { best, isBareSpecifier, ordered } from './paths'
+import { detailsOf } from './props'
 import { entriesOf, posix, STORY_EXTENSIONS } from './stories'
 import type { Project } from './project'
 
@@ -96,8 +98,17 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
       ? componentFile(read.entries[0].component.file, file, project)
       : undefined
 
+    // Once per file too, and for the same reason: every entry of a file names the
+    // same component, so reading its props once is enough. Only when the
+    // component was resolved: an identifier nobody could resolve is not a path.
+    const inferred =
+      resolved === undefined
+        ? {}
+        : detailsOf(join(project.root, resolved), read.entries[0]?.component.export ?? 'default')
+
     for (const entry of read.entries) {
       if (resolved !== undefined) entry.component = { ...entry.component, file: resolved }
+      entry.details = completed(inferred, read.details)
       entries.push(entry)
     }
   }
@@ -161,6 +172,31 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
     wasStory: [...new Set([...gave, ...was])],
     skippedPlugins: contributed.skipped,
   }
+}
+
+// Inference completed by what the story file wrote, per prop and field by field:
+// section 3.2. An explicit field replaces only itself, so a `min` written by hand
+// keeps the type and the description inference found.
+//
+// A prop the file names and inference did not is kept: the author is documenting
+// something the reader could not see, and dropping it would lose the only word
+// anybody wrote about it.
+function completed(
+  inferred: Record<string, ResolvedPropDetails>,
+  written: Record<string, unknown> | undefined,
+): Record<string, ResolvedPropDetails> {
+  if (!written) return inferred
+
+  const details: Record<string, ResolvedPropDetails> = { ...inferred }
+
+  for (const [prop, fields] of Object.entries(written)) {
+    if (typeof fields !== 'object' || fields === null || Array.isArray(fields)) continue
+
+    const base = details[prop] ?? { type: 'unknown', required: false }
+    details[prop] = { ...base, ...(fields as Partial<ResolvedPropDetails>) }
+  }
+
+  return details
 }
 
 // What the `node` surface of each plugin contributes, in the order `plugins`

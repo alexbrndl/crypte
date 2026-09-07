@@ -234,6 +234,50 @@ Le contrôle de note de version exempte toute ligne commençant par `//`. Or `//
 
 *Origine :* revue de la PR #52, troisième tour.
 
+### Un localisateur des cas d'écran casse sur deux stories homonymes
+
+`screen.test.ts` clique `getByRole('button', { name: 'Par défaut' })`, et Playwright refuse deux éléments en mode strict. En ajoutant un composant à la démonstration avec une story du même nom, le cas est tombé sur une violation de mode strict et non sur ce qu'il vérifie.
+
+*Contourné, pas corrigé :* la story ajoutée a été renommée `Nue`. Le localisateur reste fragile, et **un vrai projet a des stories homonymes partout**, une par composant.
+
+*Pourquoi ce n'est pas fait ici :* le remède est de porter le localisateur sur le groupe du composant plutôt que sur le nom seul, ce qui demande de connaître la structure de l'arbre que `DCJ-172` va réécrire. Le corriger avant ce lot serait le corriger deux fois.
+
+*Origine :* lot 10, en ajoutant le composant en pass-through DOM.
+
+### Rien ne surveille le fichier de composant, dont `details` dépend maintenant
+
+`watchStories` ne regarde que `project.config.stories`. Depuis que `buildCatalogue` lit les props du composant, le manifeste dépend d'un fichier que rien ne surveille : éditer un JSDoc ou ajouter une prop laisse `details` figé jusqu'à ce qu'un fichier de story bouge ou que le serveur redémarre, sans un mot.
+
+*Ce qui a été corrigé ici :* l'en-tête de `watchStories` affirmait « A component is Vite's business, not ours », ce que ce lot rendait faux. Elle dit maintenant ce qu'elle ne couvre pas.
+
+*Pourquoi le reste ne l'est pas :* surveiller les composants demande de décider **quels** fichiers. Les chemins résolus changent à chaque reconstruction, donc la liste des surveillés aussi, et un watcher qui se réarme à chaque passe est un mécanisme neuf avec sa propre course. C'est une décision, pas une ligne.
+
+*Ce qui rouvrirait le point :* le premier consommateur de `details`, `controls` ou `docs`, pour qui un champ figé se verra à l'écran.
+
+*Origine :* revue de la PR #54.
+
+### L'inférence ne suit pas un export par défaut qui passe par un appel
+
+`export default Badge` est suivi, une fois, jusqu'à la déclaration que le nom désigne. `export default memo(Badge)` ne l'est pas : c'est un appel, et savoir lequel de ses arguments porte le composant demande de connaître `memo`.
+
+*Pourquoi ce n'est pas fait ici :* la liste des enveloppes à connaître, `memo`, `forwardRef`, `observer`, est ouverte et propre à chaque écosystème. La deviner reviendrait à coder React dans le noyau, ce que la frontière du projet interdit.
+
+*Ce qui rouvrirait le point :* un adaptateur qui déclarerait ses enveloppes, ce qui est le seul endroit où cette connaissance a sa place.
+
+*Origine :* revue de la PR #54.
+
+### L'inférence de props ne lit ni un type importé, ni un générique, ni une intersection
+
+`props.ts` ne résout un type nommé que s'il est déclaré dans le même fichier. Un `import type { Props } from './types'`, un générique ou une intersection laissent la lecture retomber sur les noms du motif de déstructuration.
+
+*Une clause* `extends` *ne s'y ramène plus*, corrigé à la revue de la PR #54 : une interface locale rend ses propres membres, **plus** les noms que le motif écrit et qu'elle ne déclare pas. Ce qu'elle hérite reste hors de portée.
+
+*Pourquoi ce n'est pas fait ici :* suivre un import demande la résolution de chemins du projet, que `paths.ts` porte, mais aussi de décider ce qu'on fait d'un type qui vient de `node_modules`. C'est un lot à part, et la section 8 des contrats porte l'écart.
+
+*Ce qui rouvrirait le point :* un projet réel dont les types de props vivent dans un fichier partagé, ce qui est la forme courante passé une certaine taille. `apps/demo` ne l'a pas, donc rien ne le mesure aujourd'hui.
+
+*Origine :* lot 10.
+
 ### `@crypte/tokens` ne lit ni les at-rules autres que le thème sombre, ni les imports
 
 Une variable déclarée dans un `@supports`, un `@layer` ou un `@container` est lue **comme si elle appartenait au thème par défaut** : `blocks()` prend le bloc intérieur sans regarder ce qui l'enveloppe, et seul `@media (prefers-color-scheme: dark)` est extrait avant. Un `@import` n'est pas suivi non plus, donc une feuille qui délègue ses tokens à une autre ne donne rien.
