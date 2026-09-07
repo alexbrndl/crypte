@@ -268,7 +268,9 @@ Le contrôle de note de version exempte toute ligne commençant par `//`. Or `//
 
 ### L'inférence de props ne lit ni un type importé, ni un générique, ni une intersection
 
-`props.ts` ne résout un type nommé que s'il est déclaré dans le même fichier. Un `import type { Props } from './types'`, un générique, une intersection ou une clause `extends` laissent la lecture retomber sur les noms du motif de déstructuration.
+`props.ts` ne résout un type nommé que s'il est déclaré dans le même fichier. Un `import type { Props } from './types'`, un générique ou une intersection laissent la lecture retomber sur les noms du motif de déstructuration.
+
+*Une clause* `extends` *ne s'y ramène plus*, corrigé à la revue de la PR #54 : une interface locale rend ses propres membres, **plus** les noms que le motif écrit et qu'elle ne déclare pas. Ce qu'elle hérite reste hors de portée.
 
 *Pourquoi ce n'est pas fait ici :* suivre un import demande la résolution de chemins du projet, que `paths.ts` porte, mais aussi de décider ce qu'on fait d'un type qui vient de `node_modules`. C'est un lot à part, et la section 8 des contrats porte l'écart.
 

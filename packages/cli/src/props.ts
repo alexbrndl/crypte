@@ -47,15 +47,19 @@ export function detailsOf(file: string, exported: string): Record<string, Resolv
   // and both halves are written in the file: `interface P extends
   // ComponentProps<'span'>` with `{ className, ...rest }` lost the `className`
   // before this, which is the shadcn shape section 3.4 names. Measured.
-  const named = members
+  const named: Member[] = members
     ? [...members, ...pattern.filter((one) => !members.some((member) => member.name === one.name))]
     : pattern
 
   const details: Record<string, ResolvedPropDetails> = {}
 
-  for (const { name, optional, annotation, at } of named) {
+  for (const { name, optional, method, annotation, at } of named) {
     const described = describe(source, comments, at)
-    const kind = annotation ? kindOf(annotation) : { type: 'unknown' as PropKind }
+    const kind = method
+      ? { type: 'function' as PropKind }
+      : annotation
+        ? kindOf(annotation)
+        : { type: 'unknown' as PropKind }
     const fallback = defaults.values[name]
 
     details[name] = {
@@ -74,6 +78,8 @@ export function detailsOf(file: string, exported: string): Record<string, Resolv
 interface Member {
   name: string
   optional: boolean
+  // Declared as a method rather than a property, which fixes its kind.
+  method?: boolean
   annotation: Node | undefined
   // Where the member starts, so the comment that precedes it can be found.
   at: number
@@ -172,13 +178,18 @@ function nameOf(key: Node | null | undefined, computed: boolean): string | undef
   return typeof written === 'string' && written !== '' ? written : undefined
 }
 
-// `TSPropertySignature` entries of an interface body or a type literal, which
-// hold their members under the same key.
+// The named members of an interface body or a type literal, which hold them
+// under the same key. A method shape, `onClick(): void`, is a member like any
+// other: read as a property it was absent, and the pattern then rescued it as
+// optional and `unknown` while the type declared it required. Measured.
+//
+// An index signature names nothing, so it is not here. A prop it covers reaches
+// the pattern, which is right: the signature says nothing about that name.
 function signatures(literal: Node): Member[] {
   const found = (literal['body'] ?? literal['members']) as Node[] | undefined
 
   return (found ?? [])
-    .filter((one) => one.type === 'TSPropertySignature')
+    .filter((one) => one.type === 'TSPropertySignature' || one.type === 'TSMethodSignature')
     .flatMap((one) => {
       const name = nameOf(one['key'] as Node, one['computed'] === true)
       if (name === undefined) return []
@@ -187,6 +198,9 @@ function signatures(literal: Node): Member[] {
         {
           name,
           optional: one['optional'] === true,
+          // A method carries its return type where a property carries its own,
+          // so reading `typeAnnotation` would call it a `void`. It is a function.
+          method: one.type === 'TSMethodSignature',
           annotation: (one['typeAnnotation'] as Node | null)?.['typeAnnotation'] as
             | Node
             | undefined,

@@ -386,7 +386,9 @@ A component typed `React.ComponentProps<"span">` or similar inherits several hun
 
 **Rule: those props are not extracted.** The platform documents them, and nobody reads them in a props table.
 
-**`className` is read when the file writes it, and never otherwise.** Inference sees syntax and not types, so `ComponentProps<'span'>` cannot be opened: making the name appear would be inventing one, which 4.2 forbids for `props` in as many words. It comes out of `function Tag({ className, ...rest }: ComponentProps<'span'>)`, where it is written by hand, and a component taking `props` whole surfaces nothing at all. The reason it is nearly always there is that a component wanting `className` has to name it to use it.
+**The criterion is being written by hand, and `className` is only its commonest case.** Inference sees syntax and not types, so `ComponentProps<'span'>` cannot be opened: making a name appear would be inventing one, which 4.2 forbids for `props` in as many words. What comes out is what the file names, so `function Tag({ className, onClick, ...rest }: ComponentProps<'span'>)` surfaces those two and nothing else, and a component taking `props` whole surfaces nothing at all.
+
+`className` is nearly always there because a component that wants it has to name it to use it. A pass-through prop the file never names is documented by the platform, which is what the rule above says.
 
 One rule, no extra field, and no collapsible group in the shell.
 
@@ -858,7 +860,7 @@ Seven known gaps between this document and the code:
 | `details` was written empty | it carries what a component file declares: kind, required, default, description, and the options of a literal union |
 | 3.2's merge rule was written and unimplemented | what a story file writes completes inference per prop and field by field, and 4.4 no longer claims `details` travels untouched |
 | nothing said what an unresolvable type gave | only what the file writes by hand, which is the names in its destructuring pattern; enumerating a type needs the checker |
-| 3.4 promised `className` without reservation | it says when: the file has to write it, and a component taking `props` whole surfaces nothing |
+| 3.4 promised `className` without reservation | it names the criterion, being written by hand, of which `className` is the commonest case; a component taking `props` whole surfaces nothing |
 
 **v1.4.** The first plugin, which is what turned 6.3 from a written contract into a measured one.
 

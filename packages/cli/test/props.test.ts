@@ -469,3 +469,48 @@ export function Badge({ tone }: P) { return null }`
     expect(read(source).tone).toEqual({ type: 'string', required: true })
   })
 })
+
+describe('un membre écrit en forme de méthode', () => {
+  // Lu comme une propriété il était absent, donc le motif le rattrapait en
+  // facultatif et `unknown` alors que le type le déclare requis : la fusion
+  // échangeait une omission contre un drapeau faux. Revue de la PR #54.
+  it('garde sa nature et son caractère requis', () => {
+    const source = `interface P { onClick(): void; tone?: string }
+export function Badge({ onClick, tone }: P) { return null }`
+
+    expect(read(source)).toEqual({
+      onClick: { type: 'function', required: true },
+      tone: { type: 'string', required: false },
+    })
+  })
+
+  // Le critère est d'être écrit à la main, et `className` n'en est que le cas
+  // le plus courant : §3.4 le dit ainsi depuis ce tour.
+  it('rattrape tout nom que le motif écrit, pas seulement className', () => {
+    const source = `interface P extends React.ComponentProps<'span'> {
+  onClick(): void
+  tone?: string
+}
+export function Badge({ className, onClick, id, tone, ...rest }: P) { return null }`
+
+    expect(read(source)).toEqual({
+      onClick: { type: 'function', required: true },
+      tone: { type: 'string', required: false },
+      className: { type: 'unknown', required: false },
+      id: { type: 'unknown', required: false },
+    })
+  })
+
+  // Une signature d'index ne nomme rien, donc elle n'est pas un membre : la prop
+  // qu'elle couvre passe par le motif, ce qui est juste puisque la signature ne
+  // dit rien de ce nom-là.
+  it('ne prend pas une signature d’index pour un membre', () => {
+    const source = `interface P { [key: string]: unknown; tone?: string }
+export function Badge({ tone, autre }: P) { return null }`
+
+    expect(read(source)).toEqual({
+      tone: { type: 'string', required: false },
+      autre: { type: 'unknown', required: false },
+    })
+  })
+})
