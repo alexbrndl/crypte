@@ -65,7 +65,7 @@ Une garantie qu'aucune altération ne fait tomber n'est pas tenue, elle est seul
 En fin d'exploration, trois listes :
 
 - **Corrigé** : ce que l'exploration a trouvé et que tu as réparé.
-- **Consigné** : ce qui reste, dans `docs/internal/suivi.md`, avec sa mesure.
+- **Consigné** : ce qui reste, dans une issue, avec sa mesure.
 - **Non couvert** : les cases sans cas, avec la raison.
 
 Puis seulement, `/review`.

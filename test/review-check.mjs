@@ -10,7 +10,7 @@ import { pathToFileURL } from 'node:url'
 const MARKER = '<!-- crypte-review -->'
 
 // Ce qui fait foi, ou ce qui porte les règles de travail. De la prose se relit
-// sans procédure ; ces cinq formes non, malgré leur extension.
+// sans procédure ; ces quatre formes non, malgré leur extension.
 //
 // Les dossiers sont acceptés à côté des fichiers : le jour où `docs/contracts.md`
 // se scinde, l'exemption ne doit pas s'élargir en silence.
@@ -21,7 +21,6 @@ const MARKER = '<!-- crypte-review -->'
 // plus bas.
 const AUTHORITY = [
   /^docs\/(contracts|decisions)(\.md$|\/)/,
-  /^docs\/internal\/suivi(\.md$|\/)/,
   /(^|\/)CLAUDE\.md$/,
   /(^|\/)\.claude\//,
 ]

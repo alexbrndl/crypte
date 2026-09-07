@@ -2,11 +2,83 @@
 
 What we chose, what we turned down, and why. Newest first.
 
-A decision is written here when it is made. `architecture.md` explains how a mechanism works, and it is written once the code exists. `suivi.md` holds review findings we chose not to fix yet. Neither of them says what else was on the table.
+A decision is written here when it is made. `architecture.md` explains how a mechanism works, and it is written once the code exists. It does not say what else was on the table.
 
 Each entry has four parts. The last one matters most: it says what would make the decision wrong.
 
 An entry is never deleted. A decision that no longer holds gets a new entry that replaces it, and the old one stays, so the change of mind is readable.
+
+---
+
+## The catalogue is 23 packages, sorted by what an agent cannot replicate
+
+_2026-09-07_
+
+**Decided.** Twenty-three packages instead of about thirty: four mergers (`diff` into `grid`, `props-fuzzer` into `coverage`, `theme-builder` into `editor`, `rtl` into `responsive`) and three removals (`portal`, `workspace`, `links`). Fourteen free, eight paid, one carried by `serve`. One table, one line per package, and `test/plugins-catalogue.test.mjs` refuses a duplicate name, a status outside the three values, and a row without a work site.
+
+The sorting criterion becomes a **replicability test**: a plugin is sellable if it needs components actually rendered in a browser, an exhaustive and exact walk of the repository, or continuous manipulation. None of the three, and it is free.
+
+**Why.** The old criterion, "deep interactive tooling an AI does not replicate", was never applied to the twelve reserved plugins, and "interactive" got read as "manipulated with a mouse". That reading pushed to the free side plugins an agent cannot produce, only because their output looks like a report: a model *describes* a contrast, it does not *measure* one.
+
+Five scattered tables were the material cause of six real inconsistencies: `usage-finder` discarded in one table and sold in another, three plugins announced as "split in two" without the split ever being written, four paid plugins overlapping, and a status invented for `comments`, "gratuit en mono-utilisateur", which existed in no nomenclature.
+
+**Rejected.** `viewport` as the new name for `responsive`, which the name-conflict table had already settled for transparency; covering three axes does not make the name less transparent. And a standalone check script with an npm script, a CI job and a pre-commit entry: four wiring points for a table that moves once a month, where one test file in `test/` runs inside `vp test` with none.
+
+**What would reopen it.** A free plugin turning out to be the only thing anyone would pay for, which would mean the criterion is wrong rather than the licence. Or a real case for `density` or `i18n-preview`, both named in the file so they are not rediscovered in six months.
+
+---
+
+## `crypte serve` is paid from the first editor, and reading stays free
+
+_2026-09-07_
+
+**Decided.** `serve` is paid as soon as one person writes in it. Reading stays free and unlimited: the deployed static site can be read by as many people as needed, without a licence and without an account. The public sentence: **everyone reads for free, you pay for the people who write.**
+
+This **replaces** the entry of 2026-08-21, "The published catalogue is MIT, and the paid line is one editor against many", which made `serve` free for a single user and paid for many. That entry stays, as every superseded one does.
+
+**Why.** The old wording needed a threshold policed inside the product, a `--team` flag, and a definition of "several people" that does not exist cleanly. The new boundary is binary: the command is there or it is not.
+
+`@crypte/comments` therefore stops being "gratuit en mono-utilisateur", a value no nomenclature carried. Its status is carried by `serve`.
+
+**Rejected.** The `--team` flag as the dividing line, which the repository never actually grew. And detecting where the process runs, already rejected elsewhere as undetectable.
+
+**Reserved.** A fourteen-day trial is still to be decided. Without one, a designer cannot try editing before paying.
+
+---
+
+## Nothing is sold before there are users, and each sale form is imposed by its object
+
+_2026-09-07_
+
+**Decided.** No paid capability goes on sale before the free product is published, installed and used. Paid plugins run locally and sell as a perpetual licence, with offline signature and no outbound call from the free package. `serve` is a server, so it sells by subscription.
+
+**Why the order.** The sale form depends on three facts we do not have: whether a single person buys, whether a team needs to write together, and what a licence check costs to operate. Deciding now is inventing an answer, which "cover only what usage demonstrates" forbids everywhere else in this document.
+
+**Why the two forms are not a commercial preference.** An animation editor frozen for two years keeps working. A server that talks to the GitHub API, exposes an HTTP surface and handles tokens must be patched for security long after any update window closes: selling it for life would promise support we will not deliver.
+
+**The precision that must also reach the README.** The CLI emits no telemetry, ever. The licence check is done by the paid package itself, which was installed and bought, never by the core and never by the CLI.
+
+**Rejected.** Tying the sale to the existence of `crypte serve`: the barrier is the number of installations, not the server. Checking the licence at `build` time, which puts the key in CI secrets, pushes towards a per-repository licence, and makes a build fail for a billing reason, the worst possible failure mode for a developer tool. And a collective name for the paid pack: eight plugins that will not ship together need no second brand to learn.
+
+---
+
+## One fact, one source: four internal documents leave the tree
+
+_2026-09-07_
+
+**Decided.** `suivi`, `arborescence`, `placement-ui` and `pistes-shell` are deleted, along with seven sections of `architecture.md` and the TypeScript 7 probe. Findings that used to go to `suivi` become issues. The rule that made every moving part earn a section in `architecture.md` now applies only when forgetting it would break something.
+
+**Why.** Measured before cutting: the apparatus weighed **8 777 lines against 4 704 of product**, 1.9 times. And each deleted file said what another system already says better. `suivi` duplicated the tracker, and the proof came the same day: a flaky test was written both there and as DCJ-272. `arborescence` duplicated the disk, had no test guarding it, and was already wrong about three files added hours earlier. `placement-ui` inventoried what should be public in `core/ui`, which contains one file of 31 lines. Half of `pistes-shell` proposed what DCJ-195 and DCJ-196 cancelled and what DCJ-192 and DCJ-197 delivered. `architecture.md` §6 to §9 restated `CLAUDE.md` and the two skills, 443 lines of it.
+
+**Why `CLAUDE.md` shrank most, at 202 lines to 117.** It is the only file read in **every** session; the others are opened on demand. Its lines therefore cost more than any other file's, and 78 of them restated `/explore` and `/review`, which load when they are needed.
+
+**Rejected.** Cutting `contracts.md`, whose 764 normative lines are the definition of the four contracts rather than fat. Cutting the package tests, 9 208 lines for 4 282 of source, which are the guarantee. Deleting `spec-journal.md`, which `spec.test.ts` reads as the one place a retired name may still appear. And deleting `manifest-size.mjs`, which the entry of 2026-08-13 keeps on purpose: reversing a written decision to save 207 dormant lines is not a trade.
+
+**Three work rules leave with them, named here so the removal is deliberate rather than noticed later.** « Classer avant de corriger » goes, because `test/post-review.mjs` already refuses a verdict whose point carries no level. « Auto-review, relis-toi » goes, being what `/explore` is for. « Arrêt explicite » goes with the only file that ever applied it. The rule that survives the move is « tout code exécutable ajouté après une revue n'a pas été relu », which now lives in the `/review` skill: it is a guarantee, not a habit, and the review of PR #59 caught its removal.
+
+**What is lost, said rather than glossed.** The 57 live entries of `suivi` were real findings. They live in git, recoverable with `git show`, and the ones that describe unfixed behaviour become issues. The TypeScript 7 probe is gone, so nothing watches for `vue-tsc` catching up; DCJ-184 already said the probe had never run for real.
+
+**What would reopen it.** A second maintainer, for whom `arborescence` would answer a question the disk answers slowly. A finding that gets raised twice by two reviews because no file holds arbitrated points any more, which is what `suivi` prevented. Or `architecture.md` growing back past a thousand lines, which would mean the softened rule is still too broad.
 
 ---
 
@@ -96,7 +168,7 @@ One `TokensEntry` carries a **family**, not a single token. `path` and `name` pl
 
 **Why keyed rather than listed.** The precedent is already in the file: `StoryEntry.details` is a `Record` keyed by prop name for exactly this reason, and a token identifier is derived the same way a story's is, per section 4.3. So a comment or a diff still anchors on one token without one token being one entry.
 
-**Why the version does not move.** `"tokens"` was a reserved value of a `type` field that has existed since v1.0, and the reserve was put there for this. Nothing required moved on `StoryEntry`, so a reader that only knows stories skips what it does not recognise. The rule that does force a bump, adding a required field once a published version writes manifests, is in `suivi.md` and is untouched: nothing is published.
+**Why the version does not move.** `"tokens"` was a reserved value of a `type` field that has existed since v1.0, and the reserve was put there for this. Nothing required moved on `StoryEntry`, so a reader that only knows stories skips what it does not recognise. The rule that does force a bump, adding a required field once a published version writes manifests, is untouched: nothing is published.
 
 **What would reopen it.** A real reader in `@crypte/tokens` finding a token whose kinds do not fit the six, which widens `TokenKind` and costs nothing. A format where a family cannot be decided without reading the file, which would move the grouping out of the entry. Or a consumer that needs to know which file a family came from, which is an optional field and deliberately deferred to the plugin that will demonstrate it.
 
@@ -108,13 +180,13 @@ _2026-08-22_
 
 **Decided.** Two things, which together make one rule: review what carries authority, do not review what merely narrates.
 
-A diff whose every file is a `.md`, none of them `docs/contracts.md`, `docs/decisions.md`, `docs/internal/suivi.md`, a `CLAUDE.md` or anything under `.claude/`, needs no review at all. `require-review.yml` establishes that on its own and passes. Everything else needs one, and those same five forms get the stronger reviewer despite their extension.
+A diff whose every file is a `.md`, none of them `docs/contracts.md`, `docs/decisions.md`, a `CLAUDE.md` or anything under `.claude/`, needs no review at all. `require-review.yml` establishes that on its own and passes. Everything else needs one, and those same four forms get the stronger reviewer despite their extension.
 
 The classification lives in `test/review-check.mjs`, covered by `test/review-check.test.mjs`, not in the workflow's YAML.
 
 **Rejected.** Three things. Reviewing everything, which is what the gate did: two consecutive verdicts came back empty on documentation, and the review skill names that failure itself, a review that finds nothing teaches nobody to read the next one. Exempting all documentation, which would have exempted the contracts and the decision record, the one place a review earns its cost. And the guard rail's own remedy, "revenir au modèle courant partout", for the reason below.
 
-**Why those five forms and not a folder.** The old criterion was file location, standing in for how much reasoning a diff demands. It broke on this repository's own shape: `decisions.md` is documentation by its folder and the decision record by its content, and `suivi.md` holds deferred defects with the measurement and the reason not to fix them, which the review reads so it stops re-raising them.
+**Why those four forms and not a folder.** The old criterion was file location, standing in for how much reasoning a diff demands. It broke on this repository's own shape: `decisions.md` is documentation by its folder and the decision record by its content.
 
 **Why the remedy is narrower than the guard rail asked for.** `architecture.md` already carried the trigger, and it fired: a review missed points a manual re-read caught. But the same measurement shows the cheap reviewer is not the problem. PR #45, 908 lines over nine decision entries, was reviewed in three tool calls and returned nothing, while a manual re-read found two errors. PR #46, 120 lines, was reviewed in twenty calls and genuinely verified. Switching everything back would have punished the case that works. What failed was the criterion, so the criterion is what changed.
 
@@ -138,7 +210,7 @@ That is why `docs/internal/plugins.md` can name `serve` and those plugins withou
 
 **The line, and it is the part worth writing down.** Not public against private, but **engineering notes against business analysis**.
 
-Engineering notes stay here, and the reason is measured rather than felt: `docs/internal/architecture.md` is cited by 53 files, including comments in published source, and `docs/internal/suivi.md` is read by the review itself, which is what stops an already-arbitrated point from being raised again every round. Moving either would break `test/doc-links.test.mjs` and orphan those citations. An outside contributor to an MIT project needs `architecture.md`: it is the file that says what breaks if you remove a mechanism.
+Engineering notes stay here, and the reason is measured rather than felt: `docs/internal/architecture.md` is cited by dozens of files, including comments in published source. Moving it would break `test/doc-links.test.mjs` and orphan those citations. An outside contributor to an MIT project needs `architecture.md`: it is the file that says what breaks if you remove a mechanism.
 
 Competitive analysis and the licensing scheme went the other way, and they were written here first before being moved out. That is the mistake this entry exists to keep from being repeated.
 
@@ -186,7 +258,7 @@ The first draft of this entry removed the fingerprint and quoted that sentence a
 
 **What it buys that nothing replaces.** A catalogue change visible in a pull request diff. Rename a story or add a prop, and the committed fingerprint moves, so a reviewer sees it without running anything. « Rebuild the manifest at two commits » covers the changes screen and the comment anchor, at a cost, but it cannot cover this one: **a reviewer reading a diff does not run a build.** Nothing else in the repository makes a catalogue change visible at review time, and making silent changes loud is most of what the controls here exist for.
 
-**What keeping it costs, stated rather than glossed.** One generated-but-committed file with a lock, which `suivi.md` already notes has a narrower scope than the mechanism suggests. And one known wart: reordering a props block changes `source`, so it changes the digest, though the render is identical. That is diff noise on a change that means nothing, and it is the one thing worth fixing.
+**What keeping it costs, stated rather than glossed.** One generated-but-committed file with a lock, whose scope is narrower than the mechanism suggests. And one known wart: reordering a props block changes `source`, so it changes the digest, though the render is identical. That is diff noise on a change that means nothing, and it is the one thing worth fixing.
 
 **The measurements, kept here so they outlive the script.** A synthetic manifest with eight documented props per component: 34.1 KB raw and 5.2 KB gzipped at 23 stories, 140.1 KB and 17.8 KB at 100, 706.2 KB and 83.9 KB at 500, 2.8 MB and 330.5 KB at 2000. The reduced fingerprint: 268 bytes per story, so 130.9 KB raw and 9.4 KB gzipped at 500 stories, with the committed fixture confirming 261 bytes per entry. **The ratio between the two files is 5.4**, not the 6.5 first published nor the 8.5 that followed: the figure moved three times, each time because the measurement was not taken on the shape the producer actually writes.
 
@@ -338,11 +410,11 @@ _2026-08-21_
 
 _2026-08-21_
 
-**Decided.** One state, two spellings, and which one rules where. The identifier is **`inapplicable`**: that is what code carries, what `UIContribution` will name when it is written, and what the Figma frame state is called. French prose says **« sans objet »**, in `placement-ui.md` and `pistes-shell.md` only, the way the rest of those notes are written. Neither is a synonym to be aligned onto the other: prose reads, identifiers are typed. A third word invented at the contract is what this entry exists to prevent.
+**Decided.** One state, two spellings, and which one rules where. The identifier is **`inapplicable`**: that is what code carries, what `UIContribution` will name when it is written, and what the Figma frame state is called. French prose says **« sans objet »**. Neither is a synonym to be aligned onto the other: prose reads, identifiers are typed. A third word invented at the contract is what this entry exists to prevent.
 
 **The state is one value with two branches, per render.** Either a body, or `inapplicable` with its reason. Never both, never a reason alone. A boolean plus an optional reason would let both illegal forms be written, which is the defect `StoriesRead` already cost us. And per render, not declared once: `a11y` has no violation on one story and several on the next, so a state declared alongside the contribution zones could not express it.
 
-**Scope of what we turn down.** « silence » as the name of *this state*, which the notes used until now: it reads as a panel saying nothing, the very behaviour the rule forbids. Nothing else. The repository uses « silence » and « en silence » some forty times for another notion, a defect that does not report itself, in `architecture.md`, `suivi.md`, `CLAUDE.md` and published comments. Those stay, and a review that renames them is reading this entry too widely.
+**Scope of what we turn down.** « silence » as the name of *this state*, which the notes used until now: it reads as a panel saying nothing, the very behaviour the rule forbids. Nothing else. The repository uses « silence » and « en silence » some forty times for another notion, a defect that does not report itself, in `architecture.md`, `CLAUDE.md` and published comments. Those stay, and a review that renames them is reading this entry too widely.
 
 **Where the identifier comes from.** The interface exploration in Figma, which named the frame state. The library itself is a lot 7 deliverable: its three pages are still to be created, so this entry is what carries the name *into* it, not a fact read back from it. Nothing in the repository can verify the Figma side today, which is why the name is written here rather than only there.
 
@@ -486,7 +558,7 @@ _2026-08-13_
 
 Everything on that list has moved, and `test/published-english.test.mjs` now refuses an accented character in `packages/*/src` outside a short backquoted example. What is left in French is the design notes, on purpose, the test names, tracked in DCJ-210, and whatever French carries no accent, which no check can see.
 
-Notes written for the maintainer stay in French: `architecture.md`, `suivi.md`, `arborescence.md`, the planning documents, `CLAUDE.md`, and the skills under `.claude/`.
+Notes written for the maintainer stay in French: `architecture.md`, the planning documents, `CLAUDE.md`, and the skills under `.claude/`.
 
 **Rejected.** Two options. Translating the whole repository, and keeping everything in French.
 

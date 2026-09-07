@@ -72,5 +72,5 @@ export interface TokensEntry {
 }
 
 // Unchanged by `tokens`: the reserved `type` is what a new nature was for, and
-// nothing required moved on `StoryEntry`. See docs/internal/suivi.md.
+// nothing required moved on `StoryEntry`. See docs/decisions.md.
 export const MANIFEST_VERSION = 1

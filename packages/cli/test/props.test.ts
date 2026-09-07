@@ -162,8 +162,7 @@ export function Badge({ a }: P) { return null }`
 
   // Le repli, et c'est le chemin qui compte : une forme que la lecture ne
   // connaît pas rend `unknown` plutôt que rien, donc la prop reste documentée.
-  // Ces trois-là sont aussi ce que `docs/internal/suivi.md` consigne
-  // comme hors périmètre.
+  // Ces trois-là sont aussi hors périmètre.
   it('retombe sur unknown sur une forme qu’il ne connaît pas', () => {
     expect(kindOf('A & B')?.type).toBe('unknown')
     expect(kindOf('[string, number]')?.type).toBe('unknown')

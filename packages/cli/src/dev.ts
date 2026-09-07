@@ -122,8 +122,7 @@ function shape(catalogue: Catalogue): string {
 //
 // **What this does not cover, since `details` exists:** the catalogue now reads
 // the component file too, for its props, and nothing here watches it. Editing a
-// JSDoc leaves `details` as it was until a story file moves. See
-// docs/internal/suivi.md.
+// JSDoc leaves `details` as it was until a story file moves.
 function watchStories(
   server: ViteDevServer,
   project: Project,

@@ -2,7 +2,7 @@
 
 > Liste de référence des plugins prévus, de leur nom, de leur statut économique et du chantier qui les porte. Ce document ne décrit pas leur fonctionnement : chaque plugin a son issue.
 
-Réécrit le 21 août 2026 à la refonte de la roadmap. La version précédente datait de la première passe et ne connaissait ni les douze plugins pensés pour la licence, ni la frontière gratuit/payant, ni cinq conflits de noms.
+Réécrit le 21 août 2026 à la refonte de la roadmap. La version précédente datait de la première passe et ne connaissait ni la frontière gratuit/payant, ni les conflits de noms. Le tri du 7 septembre 2026 l'a ramenée de trente entrées à vingt-trois.
 
 ---
 
@@ -14,9 +14,9 @@ Quand aucune convention ne domine, le nom est choisi pour être **transparent pl
 
 **Tout est scopé sous `@crypte`.** Le nom nu `crypte` est refusé par npm, jugé trop proche de `crypto`, voir `contracts.md`, journal v0.4.
 
-### Cinq conflits de noms, tranchés
+### Quatre conflits de noms, tranchés
 
-Le document de monétisation du 20 août nommait cinq plugins autrement, en reprenant le vocabulaire de Storybook. **Les noms de ce fichier l'emportent**, parce qu'ils sont déjà raisonnés par écrit.
+Le document de monétisation du 20 août nommait quatre plugins autrement, en reprenant le vocabulaire de Storybook. **Les noms de ce fichier l'emportent**, parce qu'ils sont déjà raisonnés par écrit.
 
 | Retenu | Écarté | Raison |
 | --- | --- | --- |
@@ -24,25 +24,42 @@ Le document de monétisation du 20 août nommait cinq plugins autrement, en repr
 | `responsive` | `viewport` | transparent plutôt que court |
 | `docs` | `docgen` | le plugin dessine une table, il ne génère pas un document |
 | `visual-tests` | `snapshot-local` | et il reste gratuit, voir ci-dessous |
-| `coverage` | `usage-finder` | il fait les deux choses, pas seulement la seconde |
 
 ---
 
 ## Statut économique
 
-Trois valeurs. Le détail du dispositif, la vérification de licence et le comptage vivent hors de ce dépôt, avec le code qu'ils concernent.
+Trois valeurs, et pas une quatrième. Le détail du dispositif, la vérification de licence et le comptage vivent hors de ce dépôt, avec le code qu'ils concernent.
 
 | Statut | Sens |
 | --- | --- |
-| **gratuit** | MIT, publié sur npm, nécessaire pour adopter Crypte et atteindre la parité Storybook |
-| **licence** | tourne en local aussi, mais outillage interactif profond. Payant, clé, zéro serveur. Jamais publié en MIT |
-| **service** | nécessite que Crypte opère un backend. Pas un plugin |
+| **gratuit** | MIT, publié sur npm |
+| **payant** | tourne en local, jamais publié en MIT, clé et zéro serveur |
+| **porté par `serve`** | dépend d'une commande qui n'est pas un plugin |
 
-**Critère de tri.** Est gratuit tout ce qui est nécessaire pour adopter Crypte. Est sous licence l'outillage interactif profond qui fait gagner des heures à un pro et que l'IA ne réplique pas.
+### Les deux familles du côté gratuit
 
-**La règle qui découle de la leçon Tailwind : ne jamais vendre du contenu statique, clonable par un prompt. Vendre de l'outillage interactif.**
+Tout ce qui est gratuit appartient à l'une des deux, ce qui évite de se demander plugin par plugin.
 
-Un plugin peut être coupé en deux, basique gratuit et avancé sous licence. Trois le sont : `a11y` et `audit`, `tokens` et `tokens-inspector`, `coverage` et `usage-finder`.
+**La parité.** Ce que Storybook fournit déjà gratuitement. Faire payer l'un d'eux revient à demander de l'argent pour égaler ce que l'utilisateur a déjà sans payer.
+
+**Les différenciateurs d'adoption.** Ce qui donne une raison de venir, donc ce qui doit rester dans l'argumentaire d'entrée.
+
+**Un plugin qui n'appartient à aucune des deux n'a aucune raison structurelle d'être gratuit.**
+
+### Le test de réplicabilité, en trois questions
+
+Remplace le jugement « statique contre interactif », trop grossier : il faisait descendre du côté gratuit des plugins qu'un agent ne sait pas produire, au seul motif que leur sortie ressemble à un rapport.
+
+Un plugin est **non réplicable par un agent**, donc vendable, s'il coche au moins une case.
+
+| | Question | Pourquoi un agent échoue |
+| --- | --- | --- |
+| **A** | Faut-il que les composants soient réellement rendus dans un navigateur ? | un modèle décrit un contraste, il ne le mesure pas. `getComputedStyle` n'a pas d'équivalent textuel |
+| **B** | Faut-il un parcours exhaustif et exact du dépôt ? | un agent échantillonne et paraphrase. Sur quatre cents composants, l'approximation est une erreur |
+| **C** | La valeur est-elle dans la manipulation continue ? | tirer une courbe ou ajuster un token à l'œil ne se demande pas en prose |
+
+**Aucune case cochée, c'est gratuit.** La sortie est du texte générique, donc clonable par un prompt, donc la leçon Tailwind s'applique : ne jamais vendre du contenu statique.
 
 ---
 
@@ -63,14 +80,47 @@ Chaque projet du tracker porte un **sous-numéro** qui donne son ordre dans la p
 
 ---
 
-## `1.3` Contrat de plugin
+## Catalogue
 
-| Paquet | Rôle | Surfaces | Statut |
-| --- | --- | --- | --- |
-| `@crypte/controls` | édition des props en live | ui, preview | gratuit |
-| `@crypte/a11y` | vérification d'accessibilité, axe-core | ui, preview | gratuit |
+**Un seul tableau, une ligne par paquet.** Les cinq tableaux précédents étaient la cause matérielle des doublons : rien ne signalait qu'un nom apparaissait deux fois avec deux statuts.
 
-**Ces deux-là ne sont pas dans le chantier d'outillage, et c'est voulu : ils ont une fonction de contrat.** `contracts.md` §6.5 pose la condition, le contrat de plugin est stable une fois éprouvé par deux plugins aux besoins opposés. `controls` écrit dans la story, `a11y` se contente de la lire.
+| Paquet | Rôle | Surfaces | Statut | Chantier |
+| --- | --- | --- | --- | --- |
+| `@crypte/controls` | édition des props en live | ui, preview | gratuit | `1.3` |
+| `@crypte/a11y` | vérification d'accessibilité de la story affichée, axe-core | ui, preview | gratuit | `1.3` |
+| `@crypte/tokens` | découverte et lecture des variables CSS déclarées | node, puis preview | gratuit | `2.3` |
+| `@crypte/docs` | table de props depuis TypeScript et JSDoc | node, ui | gratuit | `2.2` |
+| `@crypte/source` | code d'appel affiché et copiable | node, ui | gratuit | `2.2` |
+| `@crypte/theme` | thèmes clair et sombre, fonds du canvas | ui, preview | gratuit | `2.2` |
+| `@crypte/responsive` | largeurs, points de rupture, sens de lecture | ui, preview | gratuit | `2.2` |
+| `@crypte/actions` | journal des événements émis | ui, preview | gratuit | `2.2` |
+| `@crypte/visual-tests` | régression visuelle sur baseline locale | node | gratuit | `2.2` |
+| `@crypte/coverage` | props jamais exercées, comptage par composant, mode fuzz | node, ui | gratuit | `2.2` |
+| `@crypte/interactions` | tests d'interaction | node, ui, preview | gratuit | `R` |
+| `@crypte/mock` | mock d'API et date figée | node, preview | gratuit | `R` |
+| `@crypte/inspect` | marges, contours, mesures | ui, preview | gratuit | `R` |
+| `@crypte/grid` | stories écrites côte à côte, et deux à deux | ui | gratuit | `R` |
+| `@crypte/comments` | commentaires et review sur les stories | ui, node | porté par `serve` | `3.2` |
+| `@crypte/motion` | éditeur de timeline d'animations, scrubber, courbes | à décider | payant | `R` |
+| `@crypte/editor` | édition visuelle des tokens et des props, création de thème, écriture par codemod | à décider | payant | `R` |
+| `@crypte/recorder` | on clique dans le composant, le test s'écrit | à décider | payant | `R` |
+| `@crypte/states-matrix` | génère et rend les combinaisons non écrites, états croisés aux thèmes | à décider | payant | `R` |
+| `@crypte/audit` | couverture WCAG, contrastes tous thèmes, valeurs en dur, composants sans story | à décider | payant | `R` |
+| `@crypte/tokens-inspector` | chaînes de résolution et diff entre thèmes | à décider | payant | `R` |
+| `@crypte/deps-graph` | graphe d'impact entre composants | à décider | payant | `R` |
+| `@crypte/usage-finder` | usage détaillé par prop, tendances, composants morts | à décider | payant | `R` |
+
+**Vingt-trois entrées. Quatorze gratuites, huit payantes, une portée par `serve`.** Vingt-trois défendables valent mieux que trente dont sept sont discutables, sur un projet dont la thèse est de ne couvrir que ce qui est démontré par l'usage.
+
+Les surfaces des payants restent à décider : aucun n'est développé, et les nommer par anticipation serait deviner.
+
+`test/plugins-catalogue.test.mjs` refuse un nom en double, un statut hors des trois valeurs et une ligne sans chantier. Ce sont les trois formes qu'ont prises les six incohérences du catalogue à cinq tableaux.
+
+---
+
+## `controls` et `a11y` ont une fonction de contrat
+
+Ils ne sont pas dans le chantier d'outillage, et c'est voulu. La section 6.5 de `contracts.md` pose la condition : le contrat de plugin est stable une fois éprouvé par deux plugins aux besoins opposés. `controls` écrit dans la story, `a11y` se contente de la lire.
 
 Tant que les deux n'existent pas, la section 6 change sans procédure. Après, tout changement est une rupture.
 
@@ -78,49 +128,92 @@ Tant que les deux n'existent pas, la section 6 change sans procédure. Après, t
 
 ---
 
-## `2.3` Entrée tokens
+## `tokens` est écrit, et pourquoi lui d'abord
 
-**Écrit, moitié `node`, le 24 août 2026.** Il lit les variables CSS de la feuille que le projet déclare et en contribue des entrées `TokensEntry`, une par famille. La moitié `preview`, qui résoudrait les valeurs effectives par `getComputedStyle`, attend que `PreviewHooks` soit spécifié, ce qui demande son propre consommateur.
+**Moitié `node`, le 24 août 2026.** Il lit les variables CSS de la feuille que le projet déclare et en contribue des entrées `TokensEntry`, une par famille. La moitié `preview`, qui résoudrait les valeurs effectives par `getComputedStyle`, attend que `PreviewHooks` soit spécifié, ce qui demande son propre consommateur.
 
-Les trois autres sources de la fiche, DTCG, `tokens.ts` et Tailwind, ne sont pas écrites : ce plugin existait pour éprouver la surface `node` avant qu'elle soit figée, pas pour être complet.
+Sorti de la réserve à la refonte pour deux raisons : zeroheight et Supernova ont tous les deux un Token Manager, et c'est **le premier plugin à écrire dans le manifeste**, donc celui qui éprouve `NodeHooks` avant qu'il soit figé.
 
-| Paquet | Rôle | Surfaces | Statut |
-| --- | --- | --- | --- |
-| `@crypte/tokens` | découverte et lecture des tokens | node, puis preview | gratuit |
-
-Sorti de la réserve de `contracts.md` §7 à la refonte. Deux raisons : zeroheight et Supernova ont tous les deux un Token Manager, et c'est **le premier plugin à écrire dans le manifeste**, donc celui qui éprouve `NodeHooks` avant qu'il soit figé.
-
-Le partage est celui qui existe déjà pour les props : le type `TokensEntry` dans le noyau, la découverte et la lecture dans le plugin. La ligne n'est pas « important ou pas », c'est **produire de la donnée contre l'afficher**.
-
-Deux surfaces et non une : `node` découvre les noms et les sources, `preview` résout les valeurs effectives, `getComputedStyle` étant le seul moyen d'avoir des valeurs justes en clair comme en sombre.
+Les trois autres sources de la fiche, DTCG, `tokens.ts` et Tailwind, ne sont pas écrites : ce plugin existait pour éprouver la surface `node`, pas pour être complet.
 
 ---
 
-## `2.2` Outillage quotidien
+## Fusions
 
-| Paquet | Rôle | Surfaces | Statut |
-| --- | --- | --- | --- |
-| `@crypte/docs` | table de props depuis TypeScript et JSDoc | node, ui | gratuit |
-| `@crypte/source` | code d'appel affiché et copiable | node, ui | gratuit |
-| `@crypte/theme` | thèmes clair et sombre, fonds du canvas | ui, preview | gratuit |
-| `@crypte/responsive` | largeurs et points de rupture | ui, preview | gratuit |
-| `@crypte/actions` | journal des événements émis | ui, preview | gratuit |
-| `@crypte/visual-tests` | régression visuelle sur baseline locale | node | gratuit |
-| `@crypte/coverage` | props jamais exercées, et usage réel des composants | node, ui | gratuit |
+Un paquet n'existe que si son périmètre se dit en une phrase sans recouvrir celui d'un voisin.
 
-`theme` absorbe ce que Storybook sépare en `themes` et `backgrounds`.
+| Fusionné | Dans | Raison |
+| --- | --- | --- |
+| `diff` | `grid` | même mécanique, monter plusieurs previews côte à côte. Seuls diffèrent le nombre et le choix |
+| `props-fuzzer` | `coverage` | trouver le trou et le combler sont le même geste. `coverage` dit « cette prop n'est jamais exercée », le mode fuzz propose des valeurs |
+| `theme-builder` | `editor` | quatre-vingt-dix pour cent de code commun. `editor` gagne un mode création avec export DTCG |
+| `rtl` | `responsive` | même famille : sous quelle condition on rend le composant, largeur ou sens de lecture |
 
-`actions` est le premier et seul usage démontré de `ctx.props` modifiable dans `beforeMount`, cas écrit en `contracts.md` §6.4.
+`responsive` **garde son nom** : le tableau des conflits l'a tranché contre `viewport`, transparent plutôt que court, et couvrir trois axes ne rend pas le nom moins transparent.
 
-`coverage` fait deux choses. Sans rien scanner, il croise `details` et les props propres de chaque story pour dire ce qui n'est documenté nulle part. En prolongeant le parcours de `crypte check`, il compte les usages réels dans l'application. Le second point justifie à lui seul que ce soit un plugin : le noyau n'a aucune raison de savoir lire le code applicatif.
+`theme` reste dehors : il porte des valeurs de tokens, pas le cadre de rendu.
 
-### Deux plugins que la monétisation voulait payants, et qui restent gratuits
+---
+
+## Sortis de la liste des plugins
+
+| Sorti | Devient | Raison |
+| --- | --- | --- |
+| `portal` | un drapeau sur `crypte build` | thématiser le shell est une option de construction, et c'est du contenu statique, que la leçon Tailwind interdit de vendre |
+| `workspace` | un mode de `build`, ou un service | agréger plusieurs ateliers ne se fait pas dans un atelier, ça se fait au-dessus |
+| `links` | rien, ou le noyau | le shell a déjà un arbre et une palette. Naviguer d'une story à l'autre est une API de deux lignes côté preview, et aucun cas réel ne la porte |
+
+---
+
+## Les quatre coupes, gratuit contre payant
+
+Le document annonçait trois plugins « coupés en deux » sans jamais écrire la coupe. Il en faut une quatrième, née de la fusion de `diff` dans `grid`.
+
+| Gratuit | Payant | Ligne de coupe |
+| --- | --- | --- |
+| `a11y` | `audit` | `a11y` vérifie la story à l'écran, maintenant. `audit` parcourt tout le catalogue, croise chaque état à chaque thème, et sort un rapport exportable |
+| `tokens` | `tokens-inspector` | `tokens` liste les variables et les affiche. `tokens-inspector` résout les chaînes d'alias et diffe les thèmes entre eux |
+| `coverage` | `usage-finder` | `coverage` croise `details` et les props de chaque story, et compte les usages par composant. `usage-finder` détaille par prop, suit l'évolution et repère les composants morts |
+| `grid` | `states-matrix` | `grid` affiche les stories écrites. `states-matrix` génère les combinaisons non écrites, et les rend. Le gratuit montre, le payant fabrique |
+
+**Duplication corrigée.** « Valeurs en dur » figurait dans `audit` et dans `tokens-inspector`. Elle appartient à `audit`, qui est le rapport complet.
+
+**Point ouvert.** La moitié gratuite de `coverage` compte les usages par composant, ce qui affaiblit un peu l'argument « `coverage` rend inutile le service d'analytics de zeroheight ». Pour garder l'argument intact, le comptage de base reste gratuit et `usage-finder` ne se vend que sur le détail par prop, les tendances et les composants morts. La ligne est fine.
+
+---
+
+## Deux plugins que la monétisation voulait payants, et qui restent gratuits
 
 **`visual-tests`.** Il portait le nom `snapshot-local` et l'argument « Chromatic sans la facture cloud ». Il reste gratuit parce que c'est lui qui porte le **rendu visuel des pull requests**, la seule fonctionnalité qu'aucun des quatre concurrents ne propose, et la seule que Backlight avait mise en tête de son argumentaire. En faire un produit payant la retire de l'argumentaire d'adoption au moment où elle sert le plus.
 
-La version qui se vend est ailleurs : `visual-regression` multi-navigateurs, en service cloud, qui est le seul revenu prouvé du marché. Ce plugin local n'y fait pas concurrence, il y amène.
+La version qui se vend est ailleurs : `visual-regression` multi-navigateurs, en service cloud, qui est le seul revenu prouvé du marché.
 
-**`coverage`.** Il portait le nom `usage-finder`. Il reste gratuit parce qu'une métrique dérivée du code **est** le différenciateur du projet, pas un supplément. C'est aussi lui qui rend inutile un service cloud entier, les analytics d'usage de documentation de zeroheight, en répondant avant qu'on ait posé la question.
+**`coverage`.** Il portait le nom `usage-finder`. Il reste gratuit parce qu'une métrique dérivée du code **est** le différenciateur du projet, pas un supplément.
+
+---
+
+## Idées conservées et non retenues
+
+Nommées ici pour ne pas être redécouvertes dans six mois.
+
+| Idée | Décision |
+| --- | --- |
+| `density` | échelles de densité et zoom 200 % WCAG. Aucun cas réel. Candidate à rejoindre `responsive` si un cas apparaît |
+| `i18n-preview` | langues, RTL, pseudo-localisation. Surensemble du mode RTL, qui est la moitié démontrée |
+| Registre de composants partagés | autre produit, serveur et base de données |
+| Composition de plusieurs instances | n'a de sens qu'à partir de trois ou quatre équipes. Voir la sortie de `workspace` |
+| Support MDX | une chaîne de compilation entière pour un gain que `docs` couvre |
+| Gouvernance d'entreprise | abandonné sans réserve |
+| Token Manager façon zeroheight | le sens de circulation est l'inverse du nôtre |
+| Analytics d'usage de la documentation | la moitié utile est dans `coverage`, l'autre dans `usage-finder` |
+
+---
+
+## La porte à sens unique
+
+Publier un paquet en MIT est irréversible : rien ne redevient payant après. La réserve `R` est le mécanisme de prudence, et elle fonctionne déjà, aucun des huit payants n'ayant jamais été publié.
+
+**L'ordre de publication compte donc plus que le statut affiché.** Un plugin dont le statut hésite reste en réserve et ne se publie pas.
 
 ---
 
@@ -142,69 +235,6 @@ Le CLI exporte un tableau `defaultPlugins` à étaler, pour qui veut le prérég
 
 ---
 
-## `R` Réserve gratuite
-
-Sept plugins au catalogue, sans engagement de date.
-
-| Paquet | Rôle | Surfaces |
-| --- | --- | --- |
-| `@crypte/interactions` | tests d'interaction | node, ui, preview |
-| `@crypte/mock` | mock d'API et date figée | node, preview |
-| `@crypte/links` | navigation entre stories | preview |
-| `@crypte/rtl` | sens de lecture inversé | ui, preview |
-| `@crypte/inspect` | marges, contours, mesures | ui, preview |
-| `@crypte/grid` | variantes côte à côte | ui |
-| `@crypte/diff` | deux stories du même composant, côte à côte | ui |
-
-`inspect` fusionne ce que Storybook sépare en `measure` et `outline`. Deux réglages du même panneau.
-
-`grid` mérite une mention : c'est lui qui rend au design system la vue d'ensemble qu'un format de story à deux niveaux aurait apportée. Le nœud parent de la sidebar affiche les stories côte à côte, cliquer sur une feuille isole. Il peut même regrouper des stories de composants différents, ce qu'un format hiérarchique n'aurait pas permis.
-
-`diff` monte deux previews à la demande, ce qui est très différent d'en monter sept par défaut. Il partage sa mécanique avec `grid` et sort après lui.
-
-**Deux pistes venues du document de monétisation, non retenues comme paquets distincts.** `density`, échelles de densité et zoom 200 % WCAG, et `i18n-preview`, langues, RTL et pseudo-localisation. La seconde est un surensemble de `rtl`, qui est la moitié démontrée. Ni l'une ni l'autre n'a de cas réel : elles restent nommées ici pour ne pas être redécouvertes.
-
----
-
-## `R` Réserve sous licence
-
-Douze plugins pensés pour la frontière payante. **Aucun n'a jamais été publié, donc tous restent libres de licence.** Aucun ne se développe avant que la frontière soit écrite.
-
-| Paquet | Justification |
-| --- | --- |
-| `motion` | **vaisseau amiral** : éditeur de timeline d'animations, scrubber, courbes. Unique sur le marché, purement interactif, non réplicable par un prompt |
-| `editor` | édition visuelle en local : tokens, props, courbes. Crypte réécrit les fichiers source par codemod, sans service |
-| `audit` | rapport complet en local ou en CI : couverture WCAG, contrastes tous thèmes, valeurs en dur, composants sans story. Exportable |
-| `states-matrix` | grille de tous les états croisés aux thèmes, d'un coup. Gain quotidien, pain point Storybook connu |
-| `usage-finder` | où chaque composant est utilisé, avec quelles props. « Omlet en local, sans abonnement » |
-| `deps-graph` | graphe d'impact entre composants. Valeur qui grandit avec l'équipe |
-| `props-fuzzer` | génération de cas extrêmes |
-| `tokens-inspector` | chaînes de résolution, diff entre thèmes, détection des valeurs en dur |
-| `theme-builder` | création et édition visuelle de thèmes, export DTCG |
-| `recorder` | on clique dans le composant, Crypte génère le test correspondant |
-| `portal` | export statique white-label, le design system aux couleurs de l'entreprise |
-| `workspace` | agrégateur monorepo, plusieurs ateliers fusionnés en un portail |
-
-**Le nom « Crypte Pro » est écarté.** Le pack sous licence portera un nom de l'univers dark fantasy. Pistes non tranchées : Reliquaire, Arcane, Sceau.
-
-**Attention sur `portal` et `workspace`.** Ce sont les deux plus proches du contenu statique, donc les deux que la leçon Tailwind menace le plus. À réexaminer avant de les développer.
-
----
-
-## `3.2` Ce qui dépend de `crypte serve`
-
-| Paquet | Rôle | Surfaces | Statut |
-| --- | --- | --- | --- |
-| `@crypte/comments` | commentaires et review sur les stories | ui, node | gratuit en mono-utilisateur |
-
-`comments` dépend de `crypte serve`, qui n'est pas un plugin mais une commande du CLI : un site statique ne peut rien écrire.
-
-Un commentaire porte une URL libre, ce qui permet de le lier à un ticket sans que Crypte connaisse Linear, Jira ou GitHub. Et il s'ancre sur un identifiant **et** un état du manifeste, donc on sait s'il porte encore sur la même chose.
-
-Le plugin suit la ligne de partage de `serve` : gratuit en mono-utilisateur, payant en multi. Le service cloud `comments` en est la version hébergée, et c'est un autre produit.
-
----
-
 ## Ce qui n'est pas un plugin
 
 | | Nature |
@@ -218,7 +248,7 @@ Le plugin suit la ligne de partage de `serve` : gratuit en mono-utilisateur, pay
 | Export au format Storybook | un drapeau sur `crypte build`, jamais un plugin, DCJ-241 |
 | Poids de chaque plugin au build | mesure du CLI, DCJ-193. Le document de monétisation l'appelait `bundle-weight` |
 | Arbre, recherche, palette, cadre des panneaux, thème de l'interface | `apps/shell`, privé |
-| Les primitives qu'au moins deux plugins dessinent | noyau, `@crypte/core/ui`, voir `placement-ui.md` |
+| Les primitives qu'au moins deux plugins dessinent | noyau, `@crypte/core/ui` |
 | `wrap`, décorateurs | format de story, résolu par l'adaptateur |
 | Entrée `page` | entrée du manifeste, pas un plugin. Le contenu est rédigé, pas dérivé |
 
@@ -264,6 +294,6 @@ La distinction est écrite parce que confondre les deux est ce qui produit une t
 
 Sans aucun plugin installé, Crypte affiche des composants isolés avec rechargement à chaud. Trois plugins par défaut en font un outil utile à la première commande.
 
-C'est précisément l'argument à opposer à qui trouve Storybook trop lourd : le catalogue compte une trentaine d'entrées, mais **rien de ce qui n'est pas installé n'est chargé**.
+C'est précisément l'argument à opposer à qui trouve Storybook trop lourd : le catalogue compte vingt-trois entrées, mais **rien de ce qui n'est pas installé n'est chargé**.
 
 Cette phrase est une promesse, donc elle a besoin d'un chiffre : c'est DCJ-193, le poids de chaque plugin affiché en barre d'état.

@@ -204,7 +204,7 @@ describe('la sélection', () => {
   //
   // La ligne « preview prête, protocole v1 » n'est pas assertionnée parce qu'elle
   // n'est jamais visible : `refresh()` la remplace par le compte dans le même
-  // tour. Trouvé par ce cas, consigné dans docs/internal/suivi.md.
+  // tour. Trouvé par ce cas.
   test('relit le catalogue et rend la première story sur ready', async ({ écran }) => {
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
 

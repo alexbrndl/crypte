@@ -486,7 +486,7 @@ const MANIFEST_VERSION = 1
 
 Every entry carries a `type`. **Two values are implemented: `"story"` and `"tokens"`.** `"page"` is reserved for design-system work and must not be implemented now. The reserve costs one field today and saves a migration later.
 
-**`MANIFEST_VERSION` does not move when a nature is added.** The reserved `type` field is precisely what that reserve was for, and nothing required moved on `StoryEntry`, so a reader that only knows stories skips what it does not recognise instead of failing. The rule that does force a bump, adding a required field once a version that writes manifests is published, is in `docs/internal/suivi.md`.
+**`MANIFEST_VERSION` does not move when a nature is added.** The reserved `type` field is precisely what that reserve was for, and nothing required moved on `StoryEntry`, so a reader that only knows stories skips what it does not recognise instead of failing. The rule that does force a bump is adding a required field once a version that writes manifests is published.
 
 `props` and `source` are read from the story file, not declared in it. `props` lists the names the story passes to the component, from the shared block and its own, sorted, with no value attached: a prop set to a function is still a prop the story exercises, and prop coverage counts it. `source` rebuilds the call from the text the user wrote, so an expression the CLI cannot evaluate still reads the way they typed it.
 

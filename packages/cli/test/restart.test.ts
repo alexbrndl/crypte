@@ -191,8 +191,7 @@ export default defineConfig({
   // la fenêtre de chevauchement : un redémarrage prend 43 ms mesurées, donc la
   // seconde sauvegarde arrive après la fin de la première, et une version à
   // drapeau passerait à l'identique. La fenêtre fait une vingtaine de
-  // millisecondes et aucun test ne la force de façon fiable, ce qui est consigné
-  // dans `docs/internal/suivi.md`. Ce que ce cas tient est l'ordre : la dernière gagne.
+  // millisecondes et aucun test ne la force de façon fiable. Ce que ce cas tient est l'ordre : la dernière gagne.
   test(
     'ne perd pas une sauvegarde arrivée pendant un redémarrage',
     { timeout: 120_000 },
