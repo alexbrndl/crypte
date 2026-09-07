@@ -14,7 +14,7 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 _2026-09-07_
 
-**Decided.** The 13 action references keep their commit SHA and its `# vX.Y.Z` comment. `require-review.yml` gains one exemption, `dependabot/*`, next to the `changeset-release/*` it already had and for the reason already written above it: nobody can run `/review` on a robot's pull request. Four of the five bumps waiting in #53 are taken, as SHAs.
+**Decided.** The 14 action references, spread over 8 distinct actions and counted with `grep -rcE '^\s+- uses:' .github/workflows/*.yml`, keep their commit SHA and its `# vX.Y.Z` comment. `require-review.yml` gains one exemption, `dependabot/*`, next to the `changeset-release/*` it already had and for the reason already written above it: nobody can run `/review` on a robot's pull request. Four of the five bumps waiting in #53 are taken, as SHAs.
 
 **Rejected.** Replacing the SHAs with version tags, which was the first plan and is recorded here because it was written and then taken back. Moving major tags, `@v7`: 6 of the 8 actions publish one and 2 do not, `actions/dependency-review-action` having stopped after `v3` and `changesets/action` never having published one, so the rule would carry two exceptions. Auto-merging Dependabot's pull requests, which contradicts pinning by SHA in the first place. And dropping Dependabot, which costs nothing to keep and is the only signal that an action moved.
 
