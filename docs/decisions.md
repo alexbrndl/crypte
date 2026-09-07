@@ -10,6 +10,58 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 ---
 
+## The catalogue is 23 packages, sorted by what an agent cannot replicate
+
+_2026-09-07_
+
+**Decided.** Twenty-three packages instead of about thirty: four mergers (`diff` into `grid`, `props-fuzzer` into `coverage`, `theme-builder` into `editor`, `rtl` into `responsive`) and three removals (`portal`, `workspace`, `links`). Fourteen free, eight paid, one carried by `serve`. One table, one line per package, and `test/plugins-catalogue.test.mjs` refuses a duplicate name, a status outside the three values, and a row without a work site.
+
+The sorting criterion becomes a **replicability test**: a plugin is sellable if it needs components actually rendered in a browser, an exhaustive and exact walk of the repository, or continuous manipulation. None of the three, and it is free.
+
+**Why.** The old criterion, "deep interactive tooling an AI does not replicate", was never applied to the twelve reserved plugins, and "interactive" got read as "manipulated with a mouse". That reading pushed to the free side plugins an agent cannot produce, only because their output looks like a report: a model *describes* a contrast, it does not *measure* one.
+
+Five scattered tables were the material cause of six real inconsistencies: `usage-finder` discarded in one table and sold in another, three plugins announced as "split in two" without the split ever being written, four paid plugins overlapping, and a status invented for `comments`, "gratuit en mono-utilisateur", which existed in no nomenclature.
+
+**Rejected.** `viewport` as the new name for `responsive`, which the name-conflict table had already settled for transparency; covering three axes does not make the name less transparent. And a standalone check script with an npm script, a CI job and a pre-commit entry: four wiring points for a table that moves once a month, where one test file in `test/` runs inside `vp test` with none.
+
+**What would reopen it.** A free plugin turning out to be the only thing anyone would pay for, which would mean the criterion is wrong rather than the licence. Or a real case for `density` or `i18n-preview`, both named in the file so they are not rediscovered in six months.
+
+---
+
+## `crypte serve` is paid from the first editor, and reading stays free
+
+_2026-09-07_
+
+**Decided.** `serve` is paid as soon as one person writes in it. Reading stays free and unlimited: the deployed static site can be read by as many people as needed, without a licence and without an account. The public sentence: **everyone reads for free, you pay for the people who write.**
+
+This **replaces** the entry of 2026-08-21, "The published catalogue is MIT, and the paid line is one editor against many", which made `serve` free for a single user and paid for many. That entry stays, as every superseded one does.
+
+**Why.** The old wording needed a threshold policed inside the product, a `--team` flag, and a definition of "several people" that does not exist cleanly. The new boundary is binary: the command is there or it is not.
+
+`@crypte/comments` therefore stops being "gratuit en mono-utilisateur", a value no nomenclature carried. Its status is carried by `serve`.
+
+**Rejected.** The `--team` flag as the dividing line, which the repository never actually grew. And detecting where the process runs, already rejected elsewhere as undetectable.
+
+**Reserved.** A fourteen-day trial is still to be decided. Without one, a designer cannot try editing before paying.
+
+---
+
+## Nothing is sold before there are users, and each sale form is imposed by its object
+
+_2026-09-07_
+
+**Decided.** No paid capability goes on sale before the free product is published, installed and used. Paid plugins run locally and sell as a perpetual licence, with offline signature and no outbound call from the free package. `serve` is a server, so it sells by subscription.
+
+**Why the order.** The sale form depends on three facts we do not have: whether a single person buys, whether a team needs to write together, and what a licence check costs to operate. Deciding now is inventing an answer, which "cover only what usage demonstrates" forbids everywhere else in this document.
+
+**Why the two forms are not a commercial preference.** An animation editor frozen for two years keeps working. A server that talks to the GitHub API, exposes an HTTP surface and handles tokens must be patched for security long after any update window closes: selling it for life would promise support we will not deliver.
+
+**The precision that must also reach the README.** The CLI emits no telemetry, ever. The licence check is done by the paid package itself, which was installed and bought, never by the core and never by the CLI.
+
+**Rejected.** Tying the sale to the existence of `crypte serve`: the barrier is the number of installations, not the server. Checking the licence at `build` time, which puts the key in CI secrets, pushes towards a per-repository licence, and makes a build fail for a billing reason, the worst possible failure mode for a developer tool. And a collective name for the paid pack: eight plugins that will not ship together need no second brand to learn.
+
+---
+
 ## One fact, one source: four internal documents leave the tree
 
 _2026-09-07_
