@@ -232,7 +232,7 @@ Une première version exemptait tous les `*.test.*`, au motif que leurs vraies d
 
 `test/manifest-size.mjs` fabrique des manifestes synthétiques et affiche ce qu'ils pèsent, bruts et compressés, puis ce que coûterait d'en garder l'historique. Il n'assertionne rien et ne tourne pas en intégration continue : on le lance à la main et on lit ses chiffres.
 
-**Pourquoi il existe.** Les chiffres de la section 3 de `pistes-shell.md` viennent de lui, et ils fondent une décision : ne pas écrire de format d'historique, garder le manifeste complet hors de Git et ne commiter qu'une empreinte réduite. Sans le script, ces chiffres ne sont plus vérifiables et la décision devient une opinion.
+**Pourquoi il existe.** Les chiffres cités par `decisions.md` viennent de lui, et ils fondent une décision : ne pas écrire de format d'historique, garder le manifeste complet hors de Git et ne commiter qu'une empreinte réduite. Sans le script, ces chiffres ne sont plus vérifiables et la décision devient une opinion.
 
 **Sa difficulté est la répétition.** Une première version tirait des entrées identiques : gzip écrasait la redondance et 30 Ko tombaient à 0,9 Ko, mesure sans valeur. D'où des vocabulaires séparés, qui donnent à deux entrées autant de différence que dans un vrai catalogue. La revue de la PR #25 a trouvé qu'il en restait à l'intérieur d'une entrée, une comparaison morte confondant deux props tirées deux fois, ce qui allégeait les manifestes de 13 à 14 %.
 
@@ -240,7 +240,7 @@ Une première version exemptait tous les `*.test.*`, au motif que leurs vraies d
 
 *Brotli est retiré de la sortie.* Sur la mesure d'alors, il annonçait 23 Ko là où gzip en donnait 242, ce qui n'est pas crédible sur un vocabulaire aussi restreint. Les deux chiffres ont bougé depuis, l'invraisemblance non. Un chiffre invraisemblable finit cité comme s'il valait quelque chose.
 
-**Ce qui casse si on l'enlève.** Rien à l'exécution. Mais les quatre tableaux de `pistes-shell.md` deviennent des nombres sans source, et personne ne pourra les remesurer après un changement de format du manifeste.
+**Ce qui casse si on l'enlève.** Rien à l'exécution. Mais les chiffres cités par `decisions.md` deviennent des nombres sans source, et personne ne pourra les remesurer après un changement de format du manifeste.
 
 ---
 
@@ -316,7 +316,7 @@ Quatre tours de revue ont été consacrés à approximer ce repli par des règle
 
 *La correspondance est éprouvée seule.* De l'extérieur, une capture fautive est invisible : le repli renvoie l'import à Vite comme si rien ne s'était passé. Mesuré : sans la comparaison du suffixe, du préfixe, ou l'égalité stricte d'un motif exact, aucun test d'intégration ne rougit.
 
-*Deux limites, mesurées et consignées dans `suivi.md`.* Le pipeline CSS ne consulte aucun plugin, donc un `@import` passant par un chemin déclaré ne résout pas ; y ajouter un alias résout le CSS et casse le repli du JavaScript. Et le résolveur passe après ceux de Vite, donc un chemin qui remplacerait un paquet installé reste sans effet.
+*Deux limites, mesurées.* Le pipeline CSS ne consulte aucun plugin, donc un `@import` passant par un chemin déclaré ne résout pas ; y ajouter un alias résout le CSS et casse le repli du JavaScript. Et le résolveur passe après ceux de Vite, donc un chemin qui remplacerait un paquet installé reste sans effet.
 
 **Le résolveur a trois entrées, et les trois espaces sont finis.** Les avoir énumérées une à une, plutôt qu'en croyant chaque fois avoir fini, est ce qui a coûté le plus cher sur ce lot : chacune a produit son point bloquant, et chaque fois le même mode de panne, un module chargé en silence à la place d'un autre.
 
@@ -616,7 +616,7 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 *Ce que le préfixe protège, mesuré en le retirant :* **dix des treize** rougissent. Les trois autres tiennent pour deux raisons indépendantes, et c'est utile à savoir. `propsOfStory` et `createPreviewChannel` sont aliasés vers un autre nom local, `propsOf` et `channelOf`, donc ils ne sont plus des liaisons de premier niveau. `paths` est déclaré dans le bloc `if (import.meta.hot)`, donc il est de portée bloc. Une première version de cette phrase annonçait « neuf sur neuf » sans l'avoir mesuré, et la revue l'a corrigée.
 
-*Ce qui reste :* un projet qui nommerait lui-même quelque chose `__crypte_…` percuterait. Consigné dans `docs/internal/suivi.md`, où la revue le lit.
+*Ce qui reste :* un projet qui nommerait lui-même quelque chose `__crypte_…` percuterait.
 
 *Un `wrap` que le lecteur ne voit pas est refusé.* Le CLI tient les deux moitiés : la configuration exécutée et son texte. Si `project.config.wrap` est défini et que le texte n'en montre rien, un spread par exemple, l'entrée lève en le nommant plutôt que de monter la story sans son enveloppe, qui est l'état que ce lot retire.
 
@@ -656,7 +656,7 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 *Reproduit à la demande*, après quatre occurrences qui ne l'avaient jamais permis, et il suffit de **ne pas préchauffer** : la première visite d'une copie fraîche découvre les dépendances du paquet lié pendant que la page charge. Déclenchée sur une page posée, la même réoptimisation ne casse rien, Vite recharge l'iframe et la preview repart seule.
 
-*Deux causes, pas une, et les deux sont nécessaires.* Un cache d'optimisation **hérité** d'une copie produit la même erreur, ce que `suivi.md` avait diagnostiqué au lot 5b avant que la réécriture en fixtures n'en perde le remède. Mesuré : le remède rétabli seul laisse le cas rouge, le pré-empaquetage seul le rend vert, et les deux sont en place.
+*Deux causes, pas une, et les deux sont nécessaires.* Un cache d'optimisation **hérité** d'une copie produit la même erreur, ce qui avait été diagnostiqué au lot 5b avant que la réécriture en fixtures n'en perde le remède. Mesuré : le remède rétabli seul laisse le cas rouge, le pré-empaquetage seul le rend vert, et les deux sont en place.
 
 *C'est le préchauffage de `screen.test.ts` qui masquait la panne*, et le `retry` qui la contournait : `reopt.test.ts` est le même scénario sans préchauffage. Une première version de ce cas écrivait une story tirant une dépendance neuve, et passait **sans avoir rien déclenché** : le dossier des dépendances optimisées ne contenait pas ce paquet quand l'assertion passait. Trouvé en doutant d'un cas navigateur qui rendait en 1,2 s.
 
@@ -818,7 +818,7 @@ Un cas garde la paire porteuse, avec une **configuration lente**, un `await` de 
 
 **Ce qui casse si on l'enlève.** La section 6.3 redevient un contrat écrit contre personne, donc invérifiable : `contributions.test.ts` continuerait de passer, ses plugins étant fabriqués sur place et rendant des entrées bien formées. Ce qu'un vrai plugin apporte est exactement ce que ces plugins-là ne font pas, c'est-à-dire se tromper de façons qu'on n'a pas prévues. Deux exemples mesurés à la revue de la PR #52 : un alias dont la cible est redéfinie par un thème perdait ce thème entier, et un `@media` jamais refermé remettait ses valeurs sombres dans le thème par défaut.
 
-**Trois choses que sa lecture ne fait pas**, et qui se lisent comme des défauts sans cette ligne. Elle ne suit pas les `@import`. Elle ne distingue pas les at-rules autres que `prefers-color-scheme: dark`, donc une variable dans un `@layer` compte pour le thème par défaut. Et elle n'infère ni `fontFamily` ni `fontWeight`, qui demandent la propriété sur laquelle la variable est employée. Les trois sont dans `suivi.md`.
+**Trois choses que sa lecture ne fait pas**, et qui se lisent comme des défauts sans cette ligne. Elle ne suit pas les `@import`. Elle ne distingue pas les at-rules autres que `prefers-color-scheme: dark`, donc une variable dans un `@layer` compte pour le thème par défaut. Et elle n'infère ni `fontFamily` ni `fontWeight`, qui demandent la propriété sur laquelle la variable est employée.
 
 ---
 
@@ -874,7 +874,7 @@ Le parcours porte un ensemble `seen` pour la même raison : un cycle ferait bouc
 
 - *Le garde sur le cache d'optimisation hérité ne pare rien ici.* `getConfigHash` de Vite inclut la racine, et chaque cas copie sous un `mkdtemp` neuf : Vite jette donc le cache hérité de lui-même. Les trois lignes restent, pour ressembler aux cinq autres fichiers navigateur et parce que leur affirmation dit l'intention, mais leur commentaire ne les crédite plus d'un effet.
 - *Le préchauffage rétrécit la fenêtre, il ne la ferme pas.* `waitForRequestsIdle` rend la main à la fin du crawl, et l'optimiseur s'abonne à la même promesse : `runOptimizer` et son `full-reload` viennent après. Ses `fetch` vérifient leur statut, sinon une route qui change de forme répondrait 404 et ne réchaufferait plus rien en silence.
-- *Le rechargement ne se reproduit pas sur la démonstration.* Mesuré trois fois sur une copie froide, sans préchauffage : une seule navigation du cadre, et aucune dans les quinze secondes qui suivent. Puis cinq lancements avec préchauffage et cinq sans, tous verts. La revue l'a mesuré quatre fois sur cinq dans un autre état. Aucun taux ne vaut pour l'autre, donc aucun n'est écrit comme le taux du dépôt, et la cause reste non isolée : `suivi.md` porte le point.
+- *Le rechargement ne se reproduit pas sur la démonstration.* Mesuré trois fois sur une copie froide, sans préchauffage : une seule navigation du cadre, et aucune dans les quinze secondes qui suivent. Puis cinq lancements avec préchauffage et cinq sans, tous verts. La revue l'a mesuré quatre fois sur cinq dans un autre état. Aucun taux ne vaut pour l'autre, donc aucun n'est écrit comme le taux du dépôt, et la cause reste non isolée : Le point reste ouvert.
 - *Le cas ne suppose donc rien.* Le cadre est sondé, `count()` ne réessayant pas, et le compte de navigations est nommé par `expect.any(Number)` : `toMatchObject` retire de l'objet reçu les clés que l'attendu ne nomme pas, donc une clé simplement présente ne partait dans aucun message, mesuré. Nommé sans être fixé, il s'imprime, et un rechargement se lit là où une affirmation dure rendrait rouge un état que `reopt.test.ts` documente comme normal sur un optimiseur froid. Les plaintes, elles, sont affirmées hors du sondage : une plainte ne s'efface pas, donc sondée elle coûtait les quinze secondes pleines.
 
 *Le second cas n'a pas de garde sur le cache*, pour la même raison, et parce qu'il n'ouvre aucune page qu'un rechargement pourrait atteindre.

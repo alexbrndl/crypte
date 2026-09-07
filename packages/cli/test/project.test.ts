@@ -391,7 +391,6 @@ describe('chemins déclarés par le projet', () => {
 // Le pipeline CSS de Vite ne consulte aucun plugin : il résout `@import` et
 // `url()` par ses propres moyens. Les chemins déclarés n'y sont donc pas
 // appliqués, et un alias qui les y appliquerait court-circuiterait le repli.
-// Consigné dans docs/internal/suivi.md.
 describe('feuilles de style du projet', () => {
   test('n’applique pas les chemins déclarés dans un @import', async ({ projectOf, serverOn }) => {
     const root = projectOf({

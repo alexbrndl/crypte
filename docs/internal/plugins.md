@@ -218,7 +218,7 @@ Le plugin suit la ligne de partage de `serve` : gratuit en mono-utilisateur, pay
 | Export au format Storybook | un drapeau sur `crypte build`, jamais un plugin, DCJ-241 |
 | Poids de chaque plugin au build | mesure du CLI, DCJ-193. Le document de monétisation l'appelait `bundle-weight` |
 | Arbre, recherche, palette, cadre des panneaux, thème de l'interface | `apps/shell`, privé |
-| Les primitives qu'au moins deux plugins dessinent | noyau, `@crypte/core/ui`, voir `placement-ui.md` |
+| Les primitives qu'au moins deux plugins dessinent | noyau, `@crypte/core/ui` |
 | `wrap`, décorateurs | format de story, résolu par l'adaptateur |
 | Entrée `page` | entrée du manifeste, pas un plugin. Le contenu est rédigé, pas dérivé |
 

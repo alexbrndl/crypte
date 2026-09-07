@@ -27,15 +27,15 @@ La distinction tient en une phrase : **des faits, jamais d'interprétation.**
 
 Le critère est mécanique, pour ne pas être rejugé à chaque revue :
 
-| Le diff touche                                                                                                  | Modèle         |
-| --------------------------------------------------------------------------------------------------------------- | -------------- |
-| de la prose, de la configuration ou des workflows                                                               | petit modèle   |
-| ce qui fait foi : `docs/contracts.md`, `docs/decisions.md`, `docs/internal/suivi.md`, `CLAUDE.md`, `.claude/**` | modèle courant |
-| au moins un fichier sous `packages/*/src/**` ou `apps/**`                                                       | modèle courant |
+| Le diff touche                                                                        | Modèle         |
+| ------------------------------------------------------------------------------------- | -------------- |
+| de la prose, de la configuration ou des workflows                                     | petit modèle   |
+| ce qui fait foi : `docs/contracts.md`, `docs/decisions.md`, `CLAUDE.md`, `.claude/**` | modèle courant |
+| au moins un fichier sous `packages/*/src/**` ou `apps/**`                             | modèle courant |
 
 Le code garde donc toujours le modèle courant : le petit modèle ne s'applique jamais là où le raisonnement est le plus exigeant. En cas de doute sur la nature du diff, prends le modèle courant.
 
-**Cinq formes valent du code, malgré leur extension.** Les trois premières font foi : `docs/contracts.md` le dit de lui-même, et `docs/internal/suivi.md` porte les défauts arbitrés avec leur mesure et la raison de ne pas les corriger. `CLAUDE.md` et les skills encodent les règles de travail, donc une erreur dedans se propage à toutes les sessions suivantes.
+**Quatre formes valent du code, malgré leur extension.** Les deux premières font foi, `docs/contracts.md` le dit de lui-même. `CLAUDE.md` et les skills encodent les règles de travail, donc une erreur dedans se propage à toutes les sessions suivantes.
 
 _Mesuré :_ la pull request qui a produit cette ligne réécrivait neuf entrées de `docs/decisions.md` sur 908 lignes de diff. Le petit modèle l'a relue en trois appels d'outils et rendu un verdict vide, alors qu'une relecture manuelle du même diff avait trouvé deux erreurs. Le critère par emplacement ne suit pas ce qu'il représente, et une liste de noms suffit à le corriger sans rendre la table jugeable au cas par cas.
 
@@ -139,9 +139,9 @@ Sans niveau, tout point se traite comme un empêchement, et la boucle ne se ferm
 
 En cas d'hésitation entre deux niveaux, prendre le plus bas et dire pourquoi : c'est celui qui a un coût, l'autre n'en a pas.
 
-**Le critère d'arrêt de la boucle est là.** La pull request sort du brouillon quand aucun bloquant ne reste, pas quand la revue est vide. Les points restants sont consignés dans `docs/internal/suivi.md`, dans le même diff.
+**Le critère d'arrêt de la boucle est là.** La pull request sort du brouillon quand aucun bloquant ne reste, pas quand la revue est vide. Les points restants deviennent des issues.
 
-**Lis `docs/internal/suivi.md` et `docs/decisions.md` avant de rédiger.** Ce qui y figure est arbitré : le re-signaler n'apprend rien. Le second porte les choix et ce qui les rouvrirait ; un constat qui montre qu'une décision est devenue fausse est en revanche recevable, et c'est même ce qu'on attend de lui. Si un point du fichier est devenu bloquant, c'est en revanche un constat à part entière, et il faut dire ce qui a changé.
+**Lis `docs/decisions.md` avant de rédiger.** Ce qui y figure est arbitré : le re-signaler n'apprend rien. Il porte les choix et ce qui les rouvrirait ; un constat qui montre qu'une décision est devenue fausse est en revanche recevable, et c'est même ce qu'on attend de lui. Si un point du fichier est devenu bloquant, c'est en revanche un constat à part entière, et il faut dire ce qui a changé.
 
 ## 6. Le format du verdict
 

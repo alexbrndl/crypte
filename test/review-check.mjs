@@ -21,7 +21,6 @@ const MARKER = '<!-- crypte-review -->'
 // plus bas.
 const AUTHORITY = [
   /^docs\/(contracts|decisions)(\.md$|\/)/,
-  /^docs\/internal\/suivi(\.md$|\/)/,
   /(^|\/)CLAUDE\.md$/,
   /(^|\/)\.claude\//,
 ]

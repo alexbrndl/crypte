@@ -138,7 +138,7 @@ describe('ce qui est ignoré', () => {
 
   // `update-overrides` et `set-globals` sont déclarés par la section 5.2 de la
   // spécification et n'ont pas encore d'effet ici. Ce cas fixe l'état d'
-  // aujourd'hui, pas une règle : voir docs/internal/suivi.md.
+  // aujourd'hui, pas une règle.
   it('les deux messages du shell que la preview n’implémente pas encore', () => {
     const { rendus } = monte()
 

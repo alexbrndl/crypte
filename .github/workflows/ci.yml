@@ -18,8 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     # 20, et non 10. Le retrait du contrôle de mutation avait fait descendre ce
     # chiffre sur une mesure de moins de 2 min, prise quand le navigateur était
-    # déjà là. L'installation de Chromium a coûté 9 min 11 une fois, ce que
-    # `docs/internal/suivi.md` disait, et le job s'est fait tuer à 10 min 17.
+    # déjà là. L'installation de Chromium a coûté 9 min 11 une fois, et le job
+    # s'est fait tuer à 10 min 17.
     # Un budget se change en relisant ce que le registre en dit.
     timeout-minutes: 20
     strategy:
@@ -56,7 +56,7 @@ jobs:
       # Sur une touche, pas d'`apt` : sur les lancements rapides il n'avait rien à
       # installer, donc l'image porte déjà les bibliothèques de Chromium. Deux
       # fois pourtant il a mangé le budget entier du job, tué à 20 min sans une
-      # ligne d'erreur. Voir docs/internal/suivi.md.
+      # ligne d'erreur.
       - if: steps.chromium.outputs.cache-hit == 'true'
         run: vp node node_modules/playwright/cli.js install chromium
       # Sur un manque, les paquets système en plus, et une borne à l'étape : un

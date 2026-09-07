@@ -89,8 +89,7 @@ interface Member {
 function firstParameter(body: Node[], exported: string): Node | undefined {
   // `export default Badge` names a declaration further up rather than carrying
   // one. Following the name once covers the common shape; `export default
-  // memo(Badge)` is a call and is not followed, which
-  // `docs/internal/suivi.md` records.
+  // memo(Badge)` is a call and is not followed.
   const named =
     exported === 'default'
       ? body
