@@ -24,11 +24,13 @@ jobs:
     # en brouillon, c'est échouer à coup sûr et notifier pour rien. Le type
     # ready_for_review déclenche le contrôle au moment où la réponse peut être oui.
     #
-    # La pull request de version est ouverte par un robot depuis changeset-release/* :
-    # personne ne peut y lancer /review, l'exiger la bloquerait définitivement.
+    # Deux robots ouvrent des pull requests : Changesets depuis changeset-release/*
+    # et Dependabot depuis dependabot/*. Personne ne peut y lancer /review, donc
+    # l'exiger les bloquerait définitivement.
     if: >-
       github.event.pull_request.draft == false &&
-      !startsWith(github.head_ref, 'changeset-release/')
+      !startsWith(github.head_ref, 'changeset-release/') &&
+      !startsWith(github.head_ref, 'dependabot/')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
