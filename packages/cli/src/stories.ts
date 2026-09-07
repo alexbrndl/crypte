@@ -26,6 +26,10 @@ interface Node {
 export interface StoryFileRead {
   entries: StoryEntry[]
   skipped?: string
+  // What the file writes in `details`, which **completes** inference rather than
+  // replacing it: section 3.2. Carried apart from the entries because it is an
+  // input, per file, while `StoryEntry.details` is the merged result.
+  details?: Record<string, unknown>
   // Whether the file meant to be a story, which decides where the reason goes:
   // the terminal takes everything, the shell only what is certain. Guessing it
   // from the shape of the default export had a counterexample per branch,
@@ -101,6 +105,9 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
   const metaNode = propertyOf(definition, 'meta')
   const meta = shadowed(definition, 'meta') ? undefined : record(metaNode)
 
+  const detailsNode = propertyOf(definition, 'details')
+  const details = shadowed(definition, 'details') ? undefined : record(detailsNode)
+
   // What the file lost above its stories, so every entry of the file says it.
   // Three losses were silent: a spread deciding the shared block, a spread
   // deciding `meta`, and what the shared block itself could not give up.
@@ -149,6 +156,7 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
         ...(partial.length > 0 ? { partial: partial.join('; ') } : {}),
       } satisfies StoryEntry
     }),
+    ...(details ? { details } : {}),
     ...(reason ? { skipped: reason, meant: true } : {}),
   }
 }

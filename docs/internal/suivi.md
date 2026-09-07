@@ -234,6 +234,26 @@ Le contrôle de note de version exempte toute ligne commençant par `//`. Or `//
 
 *Origine :* revue de la PR #52, troisième tour.
 
+### Un localisateur des cas d'écran casse sur deux stories homonymes
+
+`screen.test.ts` clique `getByRole('button', { name: 'Par défaut' })`, et Playwright refuse deux éléments en mode strict. En ajoutant un composant à la démonstration avec une story du même nom, le cas est tombé sur une violation de mode strict et non sur ce qu'il vérifie.
+
+*Contourné, pas corrigé :* la story ajoutée a été renommée `Nue`. Le localisateur reste fragile, et **un vrai projet a des stories homonymes partout**, une par composant.
+
+*Pourquoi ce n'est pas fait ici :* le remède est de porter le localisateur sur le groupe du composant plutôt que sur le nom seul, ce qui demande de connaître la structure de l'arbre que `DCJ-172` va réécrire. Le corriger avant ce lot serait le corriger deux fois.
+
+*Origine :* lot 10, en ajoutant le composant en pass-through DOM.
+
+### L'inférence de props ne lit ni un type importé, ni un générique, ni une intersection
+
+`props.ts` ne résout un type nommé que s'il est déclaré dans le même fichier. Un `import type { Props } from './types'`, un générique, une intersection ou une clause `extends` laissent la lecture retomber sur les noms du motif de déstructuration.
+
+*Pourquoi ce n'est pas fait ici :* suivre un import demande la résolution de chemins du projet, que `paths.ts` porte, mais aussi de décider ce qu'on fait d'un type qui vient de `node_modules`. C'est un lot à part, et la section 8 des contrats porte l'écart.
+
+*Ce qui rouvrirait le point :* un projet réel dont les types de props vivent dans un fichier partagé, ce qui est la forme courante passé une certaine taille. `apps/demo` ne l'a pas, donc rien ne le mesure aujourd'hui.
+
+*Origine :* lot 10.
+
 ### `@crypte/tokens` ne lit ni les at-rules autres que le thème sombre, ni les imports
 
 Une variable déclarée dans un `@supports`, un `@layer` ou un `@container` est lue **comme si elle appartenait au thème par défaut** : `blocks()` prend le bloc intérieur sans regarder ce qui l'enveloppe, et seul `@media (prefers-color-scheme: dark)` est extrait avant. Un `@import` n'est pas suivi non plus, donc une feuille qui délègue ses tokens à une autre ne donne rien.

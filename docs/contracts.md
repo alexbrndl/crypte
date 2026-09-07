@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.4, reference document. A project brief points here instead of restating these shapes.
+> Version 1.5, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -571,7 +571,9 @@ function storyId(path: readonly string[], name: string): string
 
 ### 4.4 Fields carried without reading them
 
-`meta`, `options` and `details` travel from the story file to the manifest untouched. The core does not interpret them; plugins do. A plugin can therefore add its own keys to `options` with no change to the core.
+`meta` and `options` travel from the story file to the manifest untouched. The core does not interpret them; plugins do. A plugin can therefore add its own keys to `options` with no change to the core.
+
+**`details` is the exception, and 3.2 is why.** What the file writes completes what inference read, per prop and field by field, so what reaches the manifest is the merge and not either half. The fields the core does not know, a plugin's `min` for one, still travel untouched through it.
 
 ### 4.5 Serialisation
 
@@ -825,7 +827,7 @@ This document is a contract. This section is the only place that says what exist
 | 1.1, story files | discovered and read, in the four extensions. The tree, the identifiers and the call code come out of them |
 | 1.5, project configuration | the config is read, and the declared style sheet is loaded by the preview |
 | 1.5, path aliases | built |
-| 2 and 3, the types | built, and `defineStories` and `story` with them. Inference is not: `details` is still written empty |
+| 2 and 3, the types | built, and `defineStories` and `story` with them. Inference reads what a component file declares, and 3.2's merge completes it from the story file |
 | 4, the manifest | built, and written by `crypte dev` at start-up and on every restart of the configuration. A story file added or broken changes what is served without rewriting the file. Of the two natures of entry it can carry, only `story` is produced |
 | 4.6, the fingerprint | built, and written by `crypte dev` at start-up only: it is committed, so a restart leaves the working tree alone |
 | 5, the channel | built and exercised on both sides |
@@ -837,7 +839,7 @@ Seven known gaps between this document and the code:
 
 - `update-overrides` and `set-globals` are part of the protocol and have no effect yet. The preview drops them.
 - A path alias cannot replace an installed package. `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because the resolver runs after Vite's own. TypeScript would return the replacement file.
-- `details` is written empty. Section 4.4 says it travels from the story file untouched, but the manifest carries the **resolved** form, whose `type` and `required` come from an adapter's inference and not from what the author wrote. `meta` and `options` do travel today.
+- **Inference reads what a file declares, never what a type it cannot resolve holds.** An imported props type, a generic, an intersection, and an `extends` clause each leave only what the component file writes by hand, which for a DOM pass-through is the names in its destructuring pattern. Enumerating the rest needs the type checker, and inventing names is what 4.2 forbids.
 - **`UIContribution` and `PreviewHooks` are declared opaque by the core**, though 6.2 specifies the second one in full. Neither has a caller: no shell panel comes from a plugin, and no preview runs a lifecycle hook. Typing a surface nobody calls would buy nothing and could not be taken back.
 - The serialisation of 4.5 is guaranteed on **contributed** entries and merely true of the others. A plugin's entry is checked and refused with what offends named; everything the CLI reads itself comes from source text and is serialisable by construction, so nothing exercises the guarantee there.
 - **A `tokens` entry is written and nothing displays one.** `@crypte/tokens` contributes families read from a project's CSS custom properties, and the demonstration carries four. No screen shows them: the shell keeps out of its tree what it cannot draw, so they travel in the manifest and stop there. The page that draws them belongs to the shell's own project.
@@ -846,6 +848,14 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.5.** Prop inference, which is what turned `details` from a field with a contract into a field with content.
+
+| Before | After |
+| --- | --- |
+| `details` was written empty | it carries what a component file declares: kind, required, default, description, and the options of a literal union |
+| 3.2's merge rule was written and unimplemented | what a story file writes completes inference per prop and field by field, and 4.4 no longer claims `details` travels untouched |
+| nothing said what an unresolvable type gave | only what the file writes by hand, which is the names in its destructuring pattern; enumerating a type needs the checker |
 
 **v1.4.** The first plugin, which is what turned 6.3 from a written contract into a measured one.
 

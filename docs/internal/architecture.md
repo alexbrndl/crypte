@@ -984,6 +984,20 @@ Un cas garde la paire porteuse, avec une **configuration lente**, un `await` de 
 
 ---
 
+## 4 octodecies. La lecture des props d'un composant
+
+**Ce que ça fait.** `packages/cli/src/props.ts` lit le fichier d'un composant avec oxc, sans l'exécuter, et remplit `details` : la nature, le caractère requis, la valeur par défaut, la description JSDoc, et les options d'une union de littéraux. `manifest.ts` l'appelle **une fois par fichier de story**, comme la résolution du composant et pour la même raison, puis complète le résultat avec ce que le fichier de story a écrit, section 3.2.
+
+**Pourquoi ça existe.** `controls` et `docs` liront tous les deux ces données. Les faire calculer par deux plugins produirait deux réponses différentes sur le même composant, et c'est la raison pour laquelle l'extraction est dans le noyau alors que l'affichage n'y est pas.
+
+**Ce qui casse si on l'enlève.** `details` redevient vide, donc `controls` n'a aucune prop à éditer et `docs` aucune table à dessiner : les deux plugins qui figent le contrat de plugin perdent leur matière. Rien ne rougit dans le shell, qui ne lit pas encore ce champ. Mesuré : débrancher l'appel fait rougir quatre cas, retirer la fusion trois.
+
+**La frontière, et c'est le seul point à ne pas déplacer sans y penser.** Oxc analyse la syntaxe et ne vérifie pas les types. Donc un type importé, un générique, une intersection ou une clause `extends` ne s'ouvrent pas, et la lecture retombe sur les noms du motif de déstructuration. Faire apparaître un nom qui n'est pas écrit dans le fichier serait inventer, ce que la section 4.2 des contrats interdit en propres termes pour `props`.
+
+Deux corollaires qui se lisent comme des défauts sans cette ligne. Une référence non résolue rend `unknown` et non `object` : `object` affirmerait que c'en est un. Et une prop dont le défaut est calculé est **facultative sans porter de valeur** : elle a bien un défaut, donc l'appelant n'a pas à la passer, mais §4.5 interdit d'écrire une valeur qui ne survit pas au JSON.
+
+---
+
 ## 4 sexdecies. Le contrôle de sérialisation d'une entrée contribuée
 
 **Ce que ça fait.** Deux fonctions de `packages/cli/src/manifest.ts`, dans cet ordre. `notAnEntry` vérifie qu'on tient bien une entrée : un objet, un `id` non vide, une nature de `CONTRIBUTABLE`. `serialisable` parcourt ensuite la valeur et rend soit l'entrée débarrassée de ce que JSON laisserait tomber, soit la première valeur que JSON **réécrirait**, avec son chemin : « a function at extra », « a Date value at extra », « NaN at extra », « a cycle at extra.self ». Un refus porte le nom du plugin, et le serveur continue.

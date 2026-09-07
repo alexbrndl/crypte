@@ -10,6 +10,22 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 ---
 
+## Prop inference reads what a file declares, and stops where the checker would begin
+
+_2026-09-07_
+
+**Decided.** `details` is filled from the component file, read with oxc and never run. Two sources in order: the members of the props type when this file holds it, an inline literal or a named interface or alias; and failing that the names in the parameter's destructuring pattern. A rest element names nothing. Kinds come from the annotation alone, with `unknown` for anything a name would have to be resolved to know. What the story file writes in `details` then completes the result per prop and field by field, section 3.2.
+
+**Rejected.** Following an imported props type, which is a resolver's work and runs before any server exists. Reading a generic, an intersection or an `extends` clause. Calling an unresolved reference `object`, which claims more than the file says. And synthesising `className` for a DOM pass-through, which was the issue's own end criterion.
+
+**Why `className` is read rather than synthesised.** The criterion asked that a component extending `ComponentProps<'span'>` surface `className` alone. Enumerating that type needs the checker, so making the name appear would be inventing one, which 4.2 forbids in as many words for `props`: "guessing them would put wrong names in a coverage figure". The criterion holds anyway, for a better reason: `function Tag({ className, ...rest }: ComponentProps<'span'>)` writes `className` by hand, and that is what is read. The demonstration carries such a component now, because none did.
+
+**Why having a default and writing it down are two separate facts.** `{ tone = compute() }` makes a prop optional for whoever calls the component, and its value cannot be written: 4.5 asks the CLI to guarantee what it writes, and a computed value does not survive JSON. So the name is kept and the value is dropped. The first version conflated them and reported the prop as required, which no test saw; a mutation probe found it.
+
+**What would reopen it.** A project whose props types live in a shared file, which is the common shape past a certain size and which needs following one import. CVA enumerations, `VariantProps<typeof badgeVariants>`, which derive from a call at run time and are documented as out of reach. Or an adapter that could hand over what its framework already knows, which is the only way to get what the checker sees without becoming a checker.
+
+---
+
 ## `@crypte/tokens` reads what the project declared, and refuses to guess the rest
 
 _2026-08-24_
