@@ -1753,3 +1753,4 @@ C'est pourquoi `vp run -r pack` passe **avant** `vp check` dans l'intégration c
 *Ce qui casse si on inverse :* la vérification de types échoue en intégration continue sur cinq modules introuvables, sans que rien ne soit cassé dans le code.
 
 Une autre voie existerait, faire pointer les `exports` vers les sources en développement et vers `dist/` à la publication, via `publishConfig`. Plus souple, mais plus de configuration ; à reconsidérer si l'ordre devient gênant.
+
