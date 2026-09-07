@@ -1594,6 +1594,10 @@ L'exemption porte sur le préfixe de branche et non sur une étiquette : le nom 
 
 *Écarté :* la fusion automatique de ces pull requests. Épingler par empreinte pour se protéger d'une version non relue, puis fusionner sans regard, se contredit.
 
+**Éprouvé dans les deux sens sur une pull request jetable**, comme le contrôle des changesets avant lui : depuis une branche `dependabot/gate-probe` et hors brouillon, `has-review` passe à `skipping` tandis que `has-changeset` tourne quand même. Les deux lancements sont les 34147878259 et 34147878234.
+
+Sans cette vérification, l'exemption serait seulement écrite : une condition `if` fausse produit exactement la même page verte qu'une condition juste.
+
 **Le workflow de version demande des droits d'écriture**, contrairement à l'intégration continue qui est en lecture seule. Ouvrir une pull request l'exige. Le réglage « Allow GitHub Actions to create and approve pull requests » doit par ailleurs être actif dans les paramètres du dépôt, sans quoi l'action échoue à créer la pull request.
 
 **Le format des changelogs générés est compatible avec le formateur**, vérifié à l'installation : `vp check` accepte les fichiers produits sans modification. Aucune exclusion n'a donc été ajoutée.
