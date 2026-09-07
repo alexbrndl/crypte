@@ -40,7 +40,16 @@ export function detailsOf(file: string, exported: string): Record<string, Resolv
   // names is what section 4.2 forbids.
   const members = membersOf(body, parameter)
   const defaults = defaultsOf(parameter)
-  const named = members ?? destructured(parameter)
+  const pattern = destructured(parameter)
+
+  // The type's members, plus the names the pattern writes that the type does not
+  // declare. An `extends` clause nobody can resolve leaves those to the pattern,
+  // and both halves are written in the file: `interface P extends
+  // ComponentProps<'span'>` with `{ className, ...rest }` lost the `className`
+  // before this, which is the shadcn shape section 3.4 names. Measured.
+  const named = members
+    ? [...members, ...pattern.filter((one) => !members.some((member) => member.name === one.name))]
+    : pattern
 
   const details: Record<string, ResolvedPropDetails> = {}
 
@@ -84,7 +93,7 @@ function firstParameter(body: Node[], exported: string): Node | undefined {
           .find((one): one is string => typeof one === 'string')
       : undefined
 
-  return parameterOf(body, named ?? exported) ?? (named ? undefined : parameterOf(body, exported))
+  return parameterOf(body, named ?? exported)
 }
 
 function parameterOf(body: Node[], exported: string): Node | undefined {

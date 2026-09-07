@@ -445,3 +445,27 @@ export default memo(Badge)`
     expect(read(source, 'default')).toEqual({})
   })
 })
+
+// Le croisement que le tour précédent n'a pas fait : un type nommé **résoluble**
+// qui porte une clause `extends` qu'on ne résout pas, plus un motif qui écrit à
+// la main une prop héritée. C'est la forme shadcn que §3.4 nomme, et le
+// `className` écrit était perdu. Revue de la PR #54.
+describe('une interface qui hérite de ce qu’on ne résout pas', () => {
+  it('garde ses membres et les noms que le motif écrit en plus', () => {
+    const source = `interface P extends React.ComponentProps<'span'> { tone?: string }
+export function Badge({ className, tone, ...rest }: P) { return null }`
+
+    expect(read(source)).toEqual({
+      tone: { type: 'string', required: false },
+      className: { type: 'unknown', required: false },
+    })
+  })
+
+  // Le membre du type gagne : il porte une annotation, le motif n'en a pas.
+  it('ne laisse pas le motif écraser ce que le type déclare', () => {
+    const source = `interface P { tone: string }
+export function Badge({ tone }: P) { return null }`
+
+    expect(read(source).tone).toEqual({ type: 'string', required: true })
+  })
+})
