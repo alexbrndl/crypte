@@ -66,17 +66,17 @@ _2026-09-07_
 
 _2026-09-07_
 
-**Decided.** `suivi.md`, `arborescence.md`, `placement-ui.md` and `pistes-shell.md` are deleted, along with seven sections of `architecture.md` and the TypeScript 7 probe. Findings that used to go to `suivi.md` become issues. The rule that made every moving part earn a section in `architecture.md` now applies only when forgetting it would break something.
+**Decided.** `suivi`, `arborescence`, `placement-ui` and `pistes-shell` are deleted, along with seven sections of `architecture.md` and the TypeScript 7 probe. Findings that used to go to `suivi` become issues. The rule that made every moving part earn a section in `architecture.md` now applies only when forgetting it would break something.
 
-**Why.** Measured before cutting: the apparatus weighed **8 777 lines against 4 704 of product**, 1.9 times. And each deleted file said what another system already says better. `suivi.md` duplicated the tracker, and the proof came the same day: a flaky test was written both there and as DCJ-272. `arborescence.md` duplicated the disk, had no test guarding it, and was already wrong about three files added hours earlier. `placement-ui.md` inventoried what should be public in `core/ui`, which contains one file of 31 lines. Half of `pistes-shell.md` proposed what DCJ-195 and DCJ-196 cancelled and what DCJ-192 and DCJ-197 delivered. `architecture.md` §6 to §9 restated `CLAUDE.md` and the two skills, 443 lines of it.
+**Why.** Measured before cutting: the apparatus weighed **8 777 lines against 4 704 of product**, 1.9 times. And each deleted file said what another system already says better. `suivi` duplicated the tracker, and the proof came the same day: a flaky test was written both there and as DCJ-272. `arborescence` duplicated the disk, had no test guarding it, and was already wrong about three files added hours earlier. `placement-ui` inventoried what should be public in `core/ui`, which contains one file of 31 lines. Half of `pistes-shell` proposed what DCJ-195 and DCJ-196 cancelled and what DCJ-192 and DCJ-197 delivered. `architecture.md` §6 to §9 restated `CLAUDE.md` and the two skills, 443 lines of it.
 
 **Why `CLAUDE.md` shrank most, at 202 lines to 117.** It is the only file read in **every** session; the others are opened on demand. Its lines therefore cost more than any other file's, and 78 of them restated `/explore` and `/review`, which load when they are needed.
 
 **Rejected.** Cutting `contracts.md`, whose 764 normative lines are the definition of the four contracts rather than fat. Cutting the package tests, 9 208 lines for 4 282 of source, which are the guarantee. Deleting `spec-journal.md`, which `spec.test.ts` reads as the one place a retired name may still appear. And deleting `manifest-size.mjs`, which the entry of 2026-08-13 keeps on purpose: reversing a written decision to save 207 dormant lines is not a trade.
 
-**What is lost, said rather than glossed.** The 57 live entries of `suivi.md` were real findings. They live in git, recoverable with `git show`, and the ones that describe unfixed behaviour become issues. The TypeScript 7 probe is gone, so nothing watches for `vue-tsc` catching up; DCJ-184 already said the probe had never run for real.
+**What is lost, said rather than glossed.** The 57 live entries of `suivi` were real findings. They live in git, recoverable with `git show`, and the ones that describe unfixed behaviour become issues. The TypeScript 7 probe is gone, so nothing watches for `vue-tsc` catching up; DCJ-184 already said the probe had never run for real.
 
-**What would reopen it.** A second maintainer, for whom `arborescence.md` would answer a question the disk answers slowly. A finding that gets raised twice by two reviews because no file holds arbitrated points any more, which is what `suivi.md` prevented. Or `architecture.md` growing back past a thousand lines, which would mean the softened rule is still too broad.
+**What would reopen it.** A second maintainer, for whom `arborescence` would answer a question the disk answers slowly. A finding that gets raised twice by two reviews because no file holds arbitrated points any more, which is what `suivi` prevented. Or `architecture.md` growing back past a thousand lines, which would mean the softened rule is still too broad.
 
 ---
 
