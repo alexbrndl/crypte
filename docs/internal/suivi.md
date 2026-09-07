@@ -799,3 +799,13 @@ Sur un message `ready`, `App.vue` écrit `preview prête, protocole v{n}` dans l
 
 *Clos par le retrait du contrôle.* Le dernier audit avant suppression a rendu **130 garanties sur 131 vues**, la seule exception étant celle-ci, un faux négatif de l'outil et non un trou de protection. Le cas reste gardé par `ui.test.ts`, et l'outil qui le diagnostiquait mal n'existe plus.
 
+
+### `plugin.test.ts` expire par intermittence sur Node 24
+
+Le cas `React Compiler, déclaré par le projet > transforme le composant que la preview sert` atteint la limite de 120 s et fait échouer `check (24)`. Node 22 passe à chaque fois.
+
+*Mesuré :* même arbre, deux verdicts opposés. Le lancement 34147705016 est vert, le 34147952620 est rouge, avec un seul commit de documentation entre les deux. La pull request #53, ouverte le 1er septembre sur une base différente, rougissait déjà sur ce même cas et sur lui seul.
+
+*Pourquoi ce n'est pas corrigé ici :* le diff de ce lot ne touche ni ce test ni ce qu'il exerce, et la cause n'est pas isolée. Un test qui dépasse 120 s ne se répare pas en relevant la limite, il faut savoir ce qu'il attend.
+
+*Ce qui le rend gênant :* l'échec étant intermittent, une relance suffit à passer au vert. C'est exactement la façon dont un défaut réel se fait oublier.
