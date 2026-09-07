@@ -1,0 +1,49 @@
+# Crypte
+
+> Crypte is an open-source component workshop for design systems. It renders components, design tokens and guideline pages straight from a repository, works with more than one framework, and never reads your Vite config: whatever it needs, you declare.
+
+Crypte is driven by a CLI. Four commands are the whole surface: `init`, `dev`, `build`, `check`. Two more, `migrate` and `serve`, are planned and not built.
+
+`crypte build` writes a manifest at `.crypte/manifest.json` describing every entry in the catalogue: the file each component lives in, the props each story exercises, and the call code rebuilt from the story file, with path aliases resolved into real paths. The manifest is the interface: the workshop shell renders from it, CI diffs a committed fingerprint of it, and a local MCP server hands it to agents.
+
+Status: in progress, nothing published to npm yet. The contracts and the decisions behind them are committed to the public repository before the code that implements them.
+
+## Core
+
+- [Getting started](https://crypte.dev/docs/): install, `crypte init`, `crypte dev`
+- [Story format](https://crypte.dev/docs/story-format/): `defineStories`, shared props, per-story overrides, `details` for what inference cannot find
+- [Configuration](https://crypte.dev/docs/config/): `crypte.config.ts`, two required keys
+- [Contracts](https://crypte.dev/docs/contracts/): manifest entry, plugin declaration, preview bridge, node hooks
+- [Commands](https://crypte.dev/docs/cli/): `init`, `dev`, `build`, `check`
+
+## Concepts
+
+- [The catalogue](https://crypte.dev/docs/catalogue/): three entry types — `story`, `tokens`, `page`
+- [The manifest](https://crypte.dev/docs/manifest/): shape, versioning, the committed fingerprint
+- [Plugins](https://crypte.dev/plugins/): 23 catalogued, 3 on by default (`docs`, `controls`, `tokens`)
+- [Framework adapters](https://crypte.dev/docs/adapters/): React published, Vue next; the shell communicates with the preview through `postMessage` and knows no framework
+
+## For agents
+
+- [MCP server](https://crypte.dev/docs/mcp/): local, no network hop, no call limit. Exposes the manifest and the source paths it points at
+- [Writing stories with an agent](https://crypte.dev/docs/agent-stories/): read real component usage in the application, then write cases from intent rather than enumerating props
+
+## Migrating
+
+- [From Storybook](https://crypte.dev/docs/migrate/): `crypte migrate` converts CSF story files and reports, file by file, what it could not translate rather than guessing
+- [Exporting back](https://crypte.dev/docs/export/): `crypte build --emit storybook` writes a Storybook-shaped `index.json`
+
+## Comparisons
+
+- [Crypte and Storybook](https://crypte.dev/compare/storybook/)
+- [Crypte and documentation platforms](https://crypte.dev/compare/documentation-platforms/)
+
+## Licensing
+
+- [What is free, what will be sold](https://crypte.dev/pricing/): 14 of the 23 plugins and everything above are MIT on npm. `crypte serve` and 8 plugins will be sold later; neither exists yet and no price is set. No telemetry in the CLI
+
+## Optional
+
+- [Roadmap](https://crypte.dev/roadmap/): four stages, each defined by what changes at its end
+- [Decisions](https://crypte.dev/docs/decisions/): every architectural choice, with the reasoning and the alternatives rejected
+- [Changelog](https://crypte.dev/changelog/)

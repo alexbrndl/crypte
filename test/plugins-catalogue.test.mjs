@@ -1,5 +1,5 @@
 // Le catalogue tenait dans cinq tableaux, et rien ne signalait qu'un nom y
-// apparaissait deux fois avec deux statuts. Voir docs/internal/architecture.md.
+// apparaissait deux fois avec deux statuts.
 
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
