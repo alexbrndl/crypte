@@ -10,6 +10,22 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 ---
 
+## Action pins stay commit SHAs, and Dependabot's pull requests stop being blocked
+
+_2026-09-07_
+
+**Decided.** The 13 action references keep their commit SHA and its `# vX.Y.Z` comment. `require-review.yml` gains one exemption, `dependabot/*`, next to the `changeset-release/*` it already had and for the reason already written above it: nobody can run `/review` on a robot's pull request. Four of the five bumps waiting in #53 are taken, as SHAs.
+
+**Rejected.** Replacing the SHAs with version tags, which was the first plan and is recorded here because it was written and then taken back. Moving major tags, `@v7`: 6 of the 8 actions publish one and 2 do not, `actions/dependency-review-action` having stopped after `v3` and `changesets/action` never having published one, so the rule would carry two exceptions. Auto-merging Dependabot's pull requests, which contradicts pinning by SHA in the first place. And dropping Dependabot, which costs nothing to keep and is the only signal that an action moved.
+
+**Why the tags were taken back.** The weight attributed to pinning was never measured. Dependabot writes both the SHA and its comment, so the two never drift apart on their own and the pinning costs nothing to maintain. The cost invoked against it came from a botched check: for an annotated tag, `git/ref/tags/vN` returns the tag object's SHA and not the commit's, and 2 of 8 pins were called wrong on that basis. Dereferenced through `git/tags/{sha}`, all 8 are correct. Converting would therefore have saved nothing and given up real protection, on a repository whose `version.yml` holds `contents: write`.
+
+**Why the changeset gate keeps only two exemptions.** Measured rather than assumed: `has-changeset` passes on #53, the robot touching no published file. Exempting `dependabot/*` there would blind the gate the day Dependabot watches npm as well.
+
+**What would reopen it.** An `NPM_TOKEN` entering this repository, which is the moment an unpinned action would reach a credential rather than a `GITHUB_TOKEN` on a repository that publishes nothing. A Dependabot pull request that turns out to need a review, which would mean the group is bumping something other than actions. Or `changesets/action` v1 going unmaintained, which would force the v2 migration held out of scope here.
+
+---
+
 ## Prop inference reads what a file declares, and stops where the checker would begin
 
 _2026-09-07_

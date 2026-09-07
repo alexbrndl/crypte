@@ -36,7 +36,7 @@ L'ordre des étapes de `check` est significatif : `install`, `pack`, `check`, `t
 *Sans lui :* rien n'est vérifié automatiquement. Et si l'ordre change, voir la section 4 : le test d'isolation devient silencieux.
 
 **`.github/dependabot.yml`**
-Surveille uniquement les actions GitHub, pour que les empreintes épinglées du workflow ne se périment pas en silence.
+Surveille uniquement les actions GitHub, pour que les empreintes épinglées du workflow ne se périment pas en silence. Ses pull requests arrivent depuis `dependabot/*`, exemptées du contrôle de revue.
 *Sans lui :* les actions restent figées sur des versions qui vieillissent sans que personne ne le voie, y compris en cas de correctif de sécurité.
 
 **`CLAUDE.md`**
@@ -1562,7 +1562,7 @@ Ces trois fichiers comptent **en entier**, `scripts` et `devDependencies` compri
 
 **Une note ne compte que si elle est ajoutée.** Plusieurs notes attendent en permanence dans `.changeset/` jusqu'à la fusion de la pull request de version, et le formateur en touche une de temps en temps : accepter une note modifiée laisserait une pull request se déclarer conforme avec la note d'un autre lot.
 
-**Les mêmes deux exemptions que le contrôle de revue :** les brouillons, puisque le flux dépose la note pendant le brouillon, et les branches `changeset-release/*`, où le robot n'en dépose jamais.
+**Deux exemptions, là où le contrôle de revue en a trois :** les brouillons, puisque le flux dépose la note pendant le brouillon, et les branches `changeset-release/*`, où le robot n'en dépose jamais. Les branches `dependabot/*` n'y figurent pas, et c'est mesuré : sur la pull request #53, `has-changeset` passe, le robot ne touchant aucun fichier publié. L'exempter rendrait la garde aveugle le jour où Dependabot surveillera npm.
 
 **Un changement de commentaire de ligne n'exige rien.** Le contrôle lit le patch de chaque fichier publié : si toutes les lignes changées sont des `//` ou des lignes vides, il n'y a rien à déclarer.
 
@@ -1585,6 +1585,14 @@ Cette vérification n'est pas une formalité. Une sortie « aucun fichier publi�
 **La pull request de version est exemptée du contrôle de revue.** Elle est ouverte par un robot depuis une branche `changeset-release/*`, où personne ne peut lancer `/review`. Sans cette exemption, elle serait bloquée définitivement le jour où le contrôle deviendra exigé.
 
 L'exemption porte sur le préfixe de branche et non sur une étiquette : le nom de branche est produit par l'outil, donc toujours présent, là où une étiquette dépend d'une pose manuelle.
+
+**Les pull requests de Dependabot sont exemptées de la même façon**, depuis `dependabot/*`, et pour la raison déjà écrite au-dessus : personne ne peut y lancer `/review`.
+
+*Ce qui l'a provoqué :* l'exemption manquait par omission et non par choix. La pull request #53, ouverte le 1er septembre 2026, portait `has-review` en échec sans qu'aucun geste ne puisse la débloquer.
+
+**Ce qui casse si on l'enlève.** La veille mensuelle sur les actions s'arrête d'elle-même. Chaque pull request de Dependabot reste bloquée, personne ne peut la débloquer, et les empreintes vieillissent alors même que le mécanisme censé les surveiller fonctionne. La panne est silencieuse : le robot continue d'ouvrir des pull requests, ce sont nos propres contrôles qui les refusent.
+
+*Écarté :* la fusion automatique de ces pull requests. Épingler par empreinte pour se protéger d'une version non relue, puis fusionner sans regard, se contredit.
 
 **Le workflow de version demande des droits d'écriture**, contrairement à l'intégration continue qui est en lecture seule. Ouvrir une pull request l'exige. Le réglage « Allow GitHub Actions to create and approve pull requests » doit par ailleurs être actif dans les paramètres du dépôt, sans quoi l'action échoue à créer la pull request.
 
