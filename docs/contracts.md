@@ -384,7 +384,9 @@ When inference fails, on a project with no `tsconfig` or on a type too complex t
 
 A component typed `React.ComponentProps<"span">` or similar inherits several hundred DOM attributes. Every shadcn component does.
 
-**Rule: those props are not extracted.** Only `className` is, because it is used everywhere. The platform documents the rest, and nobody reads them in a props table.
+**Rule: those props are not extracted.** The platform documents them, and nobody reads them in a props table.
+
+**`className` is read when the file writes it, and never otherwise.** Inference sees syntax and not types, so `ComponentProps<'span'>` cannot be opened: making the name appear would be inventing one, which 4.2 forbids for `props` in as many words. It comes out of `function Tag({ className, ...rest }: ComponentProps<'span'>)`, where it is written by hand, and a component taking `props` whole surfaces nothing at all. The reason it is nearly always there is that a component wanting `className` has to name it to use it.
 
 One rule, no extra field, and no collapsible group in the shell.
 
@@ -856,6 +858,7 @@ Seven known gaps between this document and the code:
 | `details` was written empty | it carries what a component file declares: kind, required, default, description, and the options of a literal union |
 | 3.2's merge rule was written and unimplemented | what a story file writes completes inference per prop and field by field, and 4.4 no longer claims `details` travels untouched |
 | nothing said what an unresolvable type gave | only what the file writes by hand, which is the names in its destructuring pattern; enumerating a type needs the checker |
+| 3.4 promised `className` without reservation | it says when: the file has to write it, and a component taking `props` whole surfaces nothing |
 
 **v1.4.** The first plugin, which is what turned 6.3 from a written contract into a measured one.
 

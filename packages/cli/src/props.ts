@@ -4,15 +4,10 @@
 import { readFileSync } from 'node:fs'
 import type { PropKind, ResolvedPropDetails } from '@crypte/core/protocol'
 import { parseSync } from 'vite'
-
-interface Node {
-  type: string
-  start: number
-  end: number
-  [key: string]: unknown
-}
+import { literalOf, type Node } from './stories'
 
 interface Comment {
+  type: string
   value: string
   start: number
   end: number
@@ -77,6 +72,22 @@ interface Member {
 
 // The first parameter of the exported component, whatever shape declares it.
 function firstParameter(body: Node[], exported: string): Node | undefined {
+  // `export default Badge` names a declaration further up rather than carrying
+  // one. Following the name once covers the common shape; `export default
+  // memo(Badge)` is a call and is not followed, which
+  // `docs/internal/suivi.md` records.
+  const named =
+    exported === 'default'
+      ? body
+          .filter((node) => node.type === 'ExportDefaultDeclaration')
+          .map((node) => (node['declaration'] as Node | null)?.['name'])
+          .find((one): one is string => typeof one === 'string')
+      : undefined
+
+  return parameterOf(body, named ?? exported) ?? (named ? undefined : parameterOf(body, exported))
+}
+
+function parameterOf(body: Node[], exported: string): Node | undefined {
   for (const node of body) {
     const declaration = (node['declaration'] ?? node) as Node | null
     if (!declaration) continue
@@ -139,6 +150,19 @@ function namedType(body: Node[], annotation: Node): Node | undefined {
   return undefined
 }
 
+// The name a key writes, or nothing when nobody can read it without running the
+// file. An identifier writes itself and a string literal writes its own text, so
+// `'aria-label'` is a prop name like any other. A computed key is not: section
+// 4.2 says its name cannot be read and that guessing would put a wrong one in.
+function nameOf(key: Node | null | undefined, computed: boolean): string | undefined {
+  if (!key || computed) return undefined
+  if (key.type === 'Identifier') return String(key['name'])
+
+  const written = key.type === 'Literal' ? key['value'] : undefined
+
+  return typeof written === 'string' && written !== '' ? written : undefined
+}
+
 // `TSPropertySignature` entries of an interface body or a type literal, which
 // hold their members under the same key.
 function signatures(literal: Node): Member[] {
@@ -146,12 +170,21 @@ function signatures(literal: Node): Member[] {
 
   return (found ?? [])
     .filter((one) => one.type === 'TSPropertySignature')
-    .map((one) => ({
-      name: String((one['key'] as Node)['name']),
-      optional: one['optional'] === true,
-      annotation: (one['typeAnnotation'] as Node | null)?.['typeAnnotation'] as Node | undefined,
-      at: one.start,
-    }))
+    .flatMap((one) => {
+      const name = nameOf(one['key'] as Node, one['computed'] === true)
+      if (name === undefined) return []
+
+      return [
+        {
+          name,
+          optional: one['optional'] === true,
+          annotation: (one['typeAnnotation'] as Node | null)?.['typeAnnotation'] as
+            | Node
+            | undefined,
+          at: one.start,
+        },
+      ]
+    })
 }
 
 // The names a destructuring pattern writes. A rest element is the pass-through
@@ -161,14 +194,14 @@ function destructured(parameter: Node): Member[] {
 
   return (parameter['properties'] as Node[])
     .filter((one) => one.type === 'Property')
-    .map((one) => ({
-      name: String((one['key'] as Node)['name']),
+    .flatMap((one) => {
+      const name = nameOf(one['key'] as Node, one['computed'] === true)
+      if (name === undefined) return []
+
       // A pattern says nothing about optionality. A default value does, and
       // `defaultsOf` is what reads it.
-      optional: true,
-      annotation: undefined,
-      at: one.start,
-    }))
+      return [{ name, optional: true, annotation: undefined, at: one.start }]
+    })
 }
 
 // Which props a pattern gives a default, and which of those defaults can be
@@ -188,11 +221,16 @@ function defaultsOf(parameter: Node): { named: Set<string>; values: Record<strin
     const value = one['value'] as Node
     if (value.type !== 'AssignmentPattern') continue
 
-    const name = String((one['key'] as Node)['name'])
+    const name = nameOf(one['key'] as Node, one['computed'] === true)
+    if (name === undefined) continue
     named.add(name)
 
-    const right = value['right'] as Node
-    if (right.type === 'Literal') values[name] = right['value']
+    // `literalOf` and not `type === 'Literal'`: a bigint and a regular
+    // expression are `Literal` nodes too, and writing either one made
+    // `JSON.stringify` throw, which cost the whole manifest and the fingerprint
+    // with it. Measured. The rules live in `stories.ts`, once.
+    const read = literalOf(value['right'] as Node)
+    if (read) values[name] = read.value
   }
 
   return { named, values }
@@ -201,7 +239,13 @@ function defaultsOf(parameter: Node): { named: Set<string>; values: Record<strin
 // The block comment that ends just before a member, its JSDoc stars and margin
 // removed. Anything further up belongs to something else.
 function describe(source: string, comments: Comment[], at: number): string | undefined {
-  const found = comments.filter((one) => one.end <= at).at(-1)
+  // JSDoc only, which is what section 3.1 promises. A `//` at the end of the
+  // previous member's line passed the whitespace check below and became this
+  // member's description; a `/* eslint-disable-next-line */` became a published
+  // one. Both measured.
+  const found = comments
+    .filter((one) => one.end <= at && one.type === 'Block' && one.value.startsWith('*'))
+    .at(-1)
   if (!found) return undefined
 
   // Only whitespace between the two, or the comment documents a neighbour and
@@ -255,9 +299,15 @@ function union(annotation: Node): { type: PropKind; options?: unknown[] } {
 
   if (literals.length !== types.length) return { type: 'unknown' }
 
-  const options = literals.map((one) => (one['literal'] as Node)['value'])
+  // Through `literalOf` too: `-1` is a `UnaryExpression` under its
+  // `TSLiteralType`, so reading `value` gave `undefined`, which JSON writes as
+  // `null`. A union of three offered `[null, 0, 1]`, an option the type does not
+  // hold. Measured. One unreadable member drops the enum rather than the member,
+  // since a set missing one of its values is worse than no set at all.
+  const read = literals.map((one) => literalOf(one['literal'] as Node))
+  if (read.some((one) => one === undefined)) return { type: 'unknown' }
 
-  return { type: 'enum', options }
+  return { type: 'enum', options: read.map((one) => one?.value) }
 }
 
 function reference(annotation: Node): { type: PropKind } {

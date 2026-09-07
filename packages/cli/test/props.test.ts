@@ -162,7 +162,8 @@ export function Badge({ a }: P) { return null }`
 
   // Le repli, et c'est le chemin qui compte : une forme que la lecture ne
   // connaît pas rend `unknown` plutôt que rien, donc la prop reste documentée.
-  // Ces trois-là sont aussi ce que `suivi.md` consigne comme hors périmètre.
+  // Ces trois-là sont aussi ce que `docs/internal/suivi.md` consigne
+  // comme hors périmètre.
   it('retombe sur unknown sur une forme qu’il ne connaît pas', () => {
     expect(kindOf('A & B')?.type).toBe('unknown')
     expect(kindOf('[string, number]')?.type).toBe('unknown')
@@ -305,5 +306,142 @@ describe('la démonstration, de bout en bout', () => {
         description: "Neutre par défaut, `warning` pour attirer l'œil.",
       },
     })
+  })
+})
+
+// Les axes que la première version de ces cas n'a pas croisés : la forme de la
+// clé d'un membre, et la forme du commentaire qui le précède. Cinq bloquants
+// sont sortis de là. Revue de la PR #54.
+describe('la forme d’une clé', () => {
+  it('lit une clé écrite en chaîne, qui est un nom comme un autre', () => {
+    const source = `interface P { 'aria-label': string; 'data-id'?: number }
+export function Badge(p: P) { return null }`
+
+    expect(read(source)).toEqual({
+      'aria-label': { type: 'string', required: true },
+      'data-id': { type: 'number', required: false },
+    })
+  })
+
+  // Sans nom lisible, les deux clés se rabattaient sur `'undefined'` et la
+  // seconde effaçait la première. Mesuré.
+  it('ne rabat pas deux clés littérales sur le même nom', () => {
+    const source = `interface P { 'a-b': string; 'c-d': number }
+export function Badge(p: P) { return null }`
+
+    expect(Object.keys(read(source))).toEqual(['a-b', 'c-d'])
+  })
+
+  // §4.2 le nomme : « neither is a key computed at runtime ».
+  it('refuse une clé calculée plutôt que de rendre le nom de la variable', () => {
+    const source = `const k = 'tone'
+export function Badge({ [k]: v, label }: Ailleurs) { return null }`
+
+    expect(read(source)).toEqual({ label: { type: 'unknown', required: false } })
+  })
+
+  // Légale en TypeScript, absurde pour une prop, et surtout : sans le contrôle
+  // du type de la valeur, elle passait par `String()` comme n'importe quoi.
+  it('refuse une clé numérique et une clé vide', () => {
+    const source = `interface P { 0: string; '': number; ok?: string }
+export function Badge(p: P) { return null }`
+
+    expect(Object.keys(read(source))).toEqual(['ok'])
+  })
+
+  it('lit une clé littérale du motif aussi', () => {
+    const source = "export function Badge({ 'aria-label': l }: Ailleurs) { return null }"
+
+    expect(read(source)).toEqual({ 'aria-label': { type: 'unknown', required: false } })
+  })
+})
+
+describe('la forme du commentaire', () => {
+  // Le `//` de fin de ligne du membre précédent passait le contrôle du blanc et
+  // devenait la description du suivant. C'est le cas que le premier contrôle
+  // croyait fermer, et il ne le fermait pas.
+  it('ne prend pas un commentaire de ligne pour du JSDoc', () => {
+    const source = `interface P {
+  a?: string // le libellé
+  b?: string
+}
+export function Badge({ a, b }: P) { return null }`
+    const details = read(source)
+
+    expect('description' in (details.a ?? {})).toBe(false)
+    expect('description' in (details.b ?? {})).toBe(false)
+  })
+
+  // Un bloc qui n'est pas du JSDoc devenait une description publiée.
+  it('ne prend pas une directive de lint pour une description', () => {
+    const source = `interface P {
+  /* eslint-disable-next-line */
+  a?: string
+}
+export function Badge({ a }: P) { return null }`
+
+    expect('description' in (read(source).a ?? {})).toBe(false)
+  })
+})
+
+// Ce que §4.5 exige, sur des valeurs qui sont bien des `Literal` pour oxc mais
+// que `JSON.stringify` refuse ou déforme.
+describe('un défaut ou une option que JSON ne rend pas', () => {
+  // Le plus grave du lot : `writeCatalogue` levait, `dev.ts` avalait, et **ni le
+  // manifeste ni l'empreinte** n'étaient écrits pour le projet entier.
+  it('ne rend pas un défaut bigint, et garde la prop facultative', () => {
+    const source = `interface P { n: number }
+export function Badge({ n = 1n }: P) { return null }`
+
+    expect(read(source).n).toEqual({ type: 'number', required: false })
+  })
+
+  it('ne rend pas un défaut expression régulière', () => {
+    const source = `interface P { r: string }
+export function Badge({ r = /x/g }: P) { return null }`
+
+    expect(read(source).r).toEqual({ type: 'string', required: false })
+  })
+
+  it('lit un défaut négatif, qui n’est pas un littéral simple', () => {
+    const source = `interface P { n: number }
+export function Badge({ n = -1 }: P) { return null }`
+
+    expect(read(source).n).toEqual({ type: 'number', required: false, default: -1 })
+  })
+
+  // `-1` est un `UnaryExpression` sous son `TSLiteralType`, donc lire `value`
+  // rendait `undefined`, que JSON écrit `null` : une option que le type ne
+  // contient pas, offerte comme les deux autres.
+  it('lit une union qui porte un littéral signé', () => {
+    const source = `interface P { level?: -1 | 0 | 1 }
+export function Badge({ level }: P) { return null }`
+
+    expect(read(source).level).toEqual({ type: 'enum', required: false, options: [-1, 0, 1] })
+  })
+
+  it('laisse tomber l’enum plutôt qu’une de ses valeurs', () => {
+    const source = `interface P { r?: 'a' | 1n }
+export function Badge({ r }: P) { return null }`
+
+    expect(read(source).r).toEqual({ type: 'unknown', required: false })
+  })
+})
+
+describe('un export par défaut qui nomme une déclaration', () => {
+  // La forme courante : la déclaration est plus haut, l'export la nomme.
+  it('suit le nom une fois', () => {
+    const source = `const Badge = ({ a }: { a: string }) => null
+export default Badge`
+
+    expect(read(source, 'default')).toEqual({ a: { type: 'string', required: true } })
+  })
+
+  // `export default memo(Badge)` est un appel, pas un nom : consigné, pas suivi.
+  it('ne suit pas un appel', () => {
+    const source = `const Badge = ({ a }: { a: string }) => null
+export default memo(Badge)`
+
+    expect(read(source, 'default')).toEqual({})
   })
 })

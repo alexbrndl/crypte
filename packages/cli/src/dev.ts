@@ -117,7 +117,13 @@ function shape(catalogue: Catalogue): string {
 }
 
 // A story file changed: read the catalogue again, and reload the preview when
-// what it reads changed. A component is Vite's business, not ours.
+// what it reads changed. Vite handles a component's own module, and it is the
+// browser that gets the new render.
+//
+// **What this does not cover, since `details` exists:** the catalogue now reads
+// the component file too, for its props, and nothing here watches it. Editing a
+// JSDoc leaves `details` as it was until a story file moves. See
+// docs/internal/suivi.md.
 function watchStories(
   server: ViteDevServer,
   project: Project,

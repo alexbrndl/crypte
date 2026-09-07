@@ -12,7 +12,7 @@ export const STORY_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx']
 // The name a story gets when the file declares none: section 2.2 of contracts.
 const ONLY_STORY = 'Default'
 
-interface Node {
+export interface Node {
   type: string
   start: number
   end: number
@@ -561,7 +561,10 @@ function record(node: Node | null | undefined): Record<string, unknown> | undefi
 // round trip, and `JSON.stringify` drops what it cannot represent in silence.
 //
 // Wrapped in an object so that a literal `null` and "not a literal" stay apart.
-function literalOf(node: Node | null | undefined): { value: unknown } | undefined {
+// Exported for `props.ts`, which needs the same answer on a prop's default and
+// on an enum's options. A second copy of these rules would drift: the bigint and
+// the regular expression below are the two that cost a whole manifest.
+export function literalOf(node: Node | null | undefined): { value: unknown } | undefined {
   if (!node) return undefined
 
   switch (node.type) {

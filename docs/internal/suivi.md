@@ -244,6 +244,28 @@ Le contrôle de note de version exempte toute ligne commençant par `//`. Or `//
 
 *Origine :* lot 10, en ajoutant le composant en pass-through DOM.
 
+### Rien ne surveille le fichier de composant, dont `details` dépend maintenant
+
+`watchStories` ne regarde que `project.config.stories`. Depuis que `buildCatalogue` lit les props du composant, le manifeste dépend d'un fichier que rien ne surveille : éditer un JSDoc ou ajouter une prop laisse `details` figé jusqu'à ce qu'un fichier de story bouge ou que le serveur redémarre, sans un mot.
+
+*Ce qui a été corrigé ici :* l'en-tête de `watchStories` affirmait « A component is Vite's business, not ours », ce que ce lot rendait faux. Elle dit maintenant ce qu'elle ne couvre pas.
+
+*Pourquoi le reste ne l'est pas :* surveiller les composants demande de décider **quels** fichiers. Les chemins résolus changent à chaque reconstruction, donc la liste des surveillés aussi, et un watcher qui se réarme à chaque passe est un mécanisme neuf avec sa propre course. C'est une décision, pas une ligne.
+
+*Ce qui rouvrirait le point :* le premier consommateur de `details`, `controls` ou `docs`, pour qui un champ figé se verra à l'écran.
+
+*Origine :* revue de la PR #54.
+
+### L'inférence ne suit pas un export par défaut qui passe par un appel
+
+`export default Badge` est suivi, une fois, jusqu'à la déclaration que le nom désigne. `export default memo(Badge)` ne l'est pas : c'est un appel, et savoir lequel de ses arguments porte le composant demande de connaître `memo`.
+
+*Pourquoi ce n'est pas fait ici :* la liste des enveloppes à connaître, `memo`, `forwardRef`, `observer`, est ouverte et propre à chaque écosystème. La deviner reviendrait à coder React dans le noyau, ce que la frontière du projet interdit.
+
+*Ce qui rouvrirait le point :* un adaptateur qui déclarerait ses enveloppes, ce qui est le seul endroit où cette connaissance a sa place.
+
+*Origine :* revue de la PR #54.
+
 ### L'inférence de props ne lit ni un type importé, ni un générique, ni une intersection
 
 `props.ts` ne résout un type nommé que s'il est déclaré dans le même fichier. Un `import type { Props } from './types'`, un générique, une intersection ou une clause `extends` laissent la lecture retomber sur les noms du motif de déstructuration.
