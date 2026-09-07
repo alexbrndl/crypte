@@ -178,13 +178,9 @@ function nameOf(key: Node | null | undefined, computed: boolean): string | undef
   return typeof written === 'string' && written !== '' ? written : undefined
 }
 
-// The named members of an interface body or a type literal, which hold them
-// under the same key. A method shape, `onClick(): void`, is a member like any
-// other: read as a property it was absent, and the pattern then rescued it as
-// optional and `unknown` while the type declared it required. Measured.
-//
-// An index signature names nothing, so it is not here. A prop it covers reaches
-// the pattern, which is right: the signature says nothing about that name.
+// The named members of an interface body or a type literal. `onClick(): void`
+// read as a property was absent, and the pattern rescued it as optional. An
+// index signature names nothing, so it is not one. See docs/internal/architecture.md.
 function signatures(literal: Node): Member[] {
   const found = (literal['body'] ?? literal['members']) as Node[] | undefined
 
@@ -198,16 +194,27 @@ function signatures(literal: Node): Member[] {
         {
           name,
           optional: one['optional'] === true,
-          // A method carries its return type where a property carries its own,
-          // so reading `typeAnnotation` would call it a `void`. It is a function.
-          method: one.type === 'TSMethodSignature',
-          annotation: (one['typeAnnotation'] as Node | null)?.['typeAnnotation'] as
-            | Node
-            | undefined,
+          method: one['kind'] === 'method',
+          annotation: annotationOf(one),
           at: one.start,
         },
       ]
     })
+}
+
+// Where a member carries its type, which is not the same place for the three
+// shapes a `TSMethodSignature` covers: a getter's is its return type and a
+// setter's is its parameter, both measured. A method has none to read and is a
+// `function`, which `method` says instead.
+function annotationOf(one: Node): Node | undefined {
+  // The type inside its wrapper, which every shape below carries.
+  const inside = (wrapper: unknown) =>
+    (wrapper as Node | null)?.['typeAnnotation'] as Node | undefined
+
+  if (one['kind'] === 'get') return inside(one['returnType'])
+  if (one['kind'] === 'set') return inside((one['params'] as Node[])[0]?.['typeAnnotation'])
+
+  return inside(one['typeAnnotation'])
 }
 
 // The names a destructuring pattern writes. A rest element is the pass-through

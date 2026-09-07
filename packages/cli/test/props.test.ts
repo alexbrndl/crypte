@@ -514,3 +514,30 @@ export function Badge({ tone, autre }: P) { return null }`
     })
   })
 })
+
+// Un accesseur est aussi un `TSMethodSignature`, donc le marquer sur le type du
+// nœud faisait sortir `get tone(): string` en `function`. Et son type ne vit pas
+// où celui d'une propriété vit : mesuré, `typeAnnotation` est `undefined` pour
+// les trois formes. Revue de la PR #54.
+describe('un accesseur', () => {
+  it('est la propriété qu’il représente, avec le type de son retour', () => {
+    const source = `interface P { get tone(): string }
+export function Badge({ tone }: P) { return null }`
+
+    expect(read(source)).toEqual({ tone: { type: 'string', required: true } })
+  })
+
+  it('prend le type de son paramètre quand il écrit', () => {
+    const source = `interface P { set level(x: number) }
+export function Badge({ level }: P) { return null }`
+
+    expect(read(source)).toEqual({ level: { type: 'number', required: true } })
+  })
+
+  it('reste une fonction quand c’est une méthode', () => {
+    const source = `interface P { onClick(): void }
+export function Badge({ onClick }: P) { return null }`
+
+    expect(read(source)).toEqual({ onClick: { type: 'function', required: true } })
+  })
+})
