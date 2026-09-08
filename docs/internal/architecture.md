@@ -1038,10 +1038,12 @@ La règle de lint dit ce qui est interdit. Le build montre ce qui est réellemen
 
 | Bundle | Poids | Occurrences de `react` |
 | -- | -- | -- |
-| shell | 59 Ko | **0** |
+| shell | 63,9 Kio | **0** |
 | preview | 186 Ko | 57 |
 
 Le shell ne charge pas React, et ce n'est pas une intention mais un fait mesurable sur les fichiers construits.
+
+Le poids du shell se remesure après `vp run -r pack`, sur `packages/cli/dist/shell/assets/*.js`. La ligne `preview` n'a pas de commande écrite, et DCJ-294 en tient le compte.
 
 ### Deux détails du canal qui ont une raison
 
