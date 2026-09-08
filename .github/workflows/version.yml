@@ -29,17 +29,17 @@ jobs:
           cache: true
       - run: vp install
 
-      # Sans `publish-script`, l'action se limite à ouvrir et tenir à jour la pull
-      # request de version. Ajouter cette entrée publierait sur npm.
+      # Sans `publish`, l'action se limite à ouvrir et tenir à jour la pull request
+      # de version. Ajouter cette entrée publierait sur npm.
       #
-      # `github-token` reste implicite, son défaut étant `${{ github.token }}`.
-      # Le bloc `env` n'est pas pour l'action mais pour le script de version :
-      # `@changesets/get-github-info` lève sans `GITHUB_TOKEN`, et c'est lui qui
-      # met les liens de pull request dans le changelog.
-      - uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+      # Reste en v1, et ce n'est pas un retard : l'action v2 refuse de démarrer
+      # sous Changesets CLI v2, que le catalogue épingle en 2.31.1. Mesuré par un
+      # `workflow_dispatch` sur une branche, lancement 34229204142. Dependabot
+      # a l'ordre de ne plus proposer la majeure, voir `dependabot.yml`.
+      - uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
-          version-script: vp exec changeset version
-          pr-title: 'chore: version packages'
-          commit-message: 'chore: version packages'
+          version: vp exec changeset version
+          title: 'chore: version packages'
+          commit: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
