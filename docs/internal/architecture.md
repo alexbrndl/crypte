@@ -971,6 +971,10 @@ Règle à retenir si un autre workflow apparaît : `cancel-in-progress: true` po
 
 **Ce qui casse si on l'enlève.** Les actions restent figées, correctifs de sécurité compris.
 
+**Pourquoi la majeure de `changesets/action` est ignorée.** L'action v2 refuse de démarrer sous Changesets CLI v2, et le dit elle-même : « use Changesets action v1 instead ». Le catalogue épingle le CLI en 2.31.1. Mesuré par un `workflow_dispatch` sur une branche, lancement 34229204142, qui a échoué à l'étape de l'action sans toucher la pull request de version.
+
+*Ce qui casse si on retire ces six lignes :* la majeure revient chaque mois, et le jour où elle est acceptée le workflow de version cesse de démarrer. L'échec est visible, mais il n'arrive que sur une poussée vers `main`, donc après la fusion. La montée du CLI est suivie par DCJ-288, et c'est elle qui rendra ces lignes inutiles.
+
 **Pourquoi npm n'y est pas.** Dependabot ne gère pas correctement cette configuration précise. Trois défauts ouverts dans `dependabot-core` : pnpm 11 n'est pas supporté (#14794), et le protocole `catalog` produit un lockfile incorrect (#14339, #12244). Notre lockfile vient de pnpm 11 et notre catalog épingle TypeScript, donc les trois nous concernent. À reconsidérer quand ils seront clos, pas avant : un lockfile corrompu par une mise à jour automatique coûte plus cher que des dépendances qui vieillissent doucement.
 
 ### `exports` désactivé sur `@crypte/cli`

@@ -15,3 +15,9 @@ updates:
       actions:
         patterns:
           - '*'
+    # `changesets/action` v2 exige Changesets CLI v3, que le catalogue n'a pas.
+    # Sans cet ordre, la majeure revient chaque mois et finit par être fusionnée.
+    ignore:
+      - dependency-name: changesets/action
+        update-types:
+          - version-update:semver-major

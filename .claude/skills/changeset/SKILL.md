@@ -78,3 +78,11 @@ Une ou deux phrases. Le détail vit dans la pull request.
 Rien immédiatement. Le fichier est commité avec la pull request, et **aucun numéro ne bouge à la fusion**.
 
 Les notes s'accumulent, une pull request « Version Packages » les rassemble automatiquement, et c'est sa fusion qui applique les montées de version. Tu n'as rien à faire de plus.
+
+**Elle est dérivée, pas source.** Les notes vivent dans `.changeset/*.md` sur `main` ; la pull request les supprime et écrit les CHANGELOG à la place. La fermer ne perd donc rien, elle se régénère à la poussée suivante. Ce qui perd des notes est de supprimer les fichiers sur `main`.
+
+**En revanche, la fusionner applique les montées de version.** C'est le seul geste irréversible de la chaîne, et il se fait quand on décide de publier, pas par réflexe pour vider la liste des pull requests ouvertes.
+
+**`version.yml` ne publie rien.** Il n'a pas d'entrée `publish`, celle que l'action v1 lirait, donc rien ne part sur npm. L'ajouter publierait, et un nom de paquet publié ne se reprend plus après 72 heures.
+
+**Deux réglages du dépôt le tiennent**, et leur absence ne se voit qu'à l'exécution : le job demande `contents: write` et `pull-requests: write`, et le réglage « Allow GitHub Actions to create and approve pull requests » doit être actif dans les paramètres du dépôt.
