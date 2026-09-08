@@ -83,6 +83,6 @@ Les notes s'accumulent, une pull request « Version Packages » les rassemble au
 
 **En revanche, la fusionner applique les montées de version.** C'est le seul geste irréversible de la chaîne, et il se fait quand on décide de publier, pas par réflexe pour vider la liste des pull requests ouvertes.
 
-**`version.yml` ne publie rien.** Il n'a pas d'entrée `publish-script`, donc rien ne part sur npm. Ajouter cette entrée publierait, et un nom de paquet publié ne se reprend plus après 72 heures.
+**`version.yml` ne publie rien.** Il n'a pas d'entrée `publish`, celle que l'action v1 lirait, donc rien ne part sur npm. L'ajouter publierait, et un nom de paquet publié ne se reprend plus après 72 heures.
 
 **Deux réglages du dépôt le tiennent**, et leur absence ne se voit qu'à l'exécution : le job demande `contents: write` et `pull-requests: write`, et le réglage « Allow GitHub Actions to create and approve pull requests » doit être actif dans les paramètres du dépôt.
