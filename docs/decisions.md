@@ -20,7 +20,7 @@ _2026-09-09_
 
 One namespace rather than one per nature because **the `id` is a URL and an anchor**. A reader that has to know an entry's nature before it can resolve its `id` has to be told that nature first, and neither a URL nor a comment anchor carries it. Per-nature namespaces would buy room we have no use for, at the price of making every consumer nature-aware.
 
-**Rejected.** Namespacing by nature, for the reason above. And renaming `storyId` now that it derives identifiers for entries that are not stories: the function normalises a path and a name, which is what every nature needs, and the name is in the published protocol. It moves when something forces it, not for tidiness.
+**Rejected.** Namespacing by nature, for the reason above. And renaming `storyId` now that it derives identifiers for entries that are not stories: the function normalises a path and a name, which is what every nature needs, and 4.3 names it in the contract. Nothing is published, so the rename would cost little in code — it is refused because the contract would have to move with it, for tidiness alone. It moves when something forces it.
 
 **What would reopen it.** A nature whose identifiers come from somewhere the author does not control — a design tool's own ids, say — where a collision with a story would be nobody's fault and giving way would lose data. Then the two namespaces stop being a convenience and become a correctness question.
 

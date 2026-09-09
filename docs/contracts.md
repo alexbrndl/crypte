@@ -488,9 +488,11 @@ Every entry carries a `type`. **Two values are implemented: `"story"` and `"toke
 
 **`MANIFEST_VERSION` does not move when a nature is added.** The reserved `type` field is precisely what that reserve was for, and nothing required moved on `StoryEntry`, so a reader that only knows stories skips what it does not recognise instead of failing. The rule that does force a bump is adding a required field once a version that writes manifests is published.
 
-**That rule is prose, and no test holds it.** It cannot be held yet, and the reason is the rule's own condition: nothing is published, so no manifest written by another version exists to compare against, and adding a required field is free today. A test against a baseline committed here would fire on changes the rule allows.
+**That rule is prose, and no test holds it.** A baseline exists — `manifest-shape.test.ts` pins the fixture's manifest field by field, so a field appearing, going or being renamed is seen there. What no case does is **tie that to the version**: it pins `version: 1` beside the rest and never relates the two.
 
-What makes it guardable is the first publication. From then on the published shape is the baseline, and a case can require that a required field appearing without `MANIFEST_VERSION` moving is a failure. Until then this paragraph is the guard, and it is a weak one.
+Tying them is what cannot be done yet, and the reason is the rule's own condition. The rule asks for a bump once a published version writes manifests; nothing is published, so adding a required field is free, and a case demanding a bump would fail correct work.
+
+The first publication is what turns it on. From then the published shape is the baseline, and a case can require that a required field appearing without `MANIFEST_VERSION` moving is a failure. Until then this paragraph is the guard, and it is a weak one.
 
 `props` and `source` are read from the story file, not declared in it. `props` lists the names the story passes to the component, from the shared block and its own, sorted, with no value attached: a prop set to a function is still a prop the story exercises, and prop coverage counts it. `source` rebuilds the call from the text the user wrote, so an expression the CLI cannot evaluate still reads the way they typed it.
 
@@ -583,11 +585,11 @@ Who holds it, in the order collisions happen:
 
 | Collision | What happens |
 | --- | --- |
-| two stories | the build refuses, naming both files. A story comes from the author's own file, so neither can be made to give way |
-| a contribution on a story's `id` | the contribution is refused with `` `id` is already taken ``, named by plugin. The story wins: it comes from the author, the entry does not |
+| two stories | the catalogue cannot be built. Neither can be made to give way: both come from the author's own files |
+| a contribution on a story's `id` | the contribution is refused and said, named by plugin. 6.3 has the rule and why the story wins |
 | a contribution on another contribution's `id` | the same refusal. First contributed, first kept |
 
-Nothing is decided in silence, which is 6.3's rule applied here.
+**What the first row means depends on when it happens.** At start-up, `crypte dev` stops: there is no catalogue to fall back on. While the server runs, it keeps the last good one and says why, because two stories briefly sharing a name is an ordinary state halfway through a rename, and a server that stops on it is worse than a tree that waits. Neither is silent.
 
 ### 4.4 Fields carried without reading them
 
