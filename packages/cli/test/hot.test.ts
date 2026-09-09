@@ -1,10 +1,18 @@
-import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Manifest, StoryEntry } from '@crypte/core/protocol'
 import { describe, expect, test as base } from 'vitest'
-import { startDev } from '../src/dev'
-import { storiesOf } from '../src/manifest'
+import { componentFiles, startDev } from '../src/dev'
+import { storiesOf, type Catalogue } from '../src/manifest'
 import { MANIFEST_ROUTE } from '../src/serve'
 
 // Ce que le serveur fait des fichiers pendant qu'il tourne. Sur une copie de la
@@ -33,6 +41,10 @@ interface Projet {
   // Les entrées de story servies maintenant. Les stories seules : ces cas
   // lisent `props`, `partial` et `source`, qu'une entrée tokens ne porte pas.
   entrees: () => Promise<StoryEntry[]>
+  // Le catalogue que le serveur retient, entier : `componentFiles` le prend.
+  catalogue: () => Catalogue
+  // Les fichiers de composant surveillés en ce moment.
+  surveilles: () => string[]
   // Ce que le serveur a dit, depuis le démarrage de ce cas.
   dites: (motif: string) => () => string[]
   // Les rechargements complets envoyés, depuis le démarrage de ce cas.
@@ -78,6 +90,8 @@ const test = base.extend<{ projet: Projet }>({
       root,
       origin,
       retenu: () => storiesOf(started.held.catalogue.manifest).map((entry) => entry.id),
+      catalogue: () => started.held.catalogue,
+      surveilles: started.watched,
       noms: async () => (await entrees()).map((entry) => entry.id),
       entrees,
       rechargements: () => reloads,
@@ -123,6 +137,79 @@ describe('le catalogue pendant que le serveur tourne', () => {
     await expect
       .poll(async () => (await projet.entrees()).find((one) => one.id === 'badge--default')?.props)
       .toContain('tone')
+  })
+
+  // `details` est lu dans le fichier du **composant**, qui est hors du dossier
+  // des stories. Sans surveillance de ces fichiers-là, l'utilisateur voit une
+  // table de props fausse et le geste qui la répare, toucher la story, n'a
+  // aucun rapport visible avec la cause. `DCJ-280`.
+  test('rafraîchit details quand le composant change, sans toucher la story', async ({
+    projet,
+  }) => {
+    const detailsDe = async () =>
+      (await projet.entrees()).find((one) => one.id === 'badge--default')?.details
+
+    // Le composant de la fixture ne déclare aucune prop.
+    expect(await detailsDe()).toEqual({})
+
+    const composant = join(projet.root, 'src', 'components', 'Badge.jsx')
+    const avant = readFileSync(composant, 'utf8')
+
+    writeFileSync(composant, "export const Badge = ({ label = 'none' }) => null\n")
+    expect(readFileSync(composant, 'utf8')).not.toBe(avant)
+
+    await expect.poll(detailsDe).toHaveProperty('label')
+  })
+
+  // Le jeu suit le catalogue, il n'est pas figé au démarrage. Mesuré autrement
+  // que par les deux cas voisins : sur macOS `fs.watch` sur un fichier est
+  // granulaire au **dossier**, donc surveiller `src/components/Badge.jsx` couvre
+  // incidemment ses voisins, et une sauvegarde produit des événements tardifs
+  // qui relisent le composant pour une autre raison. Les deux font passer un cas
+  // qui croit éprouver la resynchronisation. Le jeu surveillé se lit donc
+  // directement.
+  test('surveille un composant qu’une story se met à citer', async ({ projet }) => {
+    const autre = join(projet.root, 'src', 'autre', 'Autre.jsx')
+
+    expect(projet.surveilles()).not.toContain(autre)
+
+    mkdirSync(dirname(autre), { recursive: true })
+    writeFileSync(autre, 'export const Autre = () => null\n')
+    writeFileSync(
+      join(projet.root, 'stories', 'Autre.js'),
+      "import { Autre } from '@/autre/Autre'\n\nexport default defineStories(Autre)\n",
+    )
+
+    await expect.poll(projet.surveilles).toContain(autre)
+  })
+
+  // Et il lâche ce qui n'est plus cité : gardés, les surveillants s'accumulent
+  // pour la durée du serveur, un par composant qu'une story a cité un jour.
+  test('cesse de surveiller un composant qu’aucune story ne cite plus', async ({ projet }) => {
+    const badge = join(projet.root, 'src', 'components', 'Badge.jsx')
+
+    expect(projet.surveilles()).toContain(badge)
+
+    rmSync(join(projet.root, 'stories', 'Badge.js'))
+
+    await expect.poll(projet.surveilles).not.toContain(badge)
+  })
+
+  // Le piège de la surveillance : la prendre trop large reconstruit le catalogue
+  // à chaque frappe dans n'importe quel fichier du projet. Ce cas tient l'autre
+  // moitié du contrat, ce qui n'est **pas** surveillé.
+  test('ne surveille que les composants qu’une story cite', async ({ projet }) => {
+    const cités = componentFiles(projet.root, projet.catalogue())
+
+    expect(cités).toEqual([
+      join(projet.root, 'src', 'components', 'Badge.jsx'),
+      join(projet.root, 'src', 'components', 'checkout', 'OrderSummary.jsx'),
+    ])
+
+    // `entry.jsx` et `src/assets.js` sont dans le projet et cités par aucune
+    // story : les surveiller ferait relire l'arbre pour rien.
+    expect(cités).not.toContain(join(projet.root, 'entry.jsx'))
+    expect(cités).not.toContain(join(projet.root, 'src', 'assets.js'))
   })
 
   // Vite ne surveille que les fichiers de son graphe de modules : la

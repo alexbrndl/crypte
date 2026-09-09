@@ -10,6 +10,13 @@ import { buildCatalogue, storiesOf, writeCatalogue, type Catalogue } from './man
 import { loadProject, viteConfigOf, type Project } from './project'
 import { configPackages, servePlugin, PREVIEW_ENTRY_ID, PREVIEW_PAGE } from './serve'
 
+// What `dev` closes when it stops watching. An `FSWatcher` satisfies it, and so
+// does the set of component watchers, which is replaced at every build and so
+// cannot be handed over as a single watcher.
+interface Closer {
+  close(): void
+}
+
 export interface Started {
   server: ViteDevServer
   project: Project
@@ -22,6 +29,10 @@ export interface Started {
   // Closes the file watchers this registered, without going through the server:
   // see the comment where they are collected.
   unwatch: () => void
+  // The component files watched right now. A seam for the cases: whether the set
+  // follows the catalogue or was fixed at start-up is otherwise only visible in
+  // the timing of filesystem events, which no case can hold.
+  watched: () => string[]
   // What the watched files held when this read them. Compared by `dev` to decide
   // whether a change is still pending: taken after the server is up, an edit
   // landing during the start was compared against itself and lost. Measured.
@@ -74,10 +85,8 @@ export async function startDev(
   // without emitting `'close'` when the server never listened, so a server built
   // and then abandoned kept its watchers for ever, and each leaked set doubled
   // the restarts of every save that followed. Read in Vite 8.2.1's own source.
-  const watching = [
-    watchStories(server, project, held, log),
-    watchConfig(server, project, () => onConfig?.()),
-  ].flat()
+  const stories = watchStories(server, project, held, log)
+  const watching = [...stories.closers, ...watchConfig(server, project, () => onConfig?.())]
 
   // The digest of what this read, not of what the files hold once the server is
   // up: an edit landing in between was compared against a state nobody had read,
@@ -91,6 +100,7 @@ export async function startDev(
     unwatch: () => {
       for (const one of watching) one.close()
     },
+    watched: stories.watched,
   }
 }
 
@@ -116,20 +126,37 @@ function shape(catalogue: Catalogue): string {
   ])
 }
 
+// The component files the catalogue cites, each once, absolute. Watching these
+// and not the project is the whole point: a keystroke in any other file would
+// otherwise read the tree again. Exported for the case that holds that limit.
+export function componentFiles(root: string, catalogue: Catalogue): string[] {
+  return [
+    ...new Set(storiesOf(catalogue.manifest).map((entry) => join(root, entry.component.file))),
+  ].sort()
+}
+
 // A story file changed: read the catalogue again, and reload the preview when
 // what it reads changed. Vite handles a component's own module, and it is the
 // browser that gets the new render.
 //
-// **What this does not cover, since `details` exists:** the catalogue now reads
-// the component file too, for its props, and nothing here watches it. Editing a
-// JSDoc leaves `details` as it was until a story file moves.
+// The component files are watched too, since `details` is read from them. The
+// set follows the catalogue rather than being fixed once: a story that changes
+// component stops watching the old file and starts on the new one.
 function watchStories(
   server: ViteDevServer,
   project: Project,
   held: Held,
   log: (line: string) => void,
-): FSWatcher[] {
+): { closers: Closer[]; watched: () => string[] } {
   let pending: ReturnType<typeof setTimeout> | undefined
+
+  // One save fires several events, and a component watched here may also sit
+  // under the stories folder: rebuilding on each would read the tree three
+  // times for nothing, and twice for such a file.
+  const soon = (): void => {
+    clearTimeout(pending)
+    pending = setTimeout(rebuild, 20)
+  }
 
   // What the last build left out, held apart from the catalogue: a skipped file
   // leaves the shape untouched, so comparing catalogues repeated the same line
@@ -177,6 +204,10 @@ function watchStories(
     const same = shape(next) === shape(held.catalogue)
     held.catalogue = next
 
+    // After `held`, so a watcher that fires during this reads the new
+    // catalogue. A story that changed component points at another file now.
+    syncComponents(next)
+
     if (same) return
 
     // The entry names its imports one by one, so a file added or removed makes
@@ -197,16 +228,56 @@ function watchStories(
   // Watching the folder ourselves also removes every question about the path: no
   // filter, no separator, no real path behind a symlink. Every event is already
   // inside it.
-  const watcher = watch(join(project.root, project.config.stories), { recursive: true }, () => {
-    // One save fires several events. Rebuilding on each would read the tree
-    // three times for nothing.
-    clearTimeout(pending)
-    pending = setTimeout(rebuild, 20)
+  const watcher = watch(join(project.root, project.config.stories), { recursive: true }, soon)
+
+  // One watcher per component file, not a folder: a component lives anywhere in
+  // the project, and their common ancestor is often the root. Keyed by path so
+  // a rebuild keeps the ones that did not move rather than closing and
+  // reopening the whole set at every keystroke.
+  const components = new Map<string, FSWatcher>()
+
+  const syncComponents = (catalogue: Catalogue): void => {
+    const wanted = new Set(componentFiles(project.root, catalogue))
+
+    for (const [file, one] of components) {
+      if (wanted.has(file)) continue
+      one.close()
+      components.delete(file)
+    }
+
+    for (const file of wanted) {
+      if (components.has(file)) continue
+
+      // `watch` throws on a file that is not there, and section 8 says a
+      // component reached through a plugin keeps the identifier the story
+      // wrote: unresolvable is ordinary here, not an error.
+      try {
+        components.set(file, watch(file, soon))
+      } catch {
+        continue
+      }
+    }
+  }
+
+  // Seeded from the start-up build, like `said` above: without this, the first
+  // edit of a component is only picked up after a story file has moved, which
+  // is the whole defect.
+  syncComponents(held.catalogue)
+
+  const closeComponents = (): void => {
+    for (const one of components.values()) one.close()
+    components.clear()
+  }
+
+  server.httpServer?.on('close', () => {
+    watcher.close()
+    closeComponents()
   })
 
-  server.httpServer?.on('close', () => watcher.close())
-
-  return [watcher]
+  return {
+    closers: [watcher, { close: closeComponents }],
+    watched: () => [...components.keys()].sort(),
+  }
 }
 
 // `crypte.config.ts` and what it imports. Reloading it means rebuilding the

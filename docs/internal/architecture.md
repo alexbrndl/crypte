@@ -580,6 +580,16 @@ Un module de story rend `{ component, definition }`, jamais un composant seul. M
 
 Un `fs.watch` récursif sur le dossier des stories suffit, et **il supprime trois pièces** : le filtre sur le chemin, le séparateur de fin, et la résolution du chemin réel derrière un lien symbolique. Tout événement est déjà à l'intérieur. Une sauvegarde en produit plusieurs, d'où vingt millisecondes de regroupement.
 
+**Les fichiers de composant sont surveillés aussi, un par un.** `details` est lu dans le fichier du composant, qui vit hors du dossier des stories : sans eux, éditer un JSDoc laissait une table de props fausse jusqu'à ce qu'un fichier de story bouge, et le geste qui réparait n'avait aucun rapport visible avec la cause.
+
+Un par un, et non un dossier récursif : un composant vit n'importe où, et l'ancêtre commun est souvent la racine, donc reconstruire le catalogue à chaque frappe du projet. Le jeu **suit le catalogue** au lieu d'être figé au démarrage, et il est comparé par chemin plutôt que refermé et rouvert : une story qui se met à citer un autre fichier le fait entrer, une story retirée le fait sortir. Gardés, les surveillants s'accumulent pour la durée du serveur, un par composant qu'une story a cité un jour.
+
+Un fichier absent est sauté : la section 8 des contrats dit qu'un composant atteint par un plugin garde l'identifiant que la story a écrit, donc irrésolu est ordinaire ici.
+
+*Pourquoi `Started` rend le jeu surveillé.* Deux propriétés du système de fichiers font passer un cas qui croit éprouver le suivi. Sur macOS, `fs.watch` sur un **fichier** est granulaire au dossier, donc surveiller `src/components/Badge.jsx` couvre incidemment ses voisins. Et une sauvegarde produit des événements tardifs, dont une reconstruction relit le composant pour une autre raison. Les deux ont été mesurés en rendant vert un cas dont le mécanisme était retiré. Le jeu se lit donc directement, et trois mutations le font rougir : amorçage retiré, resynchronisation retirée, relâchement retiré.
+
+*Ce qui casse si on l'enlève :* la table de props ment sans aucun signal, ce qui est le mode de panne que `CLAUDE.md` nomme, le symptôme sans rapport avec sa cause.
+
 Les fichiers dont la configuration dépend ont un surveillant chacun, et un fichier absent est **sauté plutôt que fatal** : `loadProject` peut nommer un `tsconfig.json` que le projet n'a pas, et `fs.watch` lève dessus.
 
 **Un changement de `crypte.config.ts` donne une ligne, pas un rechargement.** Relire la configuration veut dire reconstruire le serveur, puisque les plugins du projet en viennent. Hors de ce lot, donc, et le silence est remplacé par une instruction : relancer.
