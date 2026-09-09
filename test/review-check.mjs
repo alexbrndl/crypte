@@ -79,6 +79,25 @@ export function reviewsOf(number, repo, run = gh) {
   }
 }
 
+// Les fichiers qu'ont touchés les commits postérieurs à `since`. Par `compare`
+// plutôt qu'un appel par commit : une pull request de trente commits ferait
+// trente requêtes pour la même réponse.
+export function changedSince(number, repo, since, run = gh) {
+  const commits = pages(`repos/${repo}/pulls/${number}/commits`, run)
+
+  // Le dernier commit à la date de la revue ou avant. Aucun, et tout le diff est
+  // postérieur, ce que le premier parent du plus ancien commit exprime.
+  const before = commits.filter((one) => one.commit.committer.date <= since).at(-1)
+  const base = before ? before.sha : (commits[0]?.parents?.[0]?.sha ?? '')
+  const head = commits.at(-1)?.sha ?? ''
+
+  if (!base || !head || base === head) return []
+
+  const compared = JSON.parse(run(['api', `repos/${repo}/compare/${base}...${head}`]))
+
+  return (compared.files ?? []).map((one) => one.filename)
+}
+
 // `||` et non `??` : un déclenchement manuel passe une chaîne vide, que `??`
 // garderait pour un numéro.
 function main([given]) {
@@ -110,20 +129,47 @@ function main([given]) {
     exit(1)
   }
 
-  // Le contrôle ne peut pas exiger que la revue soit postérieure au dernier
-  // commit : corriger un point non bloquant sans relancer de tour est permis, et
-  // le durcir rendrait ces deux règles contradictoires. Il dit l'écart, et laisse
-  // juger.
+  // Une revue plus ancienne que le dernier commit n'est pas fautive en soi :
+  // corriger un point non bloquant sans relancer de tour est permis. Ce qui ne
+  // l'est pas est d'ajouter du **code exécutable** ensuite, que par définition
+  // personne n'a relu. Le contrôle sépare donc les deux au lieu de tout laisser
+  // juger : la même classification que pour le diff entier, appliquée à ce qui a
+  // bougé depuis.
   const head = gh(['api', `repos/${repo}/pulls/${number}`, '--jq', '.head.sha'])
   const when = gh(['api', `repos/${repo}/commits/${head}`, '--jq', '.commit.committer.date'])
 
   console.log(`Revue la plus récente : ${latest || 'inconnue'}`)
   console.log(`Dernier commit        : ${when}`)
 
-  if (latest && latest < when)
-    console.log(
-      "::warning::La revue la plus récente précède le dernier commit. Vérifier que rien de bloquant n'a été ajouté depuis.",
+  if (!latest || latest >= when) return
+
+  const since = changedSince(number, repo, latest)
+
+  // Rien de lisible n'est pas la même chose que rien de changé, et le message
+  // qui suit doit dire lequel des deux : `decide([])` rend « aucun fichier lu »
+  // et bloque, ce qui est le bon sens, mais pas pour la raison affichée.
+  if (since.length === 0) {
+    console.error(
+      '::error::Impossible de lire ce qui a bougé depuis la dernière revue. Relancer ce contrôle.',
     )
+    exit(1)
+  }
+
+  const after = decide(since)
+
+  console.log(`Depuis la revue : ${since.length} fichier(s), ${after.why}`)
+
+  if (after.prose) {
+    console.log(
+      '::warning::La revue précède le dernier commit, mais rien de non-prose n’a bougé depuis.',
+    )
+    return
+  }
+
+  console.error(
+    '::error::Du code non relu a été ajouté après la dernière revue. Relancer /review sur ces changements seuls, puis relancer ce contrôle.',
+  )
+  exit(1)
 }
 
 if (argv[1] && import.meta.url === pathToFileURL(argv[1]).href) main(argv.slice(2))

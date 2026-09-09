@@ -931,6 +931,30 @@ Le parcours porte un ensemble `seen` pour la même raison : un cycle ferait bouc
 
 ---
 
+## 4 novodecies. Ce que chaque garde refuse vraiment
+
+Sept contrôles annonçaient plus qu'ils ne tenaient. C'est le mode d'échec le plus coûteux du dépôt, un vert qui ne vérifie plus rien, et il ne se voit pas en relisant le garde : il se voit en **cassant la garantie et en regardant si le contrôle rougit**. Chacun a donc sa sonde.
+
+| Garde | Ce qu'il laissait passer | Ce qui le tient |
+| -- | -- | -- |
+| `has-review` | du code ajouté après la dernière revue, que personne n'a relu | `changedSince` classe ce qui a bougé depuis, par le même juge que le diff entier : de la prose avertit, autre chose bloque |
+| `commentsOnly` | `// @ts-expect-error`, `// eslint-disable`, `/// <reference` — forme d'un commentaire, effet d'une ligne de code | `DIRECTIVE` les sort de l'exemption, dans les deux sens, ajout comme retrait |
+| anglais du code publié | du français sans accent | une liste courte de mots-outils sans ambiguïté, `on`, `car`, `son`, `plus` et `la` exclus parce qu'ils sont anglais aussi |
+| `changeset-check` | **le shell**, dont le build est copié dans `packages/cli/dist/shell` et part donc chez l'utilisateur | `apps/shell/src/` entre au périmètre, `apps/demo` non |
+| seuils de couverture | un seuil qu'on baisse pour faire passer un lot | un cliquet : un écart de plus de trois points entre la mesure et le seuil rougit, ce qui attrape aussi bien le plancher oublié que le plancher baissé |
+| `sideEffects: false` | ni documenté ni gardé, alors qu'il décide de ce qu'un bundler retire chez l'utilisateur | un cas fixe qui le déclare, et un autre refuse tout effet au niveau supérieur d'un fichier du noyau |
+| le câblage de `publish` | rien ne vérifiait son absence, et c'est le seul geste irréversible | un cas lit le bloc `with:` de l'action et refuse une entrée `publish` |
+
+**Le périmètre de `changeset-check` était faux, et le dépôt le croyait juste.** Un cas affirmait nommément que `apps/shell/src/App.vue` n'exige aucune note. `pnpm pack --dry-run` sur `packages/cli` liste `dist/shell/index.html` et ses deux assets : le shell voyage dans la tarball. Une modification du shell partait donc en production sans note de version.
+
+**Trois points de tolérance pour le cliquet, et non zéro.** La couverture varie d'un lancement à l'autre ; un cliquet au dixième rougirait sur du bruit. Trois points sont un lot entier de code neuf couvert. Mesuré le 9 septembre 2026, les quatre écarts valaient 0,44, 1,95, 2,20 et 1,10.
+
+*Ce qui casse si on l'enlève :* le dépôt retrouve sept contrôles verts qui n'affirment rien, et la prochaine faute de la classe qu'ils gardent passe sans que rien ne bouge. C'est précisément ce qui s'est produit sept fois.
+
+*Ce qu'aucun ne couvre :* une phrase française assez brève pour n'employer aucun mot-outil de la liste. Le garde attrape la phrase ordinaire, pas la brève, et un cas le dit plutôt que de le masquer.
+
+---
+
 ## 5. Décisions encodées dans la configuration
 
 Ces réglages ont l'air anodins et ne le sont pas. Chacun a été mis là pour une raison précise, et chacun est le genre de ligne qu'on supprime en croyant nettoyer.

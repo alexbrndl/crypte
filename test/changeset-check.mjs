@@ -12,8 +12,14 @@ import { pathToFileURL } from 'node:url'
 // fait partie : les trois paquets ne font que l'étendre, et elle change leurs
 // `.d.ts`. Chacun compte en entier : demander une note de trop coûte un
 // fichier, en manquer une publie une version fausse.
+//
+// **Et `apps/shell`, qui n'est pourtant pas un paquet.** `scripts/copy-shell.mjs`
+// copie son build dans `packages/cli/dist/shell`, que `files: ["dist"]` publie :
+// une modification du shell part donc chez l'utilisateur à l'intérieur de
+// `@crypte/cli`. Mesuré, le contrôle rendait `ok` dessus. `apps/demo` n'y est
+// pas, rien de lui n'étant publié.
 const PUBLISHED =
-  /^(packages\/[^/]+\/(src\/|(package\.json|tsconfig\.json|vite\.config\.ts)$)|tsconfig\.base\.json$)/
+  /^(packages\/[^/]+\/(src\/|(package\.json|tsconfig\.json|vite\.config\.ts)$)|apps\/shell\/(src\/|(package\.json|tsconfig\.json|vite\.config\.ts)$)|tsconfig\.base\.json$)/
 
 // `README.md` documente le dossier, `config.json` le configure : ni l'un ni
 // l'autre n'est une note.
@@ -23,6 +29,14 @@ const NOTE = /^\.changeset\/(?!README\.md$)[^/]+\.md$/
 // publiés, alors qu'un bloc `/** */` posé sur un type exporté s'y retrouve, donc
 // il change ce que reçoit l'utilisateur.
 const COMMENT = /^\s*\/\//
+
+// Un commentaire qui parle au compilateur, au lint ou à la couverture **n'est pas
+// inerte** : retirer un `@ts-expect-error` change ce qui compile, ajouter un
+// `eslint-disable` fait taire une règle qui gardait quelque chose. Ils ont la
+// forme d'un commentaire et l'effet d'une ligne de code, donc ils sortent de
+// l'exemption. Une référence tripe-slash tire carrément un fichier de types.
+const DIRECTIVE =
+  /^\s*\/\/[/\s]*(@ts-(expect-error|ignore|nocheck)|(es|ox)lint-(disable|enable)|prettier-ignore|(v8|c8|istanbul) ignore|<reference)/
 
 // Un fichier dont le diff ne touche que des commentaires de ligne ne change rien
 // pour l'utilisateur. Sans patch, l'API n'en fournissant pas au-delà d'une
@@ -35,7 +49,10 @@ export function commentsOnly(patch) {
     .filter((line) => /^[+-]/.test(line) && !/^(\+\+\+|---)/.test(line))
     .map((line) => line.slice(1))
 
-  return changed.length > 0 && changed.every((line) => line.trim() === '' || COMMENT.test(line))
+  return (
+    changed.length > 0 &&
+    changed.every((line) => line.trim() === '' || (COMMENT.test(line) && !DIRECTIVE.test(line)))
+  )
 }
 
 // Rend ce qui a été vu, et si la pull request peut passer.

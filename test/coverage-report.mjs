@@ -125,6 +125,34 @@ export function failing(summary) {
     )
 }
 
+// De combien la mesure peut dépasser un seuil avant qu'il faille le monter.
+//
+// `CLAUDE.md` pose que les seuils sont au plancher mesuré et « montent quand un
+// lot les dépasse ». Rien ne l'appliquait : un seuil laissé derrière la mesure
+// est un seuil qu'on peut **baisser** sans que rien ne rougisse, ce qui est la
+// seule façon de rendre la mesure inutile.
+//
+// Trois points, et non zéro : la couverture varie d'un lancement à l'autre, et un
+// cliquet au dixième rougirait sur du bruit. Trois points sont un lot entier de
+// code neuf couvert, donc un vrai signal. Mesuré le 9 septembre 2026, les quatre
+// écarts valaient 0,44, 1,95, 2,20 et 1,10.
+const SLACK = 3
+
+// Les seuils que la mesure a dépassés de plus de `SLACK`. Le même verdict attrape
+// les deux fautes : un plancher qu'on a oublié de monter, et un plancher qu'on
+// baisse pour faire passer un lot — baissé, l'écart grandit d'autant.
+export function drifted(summary, thresholds = THRESHOLDS, slack = SLACK) {
+  const total = summary?.total
+  if (!total) return []
+
+  return Object.entries(thresholds)
+    .filter(([name, seuil]) => (total[name]?.pct ?? 0) - seuil > slack)
+    .map(
+      ([name, seuil]) =>
+        `${LABELS[name]} à ${total[name]?.pct ?? 0} %, soit ${((total[name]?.pct ?? 0) - seuil).toFixed(2)} points au-dessus du seuil de ${seuil} %`,
+    )
+}
+
 // Ce que le commentaire dit des tests. `results` est la sortie du rapporteur
 // `json` de vitest ; absente, on ne prétend rien plutôt que d'annoncer zéro.
 function tests(results) {
@@ -314,6 +342,16 @@ function main(args) {
 
   if (manques.length > 0) {
     console.error(`couverture insuffisante : ${manques.join(' ; ')}`)
+    exit(1)
+  }
+
+  const dérives = drifted(summary)
+
+  if (dérives.length > 0) {
+    console.error(
+      `seuil à monter dans test/coverage-thresholds.json : ${dérives.join(' ; ')}. ` +
+        'Un seuil laissé derrière la mesure est un seuil qu’on peut baisser sans rien faire rougir.',
+    )
     exit(1)
   }
 }

@@ -3,7 +3,7 @@
 // Voir docs/internal/architecture.md.
 
 import { expect, test } from 'vitest'
-import { decide, filesOf, marked, reviewsOf } from './review-check.mjs'
+import { changedSince, decide, filesOf, marked, reviewsOf } from './review-check.mjs'
 
 const prose = (...files) => decide(files).prose
 
@@ -143,4 +143,81 @@ test('un commentaire marqué ne fournit pas de date, seule une revue ancrée en 
   const { count, latest } = reviewsOf('47', 'alexbrndl/crypte', run)
 
   expect({ count, latest }).toEqual({ count: 1, latest: '' })
+})
+
+// Une revue plus ancienne que le dernier commit n'est pas fautive : corriger un
+// point non bloquant sans relancer de tour est permis. Ce qui ne l'est pas est
+// d'ajouter du code exécutable ensuite. Séparer les deux demande de savoir ce qui
+// a bougé **depuis** la revue, et c'est ce que ces cas tiennent.
+const COMMITS = [
+  {
+    sha: 'aaa',
+    commit: { committer: { date: '2026-08-20T10:00:00Z' } },
+    parents: [{ sha: 'zzz' }],
+  },
+  {
+    sha: 'bbb',
+    commit: { committer: { date: '2026-08-22T10:00:00Z' } },
+    parents: [{ sha: 'aaa' }],
+  },
+  {
+    sha: 'ccc',
+    commit: { committer: { date: '2026-08-24T10:00:00Z' } },
+    parents: [{ sha: 'bbb' }],
+  },
+]
+
+const depuis = (files) => (args) =>
+  args[1].includes('/commits')
+    ? JSON.stringify([COMMITS])
+    : JSON.stringify({ files: files.map((filename) => ({ filename })) })
+
+test('ne rend que les fichiers des commits postérieurs à la revue', () => {
+  const vus = []
+  const run = (args) => {
+    vus.push(args[1])
+
+    return depuis(['docs/guide.md'])(args)
+  }
+
+  expect(changedSince('47', 'o/r', '2026-08-22T10:00:00Z', run)).toEqual(['docs/guide.md'])
+
+  // La base est le dernier commit à la date de la revue ou avant, la tête le
+  // dernier de la pull request : sans ça la comparaison reprend tout le diff.
+  expect(vus.at(-1)).toBe('repos/o/r/compare/bbb...ccc')
+})
+
+test('quand la revue précède tous les commits, la comparaison part du parent', () => {
+  const vus = []
+  const run = (args) => {
+    vus.push(args[1])
+
+    return depuis(['packages/core/src/x.ts'])(args)
+  }
+
+  changedSince('47', 'o/r', '2026-08-01T00:00:00Z', run)
+
+  expect(vus.at(-1)).toBe('repos/o/r/compare/zzz...ccc')
+})
+
+test('rien de postérieur à la revue rend une liste vide, sans comparaison', () => {
+  const vus = []
+  const run = (args) => {
+    vus.push(args[1])
+
+    return depuis([])(args)
+  }
+
+  expect(changedSince('47', 'o/r', '2026-08-24T10:00:00Z', run)).toEqual([])
+  expect(vus.some((one) => one.includes('/compare/'))).toBe(false)
+})
+
+// La moitié qui compte : ce qui a bougé depuis se classe par le même juge que le
+// diff entier, donc une correction de prose passe et du code exécutable non.
+test('ce qui a bougé depuis la revue se classe comme le reste', () => {
+  expect(decide(['docs/guide.md']).prose).toBe(true)
+  expect(decide(['README.md', 'docs/internal/architecture.md']).prose).toBe(true)
+  expect(decide(['packages/cli/src/dev.ts']).prose).toBe(false)
+  expect(decide(['test/review-check.mjs']).prose).toBe(false)
+  expect(decide(['docs/decisions.md']).prose).toBe(false)
 })
