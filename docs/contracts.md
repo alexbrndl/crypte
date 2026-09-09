@@ -632,14 +632,12 @@ Each direction has its own type: `ShellMessage` goes to the iframe, `PreviewMess
 ```ts
 type ShellMessage =
   | { type: 'render'; id: string; overrides: Overrides }
-  | { type: 'update-overrides'; id: string; overrides: Overrides }
-  | { type: 'set-globals'; globals: Record<string, unknown> }
   | MessagesOf<PluginShellMessages>
 ```
 
-`render` mounts the entry that was asked for. `update-overrides` updates it without remounting. `set-globals` applies global settings such as a theme or a locale.
+`render` mounts the entry that was asked for, with the shell's overrides applied on top of the story's props by 3.2's merge. A preview drops any message it does not know.
 
-**Only `render` has an effect today.** The other two are received and ignored. See section 8.
+**`update-overrides` and `set-globals` were here and are now in reserve**, section 7. Neither had a consumer, and `render` already carries overrides: what the first added was updating them *without remounting*, which is a question only a real `controls` can settle.
 
 ### 5.3 Preview to shell
 
@@ -816,6 +814,8 @@ The field carrying both already exists, so neither is a manifest break. The reas
 
 **Held in reserve, to add when a real case asks for it:**
 
+- `update-overrides`, which would change a mounted entry's props without remounting it. `render` already carries overrides, so the capability is there and only preserving component state across an edit is missing. What merging, resetting and story-switching should do is exactly what a real `controls` settles, and 6.5 already refuses to freeze that contract before it exists.
+- `set-globals`, which would apply a theme or a locale to the preview. No consumer, and no shape a case has demonstrated.
 - A `render` escape hatch on a story, to make a controlled component truly interactive. Left out of v1 for lack of a demonstrated case, see 2.7. Adding it later breaks nothing; shipping it now would create a use we could not take back.
 - Documenting pass-through DOM attributes, see 3.4.
 - Path aliases inside style sheets, see 1.5.
@@ -839,9 +839,8 @@ This document is a contract. This section is the only place that says what exist
 
 **`crypte dev` is built, `crypte check` is not.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled by the project's own Vite. A story renders, switching story works, and a story that throws shows its error instead of an empty frame.
 
-Seven known gaps between this document and the code:
+Six known gaps between this document and the code:
 
-- `update-overrides` and `set-globals` are part of the protocol and have no effect yet. The preview drops them.
 - A path alias cannot replace an installed package. `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because the resolver runs after Vite's own. TypeScript would return the replacement file.
 - **Inference reads what a file declares, never what a type it cannot resolve holds.** An imported props type, a generic, an intersection, and an `extends` clause each leave only what the component file writes by hand, which for a DOM pass-through is the names in its destructuring pattern. Enumerating the rest needs the type checker, and inventing names is what 4.2 forbids.
 - **`UIContribution` and `PreviewHooks` are declared opaque by the core**, though 6.2 specifies the second one in full. Neither has a caller: no shell panel comes from a plugin, and no preview runs a lifecycle hook. Typing a surface nobody calls would buy nothing and could not be taken back.
@@ -852,6 +851,14 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.6.** Two shell messages out of the protocol, which is what a contract with no consumer costs.
+
+| Before | After |
+| --- | --- |
+| `update-overrides` and `set-globals` were normative and ignored | they are in section 7's reserve, with what would bring them back |
+| section 8 listed them as the first known gap | it lists six gaps, and this one is closed by the document moving rather than the code |
+| the channel promised more than the preview did | `ShellMessage` carries what has an effect, plus what a plugin declares |
 
 **v1.5.** Prop inference, which is what turned `details` from a field with a contract into a field with content.
 
@@ -910,7 +917,7 @@ Seven known gaps between this document and the code:
 | interfaces were described in prose tables | they are code blocks, which a test can check field by field |
 | nothing said what was built | section 8 does, and it is the only section that talks about the code |
 
-`update-overrides` and `set-globals` stay in the protocol, and the preview still ignores them. The code is what is late here, not the document. Tracked in DCJ-214.
+`update-overrides` and `set-globals` were in the protocol with no effect. v1.6 moved them to section 7: nothing consumed them, and the document was ahead of a need rather than of the code.
 
 **v0.9 and earlier.** Nine versions, in French, in `docs/internal/spec-journal.md`. Each one carries the reasoning that led to it, which is why it was kept rather than translated.
 

@@ -3,8 +3,6 @@
 
 export type ShellMessage =
   | { type: 'render'; id: string; overrides: Overrides }
-  | { type: 'update-overrides'; id: string; overrides: Overrides }
-  | { type: 'set-globals'; globals: Record<string, unknown> }
   | MessagesOf<PluginShellMessages>
 
 export type PreviewMessage =
