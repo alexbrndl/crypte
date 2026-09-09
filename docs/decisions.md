@@ -18,7 +18,7 @@ _2026-09-09_
 
 **Why.** Neither had a consumer, and a contract with no consumer is what section 6.5 already refuses for the plugin surface: it says that surface is stable only once `controls` and `a11y` have used it. The same reasoning had not been applied one section earlier.
 
-The measurement that settled it: **`render` already carries `overrides`, and the preview already applies them.** `propsFor` merges `{ ...definition.props, ...own, ...overrides }`, so the capability exists. What `update-overrides` added on top was updating them **without remounting**, which matters only for preserving component state across an edit — an open dropdown, a focused field. Whether that merges or replaces, what a story switch does to it, and whether a reset is a message or an empty object are exactly the questions a real `controls` answers. Freezing them first means guessing.
+The measurement that settled it: **`render` already carries `overrides`, and the preview already applies them.** `propsOfStory`, in `packages/core/src/preview/index.ts`, merges `{ ...definition.props, ...own, ...overrides }`, so the capability exists. What `update-overrides` added on top was updating them **without remounting**, which matters only for preserving component state across an edit — an open dropdown, a focused field. Whether that merges or replaces, what a story switch does to it, and whether a reset is a message or an empty object are exactly the questions a real `controls` answers. Freezing them first means guessing.
 
 `set-globals` had less: no consumer, no equivalent anywhere, and no case that showed its shape.
 

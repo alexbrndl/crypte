@@ -635,7 +635,7 @@ type ShellMessage =
   | MessagesOf<PluginShellMessages>
 ```
 
-`render` mounts the entry that was asked for, with the shell's overrides applied on top of the story's props by 3.2's merge. A preview drops any message it does not know.
+`render` mounts the entry that was asked for, with the shell's overrides applied on top of the story's props by 2.3's merge, shallow and prop by prop. A preview drops any message it does not know.
 
 **`update-overrides` and `set-globals` were here and are now in reserve**, section 7. Neither had a consumer, and `render` already carries overrides: what the first added was updating them *without remounting*, which is a question only a real `controls` can settle.
 
@@ -814,7 +814,7 @@ The field carrying both already exists, so neither is a manifest break. The reas
 
 **Held in reserve, to add when a real case asks for it:**
 
-- `update-overrides`, which would change a mounted entry's props without remounting it. `render` already carries overrides, so the capability is there and only preserving component state across an edit is missing. What merging, resetting and story-switching should do is exactly what a real `controls` settles, and 6.5 already refuses to freeze that contract before it exists.
+- `update-overrides`, which would change a mounted entry's props without remounting it. `render` already carries overrides, so the capability is there and only preserving component state across an edit is missing. What merging, resetting and story-switching should do is exactly what a real `controls` settles, and 6.5 already refuses to freeze that contract before it exists. Tracked in DCJ-214.
 - `set-globals`, which would apply a theme or a locale to the preview. No consumer, and no shape a case has demonstrated.
 - A `render` escape hatch on a story, to make a controlled component truly interactive. Left out of v1 for lack of a demonstrated case, see 2.7. Adding it later breaks nothing; shipping it now would create a use we could not take back.
 - Documenting pass-through DOM attributes, see 3.4.
