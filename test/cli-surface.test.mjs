@@ -54,8 +54,9 @@ test('llms.txt sépare ce qui est construit de ce qui est prévu', () => {
   expect(commandes()).toEqual([phrase[1]])
 })
 
-// Sans ce cas, les trois précédents passeraient à l'identique le jour où le
-// `switch` cesse d'être la source : ils liraient une liste vide des deux côtés.
+// Une lecture vide lève déjà dans `commandes()`. Ce que ce cas attrape en plus
+// est une lecture **fausse mais non vide** : le jour où le `switch` cesse d'être
+// la source, les trois précédents compareraient deux fois la même erreur.
 test('cli.ts porte bien la commande qu’on croit', () => {
   expect(commandes()).toEqual(['dev'])
 })
@@ -89,8 +90,9 @@ test('le guide cite la ligne d’aide que le CLI produit', () => {
 
   expect(version, 'PROTOCOL_VERSION introuvable').not.toBeNull()
 
-  // Reconstruite depuis les deux sources plutôt que réécrite ici : le gabarit
-  // vient de `cli.ts`, la version du protocole, et les commandes du switch.
+  // Reconstruite plutôt que réécrite ici : le gabarit et son littéral de
+  // commandes viennent de `cli.ts`, la version du protocole de `channel.ts`. Ce
+  // littéral rejoint le `switch` par le premier cas, pas par celui-ci.
   const gabarit = /log\(`(crypte — protocol v\$\{PROTOCOL_VERSION\}, commands: [^`]+)`\)/.exec(CLI)
 
   expect(gabarit, 'la ligne d’aide a changé de forme').not.toBeNull()
