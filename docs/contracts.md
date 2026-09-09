@@ -488,6 +488,10 @@ Every entry carries a `type`. **Two values are implemented: `"story"` and `"toke
 
 **`MANIFEST_VERSION` does not move when a nature is added.** The reserved `type` field is precisely what that reserve was for, and nothing required moved on `StoryEntry`, so a reader that only knows stories skips what it does not recognise instead of failing. The rule that does force a bump is adding a required field once a version that writes manifests is published.
 
+**That rule is prose, and no test holds it.** It cannot be held yet, and the reason is the rule's own condition: nothing is published, so no manifest written by another version exists to compare against, and adding a required field is free today. A test against a baseline committed here would fire on changes the rule allows.
+
+What makes it guardable is the first publication. From then on the published shape is the baseline, and a case can require that a required field appearing without `MANIFEST_VERSION` moving is a failure. Until then this paragraph is the guard, and it is a weak one.
+
 `props` and `source` are read from the story file, not declared in it. `props` lists the names the story passes to the component, from the shared block and its own, sorted, with no value attached: a prop set to a function is still a prop the story exercises, and prop coverage counts it. `source` rebuilds the call from the text the user wrote, so an expression the CLI cannot evaluate still reads the way they typed it.
 
 **A prop spread with `...` is in neither field**, and neither is a key computed at runtime. Their names cannot be read without running the file, and guessing them would put wrong names in a coverage figure.
@@ -572,6 +576,18 @@ function storyId(path: readonly string[], name: string): string
 **The result is not ASCII.** Non-latin scripts are kept, otherwise two distinct Russian or Japanese stories would collapse onto one identifier: `storyId(['Button'], 'Активная')` gives `button--активная`. Whoever puts it in a URL must encode it, and whoever makes it a baseline filename must check that the file system accepts it. The result is composed in NFC, so two identifiers that look the same are the same byte for byte.
 
 **This is stable data, not an implementation detail.** It is a URL, a baseline key for `visual-tests`, and the anchor of a comment. Renaming a story changes its `id` and breaks its baseline. That is accepted, and it must be documented to the user rather than worked around.
+
+**`id` is unique across the whole manifest, not per nature.** Since 4.2 carries more than one kind of entry, a story and a `tokens` entry share one namespace, and two entries never hold the same `id` whatever their `type`. One namespace rather than one per nature, because the `id` is a URL and an anchor: a reader that has to know the nature before it can resolve one has to be told the nature first, which no URL carries.
+
+Who holds it, in the order collisions happen:
+
+| Collision | What happens |
+| --- | --- |
+| two stories | the build refuses, naming both files. A story comes from the author's own file, so neither can be made to give way |
+| a contribution on a story's `id` | the contribution is refused with `` `id` is already taken ``, named by plugin. The story wins: it comes from the author, the entry does not |
+| a contribution on another contribution's `id` | the same refusal. First contributed, first kept |
+
+Nothing is decided in silence, which is 6.3's rule applied here.
 
 ### 4.4 Fields carried without reading them
 

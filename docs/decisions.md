@@ -10,6 +10,38 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 ---
 
+## `id` is one namespace for the whole manifest
+
+_2026-09-09_
+
+**Decided.** One namespace, not one per nature. A story and a `tokens` entry can never hold the same `id`, and 4.3 now says so with the table of who gives way in each of the three collisions: two stories make the build refuse, a contribution on a taken `id` is refused and named by plugin, whichever side took it first.
+
+**Why.** It is the state of fact, and the code already enforces all three cases — `assertDistinct` for stories, the `taken` set for contributions — with a test each. What was missing is that the rule lived in two functions and in no document, so a reader had to infer it from an implementation.
+
+One namespace rather than one per nature because **the `id` is a URL and an anchor**. A reader that has to know an entry's nature before it can resolve its `id` has to be told that nature first, and neither a URL nor a comment anchor carries it. Per-nature namespaces would buy room we have no use for, at the price of making every consumer nature-aware.
+
+**Rejected.** Namespacing by nature, for the reason above. And renaming `storyId` now that it derives identifiers for entries that are not stories: the function normalises a path and a name, which is what every nature needs, and the name is in the published protocol. It moves when something forces it, not for tidiness.
+
+**What would reopen it.** A nature whose identifiers come from somewhere the author does not control — a design tool's own ids, say — where a collision with a story would be nobody's fault and giving way would lose data. Then the two namespaces stop being a convenience and become a correctness question.
+
+---
+
+## The manifest's version rule is written and not guarded, and that is said
+
+_2026-09-09_
+
+**Decided.** Section 4 keeps the rule — adding a required field forces `MANIFEST_VERSION` up once a version that writes manifests is published — and now also says **no test holds it**, why, and what would make it holdable.
+
+**Why.** The rule's own condition is what blocks the guard. Nothing is published, so no manifest written by another version exists to compare against, and adding a required field is free today. A case comparing the current shape to a baseline committed in this repository would fire on exactly the changes the rule allows, which is a guard that cries on correct work.
+
+The first publication is what turns it on: from then the published shape is the baseline, and a case can require that a required field appearing without the version moving is a failure.
+
+**Rejected.** Writing the guard now against a repository baseline, which would be wrong for as long as nothing is published. And leaving the rule as prose without saying it is unguarded, which reads as if something checked it — the failure this whole clean-up exists to end.
+
+**What would reopen it.** The first publication to npm. It is the condition, so it is also the trigger.
+
+---
+
 ## `update-overrides` and `set-globals` go back into reserve
 
 _2026-09-09_
