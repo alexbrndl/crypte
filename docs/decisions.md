@@ -10,6 +10,26 @@ An entry is never deleted. A decision that no longer holds gets a new entry that
 
 ---
 
+## `update-overrides` and `set-globals` go back into reserve
+
+_2026-09-09_
+
+**Decided.** Both leave the normative section 5.2 of `docs/contracts.md` and the `ShellMessage` union, and enter section 7's reserve with what would bring them back. `ShellMessage` now carries `render` plus whatever a plugin declares. A preview drops anything else, and a type case holds the refusal so that putting either back cannot pass unnoticed.
+
+**Why.** Neither had a consumer, and a contract with no consumer is what section 6.5 already refuses for the plugin surface: it says that surface is stable only once `controls` and `a11y` have used it. The same reasoning had not been applied one section earlier.
+
+The measurement that settled it: **`render` already carries `overrides`, and the preview already applies them.** `propsOfStory`, in `packages/core/src/preview/index.ts`, merges `{ ...definition.props, ...own, ...overrides }`, so the capability exists. What `update-overrides` added on top was updating them **without remounting**, which matters only for preserving component state across an edit — an open dropdown, a focused field. Whether that merges or replaces, what a story switch does to it, and whether a reset is a message or an empty object are exactly the questions a real `controls` answers. Freezing them first means guessing.
+
+`set-globals` had less: no consumer, no equivalent anywhere, and no case that showed its shape.
+
+Nothing is published on npm, so removing them costs nothing today. After a publication it would be a break, which makes this the last cheap moment.
+
+**Rejected.** Implementing them now, on the argument that `controls` is the next lot of the plugin contract. That is writing the consumer's contract before the consumer, and `CLAUDE.md` says what it costs: a mechanism added as a precaution creates a use that cannot be taken back. Also rejected: leaving them declared and ignored with a comment, which is the state this issue exists to end — a public contract promising more than the code holds.
+
+**What would reopen it.** `controls` needing to change a prop without losing the component's state, which is the case neither `render` nor a remount covers. That case brings back `update-overrides` with the shape `controls` actually needs, rather than the one guessed here. For `set-globals`, a theme or locale switch in the shell that a plugin has to reach.
+
+---
+
 ## The catalogue is 23 packages, sorted by what an agent cannot replicate
 
 _2026-09-07_

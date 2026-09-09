@@ -8,11 +8,18 @@ describe('messages du shell', () => {
   it('accepte les formes de la spécification', () => {
     const messages = [
       { type: 'render', id: 'checkout/ordersummary--par-defaut', overrides: {} },
-      { type: 'update-overrides', id: 'badge--par-defaut', overrides: { label: 'Nouveau' } },
-      { type: 'set-globals', globals: { theme: 'dark' } },
     ] satisfies ShellMessage[]
 
-    expect(messages).toHaveLength(3)
+    expect(messages).toHaveLength(1)
+  })
+
+  // La moitié qui compte : le type refuse ce que la section 5.2 ne porte plus.
+  // Sans ce cas, remettre `update-overrides` dans l'union passerait inaperçu, et
+  // c'est la réserve de la section 7 qui se viderait en silence. `Extract` rend
+  // `never` sur un membre que l'union n'a pas.
+  it('refuse les deux messages passés en réserve', () => {
+    expectTypeOf<Extract<ShellMessage, { type: 'update-overrides' }>>().toEqualTypeOf<never>()
+    expectTypeOf<Extract<ShellMessage, { type: 'set-globals' }>>().toEqualTypeOf<never>()
   })
 
   // Déclaré par `test/plugin-simulation.d.ts`, comme le ferait un plugin installé.

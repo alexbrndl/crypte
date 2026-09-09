@@ -136,10 +136,10 @@ describe('ce qui est ignoré', () => {
     expect([rendus, recus]).toEqual([[], []])
   })
 
-  // `update-overrides` et `set-globals` sont déclarés par la section 5.2 de la
-  // spécification et n'ont pas encore d'effet ici. Ce cas fixe l'état d'
-  // aujourd'hui, pas une règle.
-  it('les deux messages du shell que la preview n’implémente pas encore', () => {
+  // Passés en réserve par la v1.6 du contrat, section 7 : ils n'avaient aucun
+  // consommateur, et `render` porte déjà les overrides. Ce cas n'est plus un
+  // état fixé mais une règle, la même que pour n'importe quel type inconnu.
+  it('laisse tomber les deux messages passés en réserve', () => {
     const { rendus } = monte()
 
     envoie({ type: 'update-overrides', id: RENDER.id, overrides: { label: 'Autre' } })
