@@ -586,6 +586,10 @@ Un par un, et non un dossier récursif : un composant vit n'importe où, et l'an
 
 Un fichier absent est sauté : la section 8 des contrats dit qu'un composant atteint par un plugin garde l'identifiant que la story a écrit, donc irrésolu est ordinaire ici.
 
+**Un surveillant de fichier se rouvre sur `rename`.** `fs.watch` sur un fichier suit l'inode, donc une sauvegarde atomique — temporaire puis `rename` par-dessus, ce que font vim, la « safe write » de JetBrains et `files.atomicSave` de VS Code — le tue. Mesuré : la sauvegarde suivante est manquée, et toutes celles d'après. Sans réouverture, le composant est muet pour la durée du serveur et seul un redémarrage répare.
+
+**Rien ne se rouvre après l'arrêt.** Un drapeau ferme `soon` et `rebuild`, et l'arrêt annule la temporisation. Sans lui, une temporisation armée dans les vingt millisecondes qui précèdent la fermeture reconstruisait après elle, et la resynchronisation **rouvrait** alors un surveillant par composant sur une carte vidée, sans propriétaire. C'est la fuite que `unwatch` existe pour fermer, et le jeu de composants est ce qui la rendait possible.
+
 *Pourquoi `Started` rend le jeu surveillé.* Deux propriétés du système de fichiers font passer un cas qui croit éprouver le suivi. Sur macOS, `fs.watch` sur un **fichier** est granulaire au dossier, donc surveiller `src/components/Badge.jsx` couvre incidemment ses voisins. Et une sauvegarde produit des événements tardifs, dont une reconstruction relit le composant pour une autre raison. Les deux ont été mesurés en rendant vert un cas dont le mécanisme était retiré. Le jeu se lit donc directement, et trois mutations le font rougir : amorçage retiré, resynchronisation retirée, relâchement retiré.
 
 *Ce qui casse si on l'enlève :* la table de props ment sans aucun signal, ce qui est le mode de panne que `CLAUDE.md` nomme, le symptôme sans rapport avec sa cause.

@@ -3,6 +3,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -195,22 +196,6 @@ describe('le catalogue pendant que le serveur tourne', () => {
     await expect.poll(projet.surveilles).not.toContain(badge)
   })
 
-  // Deux stories sur le même composant ne font qu'un surveillant. Sans le
-  // dédoublonnage, `fs.watch` est appelé deux fois sur le même fichier et chaque
-  // sauvegarde compte double, ce que le regroupement masque au lieu de corriger.
-  test('ne surveille qu’une fois un composant que deux stories citent', async ({ projet }) => {
-    writeFileSync(
-      join(projet.root, 'stories', 'Encore.js'),
-      "import { Badge } from '@/components/Badge'\n\nexport default defineStories(Badge)\n",
-    )
-
-    await expect.poll(projet.noms).toContain('encore--default')
-
-    const badge = join(projet.root, 'src', 'components', 'Badge.jsx')
-
-    expect(projet.surveilles().filter((one) => one === badge)).toEqual([badge])
-  })
-
   // Un composant que le producteur n'a pas su résoudre : la section 8 dit qu'il
   // garde l'identifiant que la story a écrit, donc le chemin ne désigne aucun
   // fichier. `fs.watch` lève dessus, et une levée ici arrêterait la
@@ -243,10 +228,47 @@ describe('le catalogue pendant que le serveur tourne', () => {
       join(projet.root, 'src', 'components', 'checkout', 'OrderSummary.jsx'),
     ])
 
+    // Ce `toEqual` tient aussi le dédoublonnage : `OrderSummary` porte trois
+    // stories, donc sans le `Set` la liste en rendrait quatre.
+    //
     // `entry.jsx` et `src/assets.js` sont dans le projet et cités par aucune
     // story : les surveiller ferait relire l'arbre pour rien.
     expect(cités).not.toContain(join(projet.root, 'entry.jsx'))
     expect(cités).not.toContain(join(projet.root, 'src', 'assets.js'))
+  })
+
+  // Une sauvegarde atomique, temporaire puis `rename` par-dessus, est ce que
+  // font par défaut vim, la « safe write » de JetBrains et `files.atomicSave` de
+  // VS Code. `fs.watch` sur un fichier suit l'inode : sans réouverture, le
+  // composant devient muet pour la durée du serveur, et seul un redémarrage
+  // répare. Mesuré hors dépôt : la sauvegarde suivant l'atomique est manquée,
+  // et toutes celles d'après.
+  //
+  // **Ce cas ne discrimine que là où `fs.watch` est par inode**, donc en
+  // intégration continue, qui tourne sur `ubuntu-latest`. Sur macOS il reste
+  // vert même sans la réouverture : mesuré, c'est le surveillant d'un **autre**
+  // composant qui capte l'écriture, les surveillants de fichier s'y déclenchant
+  // entre voisins. Le voir passer en local ne dit donc rien, et ce n'est pas une
+  // raison de le simplifier.
+  test('survit à une sauvegarde atomique du composant', async ({ projet }) => {
+    const composant = join(projet.root, 'src', 'components', 'Badge.jsx')
+    const temporaire = join(projet.root, 'src', 'components', '.Badge.jsx.tmp')
+
+    writeFileSync(temporaire, 'export const Badge = () => null\n')
+    renameSync(temporaire, composant)
+
+    // Le surveillant doit être **rouvert**, pas seulement avoir vu le `rename` :
+    // c'est l'édition d'après qui le dit.
+    await expect.poll(projet.surveilles).toContain(composant)
+    await new Promise((resolve) => setTimeout(resolve, 300))
+
+    writeFileSync(composant, "export const Badge = ({ apres = 'oui' }) => null\n")
+
+    await expect
+      .poll(
+        async () => (await projet.entrees()).find((one) => one.id === 'badge--default')?.details,
+      )
+      .toHaveProperty('apres')
   })
 
   // Vite ne surveille que les fichiers de son graphe de modules : la

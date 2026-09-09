@@ -2,4 +2,4 @@
 '@crypte/cli': patch
 ---
 
-Editing a component now refreshes the props Crypte read from it, without touching the story file.
+`crypte dev` now watches the component files a story cites, so the manifest it serves carries the props they declare as you edit them. It used to take a change to the story file.

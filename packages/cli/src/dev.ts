@@ -153,7 +153,16 @@ function watchStories(
   // One save fires several events, and a component watched here may also sit
   // under the stories folder: rebuilding on each would read the tree three
   // times for nothing, and twice for such a file.
+  // Une fois arrêté, plus rien : sans ce drapeau, une temporisation armée dans
+  // les vingt millisecondes qui précèdent la fermeture reconstruisait après
+  // elle, et `syncComponents` **rouvrait** alors un surveillant par composant
+  // sur une carte vidée, sans propriétaire. C'est la fuite que `unwatch` existe
+  // pour fermer, et elle était impossible avant que ce jeu existe.
+  let stopped = false
+
   const soon = (): void => {
+    if (stopped) return
+
     clearTimeout(pending)
     pending = setTimeout(rebuild, 20)
   }
@@ -172,6 +181,8 @@ function watchStories(
   let failed: string | undefined
 
   const rebuild = (): void => {
+    if (stopped) return
+
     let next: Catalogue
     try {
       next = buildCatalogue(project, held.catalogue)
@@ -236,6 +247,41 @@ function watchStories(
   // reopening the whole set at every keystroke.
   const components = new Map<string, FSWatcher>()
 
+  // `fs.watch` on a **file** follows the inode, not the path. An editor that
+  // saves atomically, writing a temporary and renaming it over, therefore kills
+  // the watcher: measured, the save after an atomic one is missed and every one
+  // after it. JetBrains' safe write, vim's default and VS Code's `files.atomicSave`
+  // all do this, so the component would go silent for the life of the server.
+  // Reopened on the path, which is what the event announces.
+  const watchComponent = (file: string): FSWatcher | undefined => {
+    try {
+      return watch(file, (type) => {
+        if (type === 'rename') reopen(file)
+
+        soon()
+      })
+    } catch (error) {
+      // A file that is not there is ordinary: section 8 says a component reached
+      // through a plugin keeps the identifier the story wrote. Anything else is
+      // not, and a watcher missing in silence is the failure this lot closes.
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        log(`${file} is not watched, so its props will not refresh: ${reason(error)}`)
+      }
+
+      return undefined
+    }
+  }
+
+  // Closed and reopened on the same path. Called from the watcher's own
+  // callback, which Node allows.
+  const reopen = (file: string): void => {
+    components.get(file)?.close()
+    components.delete(file)
+
+    const one = watchComponent(file)
+    if (one) components.set(file, one)
+  }
+
   const syncComponents = (catalogue: Catalogue): void => {
     const wanted = new Set(componentFiles(project.root, catalogue))
 
@@ -248,14 +294,8 @@ function watchStories(
     for (const file of wanted) {
       if (components.has(file)) continue
 
-      // `watch` throws on a file that is not there, and section 8 says a
-      // component reached through a plugin keeps the identifier the story
-      // wrote: unresolvable is ordinary here, not an error.
-      try {
-        components.set(file, watch(file, soon))
-      } catch {
-        continue
-      }
+      const one = watchComponent(file)
+      if (one) components.set(file, one)
     }
   }
 
@@ -264,18 +304,21 @@ function watchStories(
   // is the whole defect.
   syncComponents(held.catalogue)
 
-  const closeComponents = (): void => {
+  const stop = (): void => {
+    stopped = true
+    clearTimeout(pending)
+
     for (const one of components.values()) one.close()
     components.clear()
   }
 
   server.httpServer?.on('close', () => {
     watcher.close()
-    closeComponents()
+    stop()
   })
 
   return {
-    closers: [watcher, { close: closeComponents }],
+    closers: [watcher, { close: stop }],
     watched: () => [...components.keys()].sort(),
   }
 }
