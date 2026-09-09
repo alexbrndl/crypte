@@ -280,7 +280,17 @@ Retirer les imports laissait cependant passer n'importe quel nom : le guide a mo
 
 **Ce qui casse si on l'enlève.** Le guide se met à décrire un produit qui a changé, et personne ne s'en aperçoit avant qu'un utilisateur ne suive une page fausse.
 
-*Ce qu'il ne couvre pas :* les sections « pas encore ». Elles ne décrivent rien qui tourne, donc il n'y a rien à exécuter, et c'est leur mise à jour qui reste une affaire de discipline.
+**Ce que le guide affirme au présent est tenu ailleurs.** `test/cli-surface.test.mjs` prend `packages/cli/src/cli.ts` pour source : les étiquettes de son `switch` sont la surface. Trois cas les comparent à la ligne d'aide du fichier, à la phrase du guide et à celle de `docs/site/llms.txt`. Un quatrième vérifie que la lecture rend bien `['dev']` : la lecture vide lève déjà dans `commandes()`, donc ce qu'il attrape en plus est une lecture fausse mais non vide.
+
+Deux cas ne passent pas par le `switch`. L'un rejoue la sortie que le guide cite mot pour mot, reconstruite depuis le gabarit de la ligne d'aide et `PROTOCOL_VERSION` ; l'autre compare entre elles les deux listes de commandes prévues de `llms.txt`. Six cas en tout.
+
+*Pourquoi ailleurs plutôt qu'ici :* le contrôle porte sur deux documents, dont un qui n'est pas le guide, et sur un fichier du CLI. Le mettre dans `guide.test.ts` en ferait le juge d'un fichier qu'il ne lit pas.
+
+*Ce qui casse si on l'enlève :* le compte des commandes redevient une affaire de mémoire, et il a déjà été faux deux fois de suite, cinq puis quatre, sur les deux documents destinés à l'extérieur. La correction précédente avait baissé le compte de cinq à quatre sans le mesurer.
+
+*Ce qu'il ne couvre pas :* la **justesse** de la liste des commandes prévues. Elle ne se lit dans aucun code, donc rien ne peut dire si elle est bonne. Seule sa cohérence interne est tenue, les deux endroits de `llms.txt` devant en donner la même, là où ils coïncidaient jusqu'ici par hasard.
+
+Cette section disait auparavant que les paragraphes « pas encore » du guide n'avaient rien à exécuter et que leur mise à jour restait « une affaire de discipline ». Elle a manqué : trois d'entre eux annonçaient un produit qui tournait depuis deux lots.
 
 ---
 

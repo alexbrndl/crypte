@@ -2,7 +2,7 @@
 
 How to set Crypte up on a project.
 
-> **Nothing runs yet.** `crypte dev` and `crypte check` are not built, and no package is published. This page describes what the CLI already reads, so that the configuration you write now is the one it will use. Section 8 of [`contracts.md`](contracts.md) lists what exists.
+> **`crypte dev` runs; nothing is published yet.** `crypte check` is not built, and no package is on npm, so you install from a clone. Section 8 of [`contracts.md`](contracts.md) lists what exists.
 >
 > Every example on this page is run by a test. If one of them stopped being true, that test would fail.
 
@@ -102,8 +102,35 @@ Aliases do not apply inside style sheets. An `@import '@/vars.css'` does not res
 
 ## Write a story
 
-Not yet. The story format is settled, in section 2 of [`contracts.md`](contracts.md), but `defineStories` ships with an adapter and no adapter exports it today.
+One file per component, under the `stories` root you declared. `@crypte/react` exports `defineStories`, and section 2 of [`contracts.md`](contracts.md) has the full format.
+
+<!-- checked: story -->
+
+```ts
+import { defineStories } from '@crypte/react'
+import { Badge } from '@/components/Badge'
+
+export default defineStories(Badge, {
+  props: { label: 'New' },
+  stories: {
+    Default: {},
+    Warning: { tone: 'warning' },
+  },
+})
+```
+
+`props` is what every story passes, and each story adds to it or overrides it.
 
 ## Run it
 
-Not yet. `crypte dev` is what will start the server, and it is not built.
+```
+crypte dev
+```
+
+It reads your configuration, resolves your aliases, discovers your stories, writes `.crypte/manifest.json` and its fingerprint, and serves the workshop. A story that throws shows its error instead of an empty frame, and it watches your files while it runs.
+
+`crypte dev` is the only command today. Its own help line says so:
+
+```
+crypte — protocol v1, commands: dev
+```

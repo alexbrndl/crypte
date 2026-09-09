@@ -2,19 +2,19 @@
 
 > Crypte is an open-source component workshop for design systems. It renders components, design tokens and guideline pages straight from a repository, works with more than one framework, and never reads your Vite config: whatever it needs, you declare.
 
-Crypte is driven by a CLI. Four commands are the whole surface: `init`, `dev`, `build`, `check`. Two more, `migrate` and `serve`, are planned and not built.
+Crypte is driven by a CLI. `crypte dev` is the whole surface today. `init`, `check`, `build`, `migrate` and `serve` are planned and not built.
 
-`crypte build` writes a manifest at `.crypte/manifest.json` describing every entry in the catalogue: the file each component lives in, the props each story exercises, and the call code rebuilt from the story file, with path aliases resolved into real paths. The manifest is the interface: the workshop shell renders from it, CI diffs a committed fingerprint of it, and a local MCP server hands it to agents.
+`crypte dev` writes a manifest at `.crypte/manifest.json` describing every entry in the catalogue: the file each component lives in, the props each story exercises, and the call code rebuilt from the story file, with path aliases resolved into real paths. The manifest is the interface: the workshop shell renders from it today. Diffing the committed fingerprint in CI is `crypte check`, and the MCP server that hands the manifest to agents is planned; neither is built.
 
 Status: in progress, nothing published to npm yet. The contracts and the decisions behind them are committed to the public repository before the code that implements them.
 
 ## Core
 
-- [Getting started](https://crypte.dev/docs/): install, `crypte init`, `crypte dev`
+- [Getting started](https://crypte.dev/docs/): install and `crypte dev`; `crypte init` planned
 - [Story format](https://crypte.dev/docs/story-format/): `defineStories`, shared props, per-story overrides, `details` for what inference cannot find
 - [Configuration](https://crypte.dev/docs/config/): `crypte.config.ts`, two required keys
 - [Contracts](https://crypte.dev/docs/contracts/): manifest entry, plugin declaration, preview bridge, node hooks
-- [Commands](https://crypte.dev/docs/cli/): `init`, `dev`, `build`, `check`
+- [Commands](https://crypte.dev/docs/cli/): `dev` today; `init`, `check`, `build`, `migrate` and `serve` planned
 
 ## Concepts
 
