@@ -58,17 +58,20 @@ function exportsOf(pkg: string): string[] {
     (match) => match[1] as string,
   )
 
-  // `export { a, type B } from './x'`. Le `type ` est retiré : il dit comment le
+  // Les deux formes à accolades : `export { a, type B } from './x'`, et
+  // `export type { C }` qui réexporte sans source. Les deux existent dans les
+  // entrées du dépôt, et n'en lire qu'une laisserait la moitié de l'angle mort.
+  //
+  // Le `type ` est retiré, devant l'accolade comme dedans : il dit comment le
   // nom voyage, pas quel nom c'est, et le guide l'importe sans lui.
-  const forwarded = [...source.matchAll(/^export \{([^}]+)\} from '[^']+'/gm)].flatMap(
-    ([, names = '']) =>
-      names
-        .split(',')
-        .map((one) => one.trim().replace(/^type\s+/, ''))
-        .filter((one) => one !== ''),
+  const braced = [...source.matchAll(/^export (?:type )?\{([^}]+)\}/gm)].flatMap(([, names = '']) =>
+    names
+      .split(',')
+      .map((one) => one.trim().replace(/^type\s+/, ''))
+      .filter((one) => one !== ''),
   )
 
-  return [...new Set([...declared, ...forwarded])]
+  return [...new Set([...declared, ...braced])]
 }
 
 // Si le paquet a un export par défaut : le guide en montre un depuis que
@@ -190,6 +193,24 @@ describe('les exemples du guide', () => {
     expect(code).toMatch(/export default defineStories\(\w+, \{/)
     expect(code).toContain('props: {')
     expect(code).toContain('stories: {')
+  })
+
+  // Le lecteur d'exports est lui-même un garde, donc il a son cas. Sans lui,
+  // `exportsOf` a rendu pendant tout un tour la moitié de la surface de
+  // `@crypte/react` : les déclarations, et rien de ce qu'il réexporte. Un
+  // exemple du guide échouait alors en annonçant que le paquet n'exporte pas un
+  // nom qu'il exporte.
+  it('lit les trois formes d’export d’un paquet', () => {
+    const surface = exportsOf('@crypte/react')
+
+    expect(surface).toContain('ADAPTER_NAME') // déclaré
+    expect(surface).toContain('defineStories') // réexporté avec source
+    expect(surface).toContain('PreviewWrapper') // réexporté sans source
+    expect(surface).toContain('PropsOf') // réexporté, écrit `type X` dans l'accolade
+
+    // Et il ne rend pas le mot-clé pour un nom.
+    expect(surface).not.toContain('type')
+    expect(surface).not.toContain('')
   })
 
   // Le guide n'importe aujourd'hui que des paquets du dépôt. Le jour où il
