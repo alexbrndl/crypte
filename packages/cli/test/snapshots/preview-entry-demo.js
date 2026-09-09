@@ -3,9 +3,8 @@ import crypte from '@crypte/react'
 import { Panel } from "/src/components/Frame"
 import "<racine>/apps/demo/src/styles.css"
 
-const __crypte_modules = {
-
-}
+const __crypte_modules = {}
+const __crypte_broken = {}
 const __crypte_manifest = await fetch("/@crypte/manifest.json").then((answer) => answer.json())
 
 const __crypte_adapter = crypte()
@@ -27,7 +26,14 @@ function __crypte_render(id, overrides) {
   const entry = __crypte_byId.get(id)
   if (!entry) throw new Error(`unknown story: ${id}`)
 
-  const module = __crypte_modules[`/${entry.storyFile}`]
+  const __crypte_path = `/${entry.storyFile}`
+
+  // Thrown here rather than swallowed: the channel turns it into an `error`
+  // carrying this story's id, which is what names the file at fault.
+  const __crypte_failure = __crypte_broken[__crypte_path]
+  if (__crypte_failure) throw __crypte_failure
+
+  const module = __crypte_modules[__crypte_path]
   if (!module) throw new Error(`no module for ${entry.storyFile}`)
 
   // The module holds the component and its definition, never a component

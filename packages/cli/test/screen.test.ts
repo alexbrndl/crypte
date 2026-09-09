@@ -156,6 +156,45 @@ describe('l’écran', () => {
     await expect.poll(ecran.vu).toBe('Vérification en cours')
   })
 
+  // Le jumeau du cas ci-dessous, à l'**import** plutôt qu'au rendu. La
+  // découverte lit les fichiers sans les exécuter, donc un fichier qui lève à
+  // l'import entre au catalogue. Importé statiquement, il emportait l'entrée
+  // entière : cadre vide, aucun `ready`, et le shell muet sur les autres stories
+  // qui, elles, rendent très bien. Mesuré dans un navigateur, `DCJ-279`.
+  test('nomme une story qui lève à l’import, et laisse les autres rendre', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+
+    writeFileSync(
+      join(ecran.root, 'stories', 'Cassee.tsx'),
+      [
+        "import { defineStories } from '@crypte/react'",
+        "import { Tag } from '@/components/Tag'",
+        '',
+        "throw new Error('cette story lève à l’import')",
+        '',
+        'export default defineStories(Tag, { stories: { Une: {} } })',
+        '',
+      ].join('\n'),
+    )
+
+    // Le fichier ajouté change l'arbre, donc le cadre se recharge. `exact`, sinon
+    // « Une » attrape « Avec une classe » par sous-chaîne : mesuré, le cas
+    // cliquait une story saine et vérifiait donc l'inverse de ce qu'il annonce.
+    const cassee = ecran.page.getByRole('button', { name: 'Une', exact: true })
+    await expect.poll(() => cassee.count()).toBe(1)
+
+    await cassee.click()
+
+    const alerte = ecran.page.getByRole('alert')
+    await expect.poll(() => alerte.isVisible()).toBe(true)
+    await expect.poll(() => alerte.textContent()).toContain('cette story lève à l’import')
+
+    // La moitié qui compte : les autres rendent toujours. Avant, aucune ne
+    // rendait, l'entrée n'ayant jamais fini de charger.
+    await ecran.page.getByRole('button', { name: 'Nue', exact: true }).click()
+    await expect.poll(ecran.vu).toBe('Étiquette')
+  })
+
   // Une story qui échoue laisse un cadre vide, et un cadre vide sans message
   // ressemble à un outil cassé. L'erreur remonte donc dans l'interface, pas
   // seulement dans une ligne d'état.

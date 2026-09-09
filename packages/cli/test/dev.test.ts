@@ -148,9 +148,46 @@ describe('l’entrée de la preview', () => {
       'stories/Gardee.tsx',
     ])
 
-    expect(source).toContain('import * as __crypte_story0 from "/stories/Gardee.tsx"')
+    expect(source).toContain('import("/stories/Gardee.tsx")')
     expect(source).not.toContain('import.meta.glob')
     expect(source).not.toContain('Ecartee')
+  })
+
+  // Un import statique fait tomber l'entrée entière sur un seul fichier qui lève,
+  // donc aucune story ne rend et le shell ne reçoit rien. Chaque fichier a donc
+  // sa promesse et son `catch`. Mesuré dans un navigateur, `DCJ-279`.
+  it('isole l’échec d’un fichier de story des autres', () => {
+    const source = previewEntry({ root: fixture, config: { stories: 'stories' } } as never, [
+      'stories/Gardee.tsx',
+      'stories/Autre.tsx',
+    ])
+
+    // Aucun import statique de story : c'est ce qui propageait l'échec.
+    expect(source).not.toMatch(/^import \* as __crypte_story/m)
+
+    // Un `catch` par fichier, qui retient l'erreur sous le chemin de ce fichier.
+    expect(source).toContain('__crypte_broken["/stories/Gardee.tsx"] = error')
+    expect(source).toContain('__crypte_broken["/stories/Autre.tsx"] = error')
+
+    // Et `render` la relance, pour que le canal la nomme avec l'identifiant.
+    expect(source).toContain('if (__crypte_failure) throw __crypte_failure')
+  })
+
+  // L'échec retenu au chargement doit s'oublier quand le fichier est réparé.
+  // Sans ça, la story reste cassée pour la vie de la page, avec une pile qui
+  // désigne une ligne disparue, et seul un rechargement complet en sort.
+  //
+  // Tenu ici, sur la source produite, et non dans un navigateur : le rejeu à
+  // chaud remet la dernière story demandée, qui est saine, donc l'alerte
+  // disparaît de toute façon et l'assertion d'écran passait sans le mécanisme.
+  // Mesuré. `DCJ-295` porte ce qui manque.
+  it('oublie l’échec d’un fichier que la mise à jour à chaud répare', () => {
+    const source = previewEntry({ root: fixture, config: { stories: 'stories' } } as never, [
+      'stories/Gardee.tsx',
+    ])
+
+    expect(source).toContain('__crypte_modules[__crypte_paths[index]] = module')
+    expect(source).toContain('delete __crypte_broken[__crypte_paths[index]]')
   })
 
   // Un nom de fichier est une donnée, pas du code : interpolé brut, une
@@ -160,7 +197,7 @@ describe('l’entrée de la preview', () => {
       String.raw`stories/L'"Ecart.tsx`,
     ])
 
-    expect(source).toContain(String.raw`import * as __crypte_story0 from "/stories/L'\"Ecart.tsx"`)
+    expect(source).toContain(String.raw`import("/stories/L'\"Ecart.tsx")`)
   })
 
   it('charge la feuille de style déclarée, et rien quand il n’y en a pas', () => {
