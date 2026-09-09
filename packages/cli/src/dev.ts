@@ -153,11 +153,11 @@ function watchStories(
   // One save fires several events, and a component watched here may also sit
   // under the stories folder: rebuilding on each would read the tree three
   // times for nothing, and twice for such a file.
-  // Une fois arrêté, plus rien : sans ce drapeau, une temporisation armée dans
-  // les vingt millisecondes qui précèdent la fermeture reconstruisait après
-  // elle, et `syncComponents` **rouvrait** alors un surveillant par composant
-  // sur une carte vidée, sans propriétaire. C'est la fuite que `unwatch` existe
-  // pour fermer, et elle était impossible avant que ce jeu existe.
+  // Once stopped, nothing. Without this flag, a timer armed in the twenty
+  // milliseconds before the close rebuilt after it, and `syncComponents` then
+  // **reopened** one watcher per component into a cleared map, owned by nobody.
+  // That is the leak `unwatch` exists to close, and it was impossible before
+  // this set existed.
   let stopped = false
 
   const soon = (): void => {
