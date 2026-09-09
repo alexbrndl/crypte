@@ -195,6 +195,43 @@ describe('le catalogue pendant que le serveur tourne', () => {
     await expect.poll(projet.surveilles).not.toContain(badge)
   })
 
+  // Deux stories sur le même composant ne font qu'un surveillant. Sans le
+  // dédoublonnage, `fs.watch` est appelé deux fois sur le même fichier et chaque
+  // sauvegarde compte double, ce que le regroupement masque au lieu de corriger.
+  test('ne surveille qu’une fois un composant que deux stories citent', async ({ projet }) => {
+    writeFileSync(
+      join(projet.root, 'stories', 'Encore.js'),
+      "import { Badge } from '@/components/Badge'\n\nexport default defineStories(Badge)\n",
+    )
+
+    await expect.poll(projet.noms).toContain('encore--default')
+
+    const badge = join(projet.root, 'src', 'components', 'Badge.jsx')
+
+    expect(projet.surveilles().filter((one) => one === badge)).toEqual([badge])
+  })
+
+  // Un composant que le producteur n'a pas su résoudre : la section 8 dit qu'il
+  // garde l'identifiant que la story a écrit, donc le chemin ne désigne aucun
+  // fichier. `fs.watch` lève dessus, et une levée ici arrêterait la
+  // reconstruction, donc le serveur, sur une story parfaitement ordinaire.
+  test('ne lève pas sur un composant que rien ne résout', async ({ projet }) => {
+    writeFileSync(
+      join(projet.root, 'stories', 'Fantome.js'),
+      "import { Fantome } from 'introuvable'\n\nexport default defineStories(Fantome)\n",
+    )
+
+    await expect.poll(projet.noms).toContain('fantome--default')
+
+    // Le catalogue le cite, et aucun surveillant ne le porte.
+    const cité = componentFiles(projet.root, projet.catalogue()).find((one) =>
+      one.includes('introuvable'),
+    )
+
+    expect(cité, 'le catalogue ne cite pas le composant irrésolu').toBeDefined()
+    expect(projet.surveilles()).not.toContain(cité)
+  })
+
   // Le piège de la surveillance : la prendre trop large reconstruit le catalogue
   // à chaque frappe dans n'importe quel fichier du projet. Ce cas tient l'autre
   // moitié du contrat, ce qui n'est **pas** surveillé.
