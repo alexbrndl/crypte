@@ -46,13 +46,29 @@ function entryOf(pkg: string): string {
   return join(here, '..', '..', name, 'src', name === 'cli' ? 'config.ts' : 'index.ts')
 }
 
-// Ce qu'un paquet du dépôt exporte vraiment, lu à la source.
+// Ce qu'un paquet du dépôt exporte vraiment, lu à la source : les déclarations
+// directes, et les réexports d'un autre fichier. Sans les seconds, le contrôle
+// annonçait lire la surface d'un paquet et n'en voyait qu'une moitié :
+// `@crypte/react` déclare son adaptateur et réexporte `defineStories`, donc un
+// exemple du guide qui montrait le nom le plus utile du paquet échouait.
 function exportsOf(pkg: string): string[] {
   const source = readFileSync(entryOf(pkg), 'utf8')
 
-  return [...source.matchAll(/^export (?:type |interface |const |function )(\w+)/gm)].map(
+  const declared = [...source.matchAll(/^export (?:type |interface |const |function )(\w+)/gm)].map(
     (match) => match[1] as string,
   )
+
+  // `export { a, type B } from './x'`. Le `type ` est retiré : il dit comment le
+  // nom voyage, pas quel nom c'est, et le guide l'importe sans lui.
+  const forwarded = [...source.matchAll(/^export \{([^}]+)\} from '[^']+'/gm)].flatMap(
+    ([, names = '']) =>
+      names
+        .split(',')
+        .map((one) => one.trim().replace(/^type\s+/, ''))
+        .filter((one) => one !== ''),
+  )
+
+  return [...new Set([...declared, ...forwarded])]
 }
 
 // Si le paquet a un export par défaut : le guide en montre un depuis que
@@ -82,7 +98,7 @@ describe('les exemples du guide', () => {
   it('sont tous rattachés à un cas', () => {
     const markers = [...guide.matchAll(/<!-- checked: (\w+) -->/g)].map((m) => m[1])
 
-    expect([...markers].sort()).toEqual(['aliases', 'config', 'tokens'])
+    expect([...markers].sort()).toEqual(['aliases', 'config', 'story', 'tokens'])
   })
 
   // `indexOf` rend -1 sur un marqueur absent, et la découpe ramenait alors le
@@ -150,6 +166,30 @@ describe('les exemples du guide', () => {
     // La forme que le guide promet, et le nom de l'option : `files`, pas `file`.
     expect(code).toContain("plugins: [tokens({ files: ['src/styles/tokens.css'] })]")
     expect(exportsOf('@crypte/tokens')).toContain('TokensOptions')
+  })
+
+  // L'exemple de story montrait « pas encore » alors que `@crypte/react`
+  // exporte `defineStories` depuis le lot 6. Ce cas tient le nom qu'il importe.
+  // Son second import est un chemin de projet, `@/components/Badge`, donc hors
+  // du dépôt et volontairement pas vérifié : c'est ce que le lecteur remplace.
+  it('montre une story dont l’adaptateur exporte le nom', () => {
+    const { language, code } = example('story')
+    expect(language).toBe('ts')
+
+    const nôtres = [...code.matchAll(/^import \{([^}]+)\} from '(@crypte\/[^']+)'/gm)]
+    expect(nôtres.length, 'aucun import d’un paquet du dépôt').toBe(1)
+
+    for (const [, names = '', pkg = ''] of nôtres) {
+      for (const name of names.split(',').map((one) => one.trim())) {
+        expect(exportsOf(pkg), `${pkg} n’exporte pas ${name}`).toContain(name)
+      }
+    }
+
+    // La forme que la section 2 décrit : un composant, des props partagées, et
+    // des stories qui les complètent.
+    expect(code).toMatch(/export default defineStories\(\w+, \{/)
+    expect(code).toContain('props: {')
+    expect(code).toContain('stories: {')
   })
 
   // Le guide n'importe aujourd'hui que des paquets du dépôt. Le jour où il
