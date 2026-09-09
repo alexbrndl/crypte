@@ -148,9 +148,29 @@ describe('l’entrée de la preview', () => {
       'stories/Gardee.tsx',
     ])
 
-    expect(source).toContain('import * as __crypte_story0 from "/stories/Gardee.tsx"')
+    expect(source).toContain('import("/stories/Gardee.tsx")')
     expect(source).not.toContain('import.meta.glob')
     expect(source).not.toContain('Ecartee')
+  })
+
+  // Un import statique fait tomber l'entrée entière sur un seul fichier qui lève,
+  // donc aucune story ne rend et le shell ne reçoit rien. Chaque fichier a donc
+  // sa promesse et son `catch`. Mesuré dans un navigateur, `DCJ-279`.
+  it('isole l’échec d’un fichier de story des autres', () => {
+    const source = previewEntry({ root: fixture, config: { stories: 'stories' } } as never, [
+      'stories/Gardee.tsx',
+      'stories/Autre.tsx',
+    ])
+
+    // Aucun import statique de story : c'est ce qui propageait l'échec.
+    expect(source).not.toMatch(/^import \* as __crypte_story/m)
+
+    // Un `catch` par fichier, qui retient l'erreur sous le chemin de ce fichier.
+    expect(source).toContain('__crypte_broken["/stories/Gardee.tsx"] = error')
+    expect(source).toContain('__crypte_broken["/stories/Autre.tsx"] = error')
+
+    // Et `render` la relance, pour que le canal la nomme avec l'identifiant.
+    expect(source).toContain('if (__crypte_failure) throw __crypte_failure')
   })
 
   // Un nom de fichier est une donnée, pas du code : interpolé brut, une
@@ -160,7 +180,7 @@ describe('l’entrée de la preview', () => {
       String.raw`stories/L'"Ecart.tsx`,
     ])
 
-    expect(source).toContain(String.raw`import * as __crypte_story0 from "/stories/L'\"Ecart.tsx"`)
+    expect(source).toContain(String.raw`import("/stories/L'\"Ecart.tsx")`)
   })
 
   it('charge la feuille de style déclarée, et rien quand il n’y en a pas', () => {

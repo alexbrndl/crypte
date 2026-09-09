@@ -566,6 +566,14 @@ Un module de story rend `{ component, definition }`, jamais un composant seul. M
 
 **Où retombe la sélection quand l'identifiant affiché disparaît.** L'identifiant vient du chemin et du nom, donc renommer une story le change. Le repli est le même rang dans le même fichier, ce qui, sur un renommage sur place, désigne la story renommée. Retomber sur la première story du fichier enverrait sur `Par défaut` quelqu'un qui renommait `Avertissement`. Fichier disparu, rien de sélectionné : proposer une story d'ailleurs enverrait sur un composant que personne n'a ouvert.
 
+**Une story se charge par sa propre promesse, pas par un `import` statique.** La découverte lit les fichiers sans les exécuter, donc un fichier qui lève à l'import entre au catalogue et n'est découvert qu'ici. Importé statiquement, ce seul fichier emportait l'entrée entière : cadre vide, aucun `ready`, et le shell muet alors que les autres stories rendaient parfaitement. Mesuré dans un navigateur.
+
+Chaque fichier a donc sa promesse et son rattrapage, et l'échec est retenu sous le chemin du fichier. `render` le relance, ce qui le fait sortir par le canal comme l'erreur **de cette story-là**, avec son identifiant : le shell la nomme au lieu de montrer un cadre mort.
+
+Le spécificateur reste un littéral, donc Vite garde chaque fichier dans son graphe de modules et `import.meta.hot.accept` continue de les nommer.
+
+*Ce qui casse si on l'enlève :* une story sur dix en fait perdre neuf, et rien ne dit laquelle. Deux mutations le montrent, retirer le rattrapage par fichier et retirer la relance dans `render`.
+
 **Le rejeu à chaud passe par le canal, jamais à côté.** `createPreviewChannel` retient ce que le shell a demandé en dernier et rend un `again()`. Dessiner depuis l'entrée générée court-circuitait le compte rendu : une édition qui fait lever le rendu jetait dans le callback de mise à jour, donc aucun `error` ne partait, le shell gardait l'ancienne sortie et son statut « rendu ». Et au retour, une édition qui répare remontait **dans une iframe masquée**, le panneau d'erreur restant ouvert jusqu'à un clic. Les sections 5.4 et 6 des contrats disent l'inverse des deux.
 
 *Ce que le rejeu ne couvre pas :* un composant. Fast Refresh de React en fait une frontière, donc la mise à jour s'y arrête et l'entrée n'est jamais rappelée. Le chemin chaud est celui des fichiers de story.

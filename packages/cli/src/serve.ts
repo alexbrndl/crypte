@@ -691,10 +691,21 @@ export function previewEntry(project: Project, files: string[] = []): string {
   // the entry down at load time: no `createPreviewChannel`, no `ready`, and a
   // shell waiting for a catalogue that never comes. Only the files that produced
   // an entry are imported.
-  const imports = files.map(
-    (file, index) => `import * as ${OWN}story${index} from ${JSON.stringify(`/${file}`)}`,
-  )
-  const held = files.map((file, index) => `  ${JSON.stringify(`/${file}`)}: ${OWN}story${index},`)
+  //
+  // And imported **one promise each**, not by a static `import`. A story file is
+  // read without being run, so one that throws at import is discovered here, and
+  // a static import makes that one file take the whole entry down: the frame
+  // stays empty, no `ready` leaves, and the shell says nothing. Caught per file,
+  // the failure travels with the story that owns it and the other stories render.
+  // Measured in a browser, `DCJ-279`.
+  //
+  // The specifier stays a literal, so Vite keeps each file in its module graph
+  // and `import.meta.hot.accept` below still names them.
+  const loads = files.map((file) => {
+    const path = JSON.stringify(`/${file}`)
+
+    return `  import(${path}).then((module) => { ${OWN}modules[${path}] = module }, (error) => { ${OWN}broken[${path}] = error }),`
+  })
 
   return [
     `import { createPreviewChannel as ${OWN}channelOf, propsOfStory as ${OWN}propsOf, wrapsOf as ${OWN}wrapsOf } from '@crypte/core/preview'`,
@@ -704,10 +715,13 @@ export function previewEntry(project: Project, files: string[] = []): string {
     // at all. Measured, and the demo misses it: its two names come from two
     // files.
     ...new Set([...adapter.imports, ...(wrap?.imports ?? [])]),
-    ...imports,
     ...(css ? [`import ${JSON.stringify(css)}`] : []),
     '',
-    `const ${OWN}modules = {\n${held.join('\n')}\n}`,
+    `const ${OWN}modules = {}`,
+    // What a story file threw at import, kept by path. Read by `render`, so the
+    // channel reports it as that story's error rather than as a dead frame.
+    `const ${OWN}broken = {}`,
+    ...(loads.length > 0 ? ['', `await Promise.all([`, ...loads, `])`] : []),
     `const ${OWN}manifest = await fetch(${JSON.stringify(MANIFEST_ROUTE)}).then((answer) => answer.json())`,
     '',
     `const ${OWN}adapter = ${adapter.expression}`,
@@ -732,7 +746,14 @@ export function previewEntry(project: Project, files: string[] = []): string {
     `  const entry = ${OWN}byId.get(id)`,
     '  if (!entry) throw new Error(`unknown story: ${id}`)',
     '',
-    `  const module = ${OWN}modules[\`/\${entry.storyFile}\`]`,
+    `  const ${OWN}path = \`/\${entry.storyFile}\``,
+    '',
+    '  // Thrown here rather than swallowed: the channel turns it into an `error`',
+    "  // carrying this story's id, which is what names the file at fault.",
+    `  const ${OWN}failure = ${OWN}broken[${OWN}path]`,
+    `  if (${OWN}failure) throw ${OWN}failure`,
+    '',
+    `  const module = ${OWN}modules[${OWN}path]`,
     '  if (!module) throw new Error(`no module for ${entry.storyFile}`)',
     '',
     '  // The module holds the component and its definition, never a component',
