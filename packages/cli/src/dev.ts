@@ -253,6 +253,10 @@ function watchStories(
   // after it. JetBrains' safe write, vim's default and VS Code's `files.atomicSave`
   // all do this, so the component would go silent for the life of the server.
   // Reopened on the path, which is what the event announces.
+  // The last reason each file could not be watched, so a cause that lasts is
+  // said once rather than at every rebuild.
+  const unwatchable = new Map<string, string>()
+
   const watchComponent = (file: string): FSWatcher | undefined => {
     try {
       return watch(file, (type) => {
@@ -265,7 +269,13 @@ function watchStories(
       // through a plugin keeps the identifier the story wrote. Anything else is
       // not, and a watcher missing in silence is the failure this lot closes.
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        log(`${file} is not watched, so its props will not refresh: ${reason(error)}`)
+        // Once, and again if the cause changes. `syncComponents` retries every
+        // file it does not hold at each rebuild, so without this the line
+        // repeats on every keystroke, once per unwatched component, and buries
+        // what follows. The same rule as `failed` and `said` above.
+        const line = `${file} is not watched, so its props will not refresh: ${reason(error)}`
+        if (line !== unwatchable.get(file)) log(line)
+        unwatchable.set(file, line)
       }
 
       return undefined
@@ -273,8 +283,12 @@ function watchStories(
   }
 
   // Closed and reopened on the same path. Called from the watcher's own
-  // callback, which Node allows.
+  // callback, which Node allows. Guarded like `soon` and `rebuild`: it is the
+  // third way a watcher opens, and an unguarded one puts an entry back into a
+  // map nobody holds any more, which is the leak the flag exists to close.
   const reopen = (file: string): void => {
+    if (stopped) return
+
     components.get(file)?.close()
     components.delete(file)
 
@@ -289,6 +303,7 @@ function watchStories(
       if (wanted.has(file)) continue
       one.close()
       components.delete(file)
+      unwatchable.delete(file)
     }
 
     for (const file of wanted) {

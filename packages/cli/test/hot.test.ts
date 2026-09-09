@@ -257,9 +257,13 @@ describe('le catalogue pendant que le serveur tourne', () => {
     writeFileSync(temporaire, 'export const Badge = () => null\n')
     renameSync(temporaire, composant)
 
-    // Le surveillant doit être **rouvert**, pas seulement avoir vu le `rename` :
-    // c'est l'édition d'après qui le dit.
-    await expect.poll(projet.surveilles).toContain(composant)
+    // Le surveillant doit être **rouvert**, pas seulement avoir vu le `rename`,
+    // et c'est l'édition d'après qui le dit : `surveilles()` ne distingue rien,
+    // la clé ne quittant la carte que le temps du `reopen`, qui est synchrone.
+    //
+    // Laisser d'abord retomber la reconstruction que le `rename` déclenche,
+    // sinon elle relit le composant et l'édition d'après ne mesure rien.
+    await expect.poll(async () => (await projet.entrees()).length).toBeGreaterThan(0)
     await new Promise((resolve) => setTimeout(resolve, 300))
 
     writeFileSync(composant, "export const Badge = ({ apres = 'oui' }) => null\n")
