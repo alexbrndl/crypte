@@ -8,6 +8,8 @@ Each entry has four parts. The last one matters most: it says what would make th
 
 An entry is never deleted. A decision that no longer holds gets a new entry that replaces it, and the old one stays, so the change of mind is readable.
 
+A decision that still holds on a **fact that turned out false** is corrected in place instead, with a dated note that says what the sentence used to claim. A new entry would announce a change of mind that did not happen, and leaving the false fact would keep teaching it. The note carries the measurement, so the correction is checkable rather than asserted.
+
 ---
 
 ## `id` is one namespace for the whole manifest
@@ -128,7 +130,9 @@ _2026-09-07_
 
 **Three work rules leave with them, named here so the removal is deliberate rather than noticed later.** « Classer avant de corriger » goes, because `test/post-review.mjs` already refuses a verdict whose point carries no level. « Auto-review, relis-toi » goes, being what `/explore` is for. « Arrêt explicite » goes with the only file that ever applied it. The rule that survives the move is « tout code exécutable ajouté après une revue n'a pas été relu », which now lives in the `/review` skill: it is a guarantee, not a habit, and the review of PR #59 caught its removal.
 
-**What is lost, said rather than glossed.** The 57 live entries of `suivi` were real findings. They live in git, recoverable with `git show`, and the ones that describe unfixed behaviour become issues. The TypeScript 7 probe is gone, so nothing watches for `vue-tsc` catching up; DCJ-184 already said the probe had never run for real.
+**What is lost, said rather than glossed.** The 57 live entries of `suivi` were real findings. They live in git, recoverable with `git show`, and the ones that describe unfixed behaviour become issues. The TypeScript 7 probe is gone, so nothing watches for `vue-tsc` catching up.
+
+*Corrected on 2026-09-09.* This sentence went on to say the probe had never run for real, and that was already false when it was written. It ran on 2026-09-01, on schedule, and succeeded: the positive control under TypeScript 6 passed, so the measurement meant something, and the step that opens an issue was skipped, which is the `ready=false` verdict. It ran exactly once, six days before being deleted. Removing it stands — it is machinery, and this entry removes machinery — but not for the reason given. DCJ-184 holds the run and its three steps.
 
 **What would reopen it.** A second maintainer, for whom `arborescence` would answer a question the disk answers slowly. A finding that gets raised twice by two reviews because no file holds arbitrated points any more, which is what `suivi` prevented. Or `architecture.md` growing back past a thousand lines, which would mean the softened rule is still too broad.
 
