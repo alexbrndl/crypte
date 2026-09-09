@@ -280,7 +280,15 @@ Retirer les imports laissait cependant passer n'importe quel nom : le guide a mo
 
 **Ce qui casse si on l'enlève.** Le guide se met à décrire un produit qui a changé, et personne ne s'en aperçoit avant qu'un utilisateur ne suive une page fausse.
 
-*Ce qu'il ne couvre pas :* les sections « pas encore ». Elles ne décrivent rien qui tourne, donc il n'y a rien à exécuter, et c'est leur mise à jour qui reste une affaire de discipline.
+**Ce que le guide affirme au présent est tenu ailleurs.** `test/cli-surface.test.mjs` prend `packages/cli/src/cli.ts` pour source : les étiquettes de son `switch` sont la surface, et quatre cas les comparent à la ligne d'aide du fichier, à la phrase du guide, à celle de `docs/site/llms.txt`, et à la sortie que le guide cite mot pour mot, version du protocole comprise. Un cinquième vérifie que la lecture rend bien `['dev']`, sans quoi les autres compareraient deux listes vides.
+
+*Pourquoi ailleurs plutôt qu'ici :* le contrôle porte sur deux documents, dont un qui n'est pas le guide, et sur un fichier du CLI. Le mettre dans `guide.test.ts` en ferait le juge d'un fichier qu'il ne lit pas.
+
+*Ce qui casse si on l'enlève :* le compte des commandes redevient une affaire de mémoire, et il a déjà été faux deux fois de suite, cinq puis quatre, sur les deux documents destinés à l'extérieur. La correction précédente avait baissé le compte de cinq à quatre sans le mesurer.
+
+*Ce qu'il ne couvre pas :* la liste des commandes **prévues**. Elle ne se lit dans aucun code, donc rien ne peut dire si elle est juste ; ce qui se tient est que `llms.txt` en donne la même à ses deux endroits, où elles coïncidaient jusqu'ici par hasard.
+
+Cette section disait auparavant que les paragraphes « pas encore » du guide n'avaient rien à exécuter et que leur mise à jour restait « une affaire de discipline ». Elle a manqué : trois d'entre eux annonçaient un produit qui tournait depuis deux lots.
 
 ---
 

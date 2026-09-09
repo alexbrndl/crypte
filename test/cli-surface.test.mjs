@@ -59,3 +59,43 @@ test('llms.txt sépare ce qui est construit de ce qui est prévu', () => {
 test('cli.ts porte bien la commande qu’on croit', () => {
   expect(commandes()).toEqual(['dev'])
 })
+
+// Le prévu ne se lit dans aucun code, donc rien ne peut dire s'il est juste. Ce
+// qui se tient est que `llms.txt` en donne la même liste à ses deux endroits :
+// avant, les deux disaient `init, dev, build, check` et coïncidaient par hasard.
+test('llms.txt donne la même liste de commandes prévues à ses deux endroits', () => {
+  const noms = (texte) => [...texte.matchAll(/`(\w+)`/g)].map((m) => m[1]).sort()
+
+  const phrase = /^Crypte is driven by a CLI\..*?today\.(.*)$/m.exec(LLMS)
+  const lien = /^- \[Commands\]\([^)]+\): (.*)$/m.exec(LLMS)
+
+  expect(phrase, 'la phrase de surface a changé de forme').not.toBeNull()
+  expect(lien, 'la ligne « Commands » a changé de forme').not.toBeNull()
+
+  // Le lien nomme la commande du jour avant les prévues, la phrase non.
+  const prévues = noms(lien[1]).filter((one) => !commandes().includes(one))
+
+  expect(noms(phrase[1])).toEqual(prévues)
+  expect(prévues, 'aucune commande prévue lue').not.toEqual([])
+})
+
+// La sortie citée par le guide est copiée à la main. Sans ce cas, une bosse de
+// `PROTOCOL_VERSION` laisse le guide citer une ligne que le programme ne produit
+// plus, et le guide promet pourtant que chacun de ses exemples est exécuté.
+test('le guide cite la ligne d’aide que le CLI produit', () => {
+  const version = /export const PROTOCOL_VERSION = (\d+)/.exec(
+    lire('packages', 'core', 'src', 'protocol', 'channel.ts'),
+  )
+
+  expect(version, 'PROTOCOL_VERSION introuvable').not.toBeNull()
+
+  // Reconstruite depuis les deux sources plutôt que réécrite ici : le gabarit
+  // vient de `cli.ts`, la version du protocole, et les commandes du switch.
+  const gabarit = /log\(`(crypte — protocol v\$\{PROTOCOL_VERSION\}, commands: [^`]+)`\)/.exec(CLI)
+
+  expect(gabarit, 'la ligne d’aide a changé de forme').not.toBeNull()
+
+  const attendue = gabarit[1].replace('${PROTOCOL_VERSION}', version[1])
+
+  expect(GUIDE).toContain(attendue)
+})
