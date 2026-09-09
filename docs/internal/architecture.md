@@ -942,16 +942,24 @@ Sept contrôles annonçaient plus qu'ils ne tenaient. C'est le mode d'échec le 
 | anglais du code publié | du français sans accent | une liste courte de mots-outils sans ambiguïté, `on`, `car`, `son`, `plus` et `la` exclus parce qu'ils sont anglais aussi |
 | `changeset-check` | **le shell**, dont le build est copié dans `packages/cli/dist/shell` et part donc chez l'utilisateur | `apps/shell/src/` entre au périmètre, `apps/demo` non |
 | seuils de couverture | un seuil qu'on baisse pour faire passer un lot | un cliquet : un écart de plus de trois points entre la mesure et le seuil rougit, ce qui attrape aussi bien le plancher oublié que le plancher baissé |
-| `sideEffects: false` | ni documenté ni gardé, alors qu'il décide de ce qu'un bundler retire chez l'utilisateur | un cas fixe qui le déclare, et un autre refuse tout effet au niveau supérieur d'un fichier du noyau |
+| `sideEffects: false` | ni documenté ni gardé, alors qu'il décide de ce qu'un bundler retire chez l'utilisateur | un cas fixe qui le déclare, et un autre refuse tout effet au niveau supérieur d'un fichier du noyau, **liaison comprise** : `const x = f()` crée un singleton au chargement |
 | le câblage de `publish` | rien ne vérifiait son absence, et c'est le seul geste irréversible | un cas lit le bloc `with:` de l'action et refuse une entrée `publish` |
 
 **Le périmètre de `changeset-check` était faux, et le dépôt le croyait juste.** Un cas affirmait nommément que `apps/shell/src/App.vue` n'exige aucune note. `pnpm pack --dry-run` sur `packages/cli` liste `dist/shell/index.html` et ses deux assets : le shell voyage dans la tarball. Une modification du shell partait donc en production sans note de version.
 
-**Trois points de tolérance pour le cliquet, et non zéro.** La couverture varie d'un lancement à l'autre ; un cliquet au dixième rougirait sur du bruit. Trois points sont un lot entier de code neuf couvert. Mesuré le 9 septembre 2026, les quatre écarts valaient 0,44, 1,95, 2,20 et 1,10.
+**Trois points de tolérance pour le cliquet, et non zéro.** La couverture varie d'un lancement à l'autre ; un cliquet au dixième rougirait sur du bruit.
+
+*Ce n'est pas trois points de marge*, et la nuance compte : la marge vaut la tolérance moins l'écart du jour. Mesuré le 9 septembre 2026, les écarts valaient 0,44, 1,95, 2,20 et 1,10, donc les marges 2,56, 1,05, 0,80 et 1,90. Deux fonctions couvertes de plus font mordre le cliquet.
+
+**C'est voulu.** Un lot qui couvre beaucoup doit monter le plancher, c'est la moitié montante de la règle. Ce qui serait fautif est de le découvrir sans savoir quoi écrire, d'où le message qui rend le fichier de seuils prêt à coller.
+
+*Une tolérance en unités non couvertes a été écartée* : `functions` n'en a que cinq, donc l'écart n'y dépasserait jamais onze et le cliquet n'y mordrait jamais. Le point porte la taille de la population avec lui.
 
 *Ce qui casse si on l'enlève :* le dépôt retrouve sept contrôles verts qui n'affirment rien, et la prochaine faute de la classe qu'ils gardent passe sans que rien ne bouge. C'est précisément ce qui s'est produit sept fois.
 
-*Ce qu'aucun ne couvre :* une phrase française assez brève pour n'employer aucun mot-outil de la liste. Le garde attrape la phrase ordinaire, pas la brève, et un cas le dit plutôt que de le masquer.
+**Le dossier du noyau est énuméré, jamais listé.** Une liste écrite à la main en tenait cinq sur dix, et le `catch` qui l'accompagnait avalait un renommage sans un mot. Un compte minimal la garde de rendre zéro, comme le fait déjà le contrôle d'anglais.
+
+*Ce qu'aucun ne couvre :* une phrase française assez brève pour n'employer aucun mot-outil de la liste. Le garde attrape la phrase ordinaire, pas la brève, et un cas le dit plutôt que de le masquer. Six mots en ont été retirés après mesure, chacun pour une collision réelle avec l'anglais ou la technique : `sans` à cause de `sans-serif`, `des` à cause de DES, puis `pour`, `est`, `aux` et `encore`.
 
 ---
 

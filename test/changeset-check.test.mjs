@@ -165,6 +165,11 @@ test('le shell compte, parce qu’il voyage dans le paquet du CLI', () => {
   expect(change('apps/shell/src/recover.ts').ok).toBe(false)
   expect(change('apps/shell/package.json').ok).toBe(false)
   expect(change('apps/shell/vite.config.ts').ok).toBe(false)
+
+  // L'entrée Vite du shell, et le premier fichier que la tarball liste. Y changer
+  // un `<title>` ou le `src` du script partait sans note.
+  expect(change('apps/shell/index.html').ok).toBe(false)
+  expect(change('apps/shell/public/favicon.svg').ok).toBe(false)
 })
 
 // La moitié qui compte : `apps/demo` ne voyage nulle part, donc il ne doit rien

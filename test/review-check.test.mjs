@@ -200,7 +200,10 @@ test('quand la revue précède tous les commits, la comparaison part du parent',
   expect(vus.at(-1)).toBe('repos/o/r/compare/zzz...ccc')
 })
 
-test('rien de postérieur à la revue rend une liste vide, sans comparaison', () => {
+// Deux absences qui ne veulent pas dire la même chose, et que le contrôle traite
+// différemment : `undefined` est « la comparaison n'a pas eu lieu », un tableau
+// vide est « elle a eu lieu et n'a rien rendu ».
+test('sans commit postérieur, il n’y a pas de comparaison du tout', () => {
   const vus = []
   const run = (args) => {
     vus.push(args[1])
@@ -208,8 +211,75 @@ test('rien de postérieur à la revue rend une liste vide, sans comparaison', ()
     return depuis([])(args)
   }
 
-  expect(changedSince('47', 'o/r', '2026-08-24T10:00:00Z', run)).toEqual([])
+  expect(changedSince('47', 'o/r', '2026-08-24T10:00:00Z', run)).toBeUndefined()
   expect(vus.some((one) => one.includes('/compare/'))).toBe(false)
+})
+
+// Un commit vide, celui que le skill suggère pour relancer un contrôle, ou un
+// commit annulé : la comparaison a lieu et ne rend rien. Bloquer dessus n'offrait
+// aucune sortie, relancer redonnant le même résultat.
+test('une comparaison qui ne rend rien est une liste vide, pas une absence', () => {
+  expect(changedSince('47', 'o/r', '2026-08-22T10:00:00Z', depuis([]))).toEqual([])
+})
+
+// L'ordre de la liste ne suit pas les dates dès qu'un `git merge main` insère des
+// commits datés d'avant. La base partait alors trop haut ou trop bas.
+test('la base se choisit par la date, pas par l’ordre de la liste', () => {
+  const mélangés = [COMMITS[2], COMMITS[0], COMMITS[1]]
+  const vus = []
+  const run = (args) => {
+    vus.push(args[1])
+
+    return args[1].includes('/commits')
+      ? JSON.stringify([mélangés])
+      : JSON.stringify({ files: [{ filename: 'a.md' }] })
+  }
+
+  changedSince('47', 'o/r', '2026-08-22T10:00:00Z', run)
+
+  expect(vus.at(-1)).toBe('repos/o/r/compare/bbb...ccc')
+})
+
+// Un commit sans `committer` levait un `TypeError` non capté, donc une trace de
+// pile au lieu du message que le reste du fichier prend soin d'émettre.
+test('un commit sans committer ne fait pas lever', () => {
+  const abîmés = [{ sha: 'aaa', commit: {}, parents: [{ sha: 'zzz' }] }, COMMITS[2]]
+  const run = (args) =>
+    args[1].includes('/commits')
+      ? JSON.stringify([abîmés])
+      : JSON.stringify({ files: [{ filename: 'a.md' }] })
+
+  expect(() => changedSince('47', 'o/r', '2026-08-22T10:00:00Z', run)).not.toThrow()
+})
+
+// Un marqueur posé en commentaire simple compte dans le nombre, donc il doit
+// compter pour la date : sinon il désactivait la porte du code non relu pour la
+// vie entière de la pull request.
+test('la date vient aussi d’un commentaire marqué', () => {
+  const run = (args) =>
+    JSON.stringify([
+      args[1].includes('/comments')
+        ? [{ body: '<!-- crypte-review -->', created_at: '2026-08-23T10:00:00Z' }]
+        : [],
+    ])
+
+  expect(reviewsOf('47', 'o/r', run)).toEqual({ count: 1, latest: '2026-08-23T10:00:00Z' })
+})
+
+// Une revue en attente a un `submitted_at` nul : le garder ferait retomber la
+// date à vide par le tri, ce qui rouvre exactement le trou du cas ci-dessus.
+test('une revue en attente ne fait pas retomber la date', () => {
+  const run = (args) =>
+    JSON.stringify([
+      args[1].includes('/comments')
+        ? []
+        : [
+            { body: '<!-- crypte-review -->', submitted_at: '2026-08-22T10:00:00Z' },
+            { body: '<!-- crypte-review -->', submitted_at: null },
+          ],
+    ])
+
+  expect(reviewsOf('47', 'o/r', run).latest).toBe('2026-08-22T10:00:00Z')
 })
 
 // La moitié qui compte : ce qui a bougé depuis se classe par le même juge que le

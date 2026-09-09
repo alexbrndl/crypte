@@ -18,8 +18,13 @@ const ACCENTS = /[àâäçéèêëîïôöùûüÿœæ]/i
 // La liste est **volontairement courte et sans ambiguïté** : chaque mot n'est
 // d'aucune langue que le dépôt écrit par ailleurs. `on`, `car`, `son`, `plus` et
 // `la` en sont exclus pour la raison inverse, ils sont anglais aussi.
+// Six mots ont été retirés après mesure, chacun pour une collision réelle :
+// `sans` (`sans-serif`, et la limite de mot coupe sur le tiret), `des` (DES),
+// `pour` (to pour), `est` (« est. 200 ms »), `aux` (auxiliary) et `encore`, qui
+// est anglais. Le garde lit **toutes** les lignes du source publié, pas seulement
+// les commentaires, et `core/ui` est l'endroit destiné à porter du style.
 const MOTS =
-  /\b(les|des|une|dans|pour|qui|que|est|sont|avec|sans|mais|donc|cette|ces|leur|leurs|nous|vous|elle|elles|alors|chaque|aux|ainsi|selon|entre|encore|toujours|jamais|quand|comme|celui|celle|ceux|puis|depuis|lorsque|parce|afin)\b/
+  /\b(les|une|dans|qui|que|sont|avec|mais|donc|cette|ces|leur|leurs|nous|vous|elle|elles|alors|chaque|ainsi|selon|entre|toujours|jamais|quand|comme|celui|celle|ceux|puis|depuis|lorsque|parce|afin)\b/
 
 const FRENCH = /[àâäçéèêëîïôöùûüÿœæ]/i
 
@@ -83,6 +88,13 @@ test('l’anglais ordinaire du dépôt n’est pas pris pour du français', () =
   expect(isFrench('// `entries` is optional, so a reader that predates it still works.')).toBe(
     false,
   )
+
+  // Les six collisions mesurées, qui ont fait retirer autant de mots de la liste.
+  expect(isFrench("const font = 'system-ui, sans-serif'")).toBe(false)
+  expect(isFrench('// Falls back to sans-serif when the token is missing.')).toBe(false)
+  expect(isFrench('// est. 200ms per frame, measured on the demo.')).toBe(false)
+  expect(isFrench('// DES and aux buffers are out of scope.')).toBe(false)
+  expect(isFrench('// Pour the rows into the table, then encore for the footer.')).toBe(false)
 })
 
 test('le code publié ne contient pas de français', () => {

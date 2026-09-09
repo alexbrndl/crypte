@@ -2,7 +2,7 @@
 // rien : celle de ne pas publier, et celle qu'un bundler peut retirer.
 // Voir docs/internal/architecture.md.
 
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vitest'
@@ -56,42 +56,60 @@ test('seul le noyau déclare sideEffects, et il le mérite', () => {
 })
 
 // La promesse elle-même : aucun fichier du noyau ne fait quoi que ce soit à
-// l'import. Un effet de bord au niveau supérieur est un appel, une affectation
-// hors déclaration, ou un `new` : ce qui reste est déclaration et export.
+// l'import. Le dossier est **énuméré**, jamais listé à la main : une liste figée
+// laissait cinq des dix fichiers hors du garde, et un `catch` avalait un fichier
+// renommé sans que rien ne le dise.
 test('aucun fichier du noyau n’agit à l’import', () => {
-  const fichiers = [
-    'protocol/index.ts',
-    'protocol/channel.ts',
-    'protocol/id.ts',
-    'preview/index.ts',
-    'ui/index.ts',
-  ]
+  const dossier = join(root, 'packages', 'core', 'src')
+  const fichiers = readdirSync(dossier, { recursive: true, encoding: 'utf8' }).filter((nom) =>
+    nom.endsWith('.ts'),
+  )
+
+  // Sans ce compte, une énumération qui rend zéro passerait à l'identique, ce qui
+  // est le mode d'échec que tout ce fichier existe pour fermer.
+  expect(fichiers.length, 'aucun fichier de noyau énuméré').toBeGreaterThan(5)
 
   const fautifs = []
 
   for (const nom of fichiers) {
-    let source
-    try {
-      source = lire('packages', 'core', 'src', nom)
-    } catch {
-      continue
-    }
+    readFileSync(join(dossier, nom), 'utf8')
+      .split('\n')
+      .forEach((ligne, index) => {
+        // Au niveau supérieur seulement : une ligne indentée appartient à un
+        // corps de fonction, qui ne s'exécute pas à l'import.
+        if (/^\s/.test(ligne) || ligne.trim() === '') return
 
-    source.split('\n').forEach((ligne, index) => {
-      // Au niveau supérieur seulement : une ligne indentée appartient à un corps
-      // de fonction, qui ne s'exécute pas à l'import.
-      if (/^\s/.test(ligne) || ligne.trim() === '') return
+        // Une suite de déclaration ou un commentaire.
+        if (/^[})\]`]/.test(ligne) || /^(\/\/|\/\*|\*)/.test(ligne)) return
 
-      // Une déclaration, un commentaire, ou la suite d'une des deux : une
-      // accolade ou une parenthèse fermante en colonne zéro termine ce que la
-      // ligne d'ouverture a déjà fait juger.
-      if (/^(import|export|type|interface|const|let|function|class|declare)\b/.test(ligne)) return
-      if (/^[})\]`]/.test(ligne) || /^(\/\/|\/\*|\*)/.test(ligne)) return
+        // Ce qui n'exécute rien : un type, un import, une réexportation, une
+        // fonction ou une classe déclarée.
+        if (/^(import|export type|export interface|type|interface|declare)\b/.test(ligne)) return
+        if (/^(export )?(function|class)\b/.test(ligne)) return
+        if (ligne.startsWith('export {') || ligne.startsWith('export *')) return
 
-      // Ce qui reste commence par un nom, un `new` ou un `await` : un appel, une
-      // affectation, une construction. C'est un effet à l'import.
-      fautifs.push(`packages/core/src/${nom}:${index + 1} ${ligne.trim()}`)
-    })
+        // Une liaison ne compte que par ce qui suit le `=`. `const x = f()` crée
+        // un singleton au chargement, et c'est précisément ce qui rend
+        // `sideEffects: false` faux. Sont inertes : un littéral, une fonction, une
+        // référence nue, et une déclaration qui continue à la ligne.
+        const liaison = /^(export )?(const|let|var)\b[^=]*=\s*(.*)$/.exec(ligne)
+        if (liaison) {
+          const valeur = (liaison[3] ?? '').trim()
+          const inerte =
+            valeur === '' ||
+            /^[[{'"`\d\-/]/.test(valeur) ||
+            /^(true|false|null|undefined)\b/.test(valeur) ||
+            /=>/.test(valeur) ||
+            /^function\b/.test(valeur) ||
+            /^[A-Za-z_$][\w$.]*\s*(,|;)?$/.test(valeur)
+
+          if (inerte) return
+        } else if (!/^(export )?(const|let|var)\b/.test(ligne)) {
+          // Ni déclaration ni liaison : un appel, une affectation, un `new`.
+        }
+
+        fautifs.push(`packages/core/src/${nom}:${index + 1} ${ligne.trim()}`)
+      })
   }
 
   expect(fautifs).toEqual([])

@@ -495,6 +495,7 @@ describe('le script, lancé pour de vrai', () => {
           try {
             return {
               code: 0,
+              err: '',
               out: execFileSync('node', [SCRIPT, ...args], {
                 encoding: 'utf8',
                 stdio: 'pipe',
@@ -502,7 +503,9 @@ describe('le script, lancé pour de vrai', () => {
               }),
             }
           } catch (error) {
-            return { code: error.status, out: error.stdout ?? '' }
+            // `err` en plus de `out` : les verdicts partent sur l'erreur standard,
+            // donc un cas qui ne lisait que `out` ne pouvait rien en dire.
+            return { code: error.status, out: error.stdout ?? '', err: error.stderr ?? '' }
           }
         },
       })
@@ -521,6 +524,21 @@ describe('le script, lancé pour de vrai', () => {
 
     expect(code).toBe(0)
     expect(JSON.parse(readFileSync(cible, 'utf8')).message).toBe('99%')
+  })
+
+  // Le branchement, et pas seulement la fonction : retirer le bloc du cliquet de
+  // `main()` laissait les autres cas verts, parce qu'ils appellent `drifted`
+  // directement et que les deux cas de badge reçoivent justement `{ branches: 90 }`
+  // pour ne **pas** le déclencher.
+  test('le cliquet fait sortir le script en un, avec le fichier à coller', ({ dossier }) => {
+    dossier.écrit(99)
+
+    const { code, err } = dossier.lance([])
+
+    expect(code).toBe(1)
+    expect(err).toContain('seuil à monter dans test/coverage-thresholds.json')
+    expect(err).toContain('à écrire :')
+    expect(err).toContain('"branches": 99')
   })
 
   test('écrit le badge que shields.io lit, et sort en zéro', ({ dossier }) => {

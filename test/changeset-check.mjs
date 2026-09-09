@@ -13,13 +13,19 @@ import { pathToFileURL } from 'node:url'
 // `.d.ts`. Chacun compte en entier : demander une note de trop coûte un
 // fichier, en manquer une publie une version fausse.
 //
-// **Et `apps/shell`, qui n'est pourtant pas un paquet.** `scripts/copy-shell.mjs`
-// copie son build dans `packages/cli/dist/shell`, que `files: ["dist"]` publie :
-// une modification du shell part donc chez l'utilisateur à l'intérieur de
-// `@crypte/cli`. Mesuré, le contrôle rendait `ok` dessus. `apps/demo` n'y est
-// pas, rien de lui n'étant publié.
+// **Et `apps/shell`, qui n'est pourtant pas un paquet.**
+// `packages/cli/scripts/copy-shell.mjs` copie son build dans
+// `packages/cli/dist/shell`, que `files: ["dist"]` publie : une modification du
+// shell part donc chez l'utilisateur à l'intérieur de `@crypte/cli`. Mesuré, le
+// contrôle rendait `ok` dessus.
+//
+// Le shell compte **en entier**, et non son seul `src/` : `index.html` est son
+// entrée Vite, et c'est le fichier que `pnpm pack --dry-run` liste le premier.
+// Y changer un `<title>` ou le `src` du script partait sans note. `public/`
+// suivrait le même chemin le jour où il existe, d'où le dossier plutôt qu'une
+// liste. `apps/demo` n'y est pas, rien de lui n'étant publié.
 const PUBLISHED =
-  /^(packages\/[^/]+\/(src\/|(package\.json|tsconfig\.json|vite\.config\.ts)$)|apps\/shell\/(src\/|(package\.json|tsconfig\.json|vite\.config\.ts)$)|tsconfig\.base\.json$)/
+  /^(packages\/[^/]+\/(src\/|(package\.json|tsconfig\.json|vite\.config\.ts)$)|apps\/shell\/|tsconfig\.base\.json$)/
 
 // `README.md` documente le dossier, `config.json` le configure : ni l'un ni
 // l'autre n'est une note.
