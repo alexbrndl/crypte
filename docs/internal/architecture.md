@@ -572,7 +572,11 @@ Chaque fichier a donc sa promesse et son rattrapage, et l'échec est retenu sous
 
 Le spécificateur reste un littéral, donc Vite garde chaque fichier dans son graphe de modules et `import.meta.hot.accept` continue de les nommer.
 
-*Ce qui casse si on l'enlève :* une story sur dix en fait perdre neuf, et rien ne dit laquelle. Deux mutations le montrent, retirer le rattrapage par fichier et retirer la relance dans `render`.
+**Et l'échec s'oublie quand la mise à jour à chaud répare le fichier.** Symétrique de sa mise en mémoire, et c'est tout le point : gardé, il vivait pour la durée de la page, donc réparer ne changeait rien et le panneau montrait encore une pile désignant une ligne disparue. Seul un rechargement complet en sortait.
+
+*Ce qui casse si on l'enlève :* une story sur dix en fait perdre neuf, et rien ne dit laquelle. Trois mutations le montrent : retirer le rattrapage par fichier, retirer la relance dans `render`, retirer l'oubli à la mise à jour.
+
+*Ce que ces mutations ne montrent pas.* Les deux premières rougissent dans un navigateur, la troisième seulement sur la source produite. Le rejeu à chaud remet la **dernière story demandée**, qui est saine, donc l'alerte disparaît de toute façon et un cas d'écran attrape cette disparition-là plutôt que la bonne. Mesuré. `DCJ-295` porte ce qui manque.
 
 **Le rejeu à chaud passe par le canal, jamais à côté.** `createPreviewChannel` retient ce que le shell a demandé en dernier et rend un `again()`. Dessiner depuis l'entrée générée court-circuitait le compte rendu : une édition qui fait lever le rendu jetait dans le callback de mise à jour, donc aucun `error` ne partait, le shell gardait l'ancienne sortie et son statut « rendu ». Et au retour, une édition qui répare remontait **dans une iframe masquée**, le panneau d'erreur restant ouvert jusqu'à un clic. Les sections 5.4 et 6 des contrats disent l'inverse des deux.
 

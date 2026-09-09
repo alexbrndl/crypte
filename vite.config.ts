@@ -27,7 +27,12 @@ export default defineConfig({
     // cessait de correspondre à ce que le générateur produit, et l'intégration
     // continue partait au rouge sur un fichier que personne n'avait édité.
     // `vp test -u` puis le hook de pré-commit s'annulaient l'un l'autre.
-    ignorePatterns: ['packages/cli/test/fixture/**', '**/test/snapshots/**'],
+    //
+    // `*.js` et non le dossier entier : une exemption qui couvre toutes les
+    // extensions s'élargit en silence, un `.ts` déposé là un jour échappant au
+    // lint et à son `typeCheck` sans que personne le voie. Les instantanés
+    // d'aujourd'hui sont du JavaScript produit.
+    ignorePatterns: ['packages/cli/test/fixture/**', '**/test/snapshots/*.js'],
     options: {
       typeAware: true,
       typeCheck: true,
