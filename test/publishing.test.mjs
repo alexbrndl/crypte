@@ -51,7 +51,7 @@ test('le motif lit bien les entrées que le bloc porte', () => {
 //
 // Ce cas fixe **quel paquet déclare**, et rien de plus. Que la déclaration soit
 // méritée n'est vérifié par rien, et le bloc en bas dit pourquoi.
-test('seul le noyau déclare sideEffects', () => {
+test('seul le noyau déclare sideEffects: false', () => {
   const déclarent = ['core', 'cli', 'react', 'tokens'].filter(
     (nom) => JSON.parse(lire('packages', nom, 'package.json')).sideEffects === false,
   )
