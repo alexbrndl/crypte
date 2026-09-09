@@ -1,8 +1,9 @@
-// Ce que le dépôt promet sur la publication. Deux promesses qui ne tenaient à
-// rien : celle de ne pas publier, et celle qu'un bundler peut retirer.
+// Ce que le dépôt promet sur la publication : ne pas publier, et déclarer
+// `sideEffects` sur le seul paquet qui le porte. Ce que ce fichier **ne** tient
+// pas est la justesse de cette déclaration : voir le bloc en bas.
 // Voir docs/internal/architecture.md.
 
-import { readdirSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vitest'
@@ -47,7 +48,10 @@ test('le motif lit bien les entrées que le bloc porte', () => {
 // Le noyau le déclare parce qu'il n'expose que des types, des fonctions pures et
 // deux fabriques de canal. Les trois autres ne le déclarent pas : l'adaptateur
 // touche le DOM, le CLI est un binaire, `tokens` est une fabrique de plugin.
-test('seul le noyau déclare sideEffects, et il le mérite', () => {
+//
+// Ce cas fixe **quel paquet déclare**, et rien de plus. Que la déclaration soit
+// méritée n'est vérifié par rien, et le bloc en bas dit pourquoi.
+test('seul le noyau déclare sideEffects', () => {
   const déclarent = ['core', 'cli', 'react', 'tokens'].filter(
     (nom) => JSON.parse(lire('packages', nom, 'package.json')).sideEffects === false,
   )
