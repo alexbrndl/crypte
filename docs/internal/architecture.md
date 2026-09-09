@@ -931,6 +931,40 @@ Le parcours porte un ensemble `seen` pour la même raison : un cycle ferait bouc
 
 ---
 
+## 4 novodecies. Ce que chaque garde refuse vraiment
+
+Sept contrôles annonçaient plus qu'ils ne tenaient. C'est le mode d'échec le plus coûteux du dépôt, un vert qui ne vérifie plus rien, et il ne se voit pas en relisant le garde : il se voit en **cassant la garantie et en regardant si le contrôle rougit**. Chacun a donc sa sonde.
+
+| Garde | Ce qu'il laissait passer | Ce qui le tient |
+| -- | -- | -- |
+| `has-review` | du code ajouté après la dernière revue, que personne n'a relu | `changedSince` classe ce qui a bougé depuis, par le même juge que le diff entier : de la prose avertit, autre chose bloque |
+| `commentsOnly` | `// @ts-expect-error`, `// eslint-disable`, `/// <reference` — forme d'un commentaire, effet d'une ligne de code | `DIRECTIVE` les sort de l'exemption, dans les deux sens, ajout comme retrait |
+| anglais du code publié | du français sans accent | une liste courte de mots-outils sans ambiguïté, `on`, `car`, `son`, `plus` et `la` exclus parce qu'ils sont anglais aussi |
+| `changeset-check` | **le shell**, dont le build est copié dans `packages/cli/dist/shell` et part donc chez l'utilisateur | `apps/shell/src/` entre au périmètre, `apps/demo` non |
+| seuils de couverture | un seuil qu'on baisse pour faire passer un lot | un cliquet : un écart de plus de trois points entre la mesure et le seuil rougit, ce qui attrape aussi bien le plancher oublié que le plancher baissé |
+| `sideEffects: false` | ni documenté ni gardé, alors qu'il décide de ce qu'un bundler retire chez l'utilisateur | un cas fixe **quel paquet le déclare**. Sa justesse, elle, n'est gardée par rien, et c'est dit plus bas |
+| le câblage de `publish` | rien ne vérifiait son absence, et c'est le seul geste irréversible | un cas lit le bloc `with:` de l'action et refuse une entrée `publish` |
+
+**Le périmètre de `changeset-check` était faux, et le dépôt le croyait juste.** Un cas affirmait nommément que `apps/shell/src/App.vue` n'exige aucune note. `pnpm pack --dry-run` sur `packages/cli` liste `dist/shell/index.html` et ses deux assets : le shell voyage dans la tarball. Une modification du shell partait donc en production sans note de version.
+
+**Trois points de tolérance pour le cliquet, et non zéro.** La couverture varie d'un lancement à l'autre ; un cliquet au dixième rougirait sur du bruit.
+
+*Ce n'est pas trois points de marge*, et la nuance compte : la marge vaut la tolérance moins l'écart du jour. Mesuré le 9 septembre 2026, les écarts valaient 0,44, 1,95, 2,20 et 1,10, donc les marges 2,56, 1,05, 0,80 et 1,90. Deux fonctions couvertes de plus font mordre le cliquet.
+
+**C'est voulu.** Un lot qui couvre beaucoup doit monter le plancher, c'est la moitié montante de la règle. Ce qui serait fautif est de le découvrir sans savoir quoi écrire, d'où le message qui rend le fichier de seuils prêt à coller.
+
+*Une tolérance en unités non couvertes a été écartée* : `functions` n'en a que cinq, donc l'écart n'y dépasserait jamais onze et le cliquet n'y mordrait jamais. Le point porte la taille de la population avec lui.
+
+*Ce qui casse si on l'enlève :* le dépôt retrouve sept contrôles verts qui n'affirment rien, et la prochaine faute de la classe qu'ils gardent passe sans que rien ne bouge. C'est précisément ce qui s'est produit sept fois.
+
+**La justesse de `sideEffects: false` reste non gardée, et c'est une décision.** Un critère ligne à ligne a été écrit puis corrigé deux fois ; trois tours de revue ont trouvé trois familles de trous, chacune après la correction de la précédente — un appel imbriqué dans un littéral, une flèche annotée en TypeScript, une liaison que le formateur replie, `export default class`, `as const`.
+
+Le critère juste demande un arbre syntaxique. `parseSync` d'oxc le donnerait, et il n'est pas joignable depuis `test/` : `vite` est une dépendance de `packages/cli`, pas de la racine, et l'y ajouter pour un seul garde est la machinerie que le ménage réduit. Un garde approximatif serait **pire que pas de garde**, disant vert sur les formes qu'il ne voit pas. `DCJ-297` porte la suite. La piste d'un cas vivant dans `packages/core/test/` **ne supprime pas le coût** : `packages/core/package.json` ne déclare ni `vite` ni `oxc-parser`, seuls `packages/cli` et `apps/shell` déclarant le premier. La dépendance serait à ajouter là plutôt qu'à la racine, ce qui déplace la question sans la résoudre.
+
+*Ce qu'aucun ne couvre :* une phrase française assez brève pour n'employer aucun mot-outil de la liste. Le garde attrape la phrase ordinaire, pas la brève, et un cas le dit plutôt que de le masquer. Six mots en ont été retirés après mesure, chacun pour une collision réelle avec l'anglais ou la technique : `sans` à cause de `sans-serif`, `des` à cause de DES, puis `pour`, `est`, `aux` et `encore`.
+
+---
+
 ## 5. Décisions encodées dans la configuration
 
 Ces réglages ont l'air anodins et ne le sont pas. Chacun a été mis là pour une raison précise, et chacun est le genre de ligne qu'on supprime en croyant nettoyer.

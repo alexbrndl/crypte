@@ -70,12 +70,14 @@ test('du code publié avec une note passe', () => {
 })
 
 test('ce qui n’est pas publié ne demande aucune note', () => {
+  // `apps/shell` était dans cette liste et n'y est plus : son build voyage dans
+  // `packages/cli/dist/shell`, que la tarball emporte. Vérifié par
+  // `pnpm pack --dry-run`, qui liste `dist/shell/index.html` et ses deux assets.
   const ailleurs = touche(
     'docs/internal/architecture.md',
     '.github/workflows/ci.yml',
     'test/post-review.mjs',
-    'apps/shell/src/App.vue',
-    'apps/shell/vite.config.ts',
+    'apps/demo/src/components/Tag.tsx',
     'packages/core/test/protocol/story.test.ts',
     'packages/cli/test/fixture/jsconfig.json',
     'tsconfig.json',
@@ -128,4 +130,54 @@ test('les pages de l’API sont aplaties, jamais concaténées', () => {
     { filename: 'packages/core/src/a.ts', status: 'modified', patch: '@@' },
     { filename: '.changeset/note.md', status: 'added', patch: '@@' },
   ])
+})
+
+// Un commentaire directif a la forme d'un commentaire et l'effet d'une ligne de
+// code : l'exempter laissait un changement de compilation passer sans note.
+test('un commentaire directif n’est pas inerte', () => {
+  const patch = (line) => `@@ -1,1 +1,2 @@\n unchanged\n+${line}`
+
+  expect(commentsOnly(patch('// une phrase ordinaire'))).toBe(true)
+
+  expect(commentsOnly(patch('  // @ts-expect-error la surface a bougé'))).toBe(false)
+  expect(commentsOnly(patch('// @ts-ignore'))).toBe(false)
+  expect(commentsOnly(patch('// @ts-nocheck'))).toBe(false)
+  expect(commentsOnly(patch('// eslint-disable-next-line no-restricted-imports'))).toBe(false)
+  expect(commentsOnly(patch('// oxlint-disable-next-line'))).toBe(false)
+  expect(commentsOnly(patch('// prettier-ignore'))).toBe(false)
+  expect(commentsOnly(patch('// v8 ignore next'))).toBe(false)
+  expect(commentsOnly(patch('/// <reference types="node" />'))).toBe(false)
+})
+
+// Retirer une directive compte autant que l'ajouter : c'est le sens qui casse la
+// compilation plutôt que celui qui la fait taire.
+test('retirer une directive compte aussi', () => {
+  expect(commentsOnly('@@ -1,2 +1,1 @@\n unchanged\n-// @ts-expect-error')).toBe(false)
+})
+
+// Le shell n'est pas un paquet, et il est pourtant publié : son build est copié
+// dans `packages/cli/dist/shell`, que `files: ["dist"]` emporte. Le contrôle
+// rendait `ok` sur une modification qui part chez l'utilisateur. Mesuré.
+test('le shell compte, parce qu’il voyage dans le paquet du CLI', () => {
+  const change = (filename) => decide([{ filename, patch: '@@\n+const x = 1' }])
+
+  expect(change('apps/shell/src/App.vue').ok).toBe(false)
+  expect(change('apps/shell/src/recover.ts').ok).toBe(false)
+  expect(change('apps/shell/package.json').ok).toBe(false)
+  expect(change('apps/shell/vite.config.ts').ok).toBe(false)
+
+  // L'entrée Vite du shell, et le premier fichier que la tarball liste. Y changer
+  // un `<title>` ou le `src` du script partait sans note.
+  expect(change('apps/shell/index.html').ok).toBe(false)
+  expect(change('apps/shell/public/favicon.svg').ok).toBe(false)
+})
+
+// La moitié qui compte : `apps/demo` ne voyage nulle part, donc il ne doit rien
+// exiger. Le prendre aussi ferait demander une note pour une fixture.
+test('la démonstration ne compte pas, rien d’elle n’étant publié', () => {
+  const change = (filename) => decide([{ filename, patch: '@@\n+const x = 1' }])
+
+  expect(change('apps/demo/src/components/Tag.tsx').ok).toBe(true)
+  expect(change('apps/demo/stories/Badge.tsx').ok).toBe(true)
+  expect(change('apps/demo/package.json').ok).toBe(true)
 })

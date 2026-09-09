@@ -125,6 +125,61 @@ export function failing(summary) {
     )
 }
 
+// De combien la mesure peut dépasser un seuil avant qu'il faille le monter.
+//
+// `CLAUDE.md` pose que les seuils sont au plancher mesuré et « montent quand un
+// lot les dépasse ». Rien ne l'appliquait : un seuil laissé derrière la mesure
+// est un seuil qu'on peut **baisser** sans que rien ne rougisse, ce qui est la
+// seule façon de rendre la mesure inutile.
+//
+// Trois points, et non zéro : la couverture varie d'un lancement à l'autre, et un
+// cliquet au dixième rougirait sur du bruit.
+//
+// **Ce n'est pas trois points de marge.** La marge vaut `SLACK` moins l'écart du
+// jour, et les écarts ne sont pas nuls. Mesuré le 9 septembre 2026 :
+//
+//     métrique     écart   marge   ce qu'il reste à couvrir
+//     statements    0,44    2,56    ~37 instructions sur 52
+//     branches      1,95    1,05    ~11 branches sur 103
+//     functions     2,20    0,80    ~2 fonctions sur 5
+//     lines         1,10    1,90    ~23 lignes sur 23
+//
+// Donc **oui, un lot qui couvre beaucoup fait rougir ce contrôle**, et c'est ce
+// qu'on veut : le plancher doit monter avec lui. Ce qui serait fautif est de le
+// découvrir sans savoir quoi écrire, d'où le message qui donne le fichier prêt à
+// coller. Ce n'est pas une exception à traiter, c'est la moitié montante de la
+// règle que `CLAUDE.md` pose.
+//
+// Une tolérance en unités non couvertes a été écartée : `functions` n'en a que
+// cinq, donc l'écart n'y dépasserait jamais onze et le cliquet n'y mordrait
+// jamais. Le point porte la taille de la population avec lui.
+const SLACK = 3
+
+// Les seuils que la mesure a dépassés de plus de `SLACK`. Le même verdict attrape
+// les deux fautes : un plancher qu'on a oublié de monter, et un plancher qu'on
+// baisse pour faire passer un lot — baissé, l'écart grandit d'autant.
+export function drifted(summary, thresholds = THRESHOLDS, slack = SLACK) {
+  const total = summary?.total
+  if (!total) return []
+
+  return Object.entries(thresholds)
+    .filter(([name, seuil]) => (total[name]?.pct ?? 0) - seuil > slack)
+    .map(
+      ([name, seuil]) =>
+        `${LABELS[name]} à ${total[name]?.pct ?? 0} %, soit ${((total[name]?.pct ?? 0) - seuil).toFixed(2)} points au-dessus du seuil de ${seuil} %`,
+    )
+}
+
+// Les seuils au plancher mesuré, arrondis vers le bas. Ce que le message rend à
+// coller quand le cliquet mord.
+export function floors(summary, thresholds = THRESHOLDS) {
+  const total = summary?.total ?? {}
+
+  return Object.fromEntries(
+    Object.keys(thresholds).map((name) => [name, Math.floor(total[name]?.pct ?? 0)]),
+  )
+}
+
 // Ce que le commentaire dit des tests. `results` est la sortie du rapporteur
 // `json` de vitest ; absente, on ne prétend rien plutôt que d'annoncer zéro.
 function tests(results) {
@@ -314,6 +369,20 @@ function main(args) {
 
   if (manques.length > 0) {
     console.error(`couverture insuffisante : ${manques.join(' ; ')}`)
+    exit(1)
+  }
+
+  const dérives = drifted(summary)
+
+  if (dérives.length > 0) {
+    console.error(
+      `seuil à monter dans test/coverage-thresholds.json : ${dérives.join(' ; ')}. ` +
+        'Un seuil laissé derrière la mesure est un seuil qu’on peut baisser sans rien faire rougir.',
+    )
+    // Le fichier prêt à coller, planchers arrondis vers le bas. Sans lui, l'auteur
+    // sait qu'il doit monter un seuil et pas jusqu'où, ce qui invite à mettre le
+    // chiffre du jour et à recommencer au lot suivant.
+    console.error(`à écrire :\n${JSON.stringify(floors(summary), undefined, 2)}`)
     exit(1)
   }
 }

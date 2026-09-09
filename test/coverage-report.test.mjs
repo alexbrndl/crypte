@@ -11,6 +11,7 @@ import {
   byFolder,
   byTotal,
   compose,
+  drifted,
   existing,
   failing,
   folderOf,
@@ -32,17 +33,25 @@ const fichier = (pct) => ({
   statements: metrique(pct, 99, 100),
 })
 
-const resume = (pct = 99) => ({
-  '/dépôt/packages/cli/src/dev.ts': fichier(pct),
-  '/dépôt/packages/core/src/protocol/id.ts': fichier(pct),
-  '/dépôt/apps/shell/src/recover.ts': fichier(pct),
-  total: {
-    statements: metrique(pct, 726, 746),
-    branches: metrique(pct, 455, 512),
-    functions: metrique(pct, 149, 150),
-    lines: metrique(pct, 615, 623),
-  },
-})
+// `par` surcharge une métrique. Les branches en ont besoin dès qu'un cas passe
+// par `main()` : leur seuil est huit points sous celui des lignes, donc un résumé
+// uniforme les met loin au-dessus et le cliquet réclame de monter le seuil, ce
+// qui est juste sur un vrai dépôt et faux sur une fixture.
+const resume = (pct = 99, par = {}) => {
+  const de = (nom) => par[nom] ?? pct
+
+  return {
+    '/dépôt/packages/cli/src/dev.ts': fichier(pct),
+    '/dépôt/packages/core/src/protocol/id.ts': fichier(pct),
+    '/dépôt/apps/shell/src/recover.ts': fichier(pct),
+    total: {
+      statements: metrique(de('statements'), 726, 746),
+      branches: metrique(de('branches'), 455, 512),
+      functions: metrique(de('functions'), 149, 150),
+      lines: metrique(de('lines'), 615, 623),
+    },
+  }
+}
 
 describe('la barre de progression', () => {
   it('est vide à zéro et pleine à cent', () => {
@@ -475,10 +484,10 @@ describe('le script, lancé pour de vrai', () => {
       await use({
         racine,
         // Le résumé là où le script le cherche par défaut, ou à un chemin donné.
-        écrit: (pct, chemin = join('coverage', 'coverage-summary.json')) => {
+        écrit: (pct, chemin = join('coverage', 'coverage-summary.json'), par = {}) => {
           const cible = join(racine, chemin)
           mkdirSync(dirname(cible), { recursive: true })
-          writeFileSync(cible, JSON.stringify(resume(pct)))
+          writeFileSync(cible, JSON.stringify(resume(pct, par)))
 
           return cible
         },
@@ -486,6 +495,7 @@ describe('le script, lancé pour de vrai', () => {
           try {
             return {
               code: 0,
+              err: '',
               out: execFileSync('node', [SCRIPT, ...args], {
                 encoding: 'utf8',
                 stdio: 'pipe',
@@ -493,7 +503,9 @@ describe('le script, lancé pour de vrai', () => {
               }),
             }
           } catch (error) {
-            return { code: error.status, out: error.stdout ?? '' }
+            // `err` en plus de `out` : les verdicts partent sur l'erreur standard,
+            // donc un cas qui ne lisait que `out` ne pouvait rien en dire.
+            return { code: error.status, out: error.stdout ?? '', err: error.stderr ?? '' }
           }
         },
       })
@@ -505,7 +517,7 @@ describe('le script, lancé pour de vrai', () => {
   // Le cas du job `badge` : aucun `--resume`, donc le chemin par défaut, celui
   // dont la mauvaise résolution aurait rendu ce job rouge à chaque fusion.
   test('trouve le résumé au chemin par défaut, comme le job badge', ({ dossier }) => {
-    dossier.écrit(99)
+    dossier.écrit(99, join('coverage', 'coverage-summary.json'), { branches: 90 })
     const cible = join(dossier.racine, 'badge.json')
 
     const { code } = dossier.lance(['--badge', cible])
@@ -514,8 +526,23 @@ describe('le script, lancé pour de vrai', () => {
     expect(JSON.parse(readFileSync(cible, 'utf8')).message).toBe('99%')
   })
 
+  // Le branchement, et pas seulement la fonction : retirer le bloc du cliquet de
+  // `main()` laissait les autres cas verts, parce qu'ils appellent `drifted`
+  // directement et que les deux cas de badge reçoivent justement `{ branches: 90 }`
+  // pour ne **pas** le déclencher.
+  test('le cliquet fait sortir le script en un, avec le fichier à coller', ({ dossier }) => {
+    dossier.écrit(99)
+
+    const { code, err } = dossier.lance([])
+
+    expect(code).toBe(1)
+    expect(err).toContain('seuil à monter dans test/coverage-thresholds.json')
+    expect(err).toContain('à écrire :')
+    expect(err).toContain('"branches": 99')
+  })
+
   test('écrit le badge que shields.io lit, et sort en zéro', ({ dossier }) => {
-    const résumé = dossier.écrit(99, 'résumé.json')
+    const résumé = dossier.écrit(99, 'résumé.json', { branches: 90 })
     const cible = join(dossier.racine, 'badge.json')
 
     const { code } = dossier.lance(['--resume', résumé, '--badge', cible])
@@ -664,3 +691,56 @@ function manquants(workflow) {
 
   return attendus.filter((un) => !jobs.includes(un))
 }
+
+describe('le cliquet des seuils', () => {
+  // Un seuil laissé derrière la mesure est un seuil qu'on peut baisser sans que
+  // rien ne rougisse, ce qui est la seule façon de rendre la mesure inutile. Le
+  // cliquet attrape les deux fautes d'un coup : le plancher qu'on oublie de monter
+  // et celui qu'on baisse pour faire passer un lot.
+  const mesure = (pcts) => ({
+    total: Object.fromEntries(Object.entries(pcts).map(([k, pct]) => [k, { pct }])),
+  })
+
+  const SEUILS = { statements: 96, branches: 88, functions: 96, lines: 97 }
+
+  it('un seuil que la mesure dépasse de peu ne dit rien', () => {
+    expect(
+      drifted(
+        mesure({ statements: 96.4, branches: 89.9, functions: 98.2, lines: 98.1 }),
+        SEUILS,
+        3,
+      ),
+    ).toEqual([])
+  })
+
+  it('un seuil que la mesure dépasse largement est à monter', () => {
+    const dit = drifted(
+      mesure({ statements: 96, branches: 88, functions: 99.5, lines: 97 }),
+      SEUILS,
+      3,
+    )
+
+    expect(dit).toHaveLength(1)
+    expect(dit[0]).toContain('99.5')
+    expect(dit[0]).toContain('3.50')
+  })
+
+  // La faute que le cliquet existe surtout pour attraper : baisser le plancher.
+  // Baissé, l'écart grandit d'autant, donc le même verdict le voit.
+  it('baisser un seuil le fait rougir', () => {
+    const vraie = mesure({ statements: 96.4, branches: 89.9, functions: 98.2, lines: 98.1 })
+
+    expect(drifted(vraie, SEUILS, 3)).toEqual([])
+    expect(drifted(vraie, { ...SEUILS, branches: 70 }, 3)).toHaveLength(1)
+    expect(drifted(vraie, { statements: 0, branches: 0, functions: 0, lines: 0 }, 3)).toHaveLength(
+      4,
+    )
+  })
+
+  // Sans couverture, on ne prétend rien : `failing` dit déjà « non mesurée », et
+  // deux verdicts sur la même absence en enterreraient un.
+  it('sans mesure, le cliquet se tait', () => {
+    expect(drifted(undefined, SEUILS, 3)).toEqual([])
+    expect(drifted({}, SEUILS, 3)).toEqual([])
+  })
+})
