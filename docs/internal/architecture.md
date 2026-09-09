@@ -942,7 +942,7 @@ Sept contrôles annonçaient plus qu'ils ne tenaient. C'est le mode d'échec le 
 | anglais du code publié | du français sans accent | une liste courte de mots-outils sans ambiguïté, `on`, `car`, `son`, `plus` et `la` exclus parce qu'ils sont anglais aussi |
 | `changeset-check` | **le shell**, dont le build est copié dans `packages/cli/dist/shell` et part donc chez l'utilisateur | `apps/shell/src/` entre au périmètre, `apps/demo` non |
 | seuils de couverture | un seuil qu'on baisse pour faire passer un lot | un cliquet : un écart de plus de trois points entre la mesure et le seuil rougit, ce qui attrape aussi bien le plancher oublié que le plancher baissé |
-| `sideEffects: false` | ni documenté ni gardé, alors qu'il décide de ce qu'un bundler retire chez l'utilisateur | un cas fixe qui le déclare, et un autre refuse tout effet au niveau supérieur d'un fichier du noyau, **liaison comprise** : `const x = f()` crée un singleton au chargement |
+| `sideEffects: false` | ni documenté ni gardé, alors qu'il décide de ce qu'un bundler retire chez l'utilisateur | un cas fixe **quel paquet le déclare**. Sa justesse, elle, n'est gardée par rien, et c'est dit plus bas |
 | le câblage de `publish` | rien ne vérifiait son absence, et c'est le seul geste irréversible | un cas lit le bloc `with:` de l'action et refuse une entrée `publish` |
 
 **Le périmètre de `changeset-check` était faux, et le dépôt le croyait juste.** Un cas affirmait nommément que `apps/shell/src/App.vue` n'exige aucune note. `pnpm pack --dry-run` sur `packages/cli` liste `dist/shell/index.html` et ses deux assets : le shell voyage dans la tarball. Une modification du shell partait donc en production sans note de version.
@@ -957,7 +957,9 @@ Sept contrôles annonçaient plus qu'ils ne tenaient. C'est le mode d'échec le 
 
 *Ce qui casse si on l'enlève :* le dépôt retrouve sept contrôles verts qui n'affirment rien, et la prochaine faute de la classe qu'ils gardent passe sans que rien ne bouge. C'est précisément ce qui s'est produit sept fois.
 
-**Le dossier du noyau est énuméré, jamais listé.** Une liste écrite à la main en tenait cinq sur dix, et le `catch` qui l'accompagnait avalait un renommage sans un mot. Un compte minimal la garde de rendre zéro, comme le fait déjà le contrôle d'anglais.
+**La justesse de `sideEffects: false` reste non gardée, et c'est une décision.** Un critère ligne à ligne a été écrit puis corrigé deux fois ; trois tours de revue ont trouvé trois familles de trous, chacune après la correction de la précédente — un appel imbriqué dans un littéral, une flèche annotée en TypeScript, une liaison que le formateur replie, `export default class`, `as const`.
+
+Le critère juste demande un arbre syntaxique. `parseSync` d'oxc le donnerait, et il n'est pas joignable depuis `test/` : `vite` est une dépendance de `packages/cli`, pas de la racine, et l'y ajouter pour un seul garde est la machinerie que le ménage réduit. Un garde approximatif serait **pire que pas de garde**, disant vert sur les formes qu'il ne voit pas. `DCJ-297` porte la suite, et la piste probable est de faire vivre le cas dans `packages/core/test/`, où la dépendance serait locale.
 
 *Ce qu'aucun ne couvre :* une phrase française assez brève pour n'employer aucun mot-outil de la liste. Le garde attrape la phrase ordinaire, pas la brève, et un cas le dit plutôt que de le masquer. Six mots en ont été retirés après mesure, chacun pour une collision réelle avec l'anglais ou la technique : `sans` à cause de `sans-serif`, `des` à cause de DES, puis `pour`, `est`, `aux` et `encore`.
 
