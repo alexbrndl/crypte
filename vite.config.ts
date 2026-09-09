@@ -20,7 +20,14 @@ export default defineConfig({
     // porte un commentaire et un `baseUrl`, que TypeScript 7 refuse. C'est
     // précisément ce qu'un projet réel contient, et ce que le CLI doit savoir
     // lire. La vérifier comme du code du dépôt n'aurait aucun sens.
-    ignorePatterns: ['packages/cli/test/fixture/**'],
+    //
+    // Les instantanés, pour la même raison que `fmt` les exclut déjà : ils sont
+    // écrits par vitest et comparés au caractère près. Une **correction de
+    // lint** repliait `Promise.all([un])` en `await import(…)`, donc l'instantané
+    // cessait de correspondre à ce que le générateur produit, et l'intégration
+    // continue partait au rouge sur un fichier que personne n'avait édité.
+    // `vp test -u` puis le hook de pré-commit s'annulaient l'un l'autre.
+    ignorePatterns: ['packages/cli/test/fixture/**', '**/test/snapshots/**'],
     options: {
       typeAware: true,
       typeCheck: true,

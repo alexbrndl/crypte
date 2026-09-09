@@ -173,6 +173,23 @@ describe('l’entrée de la preview', () => {
     expect(source).toContain('if (__crypte_failure) throw __crypte_failure')
   })
 
+  // L'échec retenu au chargement doit s'oublier quand le fichier est réparé.
+  // Sans ça, la story reste cassée pour la vie de la page, avec une pile qui
+  // désigne une ligne disparue, et seul un rechargement complet en sort.
+  //
+  // Tenu ici, sur la source produite, et non dans un navigateur : le rejeu à
+  // chaud remet la dernière story demandée, qui est saine, donc l'alerte
+  // disparaît de toute façon et l'assertion d'écran passait sans le mécanisme.
+  // Mesuré. `DCJ-295` porte ce qui manque.
+  it('oublie l’échec d’un fichier que la mise à jour à chaud répare', () => {
+    const source = previewEntry({ root: fixture, config: { stories: 'stories' } } as never, [
+      'stories/Gardee.tsx',
+    ])
+
+    expect(source).toContain('__crypte_modules[__crypte_paths[index]] = module')
+    expect(source).toContain('delete __crypte_broken[__crypte_paths[index]]')
+  })
+
   // Un nom de fichier est une donnée, pas du code : interpolé brut, une
   // apostrophe ferme la chaîne et le reste du nom devient du JavaScript.
   it('échappe le nom du fichier dans l’import', () => {

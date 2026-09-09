@@ -4,7 +4,9 @@ import "<racine>/packages/cli/test/fixture/src/styles/app.css"
 const __crypte_modules = {}
 const __crypte_broken = {}
 
-await import("/stories/Gardee.tsx").then((module) => { __crypte_modules["/stories/Gardee.tsx"] = module }, (error) => { __crypte_broken["/stories/Gardee.tsx"] = error })
+await Promise.all([
+  import("/stories/Gardee.tsx").then((module) => { __crypte_modules["/stories/Gardee.tsx"] = module }, (error) => { __crypte_broken["/stories/Gardee.tsx"] = error }),
+])
 const __crypte_manifest = await fetch("/@crypte/manifest.json").then((answer) => answer.json())
 
 const __crypte_adapter = { name: 'fixture' }
@@ -55,7 +57,12 @@ if (import.meta.hot) {
 
   import.meta.hot.accept(__crypte_paths, (updated) => {
     updated.forEach((module, index) => {
-      if (module) __crypte_modules[__crypte_paths[index]] = module
+      if (!module) return
+
+      __crypte_modules[__crypte_paths[index]] = module
+
+      // A repaired file forgets its failure: architecture.md says why.
+      delete __crypte_broken[__crypte_paths[index]]
     })
 
     __crypte_channel.again()
