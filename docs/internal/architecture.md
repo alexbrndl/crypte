@@ -983,6 +983,32 @@ Il reste pour ce qu'il fait vraiment, éviter la lecture. Mesuré sur `resources
 
 *Ce qui casse si on simplifie en `process.exit(await run(...))` :* `crypte dev` s'arrête sans rien dire, et aucun cas ne le voit — les cas du CLI injectent des doublures et n'exécutent pas ce fichier, qui est par ailleurs hors couverture.
 
+---
+
+## 4 unvicies. Les budgets, et ce que chaque mesure refuse de mesurer
+
+`test/budgets.mjs` mesure quatre des cinq cibles de `DCJ-176`, les compare à `test/budgets.json`, écrit son tableau dans `$GITHUB_STEP_SUMMARY` et sort en 1 au-dessus d'une cible. Le job `budgets` de l'intégration continue le lance. En local, `node test/budgets.mjs`, après `vp run -r pack`.
+
+**Le démarrage à froid se mesure jusqu'à la première story rendue dans un navigateur.** Pas jusqu'au serveur à l'écoute : Vite compile à la demande, donc le serveur écoute sur un projet dont rien n'a été compilé. Mesuré sur `apps/demo`, 240 ms jusqu'à l'écoute contre 620 à 790 ms jusqu'au rendu, soit **2,5×**. Le premier chiffre est un chronomètre sur un traitement qui n'a rien traité.
+
+Trois lancements, la médiane, cache d'optimisation vidé avant chacun. Un seul chiffre sur une machine partagée est une loterie, et une moyenne se laisse tirer par un unique lancement lent.
+
+*Ce qui casse si on revient à l'écoute :* le budget passe à 240 ms de marge sur 1500, il ne bougerait plus quoi qu'on ajoute au démarrage, et personne ne le verrait puisqu'il resterait vert.
+
+**Chaque mesure lève plutôt que de rendre zéro.** Un dossier d'actifs absent veut dire que `vp pack` n'a pas tourné ; rendre zéro octet donnerait un budget de poids **tenu par un bundle qui n'existe pas**, c'est-à-dire le pire verdict possible : vert, et sur rien. Même règle pour les sources de l'adaptateur et pour l'arbre installé.
+
+**La cible de poids installé est à 34 Mo et non aux 15 de l'issue.** Mesuré : 30,0 Mo, dont **24,0 Mo de deux binaires natifs que Vite 8 embarque**, `@rolldown/binding-*` et `lightningcss-*`. Tout le reste, notre code et l'intégralité du JavaScript, pèse 5,4 Mo. Les 15 Mo dataient de l'époque où Vite construisait en JavaScript avec esbuild et Rollup.
+
+*Ce qui la ferait redescendre :* passer `vite` en `peerDependency` de `@crypte/cli`. C'est un changement de contrat sur un paquet publié, et `docs/decisions.md` dit ce qui le rouvrirait.
+
+**Le poids installé se calcule sans empaqueter.** Le script lit ce que les paquets déclarent, résout `catalog:` depuis `pnpm-workspace.yaml`, écarte `workspace:*` et compte nos `dist` directement. La voie évidente, `pnpm pack` puis `npm install` des tarballs, demande le binaire pnpm, **qui n'est pas garanti sur un runner** ; et `npm pack` refuse de tourner dans ce dépôt, dont `devEngines` exige pnpm et fait sortir npm en `EBADDEVENGINES`.
+
+*Ce qui casse si on lit `catalogMode:` pour `catalog:` :* le catalogue rendu tient une entrée, toutes les versions installées sont fausses, et le chiffre reste plausible. Un cas le tient.
+
+**Le cinquième budget est un type, pas un chiffre.** « Configuration obligatoire : racine des stories et adaptateur, rien d'autre » se tient dans `packages/cli/test/config.test-d.ts`, qui affirme que `CrypteConfig` exige exactement `stories` et `adapter`, que les quatre autres clés restent facultatives, et que le type n'en déclare pas une septième. Le mesurer par une expression régulière sur la source serait approximatif là où le compilateur est exact.
+
+---
+
 ## 5. Décisions encodées dans la configuration
 
 Ces réglages ont l'air anodins et ne le sont pas. Chacun a été mis là pour une raison précise, et chacun est le genre de ligne qu'on supprime en croyant nettoyer.

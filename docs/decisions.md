@@ -701,3 +701,15 @@ The real difference is who reads a document. The language follows from that.
 **What we rule out.** Resolving through Vite in `check`. That means starting a server to answer a question about files, and the producer's whole design is that it runs before any server exists.
 
 **What would reopen it.** A cheap resolver that honours plugins, or a manifest that records the resolution attempt rather than only its result. The second is the smaller change: one field saying whether `componentFile` resolved would remove the guess entirely.
+
+## The installed-weight budget is 34 Mo, and it counts what Vite brings
+
+**What we do.** `test/budgets.json` sets the ceiling at 34 Mo where `DCJ-176` asked for 15, and `test/budgets.mjs` fails CI above it. Measured: 30,0 Mo, of which **24,0 Mo are two native binaries Vite 8 ships**, `@rolldown/binding-*` and `lightningcss-*`. Everything else, our code and the whole JavaScript closure, is 5,4 Mo.
+
+**Why the old figure stopped meaning anything.** It was written when Vite built with esbuild and Rollup in JavaScript. Rolldown and Lightning CSS are native, per-platform, and their size is not a decision we make. Keeping 15 Mo would have meant a budget red on every run for a reason nobody in this repository can act on, which is the state a budget exists to avoid.
+
+**What we rule out, for now.** Moving `vite` from `dependencies` to `peerDependencies` of `@crypte/cli`. It would drop the marginal weight to 5,4 Mo and let the original figure stand, and it is a contract change on a published package: `crypte init` would have to tell the user to install Vite, and a project without it could no longer start with one command.
+
+**What we also rule out.** Excluding the native binaries from the measure and budgeting only the rest. The user downloads them, so a figure that hides them is a figure about our comfort rather than about their install.
+
+**What would reopen it.** Vite shipping its binaries as optional per-platform packages small enough to change the order of magnitude; a decision to make Vite a peer, which has to be taken for its own reasons and not to make a budget pass; or the JavaScript half growing past 8 Mo, which would be ours and would deserve the failure.
