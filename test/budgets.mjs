@@ -139,11 +139,11 @@ export function catalogOf(yaml) {
 // Ce que les paquets publiés déclarent devoir installer, `catalog:` résolu.
 // `workspace:*` est écarté : ce sont nos propres paquets, comptés par leur
 // `dist` plutôt que par le registre, qui ne les connaît pas encore.
-export function externalDeps(paquets, catalogue) {
+export function externalDeps(paquets, catalogue, racine = RACINE) {
   const trouvé = {}
 
   for (const paquet of paquets) {
-    const dossier = join(RACINE, 'packages', paquet)
+    const dossier = join(racine, 'packages', paquet)
     const lu = JSON.parse(readFileSync(join(dossier, 'package.json'), 'utf8'))
 
     for (const [nom, portée] of Object.entries(lu.dependencies ?? {})) {
@@ -153,7 +153,7 @@ export function externalDeps(paquets, catalogue) {
         throw new Error(`\`${nom}\` dit \`catalog:\` et le catalogue ne le porte pas`)
       }
 
-      trouvé[nom] = posée(nom, dossier) ?? (portée === 'catalog:' ? catalogue[nom] : portée)
+      trouvé[nom] = posée(nom, dossier, racine)
     }
   }
 
@@ -169,13 +169,16 @@ export function externalDeps(paquets, catalogue) {
 // le jour du lancement, donc une version mineure de Vite ferait rougir un
 // contrôle requis sur un commit qui n'a rien changé. Les dépendances
 // transitives flottent encore, et `docs/decisions.md` le dit.
-function posée(nom, dossier) {
-  for (const base of [dossier, RACINE]) {
+function posée(nom, dossier, racine) {
+  for (const base of [dossier, racine]) {
     const manifeste = join(base, 'node_modules', nom, 'package.json')
     if (existsSync(manifeste)) return JSON.parse(readFileSync(manifeste, 'utf8')).version
   }
 
-  return undefined
+  // Lève plutôt que de retomber sur la portée : la retombée rendrait la
+  // garantie d'épinglage silencieusement fausse, et c'est la mesure entière
+  // qui reposerait alors sur ce que le registre sert ce jour-là.
+  throw new Error(`\`${nom}\` n'est pas installé : lancer \`vp install\` d'abord`)
 }
 
 // Les paquets que l'utilisateur reçoit : les deux qu'il installe, et le noyau

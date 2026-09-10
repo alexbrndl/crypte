@@ -160,10 +160,10 @@ jobs:
   # Voir docs/internal/architecture.md.
   budgets:
     runs-on: ubuntu-latest
-    # 20 comme `check`, et pour la même raison : ce job fait strictement plus,
-    # même installation de Chromium plus un `npm install` depuis le registre et
-    # trois lancements navigateur. Sur une touche de cache manquée, Chromium a
-    # déjà coûté 9 min 11 à lui seul.
+    # 20 comme `check`, parce que ce job fait strictement plus : la même
+    # installation de Chromium, bornée à 8 min par son étape, plus `vp install`,
+    # `vp run -r pack`, un `npm install` depuis le registre et trois lancements
+    # navigateur. Mesuré à 2 min sur une touche de cache.
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

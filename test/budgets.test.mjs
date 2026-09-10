@@ -1,4 +1,12 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
@@ -187,14 +195,65 @@ describe('les dépendances externes', () => {
     // Exactes, sans accent circonflexe ni tilde : c'est là toute la garantie.
     for (const [nom, version] of Object.entries(lu)) expect(version, nom).toMatch(/^\d+\.\d+\.\d+/)
 
-    // Et bien celles qui sont posées. Les trois vivent sous le paquet qui les
-    // déclare, aucune n'est remontée à la racine : chercher à la racine seule
-    // les laissait toutes en portée, et le cas ci-dessus l'a montré.
-    for (const nom of Object.keys(lu)) {
-      const posé = join(process.cwd(), 'packages/cli/node_modules', nom, 'package.json')
+    // Et bien celles qui sont posées, cherchées auprès du paquet qui déclare
+    // chacune plutôt qu'à un emplacement écrit en dur : les trois vivent sous
+    // `cli` aujourd'hui, et le jour où `react` en déclare une, ce cas doit
+    // rendre un verdict plutôt qu'un `ENOENT`.
+    for (const paquet of PAQUETS)
+      for (const nom of Object.keys(déclarées(paquet))) {
+        if (nom.startsWith('@crypte/')) continue
 
-      expect(lu[nom], nom).toBe(JSON.parse(readFileSync(posé, 'utf8')).version)
-    }
+        const posé = join(process.cwd(), 'packages', paquet, 'node_modules', nom, 'package.json')
+
+        expect(existsSync(posé), `${paquet} n'a pas installé ${nom}`).toBe(true)
+        expect(lu[nom], nom).toBe(JSON.parse(readFileSync(posé, 'utf8')).version)
+      }
+  })
+
+  // Une dépendance déclarée et non installée rendrait la garantie d'épinglage
+  // silencieusement fausse : la mesure reposerait alors sur ce que le registre
+  // sert ce jour-là. Éprouvé sur une racine jetable, puisque tout est installé
+  // dans celle du dépôt.
+  it('lève sur une dépendance que rien n’a installée', () => {
+    const racine = dossierAvec({
+      'packages/faux/package.json': JSON.stringify({ dependencies: { absent: '^1.0.0' } }),
+    })
+
+    expect(() => externalDeps(['faux'], {}, racine)).toThrow('vp install')
+  })
+
+  // pnpm remonte certains modules à la racine plutôt que sous le paquet qui
+  // les déclare. Aucune des trois dépendances du dépôt n'est dans ce cas
+  // aujourd'hui, donc rien d'autre n'emprunte ce repli : la mutation qui le
+  // retire ne faisait rougir personne avant ce cas.
+  it('épingle aussi ce qui est remonté à la racine', () => {
+    const racine = dossierAvec({
+      'packages/faux/package.json': JSON.stringify({ dependencies: { remonté: '^2.0.0' } }),
+      'node_modules/remonté/package.json': JSON.stringify({ version: '2.7.0' }),
+    })
+
+    expect(externalDeps(['faux'], {}, racine)).toEqual({ remonté: '2.7.0' })
+  })
+
+  // Le paquet d'abord, la racine ensuite : deux versions installées, celle du
+  // paquet est celle qu'il chargera.
+  it('préfère la version posée sous le paquet', () => {
+    const racine = dossierAvec({
+      'packages/faux/package.json': JSON.stringify({ dependencies: { deux: '^1.0.0' } }),
+      'packages/faux/node_modules/deux/package.json': JSON.stringify({ version: '1.0.0' }),
+      'node_modules/deux/package.json': JSON.stringify({ version: '9.9.9' }),
+    })
+
+    expect(externalDeps(['faux'], {}, racine)).toEqual({ deux: '1.0.0' })
+  })
+
+  it('épingle sur cette racine-là quand on lui en donne une', () => {
+    const racine = dossierAvec({
+      'packages/faux/package.json': JSON.stringify({ dependencies: { posé: '^1.0.0' } }),
+      'packages/faux/node_modules/posé/package.json': JSON.stringify({ version: '1.4.2' }),
+    })
+
+    expect(externalDeps(['faux'], {}, racine)).toEqual({ posé: '1.4.2' })
   })
 
   // Sans ce cas, un nom que le catalogue ne porte plus donnerait `undefined`
