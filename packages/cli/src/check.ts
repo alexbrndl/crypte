@@ -143,7 +143,7 @@ function synonyms(body: Node[]): Set<string> {
 
     if (node.type !== 'ExportNamedDeclaration' || node['source'] != null) continue
 
-    for (const one of (node['specifiers'] as Node[] | undefined) ?? []) {
+    for (const one of node['specifiers'] as Node[]) {
       const local = one['local'] as Node | undefined
       const exported = one['exported'] as Node | undefined
 
