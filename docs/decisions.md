@@ -701,3 +701,19 @@ The real difference is who reads a document. The language follows from that.
 **What we rule out.** Resolving through Vite in `check`. That means starting a server to answer a question about files, and the producer's whole design is that it runs before any server exists.
 
 **What would reopen it.** A cheap resolver that honours plugins, or a manifest that records the resolution attempt rather than only its result. The second is the smaller change: one field saying whether `componentFile` resolved would remove the guess entirely.
+
+## The installed-weight budget is 38 Mo, and it counts what Vite brings
+
+**What we do.** `test/budgets.json` sets the ceiling at 38 Mo where `DCJ-176` asked for 15, and `test/budgets.mjs` fails CI above it. Measured: **30,0 Mo on darwin-arm64 and 34,1 Mo on the linux-x64 runner**, of which some 24 Mo are two native binaries Vite 8 ships, `@rolldown/binding-*` and `lightningcss-*`. Everything else, our code and the whole JavaScript closure, is 5,4 Mo.
+
+**Why 38 and not 35.** The binaries differ by 4 Mo between platforms, and the ceiling has to hold on the one that judges as well as on the one we develop on. What it really guards is our JavaScript half: it bites if that grows by 4 Mo, which is 74 %.
+
+**Why the old figure stopped meaning anything.** It was written when Vite built with esbuild and Rollup in JavaScript. Rolldown and Lightning CSS are native, per-platform, and their size is not a decision we make. Keeping 15 Mo would have meant a budget red on every run for a reason nobody in this repository can act on, which is the state a budget exists to avoid.
+
+**What we rule out, for now.** Moving `vite` from `dependencies` to `peerDependencies` of `@crypte/cli`. It would drop the marginal weight to 5,4 Mo and let the original figure stand, and it is a contract change on a published package: `crypte init` would have to tell the user to install Vite, and a project without it could no longer start with one command.
+
+**What we also rule out.** Excluding the native binaries from the measure and budgeting only the rest. The user downloads them, so a figure that hides them is a figure about our comfort rather than about their install.
+
+**What the measure pins, and what it does not.** The direct dependencies are pinned to the versions this repository has installed, so a Vite release cannot move the figure on a commit that changed nothing. Their own transitive dependencies are still resolved from the registry at run time, and a native binary growing there would redden a required check for a reason nobody here can act on.
+
+**What would reopen it.** That last case, if it happens: the answer is to install from `pnpm-lock.yaml` rather than to raise the ceiling. Vite shipping its binaries as optional per-platform packages small enough to change the order of magnitude. A decision to make Vite a peer, which has to be taken for its own reasons and not to make a budget pass. Or the JavaScript half growing past 8 Mo, which would be ours and would deserve the failure.

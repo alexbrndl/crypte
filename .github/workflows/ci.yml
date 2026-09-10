@@ -153,6 +153,50 @@ jobs:
           echo "::error::Le badge de .github/coverage.json est périmé. Si cette branche ne touche pas la couverture, fusionner \`main\` dedans suffit : le badge y est déjà à jour. Sinon, lancer \`vp test --coverage && node test/coverage-report.mjs --badge .github/coverage.json\` et commiter le fichier."
           exit 1
 
+  # Les cinq budgets du produit, mesurés à chaque pull request. Un job à part
+  # plutôt qu'une étape de `check` : le tableau se lit en tête du run, et le
+  # verdict porte un nom sur la pull request au lieu d'être enterré dans les
+  # journaux d'un autre job. Même raison que `coverage`.
+  # Voir docs/internal/architecture.md.
+  budgets:
+    runs-on: ubuntu-latest
+    # 20 comme `check`, parce que ce job fait strictement plus : la même
+    # installation de Chromium, bornée à 8 min par son étape, plus `vp install`,
+    # `vp run -r pack`, un `npm install` depuis le registre et trois lancements
+    # navigateur. Mesuré à 2 min sur une touche de cache.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: voidzero-dev/setup-vp@49c3e4e92c52e7f8392712a9267bbe71c5ab30e5 # v1.19.0
+        with:
+          node-version: '24'
+          cache: true
+      - run: vp install
+      # Trois des quatre mesures lisent ce que `pack` produit : le shell
+      # prébuildé, le binaire du CLI que le démarrage lance, et les `dist` que
+      # le poids installé compte. Sans cette étape le script lève, plutôt que
+      # de rendre un budget tenu sur des paquets vides.
+      - run: vp run -r pack
+      # Même clé que le job `check`, donc le cache se partage **d'un lancement
+      # à l'autre**, pas au sein d'un même : `actions/cache` n'enregistre qu'à
+      # la fin d'un job, et les deux tournent en parallèle. Sur une touche
+      # manquée, les deux installent Chromium et écrivent la même clé, ce que
+      # l'action tolère en avertissant.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: chromium
+        with:
+          path: ~/.cache/ms-playwright
+          key: chromium-${{ runner.os }}-${{ hashFiles('pnpm-workspace.yaml') }}
+      - if: steps.chromium.outputs.cache-hit == 'true'
+        run: vp node node_modules/playwright/cli.js install chromium
+      - if: steps.chromium.outputs.cache-hit != 'true'
+        timeout-minutes: 8
+        run: vp node node_modules/playwright/cli.js install --with-deps chromium
+      # Le tableau part au résumé du run, les dépassements sur l'erreur
+      # standard, où `::error::` les annote. Le code de sortie décide.
+      - name: Report budgets
+        run: node test/budgets.mjs >> "$GITHUB_STEP_SUMMARY"
+
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -164,7 +208,7 @@ jobs:
   # Seul job exigé par le ruleset. Voir docs/internal/architecture.md.
   ci-passed:
     if: always()
-    needs: [check, coverage, dependency-review]
+    needs: [check, coverage, budgets, dependency-review]
     runs-on: ubuntu-latest
     steps:
       - name: Une dépendance a échoué ou a été annulée
