@@ -679,3 +679,25 @@ The real difference is who reads a document. The language follows from that.
 **Why the demonstration keeps it anyway.** React Compiler runs on Babel, so it needs the plugin. It is active on the target project, which is the risk `DCJ-170` asked to lift, and it is lifted by a project-supplied plugin rather than by one of ours.
 
 **What would reopen it.** A framework whose adapter cannot render without a transform of its own, or Fast Refresh becoming reachable from the preview.
+
+## `crypte init` refuses rather than write a configuration that would not load
+
+**What we do.** `init` reads `package.json`, recognises the framework, and writes the two required keys of section 1.5 and nothing else. With no framework it recognises, it writes nothing and names the adapters that exist. It never overwrites an existing `crypte.config.ts`, and it creates the story root it proposes, because `buildCatalogue` refuses a root that does not exist.
+
+**What we rule out.** Writing the file with `adapter` left empty for the user to fill. The result is a project holding a configuration `crypte dev` rejects, which is worse than a project holding none: the error then arrives one command later and names a file the user did not write. A framework with no adapter cannot run Crypte at all, so there is nothing to configure.
+
+**What we also rule out.** Guessing `css` from a list of conventional file names, and generating an example story. The first writes a second source of truth beside the one it guessed from; the second has to name a component, which is the guess section 1.2 refuses everywhere else. Both are printed as advice instead, where being wrong costs a line of reading.
+
+**Why there is no contract section for it.** The file it writes is section 1.5, and that section is the contract. A second one would restate it and drift.
+
+**What would reopen it.** A second adapter, which makes recognition a real choice rather than one name; or a measurement showing that the printed advice is not read, in which case a prompt is the answer, not a guess.
+
+## `crypte check` reports an orphan only when the project could reach the component
+
+**What we do.** A story whose `component.file` names nothing on disk is an orphan when the identifier is a relative path or matches an alias the project declares. A bare identifier matching no alias is left alone.
+
+**Why.** Section 8: the producer resolves without Vite, so a component reached through a plugin or an `exports` field keeps the identifier the story wrote, and nothing tells it apart from a component that was deleted. Reporting it fails the command on a project that is correct, which is the one failure mode section 1.2 says costs more than a miss.
+
+**What we rule out.** Resolving through Vite in `check`. That means starting a server to answer a question about files, and the producer's whole design is that it runs before any server exists.
+
+**What would reopen it.** A cheap resolver that honours plugins, or a manifest that records the resolution attempt rather than only its result. The second is the smaller change: one field saying whether `componentFile` resolved would remove the guess entirely.

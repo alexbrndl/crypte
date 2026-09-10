@@ -965,6 +965,24 @@ Le critère juste demande un arbre syntaxique. `parseSync` d'oxc le donnerait, e
 
 ---
 
+## 4 vicies. `crypte check` et `crypte init`
+
+**Le périmètre du second contrôle est dérivé, pas déclaré.** « Composant sans story » demande de savoir où vivent les composants, et `CrypteConfig` ne le dit nulle part : la section 0 du contrat interdit de redemander ce qu'un projet écrit déjà. Le périmètre est donc l'ensemble des dossiers des composants que les stories citent déjà, et lui seul.
+
+*Conséquence à connaître :* un dossier qu'aucune story n'a atteint est invisible. C'est la bonne direction — l'autre serait de parcourir tout le projet et d'avertir sur tout, ce qui est le flot de faux avertissements que la section 1.2 interdit nommément.
+
+*Ce qui casse si on ajoute une racine de composants à la configuration :* deux sources de vérité qui divergent des imports, et la promesse de la section 0 tombe.
+
+**Le filtre d'extensions de `check.ts` ne décide d'aucun verdict, et il n'est pas décoratif.** L'analyseur refuse `.mjs`, `.mts`, `.vue`, `.css` et jusqu'à `.TSX`, mesuré : aucune extension hors des quatre ne donne un composant. Le retirer ne fait donc rougir aucun cas, et aucun test ne peut le garder.
+
+Il reste pour ce qu'il fait vraiment, éviter la lecture. Mesuré sur `resources/js` d'un projet réel : 761 dossiers, **1067 fichiers hors des quatre extensions pour 198 Mio**, et le parcours passe de 235 ms à 4,4 s — dix-neuf fois. Ce sont les images, les polices et les instantanés qui vivent à côté des composants.
+
+*Ce qui casse si on l'enlève :* `crypte check` lit et tente d'analyser deux cents mégaoctets de binaire à chaque lancement, pour le même verdict.
+
+**`index.ts` n'appelle jamais `process.exit(0)`.** `crypte dev` rend la main dès que le serveur écoute, et le processus ne survit que par ses descripteurs ouverts : sortir sur zéro fermerait le serveur aussitôt démarré. Seul un code non nul sort.
+
+*Ce qui casse si on simplifie en `process.exit(await run(...))` :* `crypte dev` s'arrête sans rien dire, et aucun cas ne le voit — les cas du CLI injectent des doublures et n'exécutent pas ce fichier, qui est par ailleurs hors couverture.
+
 ## 5. Décisions encodées dans la configuration
 
 Ces réglages ont l'air anodins et ne le sont pas. Chacun a été mis là pour une raison précise, et chacun est le genre de ligne qu'on supprime en croyant nettoyer.

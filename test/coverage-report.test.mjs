@@ -24,6 +24,21 @@ import {
 // écrit sur une pull request : sans ces cas, sa seule épreuve serait une pousse.
 // Voir docs/internal/architecture.md.
 
+// Les seuils réels du dépôt, lus et jamais recopiés. Les cas qui traversent le
+// badge ou le script les franchissent pour de vrai : un chiffre écrit à la main
+// ici rend rouges, le jour où un lot monte un plancher, des cas que personne n'a
+// touchés. Mesuré, trois d'un coup.
+const SEUILS_DU_DÉPÔT = JSON.parse(
+  readFileSync(join(process.cwd(), 'test', 'coverage-thresholds.json'), 'utf8'),
+)
+
+// Chaque mesure un point au-dessus de son propre seuil : au-dessus de la porte,
+// sous le cliquet, quels que soient les seuils du jour. Borné à cent, qu'un
+// seuil de cent ferait sinon dépasser sur un résumé impossible.
+const JUSTE_AU_DESSUS = Object.fromEntries(
+  Object.entries(SEUILS_DU_DÉPÔT).map(([nom, seuil]) => [nom, Math.min(100, seuil + 1)]),
+)
+
 const metrique = (pct, covered = 1, total = 1) => ({ pct, covered, total, skipped: 0 })
 
 const fichier = (pct) => ({
@@ -34,9 +49,9 @@ const fichier = (pct) => ({
 })
 
 // `par` surcharge une métrique. Les branches en ont besoin dès qu'un cas passe
-// par `main()` : leur seuil est huit points sous celui des lignes, donc un résumé
-// uniforme les met loin au-dessus et le cliquet réclame de monter le seuil, ce
-// qui est juste sur un vrai dépôt et faux sur une fixture.
+// par `main()` : leur seuil est le plus bas des quatre, donc un résumé uniforme
+// les met loin au-dessus et le cliquet réclame de monter le seuil, ce qui est
+// juste sur un vrai dépôt et faux sur une fixture.
 const resume = (pct = 99, par = {}) => {
   const de = (nom) => par[nom] ?? pct
 
@@ -52,6 +67,10 @@ const resume = (pct = 99, par = {}) => {
     },
   }
 }
+
+// Un résumé qui tient les quatre seuils, quels qu'ils soient. `resume(99)` les
+// tenait par coïncidence, et rougissait dès qu'un plancher passait au-dessus.
+const tenu = () => resume(JUSTE_AU_DESSUS.lines, JUSTE_AU_DESSUS)
 
 describe('la barre de progression', () => {
   it('est vide à zéro et pleine à cent', () => {
@@ -148,7 +167,7 @@ describe('le corps du commentaire', () => {
   })
 
   it('marque d’une coche la métrique au-dessus de son seuil', () => {
-    expect(compose(resume(99))).not.toContain('❌')
+    expect(compose(tenu())).not.toContain('❌')
   })
 
   it('abrège la révision mesurée', () => {
@@ -281,8 +300,8 @@ describe('le tableau par dossier', () => {
 
 describe('le verdict des seuils', () => {
   it('ne nomme rien quand tout tient', () => {
-    expect(failing(resume(99))).toEqual([])
-    expect(compose(resume(99), undefined)).toContain('✅ Seuils tenus')
+    expect(failing(tenu())).toEqual([])
+    expect(compose(tenu(), undefined)).toContain('✅ Seuils tenus')
   })
 
   it('nomme la métrique et son seuil', () => {
@@ -321,21 +340,24 @@ describe('les arguments', () => {
 })
 
 describe('le badge du README', () => {
-  // Arrondi vers le bas : 98,55 affiché « 99 % » flatterait.
+  // Arrondi vers le bas : une fraction au-dessus du seuil affichée au point
+  // suivant flatterait.
   it('rend le format que shields.io lit, arrondi vers le bas', () => {
-    expect(badge(resume(98.55))).toEqual({
+    expect(badge(resume(SEUILS_DU_DÉPÔT.lines + 0.55))).toEqual({
       schemaVersion: 1,
       label: 'coverage',
-      message: '98%',
+      message: `${SEUILS_DU_DÉPÔT.lines}%`,
       color: 'brightgreen',
     })
   })
 
   // Un badge vert sous le seuil mentirait sur une porte rouge.
   it('n’est vert vif qu’au-dessus du seuil de lignes', () => {
-    expect(badge(resume(97)).color).toBe('brightgreen')
-    expect(badge(resume(96.9)).color).toBe('yellow')
-    expect(badge(resume(86)).color).toBe('red')
+    const seuil = SEUILS_DU_DÉPÔT.lines
+
+    expect(badge(resume(seuil)).color).toBe('brightgreen')
+    expect(badge(resume(seuil - 0.1)).color).toBe('yellow')
+    expect(badge(resume(seuil - 11)).color).toBe('red')
   })
 
   it('lève sur un résumé sans pourcentage de lignes', () => {
@@ -368,7 +390,7 @@ describe('les seuils', () => {
     const partagés = JSON.parse(readFileSync('test/coverage-thresholds.json', 'utf8'))
     const config = readFileSync('vite.config.ts', 'utf8')
 
-    expect(compose(resume(99), undefined)).toContain(`lignes ${partagés.lines} %`)
+    expect(compose(tenu(), undefined)).toContain(`lignes ${partagés.lines} %`)
     // La clé, pas le mot : le nom du fichier partagé le contient, et le
     // commentaire qui explique où sont passés les seuils aussi.
     expect(config).not.toMatch(/thresholds\s*[:,]/)
@@ -517,32 +539,39 @@ describe('le script, lancé pour de vrai', () => {
   // Le cas du job `badge` : aucun `--resume`, donc le chemin par défaut, celui
   // dont la mauvaise résolution aurait rendu ce job rouge à chaque fusion.
   test('trouve le résumé au chemin par défaut, comme le job badge', ({ dossier }) => {
-    dossier.écrit(99, join('coverage', 'coverage-summary.json'), { branches: 90 })
+    dossier.écrit(JUSTE_AU_DESSUS.lines, join('coverage', 'coverage-summary.json'), JUSTE_AU_DESSUS)
     const cible = join(dossier.racine, 'badge.json')
 
     const { code } = dossier.lance(['--badge', cible])
 
     expect(code).toBe(0)
-    expect(JSON.parse(readFileSync(cible, 'utf8')).message).toBe('99%')
+    expect(JSON.parse(readFileSync(cible, 'utf8')).message).toBe(`${JUSTE_AU_DESSUS.lines}%`)
   })
 
   // Le branchement, et pas seulement la fonction : retirer le bloc du cliquet de
   // `main()` laissait les autres cas verts, parce qu'ils appellent `drifted`
-  // directement et que les deux cas de badge reçoivent justement `{ branches: 90 }`
-  // pour ne **pas** le déclencher.
+  // directement et que les deux cas de badge reçoivent justement des mesures
+  // posées un point au-dessus des seuils pour ne **pas** le déclencher.
   test('le cliquet fait sortir le script en un, avec le fichier à coller', ({ dossier }) => {
-    dossier.écrit(99)
+    // Au-delà du cliquet, et non borné à cent : la valeur n'est comparée qu'à
+    // elle-même, et un seuil de branches à cent ne laisserait aucune place.
+    const dérive = SEUILS_DU_DÉPÔT.branches + 4
+
+    dossier.écrit(JUSTE_AU_DESSUS.lines, join('coverage', 'coverage-summary.json'), {
+      ...JUSTE_AU_DESSUS,
+      branches: dérive,
+    })
 
     const { code, err } = dossier.lance([])
 
     expect(code).toBe(1)
     expect(err).toContain('seuil à monter dans test/coverage-thresholds.json')
     expect(err).toContain('à écrire :')
-    expect(err).toContain('"branches": 99')
+    expect(err).toContain(`"branches": ${dérive}`)
   })
 
   test('écrit le badge que shields.io lit, et sort en zéro', ({ dossier }) => {
-    const résumé = dossier.écrit(99, 'résumé.json', { branches: 90 })
+    const résumé = dossier.écrit(JUSTE_AU_DESSUS.lines, 'résumé.json', JUSTE_AU_DESSUS)
     const cible = join(dossier.racine, 'badge.json')
 
     const { code } = dossier.lance(['--resume', résumé, '--badge', cible])
@@ -551,7 +580,7 @@ describe('le script, lancé pour de vrai', () => {
     expect(JSON.parse(readFileSync(cible, 'utf8'))).toEqual({
       schemaVersion: 1,
       label: 'coverage',
-      message: '99%',
+      message: `${JUSTE_AU_DESSUS.lines}%`,
       color: 'brightgreen',
     })
   })

@@ -1,5 +1,5 @@
-import { PROTOCOL_VERSION } from '@crypte/core/protocol'
 import { describe, expect, test } from 'vitest'
+import { PROTOCOL_VERSION } from '@crypte/core/protocol'
 import { exitCode, run } from '../src/cli'
 import type { Running } from '../src/dev'
 import { ConfigError } from '../src/errors'
@@ -9,22 +9,32 @@ import { ConfigError } from '../src/errors'
 // d'une erreur de configuration reposaient sur la lecture seule.
 // Voir docs/internal/architecture.md.
 
+const AIDE = `crypte — protocol v${PROTOCOL_VERSION}, commands: dev, check, init`
+
 const dit = () => {
   const lignes: string[] = []
 
   return { lignes, log: (line: string) => lignes.push(line) }
 }
 
-// La commande `dev` monte un serveur : ici on n'éprouve que ce que l'entrée lui
-// passe, donc une doublure qui retient sa racine.
+// Les trois commandes montent un serveur, lisent un projet ou écrivent un
+// fichier : ici on n'éprouve que ce que l'entrée leur passe, donc des doublures
+// qui retiennent leur racine.
 const faux = () => {
-  const racines: (string | undefined)[] = []
+  const racines: string[] = []
 
   return {
     racines,
     dev: async (input: string) => {
       racines.push(input)
       return undefined as unknown as Running
+    },
+    check: async (input: string) => {
+      racines.push(input)
+      return 0
+    },
+    init: (input: string) => {
+      racines.push(input)
     },
   }
 }
@@ -45,7 +55,7 @@ describe('la commande crypte', () => {
 
     await run([], sortie.log)
 
-    expect(sortie.lignes).toEqual([`crypte — protocol v${PROTOCOL_VERSION}, commands: dev`])
+    expect(sortie.lignes).toEqual([AIDE])
   })
 
   test('rend la même aide sur une commande inconnue', async () => {
@@ -53,26 +63,52 @@ describe('la commande crypte', () => {
 
     await run(['tourne'], sortie.log)
 
-    expect(sortie.lignes).toEqual([`crypte — protocol v${PROTOCOL_VERSION}, commands: dev`])
+    expect(sortie.lignes).toEqual([AIDE])
   })
 
-  test('passe la racine donnée à dev', async () => {
+  // L'aide nomme ce que le binaire porte vraiment. Elle a déjà annoncé une
+  // commande de moins que la documentation, `DCJ-286`.
+  test.for(['dev', 'check', 'init'] as const)('annonce %s dans l’aide', async (commande) => {
+    const sortie = dit()
+
+    await run([], sortie.log)
+
+    expect(sortie.lignes[0]).toContain(commande)
+  })
+
+  test.for(['dev', 'check', 'init'] as const)('passe la racine donnée à %s', async (commande) => {
     const doublure = faux()
 
-    await run(['dev', '/un/projet'], dit().log, doublure.dev)
+    await run([commande, '/un/projet'], dit().log, doublure)
 
     expect(doublure.racines).toEqual(['/un/projet'])
   })
 
-  // Sans racine, le dossier courant : c'est ce qu'un `crypte dev` nu doit faire,
+  // Sans racine, le dossier courant : c'est ce qu'une commande nue doit faire,
   // et rien ne le vérifiait.
-  test('prend le dossier courant quand la racine manque', async () => {
-    const doublure = faux()
+  test.for(['dev', 'check', 'init'] as const)(
+    'prend le dossier courant quand la racine manque sur %s',
+    async (commande) => {
+      const doublure = faux()
 
-    await run(['dev'], dit().log, doublure.dev)
+      await run([commande], dit().log, doublure)
 
-    expect(doublure.racines).toEqual([process.cwd()])
+      expect(doublure.racines).toEqual([process.cwd()])
+    },
+  )
+
+  // Le code de sortie de `check` est le sien : les orphelines font échouer la
+  // commande, et l'avaler rendrait le contrôle vert dans une intégration.
+  test('rend le code de sortie de check', async () => {
+    expect(await run(['check'], dit().log, { check: async () => 1 })).toBe(1)
   })
+
+  test.for([['dev'], ['init'], ['--version'], ['tourne'], []] as const)(
+    'sort en 0 sur %s',
+    async (argv) => {
+      expect(await run([...argv], dit().log, faux())).toBe(0)
+    },
+  )
 })
 
 describe('la sortie du processus', () => {
