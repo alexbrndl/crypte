@@ -33,9 +33,10 @@ const SEUILS_DU_DÉPÔT = JSON.parse(
 )
 
 // Chaque mesure un point au-dessus de son propre seuil : au-dessus de la porte,
-// sous le cliquet, quels que soient les seuils du jour.
+// sous le cliquet, quels que soient les seuils du jour. Borné à cent, qu'un
+// seuil de cent ferait sinon dépasser sur un résumé impossible.
 const JUSTE_AU_DESSUS = Object.fromEntries(
-  Object.entries(SEUILS_DU_DÉPÔT).map(([nom, seuil]) => [nom, seuil + 1]),
+  Object.entries(SEUILS_DU_DÉPÔT).map(([nom, seuil]) => [nom, Math.min(100, seuil + 1)]),
 )
 
 const metrique = (pct, covered = 1, total = 1) => ({ pct, covered, total, skipped: 0 })
@@ -48,9 +49,9 @@ const fichier = (pct) => ({
 })
 
 // `par` surcharge une métrique. Les branches en ont besoin dès qu'un cas passe
-// par `main()` : leur seuil est huit points sous celui des lignes, donc un résumé
-// uniforme les met loin au-dessus et le cliquet réclame de monter le seuil, ce
-// qui est juste sur un vrai dépôt et faux sur une fixture.
+// par `main()` : leur seuil est le plus bas des quatre, donc un résumé uniforme
+// les met loin au-dessus et le cliquet réclame de monter le seuil, ce qui est
+// juste sur un vrai dépôt et faux sur une fixture.
 const resume = (pct = 99, par = {}) => {
   const de = (nom) => par[nom] ?? pct
 
@@ -66,6 +67,10 @@ const resume = (pct = 99, par = {}) => {
     },
   }
 }
+
+// Un résumé qui tient les quatre seuils, quels qu'ils soient. `resume(99)` les
+// tenait par coïncidence, et rougissait dès qu'un plancher passait au-dessus.
+const tenu = () => resume(JUSTE_AU_DESSUS.lines, JUSTE_AU_DESSUS)
 
 describe('la barre de progression', () => {
   it('est vide à zéro et pleine à cent', () => {
@@ -162,7 +167,7 @@ describe('le corps du commentaire', () => {
   })
 
   it('marque d’une coche la métrique au-dessus de son seuil', () => {
-    expect(compose(resume(99))).not.toContain('❌')
+    expect(compose(tenu())).not.toContain('❌')
   })
 
   it('abrège la révision mesurée', () => {
@@ -295,8 +300,8 @@ describe('le tableau par dossier', () => {
 
 describe('le verdict des seuils', () => {
   it('ne nomme rien quand tout tient', () => {
-    expect(failing(resume(99))).toEqual([])
-    expect(compose(resume(99), undefined)).toContain('✅ Seuils tenus')
+    expect(failing(tenu())).toEqual([])
+    expect(compose(tenu(), undefined)).toContain('✅ Seuils tenus')
   })
 
   it('nomme la métrique et son seuil', () => {
@@ -335,7 +340,8 @@ describe('les arguments', () => {
 })
 
 describe('le badge du README', () => {
-  // Arrondi vers le bas : 98,55 affiché « 99 % » flatterait.
+  // Arrondi vers le bas : une fraction au-dessus du seuil affichée au point
+  // suivant flatterait.
   it('rend le format que shields.io lit, arrondi vers le bas', () => {
     expect(badge(resume(SEUILS_DU_DÉPÔT.lines + 0.55))).toEqual({
       schemaVersion: 1,
@@ -384,7 +390,7 @@ describe('les seuils', () => {
     const partagés = JSON.parse(readFileSync('test/coverage-thresholds.json', 'utf8'))
     const config = readFileSync('vite.config.ts', 'utf8')
 
-    expect(compose(resume(99), undefined)).toContain(`lignes ${partagés.lines} %`)
+    expect(compose(tenu(), undefined)).toContain(`lignes ${partagés.lines} %`)
     // La clé, pas le mot : le nom du fichier partagé le contient, et le
     // commentaire qui explique où sont passés les seuils aussi.
     expect(config).not.toMatch(/thresholds\s*[:,]/)
@@ -547,6 +553,8 @@ describe('le script, lancé pour de vrai', () => {
   // directement et que les deux cas de badge reçoivent justement des mesures
   // posées un point au-dessus des seuils pour ne **pas** le déclencher.
   test('le cliquet fait sortir le script en un, avec le fichier à coller', ({ dossier }) => {
+    // Au-delà du cliquet, et non borné à cent : la valeur n'est comparée qu'à
+    // elle-même, et un seuil de branches à cent ne laisserait aucune place.
     const dérive = SEUILS_DU_DÉPÔT.branches + 4
 
     dossier.écrit(JUSTE_AU_DESSUS.lines, join('coverage', 'coverage-summary.json'), {
