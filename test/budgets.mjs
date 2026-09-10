@@ -407,6 +407,17 @@ export async function main() {
 
   console.log(table(rendus))
 
+  // Le tableau part au résumé du run, donc il ne paraît pas dans le journal du
+  // job. Un récapitulatif d'une ligne par mesure y reste, sans quoi il faut
+  // ouvrir le résumé pour savoir ce qui a été mesuré, et un lancement passé
+  // ne laisse aucune trace chiffrée à comparer au suivant.
+  for (const un of rendus) {
+    const { titre, format } = MESURES[un.clé]
+    process.stderr.write(
+      `${titre} : ${un.mesure === undefined ? 'non mesuré' : format(un.mesure)} (cible ${format(un.budget)}, ${un.mesure} bruts)\n`,
+    )
+  }
+
   const dépassés = rendus.filter((one) => !one.tenu)
 
   if (dépassés.length === 0) return 0
