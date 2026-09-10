@@ -4,7 +4,15 @@
 
 import { execFileSync } from 'node:child_process'
 import { gzipSync } from 'node:zlib'
-import { lstatSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  lstatSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -172,7 +180,9 @@ export function ownBytes(paquets = ['cli', 'react', 'core']) {
 // Les pairs sont exclus, `--legacy-peer-deps` : `react` et `react-dom` sont
 // fournis par le projet hôte, et les compter reviendrait à facturer deux fois
 // ce qui est déjà installé.
-export async function installedBytes(travail = mkdtempSync(join(tmpdir(), 'crypte-poids-'))) {
+export async function installedBytes(travail, sien = travail === undefined) {
+  travail ??= mkdtempSync(join(tmpdir(), 'crypte-poids-'))
+
   const catalogue = catalogOf(readFileSync(join(RACINE, 'pnpm-workspace.yaml'), 'utf8'))
 
   writeFileSync(
@@ -193,6 +203,11 @@ export async function installedBytes(travail = mkdtempSync(join(tmpdir(), 'crypt
   const dépendances = treeBytes(join(travail, 'node_modules'))
 
   if (dépendances === 0) throw new Error(`rien d'installé dans ${travail}`)
+
+  // Seulement le dossier que cette fonction a créé, et seulement une fois la
+  // mesure prise : un échec garde ses pièces, et un dossier confié par
+  // l'appelant lui appartient. Trente mégaoctets par lancement, sinon.
+  if (sien) rmSync(travail, { recursive: true, force: true })
 
   return dépendances + ownBytes()
 }
@@ -225,16 +240,34 @@ export async function startMs(projet = join(RACINE, 'apps/demo'), lancements = 3
       // rendu qui n'arrive pas ne laisse qu'un délai dépassé, et la cause est
       // à chercher sur une machine qu'on n'a pas.
       const dits = []
-      page.on('console', (m) => {
-        if (m.type() === 'error') dits.push(`console: ${m.text()}`)
-      })
-      page.on('pageerror', (e) => dits.push(`page: ${e.message}`))
-
       const début = performance.now()
+      // Écrit au fil de l'eau sur l'erreur standard, en plus d'être gardé : un
+      // message rendu seulement à la fin ne dit rien d'un serveur qui se tait,
+      // et c'est précisément ce qu'un runner a fait pendant soixante secondes.
+      // La sortie standard reste le tableau, elle seule part au résumé du run.
+      const dire = (quoi) => {
+        const ligne = `[${Math.round(performance.now() - début)} ms] ${quoi}`
+        dits.push(ligne)
+        process.stderr.write(`${ligne}\n`)
+      }
+
+      page.on('console', (m) => {
+        if (m.type() === 'error') dire(`console: ${m.text()}`)
+      })
+      page.on('pageerror', (e) => dire(`page: ${e.message}`))
+
+      dire(`lancement ${i + 1}/${lancements} : ${process.execPath} ${binaire} dev ${projet}`)
+      if (!existsSync(binaire))
+        throw new Error(`${binaire} n'existe pas : lancer \`vp run -r pack\``)
+
       const enfant = spawn(process.execPath, [binaire, 'dev', projet], { stdio: 'pipe' })
 
-      enfant.stdout.on('data', (d) => dits.push(`dev: ${String(d).trim()}`))
-      enfant.stderr.on('data', (d) => dits.push(`dev!: ${String(d).trim()}`))
+      enfant.stdout.on('data', (d) => dire(`dev: ${String(d).trim()}`))
+      enfant.stderr.on('data', (d) => dire(`dev!: ${String(d).trim()}`))
+      enfant.on('error', (e) => dire(`dev, échec de lancement : ${e.message}`))
+      // Un battement pendant l'attente : un journal muet ne distingue pas un
+      // processus qui travaille d'un processus bloqué.
+      const battement = setInterval(() => dire(`toujours en attente, pid ${enfant.pid}`), 10_000)
 
       try {
         // Bornée elle aussi : un serveur qui n'annonce jamais son adresse, et
@@ -284,6 +317,7 @@ export async function startMs(projet = join(RACINE, 'apps/demo'), lancements = 3
 
         pris.push(performance.now() - début)
       } finally {
+        clearInterval(battement)
         enfant.kill('SIGTERM')
         await page.close()
       }
