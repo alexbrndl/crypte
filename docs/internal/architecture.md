@@ -993,17 +993,27 @@ Il reste pour ce qu'il fait vraiment, éviter la lecture. Mesuré sur `resources
 
 Trois lancements, la médiane, cache d'optimisation vidé avant chacun. Un seul chiffre sur une machine partagée est une loterie, et une moyenne se laisse tirer par un unique lancement lent.
 
+*La marge est mesurée, pas supposée.* Le runner rend 1201 et 1232 ms sur deux lancements indépendants, contre 655 ms sur une machine de développement : 2,5 % d'écart entre les deux mesures partagées, donc **22 % de marge sous la cible de 1500 ms**, sur une mesure stable. C'est ce qui a fait garder la cible du produit comme seuil, plutôt qu'un seuil calé sur le runner : une porte qui rougit au hasard apprend à ne plus la lire, et celle-ci ne rougit pas au hasard.
+
 *Ce qui casse si on revient à l'écoute :* le budget passe à 240 ms de marge sur 1500, il ne bougerait plus quoi qu'on ajoute au démarrage, et personne ne le verrait puisqu'il resterait vert.
 
 **Chaque mesure lève plutôt que de rendre zéro.** Un dossier d'actifs absent veut dire que `vp pack` n'a pas tourné ; rendre zéro octet donnerait un budget de poids **tenu par un bundle qui n'existe pas**, c'est-à-dire le pire verdict possible : vert, et sur rien. Même règle pour les sources de l'adaptateur et pour l'arbre installé.
 
-**La cible de poids installé est à 34 Mo et non aux 15 de l'issue.** Mesuré : 30,0 Mo, dont **24,0 Mo de deux binaires natifs que Vite 8 embarque**, `@rolldown/binding-*` et `lightningcss-*`. Tout le reste, notre code et l'intégralité du JavaScript, pèse 5,4 Mo. Les 15 Mo dataient de l'époque où Vite construisait en JavaScript avec esbuild et Rollup.
+**La cible de poids installé est à 38 Mo et non aux 15 de l'issue.** Mesuré : **30,0 Mo sur darwin-arm64, 34,1 Mo sur le runner linux-x64**, dont environ 24 Mo de deux binaires natifs que Vite 8 embarque, `@rolldown/binding-*` et `lightningcss-*`. Tout le reste, notre code et l'intégralité du JavaScript, pèse 5,4 Mo. Les 15 Mo dataient de l'époque où Vite construisait en JavaScript avec esbuild et Rollup.
+
+*Pourquoi 38 et pas 35 :* les binaires diffèrent de 4 Mo d'une plateforme à l'autre, et le seuil doit tenir sur celle qui juge comme sur celle où l'on développe. Ce qu'il garde vraiment est notre moitié JavaScript : il mord si elle grossit de 4 Mo, soit de 74 %.
 
 *Ce qui la ferait redescendre :* passer `vite` en `peerDependency` de `@crypte/cli`. C'est un changement de contrat sur un paquet publié, et `docs/decisions.md` dit ce qui le rouvrirait.
 
 **Le poids installé se calcule sans empaqueter.** Le script lit ce que les paquets déclarent, résout `catalog:` depuis `pnpm-workspace.yaml`, écarte `workspace:*` et compte nos `dist` directement. La voie évidente, `pnpm pack` puis `npm install` des tarballs, demande le binaire pnpm, **qui n'est pas garanti sur un runner** ; et `npm pack` refuse de tourner dans ce dépôt, dont `devEngines` exige pnpm et fait sortir npm en `EBADDEVENGINES`.
 
 *Ce qui casse si on lit `catalogMode:` pour `catalog:` :* le catalogue rendu tient une entrée, toutes les versions installées sont fausses, et le chiffre reste plausible. Un cas le tient.
+
+**La sortie du serveur est nettoyée de ses couleurs avant d'y lire l'adresse.** Vite colorise quand il détecte l'intégration continue : `localhost:` y est suivi d'un code de mise en gras, donc `\d` ne trouve pas le port. Le job attendait alors soixante secondes une ligne arrivée en 392 ms, trois fois, et finissait par expirer.
+
+*Invisible en local*, où Vite n'active pas la couleur. C'est le journal du runner qui l'a montré, une fois la sortie de l'enfant écrite au fil de l'eau avec son horloge.
+
+*Ce qui casse si on retire `sansCouleur` :* la mesure du démarrage ne trouve plus jamais l'adresse en intégration continue, et le job passe de deux minutes à son expiration. Un cas reproduit la ligne exacte du journal, codes compris.
 
 **Le cinquième budget est un type, pas un chiffre.** « Configuration obligatoire : racine des stories et adaptateur, rien d'autre » se tient dans `packages/cli/test/config.test-d.ts`, qui affirme que `CrypteConfig` exige exactement `stories` et `adapter`, que les quatre autres clés restent facultatives, et que le type n'en déclare pas une septième. Le mesurer par une expression régulière sur la source serait approximatif là où le compilateur est exact.
 
