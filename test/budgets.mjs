@@ -25,8 +25,8 @@ export const MESURES = {
 }
 
 // En unités SI, comme les cibles de l'issue les écrit : « moins de 300 Ko »,
-// « moins de 15 Mo ». `architecture.md` compte en Kio ailleurs, et convertir
-// ici ferait bouger une cible de 2,4 % sans que personne l'ait décidé.
+// « moins de 15 Mo ». `docs/internal/architecture.md` compte en Kio ailleurs,
+// et convertir ici ferait bouger une cible de 2,4 % sans décision.
 function mo(n) {
   return `${(n / 1e6).toFixed(1)} Mo`
 }
@@ -204,6 +204,8 @@ export async function installedBytes(travail = mkdtempSync(join(tmpdir(), 'crypt
 //
 // Trois lancements, la médiane. Un seul chiffre sur une machine partagée est
 // une loterie, et une moyenne se laisse tirer par un unique lancement lent.
+const LIMITE = 60_000
+
 export async function startMs(projet = join(RACINE, 'apps/demo'), lancements = 3) {
   const { chromium } = await import('playwright')
   const { spawn } = await import('node:child_process')
@@ -219,26 +221,64 @@ export async function startMs(projet = join(RACINE, 'apps/demo'), lancements = 3
       rmSync(join(projet, 'node_modules/.crypte'), { recursive: true, force: true })
 
       const page = await navigateur.newPage()
+      // Ce que le serveur et la page ont dit. Sans ces trois collectes, un
+      // rendu qui n'arrive pas ne laisse qu'un délai dépassé, et la cause est
+      // à chercher sur une machine qu'on n'a pas.
+      const dits = []
+      page.on('console', (m) => {
+        if (m.type() === 'error') dits.push(`console: ${m.text()}`)
+      })
+      page.on('pageerror', (e) => dits.push(`page: ${e.message}`))
+
       const début = performance.now()
       const enfant = spawn(process.execPath, [binaire, 'dev', projet], { stdio: 'pipe' })
 
+      enfant.stdout.on('data', (d) => dits.push(`dev: ${String(d).trim()}`))
+      enfant.stderr.on('data', (d) => dits.push(`dev!: ${String(d).trim()}`))
+
       try {
+        // Bornée elle aussi : un serveur qui n'annonce jamais son adresse, et
+        // qui ne sort pas non plus, laissait cette attente tourner jusqu'à
+        // l'expiration du job.
         const origine = await new Promise((ok, non) => {
+          const minuteur = setTimeout(
+            () =>
+              non(new Error(`aucune adresse annoncée en ${LIMITE / 1000} s :\n${dits.join('\n')}`)),
+            LIMITE,
+          )
+          const rendre = (valeur) => {
+            clearTimeout(minuteur)
+            ok(valeur)
+          }
+
           enfant.stdout.on('data', (d) => {
-            const trouvé = /(http:\/\/localhost:\d+)/.exec(String(d))
-            if (trouvé) ok(trouvé[1])
+            const trouvé = /(http:\/\/(?:localhost|127\.0\.0\.1|\[::1\]):\d+)/.exec(String(d))
+            if (trouvé) rendre(trouvé[1])
           })
-          enfant.on('exit', (code) => non(new Error(`crypte dev est sorti en ${code}`)))
+          enfant.on('exit', (code) => {
+            clearTimeout(minuteur)
+            non(new Error(`crypte dev est sorti en ${code} :\n${dits.join('\n')}`))
+          })
         })
 
         await page.goto(origine)
         const rendu = page.frameLocator('iframe[title="preview"]').locator('#root')
-        await rendu.waitFor({ state: 'attached', timeout: 60_000 })
+        await rendu.waitFor({ state: 'attached', timeout: LIMITE }).catch((cause) => {
+          throw new Error(`aucun cadre de preview :\n${dits.join('\n')}`, { cause })
+        })
         // Le texte, pas seulement le nœud : le cadre existe avant que React y
         // ait rendu quoi que ce soit, et s'arrêter là mesurerait le montage de
         // l'iframe.
+        //
+        // Bornée. Une story qui ne rend rien laisserait sinon cette boucle
+        // tourner jusqu'à l'expiration du job, quinze minutes sans un mot, là
+        // où lever dit ce qui s'est passé en une ligne.
+        const limite = performance.now() + LIMITE
         for (;;) {
           if (await rendu.textContent()) break
+          if (performance.now() > limite) {
+            throw new Error(`aucune story rendue en ${LIMITE / 1000} s :\n${dits.join('\n')}`)
+          }
           await new Promise((r) => setTimeout(r, 10))
         }
 
@@ -303,6 +343,14 @@ export async function main() {
     adapterLines: adapterLines(),
     installedBytes: await installedBytes(),
     startMs: await startMs(),
+  }
+
+  // Une mesure prise et non budgétée serait perdue en silence : `verdicts`
+  // parcourt les budgets, pas les mesures.
+  const orphelines = Object.keys(mesures).filter((one) => !(one in BUDGETS))
+
+  if (orphelines.length > 0) {
+    throw new Error(`mesuré sans budget : ${orphelines.join(', ')}`)
   }
 
   const rendus = verdicts(mesures)
