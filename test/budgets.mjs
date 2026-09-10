@@ -221,6 +221,22 @@ export async function installedBytes(travail, sien = travail === undefined) {
 // une loterie, et une moyenne se laisse tirer par un unique lancement lent.
 const LIMITE = 60_000
 
+// Les codes de couleur, construits plutôt qu'écrits : un caractère de contrôle
+// dans un littéral fait rougir `no-control-regex`, et le dépôt n'en veut pas un
+// de plus.
+//
+// Sans ce nettoyage, la sortie de Vite sur un runner écrit `localhost:` puis un
+// code de mise en gras avant le port, donc `\d` ne trouve rien et l'adresse
+// n'est jamais reconnue. Mesuré : le job attendait soixante secondes une ligne
+// arrivée en 392 ms. En local il n'y a pas de couleur, et rien ne se voyait.
+const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g')
+
+export function sansCouleur(texte) {
+  return texte.replace(ANSI, '')
+}
+
+export const ADRESSE = /(http:\/\/(?:localhost|127\.0\.0\.1|\[::1\]):\d+)/
+
 export async function startMs(projet = join(RACINE, 'apps/demo'), lancements = 3) {
   const { chromium } = await import('playwright')
   const { spawn } = await import('node:child_process')
@@ -262,8 +278,8 @@ export async function startMs(projet = join(RACINE, 'apps/demo'), lancements = 3
 
       const enfant = spawn(process.execPath, [binaire, 'dev', projet], { stdio: 'pipe' })
 
-      enfant.stdout.on('data', (d) => dire(`dev: ${String(d).trim()}`))
-      enfant.stderr.on('data', (d) => dire(`dev!: ${String(d).trim()}`))
+      enfant.stdout.on('data', (d) => dire(`dev: ${sansCouleur(String(d)).trim()}`))
+      enfant.stderr.on('data', (d) => dire(`dev!: ${sansCouleur(String(d)).trim()}`))
       enfant.on('error', (e) => dire(`dev, échec de lancement : ${e.message}`))
       // Un battement pendant l'attente : un journal muet ne distingue pas un
       // processus qui travaille d'un processus bloqué.
@@ -285,7 +301,7 @@ export async function startMs(projet = join(RACINE, 'apps/demo'), lancements = 3
           }
 
           enfant.stdout.on('data', (d) => {
-            const trouvé = /(http:\/\/(?:localhost|127\.0\.0\.1|\[::1\]):\d+)/.exec(String(d))
+            const trouvé = ADRESSE.exec(sansCouleur(String(d)))
             if (trouvé) rendre(trouvé[1])
           })
           enfant.on('exit', (code) => {

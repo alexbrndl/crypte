@@ -12,6 +12,8 @@ import {
   externalDeps,
   médiane,
   ownBytes,
+  ADRESSE,
+  sansCouleur,
   shellGzipBytes,
   table,
   treeBytes,
@@ -191,6 +193,38 @@ describe('nos propres octets', () => {
   it('comptent le dist et le manifeste de chaque paquet', () => {
     expect(ownBytes(['react'])).toBeGreaterThan(1000)
     expect(ownBytes(['react', 'core'])).toBeGreaterThan(ownBytes(['react']))
+  })
+})
+
+// La ligne que Vite écrit sur un runner, colorisée, telle que le journal du
+// job l'a rendue. Le port y suit un code de mise en gras, donc `\\d` ne le
+// trouve pas : le job attendait soixante secondes une adresse arrivée en
+// 392 ms, et rien ne le montrait en local, où il n'y a pas de couleur.
+describe('l’adresse annoncée par le serveur', () => {
+  const esc = String.fromCharCode(27)
+  const colorée = `  ${esc}[32m➜${esc}[39m  ${esc}[1mLocal${esc}[22m:   ${esc}[36mhttp://localhost:${esc}[1m5173${esc}[22m/${esc}[39m`
+  const nue = '  ➜  Local:   http://localhost:5173/'
+
+  it('ne se lit pas sous les couleurs', () => {
+    expect(ADRESSE.exec(colorée)).toBeNull()
+  })
+
+  it('se lit une fois les couleurs retirées', () => {
+    expect(ADRESSE.exec(sansCouleur(colorée))?.[1]).toBe('http://localhost:5173')
+  })
+
+  it('se lit aussi sans couleur du tout', () => {
+    expect(ADRESSE.exec(sansCouleur(nue))?.[1]).toBe('http://localhost:5173')
+  })
+
+  it('laisse le texte intact quand il n’y a rien à retirer', () => {
+    expect(sansCouleur(nue)).toBe(nue)
+  })
+
+  // L'hôte que Vite écrit dépend du réglage `host`, et les trois formes se
+  // valent pour ce que la mesure attend : que le serveur réponde quelque part.
+  it.for(['localhost', '127.0.0.1', '[::1]'])('reconnaît %s', (hôte) => {
+    expect(ADRESSE.exec(`➜ Local: http://${hôte}:4321/`)?.[1]).toBe(`http://${hôte}:4321`)
   })
 })
 
