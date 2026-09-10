@@ -152,6 +152,36 @@ describe('les exports identifiés comme composants', () => {
     expect(only(source)).toEqual([['Carte', 'default', 'Fiche']])
   })
 
+  // Le défaut porte son propre nom local, et le fichier peut le réexporter :
+  // sans consulter les alias là aussi, une story sur `Fiche` avertirait sur
+  // `default`.
+  test.for([
+    ['sous un autre nom', 'export { Carte as Fiche }', ['default', 'Fiche']],
+    ['sous son propre nom', 'export { Carte }', ['default', 'Carte']],
+  ] as const)('groupe un défaut nommé réexporté %s', ([, second, attendu]) => {
+    const source = `export default function Carte() { return <p /> }\n${second}`
+
+    expect(only(source)).toEqual([attendu])
+  })
+
+  // Un défaut anonyme ne lie aucun nom local, donc il n'y a rien à relier.
+  test('ne relie rien à un défaut anonyme', () => {
+    const source = 'export default () => <p />\nexport { Carte as Fiche }'
+
+    expect(only(source)).toEqual([['default']])
+  })
+
+  // Un export de type ne nomme rien à l'exécution : une story ne peut pas le
+  // viser, donc le relier grossirait le groupe sur un nom qui n'existe pas.
+  test.for([
+    ['sur la déclaration', 'export type { Carte as Fiche }'],
+    ['sur le spécificateur', 'export { type Carte as Fiche }'],
+  ] as const)('ne relie pas un alias de type %s', ([, second]) => {
+    const source = `export function Carte() { return <p /> }\n${second}`
+
+    expect(only(source)).toEqual([['Carte']])
+  })
+
   // Un nom d'export en chaîne, légal depuis ES2022. Il n'est pas lu, donc pas
   // relié : un oubli, et le sens du doute.
   test('ne relie pas un alias écrit en chaîne', () => {

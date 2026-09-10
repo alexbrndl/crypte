@@ -107,7 +107,11 @@ export function componentsIn(file: string): string[][] {
   for (const node of body) {
     if (node.type === 'ExportDefaultDeclaration') {
       const inner = node['declaration'] as Node | undefined
-      if (inner && returnsElement(inner) && capitalised(nameOf(inner))) found.push(['default'])
+      if (!inner || !returnsElement(inner) || !capitalised(nameOf(inner))) continue
+
+      // `export default function Card` binds `Card` too, and the file may
+      // export that binding again under another name.
+      found.push(group('default', idOf(inner), also))
       continue
     }
 
@@ -119,11 +123,20 @@ export function componentsIn(file: string): string[][] {
     for (const one of declared(declaration)) {
       if (!capitalised(one.name) || !returnsElement(one.value)) continue
 
-      found.push([one.name, ...(also.get(one.name) ?? [])])
+      found.push(group(one.name, one.name, also))
     }
   }
 
   return found
+}
+
+// The names one component answers to, the one it is declared under first.
+function group(primary: string, local: string | undefined, also: Map<string, string[]>): string[] {
+  return [...new Set([primary, ...(local === undefined ? [] : (also.get(local) ?? []))])]
+}
+
+function idOf(node: Node): string | undefined {
+  return (node['id'] as Node | undefined)?.['name'] as string | undefined
 }
 
 // The further names a local one is exported under, `default` included. Only
@@ -134,9 +147,8 @@ export function componentsIn(file: string): string[][] {
 // then found under no name at all, which is a miss and not a false warning.
 function synonyms(body: Node[]): Map<string, string[]> {
   const found = new Map<string, string[]>()
-  const add = (local: string, exported: string) => {
-    if (local !== exported) found.set(local, [...(found.get(local) ?? []), exported])
-  }
+  const add = (local: string, exported: string) =>
+    found.set(local, [...(found.get(local) ?? []), exported])
 
   for (const node of body) {
     if (node.type === 'ExportDefaultDeclaration') {
@@ -145,9 +157,14 @@ function synonyms(body: Node[]): Map<string, string[]> {
       continue
     }
 
+    // A type-only export names nothing at run time, so a story could not point
+    // at it. Both places it is written: on the statement and on the specifier.
     if (node.type !== 'ExportNamedDeclaration' || node['source'] != null) continue
+    if (node['exportKind'] === 'type') continue
 
     for (const one of node['specifiers'] as Node[]) {
+      if (one['exportKind'] === 'type') continue
+
       const local = one['local'] as Node | undefined
       const exported = one['exported'] as Node | undefined
 
