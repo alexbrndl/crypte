@@ -586,7 +586,7 @@ function childrenOf(props: Map<string, Node | undefined>, source: string): strin
   if (inner.type === 'JSXElement' || inner.type === 'JSXFragment') return raw
 
   // A string goes bare, which is the whole point, but only when JSX gives back
-  // the same string. See `JSX_HOSTILE`.
+  // the same string. See `TEXT_HOSTILE`.
   if (inner.type === 'Literal' && typeof inner['value'] === 'string') {
     const text = inner['value'] as string
 
@@ -616,7 +616,7 @@ function unwrapped(node: Node): Node {
 // The rule is one-way on purpose: a string this refuses is merely written with
 // braces, which always renders right. A string it wrongly accepts is a snippet
 // that lies about what the story shows.
-const TEXT_HOSTILE = /[{}<>&\n\r\u2028\u2029]|^\s|\s$/
+const TEXT_HOSTILE = /[{}<>&\n\r\u2028\u2029\u0000-\u001f]|^\s|\s$/
 
 // The same question **inside a quoted attribute**, where the answer differs. A
 // brace, an angle bracket and edge whitespace are all ordinary there; a double
@@ -624,7 +624,14 @@ const TEXT_HOSTILE = /[{}<>&\n\r\u2028\u2029]|^\s|\s$/
 // rather than for JSX. Measured: `title="a\"b"` is refused by the parser, so
 // the copied code does not compile at all. Entities and line terminators behave
 // as they do between tags.
-const ATTRIBUTE_HOSTILE = /["&\n\r\u2028\u2029]/
+//
+// The backslash and the control characters belong here too, and only here: a
+// JSX attribute literal unescapes nothing, so what `JSON.stringify` escapes for
+// JavaScript arrives verbatim. Measured: `C:\\path` came out as an attribute
+// the parser accepts and JSX renders with two backslashes, and a tab came out
+// as a backslash followed by `t`. Between tags the raw text is emitted, so the
+// same characters need no help there.
+const ATTRIBUTE_HOSTILE = /["&\\\n\r\u2028\u2029\u0000-\u001f]/
 
 // An object written in the file, read as data. `undefined` when it is not an
 // object literal at all, which is what an identifier or a call gives.

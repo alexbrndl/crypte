@@ -182,6 +182,27 @@ describe('la lecture des stories', () => {
     // Ce qui reste ordinaire dans un attribut y garde ses guillemets : accolade,
     // chevron et espaces de bord n'y sont pas de la syntaxe.
     expect(lu("'{a} < b '")).toBe('<A title="{a} < b " />')
+
+    // Un littéral d'attribut JSX ne déséchappe rien, donc ce que
+    // `JSON.stringify` échappe pour JavaScript y arriverait tel quel : mesuré,
+    // `C:\path` sortait avec deux barres et une tabulation sortait en `\t`.
+    expect(lu(String.raw`'C:\\path'`)).toBe(String.raw`<A title={"C:\\path"} />`)
+    expect(lu(String.raw`'a\tb'`)).toBe(String.raw`<A title={"a\tb"} />`)
+  })
+
+  // La moitié qui compte : entre les balises, le texte est émis brut, donc ces
+  // mêmes caractères n'y ont besoin de rien. Sans ce cas, on pourrait croire que
+  // les deux prédicats devraient être un seul.
+  it('laisse une barre oblique nue entre les balises', () => {
+    const lu = fileWith(
+      'A.jsx',
+      [
+        "import { A } from '../a'",
+        String.raw`export default defineStories(A, { stories: { Une: { children: 'C:\\path' } } })`,
+      ].join('\n'),
+    )
+
+    expect(lu.entries[0]?.source).toBe(String.raw`<A>C:\path</A>`)
   })
 
   // Un fragment est un élément comme un autre pour ce qui nous occupe.

@@ -500,7 +500,7 @@ The first publication is what turns it on. From then the published shape is the 
 
 `children` goes between the tags rather than into an attribute: `<Badge>New</Badge>`, never `<Badge children="New" />`. Both render, only one is what anyone writes. An element goes as it was written, parentheses around it removed. A string goes bare **only when JSX gives the same string back**: not when it carries a brace, an angle bracket, an `&`, a line terminator, or edge whitespace, and not when it is empty. Everything else keeps its braces. The rule is one-way on purpose — a string refused is merely braced, which always renders right, where a string wrongly accepted is a snippet that lies.
 
-An attribute answers the same question differently: a brace and an angle bracket are ordinary inside quotes, a double quote is not, and neither is an `&` or a line terminator. Those take braces too.
+An attribute answers the same question differently: a brace and an angle bracket are ordinary inside quotes, a double quote is not, and neither is an `&`, a line terminator, a backslash or a control character. A JSX attribute literal unescapes nothing, so a backslash written for JavaScript would arrive doubled. Those take braces too, and between the tags the same characters need no help since the text is emitted as it is.
 
 With no `children`, the tag stays self-closing — and so it does when a spread may replace the value, since 4.2 forbids showing what the run does not have.
 
