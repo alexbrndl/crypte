@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.5, reference document. A project brief points here instead of restating these shapes.
+> Version 1.7, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -496,6 +496,14 @@ The first publication is what turns it on. From then the published shape is the 
 
 `props` and `source` are read from the story file, not declared in it. `props` lists the names the story passes to the component, from the shared block and its own, sorted, with no value attached: a prop set to a function is still a prop the story exercises, and prop coverage counts it. `source` rebuilds the call from the text the user wrote, so an expression the CLI cannot evaluate still reads the way they typed it.
 
+**`source` is meant to be copied**, so it must parse and render what the story renders. Two rules follow.
+
+`children` goes between the tags rather than into an attribute: `<Badge>New</Badge>`, never `<Badge children="New" />`. Both render, only one is what anyone writes. An element goes as it was written, parentheses around it removed. A string goes bare **only when JSX gives the same string back**: not when it carries a brace, an angle bracket, an `&`, a line terminator, or edge whitespace, and not when it is empty. Everything else keeps its braces. The rule is one-way on purpose — a string refused is merely braced, which always renders right, where a string wrongly accepted is a snippet that lies.
+
+An attribute answers the same question differently: a brace and an angle bracket are ordinary inside quotes, a double quote is not, and neither is an `&`, a line terminator, a backslash or a control character. A JSX attribute literal unescapes nothing, so a backslash written for JavaScript would arrive doubled. Those take braces too, and between the tags the same characters need no help since the text is emitted as it is.
+
+With no `children`, the tag stays self-closing — and so it does when a spread may replace the value, since 4.2 forbids showing what the run does not have.
+
 **A prop spread with `...` is in neither field**, and neither is a key computed at runtime. Their names cannot be read without running the file, and guessing them would put wrong names in a coverage figure.
 
 **A story key computed at runtime produces no entry at all.** A story name is a URL, a baseline key and the anchor of a comment, so a wrong one costs more than a missing one. The CLI reports what it dropped.
@@ -869,6 +877,13 @@ Six known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.7.** `children` in the call code, which is what a field meant to be copied owes its reader.
+
+| Before | After |
+| --- | --- |
+| `source` wrote `children` as an attribute | it goes between the tags, and 4.2 says what each form gives |
+| the field said only that it rebuilds the call | it says the call is meant to be **copied**, which is what decides the form |
 
 **v1.6.** Two shell messages out of the protocol, which is what a contract with no consumer costs.
 

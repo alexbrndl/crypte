@@ -525,26 +525,113 @@ function propsOf(object: Node | null): Map<string, Node | undefined> {
 // The call the user would have written by hand, rebuilt from their own text so
 // that an expression we cannot evaluate still reads as they wrote it.
 function callOf(name: string, props: Map<string, Node | undefined>, source: string): string {
-  const written = [...props].map(([prop, value]) => {
-    // A value a spread may replace: the prop is set, its value is unknown, and
-    // showing the written one would put in the snippet what the run does not have.
-    if (value === undefined) return ''
+  const written = [...props]
+    .filter(([prop]) => prop !== 'children')
+    .map(([prop, value]) => {
+      // A value a spread may replace: the prop is set, its value is unknown, and
+      // showing the written one would put in the snippet what the run does not have.
+      if (value === undefined) return ''
 
-    const raw = source.slice(value.start, value.end)
+      const raw = source.slice(value.start, value.end)
 
-    if (value.type === 'Literal' && typeof value['value'] === 'string') {
-      return ` ${prop}=${JSON.stringify(value['value'])}`
-    }
+      if (value.type === 'Literal' && typeof value['value'] === 'string') {
+        // Quoted only when JSX gives the same string back. `JSON.stringify`
+        // escapes for JavaScript, not for JSX: on a value holding a double
+        // quote it writes an attribute the parser refuses, so the copied code
+        // does not compile at all. Measured. Braces carry a JavaScript literal
+        // instead, which is always valid and never ambiguous.
+        const text = value['value'] as string
 
-    // `enabled={true}` is `enabled`, which is how the same prop is written in
-    // JSX. `false` has no short form and keeps its braces.
-    if (value.type === 'Literal' && value['value'] === true) return ` ${prop}`
+        return ATTRIBUTE_HOSTILE.test(text)
+          ? ` ${prop}={${JSON.stringify(text)}}`
+          : ` ${prop}=${JSON.stringify(text)}`
+      }
 
-    return ` ${prop}={${raw}}`
-  })
+      // `enabled={true}` is `enabled`, which is how the same prop is written in
+      // JSX. `false` has no short form and keeps its braces.
+      if (value.type === 'Literal' && value['value'] === true) return ` ${prop}`
 
-  return `<${name}${written.join('')} />`
+      return ` ${prop}={${raw}}`
+    })
+
+  const opening = `<${name}${written.join('')}`
+  const body = childrenOf(props, source)
+
+  return body === undefined ? `${opening} />` : `${opening}>${body}</${name}>`
 }
+
+// What goes between the tags. Section 4 says `source` carries the call code, so
+// it is read and copied: `children` as an attribute is valid JSX and not what
+// anybody writes. Measured on the demonstration, where every `children` came out
+// as an attribute of a self-closing tag.
+//
+// `undefined` when there is nothing to put there, which keeps the self-closing
+// form. A prop a spread may replace is in that case too: its value is unknown,
+// and section 4.2 forbids showing what the run does not have.
+function childrenOf(props: Map<string, Node | undefined>, source: string): string | undefined {
+  if (!props.has('children')) return undefined
+
+  const value = props.get('children')
+  if (value === undefined) return undefined
+
+  // Parentheses survive the parse, so an element wrapped in them is a
+  // `ParenthesizedExpression` and not a `JSXElement`. That is the form one
+  // writes as soon as the element spans several lines, which is exactly the
+  // case this exists for. Measured: it came out as `{(<span>x</span>)}`.
+  const inner = unwrapped(value)
+  const raw = source.slice(inner.start, inner.end)
+
+  // An element goes as it is written. Wrapped in braces it would still render,
+  // and it is the one form where the braces are plainly not what one writes.
+  if (inner.type === 'JSXElement' || inner.type === 'JSXFragment') return raw
+
+  // A string goes bare, which is the whole point, but only when JSX gives back
+  // the same string. See `TEXT_HOSTILE`.
+  if (inner.type === 'Literal' && typeof inner['value'] === 'string') {
+    const text = inner['value'] as string
+
+    return text !== '' && !TEXT_HOSTILE.test(text) ? text : `{${JSON.stringify(text)}}`
+  }
+
+  return `{${raw}}`
+}
+
+// A node without the parentheses somebody wrote around it, however many.
+function unwrapped(node: Node): Node {
+  let seen = node
+
+  while (seen.type === 'ParenthesizedExpression') seen = seen['expression'] as Node
+
+  return seen
+}
+
+// What JSX would not give back unchanged **between tags**, so what has to keep
+// its braces there.
+//
+// Braces and angle brackets are syntax. `&` opens an entity, measured:
+// `Tom &amp; Jerry` copied bare renders `Tom & Jerry`, and `100 &euro;` renders
+// `100 €`. The four line terminators fold to one space, `\r` as much as `\n`.
+// And edge whitespace is trimmed, so `' a '` would come back as `'a'`.
+//
+// The rule is one-way on purpose: a string this refuses is merely written with
+// braces, which always renders right. A string it wrongly accepts is a snippet
+// that lies about what the story shows.
+const TEXT_HOSTILE = /[{}<>&\n\r\u2028\u2029\u0000-\u001f]|^\s|\s$/
+
+// The same question **inside a quoted attribute**, where the answer differs. A
+// brace, an angle bracket and edge whitespace are all ordinary there; a double
+// quote closes the attribute, and `JSON.stringify` escapes it for JavaScript
+// rather than for JSX. Measured: `title="a\"b"` is refused by the parser, so
+// the copied code does not compile at all. Entities and line terminators behave
+// as they do between tags.
+//
+// The backslash and the control characters belong here too, and only here: a
+// JSX attribute literal unescapes nothing, so what `JSON.stringify` escapes for
+// JavaScript arrives verbatim. Measured: `C:\\path` came out as an attribute
+// the parser accepts and JSX renders with two backslashes, and a tab came out
+// as a backslash followed by `t`. Between tags the raw text is emitted, so the
+// same characters need no help there.
+const ATTRIBUTE_HOSTILE = /["&\\\n\r\u2028\u2029\u0000-\u001f]/
 
 // An object written in the file, read as data. `undefined` when it is not an
 // object literal at all, which is what an identifier or a call gives.

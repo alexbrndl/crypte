@@ -93,7 +93,159 @@ describe('la lecture des stories', () => {
     expect(entries[1]?.source).toBe(
       '<OrderSummary title="Formule complète" benefits={[\'Historique complet\', \'Données vérifiées\']} reference="REF-4821-KD" />',
     )
-    expect(entries[2]?.source).toContain('children={<span>Neuf</span>}')
+    // `children` va entre les balises, pas en attribut : la section 4 dit que
+    // `source` porte le code d'appel, donc il est lu et recopié, et
+    // `children={<span>Neuf</span>}` n'est pas ce qu'on écrit.
+    expect(entries[2]?.source).toBe(
+      '<OrderSummary title="Formule complète" benefits={[\'Historique complet\', \'Données vérifiées\']} reference="REF-4821"><span>Neuf</span></OrderSummary>',
+    )
+  })
+
+  // Les formes que `children` peut prendre, et celle qu'il ne prend pas. Sans la
+  // seconde moitié, la règle passerait sur un composant qui n'en a aucun.
+  it('écrit children entre les balises, selon sa forme', () => {
+    const lu = (children: string) =>
+      fileWith(
+        'A.jsx',
+        [
+          "import { A } from '../a'",
+          `export default defineStories(A, { stories: { Une: { children: ${children} } } })`,
+        ].join('\n'),
+      ).entries[0]?.source
+
+    // Une chaîne va nue, ce qui est tout l'objet du changement.
+    expect(lu("'Neuf'")).toBe('<A>Neuf</A>')
+
+    // Un élément va tel qu'il est écrit : entre accolades il rendrait pareil, et
+    // c'est la seule forme où les accolades ne sont manifestement pas ce qu'on
+    // écrit.
+    expect(lu('<span>Neuf</span>')).toBe('<A><span>Neuf</span></A>')
+
+    // Tout le reste garde ses accolades.
+    expect(lu('12')).toBe('<A>{12}</A>')
+    expect(lu('items')).toBe('<A>{items}</A>')
+
+    // JSX replie les espaces de bord et lirait autre chose que la story : la
+    // chaîne reprend alors ses accolades plutôt que de mentir sur le rendu.
+    expect(lu("' bord '")).toBe('<A>{" bord "}</A>')
+    expect(lu("''")).toBe('<A>{""}</A>')
+
+    // Une accolade ou un chevron dans le texte serait lu comme du code.
+    expect(lu("'{brut}'")).toBe('<A>{"{brut}"}</A>')
+    expect(lu("'a < b'")).toBe('<A>{"a < b"}</A>')
+
+    // Une esperluette ouvre une entité : nue, `Tom &amp; Jerry` rendrait
+    // `Tom & Jerry`, et `100 &euro;` rendrait `100 €`. Mesuré en transformant
+    // le JSX.
+    expect(lu("'Tom &amp; Jerry'")).toBe('<A>{"Tom &amp; Jerry"}</A>')
+    expect(lu("'100 &euro;'")).toBe('<A>{"100 &euro;"}</A>')
+
+    // Les quatre terminateurs de ligne se replient en une espace, `\r` autant
+    // que `\n`.
+    expect(lu(String.raw`'a\rb'`)).toBe(String.raw`<A>{"a\rb"}</A>`)
+    expect(lu(String.raw`'a\nb'`)).toBe(String.raw`<A>{"a\nb"}</A>`)
+  })
+
+  // Les parenthèses survivent à l'analyse, donc l'élément qu'elles entourent
+  // n'est pas un `JSXElement`. C'est la forme qu'on écrit dès qu'il tient sur
+  // plusieurs lignes, donc le cas même pour lequel ce lot existe.
+  it('déballe les parenthèses autour d’un élément', () => {
+    const lu = (children: string) =>
+      fileWith(
+        'A.jsx',
+        [
+          "import { A } from '../a'",
+          `export default defineStories(A, { stories: { Une: { children: ${children} } } })`,
+        ].join('\n'),
+      ).entries[0]?.source
+
+    expect(lu('(<span>Neuf</span>)')).toBe('<A><span>Neuf</span></A>')
+    expect(lu('((<span>Neuf</span>))')).toBe('<A><span>Neuf</span></A>')
+  })
+
+  // `JSON.stringify` échappe pour JavaScript, pas pour JSX : sur `a"b` il
+  // produisait un attribut que le parser refuse, donc du code copié qui ne
+  // compile pas. Mesuré avec `parseSync`.
+  it('écrit un attribut que JSX accepte', () => {
+    const lu = (valeur: string) =>
+      fileWith(
+        'A.jsx',
+        [
+          "import { A } from '../a'",
+          `export default defineStories(A, { stories: { Une: { title: ${valeur} } } })`,
+        ].join('\n'),
+      ).entries[0]?.source
+
+    expect(lu(String.raw`'a"b'`)).toBe(String.raw`<A title={"a\"b"} />`)
+    expect(lu("'Tom &amp; Jerry'")).toBe('<A title={"Tom &amp; Jerry"} />')
+
+    // Ce qui reste ordinaire dans un attribut y garde ses guillemets : accolade,
+    // chevron et espaces de bord n'y sont pas de la syntaxe.
+    expect(lu("'{a} < b '")).toBe('<A title="{a} < b " />')
+
+    // Un littéral d'attribut JSX ne déséchappe rien, donc ce que
+    // `JSON.stringify` échappe pour JavaScript y arriverait tel quel : mesuré,
+    // `C:\path` sortait avec deux barres et une tabulation sortait en `\t`.
+    expect(lu(String.raw`'C:\\path'`)).toBe(String.raw`<A title={"C:\\path"} />`)
+    expect(lu(String.raw`'a\tb'`)).toBe(String.raw`<A title={"a\tb"} />`)
+  })
+
+  // La moitié qui compte : entre les balises, le texte est émis brut, donc ces
+  // mêmes caractères n'y ont besoin de rien. Sans ce cas, on pourrait croire que
+  // les deux prédicats devraient être un seul.
+  it('laisse une barre oblique nue entre les balises', () => {
+    const lu = fileWith(
+      'A.jsx',
+      [
+        "import { A } from '../a'",
+        String.raw`export default defineStories(A, { stories: { Une: { children: 'C:\\path' } } })`,
+      ].join('\n'),
+    )
+
+    expect(lu.entries[0]?.source).toBe(String.raw`<A>C:\path</A>`)
+  })
+
+  // Un fragment est un élément comme un autre pour ce qui nous occupe.
+  it('écrit un fragment tel qu’il est écrit', () => {
+    const lu = fileWith(
+      'A.jsx',
+      [
+        "import { A } from '../a'",
+        'export default defineStories(A, { stories: { Une: { children: <>Deux</> } } })',
+      ].join('\n'),
+    )
+
+    expect(lu.entries[0]?.source).toBe('<A><>Deux</></A>')
+  })
+
+  // Un `children` qu'un spread peut remplacer : la prop est **posée**, sa valeur
+  // est inconnue, et la section 4.2 interdit de montrer ce que l'exécution n'a
+  // pas. La balise reste donc auto-fermante plutôt que de porter un corps
+  // inventé.
+  //
+  // La clé est écrite **avant** le spread, sinon rien ne la pose : `{ ...base }`
+  // seul ne nomme aucune prop, donc le cas sortait avant la branche qu'il
+  // annonce et restait vert quand on la cassait. Mesuré.
+  it('n’invente pas de corps pour un children qu’un spread peut remplacer', () => {
+    const lu = fileWith(
+      'A.jsx',
+      [
+        "import { A } from '../a'",
+        "const base = { children: 'Autre' }",
+        "export default defineStories(A, { stories: { Une: { children: 'Neuf', ...base } } })",
+      ].join('\n'),
+    )
+
+    expect(lu.entries[0]?.props).toEqual(['children'])
+    expect(lu.entries[0]?.source).toBe('<A />')
+  })
+
+  // La moitié qui compte : sans `children`, la forme auto-fermante reste.
+  it('garde la forme auto-fermante quand il n’y a pas de children', () => {
+    const { entries } = entriesOf(join(stories, 'checkout', 'OrderSummary.jsx'), fixture, stories)
+
+    expect(entries[0]?.source).toMatch(/\/>$/)
+    expect(entries[0]?.source).not.toContain('</OrderSummary>')
   })
 
   it('lit les quatre extensions', () => {
