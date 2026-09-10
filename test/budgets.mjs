@@ -49,7 +49,7 @@ function ko(n) {
 // Lève plutôt que de rendre zéro. Un dossier absent veut dire que `vp pack`
 // n'a pas tourné, et un budget de poids tenu par un bundle inexistant est le
 // pire des verdicts : vert, et sur rien.
-export function shellGzipBytes(dossier = join(RACINE, 'packages/cli/dist/shell/assets')) {
+export function shellGzipBytes(dossier = join(RACINE, 'packages/cli/dist/shell')) {
   const actifs = fichiersDe(dossier).filter((one) => !one.endsWith('.map'))
 
   if (actifs.length === 0) {
@@ -143,19 +143,17 @@ export function externalDeps(paquets, catalogue) {
   const trouvé = {}
 
   for (const paquet of paquets) {
-    const lu = JSON.parse(readFileSync(join(RACINE, 'packages', paquet, 'package.json'), 'utf8'))
+    const dossier = join(RACINE, 'packages', paquet)
+    const lu = JSON.parse(readFileSync(join(dossier, 'package.json'), 'utf8'))
 
     for (const [nom, portée] of Object.entries(lu.dependencies ?? {})) {
       if (portée.startsWith('workspace:')) continue
 
-      if (portée === 'catalog:') {
-        const version = catalogue[nom]
-        if (!version) throw new Error(`\`${nom}\` dit \`catalog:\` et le catalogue ne le porte pas`)
-        trouvé[nom] = version
-        continue
+      if (portée === 'catalog:' && !catalogue[nom]) {
+        throw new Error(`\`${nom}\` dit \`catalog:\` et le catalogue ne le porte pas`)
       }
 
-      trouvé[nom] = portée
+      trouvé[nom] = posée(nom, dossier) ?? (portée === 'catalog:' ? catalogue[nom] : portée)
     }
   }
 
@@ -164,13 +162,40 @@ export function externalDeps(paquets, catalogue) {
   return trouvé
 }
 
+// La version réellement installée, cherchée d'abord auprès du paquet qui la
+// déclare, puis à la racine : `sirv` ne vit que sous `packages/cli`.
+//
+// Épingler plutôt que garder la portée : une portée laisse le registre décider
+// le jour du lancement, donc une version mineure de Vite ferait rougir un
+// contrôle requis sur un commit qui n'a rien changé. Les dépendances
+// transitives flottent encore, et `docs/decisions.md` le dit.
+function posée(nom, dossier) {
+  for (const base of [dossier, RACINE]) {
+    const manifeste = join(base, 'node_modules', nom, 'package.json')
+    if (existsSync(manifeste)) return JSON.parse(readFileSync(manifeste, 'utf8')).version
+  }
+
+  return undefined
+}
+
+// Les paquets que l'utilisateur reçoit : les deux qu'il installe, et le noyau
+// qu'ils tirent. Une seule liste, lue par les deux mesures : compter le poids
+// de `core` sans lire ses dépendances laisserait le jour venu un budget vert
+// sur un chiffre faux.
+export const PAQUETS = ['cli', 'react', 'core']
+
 // Nos propres paquets, tels qu'ils partent : `dist` et le manifeste, ce que
 // `files` déclare publier.
-export function ownBytes(paquets = ['cli', 'react', 'core']) {
+export function ownBytes(paquets = PAQUETS) {
   return paquets.reduce((total, paquet) => {
     const dossier = join(RACINE, 'packages', paquet)
+    const dist = join(dossier, 'dist')
 
-    return total + treeBytes(join(dossier, 'dist')) + treeBytes(join(dossier, 'package.json'), true)
+    if (!existsSync(dist)) {
+      throw new Error(`aucun dist dans ${dossier} : lancer \`vp run -r pack\` d'abord`)
+    }
+
+    return total + treeBytes(dist) + treeBytes(join(dossier, 'package.json'), true)
   }, 0)
 }
 
@@ -180,8 +205,8 @@ export function ownBytes(paquets = ['cli', 'react', 'core']) {
 // Les pairs sont exclus, `--legacy-peer-deps` : `react` et `react-dom` sont
 // fournis par le projet hôte, et les compter reviendrait à facturer deux fois
 // ce qui est déjà installé.
-export async function installedBytes(travail, sien = travail === undefined) {
-  travail ??= mkdtempSync(join(tmpdir(), 'crypte-poids-'))
+export async function installedBytes() {
+  const travail = mkdtempSync(join(tmpdir(), 'crypte-poids-'))
 
   const catalogue = catalogOf(readFileSync(join(RACINE, 'pnpm-workspace.yaml'), 'utf8'))
 
@@ -191,7 +216,7 @@ export async function installedBytes(travail, sien = travail === undefined) {
       name: 'budget',
       version: '0.0.0',
       private: true,
-      dependencies: externalDeps(['cli', 'react'], catalogue),
+      dependencies: externalDeps(PAQUETS, catalogue),
     }),
   )
 
@@ -204,10 +229,9 @@ export async function installedBytes(travail, sien = travail === undefined) {
 
   if (dépendances === 0) throw new Error(`rien d'installé dans ${travail}`)
 
-  // Seulement le dossier que cette fonction a créé, et seulement une fois la
-  // mesure prise : un échec garde ses pièces, et un dossier confié par
-  // l'appelant lui appartient. Trente mégaoctets par lancement, sinon.
-  if (sien) rmSync(travail, { recursive: true, force: true })
+  // Seulement une fois la mesure prise : un échec garde ses pièces. Trente
+  // mégaoctets par lancement, sinon.
+  rmSync(travail, { recursive: true, force: true })
 
   return dépendances + ownBytes()
 }
@@ -300,8 +324,14 @@ export async function startMs(projet = join(RACINE, 'apps/demo'), lancements = 3
             ok(valeur)
           }
 
+          // Accumulé, jamais morceau par morceau : une ligne coupée en deux,
+          // ou un code de couleur à cheval sur la coupure, ne se reconnaît pas
+          // dans un morceau isolé. C'est la famille de panne déjà payée
+          // soixante secondes trois fois.
+          let tampon = ''
           enfant.stdout.on('data', (d) => {
-            const trouvé = ADRESSE.exec(sansCouleur(String(d)))
+            tampon += String(d)
+            const trouvé = ADRESSE.exec(sansCouleur(tampon))
             if (trouvé) rendre(trouvé[1])
           })
           enfant.on('exit', (code) => {
@@ -362,8 +392,6 @@ export function verdicts(mesures, budgets = BUDGETS) {
   }))
 }
 
-export const MARKER = '<!-- crypte-budgets -->'
-
 export function table(rendus) {
   const lignes = rendus.map((one) => {
     const { format } = MESURES[one.clé]
@@ -374,7 +402,6 @@ export function table(rendus) {
   })
 
   return [
-    MARKER,
     '## Budgets',
     '',
     '| Budget | Mesuré | Cible | Marge | |',

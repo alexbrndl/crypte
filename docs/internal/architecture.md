@@ -997,6 +997,8 @@ Trois lancements, la médiane, cache d'optimisation vidé avant chacun. Un seul 
 
 *Ce qui casse si on revient à l'écoute :* le budget passe à 240 ms de marge sur 1500, il ne bougerait plus quoi qu'on ajoute au démarrage, et personne ne le verrait puisqu'il resterait vert.
 
+**Le poids du shell couvre `dist/shell` entier, pas seulement `assets`.** `index.html` est le premier fichier que le navigateur télécharge, et tout ce que Vite émettra un jour hors d'`assets/` échapperait sinon au budget en silence. Les cartes de source sont exclues : elles ne partent pas chez l'utilisateur et pèsent plus que le bundle.
+
 **Chaque mesure lève plutôt que de rendre zéro.** Un dossier d'actifs absent veut dire que `vp pack` n'a pas tourné ; rendre zéro octet donnerait un budget de poids **tenu par un bundle qui n'existe pas**, c'est-à-dire le pire verdict possible : vert, et sur rien. Même règle pour les sources de l'adaptateur et pour l'arbre installé.
 
 **La cible de poids installé est à 38 Mo et non aux 15 de l'issue.** Mesuré : **30,0 Mo sur darwin-arm64, 34,1 Mo sur le runner linux-x64**, dont environ 24 Mo de deux binaires natifs que Vite 8 embarque, `@rolldown/binding-*` et `lightningcss-*`. Tout le reste, notre code et l'intégralité du JavaScript, pèse 5,4 Mo. Les 15 Mo dataient de l'époque où Vite construisait en JavaScript avec esbuild et Rollup.

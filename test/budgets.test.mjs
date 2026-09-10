@@ -5,8 +5,8 @@ import { gzipSync } from 'node:zlib'
 import { afterAll, describe, expect, it } from 'vitest'
 import {
   BUDGETS,
-  MARKER,
   MESURES,
+  PAQUETS,
   adapterLines,
   catalogOf,
   externalDeps,
@@ -172,12 +172,29 @@ describe('le catalogue', () => {
 describe('les dépendances externes', () => {
   const catalogue = { vite: '^8.2.1', tsconfck: '^3.1.6' }
 
-  it('écarte nos propres paquets et résout le catalogue', () => {
-    expect(externalDeps(['cli', 'react'], catalogue)).toEqual({
-      sirv: expect.stringMatching(/^\^?\d/),
-      tsconfck: '^3.1.6',
-      vite: '^8.2.1',
-    })
+  it('écarte nos propres paquets et lit les trois que le CLI déclare', () => {
+    expect(
+      Object.keys(externalDeps(PAQUETS, catalogue)).sort((a, b) => a.localeCompare(b)),
+    ).toEqual(['sirv', 'tsconfck', 'vite'])
+  })
+
+  // Épinglées sur ce qui est installé, jamais laissées en portée : sinon le
+  // registre décide le jour du lancement, et une version mineure de Vite fait
+  // rougir un contrôle requis sur un commit qui n'a rien changé.
+  it('épingle chaque version sur celle que le dépôt a installée', () => {
+    const lu = externalDeps(PAQUETS, catalogue)
+
+    // Exactes, sans accent circonflexe ni tilde : c'est là toute la garantie.
+    for (const [nom, version] of Object.entries(lu)) expect(version, nom).toMatch(/^\d+\.\d+\.\d+/)
+
+    // Et bien celles qui sont posées. Les trois vivent sous le paquet qui les
+    // déclare, aucune n'est remontée à la racine : chercher à la racine seule
+    // les laissait toutes en portée, et le cas ci-dessus l'a montré.
+    for (const nom of Object.keys(lu)) {
+      const posé = join(process.cwd(), 'packages/cli/node_modules', nom, 'package.json')
+
+      expect(lu[nom], nom).toBe(JSON.parse(readFileSync(posé, 'utf8')).version)
+    }
   })
 
   // Sans ce cas, un nom que le catalogue ne porte plus donnerait `undefined`
@@ -194,7 +211,43 @@ describe('nos propres octets', () => {
     expect(ownBytes(['react'])).toBeGreaterThan(1000)
     expect(ownBytes(['react', 'core'])).toBeGreaterThan(ownBytes(['react']))
   })
+
+  // Le message qui dit quoi faire, comme les deux autres mesures, plutôt qu'un
+  // `ENOENT` brut sur un dépôt fraîchement cloné.
+  it('lève en nommant la commande quand le dist manque', () => {
+    expect(() => ownBytes(['demo'])).toThrow('vp run -r pack')
+  })
 })
+
+// Les deux mesures qui comptent nos paquets lisent la même liste. Compter le
+// poids de `core` sans lire ses dépendances laisserait, le jour où il en
+// déclare une, un budget vert sur un chiffre faux.
+//
+// **Aucun cas ne peut aujourd'hui tenir cette coïncidence.** `core` ne déclare
+// aucune dépendance externe, donc lire deux paquets ou trois donne le même
+// résultat, et la mutation qui remet `['cli', 'react']` au point d'appel ne
+// fait rougir personne — mesuré. Ce qui suit encode l'invariant pour qu'il
+// morde le jour où `core` en déclare une, et le dit plutôt que de le masquer.
+describe('la liste des paquets', () => {
+  it('est celle que les deux mesures emploient', () => {
+    expect(PAQUETS).toEqual(['cli', 'react', 'core'])
+    expect(ownBytes()).toBe(ownBytes(PAQUETS))
+  })
+
+  it('couvre ce que chacun de ses paquets déclare', () => {
+    const lu = externalDeps(PAQUETS, catalogueDuDépôt)
+
+    for (const paquet of PAQUETS)
+      for (const [nom, portée] of Object.entries(déclarées(paquet)))
+        if (!portée.startsWith('workspace:')) expect(lu, `${paquet} → ${nom}`).toHaveProperty(nom)
+  })
+})
+
+const déclarées = (paquet) =>
+  JSON.parse(readFileSync(join(process.cwd(), 'packages', paquet, 'package.json'), 'utf8'))
+    .dependencies ?? {}
+
+const catalogueDuDépôt = catalogOf(readFileSync(join(process.cwd(), 'pnpm-workspace.yaml'), 'utf8'))
 
 // La ligne que Vite écrit sur un runner, colorisée, telle que le journal du
 // job l'a rendue. Le port y suit un code de mise en gras, donc `\\d` ne le
@@ -282,8 +335,8 @@ describe('le verdict', () => {
 describe('le tableau', () => {
   const rendus = verdicts({ startMs: 600, adapterLines: 900 }, { startMs: 1500, adapterLines: 500 })
 
-  it('commence par le marqueur, seul sur sa première ligne', () => {
-    expect(table(rendus).split('\n')[0]).toBe(MARKER)
+  it('commence par son titre', () => {
+    expect(table(rendus).split('\n')[0]).toBe('## Budgets')
   })
 
   it('marque ce qui tient et ce qui ne tient pas', () => {

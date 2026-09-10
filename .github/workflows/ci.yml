@@ -160,9 +160,11 @@ jobs:
   # Voir docs/internal/architecture.md.
   budgets:
     runs-on: ubuntu-latest
-    # Le démarrage à froid lance trois fois un serveur et un navigateur, et le
-    # poids installé fait un `npm install` depuis le registre.
-    timeout-minutes: 15
+    # 20 comme `check`, et pour la même raison : ce job fait strictement plus,
+    # même installation de Chromium plus un `npm install` depuis le registre et
+    # trois lancements navigateur. Sur une touche de cache manquée, Chromium a
+    # déjà coûté 9 min 11 à lui seul.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: voidzero-dev/setup-vp@49c3e4e92c52e7f8392712a9267bbe71c5ab30e5 # v1.19.0
@@ -175,8 +177,11 @@ jobs:
       # le poids installé compte. Sans cette étape le script lève, plutôt que
       # de rendre un budget tenu sur des paquets vides.
       - run: vp run -r pack
-      # Même clé que le job `check` : les deux se partagent le cache plutôt que
-      # d'installer Chromium deux fois.
+      # Même clé que le job `check`, donc le cache se partage **d'un lancement
+      # à l'autre**, pas au sein d'un même : `actions/cache` n'enregistre qu'à
+      # la fin d'un job, et les deux tournent en parallèle. Sur une touche
+      # manquée, les deux installent Chromium et écrivent la même clé, ce que
+      # l'action tolère en avertissant.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: chromium
         with:

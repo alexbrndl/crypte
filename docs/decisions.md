@@ -714,4 +714,6 @@ The real difference is who reads a document. The language follows from that.
 
 **What we also rule out.** Excluding the native binaries from the measure and budgeting only the rest. The user downloads them, so a figure that hides them is a figure about our comfort rather than about their install.
 
-**What would reopen it.** Vite shipping its binaries as optional per-platform packages small enough to change the order of magnitude; a decision to make Vite a peer, which has to be taken for its own reasons and not to make a budget pass; or the JavaScript half growing past 8 Mo, which would be ours and would deserve the failure.
+**What the measure pins, and what it does not.** The direct dependencies are pinned to the versions this repository has installed, so a Vite release cannot move the figure on a commit that changed nothing. Their own transitive dependencies are still resolved from the registry at run time, and a native binary growing there would redden a required check for a reason nobody here can act on.
+
+**What would reopen it.** That last case, if it happens: the answer is to install from `pnpm-lock.yaml` rather than to raise the ceiling. Vite shipping its binaries as optional per-platform packages small enough to change the order of magnitude. A decision to make Vite a peer, which has to be taken for its own reasons and not to make a budget pass. Or the JavaScript half growing past 8 Mo, which would be ours and would deserve the failure.
