@@ -200,12 +200,20 @@ describe('les dépendances externes', () => {
     // `cli` aujourd'hui, et le jour où `react` en déclare une, ce cas doit
     // rendre un verdict plutôt qu'un `ENOENT`.
     for (const paquet of PAQUETS)
-      for (const nom of Object.keys(déclarées(paquet))) {
-        if (nom.startsWith('@crypte/')) continue
+      for (const [nom, portée] of Object.entries(déclarées(paquet))) {
+        // Même critère que `externalDeps` : nos propres paquets s'écartent par
+        // leur portée, pas par leur préfixe, qu'ils garderont une fois publiés.
+        if (portée.startsWith('workspace:')) continue
 
-        const posé = join(process.cwd(), 'packages', paquet, 'node_modules', nom, 'package.json')
+        // Les deux emplacements que `posée` accepte : pnpm pose sous le paquet
+        // ou remonte à la racine, et exiger le premier ferait rougir ce cas le
+        // jour où il remonte, sur une fonction restée juste.
+        const posé = [
+          join(process.cwd(), 'packages', paquet, 'node_modules', nom, 'package.json'),
+          join(process.cwd(), 'node_modules', nom, 'package.json'),
+        ].find((un) => existsSync(un))
 
-        expect(existsSync(posé), `${paquet} n'a pas installé ${nom}`).toBe(true)
+        expect(posé, `${paquet} n'a installé ${nom} nulle part`).toBeDefined()
         expect(lu[nom], nom).toBe(JSON.parse(readFileSync(posé, 'utf8')).version)
       }
   })
