@@ -2,7 +2,7 @@
 
 How to set Crypte up on a project.
 
-> **`crypte dev` runs; nothing is published yet.** `crypte check` is not built, and no package is on npm, so you install from a clone. Section 8 of [`contracts.md`](contracts.md) lists what exists.
+> **The CLI runs; nothing is published yet.** No package is on npm, so you install from a clone. Section 8 of [`contracts.md`](contracts.md) lists what exists.
 >
 > Every example on this page is run by a test. If one of them stopped being true, that test would fail.
 
@@ -129,8 +129,12 @@ crypte dev
 
 It reads your configuration, resolves your aliases, discovers your stories, writes `.crypte/manifest.json` and its fingerprint, and serves the workshop. A story that throws shows its error instead of an empty frame, and it watches your files while it runs.
 
-`crypte dev` is the only command today. Its own help line says so:
+The commands today are `crypte dev`, `crypte check` and `crypte init`. The help line says the same:
 
 ```
-crypte — protocol v1, commands: dev
+crypte — protocol v1, commands: dev, check, init
 ```
+
+`crypte init` writes a `crypte.config.ts` in a project that already has its components: it reads the framework from `package.json`, proposes a story root, and refuses rather than overwrite a configuration you already have.
+
+`crypte check` reports two things: a story whose component is gone, which fails the command, and an exported component with no story, which is a warning only.

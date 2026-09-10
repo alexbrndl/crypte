@@ -2,28 +2,45 @@
 // See docs/internal/architecture.md.
 
 import { PROTOCOL_VERSION } from '@crypte/core/protocol'
+import { check as verify } from './check'
 import { dev as start } from './dev'
 import { ConfigError } from './errors'
+import { init as create } from './init'
 
-// The command as the user typed it. Taken as an argument, and so are the two
-// side effects, because a test that spawns a process cannot see the printing.
+// The three commands, taken as arguments so a test reaches them without a
+// server, a file written or a process spawned.
+export interface Commands {
+  dev: typeof start
+  check: typeof verify
+  init: typeof create
+}
+
+// The command as the user typed it, and the exit code it deserves. Printing is
+// an argument too, for the same reason.
 export async function run(
   argv: readonly string[],
   log: (line: string) => void = console.log,
-  dev: typeof start = start,
-): Promise<void> {
+  commands: Partial<Commands> = {},
+): Promise<number> {
   const [command, target] = argv
+  const root = target ?? process.cwd()
 
   switch (command) {
     case '--version':
     case '-v':
       log('0.0.0')
-      return
+      return 0
     case 'dev':
-      await dev(target ?? process.cwd())
-      return
+      await (commands.dev ?? start)(root)
+      return 0
+    case 'check':
+      return await (commands.check ?? verify)(root, log)
+    case 'init':
+      ;(commands.init ?? create)(root, log)
+      return 0
     default:
-      log(`crypte — protocol v${PROTOCOL_VERSION}, commands: dev`)
+      log(`crypte — protocol v${PROTOCOL_VERSION}, commands: dev, check, init`)
+      return 0
   }
 }
 
