@@ -135,6 +135,35 @@ describe('la lecture des stories', () => {
     expect(lu("'a < b'")).toBe('<A>{"a < b"}</A>')
   })
 
+  // Un fragment est un élément comme un autre pour ce qui nous occupe.
+  it('écrit un fragment tel qu’il est écrit', () => {
+    const lu = fileWith(
+      'A.jsx',
+      [
+        "import { A } from '../a'",
+        'export default defineStories(A, { stories: { Une: { children: <>Deux</> } } })',
+      ].join('\n'),
+    )
+
+    expect(lu.entries[0]?.source).toBe('<A><>Deux</></A>')
+  })
+
+  // Un `children` qu'un spread peut remplacer : la prop est posée, sa valeur est
+  // inconnue, et la section 4.2 interdit de montrer ce que l'exécution n'a pas.
+  // La balise reste donc auto-fermante plutôt que de porter un corps inventé.
+  it('n’invente pas de corps pour un children qu’un spread peut remplacer', () => {
+    const lu = fileWith(
+      'A.jsx',
+      [
+        "import { A } from '../a'",
+        "const base = { children: 'Neuf' }",
+        'export default defineStories(A, { stories: { Une: { ...base } } })',
+      ].join('\n'),
+    )
+
+    expect(lu.entries[0]?.source).toBe('<A />')
+  })
+
   // La moitié qui compte : sans `children`, la forme auto-fermante reste.
   it('garde la forme auto-fermante quand il n’y a pas de children', () => {
     const { entries } = entriesOf(join(stories, 'checkout', 'OrderSummary.jsx'), fixture, stories)
