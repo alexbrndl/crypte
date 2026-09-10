@@ -134,6 +134,39 @@ describe('les exports identifiés comme composants', () => {
     expect(only(source)).toEqual([['Carte', 'default']])
   })
 
+  // Un alias qui n'est pas `default` relie de la même façon : la story peut
+  // viser l'un ou l'autre nom, et signaler celui qu'elle ne vise pas serait le
+  // même faux avertissement.
+  test('groupe un nom et son alias', () => {
+    const source = 'export function Carte() { return <p /> }\nexport { Carte as Fiche }'
+
+    expect(only(source)).toEqual([['Carte', 'Fiche']])
+  })
+
+  // Deux alias pour un même composant : le défaut et un nom. Sans accumulation,
+  // le second effacerait le premier et une story sur celui-là avertirait.
+  test('garde les deux alias d’un composant qui en porte deux', () => {
+    const source =
+      'export function Carte() { return <p /> }\nexport default Carte\nexport { Carte as Fiche }'
+
+    expect(only(source)).toEqual([['Carte', 'default', 'Fiche']])
+  })
+
+  // Un nom d'export en chaîne, légal depuis ES2022. Il n'est pas lu, donc pas
+  // relié : un oubli, et le sens du doute.
+  test('ne relie pas un alias écrit en chaîne', () => {
+    const source = 'export function Carte() { return <p /> }\nexport { Carte as "Fiche" }'
+
+    expect(only(source)).toEqual([['Carte']])
+  })
+
+  // Réexporté sous son propre nom, il n'y a aucun second nom à retenir.
+  test('ne se répète pas quand l’alias est le nom lui-même', () => {
+    const source = 'export function Carte() { return <p /> }\nexport { Carte }'
+
+    expect(only(source)).toEqual([['Carte']])
+  })
+
   // Le lien ne traverse pas un réexport : le fichier ne déclare alors rien.
   test('ne relie rien sur un défaut venu d’un autre fichier', () => {
     const source =
@@ -245,8 +278,6 @@ describe('le composant sans story', () => {
     expect(problemsOf(await loadProject(root))).toEqual([])
   })
 
-  // La clé est `fichier#export` : sans le fichier, une story sur l'un des deux
-  // couvrirait l'autre en silence.
   // Un composant exporté deux fois est un seul composant. La story désigne l'un
   // des deux noms, et sans ce lien la commande avertit sur l'autre : un faux
   // avertissement sur un composant qui a bien une story.
@@ -297,6 +328,8 @@ describe('le composant sans story', () => {
     ])
   })
 
+  // La clé est `fichier#export` : sans le fichier, une story sur l'un des deux
+  // couvrirait l'autre en silence.
   test('ne laisse pas un homonyme couvrir l’autre', async () => {
     const root = projectWith({
       'crypte.config.ts': CONFIG,

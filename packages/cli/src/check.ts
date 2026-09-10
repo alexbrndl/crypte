@@ -78,9 +78,10 @@ function storied(project: Project, entries: ReturnType<typeof storiesOf>): Set<s
 // required, and 1.2 says why: `stepFromProgress` exported beside a component is
 // never a component, and a capitalised constant is not one either.
 //
-// One group per component, holding every name it can be imported under: a
-// component exported twice, `export function Card` then `export default Card`,
-// is one component, and a story on either name covers it.
+// One group per component, holding every name the file exports it under: a
+// component exported twice, `export function Card` then `export default Card`
+// or `export { Card as Sheet }`, is one component, and a story on any of its
+// names covers it.
 //
 // When in doubt, nothing is returned. A false warning teaches people to ignore
 // the command, which costs more than a miss.
@@ -118,26 +119,29 @@ export function componentsIn(file: string): string[][] {
     for (const one of declared(declaration)) {
       if (!capitalised(one.name) || !returnsElement(one.value)) continue
 
-      found.push(also.has(one.name) ? [one.name, 'default'] : [one.name])
+      found.push([one.name, ...(also.get(one.name) ?? [])])
     }
   }
 
   return found
 }
 
-// The local names the file also exports as `default`. Both forms of it, and
-// only within the file: `export { Card as default } from './card'` declares
-// nothing here.
+// The further names a local one is exported under, `default` included. Only
+// within the file: `export { Card as default } from './card'` declares nothing
+// here.
 //
 // A local name that is never exported on its own is not read: the component is
 // then found under no name at all, which is a miss and not a false warning.
-function synonyms(body: Node[]): Set<string> {
-  const found = new Set<string>()
+function synonyms(body: Node[]): Map<string, string[]> {
+  const found = new Map<string, string[]>()
+  const add = (local: string, exported: string) => {
+    if (local !== exported) found.set(local, [...(found.get(local) ?? []), exported])
+  }
 
   for (const node of body) {
     if (node.type === 'ExportDefaultDeclaration') {
       const inner = node['declaration'] as Node | undefined
-      if (inner?.type === 'Identifier') found.add(inner['name'] as string)
+      if (inner?.type === 'Identifier') add(inner['name'] as string, 'default')
       continue
     }
 
@@ -147,8 +151,8 @@ function synonyms(body: Node[]): Set<string> {
       const local = one['local'] as Node | undefined
       const exported = one['exported'] as Node | undefined
 
-      if (local?.type === 'Identifier' && exported?.['name'] === 'default') {
-        found.add(local['name'] as string)
+      if (local?.type === 'Identifier' && typeof exported?.['name'] === 'string') {
+        add(local['name'] as string, exported['name'])
       }
     }
   }
