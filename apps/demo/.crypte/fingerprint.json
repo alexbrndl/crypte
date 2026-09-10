@@ -45,7 +45,7 @@
       "props": [
         "children"
       ],
-      "rest": "9761944e0fd3fb13"
+      "rest": "b48419a11ca58ca2"
     },
     {
       "id": "tag--avec-une-classe",
@@ -55,7 +55,7 @@
         "children",
         "className"
       ],
-      "rest": "d37022ec7f444bf5"
+      "rest": "1cad6e3d48f37415"
     }
   ]
 }

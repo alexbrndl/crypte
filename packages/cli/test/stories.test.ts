@@ -93,7 +93,54 @@ describe('la lecture des stories', () => {
     expect(entries[1]?.source).toBe(
       '<OrderSummary title="Formule complète" benefits={[\'Historique complet\', \'Données vérifiées\']} reference="REF-4821-KD" />',
     )
-    expect(entries[2]?.source).toContain('children={<span>Neuf</span>}')
+    // `children` va entre les balises, pas en attribut : la section 4 dit que
+    // `source` porte le code d'appel, donc il est lu et recopié, et
+    // `children={<span>Neuf</span>}` n'est pas ce qu'on écrit.
+    expect(entries[2]?.source).toBe(
+      '<OrderSummary title="Formule complète" benefits={[\'Historique complet\', \'Données vérifiées\']} reference="REF-4821"><span>Neuf</span></OrderSummary>',
+    )
+  })
+
+  // Les formes que `children` peut prendre, et celle qu'il ne prend pas. Sans la
+  // seconde moitié, la règle passerait sur un composant qui n'en a aucun.
+  it('écrit children entre les balises, selon sa forme', () => {
+    const lu = (children: string) =>
+      fileWith(
+        'A.jsx',
+        [
+          "import { A } from '../a'",
+          `export default defineStories(A, { stories: { Une: { children: ${children} } } })`,
+        ].join('\n'),
+      ).entries[0]?.source
+
+    // Une chaîne va nue, ce qui est tout l'objet du changement.
+    expect(lu("'Neuf'")).toBe('<A>Neuf</A>')
+
+    // Un élément va tel qu'il est écrit : entre accolades il rendrait pareil, et
+    // c'est la seule forme où les accolades ne sont manifestement pas ce qu'on
+    // écrit.
+    expect(lu('<span>Neuf</span>')).toBe('<A><span>Neuf</span></A>')
+
+    // Tout le reste garde ses accolades.
+    expect(lu('12')).toBe('<A>{12}</A>')
+    expect(lu('items')).toBe('<A>{items}</A>')
+
+    // JSX replie les espaces de bord et lirait autre chose que la story : la
+    // chaîne reprend alors ses accolades plutôt que de mentir sur le rendu.
+    expect(lu("' bord '")).toBe('<A>{" bord "}</A>')
+    expect(lu("''")).toBe('<A>{""}</A>')
+
+    // Une accolade ou un chevron dans le texte serait lu comme du code.
+    expect(lu("'{brut}'")).toBe('<A>{"{brut}"}</A>')
+    expect(lu("'a < b'")).toBe('<A>{"a < b"}</A>')
+  })
+
+  // La moitié qui compte : sans `children`, la forme auto-fermante reste.
+  it('garde la forme auto-fermante quand il n’y a pas de children', () => {
+    const { entries } = entriesOf(join(stories, 'checkout', 'OrderSummary.jsx'), fixture, stories)
+
+    expect(entries[0]?.source).toMatch(/\/>$/)
+    expect(entries[0]?.source).not.toContain('</OrderSummary>')
   })
 
   it('lit les quatre extensions', () => {

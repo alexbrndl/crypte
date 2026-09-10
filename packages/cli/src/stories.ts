@@ -525,25 +525,65 @@ function propsOf(object: Node | null): Map<string, Node | undefined> {
 // The call the user would have written by hand, rebuilt from their own text so
 // that an expression we cannot evaluate still reads as they wrote it.
 function callOf(name: string, props: Map<string, Node | undefined>, source: string): string {
-  const written = [...props].map(([prop, value]) => {
-    // A value a spread may replace: the prop is set, its value is unknown, and
-    // showing the written one would put in the snippet what the run does not have.
-    if (value === undefined) return ''
+  const written = [...props]
+    .filter(([prop]) => prop !== 'children')
+    .map(([prop, value]) => {
+      // A value a spread may replace: the prop is set, its value is unknown, and
+      // showing the written one would put in the snippet what the run does not have.
+      if (value === undefined) return ''
 
-    const raw = source.slice(value.start, value.end)
+      const raw = source.slice(value.start, value.end)
 
-    if (value.type === 'Literal' && typeof value['value'] === 'string') {
-      return ` ${prop}=${JSON.stringify(value['value'])}`
-    }
+      if (value.type === 'Literal' && typeof value['value'] === 'string') {
+        return ` ${prop}=${JSON.stringify(value['value'])}`
+      }
 
-    // `enabled={true}` is `enabled`, which is how the same prop is written in
-    // JSX. `false` has no short form and keeps its braces.
-    if (value.type === 'Literal' && value['value'] === true) return ` ${prop}`
+      // `enabled={true}` is `enabled`, which is how the same prop is written in
+      // JSX. `false` has no short form and keeps its braces.
+      if (value.type === 'Literal' && value['value'] === true) return ` ${prop}`
 
-    return ` ${prop}={${raw}}`
-  })
+      return ` ${prop}={${raw}}`
+    })
 
-  return `<${name}${written.join('')} />`
+  const opening = `<${name}${written.join('')}`
+  const body = childrenOf(props, source)
+
+  return body === undefined ? `${opening} />` : `${opening}>${body}</${name}>`
+}
+
+// What goes between the tags. Section 4 says `source` carries the call code, so
+// it is read and copied: `children` as an attribute is valid JSX and not what
+// anybody writes. Measured on the demonstration, where every `children` came out
+// as an attribute of a self-closing tag.
+//
+// `undefined` when there is nothing to put there, which keeps the self-closing
+// form. A prop a spread may replace is in that case too: its value is unknown,
+// and section 4.2 forbids showing what the run does not have.
+function childrenOf(props: Map<string, Node | undefined>, source: string): string | undefined {
+  if (!props.has('children')) return undefined
+
+  const value = props.get('children')
+  if (value === undefined) return undefined
+
+  const raw = source.slice(value.start, value.end)
+
+  // An element goes as it is written. Wrapped in braces it would still render,
+  // and it is the one form where the braces are plainly not what one writes.
+  if (value.type === 'JSXElement' || value.type === 'JSXFragment') return raw
+
+  // A string goes bare, which is the whole point. Not when JSX would read it as
+  // something else, nor when its edges carry space: JSX trims and folds
+  // whitespace, so `' a '` would come back as `'a'` from the snippet and the
+  // copied code would render something the story does not.
+  if (value.type === 'Literal' && typeof value['value'] === 'string') {
+    const text = value['value'] as string
+
+    return text !== '' && text === text.trim() && !/[{}<>\n]/.test(text)
+      ? text
+      : `{${JSON.stringify(text)}}`
+  }
+
+  return `{${raw}}`
 }
 
 // An object written in the file, read as data. `undefined` when it is not an

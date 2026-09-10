@@ -78,7 +78,7 @@ const EXPECTED: Manifest = {
       props: ['benefits', 'children', 'reference', 'title'],
       meta: { status: 'stable', owner: 'checkout' },
       source:
-        '<OrderSummary title="Formule complète" benefits={[\'Historique complet\', \'Données vérifiées\']} reference="REF-4821" children={<span>Neuf</span>} />',
+        '<OrderSummary title="Formule complète" benefits={[\'Historique complet\', \'Données vérifiées\']} reference="REF-4821"><span>Neuf</span></OrderSummary>',
     },
   ],
 }
