@@ -10,7 +10,9 @@ import type { Node } from './stories'
 
 export interface Problem {
   kind: 'orphan' | 'unstoried'
-  // Project-relative, so a message never carries the machine's own layout.
+  // Project-relative for a component the producer resolved. An orphan carries
+  // the identifier the story wrote instead, and a component outside the root
+  // its absolute path: both read where a chain of `..` would not.
   file: string
   name: string
 }
@@ -76,9 +78,13 @@ function storied(project: Project, entries: ReturnType<typeof storiesOf>): Set<s
 // required, and 1.2 says why: `stepFromProgress` exported beside a component is
 // never a component, and a capitalised constant is not one either.
 //
+// One group per component, holding every name it can be imported under: a
+// component exported twice, `export function Card` then `export default Card`,
+// is one component, and a story on either name covers it.
+//
 // When in doubt, nothing is returned. A false warning teaches people to ignore
 // the command, which costs more than a miss.
-export function componentsIn(file: string): string[] {
+export function componentsIn(file: string): string[][] {
   let parsed: ReturnType<typeof parseSync>
   let source: string
 
@@ -91,12 +97,16 @@ export function componentsIn(file: string): string[] {
 
   if (parsed.errors.length > 0) return []
 
-  const found: string[] = []
+  const body = parsed.program.body as Node[]
+  // Read first: `export default Card` may come before or after the declaration
+  // it names.
+  const also = synonyms(body)
+  const found: string[][] = []
 
-  for (const node of parsed.program.body as Node[]) {
+  for (const node of body) {
     if (node.type === 'ExportDefaultDeclaration') {
       const inner = node['declaration'] as Node | undefined
-      if (inner && returnsElement(inner) && capitalised(nameOf(inner))) found.push('default')
+      if (inner && returnsElement(inner) && capitalised(nameOf(inner))) found.push(['default'])
       continue
     }
 
@@ -106,7 +116,40 @@ export function componentsIn(file: string): string[] {
     if (!declaration) continue
 
     for (const one of declared(declaration)) {
-      if (capitalised(one.name) && returnsElement(one.value)) found.push(one.name)
+      if (!capitalised(one.name) || !returnsElement(one.value)) continue
+
+      found.push(also.has(one.name) ? [one.name, 'default'] : [one.name])
+    }
+  }
+
+  return found
+}
+
+// The local names the file also exports as `default`. Both forms of it, and
+// only within the file: `export { Card as default } from './card'` declares
+// nothing here.
+//
+// A local name that is never exported on its own is not read: the component is
+// then found under no name at all, which is a miss and not a false warning.
+function synonyms(body: Node[]): Set<string> {
+  const found = new Set<string>()
+
+  for (const node of body) {
+    if (node.type === 'ExportDefaultDeclaration') {
+      const inner = node['declaration'] as Node | undefined
+      if (inner?.type === 'Identifier') found.add(inner['name'] as string)
+      continue
+    }
+
+    if (node.type !== 'ExportNamedDeclaration' || node['source'] != null) continue
+
+    for (const one of (node['specifiers'] as Node[] | undefined) ?? []) {
+      const local = one['local'] as Node | undefined
+      const exported = one['exported'] as Node | undefined
+
+      if (local?.type === 'Identifier' && exported?.['name'] === 'default') {
+        found.add(local['name'] as string)
+      }
     }
   }
 
@@ -219,10 +262,10 @@ export function problemsOf(project: Project): Problem[] {
 
       const file = join(folder, name.name)
 
-      for (const exported of componentsIn(file)) {
-        if (known.has(`${file}#${exported}`)) continue
+      for (const group of componentsIn(file)) {
+        if (group.some((one) => known.has(`${file}#${one}`))) continue
 
-        unstoried.push({ kind: 'unstoried', file: named(project.root, file), name: exported })
+        unstoried.push({ kind: 'unstoried', file: named(project.root, file), name: group[0]! })
       }
     }
   }

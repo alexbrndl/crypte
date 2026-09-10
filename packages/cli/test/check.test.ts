@@ -39,7 +39,7 @@ const CONFIG = "export default { stories: 'stories', adapter: { name: 'react' } 
 const ALIAS = JSON.stringify({ compilerOptions: { baseUrl: '.', paths: { '@/*': ['src/*'] } } })
 
 // Un fichier qui n'exporte qu'un composant, pour ne mesurer qu'un axe à la fois.
-function only(source: string): string[] {
+function only(source: string): string[][] {
   const root = projectWith({ 'un.tsx': source })
 
   return componentsIn(join(root, 'un.tsx'))
@@ -60,7 +60,7 @@ describe('les exports identifiés comme composants', () => {
       ['A', 'B'],
     ],
   ] as const)('retient %s', ([, source, attendu]) => {
-    expect(only(source)).toEqual(attendu)
+    expect(only(source).flat()).toEqual(attendu)
   })
 
   // Ce qui ressemble à un composant sans en être un. Chaque ligne serait un
@@ -105,7 +105,7 @@ describe('les exports identifiés comme composants', () => {
       ['A'],
     ],
   ] as const)('retient %s', ([, source, attendu]) => {
-    expect(only(source)).toEqual(attendu)
+    expect(only(source).flat()).toEqual(attendu)
   })
 
   // Ce que la lecture syntaxique ne suit pas. Ce sont des oublis, pas des faux
@@ -116,6 +116,36 @@ describe('les exports identifiés comme composants', () => {
     ['un appel à createElement', 'export function A() { return createElement("p") }'],
   ] as const)('laisse passer %s, et c’est le sens du doute', ([, source]) => {
     expect(only(source)).toEqual([])
+  })
+
+  // Le regroupement lui-même, que les deux tables ci-dessus aplatissent : un
+  // composant exporté deux fois rend un groupe de deux noms, pas deux groupes.
+  test.for([
+    [
+      'un défaut qui reprend un nommé',
+      'export function Carte() { return <p /> }\nexport default Carte',
+    ],
+    [
+      'un défaut par liste',
+      'export function Carte() { return <p /> }\nexport { Carte as default }',
+    ],
+    ['un défaut écrit avant', 'export default Carte\nexport function Carte() { return <p /> }'],
+  ] as const)('groupe les deux noms de %s', ([, source]) => {
+    expect(only(source)).toEqual([['Carte', 'default']])
+  })
+
+  // Le lien ne traverse pas un réexport : le fichier ne déclare alors rien.
+  test('ne relie rien sur un défaut venu d’un autre fichier', () => {
+    const source =
+      "export function Carte() { return <p /> }\nexport { Carte as default } from './autre'"
+
+    expect(only(source)).toEqual([['Carte']])
+  })
+
+  // Un composant que seul le défaut exporte reste introuvable : c'est un oubli,
+  // pas un faux avertissement, et 1.2 préfère l'oubli.
+  test('ne retient pas un composant local que seul le défaut exporte', () => {
+    expect(only('function Carte() { return <p /> }\nexport default Carte')).toEqual([])
   })
 
   test('se tait sur un fichier absent', () => {
@@ -217,6 +247,56 @@ describe('le composant sans story', () => {
 
   // La clé est `fichier#export` : sans le fichier, une story sur l'un des deux
   // couvrirait l'autre en silence.
+  // Un composant exporté deux fois est un seul composant. La story désigne l'un
+  // des deux noms, et sans ce lien la commande avertit sur l'autre : un faux
+  // avertissement sur un composant qui a bien une story.
+  test.for([
+    [
+      'un défaut qui reprend un nommé',
+      'export function Carte() { return <p /> }\nexport default Carte',
+    ],
+    [
+      'un défaut par liste',
+      'export function Carte() { return <p /> }\nexport { Carte as default }',
+    ],
+  ] as const)('se tait sur %s dont la story vise le défaut', async ([, source]) => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      'src/Carte.tsx': source,
+      'stories/Carte.ts': "import Carte from '../src/Carte'\nexport default defineStories(Carte)",
+    })
+
+    expect(problemsOf(await loadProject(root))).toEqual([])
+  })
+
+  // Et dans l'autre sens : la story vise le nommé, le défaut ne doit pas être
+  // signalé pour autant.
+  test('se tait sur le défaut quand la story vise le nom', async () => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      'src/Carte.tsx': 'export function Carte() { return <p /> }\nexport default Carte',
+      'stories/Carte.ts':
+        "import { Carte } from '../src/Carte'\nexport default defineStories(Carte)",
+    })
+
+    expect(problemsOf(await loadProject(root))).toEqual([])
+  })
+
+  // Le lien ne vaut que pour le composant que le défaut reprend : un voisin
+  // exporté dans le même fichier reste sans story.
+  test('signale le voisin, pas le composant relié au défaut', async () => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      'src/Carte.tsx':
+        'export function Carte() { return <p /> }\nexport const Bouton = () => <button />\nexport default Carte',
+      'stories/Carte.ts': "import Carte from '../src/Carte'\nexport default defineStories(Carte)",
+    })
+
+    expect(problemsOf(await loadProject(root))).toEqual([
+      { kind: 'unstoried', file: 'src/Carte.tsx', name: 'Bouton' },
+    ])
+  })
+
   test('ne laisse pas un homonyme couvrir l’autre', async () => {
     const root = projectWith({
       'crypte.config.ts': CONFIG,
@@ -231,10 +311,6 @@ describe('le composant sans story', () => {
     ])
   })
 
-  // Deux mécanismes donnent ce résultat, et le filtre d'extensions n'est pas
-  // celui qui décide : l'analyseur refuse `.vue` et `.css` de toute façon.
-  // Mesuré, le retirer ne fait rougir aucun cas. Il reste pour ce qu'il fait
-  // vraiment, éviter la lecture. Voir docs/internal/architecture.md.
   // Le composant hors de la racine : un dépôt où les stories vivent dans un
   // paquet et les composants dans un autre. `relative` y rend une chaîne de
   // `..`, illisible dans un message, donc le chemin absolu est rendu tel quel.
@@ -257,6 +333,10 @@ describe('le composant sans story', () => {
     ])
   })
 
+  // Deux mécanismes donnent ce résultat, et le filtre d'extensions n'est pas
+  // celui qui décide : l'analyseur refuse `.vue` et `.css` de toute façon.
+  // Mesuré, le retirer ne fait rougir aucun cas. Il reste pour ce qu'il fait
+  // vraiment, éviter la lecture. Voir docs/internal/architecture.md.
   test('se tait sur un fichier d’une autre extension', async () => {
     const root = projectWith({
       'crypte.config.ts': CONFIG,
