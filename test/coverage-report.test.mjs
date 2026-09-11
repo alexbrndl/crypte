@@ -5,19 +5,13 @@ import { dirname, join } from 'node:path'
 import { describe, expect, it, test as base } from 'vitest'
 import {
   MARKER,
-  METRICS,
   badge,
-  bar,
-  byFolder,
-  byTotal,
   compose,
   drifted,
   existing,
   failing,
-  folderOf,
   options,
   publish,
-  rowTotal,
 } from './coverage-report.mjs'
 
 // Ce que le commentaire de pull request dit, et ce qu'il remplace. Le script
@@ -71,19 +65,6 @@ const resume = (pct = 99, par = {}) => {
 // Un résumé qui tient les quatre seuils, quels qu'ils soient. `resume(99)` les
 // tenait par coïncidence, et rougissait dès qu'un plancher passait au-dessus.
 const tenu = () => resume(JUSTE_AU_DESSUS.lines, JUSTE_AU_DESSUS)
-
-describe('la barre de progression', () => {
-  it('est vide à zéro et pleine à cent', () => {
-    expect(bar(0)).toBe('░░░░░░░░░░')
-    expect(bar(100)).toBe('██████████')
-  })
-
-  // Une barre pleine à 97 % ferait croire qu'il ne reste rien à couvrir.
-  it('n’est jamais pleine en dessous de cent', () => {
-    expect(bar(97.31)).toBe('█████████░')
-    expect(bar(99.99)).toBe('█████████░')
-  })
-})
 
 describe('le corps du commentaire', () => {
   // Le marqueur est ce qui permet de retrouver le commentaire pour le remplacer.
@@ -269,35 +250,6 @@ describe('la publication', () => {
   })
 })
 
-describe('le tableau par dossier', () => {
-  it('nomme le paquet ou l’application, pas le chemin entier', () => {
-    expect(folderOf('/dépôt/packages/cli/src/dev.ts')).toBe('packages/cli')
-    expect(folderOf('/dépôt/apps/shell/src/recover.ts')).toBe('apps/shell')
-    expect(folderOf('/dépôt/test/sweep-tmp.mjs')).toBeUndefined()
-  })
-
-  // « instructions 97 % » ne dit pas où chercher ; « packages/cli 88 % de
-  // branches » le dit.
-  it('additionne les fichiers d’un même dossier', () => {
-    const folders = byFolder(resume())
-
-    expect([...folders.keys()].sort()).toEqual(['apps/shell', 'packages/cli', 'packages/core'])
-    expect(folders.get('packages/cli').lines).toEqual([99, 100])
-  })
-
-  it('cite chaque dossier dans le corps', () => {
-    const body = compose(resume(), undefined)
-
-    expect(body).toContain('`packages/cli`')
-    expect(body).toContain('`apps/shell`')
-    expect(body).toContain('| **total** |')
-  })
-
-  it('ignore le total dans le regroupement', () => {
-    expect(byFolder({ total: fichier(99) }).size).toBe(0)
-  })
-})
-
 describe('le verdict des seuils', () => {
   it('ne nomme rien quand tout tient', () => {
     expect(failing(tenu())).toEqual([])
@@ -365,20 +317,31 @@ describe('le badge du README', () => {
   })
 })
 
-describe('la légende', () => {
-  // « branches 88 % » ne veut rien dire pour qui lit la pull request sans
-  // connaître l'outil.
-  it('explique les quatre métriques sous le tableau', () => {
-    const body = compose(resume(), undefined)
+describe('la ligne de total', () => {
+  it('nomme les quatre métriques et leur chiffre', () => {
+    const body = compose(resume(97.5), undefined)
 
-    for (const mot of ['**lignes**', '**branches**', '**fonctions**', '**instructions**']) {
-      expect(body).toContain(mot)
+    for (const mot of ['**lignes**', '**instructions**', '**branches**', '**fonctions**']) {
+      expect(body).toContain(`${mot} 97.5 %`)
     }
   })
 
-  // Rien à expliquer quand il n'y a pas de tableau.
+  // Le tableau par dossier est parti avec `DCJ-276` : cinq lignes de chiffres
+  // que personne ne lisait pour décider, le verdict des seuils décidant seul.
+  it('ne remet pas de tableau', () => {
+    expect(compose(resume(), undefined)).not.toContain('| dossier |')
+  })
+})
+
+describe('la légende', () => {
+  // Des quatre métriques, `branches` est la seule dont le nom ne dit pas ce
+  // qu'elle compte, et c'est la seule que la légende explique encore.
+  it('explique la métrique qui ne se devine pas', () => {
+    expect(compose(resume(), undefined)).toContain('est la plus exigeante')
+  })
+
   it('ne paraît pas quand la couverture manque', () => {
-    expect(compose(undefined, undefined)).not.toContain('**branches**')
+    expect(compose(undefined, undefined)).not.toContain('est la plus exigeante')
   })
 })
 
@@ -397,57 +360,8 @@ describe('les seuils', () => {
   })
 })
 
-describe('le total par ligne', () => {
-  // Le tableau totalisait par colonne et pas par dossier, donc rien ne disait
-  // lequel est le plus faible dans l'ensemble.
-  it('additionne les quatre métriques du dossier', () => {
-    const held = {
-      lines: [9, 10],
-      statements: [9, 10],
-      branches: [1, 10],
-      functions: [10, 10],
-    }
-
-    expect(rowTotal(held)).toEqual([29, 40])
-  })
-
-  it('met le total du résumé à la même forme', () => {
-    const pairs = byTotal(resume(99).total)
-
-    expect(pairs.lines).toEqual([615, 623])
-    expect(Object.keys(pairs)).toEqual(METRICS)
-  })
-
-  it('paraît dans le corps, par dossier et en bas', () => {
-    const body = compose(resume(), undefined)
-    const lignes = body.split('\n').filter((une) => une.startsWith('|'))
-
-    expect(lignes[0]).toContain('| total | lignes | instructions | branches | fonctions |')
-    expect(lignes.at(-1)).toContain('| **total** |')
-  })
-
-  // Zéro sur zéro n'est pas une lacune : un dossier sans branche ne doit pas
-  // tomber à 0 %.
-  it('rend cent quand il n’y a rien à couvrir', () => {
-    const body = compose(
-      {
-        '/dépôt/packages/vide/src/types.ts': {
-          lines: metrique(100, 0, 0),
-          statements: metrique(100, 0, 0),
-          branches: metrique(100, 0, 0),
-          functions: metrique(100, 0, 0),
-        },
-        total: resume(99).total,
-      },
-      undefined,
-    )
-
-    expect(body).toContain('| `packages/vide` | `██████████` | **100.0 %** |')
-  })
-})
-
-describe('ce que le tableau ne mesure pas', () => {
-  // Une colonne à 100 % qui tait une exclusion est un mensonge par omission.
+describe('ce que la mesure ne couvre pas', () => {
+  // Un chiffre à 100 % qui tait une exclusion est un mensonge par omission.
   it('nomme ce qui est hors mesure', () => {
     const body = compose(resume(), undefined)
 
@@ -455,7 +369,7 @@ describe('ce que le tableau ne mesure pas', () => {
     expect(body).toContain('câblage')
   })
 
-  it('ne dit rien quand il n’y a pas de tableau', () => {
+  it('ne dit rien quand il n’y a rien à mesurer', () => {
     expect(compose(undefined, undefined)).not.toContain('Hors mesure')
   })
 })
@@ -479,10 +393,10 @@ describe('ce que l’exploration a trouvé', () => {
     expect(body).not.toContain('0 tests passent')
   })
 
-  it('garde le tableau quand seul le rapport des tests est vide', () => {
+  it('garde les chiffres quand seul le rapport des tests est vide', () => {
     const body = compose(resume(), { numTotalTests: 0, numFailedTests: 0, testResults: [] })
 
-    expect(body).toContain('| **total** |')
+    expect(body).toContain('**lignes** 99 %')
   })
 })
 
