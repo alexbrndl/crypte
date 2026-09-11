@@ -21,18 +21,12 @@ const THRESHOLDS = JSON.parse(
   readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'coverage-thresholds.json'), 'utf8'),
 )
 
-// Le tableau s'explique tout seul : « branches 88 % » ne veut rien dire pour qui
-// lit la pull request sans connaître l'outil. Une par ligne, plutôt qu'un
-// paragraphe dense.
+// La seule des quatre dont le nom ne dit pas ce qu'elle compte.
 const LEGEND = [
-  '- <sub>**lignes** : lignes exécutées au moins une fois.</sub>',
-  '- <sub>**instructions** : instructions exécutées, plus fin que la ligne quand elle en porte plusieurs.</sub>',
-  '- <sub>**branches** : chaque côté d’un `if`, d’un `?:`, d’un `&&` ou d’un `??`. La plus exigeante : un `if` dont seul le cas vrai est éprouvé compte 1 sur 2, alors que sa ligne est comptée couverte.</sub>',
-  '- <sub>**fonctions** : fonctions appelées au moins une fois.</sub>',
-  '- <sub>**total** : les quatre additionnées, pour classer les dossiers entre eux.</sub>',
+  '<sub>**branches** est la plus exigeante : chaque côté d’un `if`, d’un `?:`, d’un `&&` ou d’un `??`. Un `if` dont seul le cas vrai est éprouvé compte 1 sur 2, alors que sa ligne est comptée couverte.</sub>',
 ]
 
-// Ce que le tableau ne mesure pas, dit à côté de lui : une colonne à 100 % qui
+// Ce que la mesure ne couvre pas, dit à côté d'elle : un chiffre à 100 % qui
 // tait une exclusion est un mensonge par omission.
 const EXCLUDED =
   '<sub>Hors mesure : trois fichiers de câblage, l’entrée du CLI, le montage du shell et un module de types. Voir docs/internal/architecture.md.</sub>'
@@ -44,73 +38,8 @@ const LABELS = {
   lines: 'lignes',
 }
 
-// Dix cases, une par dixième. Pleine à 100, et jamais pleine en dessous : une
-// barre pleine à 97 % ferait croire qu'il ne reste rien à couvrir.
-export function bar(pct) {
-  const full = Math.floor(pct / 10)
-
-  return '█'.repeat(full) + '░'.repeat(10 - full)
-}
-
-// Le dossier d'un fichier du résumé : le paquet ou l'application, pas le chemin
-// entier. « instructions 97 % » ne dit pas où chercher ; « packages/cli 88 % de
-// branches » le dit. Voir docs/internal/architecture.md.
-export function folderOf(path) {
-  const found = /(packages|apps)\/([^/]+)/.exec(path)
-
-  return found ? `${found[1]}/${found[2]}` : undefined
-}
-
-// L'ordre des colonnes, et le seul : le tableau, le total par ligne et la
-// légende le suivent tous.
-export const METRICS = ['lines', 'statements', 'branches', 'functions']
-
-// Les métriques additionnées par dossier, dans l'ordre où le résumé les donne.
-export function byFolder(summary) {
-  const folders = new Map()
-
-  for (const [path, metrics] of Object.entries(summary)) {
-    const folder = path === 'total' ? undefined : folderOf(path)
-    if (!folder) continue
-
-    const held = folders.get(folder) ?? Object.fromEntries(METRICS.map((name) => [name, [0, 0]]))
-
-    for (const name of METRICS) {
-      held[name][0] += metrics[name]?.covered ?? 0
-      held[name][1] += metrics[name]?.total ?? 0
-    }
-
-    folders.set(folder, held)
-  }
-
-  return folders
-}
-
-// Un pourcentage, ou 100 quand il n'y a rien à couvrir : zéro sur zéro n'est pas
-// une lacune.
-function part([covered, total]) {
-  return total === 0 ? 100 : (covered / total) * 100
-}
-
-function cell(pair) {
-  return `${part(pair).toFixed(1)} % <sub>${pair[0]}/${pair[1]}</sub>`
-}
-
-// Le total d'une ligne : les quatre métriques additionnées. Le tableau totalisait
-// par colonne et pas par dossier, donc rien ne disait lequel est le plus faible
-// dans l'ensemble.
-// Le total du résumé, mis à la forme des paires pour que `rowTotal` s'applique
-// aussi à lui.
-export function byTotal(total) {
-  return Object.fromEntries(METRICS.map((name) => [name, [total[name].covered, total[name].total]]))
-}
-
-export function rowTotal(held) {
-  return METRICS.reduce(
-    ([covered, total], name) => [covered + held[name][0], total + held[name][1]],
-    [0, 0],
-  )
-}
+// L'ordre de la ligne de total, et le seul endroit qui le fixe.
+const METRICS = ['lines', 'statements', 'branches', 'functions']
 
 // Les métriques sous leur seuil, nommées. Rend un tableau vide quand tout tient.
 export function failing(summary) {
@@ -215,29 +144,17 @@ function tests(results) {
 // Le corps du commentaire. Séparé de la publication pour être éprouvé sans
 // réseau.
 export function compose(summary, results, sha) {
-  // Complet, ou rien : un `total` amputé d'une métrique faisait lever le
-  // rendu du tableau, donc laissait le commentaire d'avant en place, donc
-  // affichait des chiffres périmés. Mesuré à l'exploration.
-  const total = METRICS.every((name) => typeof summary?.total?.[name]?.covered === 'number')
+  // Complet, ou rien : un `total` amputé d'une métrique faisait lever la ligne
+  // de total, donc laissait le commentaire d'avant en place et ses chiffres
+  // périmés. `pct`, et non `covered` : c'est ce que cette ligne lit.
+  const total = METRICS.every((name) => typeof summary?.total?.[name]?.pct === 'number')
     ? summary.total
     : undefined
 
-  // Sans couverture, on le dit et on garde le compte des tests. Lever ici
-  // laissait le commentaire d'avant en place : un lancement rouge affichait donc
-  // les chiffres verts du précédent, ce qui est pire que pas de commentaire.
-  const table = total
-    ? [
-        '| dossier | progression | total | lignes | instructions | branches | fonctions |',
-        '| -- | -- | --: | --: | --: | --: | --: |',
-        ...[...byFolder(summary)]
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([folder, held]) => {
-            const somme = rowTotal(held)
-
-            return `| \`${folder}\` | \`${bar(part(somme))}\` | **${part(somme).toFixed(1)} %** | ${METRICS.map((name) => cell(held[name])).join(' | ')} |`
-          }),
-        `| **total** | \`${bar(part(rowTotal(byTotal(total))))}\` | **${part(rowTotal(byTotal(total))).toFixed(1)} %** | ${METRICS.map((name) => `**${total[name].pct} %**`).join(' | ')} |`,
-      ]
+  // Sans couverture, on le dit plutôt que de lever : un lancement rouge
+  // laisserait sinon le commentaire d'avant, et ses chiffres verts.
+  const chiffres = total
+    ? [METRICS.map((name) => `**${LABELS[name]}** ${total[name].pct} %`).join(' · ')]
     : ['⚠️ Couverture non mesurée : le lancement s’est arrêté avant.']
 
   const manques = failing(summary)
@@ -247,7 +164,7 @@ export function compose(summary, results, sha) {
       : `❌ ${manques.join(' ; ')}.`
     : undefined
 
-  const lignes = [MARKER, '## Tests et couverture', '', tests(results), '', ...table, '']
+  const lignes = [MARKER, '## Tests et couverture', '', tests(results), '', ...chiffres, '']
 
   if (total) lignes.push(...LEGEND, '', EXCLUDED, '')
   if (seuils) lignes.push(seuils, '')

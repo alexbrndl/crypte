@@ -146,7 +146,7 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 ## 4 bis. La couverture, et ce qu'elle a remplacé
 
-`vp test --coverage` mesure ce que les tests exécutent réellement. Les seuils sont dans `test/coverage-thresholds.json`, au plancher mesuré : 96 % des instructions, 88 % des branches, 96 % des fonctions, 97 % des lignes. C'est `test/coverage-report.mjs` qui les applique, et lui seul ; la configuration de vitest ne les porte pas.
+`vp test --coverage` mesure ce que les tests exécutent réellement. Les seuils sont dans `test/coverage-thresholds.json`, au plancher mesuré. Les chiffres du jour se lisent là et nulle part ailleurs : recopiés ici, ils dérivent, et ils l'ont fait. C'est `test/coverage-report.mjs` qui les applique, et lui seul ; la configuration de vitest ne les porte pas.
 
 **Pourquoi elle existe.** Elle répond à la seule des trois questions du contrôle de mutation qu'aucune relecture ne voit : *ce code est-il exécuté par quelqu'un ?* Le premier lancement a trouvé, en cinq secondes, deux endroits que 131 garanties n'avaient jamais signalés.
 
@@ -160,23 +160,21 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 *Ce qui casse si on l'enlève :* du code publié cesse d'être exécuté par les tests sans que rien ne le dise, ce qui est exactement l'état dans lequel l'adaptateur React a vécu tout le projet.
 
-**Le chiffre est affiché, pas rangé dans un journal.** `test/coverage-report.mjs` compose un tableau et l'envoie à trois endroits : le résumé du job, un commentaire de pull request, et son propre code de sortie, qui fait du job `coverage` un **contrôle nommé sur la pull request**, à côté de `has-review` et `has-changeset`. Enterré dans le job `check`, le chiffre demandait d'ouvrir les journaux pour être lu.
+**Le chiffre est affiché, pas rangé dans un journal.** `test/coverage-report.mjs` compose le corps du commentaire et l'envoie à trois endroits : le résumé du job, un commentaire de pull request, et son propre code de sortie, qui fait du job `coverage` un **contrôle nommé sur la pull request**, à côté de `has-review` et `has-changeset`. Enterré dans le job `check`, le chiffre demandait d'ouvrir les journaux pour être lu.
 
 **Les seuils sont évalués une seule fois, et là où on les voit.** Ils vivent dans `test/coverage-thresholds.json`, lus par `test/coverage-report.mjs`, dont le code de sortie **est** le contrôle `coverage`. La configuration de vitest ne les porte plus : évalués aux deux endroits, ils rougissaient deux fois pour la même raison, et le second n'attrapait jamais rien que le premier ait laissé passer. Un cas vérifie que `vite.config.ts` n'a pas de clé `thresholds`.
 
 *Ce que ça coûte :* `vp test --coverage` seul affiche les chiffres sans rendre de verdict. C'est `pnpm ready` qui applique les seuils en local, et le contrôle `coverage` qui les applique en intégration continue.
 
-**Le tableau porte sa légende, et ses trous.** « branches 88 % » ne veut rien dire pour qui lit la pull request sans connaître l'outil : les cinq colonnes sont définies sous le tableau, une par ligne. Et ce qui **n'est pas** mesuré y est nommé : une colonne à 100 % qui tait une exclusion est un mensonge par omission.
+**Le commentaire porte le total, pas le détail par dossier.** Une ligne pour les quatre métriques, le verdict des seuils, et ce qui **n'est pas** mesuré : un chiffre à 100 % qui tait une exclusion est un mensonge par omission. La légende ne garde que `branches`, la seule des quatre dont le nom ne dit pas ce qu'elle compte.
 
-*Un total par ligne autant que par colonne.* Les quatre métriques additionnées par dossier, pour classer les dossiers entre eux : sans lui, le tableau totalisait dans un seul sens et rien ne disait lequel est le plus faible dans l'ensemble. Mesuré aujourd'hui : `packages/cli` à 95,3 %, tous les autres au-dessus de 98 %.
+*Le tableau par dossier a été retiré par `DCJ-276`*, avec sa barre de progression, son total par ligne et sa légende à cinq entrées : 163 lignes de source et de cas, et un commentaire qui passe de 24 lignes à 13. Il donnait cinq lignes de chiffres qui n'ont jamais décidé de rien : c'est le verdict des seuils qui décide, et il tient en une ligne.
 
-*Les chiffres paraissent petits pour `packages/core`*, 43 lignes, et ce n'est pas un oubli : les sept fichiers sont bien dans le rapport, mais v8 compte les lignes **exécutables**. Le noyau est surtout des types et des commentaires ; son code exécutable, ce sont les deux côtés du canal.
+*Pourquoi la ligne de total reste :* c'est le seul endroit du commentaire qui donne la mesure **quand tout tient**, le verdict vert ne citant que les seuils. Le verdict rouge, lui, donne déjà l'écart, et le cliquet lit le fichier JSON, jamais le corps du commentaire.
 
-**Le tableau va par dossier, pas par métrique seule.** « instructions 97 % » ne dit pas où chercher ; `packages/cli` à 88 % de branches le dit. Les fichiers du résumé sont additionnés par paquet et par application, avec le total en dernière ligne.
+*L'ancien est retiré, pas modifié.* Édité sur place, le commentaire restait à sa position d'origine dans la conversation, donc loin du dernier commit sur une longue pull request. Il est maintenant supprimé puis reposté, donc toujours en bas, à côté de ce qu'il mesure. Le marqueur `<!-- crypte-coverage -->` sert à le retrouver, comme celui de la revue, et la vérification exige qu'il en reste **exactement un**.
 
-*L'ancien est retiré, pas modifié.* Édité sur place, le tableau restait à sa position d'origine dans la conversation, donc loin du dernier commit sur une longue pull request. Il est maintenant supprimé puis reposté, donc toujours en bas, à côté de ce qu'il mesure. Le marqueur `<!-- crypte-coverage -->` sert à le retrouver, comme celui de la revue, et la vérification exige qu'il en reste **exactement un**.
-
-*La liste des commentaires vient de l'API REST*, jamais de `gh pr view --json comments`, qui rend un identifiant GraphQL : la mise à jour répondait 404, l'étape était `continue-on-error`, et le premier tableau posté a survécu trois lancements, dont un sous une CI rouge. Le script **relit ce qu'il a écrit** et lève si le corps n'est pas arrivé tel quel, comme `post-review.mjs` compte les revues avant et après.
+*La liste des commentaires vient de l'API REST*, jamais de `gh pr view --json comments`, qui rend un identifiant GraphQL : la mise à jour répondait 404, l'étape était `continue-on-error`, et le premier commentaire posté a survécu trois lancements, dont un sous une CI rouge. Le script **relit ce qu'il a écrit** et lève si le corps n'est pas arrivé tel quel, comme `post-review.mjs` compte les revues avant et après.
 
 *Une seule entrée de matrice le poste*, et jamais depuis une bifurcation : deux entrées se marcheraient dessus, et le jeton d'une pull request venue d'ailleurs est en lecture seule de toute façon.
 
