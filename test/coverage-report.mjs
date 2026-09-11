@@ -21,9 +21,7 @@ const THRESHOLDS = JSON.parse(
   readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'coverage-thresholds.json'), 'utf8'),
 )
 
-// La seule des quatre qui ne se devine pas au nom. Les trois autres bullets
-// disaient « lignes : lignes exécutées au moins une fois », et le tableau
-// qu'elles accompagnaient n'est plus là.
+// La seule des quatre dont le nom ne dit pas ce qu'elle compte.
 const LEGEND = [
   '<sub>**branches** est la plus exigeante : chaque côté d’un `if`, d’un `?:`, d’un `&&` ou d’un `??`. Un `if` dont seul le cas vrai est éprouvé compte 1 sur 2, alors que sa ligne est comptée couverte.</sub>',
 ]
@@ -40,8 +38,8 @@ const LABELS = {
   lines: 'lignes',
 }
 
-// L'ordre des métriques, et le seul : le total et la légende le suivent.
-export const METRICS = ['lines', 'statements', 'branches', 'functions']
+// L'ordre de la ligne de total, et le seul endroit qui le fixe.
+const METRICS = ['lines', 'statements', 'branches', 'functions']
 
 // Les métriques sous leur seuil, nommées. Rend un tableau vide quand tout tient.
 export function failing(summary) {
@@ -149,17 +147,13 @@ export function compose(summary, results, sha) {
   // Complet, ou rien : un `total` amputé d'une métrique faisait lever le
   // rendu du tableau, donc laissait le commentaire d'avant en place, donc
   // affichait des chiffres périmés. Mesuré à l'exploration.
-  const total = METRICS.every((name) => typeof summary?.total?.[name]?.covered === 'number')
+  const total = METRICS.every((name) => typeof summary?.total?.[name]?.pct === 'number')
     ? summary.total
     : undefined
 
-  // Sans couverture, on le dit et on garde le compte des tests. Lever ici
-  // laissait le commentaire d'avant en place : un lancement rouge affichait donc
-  // les chiffres verts du précédent, ce qui est pire que pas de commentaire.
-  // Le total, et lui seul. Le tableau par dossier tenait six lignes de
-  // commentaire pour cinq lignes de chiffres que personne n'a jamais lues pour
-  // décider quoi que ce soit : c'est le verdict des seuils qui décide.
-  const table = total
+  // Sans couverture, on le dit plutôt que de lever : un lancement rouge
+  // laisserait sinon le commentaire d'avant, et ses chiffres verts.
+  const chiffres = total
     ? [METRICS.map((name) => `**${LABELS[name]}** ${total[name].pct} %`).join(' · ')]
     : ['⚠️ Couverture non mesurée : le lancement s’est arrêté avant.']
 
@@ -170,7 +164,7 @@ export function compose(summary, results, sha) {
       : `❌ ${manques.join(' ; ')}.`
     : undefined
 
-  const lignes = [MARKER, '## Tests et couverture', '', tests(results), '', ...table, '']
+  const lignes = [MARKER, '## Tests et couverture', '', tests(results), '', ...chiffres, '']
 
   if (total) lignes.push(...LEGEND, '', EXCLUDED, '')
   if (seuils) lignes.push(seuils, '')

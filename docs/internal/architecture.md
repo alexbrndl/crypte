@@ -170,9 +170,7 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 *Le tableau par dossier a été retiré par `DCJ-276`*, avec sa barre de progression, son total par ligne et sa légende à cinq entrées : 163 lignes de source et de cas, et un commentaire qui passe de 24 lignes à 13. Il donnait cinq lignes de chiffres qui n'ont jamais décidé de rien : c'est le verdict des seuils qui décide, et il tient en une ligne.
 
-*Ce qui casse si on l'enlève aussi :* rien ne dirait plus **de combien** un seuil est franchi, ni dans quel sens il dérive. Le verdict seul dit tenu ou pas tenu, et le cliquet a besoin de l'écart.
-
-*Les chiffres paraissent petits pour `packages/core`*, 43 lignes, et ce n'est pas un oubli : les sept fichiers sont bien dans le rapport, mais v8 compte les lignes **exécutables**. Le noyau est surtout des types et des commentaires ; son code exécutable, ce sont les deux côtés du canal.
+*Pourquoi la ligne de total reste :* c'est le seul endroit du commentaire qui donne la mesure **quand tout tient**, le verdict vert ne citant que les seuils. Le verdict rouge, lui, donne déjà l'écart, et le cliquet lit le fichier JSON, jamais le corps du commentaire.
 
 *L'ancien est retiré, pas modifié.* Édité sur place, le commentaire restait à sa position d'origine dans la conversation, donc loin du dernier commit sur une longue pull request. Il est maintenant supprimé puis reposté, donc toujours en bas, à côté de ce qu'il mesure. Le marqueur `<!-- crypte-coverage -->` sert à le retrouver, comme celui de la revue, et la vérification exige qu'il en reste **exactement un**.
 

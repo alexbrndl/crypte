@@ -381,7 +381,24 @@ describe('ce que l’exploration a trouvé', () => {
     const partiel = { total: { lines: metrique(99), statements: metrique(99) } }
 
     expect(compose(partiel, undefined)).toContain('Couverture non mesurée')
-    expect(compose(partiel, undefined)).not.toContain('| **total** |')
+    expect(compose(partiel, undefined)).not.toContain('**lignes**')
+  })
+
+  // Le garde-fou porte sur `pct`, qui est ce que la ligne de total lit. Il a
+  // porté sur `covered` le temps d'un commit, et un résumé sans `pct` rendait
+  // alors « **lignes** undefined % ».
+  it('traite un résumé sans pourcentage comme une absence de mesure', () => {
+    const sans = {
+      total: Object.fromEntries(
+        ['lines', 'statements', 'branches', 'functions'].map((nom) => [
+          nom,
+          { covered: 1, total: 1 },
+        ]),
+      ),
+    }
+
+    expect(compose(sans, undefined)).toContain('Couverture non mesurée')
+    expect(compose(sans, undefined)).not.toContain('undefined')
   })
 
   // Une suite vide passe toujours : « 0 tests passent » se lirait comme un
