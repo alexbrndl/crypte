@@ -144,9 +144,9 @@ function tests(results) {
 // Le corps du commentaire. Séparé de la publication pour être éprouvé sans
 // réseau.
 export function compose(summary, results, sha) {
-  // Complet, ou rien : un `total` amputé d'une métrique faisait lever le
-  // rendu du tableau, donc laissait le commentaire d'avant en place, donc
-  // affichait des chiffres périmés. Mesuré à l'exploration.
+  // Complet, ou rien : un `total` amputé d'une métrique faisait lever la ligne
+  // de total, donc laissait le commentaire d'avant en place et ses chiffres
+  // périmés. `pct`, et non `covered` : c'est ce que cette ligne lit.
   const total = METRICS.every((name) => typeof summary?.total?.[name]?.pct === 'number')
     ? summary.total
     : undefined
