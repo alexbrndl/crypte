@@ -53,7 +53,7 @@ export const MANIFEST_ROUTE = '/@crypte/manifest.json'
 
 export const PREVIEW_PAGE = '/preview.html'
 
-export function shellAssets(): string {
+function shellAssets(): string {
   if (!existsSync(join(SHELL, 'index.html'))) {
     throw new ConfigError(
       'This @crypte/cli was published without its shell, so `crypte dev` has no page to serve. ' +
@@ -108,7 +108,7 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
       // Before Vite's own middlewares rather than after. The fallback above is
       // gone, but the order is still where these routes are claimed.
       server.middlewares.use((request, response, next) => {
-        const url = (request.url ?? '/').split('?')[0] ?? '/'
+        const url = (request.url ?? '/').split('?')[0]!
 
         if (url === MANIFEST_ROUTE) {
           response.setHeader('Content-Type', 'application/json')
@@ -166,7 +166,7 @@ function shellHtml(shell: string): string {
   return readFileSync(join(shell, 'index.html'), 'utf8')
 }
 
-export function previewHtml(): string {
+function previewHtml(): string {
   return [
     '<!doctype html>',
     '<html lang="fr">',
@@ -247,7 +247,7 @@ export function configPackages(project: Project): string[] {
 
 // Both fields the browser needs from the configuration, read in one parse: the
 // adapter, and the global `wrap` of section 2.5 when the file declares one.
-export function configSources(project: Project): {
+function configSources(project: Project): {
   adapter?: { imports: string[]; expression: string }
   wrap?: { imports: string[]; expression: string }
 } {
