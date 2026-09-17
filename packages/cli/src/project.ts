@@ -3,7 +3,7 @@
 
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { loadConfigFromFile, type InlineConfig } from 'vite'
+import { loadConfigFromFile, type InlineConfig, type PluginOption } from 'vite'
 import { readProjectPaths } from './config-paths'
 import type { CrypteConfig } from './config'
 import { pathsPlugin, type ProjectPaths } from './paths'
@@ -94,7 +94,7 @@ function assertUsable(config: CrypteConfig): void {
 // The project's Vite configuration, built from its own. Nothing is guessed:
 // aliases come from its TypeScript configuration, plugins from what it
 // declares, and its `vite.config` is never read.
-export function viteConfigOf(project: Project): InlineConfig {
+export function viteConfigOf(project: Project): InlineConfig & { plugins: PluginOption[] } {
   const { root, config, paths } = project
 
   return {
