@@ -255,7 +255,7 @@ function defaultsOf(parameter: Node): { named: Set<string>; values: Record<strin
     // `literalOf` and not `type === 'Literal'`: a bigint and a regular
     // expression are `Literal` nodes too, and writing either one made
     // `JSON.stringify` throw, which cost the whole manifest and the fingerprint
-    // with it. Measured. The rules live in `stories.ts`, once.
+    // with it. Measured. The rules live in `ast.ts`, once.
     const read = literalOf(value['right'] as Node)
     if (read) values[name] = read.value
   }

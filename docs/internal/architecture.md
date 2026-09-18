@@ -94,7 +94,7 @@ Vérifie que la porte d'entrée du protocole réexporte tout ce que les cinq mod
 
 **L'exhaustivité de `produced` est explicite, pas incidente.** Une garde `const unhandled: never = read` dans le `default` du `switch`. Avant elle, la protection venait du seul type de retour déclaré : mesuré, réécrire le `switch` en chaîne de ternaires et ajouter une quatrième variante laissait `vp check` et les 36 cas au vert.
 
-*Elle lève plutôt que de rendre `read`.* La branche est inatteignable, mais un `as` peut passer outre le compilateur : rendre `read` donnerait au reste du lecteur une forme qu'il n'attend pas, et la panne atterrirait loin d'ici. Le seuil tient, mais la marge est en branches et non en lignes : cette branche jamais prise laisse 88,47 % (476/538) pour un plancher de 88, soit **trois branches**, là où les lignes sont à 98,5 % pour 97.
+*Elle lève plutôt que de rendre `read`.* La branche est inatteignable, mais un `as` peut passer outre le compilateur : rendre `read` donnerait au reste du lecteur une forme qu'il n'attend pas, et la panne atterrirait loin d'ici. Le seuil tient, mais la marge est en branches et non en lignes : une branche jamais prise y coûte bien plus qu'une ligne jamais exécutée. Les planchers du jour vivent dans `test/coverage-thresholds.json` et ne se recopient pas ici, le cliquet les faisant monter.
 
 *Ce qu'elle ne fait pas :* survivre à sa propre suppression. Elle ne peut pas être un test, `produced` et `StoriesRead` n'étant pas exportés et l'ouvrir pour un test créerait un usage qu'on ne peut plus reprendre. Ce qu'elle change est qu'une protection perdue devient une ligne retirée dans un diff, que la revue voit.
 
@@ -150,7 +150,7 @@ La recherche porte sur `interface X`, la déclaration, et non sur une mention. E
 
 **Pourquoi elle existe.** Elle répond à la seule des trois questions du contrôle de mutation qu'aucune relecture ne voit : *ce code est-il exécuté par quelqu'un ?* Le premier lancement a trouvé, en cinq secondes, deux endroits que 131 garanties n'avaient jamais signalés.
 
-- **L'adaptateur React à 0 %.** `packages/react/src/index.ts`, le fichier publié qui monte les composants, n'était exécuté par aucun test. Ses seules preuves étaient deux cas navigateur, à travers toute la pile. Il a maintenant neuf cas dans un DOM, dont la relance de l'erreur d'un composant qui ne rend pas, mesurée en navigateur et écrite en commentaire depuis des semaines sans être éprouvée.
+- **L'adaptateur React à 0 %.** `packages/react/src/index.ts`, le fichier publié qui monte les composants, n'était exécuté par aucun test. Ses seules preuves étaient deux cas navigateur, à travers toute la pile. Il a maintenant ses propres cas dans un DOM, dont la relance de l'erreur d'un composant qui ne rend pas, mesurée en navigateur et écrite en commentaire depuis des semaines sans être éprouvée.
 - **L'entrée du CLI à 0 %.** `--version`, l'aide qui porte le numéro de protocole, la racine par défaut, et le code de sortie 1 d'une erreur de configuration : rien ne les éprouvait. La décision de la commande vit désormais dans `cli.ts`, atteignable sans lancer un processus ; `index.ts` n'est plus que quatre lignes de câblage.
 - **La commande `dev` elle-même**, dont les lignes de démarrage (le compte de stories, les fichiers laissés de côté, l'échec d'écriture du manifeste) n'étaient jamais exécutées.
 
@@ -392,7 +392,7 @@ Fermer une classe de valeurs ne ferme pas l'axe tant que les autres ne sont pas 
 
 La décision était en plus prise à deux endroits, `listed` et son appelant, donc chaque cas devait être pensé deux fois.
 
-`readStories` rend maintenant `StoriesRead`, trois variantes dont `unusable` porte la raison, et `produced` est le seul endroit qui décide. *Mesuré :* ajouter une quatrième variante sans la traiter donne `TS2366`, « Function lacks ending return statement », parce que la fin d'une fonction à type de retour déclaré redevient atteignable. Le silence est donc devenu impossible, ce qui est la seule chose qui distingue cette structure de la précédente.
+`readStories` rend maintenant `StoriesRead`, trois variantes dont `unusable` porte la raison, et `produced` est le seul endroit qui décide. *Mesuré :* ajouter une quatrième variante sans la traiter donne `TS2322`, « Type '{ kind: "…" }' is not assignable to type 'never' », sur la garde du `default`. C'était `TS2366` tant que la protection venait du seul type de retour, ce que la ligne d'au-dessus raconte. Le silence est donc devenu impossible, ce qui est la seule chose qui distingue cette structure de la précédente.
 
 **Un spread ne fait pas qu'ajouter une clé, il remplace celle qui le précède.**
 
@@ -648,7 +648,7 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 
 *La garde ferme la classe, pas un nom.* Treize cas passent l'entrée générée à `node --input-type=module --check`, un par nom que le préambule déclare ou importe.
 
-*Ce que le préfixe protège, mesuré en le retirant :* **dix des treize** rougissent. Les trois autres tiennent pour deux raisons indépendantes, et c'est utile à savoir. `propsOfStory` et `createPreviewChannel` sont aliasés vers un autre nom local, `propsOf` et `channelOf`, donc ils ne sont plus des liaisons de premier niveau. `paths` est déclaré dans le bloc `if (import.meta.hot)`, donc il est de portée bloc. Une première version de cette phrase annonçait « neuf sur neuf » sans l'avoir mesuré, et la revue l'a corrigée.
+*Ce que le préfixe protège, mesuré en le retirant :* **neuf des treize** rougissent. Les quatre autres tiennent pour trois raisons indépendantes, et c'est utile à savoir. `propsOfStory` et `createPreviewChannel` sont aliasés vers un autre nom local, `propsOf` et `channelOf`, donc ils ne sont plus des liaisons de premier niveau. `paths` est déclaré dans le bloc `if (import.meta.hot)`, donc il est de portée bloc. Et `story0` n'est plus une liaison du tout : depuis `DCJ-279` les fichiers de story entrent par `import()` dans `__crypte_modules`, au lieu d'un `import * as` par fichier. Deux versions de cette phrase ont annoncé un compte sans le remesurer, « neuf sur neuf » puis « dix des treize ».
 
 *Ce qui reste :* un projet qui nommerait lui-même quelque chose `__crypte_…` percuterait.
 
@@ -722,7 +722,6 @@ Les fichiers dont la configuration dépend ont un surveillant chacun, et un fich
 | `MEMBERS` de la chaîne `fixed` | 2 |
 | l'`id` d'une expression nommée | 2 |
 | `StaticBlock` de `CARRIES` | 1 |
-| le `continue` sur `decorators` | 1 |
 | **le garde par nœud** | **0** |
 | **le filtre par clé `TYPED`** | **0** |
 
@@ -818,7 +817,7 @@ Un cas garde la paire porteuse, avec une **configuration lente**, un `await` de 
 
 *Ce qui n'a pas changé ne se redit pas :* les fichiers écartés d'un redémarrage sont comparés à ceux du serveur d'avant, faute de quoi vingt fichiers d'aide réimprimaient vingt et une lignes à chaque essai sur `stories`, et la répétition enterre la ligne qui compte. C'est la règle que `watchStories` suit déjà.
 
-*Ce qui casse si on l'enlève :* les huit cas de `restart.test.ts` rougissent, mesuré, dont celui du navigateur qui suit l'arbre du shell. Chaque pièce est éprouvée séparément : l'écriture au démarrage seulement, la reprise du port et les fichiers redits rougissent un cas chacune, la comparaison de contenu est tenue par le cas qui réécrit le même contenu cassé.
+*Ce qui casse si on l'enlève :* `restart.test.ts` rougit presque en entier, mesuré, dont le cas du navigateur qui suit l'arbre du shell. Chaque pièce est éprouvée séparément : l'écriture au démarrage seulement, la reprise du port et les fichiers redits rougissent un cas chacune, la comparaison de contenu est tenue par le cas qui réécrit le même contenu cassé.
 
 **Les cas navigateur sont un projet à part.** Entrelacés avec les 384 autres, un d'entre eux tombait à chaque lancement, jamais le même. `sequence.groupOrder` les fait passer après, seuls sur la machine : trois passes vertes contre une sur quatre avant.
 

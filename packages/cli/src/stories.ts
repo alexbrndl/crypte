@@ -614,12 +614,6 @@ function record(node: Node | null | undefined): Record<string, unknown> | undefi
   return read ? (read.value as Record<string, unknown>) : undefined
 }
 
-// The value an expression writes, when it is one JSON can hold. Anything else
-// gives `undefined`, and the key that carried it is left out rather than
-// guessed: section 4.5 promises that everything in the manifest survives a JSON
-// round trip, and `JSON.stringify` drops what it cannot represent in silence.
-//
-
 // Where the component comes from, read from the import that binds its name.
 // `undefined` when no import binds it, or when the binding is a namespace
 // object, which names no export at all. Both give a file the reader skips: a

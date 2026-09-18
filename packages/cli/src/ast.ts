@@ -33,6 +33,11 @@ export function propertyOf(object: Node | undefined, name: string): Node | null 
   return (found?.['value'] as Node | undefined) ?? null
 }
 
+// The value an expression writes, when it is one JSON can hold. Anything else
+// gives `undefined`, and the key that carried it is left out rather than
+// guessed: section 4.5 promises that everything in the manifest survives a JSON
+// round trip, and `JSON.stringify` drops what it cannot represent in silence.
+//
 // Wrapped in an object so that a literal `null` and "not a literal" stay apart.
 // Exported for `props.ts`, which needs the same answer on a prop's default and
 // on an enum's options. A second copy of these rules would drift: the bigint and
