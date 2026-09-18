@@ -510,7 +510,7 @@ La section 1.4 des contrats dit que l'utilisateur installe deux paquets et que `
 
 **Trois choses ont été trouvées en mesurant, pas en relisant.**
 
-*Le repli de Vite.* `appType` vaut `spa` par défaut, ce qui réécrit toute URL inconnue en `/index.html`. Le middleware tournant après lui voyait donc `/index.html` pour tout, et `/preview.html` comme la route du manifeste recevaient la page du shell. Le serveur est en `appType: 'custom'` : les deux pages sont servies ici et il n'y a rien à deviner.
+*Le repli de Vite.* `appType` vaut `spa` par défaut, ce qui réécrit toute URL inconnue en `/index.html`. Le middleware tournant après lui voyait donc `/index.html` pour tout, et `/preview.html` comme la route du manifeste recevaient la page du shell. Le serveur est en `appType: 'custom'` : chaque route est réclamée explicitement et il n'y a rien à deviner. La page du shell l'est par `sirv`, enregistré en premier, et non par le middleware, qui ne construit que celle de la preview.
 
 *Ce que `custom` protège encore, une fois le middleware passé devant.* Plus nos routes, qui sont prises avant le repli, mais les autres : sur un projet qui a sa propre `index.html`, et tout vrai projet en a une, `spa` la sert pour n'importe quelle faute de frappe. L'utilisateur reçoit alors sa page d'application là où il attendait un 404. C'est pour éprouver ça que la fixture et le projet de démonstration en portent une, ajoutée quand la garantie s'est révélée muette sans elle.
 

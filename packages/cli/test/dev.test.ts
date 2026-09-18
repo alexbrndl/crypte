@@ -43,11 +43,15 @@ describe('crypte dev', () => {
     return { status: answer.status, body: await answer.text() }
   }
 
+  // Préconstruit, donc servi par `sirv` et jamais passé par
+  // `transformIndexHtml` : c'est ce que l'absence de client Vite prouve, et
+  // c'est toute la différence avec la page de la preview juste en dessous.
   it('sert le shell préconstruit à la racine', async () => {
     const { status, body } = await get('/')
 
     expect(status).toBe(200)
     expect(body).toContain('<div id="app">')
+    expect(body).not.toContain('/@vite/client')
   })
 
   // La page de la preview appartient au CLI, pas au projet : l'écrire dans le
@@ -58,6 +62,9 @@ describe('crypte dev', () => {
     expect(status).toBe(200)
     expect(body).toContain('<div id="root">')
     expect(body).toContain(PREVIEW_ENTRY)
+
+    // Elle, en revanche, passe par `transformIndexHtml`, donc porte le client.
+    expect(body).toContain('/@vite/client')
   })
 
   // Le projet a sa propre `index.html`, comme tout vrai projet. Sans

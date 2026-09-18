@@ -66,9 +66,10 @@ function shellAssets(): string {
   return SHELL
 }
 
-// One plugin for both pages. Neither is a file in the project: they belong to
-// the CLI, and writing them into the project would leave behind something
-// nobody asked for.
+// One plugin for both pages: `sirv` serves the prebuilt shell, the middleware
+// below builds the preview. Neither is a file in the project: they belong to the
+// CLI, and writing them into the project would leave behind something nobody
+// asked for.
 //
 // The catalogue is read at each request, never captured: a story added while
 // the server runs must reach the shell without a restart.
@@ -85,8 +86,8 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
 
     // `custom`, not `spa`: Vite's fallback rewrites every unknown URL to
     // `/index.html`, so `/preview.html` and the manifest route were both served
-    // the shell's page. Measured. Both pages are served here, and there is
-    // nothing left to guess.
+    // the shell's page. Measured. Every route this plugin answers is claimed
+    // here, and there is nothing left to guess.
     config() {
       return {
         appType: 'custom',
@@ -101,9 +102,15 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
     configureServer(server) {
       dev = server
 
-      // The shell's own files, `/assets/…`, served from where they were copied.
-      // Without this the page loads and its bundle answers 404: Vite is rooted
-      // in the project, which knows nothing of them. Measured, blank screen.
+      // The shell in full, its page and its `/assets/…`, served from where they
+      // were copied. Vite is rooted in the project, which knows nothing of them:
+      // without this the page loads and its bundle answers 404. Measured, blank
+      // screen.
+      //
+      // This also answers `/` and `/index.html`, by sirv's own `extensions`
+      // default, and it is registered first: the shell is prebuilt and never
+      // passes through `transformIndexHtml`, so it takes no Vite client. That is
+      // the whole difference with the preview below, and `dev.test.ts` holds it.
       server.middlewares.use(sirv(shell, { dev: true, etag: true }))
 
       // Before Vite's own middlewares rather than after. The fallback above is
@@ -117,16 +124,13 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
           return
         }
 
-        const html = url === '/' || url === '/index.html' ? shellHtml(shell) : undefined
-        const page = url === PREVIEW_PAGE ? previewHtml() : html
-
-        if (page === undefined) {
+        if (url !== PREVIEW_PAGE) {
           next()
           return
         }
 
         server
-          .transformIndexHtml(url, page)
+          .transformIndexHtml(url, previewHtml())
           .then((transformed) => {
             response.setHeader('Content-Type', 'text/html')
             response.end(transformed)
@@ -161,10 +165,6 @@ function channelPath(): string {
   } catch (cause) {
     throw new ConfigError('@crypte/core/preview is not resolvable from @crypte/cli.', { cause })
   }
-}
-
-function shellHtml(shell: string): string {
-  return readFileSync(join(shell, 'index.html'), 'utf8')
 }
 
 function previewHtml(): string {
