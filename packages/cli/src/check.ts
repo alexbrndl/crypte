@@ -6,7 +6,7 @@ import { parseSync } from 'vite'
 import { storiesOf, buildCatalogue } from './manifest'
 import { best, isBareSpecifier, ordered } from './paths'
 import { loadProject, type Project } from './project'
-import type { Node } from './stories'
+import type { Node } from './ast'
 
 export interface Problem {
   kind: 'orphan' | 'unstoried'

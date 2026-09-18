@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { relative, sep } from 'node:path'
 import { storyId, type StoryEntry } from '@crypte/core/protocol'
 import { parseSync } from 'vite'
+import { keyOf, literalOf, propertyOf, type Node } from './ast'
 
 // The four extensions a project can write. A project without TypeScript writes
 // its stories in JavaScript: see docs/decisions.md.
@@ -11,13 +12,6 @@ export const STORY_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx']
 
 // The name a story gets when the file declares none: section 2.2 of contracts.
 const ONLY_STORY = 'Default'
-
-export interface Node {
-  type: string
-  start: number
-  end: number
-  [key: string]: unknown
-}
 
 // What one story file produced, and why it produced no more. Nothing here is
 // ever fatal: one story must not cost the whole catalogue. A file may give no
@@ -359,11 +353,6 @@ function shadowed(object: Node | undefined, name: string): boolean {
   return properties.some((property, index) => property.type !== 'Property' && index > at)
 }
 
-// The name a non-computed key carries, quoted or bare.
-function keyOf(key: Node): string {
-  return key.type === 'Identifier' ? (key['name'] as string) : String(key['value'])
-}
-
 // The local name an import binds to an exported one, so a helper renamed on
 // import is still recognised.
 function boundTo(module: unknown, exported: string): string | undefined {
@@ -432,23 +421,6 @@ const FUNCTIONS_AND_CLASSES = new Set([
   'ClassDeclaration',
   'ClassExpression',
 ])
-
-// A key can be quoted, so `{ 'meta': … }` has to be found too. A computed key
-// is never a match: nothing says what it holds without running the file.
-export function propertyOf(object: Node | undefined, name: string): Node | null {
-  if (object?.type !== 'ObjectExpression') return null
-
-  // The last one, not the first: a key written twice keeps its last value at
-  // runtime, and `find` would read the one the file discards.
-  const found = (object['properties'] as Node[]).findLast(
-    (property) =>
-      property.type === 'Property' &&
-      property['computed'] !== true &&
-      keyOf(property['key'] as Node) === name,
-  )
-
-  return (found?.['value'] as Node | undefined) ?? null
-}
 
 // What an object literal did not give up. A spread's names and a computed key
 // cannot be read without running the file, so the note quotes what the file
@@ -647,72 +619,6 @@ function record(node: Node | null | undefined): Record<string, unknown> | undefi
 // guessed: section 4.5 promises that everything in the manifest survives a JSON
 // round trip, and `JSON.stringify` drops what it cannot represent in silence.
 //
-// Wrapped in an object so that a literal `null` and "not a literal" stay apart.
-// Exported for `props.ts`, which needs the same answer on a prop's default and
-// on an enum's options. A second copy of these rules would drift: the bigint and
-// the regular expression below are the two that cost a whole manifest.
-export function literalOf(node: Node | null | undefined): { value: unknown } | undefined {
-  if (!node) return undefined
-
-  switch (node.type) {
-    case 'Literal': {
-      // A regular expression is a `Literal` too, and it does not survive JSON.
-      if ('regex' in node) return undefined
-      const value = node['value']
-      return typeof value === 'bigint' ? undefined : { value }
-    }
-
-    // `` `stable` `` is written by nobody, but `${}`-free templates cost one line.
-    case 'TemplateLiteral': {
-      const parts = node['quasis'] as Node[]
-      if ((node['expressions'] as Node[]).length > 0 || parts.length !== 1) return undefined
-      return { value: (parts[0]?.['value'] as { cooked?: string })?.cooked ?? '' }
-    }
-
-    // `-1` is a unary expression, not a negative literal.
-    case 'UnaryExpression': {
-      if (node['operator'] !== '-') return undefined
-      const inner = literalOf(node['argument'] as Node)
-      return typeof inner?.value === 'number' ? { value: -inner.value } : undefined
-    }
-
-    case 'ArrayExpression': {
-      const values: unknown[] = []
-
-      // One unreadable element drops the whole array. Skipping it would shift
-      // every index after it, which changes the data instead of losing it.
-      for (const element of node['elements'] as (Node | null)[]) {
-        const read = literalOf(element)
-        if (!read) return undefined
-        values.push(read.value)
-      }
-
-      return { value: values }
-    }
-
-    case 'ObjectExpression': {
-      const value: Record<string, unknown> = {}
-
-      for (const property of node['properties'] as Node[]) {
-        // A spread, a method, or a computed key: none of them can be read
-        // without running the file.
-        if (property.type !== 'Property' || property['computed'] === true) return undefined
-
-        const key = property['key'] as Node
-        const read = literalOf(property['value'] as Node)
-        if (!read) return undefined
-
-        value[key.type === 'Identifier' ? (key['name'] as string) : String(key['value'])] =
-          read.value
-      }
-
-      return { value }
-    }
-
-    default:
-      return undefined
-  }
-}
 
 // Where the component comes from, read from the import that binds its name.
 // `undefined` when no import binds it, or when the binding is a namespace

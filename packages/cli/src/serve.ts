@@ -10,7 +10,7 @@ import { ConfigError } from './errors'
 import { capture, isBareSpecifier } from './paths'
 import { storyFilesOf, type Catalogue } from './manifest'
 import { cssEntryOf, type Project } from './project'
-import { propertyOf, type Node } from './stories'
+import { propertyOf, type Node } from './ast'
 
 // The shell is built ahead of time and copied into `dist/shell` when the CLI is
 // packed. It knows no framework: it reads a manifest and talks over the channel.

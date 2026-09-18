@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs'
 import type { PropKind, ResolvedPropDetails } from '@crypte/core/protocol'
 import { parseSync } from 'vite'
-import { literalOf, type Node } from './stories'
+import { literalOf, type Node } from './ast'
 
 interface Comment {
   type: string
