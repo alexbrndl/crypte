@@ -95,17 +95,17 @@ export function drifted(summary, thresholds = THRESHOLDS, slack = SLACK) {
     .filter(([name, seuil]) => (total[name]?.pct ?? 0) - seuil > slack)
     .map(
       ([name, seuil]) =>
-        `${LABELS[name]} à ${total[name]?.pct ?? 0} %, soit ${((total[name]?.pct ?? 0) - seuil).toFixed(2)} points au-dessus du seuil de ${seuil} %`,
+        `${LABELS[name]} à ${total[name].pct} %, soit ${(total[name].pct - seuil).toFixed(2)} points au-dessus du seuil de ${seuil} %`,
     )
 }
 
 // Les seuils au plancher mesuré, arrondis vers le bas. Ce que le message rend à
 // coller quand le cliquet mord.
-export function floors(summary, thresholds = THRESHOLDS) {
-  const total = summary?.total ?? {}
+export function floors(summary) {
+  const total = summary.total
 
   return Object.fromEntries(
-    Object.keys(thresholds).map((name) => [name, Math.floor(total[name]?.pct ?? 0)]),
+    Object.keys(THRESHOLDS).map((name) => [name, Math.floor(total[name].pct)]),
   )
 }
 
