@@ -36,7 +36,7 @@ export function orphans(project: Project, entries: ReturnType<typeof storiesOf>)
 // path could, and an alias it declares could; anything else is a package or a
 // plugin's business, which is the doubt section 8 names and 1.2 says to keep
 // quiet about.
-export function addressable(specifier: string, project: Project): boolean {
+function addressable(specifier: string, project: Project): boolean {
   if (!isBareSpecifier(specifier)) return true
 
   const paths = project.paths
@@ -52,10 +52,7 @@ export function addressable(specifier: string, project: Project): boolean {
 // A consequence worth stating: a folder no story has reached yet is invisible
 // here. That is the safe direction — the alternative is walking the project and
 // warning about everything, which is the false-positive flood 1.2 forbids.
-export function componentFolders(
-  project: Project,
-  entries: ReturnType<typeof storiesOf>,
-): string[] {
+function componentFolders(project: Project, entries: ReturnType<typeof storiesOf>): string[] {
   const seen = new Set<string>()
 
   for (const entry of entries) {
