@@ -12,7 +12,7 @@ import {
   type StoryEntry,
 } from '@crypte/core/protocol'
 import { ConfigError, reason } from './errors'
-import { best, isBareSpecifier, ordered } from './paths'
+import { best, isBareSpecifier, ordered, substituted } from './paths'
 import { detailsOf } from './props'
 import { entriesOf, posix, STORY_EXTENSIONS } from './stories'
 import type { Project } from './project'
@@ -402,12 +402,7 @@ function candidates(specifier: string, storyFile: string, project: Project): str
   const matched = best(ordered(paths.paths), specifier)
   if (!matched) return []
 
-  return matched.targets.map((target) =>
-    resolve(
-      paths.base,
-      target.replace('*', () => matched.captured),
-    ),
-  )
+  return matched.targets.map((target) => substituted(paths.base, target, matched.captured))
 }
 
 // A target with no extension is a file to complete, or a folder holding an

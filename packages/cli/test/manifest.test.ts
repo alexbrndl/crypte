@@ -240,6 +240,23 @@ describe('le catalogue', () => {
     expect(storiesOf(manifest)[0]?.component.file).toBe('src/Card.js')
   })
 
+  // La substitution d'un motif est partagée avec le plugin, et la capture vient
+  // de l'utilisateur : en forme chaîne, `replace` lirait `$&` et rendrait le
+  // motif entier. Un cas l'éprouvait côté plugin, aucun ici, donc muter ce seul
+  // appelant laissait la suite verte. Mesuré.
+  it('résout un motif dont la capture contient $&', async () => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      'jsconfig.json': '{ "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["src/*"] } } }',
+      'src/a$&b.jsx': 'export const Card = () => null\n',
+      'stories/Card.js': "import { Card } from '@/a$&b'\nexport default defineStories(Card)\n",
+    })
+
+    const { manifest } = buildCatalogue(await loadProject(root))
+
+    expect(storiesOf(manifest)[0]?.component.file).toBe('src/a$&b.jsx')
+  })
+
   // Chaque fichier avant tout `index`, l'ordre de Node. L'extension du fichier
   // vient ici après celle de l'index dans la liste : sans ce cas, l'entrelacement
   // rendait la même réponse et la garantie ne tenait rien.

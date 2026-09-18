@@ -71,12 +71,7 @@ export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
       for (const target of targets) {
         // Resolution is Vite's own: the project's extensions, `index`, the
         // `exports` field, conditions. Nothing is reimplemented here.
-        // A function replacer: the string form would read `$&` and its kin in
-        // the captured part, which comes from the user.
-        const candidate = resolve(
-          base,
-          target.replace('*', () => captured),
-        )
+        const candidate = substituted(base, target, captured)
         const found = await this.resolve(candidate, importer, {
           ...options,
           skipSelf: true,
@@ -90,6 +85,19 @@ export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
       return null
     },
   }
+}
+
+// Where one target of a matched pattern points, the captured part put back in.
+//
+// A function replacer, never the string form: `$&` and its kin would be read in
+// the captured part, which comes from the user. Exported for the same reason as
+// `ordered`, and for a stronger one: written twice, only one copy carried this
+// warning and only one was covered by a case.
+export function substituted(base: string, target: string, captured: string): string {
+  return resolve(
+    base,
+    target.replace('*', () => captured),
+  )
 }
 
 // The first pattern of the ordered list that matches, with what it captures.
