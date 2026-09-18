@@ -1,10 +1,18 @@
 import { cpSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it, test as base } from 'vitest'
 import { dev, startDev, type Started, type Running } from '../src/dev'
 import { loadProject } from '../src/project'
-import { MANIFEST_ROUTE, PREVIEW_ENTRY, PREVIEW_PAGE, previewEntry } from '../src/serve'
+import {
+  MANIFEST_ROUTE,
+  PREVIEW_ENTRY,
+  PREVIEW_ENTRY_ID,
+  PREVIEW_PAGE,
+  previewEntry,
+  servePlugin,
+} from '../src/serve'
 
 // Ce que `crypte dev` sert vraiment, mesuré sur un serveur qui écoute.
 // Voir docs/internal/architecture.md.
@@ -76,7 +84,39 @@ describe('crypte dev', () => {
 
     expect(status).toBe(200)
     expect(body).toContain('createPreviewChannel')
-    expect(body).not.toContain('import.meta.glob')
+
+    // Le spécificateur nu que la source écrit : servi tel quel, il dirait que
+    // l'entrée n'a traversé aucun pipeline.
+    expect(body).not.toContain("from '@crypte/core/preview'")
+  })
+
+  // La compilation elle-même, que le cas ci-dessus ne tient pas : la fixture
+  // écrit une configuration sans TypeScript, donc contourner `compiled` n'y
+  // change rien. L'entrée recopie l'expression de la configuration, donc un
+  // `as` arriverait au navigateur et la preview mourrait sur un `SyntaxError`.
+  // `DCJ-224`.
+  it('retire le TypeScript que la configuration a écrit', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'crypte-typed-'))
+    const project = { root, config: { stories: 'stories' } } as never
+
+    try {
+      writeFileSync(
+        join(root, 'crypte.config.ts'),
+        "export default { stories: 'stories', adapter: { name: 'x' } as { name: string } }\n",
+      )
+
+      const load = servePlugin(project, () => ({ manifest: { entries: [] } }) as never).load
+      const served = await (load as (this: unknown, id: string) => Promise<{ code: string }>).call(
+        { warn: () => {} },
+        PREVIEW_ENTRY_ID,
+      )
+
+      // Les deux sens : la source la porte, le servi ne la porte plus.
+      expect(previewEntry(project)).toContain('as { name: string }')
+      expect(served.code).not.toContain('as { name: string }')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })
 
