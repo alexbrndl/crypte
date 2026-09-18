@@ -86,6 +86,8 @@ fix: resolve aliases from jsconfig  plutôt que   correction du bug
 
 **Vérifier avant de commiter.** `vp check | grep 'pass:|error:' && git commit` ne protège de rien : `grep` réussit aussi quand il trouve `error:`. Enchaîner sur le code de sortie de `vp check` seul.
 
+**`git add -A` pendant qu'un sous-agent travaille.** Les sondes qu'il pose dans l'arbre entrent dans l'index sans un mot : un commit de quatre fichiers en a emporté huit, dont une mutation de `App.vue` et un fichier de cas jetable. Tant qu'un workflow tourne, commiter par chemins explicites, et relire `git show --name-status` après.
+
 **Causes.** Ne jamais attribuer une cause sans l'avoir isolée par une mesure. Avant d'écrire « c'est à cause de X », changer X seul et vérifier que le chiffre bouge. Vérifier aussi que la mesure mesure quelque chose : un chronomètre sur un traitement qui n'a rien traité donne un résultat parfaitement stable et parfaitement faux.
 
 **Un doute se tranche par une commande, pas par la relecture.**
