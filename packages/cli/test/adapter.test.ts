@@ -5,7 +5,8 @@ import { join } from 'node:path'
 import { describe, expect, test as base } from 'vitest'
 import { ConfigError } from '../src/errors'
 import { loadProject } from '../src/project'
-import { adapterSource, configPackages, previewEntry } from '../src/serve'
+import { adapterSource, configPackages } from '../src/config-source'
+import { previewEntry } from '../src/serve'
 
 // Ce que la preview reprend de `crypte.config.ts`, lu et jamais exécuté.
 //

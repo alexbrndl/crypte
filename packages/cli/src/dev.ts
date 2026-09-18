@@ -8,7 +8,8 @@ import { reason } from './errors'
 import { fingerprintOf, writeFingerprint } from './fingerprint'
 import { buildCatalogue, storiesOf, writeCatalogue, type Catalogue } from './manifest'
 import { loadProject, viteConfigOf, type Project } from './project'
-import { configPackages, servePlugin, PREVIEW_ENTRY_ID, PREVIEW_PAGE } from './serve'
+import { configPackages } from './config-source'
+import { servePlugin, PREVIEW_ENTRY_ID, PREVIEW_PAGE } from './serve'
 
 // What `dev` closes when it stops watching. An `FSWatcher` satisfies it, and so
 // does the set of component watchers, which is replaced at every build and so
