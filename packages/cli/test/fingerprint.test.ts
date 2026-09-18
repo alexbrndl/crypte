@@ -91,9 +91,10 @@ describe('l’empreinte réduite', () => {
     expect(fingerprintOf(one({ meta: { status: 'draft' } })).entries[0]?.status).toBe('draft')
   })
 
-  // Le producteur trie déjà, donc ce tri est une défense pour un manifeste venu
-  // d'ailleurs. Réordonner un bloc de props dans un fichier de story change en
-  // revanche `source`, donc le condensé : le nom de ce cas l'affirmait à tort.
+  // Le producteur trie déjà. Ce tri-ci tient la règle du condensé, qui dépend de
+  // ce qu'une entrée porte et jamais de l'ordre où c'est écrit : `stable` fait
+  // la même chose des clés d'objet. Réordonner un bloc de props dans un fichier
+  // de story change en revanche `source`, donc le condensé.
   it('trie les props d’un manifeste qui ne l’aurait pas fait', () => {
     const a = fingerprintOf(one({ props: ['a', 'b'] }))
     const b = fingerprintOf(one({ props: ['b', 'a'] }))

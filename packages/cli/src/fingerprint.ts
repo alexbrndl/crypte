@@ -48,8 +48,9 @@ export function fingerprintOf(manifest: Manifest): Fingerprint {
       // A story with no `meta` still has a status in the fingerprint, otherwise
       // adding `status: 'draft'` would read as a change of nothing.
       status: entry.meta?.status ?? 'none',
-      // Sorted here too, not only by the producer: this function takes any
-      // manifest, including one read from a file somebody else wrote.
+      // Sorted here too, although the producer already sorts: the digest depends
+      // on what an entry holds and never on the order it was written in, which
+      // is the same rule `stable` applies to object keys below.
       props: [...entry.props].sort(),
       rest: digestOf(entry),
     })),
