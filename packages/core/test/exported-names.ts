@@ -20,7 +20,7 @@ export const REEXPORT_BLOCK = /export\s+(?:type\s+)?\{([^}]*)\}\s+from/g
 // `Foo as Bar` expose `Bar`. Le `type` peut se poser sur l'entrée comme sur le
 // bloc. Une entrée vide ne nomme rien ; tout le reste rend un nom, plutôt que
 // d'être abandonné sans un mot.
-export function publicName(entry: string): string | undefined {
+function publicName(entry: string): string | undefined {
   const cleaned = entry.trim().replace(/^type\s+/, '')
   if (!cleaned) return undefined
 

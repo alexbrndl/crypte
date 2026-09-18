@@ -15,8 +15,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 export const MARKER = '<!-- crypte-coverage -->'
 
 // Les seuils, lus du même fichier que `vite.config.ts`. Recopiés ici, ils
-// auraient dérivé : le tableau aurait annoncé un seuil que la porte n'applique
-// pas. Voir docs/internal/architecture.md.
+// auraient dérivé : le commentaire aurait annoncé un seuil que la porte
+// n'applique pas. Voir docs/internal/architecture.md.
 const THRESHOLDS = JSON.parse(
   readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'coverage-thresholds.json'), 'utf8'),
 )
@@ -95,17 +95,17 @@ export function drifted(summary, thresholds = THRESHOLDS, slack = SLACK) {
     .filter(([name, seuil]) => (total[name]?.pct ?? 0) - seuil > slack)
     .map(
       ([name, seuil]) =>
-        `${LABELS[name]} à ${total[name]?.pct ?? 0} %, soit ${((total[name]?.pct ?? 0) - seuil).toFixed(2)} points au-dessus du seuil de ${seuil} %`,
+        `${LABELS[name]} à ${total[name].pct} %, soit ${(total[name].pct - seuil).toFixed(2)} points au-dessus du seuil de ${seuil} %`,
     )
 }
 
 // Les seuils au plancher mesuré, arrondis vers le bas. Ce que le message rend à
 // coller quand le cliquet mord.
-export function floors(summary, thresholds = THRESHOLDS) {
-  const total = summary?.total ?? {}
+function floors(summary) {
+  const total = summary.total
 
   return Object.fromEntries(
-    Object.keys(thresholds).map((name) => [name, Math.floor(total[name]?.pct ?? 0)]),
+    Object.keys(THRESHOLDS).map((name) => [name, Math.floor(total[name].pct)]),
   )
 }
 
@@ -144,9 +144,7 @@ function tests(results) {
 // Le corps du commentaire. Séparé de la publication pour être éprouvé sans
 // réseau.
 export function compose(summary, results, sha) {
-  // Complet, ou rien : un `total` amputé d'une métrique faisait lever la ligne
-  // de total, donc laissait le commentaire d'avant en place et ses chiffres
-  // périmés. `pct`, et non `covered` : c'est ce que cette ligne lit.
+  // Complet ou rien : un `total` amputé laissait vivre les chiffres d'avant.
   const total = METRICS.every((name) => typeof summary?.total?.[name]?.pct === 'number')
     ? summary.total
     : undefined
@@ -202,7 +200,7 @@ export function existing(comments, marker = MARKER) {
   return found?.id
 }
 
-// Publie le tableau, et retire celui d'avant. Remplacé sur place, il restait à
+// Publie le commentaire, et retire celui d'avant. Remplacé sur place, il restait à
 // sa position d'origine dans la conversation, donc loin du dernier commit sur une
 // longue pull request : on le veut en bas, à côté de ce qu'il mesure.
 //
@@ -222,8 +220,8 @@ export function publish(body, number, run = gh) {
 
   run(['api', liste, '--method', 'POST', '-f', `body=${body}`])
 
-  // Vérifié, pas supposé : c'est un 404 silencieux qui a fait vivre un tableau
-  // périmé pendant trois lancements. Et un seul, sinon la pull request en
+  // Vérifié, pas supposé : c'est un 404 silencieux qui a fait vivre un
+  // commentaire périmé pendant trois lancements. Et un seul, sinon la pull request en
   // porterait un par pousse.
   const posés = lire().filter((one) => (one.body ?? '').startsWith(MARKER))
 

@@ -71,7 +71,7 @@ function entriesOf(ctx: NodeContext, options: TokensOptions): TokensEntry[] {
   const folded = new Map(
     themes.map((theme) => [
       theme,
-      theme === DEFAULT_THEME ? base : new Map([...base, ...(declared.get(theme) ?? [])]),
+      theme === DEFAULT_THEME ? base : new Map([...base, ...declared.get(theme)!]),
     ]),
   )
 
@@ -84,7 +84,7 @@ function entriesOf(ctx: NodeContext, options: TokensOptions): TokensEntry[] {
     // theme is absent when the sheet says nothing there, which a token written
     // only under `[data-theme="dark"]` does: inventing a default would be worse.
     for (const theme of themes) {
-      const values = folded.get(theme) ?? base
+      const values = folded.get(theme)!
       const raw = values.get(name)
       if (raw === undefined) continue
 

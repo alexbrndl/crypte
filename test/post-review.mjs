@@ -88,7 +88,7 @@ export function validate(review, changed, hunks) {
     // un fichier supprimé rend une plage vide qui le refuserait toujours.
     else if (
       (point.side ?? 'RIGHT') === 'RIGHT' &&
-      hunks?.has(point?.path) &&
+      hunks?.has(point.path) &&
       !inHunk(point.line, hunks.get(point.path))
     )
       problems.push(`${où} vise la ligne ${point.line} de ${point.path}, hors des portions du diff`)

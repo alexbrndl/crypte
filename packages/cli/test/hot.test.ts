@@ -172,10 +172,20 @@ describe('le catalogue pendant que le serveur tourne', () => {
   test('surveille un composant qu’une story se met à citer', async ({ projet }) => {
     const autre = join(projet.root, 'src', 'autre', 'Autre.jsx')
 
-    expect(projet.surveilles()).not.toContain(autre)
-
     mkdirSync(dirname(autre), { recursive: true })
     writeFileSync(autre, 'export const Autre = () => null\n')
+
+    // Le fichier est sur le disque, et une reconstruction est passée sans le
+    // prendre. Affirmé avant qu'il existe, « pas surveillé » serait vrai quelle
+    // que soit la largeur du jeu.
+    writeFileSync(
+      join(projet.root, 'stories', 'Fantome.js'),
+      "import { Fantome } from 'introuvable'\n\nexport default defineStories(Fantome)\n",
+    )
+    await expect.poll(projet.noms).toContain('fantome--default')
+
+    expect(projet.surveilles()).not.toContain(autre)
+
     writeFileSync(
       join(projet.root, 'stories', 'Autre.js'),
       "import { Autre } from '@/autre/Autre'\n\nexport default defineStories(Autre)\n",
@@ -229,12 +239,15 @@ describe('le catalogue pendant que le serveur tourne', () => {
     ])
 
     // Ce `toEqual` tient aussi le dédoublonnage : `OrderSummary` porte trois
-    // stories, donc sans le `Set` la liste en rendrait quatre.
+    // stories, donc sans le `Set` la liste en rendrait quatre. Et il exclut à
+    // lui seul `entry.jsx` et `src/assets.js`, que le projet porte et qu'aucune
+    // story ne cite.
     //
-    // `entry.jsx` et `src/assets.js` sont dans le projet et cités par aucune
-    // story : les surveiller ferait relire l'arbre pour rien.
-    expect(cités).not.toContain(join(projet.root, 'entry.jsx'))
-    expect(cités).not.toContain(join(projet.root, 'src', 'assets.js'))
+    // Mais il ne tient que `componentFiles`, projection pure du catalogue. La
+    // régression que ce cas nomme vit en aval, dans `syncComponents` : le jeu
+    // réellement surveillé se lit donc lui aussi, et en entier plutôt qu'en
+    // absences, pour attraper le surveillant récursif posé sur l'ancêtre commun.
+    expect(projet.surveilles()).toEqual(cités)
   })
 
   // Une sauvegarde atomique, temporaire puis `rename` par-dessus, est ce que

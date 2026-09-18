@@ -103,8 +103,7 @@ function firstParameter(body: Node[], exported: string): Node | undefined {
 
 function parameterOf(body: Node[], exported: string): Node | undefined {
   for (const node of body) {
-    const declaration = (node['declaration'] ?? node) as Node | null
-    if (!declaration) continue
+    const declaration = (node['declaration'] ?? node) as Node
 
     if (declaration.type === 'FunctionDeclaration') {
       const name = (declaration['id'] as Node | null)?.['name']
@@ -148,8 +147,7 @@ function namedType(body: Node[], annotation: Node): Node | undefined {
   if (typeof name !== 'string') return undefined
 
   for (const node of body) {
-    const declaration = (node['declaration'] ?? node) as Node | null
-    if (!declaration) continue
+    const declaration = (node['declaration'] ?? node) as Node
 
     const declared = (declaration['id'] as Node | null)?.['name']
     if (declared !== name) continue
@@ -168,8 +166,8 @@ function namedType(body: Node[], annotation: Node): Node | undefined {
 // file. An identifier writes itself and a string literal writes its own text, so
 // `'aria-label'` is a prop name like any other. A computed key is not: section
 // 4.2 says its name cannot be read and that guessing would put a wrong one in.
-function nameOf(key: Node | null | undefined, computed: boolean): string | undefined {
-  if (!key || computed) return undefined
+function nameOf(key: Node, computed: boolean): string | undefined {
+  if (computed) return undefined
   if (key.type === 'Identifier') return String(key['name'])
 
   const written = key.type === 'Literal' ? key['value'] : undefined

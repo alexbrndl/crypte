@@ -104,7 +104,7 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
     const inferred =
       resolved === undefined
         ? {}
-        : detailsOf(join(project.root, resolved), read.entries[0]?.component.export ?? 'default')
+        : detailsOf(join(project.root, resolved), read.entries[0]!.component.export)
 
     for (const entry of read.entries) {
       if (resolved !== undefined) entry.component = { ...entry.component, file: resolved }
@@ -384,7 +384,7 @@ const RESOLVED = ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json', '.vue']
 // because the manifest is written before any server exists. It covers what a
 // component import looks like, and hands back the identifier untouched when it
 // finds nothing. `crypte check` is what will report the orphan case.
-export function componentFile(specifier: string, storyFile: string, project: Project): string {
+function componentFile(specifier: string, storyFile: string, project: Project): string {
   const found = candidates(specifier, storyFile, project)
     .map(probe)
     .find((file) => file !== undefined)

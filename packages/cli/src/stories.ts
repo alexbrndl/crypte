@@ -77,7 +77,7 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
     }
   }
 
-  const [target, definition] = (call['arguments'] as Node[]) ?? []
+  const [target, definition] = call['arguments'] as Node[]
   if (target?.type !== 'Identifier') {
     return { entries: [], skipped: 'the component is not a plain identifier', meant: true }
   }
@@ -367,8 +367,8 @@ function keyOf(key: Node): string {
 // The local name an import binds to an exported one, so a helper renamed on
 // import is still recognised.
 function boundTo(module: unknown, exported: string): string | undefined {
-  for (const one of (module as { staticImports?: Node[] })?.staticImports ?? []) {
-    for (const entry of (one['entries'] as Node[]) ?? []) {
+  for (const one of (module as { staticImports: Node[] }).staticImports) {
+    for (const entry of one['entries'] as Node[]) {
       const imported = entry['importName'] as Node
       if (imported['kind'] === 'Name' && imported['name'] === exported) {
         return (entry['localName'] as Node)['value'] as string
@@ -467,7 +467,7 @@ function unreadOf(object: Node | null | undefined, source: string): string[] {
 
   const notes = new Set<string>()
 
-  for (const property of (object['properties'] as Node[]) ?? []) {
+  for (const property of object['properties'] as Node[]) {
     if (property.type !== 'Property') {
       notes.add(`\`${written(source, property)}\` brings props this reader cannot follow`)
       continue
@@ -719,10 +719,10 @@ export function literalOf(node: Node | null | undefined): { value: unknown } | u
 // object, which names no export at all. Both give a file the reader skips: a
 // component it cannot place is worse in the manifest than absent from it.
 function componentRef(module: unknown, name: string) {
-  const imports = (module as { staticImports?: Node[] })?.staticImports ?? []
+  const imports = (module as { staticImports: Node[] }).staticImports
 
   for (const one of imports) {
-    for (const entry of (one['entries'] as Node[]) ?? []) {
+    for (const entry of one['entries'] as Node[]) {
       if ((entry['localName'] as Node | undefined)?.['value'] !== name) continue
 
       const imported = entry['importName'] as Node
@@ -730,7 +730,7 @@ function componentRef(module: unknown, name: string) {
 
       if (imported['kind'] === 'Default') return { name, file, export: 'default' }
       if (imported['kind'] === 'Name') {
-        return { name, file, export: (imported['name'] as string) ?? name }
+        return { name, file, export: imported['name'] as string }
       }
 
       return undefined

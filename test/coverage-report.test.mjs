@@ -27,8 +27,8 @@ const SEUILS_DU_DÉPÔT = JSON.parse(
 )
 
 // Chaque mesure un point au-dessus de son propre seuil : au-dessus de la porte,
-// sous le cliquet, quels que soient les seuils du jour. Borné à cent, qu'un
-// seuil de cent ferait sinon dépasser sur un résumé impossible.
+// sous le cliquet, quels que soient les seuils du jour. À un seuil de cent, la
+// mesure vaut le seuil, et les deux comparaisons sont non strictes.
 const JUSTE_AU_DESSUS = Object.fromEntries(
   Object.entries(SEUILS_DU_DÉPÔT).map(([nom, seuil]) => [nom, Math.min(100, seuil + 1)]),
 )
@@ -148,7 +148,10 @@ describe('le corps du commentaire', () => {
   })
 
   it('marque d’une coche la métrique au-dessus de son seuil', () => {
-    expect(compose(tenu())).not.toContain('❌')
+    const body = compose(tenu())
+
+    expect(body).toContain('✅')
+    expect(body).not.toContain('❌')
   })
 
   it('abrège la révision mesurée', () => {
@@ -375,8 +378,6 @@ describe('ce que la mesure ne couvre pas', () => {
 })
 
 describe('ce que l’exploration a trouvé', () => {
-  // Un `total` amputé d'une métrique faisait lever le rendu, donc laissait le
-  // commentaire d'avant en place, donc affichait des chiffres périmés.
   it('traite un résumé incomplet comme une absence de mesure', () => {
     const partiel = { total: { lines: metrique(99), statements: metrique(99) } }
 
@@ -384,9 +385,7 @@ describe('ce que l’exploration a trouvé', () => {
     expect(compose(partiel, undefined)).not.toContain('**lignes**')
   })
 
-  // Le garde-fou porte sur `pct`, qui est ce que la ligne de total lit. Il a
-  // porté sur `covered` le temps d'un commit, et un résumé sans `pct` rendait
-  // alors « **lignes** undefined % ».
+  // Le garde-fou a porté sur `covered` un commit durant : « **lignes** undefined % ».
   it('traite un résumé sans pourcentage comme une absence de mesure', () => {
     const sans = {
       total: Object.fromEntries(

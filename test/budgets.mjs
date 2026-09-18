@@ -23,13 +23,13 @@ export const RACINE = join(ici, '..')
 
 export const BUDGETS = JSON.parse(readFileSync(join(ici, 'budgets.json'), 'utf8'))
 
-// Ce que chaque budget mesure et dans quelle unité. La cible vient de
+// Ce que chaque budget mesure, et comment on l'écrit. La cible vient de
 // `budgets.json`, le reste d'ici : un seuil se change, un libellé non.
 export const MESURES = {
-  startMs: { titre: 'Démarrage à froid', unité: 'ms', format: (n) => `${n} ms` },
-  installedBytes: { titre: 'Poids installé, `cli` + `react`', unité: 'o', format: mo },
-  shellGzipBytes: { titre: 'Bundle du shell, gzip', unité: 'o', format: ko },
-  adapterLines: { titre: 'Adaptateur React', unité: 'lignes', format: (n) => `${n} lignes` },
+  startMs: { titre: 'Démarrage à froid', format: (n) => `${n} ms` },
+  installedBytes: { titre: 'Poids installé, `cli` + `react`', format: mo },
+  shellGzipBytes: { titre: 'Bundle du shell, gzip', format: ko },
+  adapterLines: { titre: 'Adaptateur React', format: (n) => `${n} lignes` },
 }
 
 // En unités SI, comme les cibles de l'issue les écrit : « moins de 300 Ko »,
@@ -136,13 +136,9 @@ export function catalogOf(yaml) {
   return trouvé
 }
 
-// Ce que les paquets publiés déclarent devoir installer, épinglé sur ce qui est
-// posé. `workspace:*` est écarté : ce sont nos propres paquets, comptés par
-// leur `dist` plutôt que par le registre, qui ne les connaît pas encore.
-//
-// Le catalogue ne fournit plus aucune version — `posée` répond ou lève — et ne
-// sert qu'à refuser un `catalog:` que le bloc ne porte pas, ce qui reste une
-// faute du dépôt et non de la mesure.
+// Ce que les paquets publiés déclarent installer, épinglé sur ce qui est posé.
+// `workspace:*` est écarté, compté par son `dist`. Le catalogue ne fournit plus
+// aucune version : il ne sert qu'à refuser un `catalog:` absent du bloc.
 export function externalDeps(paquets, catalogue, racine = RACINE) {
   const trouvé = {}
 

@@ -139,11 +139,13 @@ Sans niveau, tout point se traite comme un empêchement, et la boucle ne se ferm
 
 **Important.** Défaut réel dont rien ne dépend aujourd'hui : robustesse, cas limite non atteint, dette assumée. Se corrige s'il l'est sans risque, devient une issue sinon.
 
-**Observation.** Imprécision, incohérence de documentation, amélioration possible. Ne justifie **jamais** un tour de plus.
+**Observation.** Imprécision, incohérence de documentation, amélioration possible. Ne justifie **jamais** un tour de plus, et **ne devient jamais une issue** : elle se corrige dans le même passage, ou elle ne vaut rien.
+
+_Mesuré :_ « ne justifie pas un tour de plus » a d'abord été lu comme « devient donc une issue ». Trois en sont sorties, `DCJ-301`, `DCJ-303` et `DCJ-304`, pour un commentaire trop long et deux affirmations qui ne pouvaient plus rougir, puis une quatrième pour rassembler les trois. Sur le projet 1.1, 33 issues créées pour 18 fermées, et cette catégorie-là est la seule que la vérification fabrique elle-même. Un point qui ne vaut pas un tour de revue ne vaut pas une ligne de backlog.
 
 En cas d'hésitation entre deux niveaux, prendre le plus bas et dire pourquoi : c'est celui qui a un coût, l'autre n'en a pas.
 
-**Le critère d'arrêt de la boucle est là.** La pull request sort du brouillon quand aucun bloquant ne reste, pas quand la revue est vide. Les points restants deviennent des issues.
+**Le critère d'arrêt de la boucle est là.** La pull request sort du brouillon quand aucun bloquant ne reste, pas quand la revue est vide. Les points **importants** qui restent deviennent des issues ; les observations se corrigent ou se taisent.
 
 **Lis `docs/decisions.md` avant de rédiger.** Ce qui y figure est arbitré : le re-signaler n'apprend rien. Il porte les choix et ce qui les rouvrirait ; un constat qui montre qu'une décision est devenue fausse est en revanche recevable, et c'est même ce qu'on attend de lui. Si un point du fichier est devenu bloquant, c'est en revanche un constat à part entière, et il faut dire ce qui a changé.
 

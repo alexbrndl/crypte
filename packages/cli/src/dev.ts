@@ -39,7 +39,7 @@ export interface Started {
   read: string
 }
 
-export interface Held {
+interface Held {
   catalogue: Catalogue
 }
 
@@ -78,7 +78,7 @@ export async function startDev(
   const server = await createServer({
     ...config,
     optimizeDeps: { ...config.optimizeDeps, include: configPackages(project) },
-    plugins: [...(config.plugins ?? []), servePlugin(project, () => held.catalogue)],
+    plugins: [...config.plugins, servePlugin(project, () => held.catalogue)],
   })
 
   // Returned rather than left to the server's `close`: Vite resolves that close
@@ -418,14 +418,14 @@ function lines(catalogue: Catalogue): string[] {
 // What a story file did not produce, and why. One line each, before the
 // server's address: a story its author wrote and the reader could not read must
 // not vanish in silence. The in-app version is DCJ-217.
-export function reported(catalogue: Catalogue): string[] {
+function reported(catalogue: Catalogue): string[] {
   return catalogue.skipped.map(({ file, reason: why }) => `  ${file} : ${why}`)
 }
 
 // What a plugin's `entries` hook did not get to contribute. Named by plugin and
 // not by file: nothing here is fatal, so the only trace is this line, and it has
 // to say which plugin to go and look at. Section 6.3 of docs/contracts.md.
-export function refused(catalogue: Catalogue): string[] {
+function refused(catalogue: Catalogue): string[] {
   return catalogue.skippedPlugins.map(({ plugin, reason: why }) => `  ${plugin} : ${why}`)
 }
 

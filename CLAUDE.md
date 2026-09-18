@@ -61,7 +61,7 @@ _Pourquoi cette exception existe :_ deux revues d'affilée ont rendu un verdict 
 
 **Une décision se note quand elle est prise**, dans `docs/decisions.md`, avant la fin de la session. Ce qu'on fait, ce qu'on écarte, pourquoi, et **ce qui la rouvrirait**. Le dernier champ est celui qui manque partout ailleurs.
 
-**Ce qui reste non corrigé après une revue devient une issue**, avec ce qui a été mesuré et pourquoi ce n'est pas fait ici.
+**Ce qui reste non corrigé après une revue devient une issue**, avec ce qui a été mesuré et pourquoi ce n'est pas fait ici. **Sauf une observation**, qui se corrige dans le même passage ou se tait : trois issues sont nées de cette lecture-là pour des broutilles de deux lignes, et c'est la seule catégorie que la vérification fabrique elle-même.
 
 **Titre de pull request : conventional commit.** La fusion se fait en squash, donc **le titre devient le message du commit sur `main`**. L'écrire pour quelqu'un qui lira `git log` dans un an, sans le contexte de l'issue.
 
@@ -85,6 +85,8 @@ fix: resolve aliases from jsconfig  plutôt que   correction du bug
 **Lire la sortie avant de commiter.** Le hook lance le formatage, pas les tests : un `Tests 1 failed` passe donc au commit sans que rien ne s'y oppose.
 
 **Vérifier avant de commiter.** `vp check | grep 'pass:|error:' && git commit` ne protège de rien : `grep` réussit aussi quand il trouve `error:`. Enchaîner sur le code de sortie de `vp check` seul.
+
+**`git add -A` pendant qu'un sous-agent travaille.** Les sondes qu'il pose dans l'arbre entrent dans l'index sans un mot : un commit de quatre fichiers en a emporté huit, dont une mutation de `App.vue` et un fichier de cas jetable. Tant qu'un workflow tourne, commiter par chemins explicites, et relire `git show --name-status` après.
 
 **Causes.** Ne jamais attribuer une cause sans l'avoir isolée par une mesure. Avant d'écrire « c'est à cause de X », changer X seul et vérifier que le chiffre bouge. Vérifier aussi que la mesure mesure quelque chose : un chronomètre sur un traitement qui n'a rien traité donne un résultat parfaitement stable et parfaitement faux.
 
