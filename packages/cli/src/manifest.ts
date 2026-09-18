@@ -90,10 +90,11 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
     // Once per file, not once per story: every entry of a file names the same
     // component, and each resolution probes the file system.
     //
-    // It is also the second guard against handing the resolver its own output.
-    // A project-relative path is a bare identifier too, so it would go back
-    // through the `paths` patterns and could land on another file. The first
-    // guard is in `entriesOf`, where each entry owns its `component`.
+    // It is also what stops the resolver being handed its own output. A
+    // project-relative path is a bare identifier too, so it would go back
+    // through the `paths` patterns and could land on another file. What protects
+    // is the replacement below, never a mutation: every entry reads the
+    // specifier the file wrote, whatever the entry beside it received.
     const resolved = read.entries[0]
       ? componentFile(read.entries[0].component.file, file, project)
       : undefined

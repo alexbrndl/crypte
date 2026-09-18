@@ -370,16 +370,6 @@ describe('la lecture des stories', () => {
     expect(fileWith('A.ts', source).entries[0]?.props).toEqual(['label'])
   })
 
-  // Les entrées d'un fichier partageaient un seul objet `component`. Muter le
-  // champ d'une entrée les mutait toutes, et la résolution recevait au second
-  // passage son propre résultat.
-  it('donne à chaque entrée son propre objet de composant', () => {
-    const { entries } = entriesOf(join(stories, 'checkout', 'OrderSummary.jsx'), fixture, stories)
-
-    expect(entries[0]?.component).not.toBe(entries[1]?.component)
-    expect(entries[0]?.component).toEqual(entries[1]?.component)
-  })
-
   // Section 4.4 : `meta` et `options` voyagent du fichier au manifeste sans
   // être interprétés. `details` attend l'adaptateur, lui.
   it('porte le meta du fichier sur chacune de ses stories', () => {

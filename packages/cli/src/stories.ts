@@ -140,7 +140,7 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
         id: storyId(path, story.name),
         path,
         name: story.name,
-        component: { ...component },
+        component,
         storyFile,
         options: options ?? {},
         details: {},
