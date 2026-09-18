@@ -61,7 +61,7 @@ _Pourquoi cette exception existe :_ deux revues d'affilée ont rendu un verdict 
 
 **Une décision se note quand elle est prise**, dans `docs/decisions.md`, avant la fin de la session. Ce qu'on fait, ce qu'on écarte, pourquoi, et **ce qui la rouvrirait**. Le dernier champ est celui qui manque partout ailleurs.
 
-**Ce qui reste non corrigé après une revue devient une issue**, avec ce qui a été mesuré et pourquoi ce n'est pas fait ici.
+**Ce qui reste non corrigé après une revue devient une issue**, avec ce qui a été mesuré et pourquoi ce n'est pas fait ici. **Sauf une observation**, qui se corrige dans le même passage ou se tait : trois issues sont nées de cette lecture-là pour des broutilles de deux lignes, et c'est la seule catégorie que la vérification fabrique elle-même.
 
 **Titre de pull request : conventional commit.** La fusion se fait en squash, donc **le titre devient le message du commit sur `main`**. L'écrire pour quelqu'un qui lira `git log` dans un an, sans le contexte de l'issue.
 
