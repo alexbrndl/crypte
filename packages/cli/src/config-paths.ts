@@ -55,7 +55,8 @@ export async function readProjectPaths(
     }
 
     // `tsconfck` types `tsconfigFile` as a string and its not-found result puts
-    // `null` there. This guard is what lets `baseOf` dereference it.
+    // `null` there, at the top level only. This guard is what lets `baseOf`
+    // dereference it; a `referenced` entry always comes from `parseFile`.
     if (!result.tsconfigFile) continue
 
     seen.push(...filesOf(result))
