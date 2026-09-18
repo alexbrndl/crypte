@@ -717,3 +717,19 @@ The real difference is who reads a document. The language follows from that.
 **What the measure pins, and what it does not.** The direct dependencies are pinned to the versions this repository has installed, so a Vite release cannot move the figure on a commit that changed nothing. Their own transitive dependencies are still resolved from the registry at run time, and a native binary growing there would redden a required check for a reason nobody here can act on.
 
 **What would reopen it.** That last case, if it happens: the answer is to install from `pnpm-lock.yaml` rather than to raise the ceiling. Vite shipping its binaries as optional per-platform packages small enough to change the order of magnitude. A decision to make Vite a peer, which has to be taken for its own reasons and not to make a budget pass. Or the JavaScript half growing past 8 Mo, which would be ours and would deserve the failure.
+
+## Dead code is deleted only when two refuters have failed to reach it
+
+**What we do.** A reading agent names a candidate from a measure, never from an opinion. Two more then try to reach it from opposite angles: one walks the callers up to a real entry point, the other writes a probe and runs it. The candidate goes only if both fail, and any doubt they admit counts as reachable. Removing an `export` keyword is exempt: the compiler proves there is no consumer, `vp check` covering `src` and `test` together.
+
+**Why.** On the first wave a reader gave `serve.ts:165 shellHtml` as a leftover of an earlier pass, and a refuter reached it, through a shell state rather than through a URL. Deleting it would have removed live code. Three more candidates fell on doubt the refuters wrote down. Of 22 candidates, 18 were removed: nine exports and fifteen `??` or `?.` operators, counted on the diff.
+
+**The measure that confirms a removal, after the fact.** Branch slots fell from 1 183 to 1 157, twenty-six, which is thirteen operators times two sides. Covered branches fell by exactly thirteen. Had a removed fallback been reachable, the covered figure would have dropped further.
+
+**In test files the rule inverts.** "Branch never taken" says nothing there, so the candidate is a dead assertion, and the refuters try to make it redden by breaking the guarantee in the source. Of 21 candidates, 7 could not be made to fail — and five of those were **repaired rather than deleted**, because each aimed at the wrong side of its pair: `not.toContain(42)` read `entry.id`, where 42 lands in `entries`; `Ecartee` and `PropDetailsZZZ` name nothing the repository has ever held.
+
+**What we rule out.** Deleting on one reading, however well argued. And deleting on coverage alone: an uncovered branch is an untested real case as often as it is dead code, and the two want opposite answers.
+
+**What it costs.** Two agents per candidate and the wall clock of the slowest. A spend limit cut nine of the second wave's twenty-two refuters, leaving four candidates with no verdict; the rule kept them, which is the direction an interrupted run should fail in.
+
+**What would reopen it.** A refuter that refutes nothing across a whole wave, which would mean it has become a rubber stamp rather than an opponent. Or a deletion this rule allowed and that had to be put back.
