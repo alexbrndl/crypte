@@ -136,13 +136,9 @@ export function catalogOf(yaml) {
   return trouvé
 }
 
-// Ce que les paquets publiés déclarent devoir installer, épinglé sur ce qui est
-// posé. `workspace:*` est écarté : ce sont nos propres paquets, comptés par
-// leur `dist` plutôt que par le registre, qui ne les connaît pas encore.
-//
-// Le catalogue ne fournit plus aucune version — `posée` répond ou lève — et ne
-// sert qu'à refuser un `catalog:` que le bloc ne porte pas, ce qui reste une
-// faute du dépôt et non de la mesure.
+// Ce que les paquets publiés déclarent installer, épinglé sur ce qui est posé.
+// `workspace:*` est écarté, compté par son `dist`. Le catalogue ne fournit plus
+// aucune version : il ne sert qu'à refuser un `catalog:` absent du bloc.
 export function externalDeps(paquets, catalogue, racine = RACINE) {
   const trouvé = {}
 

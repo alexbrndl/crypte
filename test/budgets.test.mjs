@@ -209,9 +209,8 @@ describe('les dépendances externes', () => {
         // leur portée, pas par leur préfixe, qu'ils garderont une fois publiés.
         if (portée.startsWith('workspace:')) continue
 
-        // Les deux emplacements que `posée` accepte : pnpm pose sous le paquet
-        // ou remonte à la racine, et exiger le premier ferait rougir ce cas le
-        // jour où il remonte, sur une fonction restée juste.
+        // Les deux emplacements que `posée` accepte : sous le paquet, ou remonté
+        // à la racine.
         const posé = [
           join(process.cwd(), 'packages', paquet, 'node_modules', nom, 'package.json'),
           join(process.cwd(), 'node_modules', nom, 'package.json'),
