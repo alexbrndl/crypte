@@ -146,6 +146,10 @@ describe('le catalogue', () => {
     '',
     'onlyBuiltDependencies:',
     '  - esbuild',
+    '',
+    // Une paire indentée après le bloc : sans l'arrêt, elle écraserait `vite`.
+    'overrides:',
+    '  vite: 7.0.0',
   ].join('\n')
 
   it('lit les noms cités et les noms nus', () => {
@@ -155,11 +159,11 @@ describe('le catalogue', () => {
   // `catalogMode:` commence par les mêmes huit lettres. Le prendre pour le bloc
   // rendrait un catalogue d'une entrée, et toutes les versions seraient fausses.
   it('ne prend pas catalogMode pour le bloc', () => {
-    expect(catalogOf(yaml)).not.toHaveProperty('prefer')
+    expect(() => catalogOf('catalogMode: prefer\n')).toThrow('aucun bloc')
   })
 
   it('s’arrête à la première clé de premier niveau', () => {
-    expect(catalogOf(yaml)).not.toHaveProperty('- esbuild')
+    expect(catalogOf(yaml).vite).toBe('^8.2.1')
   })
 
   it('lève plutôt que de rendre un catalogue vide', () => {
@@ -213,7 +217,6 @@ describe('les dépendances externes', () => {
           join(process.cwd(), 'node_modules', nom, 'package.json'),
         ].find((un) => existsSync(un))
 
-        expect(posé, `${paquet} n'a installé ${nom} nulle part`).toBeDefined()
         expect(lu[nom], nom).toBe(JSON.parse(readFileSync(posé, 'utf8')).version)
       }
   })

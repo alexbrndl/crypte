@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { declaredIn, namesInBlocks, publicName, REEXPORT_BLOCK } from '../exported-names'
+import { declaredIn, namesInBlocks, REEXPORT_BLOCK } from '../exported-names'
 
 // La porte d'entrée réexporte-t-elle tout ? Un nom oublié disparaît de l'API
 // publique sans que rien d'autre ne bronche. Voir docs/internal/architecture.md.
@@ -54,8 +54,15 @@ describe('porte d’entrée du protocole', () => {
     }
   })
 
-  // Contrôle négatif : sans lui, un ensemble qui contient tout passerait.
-  it('ne tient pas un nom absent des réexports', () => {
-    expect(exposed).not.toContain('PropDetailsZZZ')
+  // Contrôle négatif, posé sur le lecteur et non sur son résultat : un nom
+  // absent du dépôt ne prouvait rien, puisque rien ne pouvait l'y mettre.
+  it('ne lit que les noms des accolades d’un réexport', () => {
+    const source = [
+      '// StoryMeta, cité hors de tout bloc',
+      "export type { Story } from './story'",
+      'export { PROTOCOL_VERSION }',
+    ].join('\n')
+
+    expect(namesInBlocks(source, REEXPORT_BLOCK)).toEqual(['Story'])
   })
 })

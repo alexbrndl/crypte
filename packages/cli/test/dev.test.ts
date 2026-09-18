@@ -150,7 +150,9 @@ describe('l’entrée de la preview', () => {
 
     expect(source).toContain('import("/stories/Gardee.tsx")')
     expect(source).not.toContain('import.meta.glob')
-    expect(source).not.toContain('Ecartee')
+
+    // `Badge.js` est sur le disque du fixture sans avoir produit d'entrée.
+    expect(source).not.toContain('/stories/Badge.js')
   })
 
   // Un import statique fait tomber l'entrée entière sur un seul fichier qui lève,

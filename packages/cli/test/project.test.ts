@@ -724,7 +724,6 @@ describe('résolution réelle par un serveur Vite', () => {
 
     const result = await server.transformRequest('/entry.jsx')
 
-    expect(result, 'entry.jsx n’a pas été transformé').not.toBeNull()
     expect(result?.code).toContain('/src/components/Badge.jsx')
     expect(result?.code).toContain('/src/assets.js')
   })

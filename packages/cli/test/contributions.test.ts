@@ -125,7 +125,7 @@ describe('ce que le hook rend vraiment', () => {
   it('refuse ce qui n’est pas une entrée, en le disant', async () => {
     const catalogue = await build(contributing('junk', () => [42, 'nope', {}]))
 
-    expect(ids(catalogue)).not.toContain(42)
+    expect(catalogue.manifest.entries).not.toContain(42)
     expect(catalogue.skippedPlugins).toEqual([
       { plugin: 'junk', reason: 'an entry is not an object' },
       { plugin: 'junk', reason: 'an entry is not an object' },
