@@ -101,7 +101,7 @@ export function drifted(summary, thresholds = THRESHOLDS, slack = SLACK) {
 
 // Les seuils au plancher mesuré, arrondis vers le bas. Ce que le message rend à
 // coller quand le cliquet mord.
-export function floors(summary) {
+function floors(summary) {
   const total = summary.total
 
   return Object.fromEntries(
