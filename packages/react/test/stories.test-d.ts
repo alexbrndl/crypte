@@ -1,7 +1,7 @@
 import { wrapsOf, type PreviewWrapper } from '@crypte/core/preview'
 import type { ComponentType } from 'react'
 import { describe, expectTypeOf, it } from 'vitest'
-import { createAdapter } from '../src/index'
+import { createAdapter, type Adapter, type ComponentProps } from '../src/index'
 import {
   defineStories,
   story,
@@ -92,6 +92,24 @@ describe('le joint avec le noyau', () => {
     const wraps = wrapsOf(undefined, { wrap: Badge })
 
     expectTypeOf(wraps).toEqualTypeOf<PreviewWrapper[]>()
-    expectTypeOf(adapter.mount).parameter(3).toEqualTypeOf<readonly PreviewWrapper[] | undefined>()
+    expectTypeOf(adapter.mount).parameter(3).toEqualTypeOf<readonly PreviewWrapper[]>()
+  })
+
+  // Ce que le `?` d'avant croyait protéger, et que l'arité protège toute seule :
+  // une implémentation à trois paramètres reste assignable à une signature qui
+  // en exige quatre. Sans ce cas, la prémisse fausse se réécrit.
+  it('accepte encore un adaptateur écrit à trois paramètres', () => {
+    const ancien: Adapter = {
+      mount(
+        container: HTMLElement,
+        component: ComponentType<ComponentProps>,
+        props: ComponentProps,
+      ) {
+        ;(void container, component, props)
+      },
+      unmount() {},
+    }
+
+    expectTypeOf(ancien).toEqualTypeOf<Adapter>()
   })
 })

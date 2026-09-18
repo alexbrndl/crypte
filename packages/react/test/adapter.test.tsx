@@ -49,7 +49,7 @@ describe('l’adaptateur React', () => {
   test('rend le même adaptateur par son export par défaut', ({ monte }) => {
     const court = react()
 
-    court.mount(monte.hote, Badge, { label: 'Neuf' })
+    court.mount(monte.hote, Badge, { label: 'Neuf' }, [])
 
     expect(monte.hote.textContent).toBe('Neuf')
     court.unmount()
@@ -59,13 +59,13 @@ describe('l’adaptateur React', () => {
   // avant que rien ne soit à l'écran, donc la preview annoncerait `rendered`
   // sur un cadre vide.
   test('a fini de rendre quand mount rend la main', ({ monte }) => {
-    monte.adapter.mount(monte.hote, Badge, { label: 'Neuf' })
+    monte.adapter.mount(monte.hote, Badge, { label: 'Neuf' }, [])
 
     expect(monte.hote.textContent).toBe('Neuf')
   })
 
   test('passe les props telles quelles, et rien de plus', ({ monte }) => {
-    monte.adapter.mount(monte.hote, Badge, {})
+    monte.adapter.mount(monte.hote, Badge, {}, [])
 
     expect(monte.hote.textContent).toBe('sans nom')
   })
@@ -75,14 +75,16 @@ describe('l’adaptateur React', () => {
   // `onUncaughtError` et sans la relance, `mount` rendait la main comme s'il
   // avait rendu.
   test('relance l’erreur d’un composant qui ne rend pas', ({ monte }) => {
-    expect(() => monte.adapter.mount(monte.hote, Boum, {})).toThrow('ce composant ne rend jamais')
+    expect(() => monte.adapter.mount(monte.hote, Boum, {}, [])).toThrow(
+      'ce composant ne rend jamais',
+    )
   })
 
   // Et l'erreur ne reste pas collée : la story suivante doit monter.
   test('remonte une story qui marche après une erreur', ({ monte }) => {
-    expect(() => monte.adapter.mount(monte.hote, Boum, {})).toThrow('ne rend jamais')
+    expect(() => monte.adapter.mount(monte.hote, Boum, {}, [])).toThrow('ne rend jamais')
 
-    monte.adapter.mount(monte.hote, Badge, { label: 'Réparé' })
+    monte.adapter.mount(monte.hote, Badge, { label: 'Réparé' }, [])
 
     expect(monte.hote.textContent).toBe('Réparé')
   })
@@ -90,20 +92,20 @@ describe('l’adaptateur React', () => {
   // La racine est réutilisée d'un montage à l'autre, ce qui est ce qui garde
   // l'état du composant quand on rejoue la même story.
   test('garde l’état du composant d’un montage à l’autre', async ({ monte }) => {
-    monte.adapter.mount(monte.hote, Compteur, {})
+    monte.adapter.mount(monte.hote, Compteur, {}, [])
     monte.hote.querySelector('button')?.click()
 
     // Un clic n'est pas un montage : React groupe sa mise à jour et la commet
     // plus tard, là où `mount` a fini de rendre quand il rend la main.
     await expect.poll(() => monte.hote.textContent).toBe('1')
 
-    monte.adapter.mount(monte.hote, Compteur, {})
+    monte.adapter.mount(monte.hote, Compteur, {}, [])
 
     expect(monte.hote.textContent).toBe('1')
   })
 
   test('vide l’hôte au démontage', ({ monte }) => {
-    monte.adapter.mount(monte.hote, Badge, { label: 'Neuf' })
+    monte.adapter.mount(monte.hote, Badge, { label: 'Neuf' }, [])
     monte.adapter.unmount()
 
     expect(monte.hote.textContent).toBe('')
@@ -114,7 +116,7 @@ describe('l’adaptateur React', () => {
   test('accepte un démontage sans montage, et un second démontage', ({ monte }) => {
     expect(() => monte.adapter.unmount()).not.toThrow()
 
-    monte.adapter.mount(monte.hote, Badge, {})
+    monte.adapter.mount(monte.hote, Badge, {}, [])
     monte.adapter.unmount()
 
     expect(() => monte.adapter.unmount()).not.toThrow()
@@ -123,12 +125,12 @@ describe('l’adaptateur React', () => {
   // Après un démontage, une nouvelle racine : l'état d'avant est perdu, ce qui
   // est ce qu'un changement de story doit faire.
   test('repart d’un état neuf après un démontage', async ({ monte }) => {
-    monte.adapter.mount(monte.hote, Compteur, {})
+    monte.adapter.mount(monte.hote, Compteur, {}, [])
     monte.hote.querySelector('button')?.click()
     await expect.poll(() => monte.hote.textContent).toBe('1')
     monte.adapter.unmount()
 
-    monte.adapter.mount(monte.hote, Compteur, {})
+    monte.adapter.mount(monte.hote, Compteur, {}, [])
 
     expect(monte.hote.textContent).toBe('0')
   })
@@ -187,7 +189,7 @@ describe('les enveloppes', () => {
   })
 
   test('accepte l’absence du quatrième argument', ({ monte }) => {
-    monte.adapter.mount(monte.hote, Badge, { label: 'Neuf' })
+    monte.adapter.mount(monte.hote, Badge, { label: 'Neuf' }, [])
 
     expect(monte.hote.textContent).toBe('Neuf')
   })

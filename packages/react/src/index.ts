@@ -13,9 +13,8 @@ export interface Adapter {
     component: ComponentType<ComponentProps>,
     props: ComponentProps,
     // The wrappers the story renders inside, outermost first, exactly as
-    // `wrapsOf` flattens them. Optional so an adapter written against the
-    // previous shape keeps compiling. See docs/contracts.md section 2.5.
-    wraps?: readonly PreviewWrapper[],
+    // `wrapsOf` flattens them. See docs/contracts.md section 2.5.
+    wraps: readonly PreviewWrapper[],
   ): void
   unmount(): void
 }
@@ -48,6 +47,9 @@ export function createAdapter(): Adapter {
     // Measured in a browser: React 19 reports a component that throws as an
     // unhandled error and does **not** rethrow to the caller, so `mount`
     // returned as if it had rendered and the preview announced `rendered`.
+    // `wraps = []` although the type requires it: the package is published, so a
+    // JavaScript caller can still leave it out, and `nested` would then walk
+    // `undefined`.
     mount(container, component, props, wraps = []) {
       caught = undefined
       root ??= createRoot(container, {
