@@ -670,10 +670,9 @@ const said = new Set<string>()
 
 // The preview's entry, written as source and compiled before it is served.
 //
-// `import.meta.glob` is eager on purpose. The preview holds every story module
-// at once, so switching story is a lookup rather than a round trip, and the
-// props stay real, functions and elements included, since none of them crosses
-// the channel.
+// Every story module is held at once, so switching story is a lookup rather
+// than a round trip, and the props stay real, functions and elements included,
+// since none of them crosses the channel.
 export function previewEntry(project: Project, files: string[] = []): string {
   const css = cssEntryOf(project)
 

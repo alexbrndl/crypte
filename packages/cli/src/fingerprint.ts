@@ -78,6 +78,8 @@ function stable(value: unknown): string {
 
   const entries = Object.entries(value as Record<string, unknown>)
     .filter(([, held]) => held !== undefined)
+    // `: 0` is never taken, an object's keys being distinct, and it stays:
+    // without it `cmp(x, x)` is 1, and the sort is no longer defined.
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([key, held]) => `${JSON.stringify(key)}:${stable(held)}`)
 

@@ -54,10 +54,12 @@ export async function readProjectPaths(
       })
     }
 
+    // `tsconfck` types `tsconfigFile` as a string and its not-found result puts
+    // `null` there. This guard is what lets `baseOf` dereference it.
     if (!result.tsconfigFile) continue
 
     seen.push(...filesOf(result))
-    const found = pathsIn(result, root)
+    const found = pathsIn(result)
     // A file found with no paths does not end the search: a minimal
     // `tsconfig.json` would otherwise make the neighbouring `jsconfig.json`
     // unreachable. The files already walked count as much as the one that gave
@@ -83,9 +85,9 @@ export async function projectPathsOf(
   return (await readProjectPaths(root, warn)).paths
 }
 
-function pathsIn(result: TSConfckParseResult, root: string): ProjectPaths | undefined {
+function pathsIn(result: TSConfckParseResult): ProjectPaths | undefined {
   const own = compilerPaths(result.tsconfig)
-  if (own) return { paths: own, base: baseOf(result, root), files: filesOf(result) }
+  if (own) return { paths: own, base: baseOf(result), files: filesOf(result) }
 
   // A solution-style `tsconfig.json` declares references only, and that is
   // what `npm create vite` produces: the paths are in the referenced file, not
@@ -97,7 +99,7 @@ function pathsIn(result: TSConfckParseResult, root: string): ProjectPaths | unde
       // changes the paths as much as the referenced file itself.
       return {
         paths,
-        base: baseOf(referenced, root),
+        base: baseOf(referenced),
         files: [...filesOf(result), ...filesOf(referenced)],
       }
     }
@@ -117,12 +119,11 @@ function filesOf(result: TSConfckParseResult): string[] {
 // `extends`, they stay relative to the file that **declares** them. A project
 // extending `@tsconfig/node22` and declaring its own would otherwise have them
 // counted from `node_modules`.
-function baseOf(result: TSConfckParseResult, root: string): string {
+function baseOf(result: TSConfckParseResult): string {
   const baseUrl = result.tsconfig?.compilerOptions?.baseUrl as string | undefined
   if (baseUrl) return baseUrl
 
-  const declaring = declaringFile(result) ?? result.tsconfigFile
-  return declaring ? dirname(declaring) : root
+  return dirname(declaringFile(result) ?? result.tsconfigFile)
 }
 
 // The first file of the chain that writes `paths` itself. `extended` runs from
