@@ -51,11 +51,18 @@ export async function startDev(
   input: string,
   log: (line: string) => void = () => {},
   onConfig?: () => void,
-  again = false,
+  // The catalogue the previous server held, on a restart. It carries `wasStory`,
+  // so a file that stopped producing keeps its banner across a save of
+  // `crypte.config.ts`: without it the note lasted one rebuild, which is the
+  // very state `buildCatalogue` grew the memory to prevent. Measured.
+  //
+  // It is also what says this is a restart, rather than a flag beside it: the
+  // two could disagree, and only one of them carries anything.
+  before?: Catalogue,
 ): Promise<Started> {
   const project = await loadProject(input)
   const read = digest(project)
-  const held: Held = { catalogue: buildCatalogue(project) }
+  const held: Held = { catalogue: buildCatalogue(project, before) }
 
   // Written before the server starts. They are artefacts, so a failure to write
   // them is not a reason to refuse to serve: a read-only checkout, or a folder
@@ -68,7 +75,7 @@ export async function startDev(
   //
   // Nothing on a restart: `dev` writes after the swap, so a restart that does
   // not complete leaves the file describing what is actually served.
-  const written = again ? undefined : write(project.root, held.catalogue, true)
+  const written = before ? undefined : write(project.root, held.catalogue, true)
 
   const config = viteConfigOf(project)
 
@@ -468,7 +475,7 @@ export async function dev(input: string, log = console.log): Promise<Running> {
     let next: Started
 
     try {
-      next = await startDev(input, log, restart, true)
+      next = await startDev(input, log, restart, (running.started ?? started).held.catalogue)
     } catch (error) {
       // Named for what it is: the throw can come from the configuration, from a
       // `stories` folder that is not there, or from one of the user's own

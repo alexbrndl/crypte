@@ -61,6 +61,14 @@ const compteSur = (port: number) => async () => {
   return manifest.entries.length
 }
 
+const écartésSur = (port: number) => async () => {
+  const manifest = (await fetch(`http://localhost:${port}${MANIFEST_ROUTE}`).then((answer) =>
+    answer.json(),
+  )) as { skipped?: { file: string }[] }
+
+  return (manifest.skipped ?? []).map((one) => one.file)
+}
+
 describe('la configuration relue sans commande', () => {
   // Le compte-rendu des refus est la seule trace qu'un plugin cassé laisse. Ses
   // deux chemins : au démarrage, puis à la relecture, où seul ce qui est neuf
@@ -268,6 +276,47 @@ export default defineConfig({
       rmSync(root, { recursive: true, force: true })
     }
   })
+
+  // Le bandeau d'un fichier qui a cessé de produire tient par la mémoire du
+  // catalogue, `wasStory`, faite pour qu'il survive à une sauvegarde sans
+  // rapport. Un redémarrage reconstruisait sans cette mémoire, donc éditer
+  // `crypte.config.ts` effaçait le bandeau alors que le fichier ne produit
+  // toujours rien : le trou était exactement là où le mécanisme dit exister.
+  test(
+    'garde le bandeau d’un fichier muet après un redémarrage',
+    { timeout: 120_000 },
+    async () => {
+      const root = copie(fixture, 'tmp-hot-')
+      const config = join(root, 'crypte.config.ts')
+      const avant = readFileSync(config, 'utf8')
+      const story = join(root, 'stories', 'Badge.js')
+
+      const dites: string[] = []
+      const running = await dev(root, (une: string) => dites.push(une))
+      const écartés = écartésSur(portDe(running))
+
+      try {
+        // Il cesse de produire sans disparaître : c'est le cas que `wasStory` garde.
+        writeFileSync(story, 'export const rien = 1\n')
+        await expect.poll(écartés, { timeout: 30_000 }).toContain('stories/Badge.js')
+
+        // Une sauvegarde sans rapport, qui redémarre le serveur. Attendu sur la
+        // ligne que le redémarrage imprime, et non sur le catalogue : celui d'avant
+        // répond déjà, donc toute mesure du catalogue passe sans rien attendre.
+        writeFileSync(config, `${avant}\n// une ligne de plus\n`)
+        await expect
+          .poll(() => dites.filter((une) => une.includes('crypte.config.ts changed')).length, {
+            timeout: 30_000,
+          })
+          .toBe(1)
+
+        expect(await écartés()).toContain('stories/Badge.js')
+      } finally {
+        await running.close()
+        rmSync(root, { recursive: true, force: true })
+      }
+    },
+  )
 
   // L'empreinte est un fichier versionné, donc elle ne s'écrit qu'au démarrage :
   // la réécrire à chaque essai sur `stories` salirait l'arbre de travail pendant
