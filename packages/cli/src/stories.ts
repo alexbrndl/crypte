@@ -435,7 +435,7 @@ const FUNCTIONS_AND_CLASSES = new Set([
 
 // A key can be quoted, so `{ 'meta': … }` has to be found too. A computed key
 // is never a match: nothing says what it holds without running the file.
-function propertyOf(object: Node | undefined, name: string): Node | null {
+export function propertyOf(object: Node | undefined, name: string): Node | null {
   if (object?.type !== 'ObjectExpression') return null
 
   // The last one, not the first: a key written twice keeps its last value at

@@ -51,6 +51,31 @@ describe('la source de l’adaptateur', () => {
     expect(read.imports).toEqual(["import { createAdapter } from '@crypte/react'"])
   })
 
+  // Les trois règles que le lecteur des fichiers de story portait déjà, et que
+  // celui de la configuration avait toutes les trois fausses : une clé citée
+  // était refusée, une clé doublée rendait la première, une clé calculée était
+  // prise pour le champ. La seconde est la pire, la preview montant alors une
+  // expression que la configuration exécutée ne tient pas.
+  test('lit une clé citée, que JavaScript accepte', ({ projet }) => {
+    const read = adapterSource(projet("export default { 'adapter': fait(), stories: 's' }"))
+
+    expect(read.expression).toBe('fait()')
+  })
+
+  test('garde la dernière d’une clé écrite deux fois, comme l’exécution', ({ projet }) => {
+    const read = adapterSource(
+      projet('export default { adapter: premier(), stories: 1, adapter: dernier() }'),
+    )
+
+    expect(read.expression).toBe('dernier()')
+  })
+
+  test('ne prend pas une clé calculée pour le champ', ({ projet }) => {
+    expect(() => adapterSource(projet('export default { [adapter]: zzz(), stories: 1 }'))).toThrow(
+      ConfigError,
+    )
+  })
+
   // Les formes que le guide montre depuis que l'adaptateur a un export par
   // défaut. Un `ImportDefaultSpecifier` n'est pas le même nœud qu'un
   // `ImportSpecifier`, et un projet nomme cet import comme il veut.

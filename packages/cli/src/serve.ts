@@ -10,6 +10,7 @@ import { ConfigError } from './errors'
 import { capture, isBareSpecifier } from './paths'
 import { storyFilesOf, type Catalogue } from './manifest'
 import { cssEntryOf, type Project } from './project'
+import { propertyOf, type Node } from './stories'
 
 // The shell is built ahead of time and copied into `dist/shell` when the CLI is
 // packed. It knows no framework: it reads a manifest and talks over the channel.
@@ -573,15 +574,12 @@ function referenced(node: Node): Set<string> {
   return found
 }
 
-interface Node {
-  type: string
-  start: number
-  end: number
-  [key: string]: unknown
-}
-
 // `export default defineConfig({ … })` or `export default { … }`, and the
 // `adapter` property of whichever it is.
+//
+// The property is read by `propertyOf`, the same reader the story files use: a
+// quoted key, a key written twice and a computed key each have a rule, and a
+// second copy of the three had all three wrong.
 function fieldExpression(body: Node[], field: string): Node | undefined {
   const exported = body.find((node) => node.type === 'ExportDefaultDeclaration')
   const declaration = exported?.['declaration'] as Node | undefined
@@ -590,13 +588,7 @@ function fieldExpression(body: Node[], field: string): Node | undefined {
       ? ((declaration['arguments'] as Node[])[0] as Node | undefined)
       : declaration
 
-  if (object?.type !== 'ObjectExpression') return undefined
-
-  const found = (object['properties'] as Node[]).find(
-    (property) =>
-      property.type === 'Property' && (property['key'] as Node | undefined)?.['name'] === field,
-  )
-  return found?.['value'] as Node | undefined
+  return propertyOf(object, field) ?? undefined
 }
 
 // Replaying the last render on a hot update, rather than letting Vite reload the
