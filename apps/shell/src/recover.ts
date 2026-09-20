@@ -10,10 +10,8 @@ export function unreadable(error: unknown): string {
   return `catalogue illisible : ${error instanceof Error ? error.message : String(error)}`
 }
 
-// Ce que le shell devient après un rafraîchissement : la story à afficher, ce
-// qu'il faut retenir de l'affichée, et ce qu'il y a à dire. Sorti du composant
-// parce que la distinction « rien n'a jamais été affiché » / « la sélection
-// vient d'être perdue » ne s'éprouve pas depuis un rendu Vue.
+// Hors du composant pour être testable : la distinction entre `null`, une entrée
+// et `'effacée'` ne s'éprouve pas depuis un rendu Vue.
 export function landing(
   shown: Shown,
   before: readonly StoryEntry[],
@@ -31,22 +29,16 @@ export function landing(
 
 export type Shown = StoryEntry | null | 'effacée'
 
-// L'identifiant vient du chemin et du nom, donc renommer une story le change et
-// la sélection ne se retrouve plus. Le fichier et le rang dans ce fichier y
-// survivent : sur un renommage sur place, ils désignent la story renommée.
-//
-// Perdre la place à chaque frappe est pire que ne pas recharger du tout, d'où un
-// repli plutôt qu'une sélection vide.
+// L'identifiant vient du chemin et du nom : un renommage le change. Le fichier et
+// le rang y survivent, d'où le repli sur eux.
 export function recovered(
   shown: Shown,
   before: readonly StoryEntry[],
   after: readonly StoryEntry[],
 ): string | null {
-  // Trois états, pas deux. `null` est « rien n'a jamais été affiché », qui veut
-  // la première story ; `'effacée'` est « la sélection vient d'être perdue »,
-  // qui ne veut rien. Confondus, une sauvegarde sur un autre fichier faisait
-  // sauter sur la première story du catalogue juste après avoir dit qu'il n'y
-  // avait plus rien à afficher.
+  // `null` (rien n'a jamais été affiché) veut la première story ; `'effacée'` (la
+  // sélection vient d'être perdue) ne veut rien. Confondus, le shell saute sur la
+  // première story juste après avoir dit qu'il n'y a plus rien à afficher.
   if (shown === 'effacée') return null
   if (shown === null) return after[0]?.id ?? null
   if (after.some((entry) => entry.id === shown.id)) return shown.id

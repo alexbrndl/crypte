@@ -64,10 +64,8 @@ function entriesOf(ctx: NodeContext, options: TokensOptions): TokensEntry[] {
   const base = declared.get(DEFAULT_THEME) ?? new Map<string, string>()
   const names = new Set([...declared.values()].flatMap((one) => [...one.keys()]))
 
-  // Each theme's own declarations folded over the default's, so an alias written
-  // once in `:root` still lands on what the theme redefined. Without it a token
-  // aliasing a colour that changes in the dark had no dark value at all, and the
-  // swatch had nothing to draw. Built once per theme: it does not vary by name.
+  // Each theme folded over the default, so an alias written once in `:root` still
+  // resolves against what the theme redefined.
   const folded = new Map(
     themes.map((theme) => [
       theme,
@@ -234,10 +232,9 @@ function resolve(raw: string, values: Map<string, string>): TokenInTheme {
   return alias.length === 0 ? { value } : { value, alias }
 }
 
-// The name a value points at, when the **whole** value is one `var()`. Balanced
-// parentheses and nothing after the closing one: `var(--a, 1ms) var(--b, ease)`
-// is a composite, not an alias, and reading it as one dropped everything past
-// the first parenthesis. Measured.
+// The name a value points at, when the **whole** value is one `var()`, balanced
+// and with nothing after the closing parenthesis. `var(--a, 1ms) var(--b, ease)`
+// is a composite: read as an alias, it lost everything past the first.
 function aliasOf(value: string): { name: string; fallback?: string } | undefined {
   if (!value.startsWith('var(') || !value.endsWith(')')) return undefined
 
@@ -270,10 +267,8 @@ function aliasOf(value: string): { name: string; fallback?: string } | undefined
   return fallback === '' ? { name } : { name, fallback }
 }
 
-// Four kinds are read from the value itself. `fontFamily` and `fontWeight` are
-// not: telling them apart from a string or a number needs the property they are
-// used on, which a variable does not carry. They land on `unknown`, which keeps
-// the token documented and rendering.
+// `fontFamily` and `fontWeight` stay `unknown` on purpose: telling them from a
+// string or a number needs the property, which a variable does not carry.
 function kindOf(value: string): TokenKind {
   if (/^(#|rgba?\(|hsla?\(|oklch\(|oklab\(|lab\(|lch\(|color\()/i.test(value)) return 'color'
   if (/^-?\d*\.?\d+(px|rem|em|%|vh|vw|vmin|vmax|ch|ex|pt|cm|mm|in)$/i.test(value))

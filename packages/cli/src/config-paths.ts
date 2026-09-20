@@ -56,11 +56,8 @@ export async function readProjectPaths(
 
     seen.push(...filesOf(result))
     const found = pathsIn(result)
-    // A file found with no paths does not end the search: a minimal
-    // `tsconfig.json` would otherwise make the neighbouring `jsconfig.json`
-    // unreachable. The files already walked count as much as the one that gave
-    // the paths: a `tsconfig.json` with no `paths`, read first, may gain some
-    // tomorrow, and it is read before the one that answers today.
+    // A pathless file does not end the search, and every file walked stays watched,
+    // not just the one that answered: it may gain `paths` tomorrow.
     if (found) return { paths: found, files: [...new Set([...seen, ...found.files])] }
   }
 
@@ -111,10 +108,8 @@ function filesOf(result: TSConfckParseResult): string[] {
   return [...new Set([result.tsconfigFile, ...chain].filter(Boolean))]
 }
 
-// `tsconfck` makes `baseUrl` absolute, but not the paths: inherited through
-// `extends`, they stay relative to the file that **declares** them. A project
-// extending `@tsconfig/node22` and declaring its own would otherwise have them
-// counted from `node_modules`.
+// `tsconfck` makes `baseUrl` absolute but not the paths: they stay relative to
+// the file that declares them, not to an extended one in `node_modules`.
 function baseOf(result: TSConfckParseResult): string {
   const baseUrl = result.tsconfig?.compilerOptions?.baseUrl as string | undefined
   if (baseUrl) return baseUrl

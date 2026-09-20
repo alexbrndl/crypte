@@ -1,8 +1,5 @@
 // What an object literal gives up when its text is read rather than run.
-//
-// One reader for the whole CLI: story files, `crypte.config.ts` and prop
-// defaults ask the same question, and three copies of these rules held three
-// different answers. See docs/internal/architecture.md.
+// One reader for the whole CLI, a second copy drifts: see docs/internal/architecture.md.
 
 export interface Node {
   type: string
@@ -33,15 +30,9 @@ export function propertyOf(object: Node | undefined, name: string): Node | null 
   return (found?.['value'] as Node | undefined) ?? null
 }
 
-// The value an expression writes, when it is one JSON can hold. Anything else
-// gives `undefined`, and the key that carried it is left out rather than
-// guessed: section 4.5 promises that everything in the manifest survives a JSON
-// round trip, and `JSON.stringify` drops what it cannot represent in silence.
-//
-// Wrapped in an object so that a literal `null` and "not a literal" stay apart.
-// Exported for `props.ts`, which needs the same answer on a prop's default and
-// on an enum's options. A second copy of these rules would drift: the bigint and
-// the regular expression below are the two that cost a whole manifest.
+// The value an expression writes, when JSON can hold it. Anything else gives
+// `undefined` and its key is left out: section 4.5 promises a manifest that
+// survives a JSON round trip. Wrapped so literal `null` and "not a literal" differ.
 export function literalOf(node: Node | null | undefined): { value: unknown } | undefined {
   if (!node) return undefined
 

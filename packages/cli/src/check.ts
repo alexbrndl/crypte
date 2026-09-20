@@ -32,10 +32,8 @@ export function orphans(project: Project, entries: ReturnType<typeof storiesOf>)
     .map((entry) => ({ kind: 'orphan' as const, file: entry.component.file, name: entry.id }))
 }
 
-// Whether the project itself could have reached that identifier. A relative
-// path could, and an alias it declares could; anything else is a package or a
-// plugin's business, which is the doubt section 8 names and 1.2 says to keep
-// quiet about.
+// Whether the project could have reached that identifier. A bare specifier no
+// alias resolves belongs to a package or a plugin, and 1.2 says to stay quiet.
 function addressable(specifier: string, project: Project): boolean {
   if (!isBareSpecifier(specifier)) return true
 
@@ -44,14 +42,9 @@ function addressable(specifier: string, project: Project): boolean {
   return paths !== undefined && best(ordered(paths.paths), specifier) !== undefined
 }
 
-// Where components live, read from the ones stories already point at rather
-// than declared a second time. Section 0: what a project already writes is
-// read, and asking for a components root would be a source of truth that drifts
-// from the imports.
-//
-// A consequence worth stating: a folder no story has reached yet is invisible
-// here. That is the safe direction — the alternative is walking the project and
-// warning about everything, which is the false-positive flood 1.2 forbids.
+// Read from the components stories point at, never from a declared root. So a
+// folder no story reaches is invisible here, deliberately: walking the project
+// instead would warn about everything, which 1.2 forbids.
 function componentFolders(project: Project, entries: ReturnType<typeof storiesOf>): string[] {
   const seen = new Set<string>()
 
@@ -71,17 +64,9 @@ function storied(project: Project, entries: ReturnType<typeof storiesOf>): Set<s
   )
 }
 
-// A capitalised export whose function returns an element. Both halves are
-// required, and 1.2 says why: `stepFromProgress` exported beside a component is
-// never a component, and a capitalised constant is not one either.
-//
-// One group per component, holding every name the file exports it under: a
-// component exported twice, `export function Card` then `export default Card`
-// or `export { Card as Sheet }`, is one component, and a story on any of its
-// names covers it.
-//
-// When in doubt, nothing is returned. A false warning teaches people to ignore
-// the command, which costs more than a miss.
+// Capitalised and returning an element, both: `stepFromProgress` is no
+// component, and a capitalised constant is none either. One group per component
+// holds every name the file exports it under, so a story on any covers it.
 export function componentsIn(file: string): string[][] {
   let parsed: ReturnType<typeof parseSync>
   let source: string
@@ -136,12 +121,8 @@ function idOf(node: Node): string | undefined {
   return (node['id'] as Node | undefined)?.['name'] as string | undefined
 }
 
-// The further names a local one is exported under, `default` included. Only
-// within the file: `export { Card as default } from './card'` declares nothing
-// here.
-//
-// A local name that is never exported on its own is not read: the component is
-// then found under no name at all, which is a miss and not a false warning.
+// The further names a local one is exported under, `default` included. A
+// re-export, `export { Card as default } from './card'`, declares none here.
 function synonyms(body: Node[]): Map<string, string[]> {
   const found = new Map<string, string[]>()
   const add = (local: string, exported: string) =>
@@ -205,11 +186,8 @@ function capitalised(name: string): boolean {
   return first !== '' && first === first.toUpperCase() && first !== first.toLowerCase()
 }
 
-// Whether a function gives back an element. Read from the body, never from a
-// type: a type would need the checker, and section 8 says what that costs.
-//
-// A wrapped component — `memo(Card)`, `forwardRef(…)` — gives nothing here, so
-// it is never reported. That is the doubt 1.2 asks to leave alone.
+// Read from the body, never from a type: a type would need the checker. A
+// wrapped `memo(Card)` gives nothing back here, so it is never reported.
 function returnsElement(node: Node): boolean {
   const body = node['body'] as Node | undefined
   if (!body) return false

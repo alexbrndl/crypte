@@ -51,38 +51,23 @@ export async function startDev(
   input: string,
   log: (line: string) => void = () => {},
   onConfig?: () => void,
-  // The catalogue the previous server held, on a restart. It carries `wasStory`,
-  // so a file that stopped producing keeps its banner across a save of
-  // `crypte.config.ts`: without it the note lasted one rebuild, which is the
-  // very state `buildCatalogue` grew the memory to prevent. Measured.
-  //
-  // It is also what says this is a restart, rather than a flag beside it: the
-  // two could disagree, and only one of them carries anything.
+  // The previous server's catalogue, on a restart: it carries `wasStory`, so a
+  // file that stopped producing keeps its banner. Its presence is what says this
+  // is a restart, where a flag beside it could disagree with it.
   before?: Catalogue,
 ): Promise<Started> {
   const project = await loadProject(input)
   const read = digest(project)
   const held: Held = { catalogue: buildCatalogue(project, before) }
 
-  // Written before the server starts. They are artefacts, so a failure to write
-  // them is not a reason to refuse to serve: a read-only checkout, or a folder
-  // somebody's tooling holds, would otherwise stop the whole command on an
-  // `EACCES` trace.
-  //
-  // At startup only. The fingerprint is a committed lock file, so rewriting it
-  // on every save would dirty the working tree while the author is still
-  // typing, including on the half-written states of a rename.
-  //
-  // Nothing on a restart: `dev` writes after the swap, so a restart that does
-  // not complete leaves the file describing what is actually served.
+  // Nothing on a restart: `dev` writes after the swap, so a restart that does not
+  // complete leaves the file describing what is actually served.
   const written = before ? undefined : write(project.root, held.catalogue, true)
 
   const config = viteConfigOf(project)
 
-  // The configuration's own packages are pre-bundled: a linked workspace package
-  // served as a graph module keeps stale dependency URLs across a
-  // re-optimisation, and the preview then loads four generations at once.
-  // Measured, `DCJ-221`. See docs/internal/architecture.md.
+  // Pre-bundled: a linked workspace package served as a graph module keeps stale
+  // dependency URLs across a re-optimisation. See docs/internal/architecture.md.
   const server = await createServer({
     ...config,
     optimizeDeps: { ...config.optimizeDeps, include: configPackages(project) },
@@ -90,9 +75,7 @@ export async function startDev(
   })
 
   // Returned rather than left to the server's `close`: Vite resolves that close
-  // without emitting `'close'` when the server never listened, so a server built
-  // and then abandoned kept its watchers for ever, and each leaked set doubled
-  // the restarts of every save that followed. Read in Vite 8.2.1's own source.
+  // without emitting `'close'` when the server never listened, leaking the watchers.
   const stories = watchStories(server, project, held, log)
   const watching = [...stories.closers, ...watchConfig(server, project, () => onConfig?.())]
 
@@ -112,15 +95,9 @@ export async function startDev(
   }
 }
 
-// What the shell and the preview's entry read from the catalogue: the tree, the
-// file each entry comes from, and what the reader had to set aside. Props and
-// meta are deliberately out, so that editing a story's props stays a hot update
-// instead of a page reload.
-//
-// `partial` and `skipped` are in because the shell only reads them on `ready`,
-// which a reload emits: without them here, adding a broken story file or a
-// spread showed nothing until a manual reload. Measured, `DCJ-217`. They cost
-// no reload on an ordinary edit: changing a prop's value leaves both untouched.
+// What decides whether the preview reloads. Props and meta are out, so editing a
+// story's props stays a hot update; `partial` and `skipped` are in, or a story
+// file that just broke shows nothing until a manual reload.
 function shape(catalogue: Catalogue): string {
   return JSON.stringify([
     storiesOf(catalogue.manifest).map((entry) => [
@@ -143,13 +120,9 @@ export function componentFiles(root: string, catalogue: Catalogue): string[] {
   ].sort()
 }
 
-// A story file changed: read the catalogue again, and reload the preview when
-// what it reads changed. Vite handles a component's own module, and it is the
-// browser that gets the new render.
-//
-// The component files are watched too, since `details` is read from them. The
-// set follows the catalogue rather than being fixed once: a story that changes
-// component stops watching the old file and starts on the new one.
+// A story file changed: rebuild the catalogue, reload the preview when what it
+// reads changed. Component files are watched too, and the set follows the
+// catalogue: a story that changes component moves its watcher.
 function watchStories(
   server: ViteDevServer,
   project: Project,
@@ -158,14 +131,9 @@ function watchStories(
 ): { closers: Closer[]; watched: () => string[] } {
   let pending: ReturnType<typeof setTimeout> | undefined
 
-  // One save fires several events, and a component watched here may also sit
-  // under the stories folder: rebuilding on each would read the tree three
-  // times for nothing, and twice for such a file.
-  // Once stopped, nothing. Without this flag, a timer armed in the twenty
-  // milliseconds before the close rebuilt after it, and `syncComponents` then
-  // **reopened** one watcher per component into a cleared map, owned by nobody.
-  // That is the leak `unwatch` exists to close, and it was impossible before
-  // this set existed.
+  // One save fires several events, hence the debounce. And once stopped, nothing:
+  // a timer armed just before the close rebuilt after it, and `syncComponents`
+  // reopened one watcher per component into a map nobody closes.
   let stopped = false
 
   const soon = (): void => {
@@ -175,13 +143,9 @@ function watchStories(
     pending = setTimeout(rebuild, 20)
   }
 
-  // What the last build left out, held apart from the catalogue: a skipped file
-  // leaves the shape untouched, so comparing catalogues repeated the same line
-  // on every keystroke. Measured.
-  //
-  // Seeded from the start-up build, whose lines `dev` has already printed, and
-  // replaced at each build rather than grown: kept for ever, a file broken then
-  // fixed then broken again the same way said nothing the second time.
+  // What the last build left out, seeded from the start-up build whose lines `dev`
+  // has already printed. Replaced at each build, never grown: kept for ever, a file
+  // broken then fixed then broken again said nothing the second time.
   let said = new Set(lines(held.catalogue))
 
   // The last failure said. During a conversion, every save of every story file
@@ -195,13 +159,9 @@ function watchStories(
     try {
       next = buildCatalogue(project, held.catalogue)
     } catch (error) {
-      // A half-written file is an ordinary state while typing: two stories
-      // briefly share a name, an import is half deleted. Keeping the last good
-      // catalogue is the difference between a save that flickers and a server
-      // that stops.
-      //
-      // Said, though. Swallowed, it leaves an author in front of a tree that
-      // stopped moving with no idea their file is the reason.
+      // A half-written file is ordinary while typing, so the last good catalogue
+      // is kept rather than thrown. Said all the same: silent, the tree stops
+      // moving and nothing names the file.
       const line = `the catalogue could not be rebuilt, keeping the last good one: ${reason(error)}`
       if (line !== failed) log(line)
       failed = line
@@ -216,10 +176,8 @@ function watchStories(
     for (const line of now) if (!said.has(line)) log(line)
     said = new Set(now)
 
-    // Held first, reloaded second. The shape decides whether the frame reloads,
-    // never whether the catalogue is current: editing a story's props leaves the
-    // shape untouched, and returning here served the props from before the edit.
-    // Measured.
+    // Held before the `same` return: the shape decides whether the frame reloads,
+    // never whether the catalogue is current, and editing props leaves it untouched.
     const same = shape(next) === shape(held.catalogue)
     held.catalogue = next
 
@@ -238,31 +196,18 @@ function watchStories(
     server.hot.send({ type: 'full-reload', path: PREVIEW_PAGE })
   }
 
-  // Our own watcher, on the folder we were given. Vite's only covers the files
-  // in its module graph, so a story file no page had requested yet never
-  // reported a change: on Linux `add` and `unlink` arrived and `change` did not,
-  // and on macOS the whole folder happens to be watched so the hole is
-  // invisible. Measured in continuous integration.
-  //
-  // Watching the folder ourselves also removes every question about the path: no
-  // filter, no separator, no real path behind a symlink. Every event is already
-  // inside it.
+  // Our own watcher: Vite's covers only the files in its module graph, so a story
+  // file no page has requested yet reports nothing on Linux. macOS watches the
+  // whole folder anyway, which hides the hole locally.
   const watcher = watch(join(project.root, project.config.stories), { recursive: true }, soon)
 
-  // One watcher per component file, not a folder: a component lives anywhere in
-  // the project, and their common ancestor is often the root. Keyed by path so
-  // a rebuild keeps the ones that did not move rather than closing and
-  // reopening the whole set at every keystroke.
+  // One watcher per component file, not a folder: their common ancestor is often
+  // the project root. Keyed by path, so a rebuild keeps the ones that did not move.
   const components = new Map<string, FSWatcher>()
 
-  // `fs.watch` on a **file** follows the inode, not the path. An editor that
-  // saves atomically, writing a temporary and renaming it over, therefore kills
-  // the watcher: measured, the save after an atomic one is missed and every one
-  // after it. JetBrains' safe write, vim's default and VS Code's `files.atomicSave`
-  // all do this, so the component would go silent for the life of the server.
-  // Reopened on the path, which is what the event announces.
-  // The last reason each file could not be watched, so a cause that lasts is
-  // said once rather than at every rebuild.
+  // `fs.watch` on a file follows the inode: an editor that saves atomically kills
+  // the watcher, hence the reopen on `rename`. And the last reason each file could
+  // not be watched, so a lasting cause is said once and not at every rebuild.
   const unwatchable = new Map<string, string>()
 
   const watchComponent = (file: string): FSWatcher | undefined => {
@@ -277,10 +222,8 @@ function watchStories(
       // through a plugin keeps the identifier the story wrote. Anything else is
       // not, and a watcher missing in silence is the failure this lot closes.
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        // Once, and again if the cause changes. `syncComponents` retries every
-        // file it does not hold at each rebuild, so without this the line
-        // repeats on every keystroke, once per unwatched component, and buries
-        // what follows. The same rule as `failed` and `said` above.
+        // Once, and again if the cause changes: `syncComponents` retries every
+        // file it does not hold at each rebuild.
         const line = `${file} is not watched, so its props will not refresh: ${reason(error)}`
         if (line !== unwatchable.get(file)) log(line)
         unwatchable.set(file, line)
@@ -290,10 +233,8 @@ function watchStories(
     }
   }
 
-  // Closed and reopened on the same path. Called from the watcher's own
-  // callback, which Node allows. Guarded like `soon` and `rebuild`: it is the
-  // third way a watcher opens, and an unguarded one puts an entry back into a
-  // map nobody holds any more, which is the leak the flag exists to close.
+  // Closed and reopened on the same path, from the watcher's own callback, which
+  // Node allows. Guarded like `soon` and `rebuild`: it is a third way to open one.
   const reopen = (file: string): void => {
     if (stopped) return
 
@@ -350,12 +291,8 @@ function watchStories(
 // server, since the project's own plugins come from there: out of this lot, and
 // a line is what turns a silence into an instruction.
 function watchConfig(server: ViteDevServer, project: Project, changed: () => void): FSWatcher[] {
-  // One watcher per file rather than a filter on a folder's events: the list is
-  // short, and it says exactly what is watched.
-  //
-  // `watch` throws on a file that is not there. `project.watch` names what the
-  // configuration depends on, and a project may declare a `tsconfig.json` it
-  // does not have: skipped rather than fatal.
+  // `watch` throws on a file that is not there, and `project.watch` may name a
+  // `tsconfig.json` the project declares but does not have: skipped, not fatal.
   let pending: ReturnType<typeof setTimeout> | undefined
 
   const watchers = project.watch.flatMap((file) => {
@@ -399,10 +336,8 @@ function digest(project: Project): string {
 // serves everything.
 function write(root: string, catalogue: Catalogue, fingerprint: boolean): string | undefined {
   try {
-    // The manifest is an artefact the shell may read, so it follows the
-    // catalogue and is written on a restart too: left behind, the file on disk
-    // and the one served drifted apart for the rest of the session with nothing
-    // to say so.
+    // Written on a restart too, or the manifest on disk and the catalogue served
+    // drift apart for the rest of the session.
     writeCatalogue(root, catalogue.manifest)
 
     // The fingerprint is committed, so it is written at start-up only: rewriting
@@ -450,25 +385,17 @@ export async function dev(input: string, log = console.log): Promise<Running> {
   // server, so it is this box, and not the caller, that knows the current one.
   const running: { started?: Started } = {}
 
-  // Reading the configuration again is what `server.restart()` of Vite cannot
-  // do: ours is read by `loadProject`, outside Vite, and the serve plugin
-  // captures the project. Aliases, the CSS entry, the adapter and the user's own
-  // plugins all come from there. Voir docs/internal/architecture.md.
-  //
-  // The new server is built **before** the old one closes: a half-written
-  // configuration throws here and leaves the running server alone, which is the
-  // same rule the catalogue's rebuild follows. Closing last also hands the port
-  // over with nothing in between, so the browser reconnects on its own.
+  // A full restart, not Vite's `server.restart()`: `loadProject` reads the
+  // configuration outside Vite and the serve plugin captures the project. The new
+  // server is built before the old one closes, so a throw leaves the running one.
   let seen: string | undefined
   let closed = false
 
   const once = async () => {
     if (closed) return
 
-    // What the watched files hold now, compared with what the running server
-    // read. Compared rather than trusted: one save fires several events, and an
-    // editor touches the mtime of files it has not changed. A duplicate costs a
-    // whole server, so the debounce alone was not enough, measured.
+    // Compared, not trusted: one save fires several events and a duplicate costs a
+    // whole server, which the debounce alone did not prevent.
     const now = digest(running.started?.project ?? started.project)
     if (now === seen) return
 
@@ -477,10 +404,8 @@ export async function dev(input: string, log = console.log): Promise<Running> {
     try {
       next = await startDev(input, log, restart, (running.started ?? started).held.catalogue)
     } catch (error) {
-      // Named for what it is: the throw can come from the configuration, from a
-      // `stories` folder that is not there, or from one of the user's own
-      // plugins. And a file the new configuration imports is not watched yet, so
-      // the way out is another save of `crypte.config.ts` itself.
+      // A file the new configuration imports is not watched yet, so the only way
+      // out is another save of `crypte.config.ts` itself.
       log(
         `the configuration could not be read, keeping the server that runs: ${reason(error)}. ` +
           'Save crypte.config.ts again to retry.',
@@ -489,24 +414,17 @@ export async function dev(input: string, log = console.log): Promise<Running> {
       return
     }
 
-    // `next.read`, the digest of the new server's own watch list: `now` was taken
-    // over the **old** list, so as soon as an edit changed the configuration's
-    // imports the two could not be equal and the duplicate events of that one
-    // save restarted a second time, measured. What `read` can miss, a save that
-    // landed while the configuration bundled, is caught below instead.
+    // `next.read` and not `now`: `now` was taken over the old watch list, so a
+    // change to the configuration's imports restarted the same save twice.
     seen = next.read
 
-    // The port of the server that runs, held across the restart: without it the
-    // search starts from 5173 again, so a server that had fallen back to 5174
-    // moved under the open tab. And the URLs are printed again, since they are
-    // the only place that says where to look.
+    // The port is held across the restart: without it the search starts from 5173
+    // again, and a server that had fallen back moves under the open tab.
     const before = running.started ?? started
     const port = before.server.config.server.port
 
-    // The one way out of a restart that does not complete, whatever the reason:
-    // the watchers go first, since Vite resolves the close of a server that
-    // never listened without emitting anything, so they would outlive it and
-    // double every restart that follows.
+    // The one way out of a restart that does not complete. The watchers go first:
+    // closing a server that never listened emits nothing, so they would outlive it.
     const abandon = async (error?: unknown) => {
       next.unwatch()
       await next.server.close().catch(() => undefined)
@@ -541,29 +459,20 @@ export async function dev(input: string, log = console.log): Promise<Running> {
       return
     }
 
-    // Written after the swap, not inside `startDev`: a restart that never
-    // completed had already rewritten `.crypte/manifest.json`, so the file
-    // described a catalogue no server served while the one still standing served
-    // the old. That is the divergence this lot exists to remove.
+    // Written after the swap: a restart that fails earlier must not leave a
+    // manifest describing a catalogue no server serves.
     const failed = write(next.project.root, next.held.catalogue, false)
     if (failed) log(`the manifest could not be written: ${failed}`)
 
-    // What the files hold now, against what the new server read: a save that
-    // landed while the configuration bundled is still pending, and this is where
-    // it is picked up rather than dropped.
-    //
-    // And nothing is announced for this one: it is already known to be stale, so
-    // its count and its URLs would be printed twice for a single save, the noise
-    // the filter below exists to avoid.
+    // A save that landed while the configuration bundled is still pending: picked
+    // up here rather than dropped, and announced by the restart it triggers.
     if (digest(next.project) !== next.read) {
       restart()
       return
     }
 
-    // Everything the start-up says, said again, minus what has not changed: the
-    // files left out are compared with the previous server's, since reprinting
-    // twenty lines on every save of the configuration buries the one that
-    // matters, the rule `watchStories` already follows.
+    // Only what the previous server did not already say: reprinting the whole list
+    // on every save of the configuration buries the line that changed.
     const dites = reported(next.held.catalogue)
     const avant = reported(before.held.catalogue)
     const fresh = dites.filter((one) => !avant.includes(one))
@@ -586,14 +495,9 @@ export async function dev(input: string, log = console.log): Promise<Running> {
     next.server.printUrls()
   }
 
-  // Queued rather than guarded: a restart takes about 40 ms, measured, so a save
-  // can land inside one, and between the new server and the old one closing both
-  // sets of watchers are live. A chain runs them in order and drops none, and the
-  // content check inside makes a queued duplicate a no-op.
-  //
-  // The `catch` is what keeps the chain alive: rejected once, `then` would never
-  // call `once` again and every later save would be dropped in silence, which is
-  // also the unhandled rejection this whole shape exists to avoid.
+  // Queued rather than guarded: a save can land inside a restart and must not be
+  // dropped. The `catch` keeps the chain alive: rejected once, `then` would never
+  // call `once` again and every later save would go in silence.
   let queue = Promise.resolve()
 
   const restart = () => {
@@ -630,17 +534,9 @@ export async function dev(input: string, log = console.log): Promise<Running> {
       return running.started?.server ?? server
     },
     close: async () => {
-      // Disarmed first: a queued restart, or a debounce already armed, would
-      // otherwise build and listen a server after this returned, and the test
-      // that closes then deletes its project would leave one behind.
-      // Disarmed **and** awaited. Disarming alone was measured to leave a server
-      // listening: a restart already past the check closed the new server in
-      // concurrence with its own `listen`, and the listen won.
-      //
-      // The price is real: every slow configuration load is added to a shutdown,
-      // and one whose top-level `await` never settles would hold this for ever.
-      // `crypte dev` never closes, so what this reaches is the test suite, where
-      // a fast assertion failure becomes a timeout.
+      // Disarmed **and** awaited: a restart already past the `closed` check races
+      // its own `listen`, and the listen wins. The price is that a slow
+      // configuration load is added to every shutdown.
       closed = true
       await queue
       await running.started?.server.close()

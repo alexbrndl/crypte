@@ -28,13 +28,9 @@ export interface Fingerprint {
   entries: FingerprintEntry[]
 }
 
-// The fields the fingerprint shows on its own. Everything else goes into `rest`,
-// so a field added anywhere is folded in rather than forgotten.
-//
-// `component` and `meta` are not listed: only a part of each is shown, `file`
-// with `export` for one and `status` for the other, so the whole object still
-// has to travel. Excluding `component` left `ComponentRef.name` in neither, and
-// nothing would have shown a field added beside it.
+// The fields shown on their own; everything else goes into `rest`, so a field
+// added anywhere is folded in rather than forgotten. `component` and `meta` are
+// not listed: only a part of each is shown, so the whole object must still travel.
 const SHOWN = new Set(['id', 'props'])
 
 export function fingerprintOf(manifest: Manifest): Fingerprint {

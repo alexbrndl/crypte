@@ -34,19 +34,12 @@ export function detailsOf(file: string, exported: string): Record<string, Resolv
   const parameter = firstParameter(body, exported)
   if (!parameter) return {}
 
-  // The declared type first, the destructuring pattern second. A type nobody can
-  // resolve, `ComponentProps<'span'>` for one, leaves only what the file wrote
-  // by hand: enumerating what it holds would need the type checker, and inventing
-  // names is what section 4.2 forbids.
   const members = membersOf(body, parameter)
   const defaults = defaultsOf(parameter)
   const pattern = destructured(parameter)
 
-  // The type's members, plus the names the pattern writes that the type does not
-  // declare. An `extends` clause nobody can resolve leaves those to the pattern,
-  // and both halves are written in the file: `interface P extends
-  // ComponentProps<'span'>` with `{ className, ...rest }` lost the `className`
-  // before this, which is the shadcn shape section 3.4 names. Measured.
+  // Both halves: an unresolvable `extends` leaves a name like `className` only
+  // in the pattern, so the type's members alone would drop it.
   const named: Member[] = members
     ? [...members, ...pattern.filter((one) => !members.some((member) => member.name === one.name))]
     : pattern
@@ -162,10 +155,8 @@ function namedType(body: Node[], annotation: Node): Node | undefined {
   return undefined
 }
 
-// The name a key writes, or nothing when nobody can read it without running the
-// file. An identifier writes itself and a string literal writes its own text, so
-// `'aria-label'` is a prop name like any other. A computed key is not: section
-// 4.2 says its name cannot be read and that guessing would put a wrong one in.
+// The name a key writes. A computed key has none that can be read without
+// running the file, and section 4.2 forbids guessing one.
 function nameOf(key: Node, computed: boolean): string | undefined {
   if (computed) return undefined
   if (key.type === 'Identifier') return String(key['name'])
@@ -199,10 +190,8 @@ function signatures(literal: Node): Member[] {
     })
 }
 
-// Where a member carries its type, which is not the same place for the three
-// shapes a `TSMethodSignature` covers: a getter's is its return type and a
-// setter's is its parameter, both measured. A method has none to read and is a
-// `function`, which `method` says instead.
+// A getter carries its type as its return type, a setter as its parameter. A
+// method carries none to read: `method` fixes its kind instead.
 function annotationOf(one: Node): Node | undefined {
   // The type inside its wrapper, which every shape below carries.
   const inside = (wrapper: unknown) =>
@@ -231,11 +220,8 @@ function destructured(parameter: Node): Member[] {
     })
 }
 
-// Which props a pattern gives a default, and which of those defaults can be
-// written down. The two are not the same: `{ tone = compute() }` has a default,
-// so the prop is optional, but section 4.5 asks the CLI to guarantee what it
-// writes and a computed value does not survive JSON. So the name is kept and the
-// value is not.
+// Two sets, not one: `{ tone = compute() }` makes the prop optional, so its name
+// is kept, but a computed value does not survive JSON, so its value is not.
 function defaultsOf(parameter: Node): { named: Set<string>; values: Record<string, unknown> } {
   const named = new Set<string>()
   const values: Record<string, unknown> = {}
@@ -252,10 +238,8 @@ function defaultsOf(parameter: Node): { named: Set<string>; values: Record<strin
     if (name === undefined) continue
     named.add(name)
 
-    // `literalOf` and not `type === 'Literal'`: a bigint and a regular
-    // expression are `Literal` nodes too, and writing either one made
-    // `JSON.stringify` throw, which cost the whole manifest and the fingerprint
-    // with it. Measured. The rules live in `ast.ts`, once.
+    // `literalOf` and not `type === 'Literal'`: a bigint and a regexp are
+    // `Literal` nodes too, and `JSON.stringify` throws on both.
     const read = literalOf(value['right'] as Node)
     if (read) values[name] = read.value
   }
@@ -266,10 +250,8 @@ function defaultsOf(parameter: Node): { named: Set<string>; values: Record<strin
 // The block comment that ends just before a member, its JSDoc stars and margin
 // removed. Anything further up belongs to something else.
 function describe(source: string, comments: Comment[], at: number): string | undefined {
-  // JSDoc only, which is what section 3.1 promises. A `//` at the end of the
-  // previous member's line passed the whitespace check below and became this
-  // member's description; a `/* eslint-disable-next-line */` became a published
-  // one. Both measured.
+  // JSDoc only: a trailing `//` on the previous line, or an
+  // `/* eslint-disable-next-line */`, otherwise becomes a published description.
   const found = comments
     .filter((one) => one.end <= at && one.type === 'Block' && one.value.startsWith('*'))
     .at(-1)
@@ -326,11 +308,9 @@ function union(annotation: Node): { type: PropKind; options?: unknown[] } {
 
   if (literals.length !== types.length) return { type: 'unknown' }
 
-  // Through `literalOf` too: `-1` is a `UnaryExpression` under its
-  // `TSLiteralType`, so reading `value` gave `undefined`, which JSON writes as
-  // `null`. A union of three offered `[null, 0, 1]`, an option the type does not
-  // hold. Measured. One unreadable member drops the enum rather than the member,
-  // since a set missing one of its values is worse than no set at all.
+  // `literalOf` and not `value`: `-1` is a `UnaryExpression` under its
+  // `TSLiteralType`, and reading `value` would write `null` into the options.
+  // One unreadable member drops the whole enum, never just itself.
   const read = literals.map((one) => literalOf(one['literal'] as Node))
   if (read.some((one) => one === undefined)) return { type: 'unknown' }
 
