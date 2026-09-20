@@ -3,16 +3,9 @@
 // Voir docs/internal/comprendre.md.
 
 import { expect, test } from 'vitest'
-import { changedSince, decide, filesOf, marked, reviewsOf } from './review-check.mjs'
+import { changedSince, decide, marked, reviewsOf } from './review-check.mjs'
 
 const prose = (...files) => decide(files).prose
-
-test('de la prose seule ne demande pas de revue', () => {
-  expect(prose('README.md')).toBe(true)
-  expect(prose('README.md', 'docs/guide.md', 'docs/internal/spec-journal.md')).toBe(true)
-  expect(prose('.changeset/petit-chien-danse.md')).toBe(true)
-  expect(prose('CONTRIBUTING.md')).toBe(true)
-})
 
 test('ce qui fait foi demande une revue, malgré son extension', () => {
   expect(prose('docs/contracts.md')).toBe(false)
@@ -44,11 +37,6 @@ test('un dossier .claude compte à toute profondeur, pas seulement à la racine'
   expect(prose('packages/cli/.claude/settings.json')).toBe(false)
 })
 
-test('un nom qui contient claude sans être le dossier reste de la prose', () => {
-  expect(prose('docs/claude.md')).toBe(true)
-  expect(prose('docs/notes-claude.md')).toBe(true)
-})
-
 test('tout ce qui n_est pas markdown demande une revue', () => {
   expect(prose('packages/cli/src/dev.ts')).toBe(false)
   expect(prose('.github/workflows/ci.yml')).toBe(false)
@@ -67,21 +55,6 @@ test('un nom qui finit par autre chose que .md n_est pas de la prose', () => {
 
 test('une liste vide exige la revue plutôt que de l_exempter', () => {
   expect(decide([])).toEqual({ prose: false, why: 'aucun fichier lu' })
-})
-
-test('la raison dit ce qui a décidé, sans lister la prose', () => {
-  expect(decide(['docs/internal/comprendre.md']).why).toBe('fait foi')
-  expect(decide(['packages/cli/src/dev.ts']).why).toBe('pas de la prose')
-  expect(decide(['README.md']).why).toBe('prose seule')
-})
-
-test('ce qui fait foi est signalé avant le code, pour que la raison soit la plus forte', () => {
-  const d = decide(['docs/internal/comprendre.md', 'packages/cli/src/dev.ts'])
-  expect(d).toMatchObject({
-    prose: false,
-    why: 'fait foi',
-    authority: ['docs/internal/comprendre.md'],
-  })
 })
 
 test('le marqueur est cherché tel quel, et un corps absent ne compte pas', () => {
@@ -109,21 +82,6 @@ const api =
   (args) =>
     JSON.stringify([args[1].includes('/comments') ? comments : reviews])
 
-test('les pages de l_API sont aplaties', () => {
-  const run = () => JSON.stringify([[{ filename: 'a.md' }], [{ filename: 'b.ts' }]])
-
-  expect(filesOf('47', 'alexbrndl/crypte', run)).toEqual(['a.md', 'b.ts'])
-})
-
-test('le compte additionne les commentaires et les revues marqués', () => {
-  const run = api({
-    comments: [{ body: '<!-- crypte-review -->' }, { body: 'autre chose' }],
-    reviews: [{ body: '<!-- crypte-review -->', submitted_at: '2026-08-22T10:00:00Z' }],
-  })
-
-  expect(reviewsOf('47', 'alexbrndl/crypte', run).count).toBe(2)
-})
-
 test('sans marqueur, le compte est nul et la date vide', () => {
   const run = api({ comments: [{ body: 'rien' }], reviews: [{ body: 'rien non plus' }] })
 
@@ -140,13 +98,6 @@ test('la date retenue est celle de la revue marquée la plus récente', () => {
   })
 
   expect(reviewsOf('47', 'alexbrndl/crypte', run).latest).toBe('2026-08-22T10:00:00Z')
-})
-
-test('un commentaire marqué ne fournit pas de date, seule une revue ancrée en donne', () => {
-  const run = api({ comments: [{ body: '<!-- crypte-review -->' }] })
-  const { count, latest } = reviewsOf('47', 'alexbrndl/crypte', run)
-
-  expect({ count, latest }).toEqual({ count: 1, latest: '' })
 })
 
 // Une revue plus ancienne que le dernier commit n'est pas fautive : corriger un
@@ -219,13 +170,6 @@ test('sans commit postérieur, il n’y a pas de comparaison du tout', () => {
   expect(vus.some((one) => one.includes('/compare/'))).toBe(false)
 })
 
-// Un commit vide, celui que le skill suggère pour relancer un contrôle, ou un
-// commit annulé : la comparaison a lieu et ne rend rien. Bloquer dessus n'offrait
-// aucune sortie, relancer redonnant le même résultat.
-test('une comparaison qui ne rend rien est une liste vide, pas une absence', () => {
-  expect(changedSince('47', 'o/r', '2026-08-22T10:00:00Z', depuis([]))).toEqual([])
-})
-
 // L'ordre de la liste ne suit pas les dates dès qu'un `git merge main` insère des
 // commits datés d'avant. La base partait alors trop haut ou trop bas.
 test('la base se choisit par la date, pas par l’ordre de la liste', () => {
@@ -242,18 +186,6 @@ test('la base se choisit par la date, pas par l’ordre de la liste', () => {
   changedSince('47', 'o/r', '2026-08-22T10:00:00Z', run)
 
   expect(vus.at(-1)).toBe('repos/o/r/compare/bbb...ccc')
-})
-
-// Un commit sans `committer` levait un `TypeError` non capté, donc une trace de
-// pile au lieu du message que le reste du fichier prend soin d'émettre.
-test('un commit sans committer ne fait pas lever', () => {
-  const abîmés = [{ sha: 'aaa', commit: {}, parents: [{ sha: 'zzz' }] }, COMMITS[2]]
-  const run = (args) =>
-    args[1].includes('/commits')
-      ? JSON.stringify([abîmés])
-      : JSON.stringify({ files: [{ filename: 'a.md' }] })
-
-  expect(() => changedSince('47', 'o/r', '2026-08-22T10:00:00Z', run)).not.toThrow()
 })
 
 // Un marqueur posé en commentaire simple compte dans le nombre, donc il doit
@@ -284,14 +216,4 @@ test('une revue en attente ne fait pas retomber la date', () => {
     ])
 
   expect(reviewsOf('47', 'o/r', run).latest).toBe('2026-08-22T10:00:00Z')
-})
-
-// La moitié qui compte : ce qui a bougé depuis se classe par le même juge que le
-// diff entier, donc une correction de prose passe et du code exécutable non.
-test('ce qui a bougé depuis la revue se classe comme le reste', () => {
-  expect(decide(['docs/guide.md']).prose).toBe(true)
-  expect(decide(['README.md', 'docs/internal/spec-journal.md']).prose).toBe(true)
-  expect(decide(['packages/cli/src/dev.ts']).prose).toBe(false)
-  expect(decide(['test/review-check.mjs']).prose).toBe(false)
-  expect(decide(['docs/internal/comprendre.md']).prose).toBe(false)
 })

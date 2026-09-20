@@ -3,6 +3,7 @@
 // pas est la justesse de cette déclaration : voir le bloc en bas.
 // Voir docs/internal/comprendre.md.
 
+import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -57,6 +58,22 @@ test('seul le noyau déclare sideEffects: false', () => {
   )
 
   expect(déclarent).toEqual(['core'])
+})
+
+// La quatrième contrainte de `CLAUDE.md`, et la seule des quatre que rien ne
+// tenait. Son échec est muet ici, où `vite-plus` est installé, et bruyant chez
+// l'utilisateur, qui ne l'a pas.
+test('aucun code publié n’importe vite-plus', () => {
+  // `packages/*/src` ne rend rien : le `*` d'un pathspec git ne traverse pas le
+  // séparateur. Le filtre fait le travail que le motif ne fait pas.
+  const sources = execFileSync('git', ['ls-files', 'packages', 'apps/shell'], {
+    cwd: root,
+    encoding: 'utf8',
+  })
+    .split('\n')
+    .filter((f) => f.includes('/src/'))
+
+  expect(sources.filter((f) => lire(f).includes('vite-plus'))).toEqual([])
 })
 
 // **Ce que ce fichier ne garde pas, et pourquoi.** La justesse de

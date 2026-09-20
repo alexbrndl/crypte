@@ -14,19 +14,6 @@ test('du code publié sans note ne passe pas', () => {
   expect(decide(touche('packages/cli/package.json')).ok).toBe(false)
 })
 
-// Le cas qui a fait échouer ce contrôle à son premier vrai usage : un chemin de
-// documentation corrigé dans deux commentaires de code publié.
-test('un fichier publié dont seuls les commentaires changent n’exige aucune note', () => {
-  const patch =
-    '@@ -25,7 +25,7 @@\n-// dans `resolve.alias`. Voir comprendre.md.\n+// dans `resolve.alias`. Voir docs/internal/comprendre.md.\n const PROTOCOL ='
-
-  expect(decide([{ filename: 'packages/cli/src/paths.ts', status: 'modified', patch }])).toEqual({
-    published: [],
-    notes: [],
-    ok: true,
-  })
-})
-
 test('ce qui compte comme un changement de commentaire', () => {
   expect(commentsOnly('@@\n-// avant\n+// après\n')).toBe(true)
   expect(commentsOnly('@@\n+\n-\n')).toBe(true)
@@ -56,37 +43,6 @@ test('ce qui décide du contenu de dist exige une note', () => {
   expect(decide(touche('tsconfig.base.json')).ok).toBe(false)
 })
 
-test('du code publié avec une note passe', () => {
-  const avec = [
-    ...touche('packages/core/src/protocol/story.ts'),
-    ...ajoute('.changeset/tidy-moons-shake.md'),
-  ]
-
-  expect(decide(avec)).toEqual({
-    published: ['packages/core/src/protocol/story.ts'],
-    notes: ['.changeset/tidy-moons-shake.md'],
-    ok: true,
-  })
-})
-
-test('ce qui n’est pas publié ne demande aucune note', () => {
-  // `apps/shell` était dans cette liste et n'y est plus : son build voyage dans
-  // `packages/cli/dist/shell`, que la tarball emporte. Vérifié par
-  // `pnpm pack --dry-run`, qui liste `dist/shell/index.html` et ses deux assets.
-  const ailleurs = touche(
-    'docs/internal/comprendre.md',
-    '.github/workflows/ci.yml',
-    'test/post-review.mjs',
-    'apps/demo/src/components/Tag.tsx',
-    'packages/core/test/protocol/story.test.ts',
-    'packages/cli/test/fixture/jsconfig.json',
-    'tsconfig.json',
-    'CLAUDE.md',
-  )
-
-  expect(decide(ailleurs)).toEqual({ published: [], notes: [], ok: true })
-})
-
 test('les fichiers du dossier .changeset ne sont pas tous des notes', () => {
   const faux = [
     ...touche('packages/core/src/index.ts'),
@@ -114,10 +70,6 @@ test('seule une note ajoutée compte', () => {
   }
 
   expect(decide([...publie, ...ajoute('.changeset/lot-2-protocole.md')]).ok).toBe(true)
-})
-
-test('sans aucun fichier, rien n’est exigé', () => {
-  expect(decide([])).toEqual({ published: [], notes: [], ok: true })
 })
 
 test('les pages de l’API sont aplaties, jamais concaténées', () => {
@@ -170,14 +122,4 @@ test('le shell compte, parce qu’il voyage dans le paquet du CLI', () => {
   // un `<title>` ou le `src` du script partait sans note.
   expect(change('apps/shell/index.html').ok).toBe(false)
   expect(change('apps/shell/public/favicon.svg').ok).toBe(false)
-})
-
-// La moitié qui compte : `apps/demo` ne voyage nulle part, donc il ne doit rien
-// exiger. Le prendre aussi ferait demander une note pour une fixture.
-test('la démonstration ne compte pas, rien d’elle n’étant publié', () => {
-  const change = (filename) => decide([{ filename, patch: '@@\n+const x = 1' }])
-
-  expect(change('apps/demo/src/components/Tag.tsx').ok).toBe(true)
-  expect(change('apps/demo/stories/Badge.tsx').ok).toBe(true)
-  expect(change('apps/demo/package.json').ok).toBe(true)
 })

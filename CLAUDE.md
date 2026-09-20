@@ -2,6 +2,8 @@
 
 Lire `docs/internal/comprendre.md` avant toute modification de structure, et `docs/contracts.md` avant toute question de format, de manifeste, de protocole ou de plugin.
 
+**`docs/contracts.md` est un guide, pas une loi.** Il a été écrit au début, avant que le code existe, et la construction a corrigé plusieurs de ses affirmations. Quand le document et le code divergent, **c'est le code qui a raison et le document qui se corrige**, dans le même diff. `packages/core/test/spec.test.ts` tient déjà ce sens-là : il exige que le document décrive ce que le protocole expose, jamais l'inverse.
+
 Le détail du processus vit dans les skills, `/explore`, `/review` et `/changeset`, qui se chargent quand on en a besoin. Ce fichier-ci est lu à chaque session : il ne porte que ce qui doit être vrai tout le temps.
 
 ---

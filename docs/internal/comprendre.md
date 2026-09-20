@@ -1,6 +1,6 @@
 # Comprendre Crypte
 
-Ce fichier est le seul du dépôt à expliquer **comment le projet marche et pourquoi**. La spécification, elle, vit dans [`contracts.md`](../contracts.md), qui fait foi sur les formats, le manifeste, le protocole et les plugins.
+Ce fichier est le seul du dépôt à expliquer **comment le projet marche et pourquoi**. La spécification, elle, vit dans [`contracts.md`](../contracts.md), qui décrit les formats, le manifeste, le protocole et les plugins. C'est un guide : quand il contredit le code, c'est lui qui se corrige.
 
 Il ne porte que ce dont l’oubli ferait défaire un mécanisme par erreur. Pas de récit, pas de chiffre qui périme, pas de numéro d’issue. Chaque sujet a un titre court qu’un commentaire de code peut citer, et les décisions portent la ligne qui les rouvrirait.
 

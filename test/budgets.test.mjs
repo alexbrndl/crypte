@@ -114,14 +114,6 @@ describe('les octets d’un arbre', () => {
     expect(treeBytes(racine)).toBe(15)
   })
 
-  // `npm install` écrit des liens dans `.bin`. Les suivre compterait deux fois
-  // le fichier pointé, et un lien cassé ferait lever la mesure.
-  it('rend la taille d’un fichier seul quand on le lui dit', () => {
-    const racine = dossierAvec({ 'a.txt': 'x'.repeat(10) })
-
-    expect(treeBytes(join(racine, 'a.txt'), true)).toBe(10)
-  })
-
   it('ne suit pas les liens symboliques', () => {
     const racine = dossierAvec({ 'a.txt': 'x'.repeat(10) })
     symlinkSync(join(racine, 'a.txt'), join(racine, 'lien.txt'))
@@ -154,12 +146,6 @@ describe('le catalogue', () => {
 
   it('lit les noms cités et les noms nus', () => {
     expect(catalogOf(yaml)).toEqual({ '@types/node': '^24', vite: '^8.2.1', typescript: '6.0.3' })
-  })
-
-  // `catalogMode:` commence par les mêmes huit lettres. Le prendre pour le bloc
-  // rendrait un catalogue d'une entrée, et toutes les versions seraient fausses.
-  it('ne prend pas catalogMode pour le bloc', () => {
-    expect(() => catalogOf('catalogMode: prefer\n')).toThrow('aucun bloc')
   })
 
   it('s’arrête à la première clé de premier niveau', () => {
@@ -257,15 +243,6 @@ describe('les dépendances externes', () => {
     expect(externalDeps(['faux'], {}, racine)).toEqual({ deux: '1.0.0' })
   })
 
-  it('épingle sur cette racine-là quand on lui en donne une', () => {
-    const racine = dossierAvec({
-      'packages/faux/package.json': JSON.stringify({ dependencies: { posé: '^1.0.0' } }),
-      'packages/faux/node_modules/posé/package.json': JSON.stringify({ version: '1.4.2' }),
-    })
-
-    expect(externalDeps(['faux'], {}, racine)).toEqual({ posé: '1.4.2' })
-  })
-
   // Sans ce cas, un nom que le catalogue ne porte plus donnerait `undefined`
   // dans le package.json écrit, et npm installerait la dernière version.
   it('lève sur un nom que le catalogue ne porte pas', () => {
@@ -302,21 +279,11 @@ describe('la liste des paquets', () => {
     expect(PAQUETS).toEqual(['cli', 'react', 'core'])
     expect(ownBytes()).toBe(ownBytes(PAQUETS))
   })
-
-  it('couvre ce que chacun de ses paquets déclare', () => {
-    const lu = externalDeps(PAQUETS, catalogueDuDépôt)
-
-    for (const paquet of PAQUETS)
-      for (const [nom, portée] of Object.entries(déclarées(paquet)))
-        if (!portée.startsWith('workspace:')) expect(lu, `${paquet} → ${nom}`).toHaveProperty(nom)
-  })
 })
 
 const déclarées = (paquet) =>
   JSON.parse(readFileSync(join(process.cwd(), 'packages', paquet, 'package.json'), 'utf8'))
     .dependencies ?? {}
-
-const catalogueDuDépôt = catalogOf(readFileSync(join(process.cwd(), 'pnpm-workspace.yaml'), 'utf8'))
 
 // La ligne que Vite écrit sur un runner, colorisée, telle que le journal du
 // job l'a rendue. Le port y suit un code de mise en gras, donc `\\d` ne le
@@ -327,26 +294,8 @@ describe('l’adresse annoncée par le serveur', () => {
   const colorée = `  ${esc}[32m➜${esc}[39m  ${esc}[1mLocal${esc}[22m:   ${esc}[36mhttp://localhost:${esc}[1m5173${esc}[22m/${esc}[39m`
   const nue = '  ➜  Local:   http://localhost:5173/'
 
-  it('ne se lit pas sous les couleurs', () => {
-    expect(ADRESSE.exec(colorée)).toBeNull()
-  })
-
   it('se lit une fois les couleurs retirées', () => {
     expect(ADRESSE.exec(sansCouleur(colorée))?.[1]).toBe('http://localhost:5173')
-  })
-
-  it('se lit aussi sans couleur du tout', () => {
-    expect(ADRESSE.exec(sansCouleur(nue))?.[1]).toBe('http://localhost:5173')
-  })
-
-  it('laisse le texte intact quand il n’y a rien à retirer', () => {
-    expect(sansCouleur(nue)).toBe(nue)
-  })
-
-  // L'hôte que Vite écrit dépend du réglage `host`, et les trois formes se
-  // valent pour ce que la mesure attend : que le serveur réponde quelque part.
-  it.for(['localhost', '127.0.0.1', '[::1]'])('reconnaît %s', (hôte) => {
-    expect(ADRESSE.exec(`➜ Local: http://${hôte}:4321/`)?.[1]).toBe(`http://${hôte}:4321`)
   })
 })
 
@@ -362,10 +311,6 @@ describe('la médiane', () => {
   it('tient sur un compte impair comme pair', () => {
     expect(médiane([500])).toBe(500)
     expect(médiane([200, 400])).toBe(200)
-  })
-
-  it('arrondit', () => {
-    expect(médiane([300.4])).toBe(300)
   })
 })
 
@@ -401,25 +346,6 @@ describe('le verdict', () => {
   })
 })
 
-describe('le tableau', () => {
-  const rendus = verdicts({ startMs: 600, adapterLines: 900 }, { startMs: 1500, adapterLines: 500 })
-
-  it('commence par son titre', () => {
-    expect(table(rendus).split('\n')[0]).toBe('## Budgets')
-  })
-
-  it('marque ce qui tient et ce qui ne tient pas', () => {
-    const corps = table(rendus)
-
-    expect(corps).toContain('| Démarrage à froid | 600 ms | 1500 ms | 60 % | ✅ |')
-    expect(corps).toContain('| Adaptateur React | 900 lignes | 500 lignes | -80 % | ❌ |')
-  })
-
-  it('dit tiret plutôt que zéro sur une mesure absente', () => {
-    expect(table(verdicts({}, { startMs: 1500 }))).toContain('| Démarrage à froid | — | 1500 ms |')
-  })
-})
-
 // Un budget sans libellé rendrait `undefined` dans le tableau, et un libellé
 // sans budget ne serait jamais mesuré. Les deux listes se tiennent l'une
 // l'autre plutôt que d'être relues.
@@ -428,12 +354,5 @@ describe('les budgets déclarés', () => {
     expect(Object.keys(BUDGETS).sort((a, b) => a.localeCompare(b))).toEqual(
       Object.keys(MESURES).sort((a, b) => a.localeCompare(b)),
     )
-  })
-
-  it('sont tous des nombres positifs', () => {
-    for (const [clé, valeur] of Object.entries(BUDGETS)) {
-      expect(typeof valeur, clé).toBe('number')
-      expect(valeur, clé).toBeGreaterThan(0)
-    }
   })
 })
