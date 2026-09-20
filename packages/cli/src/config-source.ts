@@ -1,8 +1,5 @@
-// `crypte.config.ts` read as text, never run. Section 1.5 allows
-// `vite: { plugins: [react()] }` there, so running it in the browser would load
-// a Vite plugin reaching for `node:module`: the entry would fail before
-// `createPreviewChannel`, no `ready` would leave, and the shell would sit on an
-// empty frame with nothing to show. See docs/internal/architecture.md.
+// `crypte.config.ts` is read as text, never run: section 1.5 allows a Vite plugin
+// there, and loading one in the browser kills the entry before it can signal `ready`.
 
 import { readFileSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
@@ -12,17 +9,8 @@ import { ConfigError } from './errors'
 import { capture, isBareSpecifier } from './paths'
 import type { Project } from './project'
 
-// What the browser needs to build the adapter: the imports it uses, and the
-// expression itself, both taken from the project's configuration as text.
-//
-// Read and never executed. Importing `crypte.config.ts` from the preview looked
-// tidier and was wrong: section 1.5 allows `vite: { plugins: [react()] }` there,
-// so the browser would load a Vite plugin, which reaches for `node:module`. The
-// entry would fail before `createPreviewChannel`, so no `ready` would leave and
-// the shell would sit on an empty frame with nothing to show.
-//
-// Guessing a package from `adapter.name` is the other wrong answer: it breaks
-// the moment somebody wraps an adapter. The text says what the author wrote.
+// The imports and the expression the browser needs to build the adapter, as text.
+// Never guessed from `adapter.name`: that breaks the moment an adapter is wrapped.
 export function adapterSource(project: Project): { imports: string[]; expression: string } {
   return required(configSources(project).adapter)
 }
@@ -42,23 +30,15 @@ export function required(found: { imports: string[]; expression: string } | unde
   return found
 }
 
-// The packages the configuration imports for the preview, by their bare name.
-//
-// Vite pre-bundles these rather than serving them as graph modules. A linked
-// workspace package is the awkward middle case: it sits in `node_modules` but is
-// not pre-bundled, so its rewritten dependency URLs are never invalidated when
-// the optimiser rewrites its bundles. Measured on the demo: after two
-// re-optimisations the adapter was still served with two stale hashes, and the
-// browser assembled four generations at once, which is the missing export of
-// `DCJ-221`. See docs/internal/architecture.md.
+// The packages the configuration imports, by bare name, for Vite to pre-bundle.
+// A linked workspace package that is not pre-bundled keeps serving stale dependency
+// URLs across a re-optimisation. See docs/internal/architecture.md.
 export function configPackages(project: Project): string[] {
   const sources = configSources(project)
   const statements = [...(sources.adapter?.imports ?? []), ...(sources.wrap?.imports ?? [])]
 
-  // A specifier the project's own paths capture is one of its files, not a
-  // package: `@/adapters/mine` reads as bare and would be handed to the optimiser,
-  // which has no package to pre-bundle. Judged by the resolver's own `capture`
-  // rather than by a rule about `@`. Measured at exploration.
+  // `@/adapters/mine` reads as bare but is a project file the optimiser cannot
+  // pre-bundle. Judged by the resolver's own `capture`, never by a rule about `@`.
   const aliased = (one: string) =>
     Object.keys(project.paths?.paths ?? {}).some((pattern) => capture(pattern, one) !== null)
 
@@ -111,14 +91,8 @@ function fieldSource(
 
   const names = referenced(value)
 
-  // A name this file declares is something it computed, which the browser
-  // cannot reach: only the expression and its imports travel. `{ adapter }`
-  // written short emitted `const adapter = adapter`, and `const runtime =
-  // 'react'` used as `createAdapter({ runtime })` emitted the same kind of
-  // dangling name: a ReferenceError at load time, so before the channel opens,
-  // so an empty frame with nothing to say. Measured, both.
-  //
-  // Declared here rather than anywhere: a name that is neither declared nor
+  // Only the expression and its imports travel, so a name the file computes lands
+  // dangling in the browser. Declared names only: a name neither declared nor
   // imported is a global, and refusing those would refuse `process.env`.
   const own = declared(parsed.program.body as unknown as Node[])
   const built = [...names].find((name) => own.has(name))
@@ -129,11 +103,8 @@ function fieldSource(
     )
   }
 
-  // Only the imports the expression really names, read from the tree and not
-  // from the text. A word test also matches inside a string, so
-  // `createAdapter({ runtime: 'react' })` carried `import react from
-  // '@vitejs/plugin-react'` into the browser: the very thing reading rather
-  // than importing exists to avoid. Measured.
+  // Read from the tree, never from the text: a word test matches inside a string
+  // too, and `{ runtime: 'react' }` then carries `@vitejs/plugin-react` along.
   const needed = new Set<Node>()
   for (const name of names) {
     const one = locals.get(name)
@@ -145,11 +116,8 @@ function fieldSource(
   return { imports, expression: source.slice(value.start, value.end) }
 }
 
-// An import of the configuration, rewritten for the entry the browser loads. The
-// entry is a virtual module, so a relative specifier resolves against its own
-// path and not against the project: `./src/components/Frame` failed to resolve,
-// measured on the demo. Story files are already emitted root-absolute, and this
-// makes the configuration's imports travel the same way.
+// An import of the configuration, rewritten root-absolute: the entry is a virtual
+// module, so a relative specifier would resolve against it and not the project.
 function served(one: Node, source: string, field: string, root: string): string {
   const request = one['moduleRequest'] as Node | undefined
   const specifier = request?.['value'] as string | undefined
@@ -193,12 +161,8 @@ function declared(body: Node[]): Set<string> {
         ? ((node['declaration'] as Node | undefined) ?? node)
         : node
 
-    // Read from the shape, not from a list of node types. The list was the bug:
-    // it named `VariableDeclaration`, then `FunctionDeclaration` and
-    // `ClassDeclaration`, then `TSEnumDeclaration`, then `TSModuleDeclaration`,
-    // then `TSImportEqualsDeclaration`, one per review, each accepted until
-    // named. Every form that binds a name carries it in `id` or `declarations`,
-    // and nothing else at the top level of a module does.
+    // Read from the shape, never from a list of node types: every form that binds a
+    // name carries it in `id` or `declarations`, and a list keeps missing one.
     for (const name of bindings(one['id'] as Node | undefined)) found.add(name)
 
     for (const declarator of (one['declarations'] as Node[]) ?? []) {
@@ -211,10 +175,8 @@ function declared(body: Node[]): Set<string> {
   return found
 }
 
-// A `var` belongs to the file or to the function, never to the block it sits
-// in: `{ var runtime = 'react' }` declares `runtime` for everything after it.
-// Read statement by statement, it looked undeclared and the name left pending
-// towards the browser. Measured.
+// A `var` belongs to the file or the function, never to the block it sits in, so
+// `{ var runtime = 'react' }` declares `runtime` and a top-level read misses it.
 function hoisted(node: unknown, found: Set<string>): void {
   if (node === null || typeof node !== 'object') return
 
@@ -237,17 +199,9 @@ function hoisted(node: unknown, found: Set<string>): void {
   for (const held of Object.values(inner)) hoisted(held, found)
 }
 
-// Every name a binding position holds, read from the shape rather than from a
-// list of pattern types. That list was the same mistake as the one above, a
-// level down: `namespace runtime.deep` holds `runtime` in a qualified name, and
-// it read nothing. Measured.
-//
-// What is not a binding is skipped rather than tolerated, because this is read
-// in two senses that do not forgive the same error. For `declared`, a name too
-// many refuses a valid config with a message. For the names a function of the
-// expression carries, a name too many drops the import that name needed, so the
-// entry emits it dangling: `({ [field]: value }) => value` swallowed `field`,
-// which is an expression and never a binding. Measured.
+// Every name a binding position holds, read from the shape and not from a list of
+// pattern types. A name too many is never harmless: it refuses a valid config in
+// `declared`, and drops an import the entry needs in `referenced`.
 function bindings(node: Node | undefined): string[] {
   const found: string[] = []
 
@@ -298,11 +252,8 @@ const CARRIES = new Set([
 // of the file. Measured: it produced a false « builds itself » refusal.
 const MEMBERS = new Set(['MethodDefinition', 'PropertyDefinition', 'AccessorProperty'])
 
-// The `TS…` nodes that hold a value, so the only ones the walk enters. The five
-// expressions hold it under `expression`, a parameter property under
-// `parameter`, an enum member under `initializer`. A `namespace` is left out:
-// the configuration loader refuses one nested in an expression, measured, and
-// there is no other place for it. Voir docs/internal/architecture.md.
+// The `TS…` nodes that hold a value, and so the only ones the walk enters: one
+// missing here drops an import the entry needs. See docs/internal/architecture.md.
 const VALUED = new Set([
   'TSAsExpression',
   'TSSatisfiesExpression',
@@ -320,10 +271,8 @@ const VALUED = new Set([
 // Voir docs/internal/architecture.md.
 const TYPED = new Set(['typeAnnotation', 'typeArguments', 'typeParameters', 'returnType'])
 
-// The names an expression takes from outside itself. A string is not one, and
-// neither is a name that only sits where a name cannot be read: the key of an
-// object written `{ react: true }`, the property of an access written
-// `opts.react`. Both made `@vitejs/plugin-react` travel. Measured.
+// The names an expression takes from outside itself. A key (`{ react: true }`) and
+// a property (`opts.react`) are not names: counted, they carry an import along.
 function referenced(node: Node): Set<string> {
   const found = new Set<string>()
 
@@ -398,12 +347,9 @@ function referenced(node: Node): Set<string> {
   return found
 }
 
-// `export default defineConfig({ … })` or `export default { … }`, and the
-// `adapter` property of whichever it is.
-//
-// The property is read by `propertyOf`, the same reader the story files use: a
-// quoted key, a key written twice and a computed key each have a rule, and a
-// second copy of the three had all three wrong.
+// `export default defineConfig({ … })` or `export default { … }`, either form.
+// Read by `propertyOf`, the story files' reader: a second copy of its three rules
+// on quoted, repeated and computed keys had all three wrong.
 function fieldExpression(body: Node[], field: string): Node | undefined {
   const exported = body.find((node) => node.type === 'ExportDefaultDeclaration')
   const declaration = exported?.['declaration'] as Node | undefined

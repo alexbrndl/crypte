@@ -33,10 +33,8 @@ export async function loadProject(input: string): Promise<Project> {
     throw new ConfigError(`No ${CONFIG_FILE} at the root of the project (${root}).`)
   }
 
-  // Vite's loader rather than one more moving part: it transpiles the file and
-  // returns the dependencies to watch. It throws on a module with no default
-  // export, with a message about Vite configuration: catching it is the only
-  // way to name the file that is actually at fault.
+  // Vite's loader transpiles the file and returns the dependencies to watch. Its
+  // error names Vite's own configuration, so the catch is what names our file.
   let loaded: Awaited<ReturnType<typeof loadConfigFromFile>>
   try {
     loaded = await loadConfigFromFile(
@@ -100,20 +98,12 @@ export function viteConfigOf(project: Project): InlineConfig & { plugins: Plugin
   return {
     root,
     configFile: false,
-    // Ours, not `node_modules/.vite`. The project's own `vite dev` uses that
-    // one, and two servers with different plugins and different entries writing
-    // the same `_metadata.json` corrupt each other's optimised dependencies.
-    // Inside `node_modules` all the same, so it is already ignored and a
-    // `rm -rf node_modules` still clears it.
+    // Ours, not `node_modules/.vite`: sharing it with the project's own `vite dev`
+    // makes two servers corrupt each other's optimised dependencies.
     cacheDir: join(root, 'node_modules', '.crypte'),
-    // The resolver first, the project's plugins after: the first one only
-    // catches what it truly resolves, its fallback letting the rest through, so
-    // putting it in front takes nothing from anyone. A plugin that wants to run
-    // before it declares `enforce: 'pre'`, which Vite honours.
-    //
-    // The whole set runs after Vite's own resolvers, so a path meant to replace
-    // an installed package has no effect. That same order is what stops a
-    // catch-all pattern from hijacking relative imports.
+    // The resolver first: it only catches what it resolves and the rest falls
+    // through. The whole set runs after Vite's own, so a path can neither
+    // replace an installed package nor hijack a relative import.
     plugins: [...(paths ? [pathsPlugin(paths)] : []), ...(config.vite?.plugins ?? [])],
   }
 }
