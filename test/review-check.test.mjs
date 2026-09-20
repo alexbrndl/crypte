@@ -9,7 +9,7 @@ const prose = (...files) => decide(files).prose
 
 test('de la prose seule ne demande pas de revue', () => {
   expect(prose('README.md')).toBe(true)
-  expect(prose('README.md', 'docs/guide.md', 'docs/internal/plugins.md')).toBe(true)
+  expect(prose('README.md', 'docs/guide.md', 'docs/internal/spec-journal.md')).toBe(true)
   expect(prose('.changeset/petit-chien-danse.md')).toBe(true)
   expect(prose('CONTRIBUTING.md')).toBe(true)
 })
@@ -290,7 +290,7 @@ test('une revue en attente ne fait pas retomber la date', () => {
 // diff entier, donc une correction de prose passe et du code exécutable non.
 test('ce qui a bougé depuis la revue se classe comme le reste', () => {
   expect(decide(['docs/guide.md']).prose).toBe(true)
-  expect(decide(['README.md', 'docs/internal/plugins.md']).prose).toBe(true)
+  expect(decide(['README.md', 'docs/internal/spec-journal.md']).prose).toBe(true)
   expect(decide(['packages/cli/src/dev.ts']).prose).toBe(false)
   expect(decide(['test/review-check.mjs']).prose).toBe(false)
   expect(decide(['docs/internal/comprendre.md']).prose).toBe(false)
