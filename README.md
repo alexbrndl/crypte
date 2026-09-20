@@ -55,4 +55,4 @@ Each of these is a project in the tracker, with its own issues.
 
 **No telemetry in the CLI.** Not now, not later. Whatever `serve` reports in its paid mode will be documented before it exists rather than after.
 
-[`docs/internal/comprendre.md`](docs/internal/comprendre.md) carries the reasoning and what was turned down. `docs/internal/plugins.md` carries the status of each plugin, one line each.
+[`docs/internal/comprendre.md`](docs/internal/comprendre.md) carries the reasoning and what was turned down.
