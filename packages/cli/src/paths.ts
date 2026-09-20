@@ -22,13 +22,9 @@ const VIRTUAL = '\0'
 // An installed file, so foreign to the project and to its paths.
 const INSTALLED = /[\\/]node_modules[\\/]/
 
-// TypeScript picks between two patterns by the length of their fixed prefix,
-// and a pattern with no wildcard beats every other. Without this order, `@/*`
-// wins over `@/lib/*` as soon as both targets exist.
-//
-// Exported because the manifest producer ranks the same patterns, and two
-// orders would make a component resolve one way for the preview and another
-// way in the catalogue.
+// Longest fixed prefix first: without this order `@/*` wins over `@/lib/*` as
+// soon as both targets exist. Exported because the manifest producer ranks the
+// same patterns, and two orders resolve a component two different ways.
 export function ordered(paths: Record<string, string[]>): [string, string[]][] {
   return Object.entries(paths).sort(([a], [b]) => {
     const byPrefix = prefixOf(b).length - prefixOf(a).length
@@ -39,10 +35,8 @@ export function ordered(paths: Record<string, string[]>): [string, string[]][] {
   })
 }
 
-// A plugin rather than `resolve.alias`: an alias rewrites unconditionally,
-// where TypeScript tries the target and falls back to normal resolution when it
-// does not exist. That fallback is the whole difference, and `resolve.alias`
-// has no equivalent. See docs/internal/architecture.md.
+// A plugin, not `resolve.alias`: an alias rewrites unconditionally, where a missing
+// target must fall back to normal resolution. See docs/internal/architecture.md.
 export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
   const ranked = ordered(paths)
 
@@ -124,11 +118,8 @@ export function isBareSpecifier(id: string): boolean {
   return !PROTOCOL.test(id)
 }
 
-// A pattern carries at most one wildcard: matching it comes down to comparing a
-// prefix and a suffix, and returning what sits between them.
-//
-// Exported to be tested on its own: a wrong match is invisible from outside,
-// since the fallback simply hands the import back to Vite.
+// A pattern carries at most one wildcard. Exported to be tested directly: a wrong
+// match is invisible from outside, the fallback handing the import back to Vite.
 export function capture(pattern: string, id: string): string | null {
   const star = pattern.indexOf('*')
   if (star === -1) return id === pattern ? '' : null

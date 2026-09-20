@@ -25,21 +25,16 @@ export async function readProjectPaths(
   const seen: string[] = []
 
   for (const configName of CONFIG_NAMES) {
-    // `root` bounds the walk up: without it, a project with no configuration
-    // would inherit one from some parent folder.
-    // The file enters the list before it is even read: unreadable, without
-    // paths, or with some, changing it changes what gets resolved, so it has
-    // to trigger a reload.
+    // `root` bounds the walk up, or a project with no configuration inherits a
+    // parent's. Listed before being read: changing it must trigger a reload.
     seen.push(join(root, configName))
 
     let result: TSConfckParseResult
     try {
       result = await parse(resolve(root, PROBE), { configName, root })
     } catch (cause) {
-      // A missing `extends` target happens every day: `./.nuxt/tsconfig.json`
-      // before `nuxt prepare`, or `@tsconfig/node22` in a clone with no
-      // install. Paths are an improvement, not a condition to start: move on to
-      // the next file rather than stopping everything.
+      // A missing `extends` target is routine: `.nuxt/tsconfig.json` before
+      // `nuxt prepare`. Paths are an improvement, not a condition to start.
       if ((cause as { code?: string }).code === 'EXTENDS_RESOLVE') {
         // Kept for the end: the next file may provide the paths, and warning
         // about a loss that does not happen is barely better than silence.

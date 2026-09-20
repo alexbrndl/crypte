@@ -11,12 +11,8 @@ import { storyFilesOf, type Catalogue } from './manifest'
 import { cssEntryOf, type Project } from './project'
 import { configSources, required } from './config-source'
 
-// The shell is built ahead of time and copied into `dist/shell` when the CLI is
-// packed. It knows no framework: it reads a manifest and talks over the channel.
-//
-// Resolved from the package root rather than from this file, which sits in
-// `src/` before the build and in `dist/` after it. Walking up to `package.json`
-// gives the same answer in both cases.
+// Walks up to `package.json` rather than resolving from this file, which sits in
+// `src/` before the build and in `dist/` after it.
 function packageRoot(): string {
   let here = dirname(fileURLToPath(import.meta.url))
 
@@ -37,9 +33,7 @@ const SHELL = join(packageRoot(), 'dist', 'shell')
 export const PREVIEW_ENTRY = '/@crypte/preview.js'
 
 // Rollup's mark for a module that has no file. Without it the entry is taken for
-// a path, and every import inside it resolves against a folder that does not
-// exist. Measured: `@crypte/core/preview` was looked for six levels above the
-// project.
+// a path, and every import inside it resolves against a folder that does not exist.
 const VIRTUAL = '\0'
 
 // The id the module graph knows the entry by. Exported so a rebuild can
@@ -83,17 +77,13 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
   return {
     name: 'crypte:serve',
 
-    // `custom`, not `spa`: Vite's fallback rewrites every unknown URL to
-    // `/index.html`, so `/preview.html` and the manifest route were both served
-    // the shell's page. Measured. Every route this plugin answers is claimed
-    // here, and there is nothing left to guess.
+    // `custom`, not `spa`: Vite's `spa` fallback rewrites every unknown URL to
+    // `/index.html`, so `/preview.html` and the manifest get the shell's page.
     config() {
       return {
         appType: 'custom',
-        // The channel comes from the CLI's own dependencies, never from the
-        // project's. Section 1.4 of docs/contracts.md: a user installs two
-        // packages, and `@crypte/core` is not one of them. Without this alias
-        // the preview asks their project for a package they never declared.
+        // Without this alias the preview asks the user's project for
+        // `@crypte/core`, which it never installed. Section 1.4 of docs/contracts.md.
         resolve: { alias: { '@crypte/core/preview': channelPath() } },
       }
     },
@@ -145,10 +135,8 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
     load(id) {
       if (id !== PREVIEW_ENTRY_ID) return undefined
 
-      // Typed here rather than by Vite: a virtual module is not transformed by
-      // its extension, measured. The entry copies the configuration's own
-      // expression, so `adapter: createAdapter() as Kind` reached the browser as
-      // TypeScript and died on a `SyntaxError`. `DCJ-224`.
+      // Compiled here: a virtual module is not transformed by its extension, and
+      // the entry copies the configuration's TypeScript expression verbatim.
       return compiled(previewEntry(project, storyFilesOf(current())), project.root, dev, (one) =>
         this.warn(one),
       )
@@ -187,16 +175,9 @@ function previewHtml(): string {
 // See docs/internal/architecture.md.
 const OWN = '__crypte_'
 
-// Replaying the last render on a hot update, rather than letting Vite reload the
-// page. The entry has no parent to propagate to, so without this every keystroke
-// in a component reloads the iframe and remounts the whole tree.
-//
-// Through the channel, never around it: it owns what was last asked for and the
-// reporting that goes with it. Drawing from here left a failing edit throwing
-// into this callback, so no `error` reached the shell.
-//
-// The catalogue does not change here: a file whose stories changed name or count
-// makes the server reload the page instead. See docs/internal/architecture.md.
+// The entry has no parent to propagate to: without this, every keystroke in a
+// component reloads the iframe and remounts the tree. Replayed through the
+// channel, never from here, so a failing edit reaches the shell as an `error`.
 function hot(files: string[]): string[] {
   if (files.length === 0) return []
 
@@ -293,11 +274,8 @@ export function previewEntry(project: Project, files: string[] = []): string {
 
   return [
     `import { createPreviewChannel as ${OWN}channelOf, propsOfStory as ${OWN}propsOf, wrapsOf as ${OWN}wrapsOf } from '@crypte/core/preview'`,
-    // Deduplicated across the two fields: `adapter` and `wrap` can come from the
-    // same `import`, and emitting it twice is a `SyntaxError: Identifier … has
-    // already been declared`. The preview then never loads, so no story renders
-    // at all. Measured, and the demo misses it: its two names come from two
-    // files.
+    // `adapter` and `wrap` can come from the same `import`, and emitting it twice
+    // is a `SyntaxError: Identifier … has already been declared`.
     ...new Set([...adapter.imports, ...(wrap?.imports ?? [])]),
     ...(css ? [`import ${JSON.stringify(css)}`] : []),
     '',

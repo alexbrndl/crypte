@@ -12,10 +12,8 @@ export interface PreviewHandlers {
 export interface PreviewChannel {
   // Stops listening.
   dispose(): void
-  // Draws the last story again, through the same path. A hot update changes the
-  // modules, not what is on screen, and drawing it from the outside would skip
-  // the reporting: a failing edit threw into the update callback, so no `error`
-  // left and the shell kept the previous output with a « rendered » status.
+  // Draws the last story again through the same path: drawing it from outside
+  // skips the error reporting, and the shell stays on `rendered`.
   again(): void
 }
 
@@ -67,13 +65,9 @@ export function createPreviewChannel(handlers: PreviewHandlers): PreviewChannel 
   }
 }
 
-// The props a named story passes to its component: the shared block first, its
-// own on top, and the shell's overrides last. The merge is shallow, prop by
-// prop, which is why two mutually exclusive props need an explicit reset:
-// section 2.3 of docs/contracts.md.
-//
-// Here rather than in an adapter: merging plain objects knows no framework, and
-// two adapters doing it apart would drift the day one of them learns something.
+// Merge order: the shared block, the story's own props, then the shell's
+// overrides. Shallow prop by prop, so two mutually exclusive props need an
+// explicit reset: section 2.3 of docs/contracts.md.
 export function propsOfStory(
   definition: { props?: Record<string, unknown>; stories?: Record<string, unknown> },
   name: string,
