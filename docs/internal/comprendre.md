@@ -134,11 +134,18 @@ Dans un objet, une valeur que JSON ne sait pas porter fait tomber sa seule clé 
 
 `component` et `meta` sont montrés en partie, `fichier#export` et le statut, et repliés en entier dans le condensé : sinon un champ ajouté à `ComponentRef` ne se verrait nulle part. La liste des champs montrés ne nomme donc que ce qui est intégralement montré. Une story sans `meta` reçoit le statut `none`, sinon lui ajouter `status: 'draft'` ne changerait pas l'empreinte, alors que c'est ce qu'elle sert à suivre. Les props viennent de l'entrée et jamais de `details` : `details` est la surface du composant, `props` ce que cette story pose. Le tri des props ici est une défense et non la garantie du producteur, cette fonction acceptant n'importe quel manifeste, y compris écrit ailleurs.
 
-### `test/manifest-size.mjs` est la source des chiffres, pas un test
+### Pourquoi le manifeste complet n'est pas commité, et l'empreinte oui
 
-Il fabrique des manifestes synthétiques et affiche ce qu'ils pèsent, bruts et compressés. Il n'assertionne rien et ne tourne pas en intégration continue : il existe parce que la décision de ne pas commiter le manifeste complet repose sur ses chiffres, et sans lui cette décision devient une opinion. Graine fixe, sinon deux lancements ne se comparent pas. Vocabulaires séparés jusqu'à l'intérieur d'une entrée, sinon gzip écrase la redondance et la mesure ne vaut rien. Gzip seul en sortie : sur un vocabulaire aussi restreint, brotli annonçait un gain qui n'était pas crédible.
+Mesuré sur des manifestes synthétiques, à vocabulaires séparés pour que gzip n'écrase pas une redondance artificielle.
 
-*Rouvre si : un changement du format du manifeste, qui demande de remesurer.*
+| 500 entrées | Brut | Gzip |
+| -- | --: | --: |
+| Manifeste complet | 706 Ko | 83 Ko |
+| Empreinte réduite | 131 Ko | **9 Ko**, soit 268 o par story |
+
+C'est l'historique qui tranche : deux mille versions du manifeste complet pèsent **162 Mo** dans le dépôt, et 3,4 Mo si Git ne stocke que les deltas — ce qu'il ne garantit pas. L'empreinte rend la question sans objet.
+
+*Rouvre si : le format du manifeste change, ce qui demande de remesurer. Le script qui produisait ces chiffres a été retiré, ses 207 lignes ne servant qu'une fois.*
 
 ## 4. Le serveur de développement
 
