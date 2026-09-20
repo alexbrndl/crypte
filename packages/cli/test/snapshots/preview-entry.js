@@ -61,7 +61,7 @@ if (import.meta.hot) {
 
       __crypte_modules[__crypte_paths[index]] = module
 
-      // A repaired file forgets its failure: architecture.md says why.
+      // A repaired file forgets its failure: comprendre.md says why.
       delete __crypte_broken[__crypte_paths[index]]
     })
 

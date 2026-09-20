@@ -1,6 +1,6 @@
 // Le classement décide si une revue est exigée. Ce qu'il laisse passer par erreur
 // rend vert un contrôle qui ne vérifie plus rien, d'où les cas négatifs.
-// Voir docs/internal/architecture.md.
+// Voir docs/internal/comprendre.md.
 
 import { expect, test } from 'vitest'
 import { changedSince, decide, filesOf, marked, reviewsOf } from './review-check.mjs'
@@ -9,25 +9,25 @@ const prose = (...files) => decide(files).prose
 
 test('de la prose seule ne demande pas de revue', () => {
   expect(prose('README.md')).toBe(true)
-  expect(prose('README.md', 'docs/guide.md', 'docs/internal/architecture.md')).toBe(true)
+  expect(prose('README.md', 'docs/guide.md', 'docs/internal/plugins.md')).toBe(true)
   expect(prose('.changeset/petit-chien-danse.md')).toBe(true)
   expect(prose('CONTRIBUTING.md')).toBe(true)
 })
 
 test('ce qui fait foi demande une revue, malgré son extension', () => {
   expect(prose('docs/contracts.md')).toBe(false)
-  expect(prose('docs/decisions.md')).toBe(false)
+  expect(prose('docs/internal/comprendre.md')).toBe(false)
   expect(prose('CLAUDE.md')).toBe(false)
   expect(prose('.claude/skills/review/SKILL.md')).toBe(false)
 })
 
 test('un seul fichier qui fait foi suffit à exiger la revue', () => {
-  expect(prose('README.md', 'docs/guide.md', 'docs/decisions.md')).toBe(false)
+  expect(prose('README.md', 'docs/guide.md', 'docs/internal/comprendre.md')).toBe(false)
 })
 
 test('les dossiers comptent comme les fichiers, pour que scinder ne relâche rien', () => {
   expect(prose('docs/contracts/section-6.md')).toBe(false)
-  expect(prose('docs/decisions/2026-08.md')).toBe(false)
+  expect(prose('docs/internal/comprendre/2026-08.md')).toBe(false)
 })
 
 test('CLAUDE.md compte à toute profondeur', () => {
@@ -70,14 +70,18 @@ test('une liste vide exige la revue plutôt que de l_exempter', () => {
 })
 
 test('la raison dit ce qui a décidé, sans lister la prose', () => {
-  expect(decide(['docs/decisions.md']).why).toBe('fait foi')
+  expect(decide(['docs/internal/comprendre.md']).why).toBe('fait foi')
   expect(decide(['packages/cli/src/dev.ts']).why).toBe('pas de la prose')
   expect(decide(['README.md']).why).toBe('prose seule')
 })
 
 test('ce qui fait foi est signalé avant le code, pour que la raison soit la plus forte', () => {
-  const d = decide(['docs/decisions.md', 'packages/cli/src/dev.ts'])
-  expect(d).toMatchObject({ prose: false, why: 'fait foi', authority: ['docs/decisions.md'] })
+  const d = decide(['docs/internal/comprendre.md', 'packages/cli/src/dev.ts'])
+  expect(d).toMatchObject({
+    prose: false,
+    why: 'fait foi',
+    authority: ['docs/internal/comprendre.md'],
+  })
 })
 
 test('le marqueur est cherché tel quel, et un corps absent ne compte pas', () => {
@@ -286,8 +290,8 @@ test('une revue en attente ne fait pas retomber la date', () => {
 // diff entier, donc une correction de prose passe et du code exécutable non.
 test('ce qui a bougé depuis la revue se classe comme le reste', () => {
   expect(decide(['docs/guide.md']).prose).toBe(true)
-  expect(decide(['README.md', 'docs/internal/architecture.md']).prose).toBe(true)
+  expect(decide(['README.md', 'docs/internal/plugins.md']).prose).toBe(true)
   expect(decide(['packages/cli/src/dev.ts']).prose).toBe(false)
   expect(decide(['test/review-check.mjs']).prose).toBe(false)
-  expect(decide(['docs/decisions.md']).prose).toBe(false)
+  expect(decide(['docs/internal/comprendre.md']).prose).toBe(false)
 })

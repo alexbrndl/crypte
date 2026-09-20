@@ -1,6 +1,6 @@
 # Instructions pour les agents
 
-Lire `docs/internal/architecture.md` avant toute modification de structure, et `docs/contracts.md` avant toute question de format, de manifeste, de protocole ou de plugin.
+Lire `docs/internal/comprendre.md` avant toute modification de structure, et `docs/contracts.md` avant toute question de format, de manifeste, de protocole ou de plugin.
 
 Le détail du processus vit dans les skills, `/explore`, `/review` et `/changeset`, qui se chargent quand on en a besoin. Ce fichier-ci est lu à chaque session : il ne porte que ce qui doit être vrai tout le temps.
 
@@ -47,7 +47,7 @@ gh pr create --draft --title "…"    # 1. jamais directement ouverte
 gh pr ready <numéro>                 # 6. une fois les points traités
 ```
 
-**La seule exception, et elle est mécanique.** Un diff dont tous les fichiers sont des `.md`, aucun n'étant `docs/contracts.md`, `docs/decisions.md`, un `CLAUDE.md` ni quoi que ce soit sous `.claude/`, saute les étapes 3 et 4. `require-review.yml` le constate tout seul.
+**La seule exception, et elle est mécanique.** Un diff dont tous les fichiers sont des `.md`, aucun n'étant `docs/contracts.md`, `docs/internal/comprendre.md`, un `CLAUDE.md` ni quoi que ce soit sous `.claude/`, saute les étapes 3 et 4. `require-review.yml` le constate tout seul.
 
 Ces quatre formes ne sont pas de la prose malgré leur extension : les deux premières font foi, les deux dernières portent ces règles-ci, donc une erreur dedans se propage à toutes les sessions suivantes.
 
@@ -59,7 +59,7 @@ _Pourquoi cette exception existe :_ deux revues d'affilée ont rendu un verdict 
 
 **Une décision de conception qui arrive en cours de pull request devient une issue.** Renommer un champ, réorganiser des fichiers, ajouter un mécanisme d'extension : chacune crée une surface qu'aucune revue n'a vue. Ouvrir l'issue, la lier, continuer.
 
-**Une décision se note quand elle est prise**, dans `docs/decisions.md`, avant la fin de la session. Ce qu'on fait, ce qu'on écarte, pourquoi, et **ce qui la rouvrirait**. Le dernier champ est celui qui manque partout ailleurs.
+**Une décision se note quand elle est prise**, dans `docs/internal/comprendre.md`, avant la fin de la session. Ce qu'on fait, ce qu'on écarte, pourquoi, et **ce qui la rouvrirait**. Le dernier champ est celui qui manque partout ailleurs.
 
 **Ce qui reste non corrigé après une revue devient une issue**, avec ce qui a été mesuré et pourquoi ce n'est pas fait ici. **Sauf une observation**, qui se corrige dans le même passage ou se tait : trois issues sont nées de cette lecture-là pour des broutilles de deux lignes, et c'est la seule catégorie que la vérification fabrique elle-même.
 
@@ -96,13 +96,13 @@ fix: resolve aliases from jsconfig  plutôt que   correction du bug
 
 ## Documentation
 
-**Une ligne, ou rien.** Un en-tête de module tient en une ligne, un commentaire aussi. Ce qui ne tient pas va dans `docs/internal/architecture.md`, et le commentaire y renvoie d'un mot.
+**Une ligne, ou rien.** Un en-tête de module tient en une ligne, un commentaire aussi. Ce qui ne tient pas va dans `docs/internal/comprendre.md`, et le commentaire y renvoie d'un mot.
 
 Écrire **le fait, pas le raisonnement.** `« button-- pour tout nom cyrillique »` se comprend, `« la normalisation restreinte à l'alphabet latin provoquait une perte de segments »` ne se comprend pas. Quand l'explication ne passe pas en une ligne, se demander d'abord si le problème n'est pas le nom ou le code.
 
 **Pas de documentation pour du code qui se lit tout seul.** Documenter tout produit de la documentation que personne ne lit, donc aucune documentation.
 
-**`docs/internal/architecture.md` ne se met à jour que si l'oublier casserait quelque chose.** Un mécanisme dont on peut oublier la raison, et qu'on supprimerait alors par erreur, y va avec ce qui casse si on l'enlève. Le reste, non.
+**`docs/internal/comprendre.md` ne se met à jour que si l'oublier casserait quelque chose.** Un mécanisme dont on peut oublier la raison, et qu'on supprimerait alors par erreur, y va avec ce qui casse si on l'enlève. Le reste, non.
 
 **Ordre d'un fichier.** Le type principal en premier, ses pièces ensuite, le point d'extension en dernier. Sauf pour un fichier de réexports : un groupe par module, un commentaire d'une ligne par groupe, et dans un groupe les noms suivent l'ordre de leur fichier source, pas l'alphabet.
 

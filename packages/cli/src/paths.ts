@@ -36,7 +36,7 @@ export function ordered(paths: Record<string, string[]>): [string, string[]][] {
 }
 
 // A plugin, not `resolve.alias`: an alias rewrites unconditionally, where a missing
-// target must fall back to normal resolution. See docs/internal/architecture.md.
+// target must fall back to normal resolution. See docs/internal/comprendre.md.
 export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
   const ranked = ordered(paths)
 

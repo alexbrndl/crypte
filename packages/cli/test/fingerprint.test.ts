@@ -7,8 +7,8 @@ import { FINGERPRINT, fingerprintOf, writeFingerprint } from '../src/fingerprint
 import { buildCatalogue, storiesOf } from '../src/manifest'
 import { loadProject } from '../src/project'
 
-// L'empreinte commitée. Voir docs/decisions.md, « The manifest is a build
-// artefact, and a small fingerprint is committed ».
+// L'empreinte commitée. Voir docs/internal/comprendre.md, « Ce que le condensé
+// garde de chaque story ».
 
 const here = dirname(fileURLToPath(import.meta.url))
 const fixture = join(here, 'fixture')

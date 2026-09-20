@@ -202,7 +202,7 @@ test('un verdict vide ou mal formé ne fait pas tomber le contrôle', () => {
 
 // Les portions du diff. L'API refuse l'appel entier en 422 pour un seul point
 // posé hors portion, donc le script doit le voir avant elle.
-// Voir docs/internal/architecture.md.
+// Voir docs/internal/comprendre.md.
 
 const DIFF = [
   'diff --git a/x.ts b/x.ts',
@@ -284,7 +284,7 @@ test('lit les portions fichier par fichier, et rend la main quand git échoue', 
 // Le câblage réel, pas un lanceur injecté : ces deux commandes git ne
 // s'exécutaient jamais, donc une erreur d'arguments passait au vert. Sur un dépôt
 // jetable, parce que les exécuter ici rendrait le résultat dépendant de la
-// branche courante. Voir docs/internal/architecture.md.
+// branche courante. Voir docs/internal/comprendre.md.
 const MODULE = pathToFileURL(join(process.cwd(), 'test', 'post-review.mjs')).href
 
 // Un dépôt d'un commit sur `main`, plus ce que `suite` y ajoute sur une branche.

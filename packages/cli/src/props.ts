@@ -168,7 +168,7 @@ function nameOf(key: Node, computed: boolean): string | undefined {
 
 // The named members of an interface body or a type literal. `onClick(): void`
 // read as a property was absent, and the pattern rescued it as optional. An
-// index signature names nothing, so it is not one. See docs/internal/architecture.md.
+// index signature names nothing, so it is not one. See docs/internal/comprendre.md.
 function signatures(literal: Node): Member[] {
   const found = (literal['body'] ?? literal['members']) as Node[] | undefined
 

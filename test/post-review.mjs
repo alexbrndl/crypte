@@ -1,7 +1,7 @@
 // Poste un verdict de revue sur la pull request, et vérifie qu'il y est arrivé.
 //
 // Deux lots, vingt et une relectures, deux revues postées : c'est l'étape qui se
-// perd. Voir docs/internal/architecture.md.
+// perd. Voir docs/internal/comprendre.md.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'

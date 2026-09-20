@@ -13,7 +13,7 @@ import { previewEntry } from '../src/serve'
 // Un import relatif en ressort en chemin absolu depuis la racine : l'entrée est
 // un module virtuel, donc `./src/x` y résoudrait contre son propre chemin. Mesuré
 // sur la démonstration, où le `wrap` global ne chargeait pas.
-// Voir docs/internal/architecture.md.
+// Voir docs/internal/comprendre.md.
 
 // Une fixture plutôt qu'une fonction libre : vitest la démonte après chaque cas,
 // même si le cas lève. Écrite en fonction, elle laissait un dossier par appel,
@@ -747,7 +747,7 @@ describe('les noms que l’entrée déclare', () => {
 
 // Les paquets que l'optimiseur doit pré-empaqueter, tirés des mêmes imports. Un
 // paquet lié servi comme module du graphe garde des URL de dépendances périmées,
-// ce qui est `DCJ-221`. Voir docs/internal/architecture.md.
+// ce qui est `DCJ-221`. Voir docs/internal/comprendre.md.
 describe('les paquets de la configuration', () => {
   const paquets = (
     spec: string,

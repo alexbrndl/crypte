@@ -1,5 +1,5 @@
 // What an object literal gives up when its text is read rather than run.
-// One reader for the whole CLI, a second copy drifts: see docs/internal/architecture.md.
+// One reader for the whole CLI, a second copy drifts: see docs/internal/comprendre.md.
 
 export interface Node {
   type: string

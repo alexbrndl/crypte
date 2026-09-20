@@ -231,7 +231,7 @@ Le CLI les déclare en dépendance et les active quand aucune configuration ne d
 
 Le CLI exporte un tableau `defaultPlugins` à étaler, pour qui veut le préréglage plus les siens. **Personne ne se demande jamais d'où sort un plugin qu'il n'a pas écrit.**
 
-**Contrainte dure qui vient avec : un plugin par défaut doit être invisible quand il n'a rien à dire.** Pas de section vide dans la sidebar, pas de message « aucun token détecté ». C'est la règle `inapplicable` de `decisions.md`, et elle cesse d'être du confort ici : ces trois plugins tournent chez des gens qui ne les ont pas demandés.
+**Contrainte dure qui vient avec : un plugin par défaut doit être invisible quand il n'a rien à dire.** Pas de section vide dans la sidebar, pas de message « aucun token détecté ». C'est la règle `inapplicable` de `docs/internal/comprendre.md`, et elle cesse d'être du confort ici : ces trois plugins tournent chez des gens qui ne les ont pas demandés.
 
 ---
 

@@ -1,4 +1,4 @@
-// Le code publié est en anglais. Voir docs/internal/architecture.md.
+// Le code publié est en anglais. Voir docs/internal/comprendre.md.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'

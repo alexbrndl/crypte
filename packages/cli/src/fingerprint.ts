@@ -1,4 +1,4 @@
-// The committed shape of a catalogue. See docs/decisions.md and section 4 of
+// The committed shape of a catalogue. See docs/internal/comprendre.md and section 4 of
 // docs/contracts.md.
 
 import { createHash } from 'node:crypto'

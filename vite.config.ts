@@ -3,7 +3,7 @@ import { defineConfig } from 'vite-plus'
 // Les réglages que tout projet de test doit avoir. Écrits ici parce que le projet
 // `shell` étend la configuration du shell, pas la racine : sans eux, ses cas
 // tournaient dans un ordre fixe et avec le défaut d'une seconde d'`expect.poll`.
-// Voir docs/internal/architecture.md.
+// Voir docs/internal/comprendre.md.
 const partagé = {
   testTimeout: 20_000,
   hookTimeout: 30_000,
@@ -53,7 +53,7 @@ export default defineConfig({
     // `**/.crypte/**` : l'empreinte est écrite par la suite et commitée, donc
     // deux mécanismes se disputaient sa forme. Le formateur compactait ses
     // tableaux au commit, l'écriture les dépliait au test suivant, et l'arbre
-    // n'était jamais propre. Voir docs/internal/architecture.md.
+    // n'était jamais propre. Voir docs/internal/comprendre.md.
     // Les instantanés sont écrits par vitest et relus en revue : le formateur et
     // l'écriture se disputeraient leur forme, comme ils l'ont fait pour
     // l'empreinte.
@@ -69,7 +69,7 @@ export default defineConfig({
     //
     // Les seuils sont au plancher mesuré, pas à 100 : un seuil qu'on baisse pour
     // faire passer un lot ne garde plus rien. Ils montent quand un lot les
-    // dépasse. Voir docs/internal/architecture.md.
+    // dépasse. Voir docs/internal/comprendre.md.
     coverage: {
       include: ['packages/*/src/**', 'apps/shell/src/**'],
 
@@ -91,7 +91,7 @@ export default defineConfig({
       // `test/coverage-report.mjs`, donc par le contrôle `coverage` de la pull
       // request : évalués aux deux endroits, ils rougissaient deux fois pour la
       // même raison et le contrôle visible n'attrapait rien de plus.
-      // `pnpm ready` les applique en local. Voir docs/internal/architecture.md.
+      // `pnpm ready` les applique en local. Voir docs/internal/comprendre.md.
     },
 
     // Les cas navigateur et le rechargement à chaud copient un projet par cas et

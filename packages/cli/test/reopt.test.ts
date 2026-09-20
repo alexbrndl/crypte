@@ -12,7 +12,7 @@ import { startDev } from '../src/dev'
 //
 // Sans le pré-empaquetage, le navigateur assemblait quatre générations de paquets,
 // signalait un export `t` manquant, et `#root` restait vide pour toujours,
-// rechargement compris. Voir docs/internal/architecture.md.
+// rechargement compris. Voir docs/internal/comprendre.md.
 //
 // La condition est un optimiseur **froid**, et le cas l'affirme au lieu de la
 // supposer : `cpSync` emporte `node_modules`, donc le cache d'optimisation de la

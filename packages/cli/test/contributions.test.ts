@@ -248,7 +248,7 @@ describe('la garantie de sérialisation', () => {
     ])
   })
 
-  // Laisser tomber la clé a été essayé et repris, voir docs/internal/architecture.md.
+  // Laisser tomber la clé a été essayé et repris, voir docs/internal/comprendre.md.
   it('refuse une clé requise laissée à undefined plutôt que de l’abandonner', async () => {
     const catalogue = await build(
       contributing('p', () => [{ ...tokens('color--brand'), tokens: undefined }]),

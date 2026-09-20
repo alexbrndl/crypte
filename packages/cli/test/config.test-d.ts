@@ -4,7 +4,7 @@ import type { CrypteConfig } from '../src/config'
 // Le cinquième budget de `DCJ-176` : « configuration obligatoire, racine des
 // stories et adaptateur, rien d'autre ». C'est un type et pas un chiffre, donc
 // il se tient ici et non dans `test/budgets.mjs`.
-// Voir docs/internal/architecture.md.
+// Voir docs/internal/comprendre.md.
 
 type Requises<T> = {
   [K in keyof T]-?: object extends Pick<T, K> ? never : K

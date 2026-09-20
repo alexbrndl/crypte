@@ -16,7 +16,7 @@ import { storyFilesOf } from '../src/manifest'
 
 // Ce que l'utilisateur voit vraiment, dans un navigateur. Les autres cas
 // prouvent que les routes répondent ; ceux-ci prouvent qu'une story s'affiche,
-// ce qu'un code HTTP ne dit pas. Voir docs/internal/architecture.md.
+// ce qu'un code HTTP ne dit pas. Voir docs/internal/comprendre.md.
 //
 // Mesuré à l'écriture : les quatre routes répondaient 200 et la page restait
 // blanche, le bundle du shell étant en 404.

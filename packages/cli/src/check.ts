@@ -19,7 +19,7 @@ export interface Problem {
 
 // Which files are opened, not which ones count: the parser refuses every other
 // extension anyway. It is a read filter, and the tree it walks is a project's,
-// so the measure is on a real one. See docs/internal/architecture.md.
+// so the measure is on a real one. See docs/internal/comprendre.md.
 const READ = ['.tsx', '.jsx', '.ts', '.js']
 
 // A story whose component is gone. The producer resolves `component.file`

@@ -1,5 +1,5 @@
 // `crypte dev`: reads the project, writes the catalogue, serves both pages, and
-// keeps them in step with the files. See docs/internal/architecture.md.
+// keeps them in step with the files. See docs/internal/comprendre.md.
 
 import { join } from 'node:path'
 import { readFileSync, watch, type FSWatcher } from 'node:fs'
@@ -67,7 +67,7 @@ export async function startDev(
   const config = viteConfigOf(project)
 
   // Pre-bundled: a linked workspace package served as a graph module keeps stale
-  // dependency URLs across a re-optimisation. See docs/internal/architecture.md.
+  // dependency URLs across a re-optimisation. See docs/internal/comprendre.md.
   const server = await createServer({
     ...config,
     optimizeDeps: { ...config.optimizeDeps, include: configPackages(project) },

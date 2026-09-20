@@ -38,9 +38,9 @@ docs/                             public documents, in English
 docs/internal/                    maintainer notes, in French
 ```
 
-`docs/contracts.md` is the reference for the story format, the manifest, the protocol and the plugin contract. `docs/internal/architecture.md` explains what each mechanism is for and what breaks without it.
+`docs/contracts.md` is the reference for the story format, the manifest, the protocol and the plugin contract. `docs/internal/comprendre.md` explains what each mechanism is for and what breaks without it.
 
-**Design notes stay in French.** What you read to use Crypte, or to propose a change, is in English. What is written for the maintainer is not: those are precise rules, and a loose translation would lose more than it gains. The choice, what was turned down, and what would reopen it are in `docs/decisions.md`.
+**Design notes stay in French.** What you read to use Crypte, or to propose a change, is in English. What is written for the maintainer is not: those are precise rules, and a loose translation would lose more than it gains. The choice, what was turned down, and what would reopen it are in `docs/internal/comprendre.md`.
 
 ## Module format
 
@@ -69,7 +69,7 @@ One branch per change, named in kebab-case.
 
 Before opening a pull request, check that `vp check`, `vp run -r pack` and `vp test` pass locally. Continuous integration replays all three on Node 22 and 24, and also checks that the committed generated exports are up to date.
 
-**If your change adds a moving part** — a workflow, a script, a configuration that encodes a decision, or a test whose assertion is not obvious — update `docs/internal/architecture.md` with three answers: what it does, why it exists, and what breaks if you remove it.
+**If your change adds a moving part** — a workflow, a script, a configuration that encodes a decision, or a test whose assertion is not obvious — update `docs/internal/comprendre.md` with three answers: what it does, why it exists, and what breaks if you remove it.
 
 The other way round: do not document code that reads by itself.
 

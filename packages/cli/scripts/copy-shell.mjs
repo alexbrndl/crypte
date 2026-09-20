@@ -1,9 +1,9 @@
 // Copie le shell construit dans `dist/shell`, où `serve.ts` le cherche.
 //
 // Le shell est une application privée, pas un paquet publié : la décision et ses
-// raisons sont dans docs/decisions.md. D'où cette copie, et d'où la dépendance
+// raisons sont dans docs/internal/comprendre.md. D'où cette copie, et d'où la dépendance
 // de développement sur `@crypte/shell`, qui n'existe que pour que `vp run -r
-// pack` construise le shell avant ce script. Voir docs/internal/architecture.md.
+// pack` construise le shell avant ce script. Voir docs/internal/comprendre.md.
 
 import { cpSync, existsSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'

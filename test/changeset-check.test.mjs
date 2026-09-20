@@ -18,7 +18,7 @@ test('du code publié sans note ne passe pas', () => {
 // documentation corrigé dans deux commentaires de code publié.
 test('un fichier publié dont seuls les commentaires changent n’exige aucune note', () => {
   const patch =
-    '@@ -25,7 +25,7 @@\n-// dans `resolve.alias`. Voir architecture.md.\n+// dans `resolve.alias`. Voir docs/internal/architecture.md.\n const PROTOCOL ='
+    '@@ -25,7 +25,7 @@\n-// dans `resolve.alias`. Voir comprendre.md.\n+// dans `resolve.alias`. Voir docs/internal/comprendre.md.\n const PROTOCOL ='
 
   expect(decide([{ filename: 'packages/cli/src/paths.ts', status: 'modified', patch }])).toEqual({
     published: [],
@@ -74,7 +74,7 @@ test('ce qui n’est pas publié ne demande aucune note', () => {
   // `packages/cli/dist/shell`, que la tarball emporte. Vérifié par
   // `pnpm pack --dry-run`, qui liste `dist/shell/index.html` et ses deux assets.
   const ailleurs = touche(
-    'docs/internal/architecture.md',
+    'docs/internal/comprendre.md',
     '.github/workflows/ci.yml',
     'test/post-review.mjs',
     'apps/demo/src/components/Tag.tsx',

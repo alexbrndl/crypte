@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-// L'étanchéité des trois entrées, lue sur les bundles. Voir docs/internal/architecture.md.
+// L'étanchéité des trois entrées, lue sur les bundles. Voir docs/internal/comprendre.md.
 
 const dist = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist')
 
@@ -109,7 +109,7 @@ describe('isolation des entrées de @crypte/core', () => {
   // la barrière leur faisait embarquer `id.ts` et `manifest.ts` en code mort.
   // Sur la fermeture, comme les autres cas. Une version antérieure exigeait de
   // `ui` qu'il n'ait aucun import relatif : c'est le critère que la section 4 de
-  // `docs/internal/architecture.md` déclare invalide, et il aurait rougi le jour
+  // `docs/internal/comprendre.md` déclare invalide, et il aurait rougi le jour
   // où `ui` lit une valeur du canal, sans qu'aucune étanchéité soit rompue.
   //
   // Le cas est aujourd'hui vacant pour `ui`, qui n'importe que des types : il

@@ -12,7 +12,7 @@ import {
 
 // Ce que l'inférence du paquet promet, éprouvé à la compilation. Aucun test
 // d'exécution ne peut le voir : dégrader `PropsOf` en `any` laissait `vp check`
-// et les 480 cas au vert, mesuré. Voir docs/internal/architecture.md.
+// et les 480 cas au vert, mesuré. Voir docs/internal/comprendre.md.
 
 interface BadgeProps {
   label: string

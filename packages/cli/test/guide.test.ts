@@ -7,7 +7,7 @@ import { projectPathsOf } from '../src/config-paths'
 import { loadProject } from '../src/project'
 
 // Les exemples du guide, exécutés. Un exemple faux vaut moins que pas d'exemple :
-// il apprend à ne plus les lire. Voir docs/internal/architecture.md.
+// il apprend à ne plus les lire. Voir docs/internal/comprendre.md.
 
 const here = dirname(fileURLToPath(import.meta.url))
 const guide = readFileSync(join(here, '..', '..', '..', 'docs', 'guide.md'), 'utf8')

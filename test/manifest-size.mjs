@@ -1,5 +1,5 @@
 // Ce que pèse un manifeste, et ce que coûterait d'en garder l'historique.
-// N'assertionne rien, se lance à la main. Voir docs/internal/architecture.md.
+// N'assertionne rien, se lance à la main. Voir docs/internal/comprendre.md.
 
 import { createHash } from 'node:crypto'
 import { gzipSync } from 'node:zlib'

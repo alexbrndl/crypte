@@ -1,4 +1,4 @@
-// Reading story files, without running them. See docs/internal/architecture.md.
+// Reading story files, without running them. See docs/internal/comprendre.md.
 
 import { readFileSync } from 'node:fs'
 import { relative, sep } from 'node:path'
@@ -7,7 +7,7 @@ import { parseSync } from 'vite'
 import { keyOf, literalOf, propertyOf, type Node } from './ast'
 
 // The four extensions a project can write. A project without TypeScript writes
-// its stories in JavaScript: see docs/decisions.md.
+// its stories in JavaScript: see docs/internal/comprendre.md.
 export const STORY_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx']
 
 // The name a story gets when the file declares none: section 2.2 of contracts.
@@ -55,7 +55,7 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
     // shell: a wrapper written `export default memo(Frame)`, a barrel that
     // re-exports `defineStories`, a helper that imports it to wrap it, all read
     // as a story under one shape rule or another. Measured, one counterexample
-    // per branch. Voir docs/internal/architecture.md.
+    // per branch. Voir docs/internal/comprendre.md.
     const called = calls(body, named)
 
     return {
@@ -172,7 +172,7 @@ type StoriesRead =
   | { kind: 'unusable'; reason: string }
 
 // The one place that decides. A fourth kind stops compiling on the `never`
-// below. See docs/internal/architecture.md.
+// below. See docs/internal/comprendre.md.
 function produced(read: StoriesRead): { stories: Declared[]; reason?: string } {
   switch (read.kind) {
     case 'noBlock':

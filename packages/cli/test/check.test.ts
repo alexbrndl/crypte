@@ -399,7 +399,7 @@ describe('le composant sans story', () => {
   // Deux mécanismes donnent ce résultat, et le filtre d'extensions n'est pas
   // celui qui décide : l'analyseur refuse `.vue` et `.css` de toute façon.
   // Mesuré, le retirer ne fait rougir aucun cas. Il reste pour ce qu'il fait
-  // vraiment, éviter la lecture. Voir docs/internal/architecture.md.
+  // vraiment, éviter la lecture. Voir docs/internal/comprendre.md.
   test('se tait sur un fichier d’une autre extension', async () => {
     const root = projectWith({
       'crypte.config.ts': CONFIG,
