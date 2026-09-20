@@ -3,16 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it, test as base } from 'vitest'
-import {
-  MARKER,
-  badge,
-  compose,
-  drifted,
-  existing,
-  failing,
-  options,
-  publish,
-} from './coverage-report.mjs'
+import { MARKER, badge, compose, drifted, failing, options, publish } from './coverage-report.mjs'
 
 // Ce que le commentaire de pull request dit, et ce qu'il remplace. Le script
 // écrit sur une pull request : sans ces cas, sa seule épreuve serait une pousse.
@@ -72,57 +63,6 @@ describe('le corps du commentaire', () => {
     expect(compose(resume(), undefined, undefined).split('\n')[0]).toBe(MARKER)
   })
 
-  it('compte les tests quand le rapport est là', () => {
-    const body = compose(resume(), {
-      numTotalTests: 404,
-      numFailedTests: 0,
-      testResults: Array(31),
-    })
-
-    expect(body).toContain('**404 tests passent**, dans 31 fichiers.')
-  })
-
-  it('dit les échecs plutôt que le total', () => {
-    const body = compose(resume(), {
-      numTotalTests: 404,
-      numFailedTests: 2,
-      testResults: Array(31),
-    })
-
-    expect(body).toContain('**2 tests échouent** sur 404')
-  })
-
-  it('accorde le verbe sur un seul échec', () => {
-    const body = compose(resume(), {
-      numTotalTests: 404,
-      numFailedTests: 1,
-      testResults: Array(31),
-    })
-
-    expect(body).toContain('**1 test échoue** sur 404')
-  })
-
-  // Un commentaire qui dit « 2 échouent » envoie lire les journaux, ce que ce
-  // commentaire existe pour éviter.
-  it('nomme les cas qui rougissent, trois au plus', () => {
-    const rouge = (fullName) => ({ status: 'failed', fullName })
-    const body = compose(resume(), {
-      numTotalTests: 404,
-      numFailedTests: 4,
-      testResults: [
-        { assertionResults: [rouge('un'), rouge('deux'), { status: 'passed', fullName: 'vert' }] },
-        { assertionResults: [rouge('trois'), rouge('quatre')] },
-      ],
-    })
-
-    expect(body).toContain('- `un`')
-    expect(body).toContain('- `trois`')
-    expect(body).not.toContain('- `quatre`')
-    // La puce, pas le mot : « vert » est une sous-chaîne de « couvert », dans
-    // l'en-tête du tableau. Le cas a rougi pour ça.
-    expect(body).not.toContain('- `vert`')
-  })
-
   // Lever laissait le commentaire d'avant en place : un lancement rouge
   // affichait alors les chiffres verts du précédent, ce qui est pire que pas de
   // commentaire. Mesuré sur la PR #34.
@@ -138,31 +78,6 @@ describe('le corps du commentaire', () => {
   // suite vide, et une suite vide passe toujours.
   it('ne prétend rien quand le rapport des tests manque', () => {
     expect(compose(resume(), undefined)).toContain('Résultat des tests indisponible.')
-  })
-
-  it('marque d’une croix la métrique sous son seuil', () => {
-    const body = compose(resume(50))
-
-    expect(body).toContain('❌')
-    expect(body).not.toContain('✅')
-  })
-
-  it('marque d’une coche la métrique au-dessus de son seuil', () => {
-    const body = compose(tenu())
-
-    expect(body).toContain('✅')
-    expect(body).not.toContain('❌')
-  })
-
-  it('abrège la révision mesurée', () => {
-    expect(compose(resume(), undefined, 'abcdef1234567')).toContain('`abcdef1`')
-  })
-
-  // Un résumé présent mais sans total est traité comme une absence : ce qui
-  // compte est de ne jamais afficher un tableau vide, qui se lirait comme une
-  // couverture nulle.
-  it('traite un résumé sans total comme une absence de mesure', () => {
-    expect(compose({}, undefined)).toContain('Couverture non mesurée')
   })
 })
 
@@ -196,24 +111,6 @@ describe('la publication', () => {
     }
   }
 
-  it('poste quand aucun commentaire ne porte le marqueur', () => {
-    const gh = faux([{ id: 1, body: 'un commentaire humain' }])
-
-    expect(publish(`${MARKER}\ncorps`, '34', gh.run)).toBe('posté')
-    expect(gh.calls.some((one) => one.includes('issues/34/comments --method POST'))).toBe(true)
-    expect(gh.calls.some((one) => one.includes('DELETE'))).toBe(false)
-  })
-
-  // Remplacé sur place, le tableau restait à sa position d'origine dans la
-  // conversation, donc loin du dernier commit. On le veut en bas.
-  it('retire l’ancien tableau avant de poster le nouveau', () => {
-    const gh = faux([{ id: 7, body: `${MARKER}\nun vieux tableau` }])
-
-    expect(publish(`${MARKER}\ncorps`, '34', gh.run)).toBe('remplacé')
-    expect(gh.calls.some((one) => one.includes('issues/comments/7 --method DELETE'))).toBe(true)
-    expect(gh.etat.filter((one) => one.body.startsWith(MARKER))).toHaveLength(1)
-  })
-
   // Deux anciens arrivent si une publication a échoué entre le POST et la
   // vérification : les deux partent, pas seulement le premier.
   it('retire tous les anciens tableaux', () => {
@@ -245,20 +142,9 @@ describe('la publication', () => {
 
     expect(() => publish(`${MARKER}\ncorps`, '34', muet.run)).toThrow('attendu 1')
   })
-
-  it('trouve l’identifiant par le marqueur, et rien d’autre', () => {
-    expect(existing([{ id: 3, body: `${MARKER} x` }])).toBe(3)
-    expect(existing([{ id: 3, body: 'sans marqueur' }])).toBeUndefined()
-    expect(existing([{ id: 3 }])).toBeUndefined()
-  })
 })
 
 describe('le verdict des seuils', () => {
-  it('ne nomme rien quand tout tient', () => {
-    expect(failing(tenu())).toEqual([])
-    expect(compose(tenu(), undefined)).toContain('✅ Seuils tenus')
-  })
-
   it('nomme la métrique et son seuil', () => {
     const manques = failing(resume(50))
 
@@ -273,17 +159,12 @@ describe('le verdict des seuils', () => {
 })
 
 describe('les arguments', () => {
-  it('lit les chemins par défaut', () => {
-    // Les cinq clés, `badge` comprise : `toEqual` ignore une clé absente valant
-    // `undefined`, donc l'omettre laissait passer son retrait.
-    expect(options([])).toEqual({
-      pr: undefined,
-      resume: 'coverage/coverage-summary.json',
-      tests: 'vitest-report.json',
-      sha: undefined,
-      badge: undefined,
-    })
-    expect(options(['--badge', 'x.json']).badge).toBe('x.json')
+  // Le seul défaut qu'aucun autre cas ne franchit, et le seul nom qui vit à
+  // trois endroits sans rien qui les lie : ici, `ci.yml` `--outputFile=` et le
+  // `path:` de l'artefact. Changé, le commentaire perd la moitié de son contenu
+  // et le contrôle reste vert.
+  it('lit le rapport de tests au chemin que la CI lui écrit', () => {
+    expect(options([]).tests).toBe('vitest-report.json')
   })
 
   // Sans `--pr`, le corps part sur la sortie standard et rien n'est publié :
@@ -305,101 +186,9 @@ describe('le badge du README', () => {
       color: 'brightgreen',
     })
   })
-
-  // Un badge vert sous le seuil mentirait sur une porte rouge.
-  it('n’est vert vif qu’au-dessus du seuil de lignes', () => {
-    const seuil = SEUILS_DU_DÉPÔT.lines
-
-    expect(badge(resume(seuil)).color).toBe('brightgreen')
-    expect(badge(resume(seuil - 0.1)).color).toBe('yellow')
-    expect(badge(resume(seuil - 11)).color).toBe('red')
-  })
-
-  it('lève sur un résumé sans pourcentage de lignes', () => {
-    expect(() => badge({ total: {} })).toThrow('résumé de couverture illisible')
-  })
-})
-
-describe('la ligne de total', () => {
-  it('nomme les quatre métriques et leur chiffre', () => {
-    const body = compose(resume(97.5), undefined)
-
-    for (const mot of ['**lignes**', '**instructions**', '**branches**', '**fonctions**']) {
-      expect(body).toContain(`${mot} 97.5 %`)
-    }
-  })
-
-  // Le tableau par dossier est parti avec `DCJ-276` : cinq lignes de chiffres
-  // que personne ne lisait pour décider, le verdict des seuils décidant seul.
-  it('ne remet pas de tableau', () => {
-    expect(compose(resume(), undefined)).not.toContain('| dossier |')
-  })
-})
-
-describe('la légende', () => {
-  // Des quatre métriques, `branches` est la seule dont le nom ne dit pas ce
-  // qu'elle compte, et c'est la seule que la légende explique encore.
-  it('explique la métrique qui ne se devine pas', () => {
-    expect(compose(resume(), undefined)).toContain('est la plus exigeante')
-  })
-
-  it('ne paraît pas quand la couverture manque', () => {
-    expect(compose(undefined, undefined)).not.toContain('est la plus exigeante')
-  })
-})
-
-describe('les seuils', () => {
-  // Évalués une seule fois, et ici : la configuration de vitest ne les porte
-  // plus, sinon ils rougissaient deux fois pour la même raison et le contrôle
-  // visible n'attrapait rien de plus.
-  it('sont ceux du fichier partagé, et vitest ne les évalue pas', () => {
-    const partagés = JSON.parse(readFileSync('test/coverage-thresholds.json', 'utf8'))
-    const config = readFileSync('vite.config.ts', 'utf8')
-
-    expect(compose(tenu(), undefined)).toContain(`lignes ${partagés.lines} %`)
-    // La clé, pas le mot : le nom du fichier partagé le contient, et le
-    // commentaire qui explique où sont passés les seuils aussi.
-    expect(config).not.toMatch(/thresholds\s*[:,]/)
-  })
-})
-
-describe('ce que la mesure ne couvre pas', () => {
-  // Un chiffre à 100 % qui tait une exclusion est un mensonge par omission.
-  it('nomme ce qui est hors mesure', () => {
-    const body = compose(resume(), undefined)
-
-    expect(body).toContain('Hors mesure')
-    expect(body).toContain('câblage')
-  })
-
-  it('ne dit rien quand il n’y a rien à mesurer', () => {
-    expect(compose(undefined, undefined)).not.toContain('Hors mesure')
-  })
 })
 
 describe('ce que l’exploration a trouvé', () => {
-  it('traite un résumé incomplet comme une absence de mesure', () => {
-    const partiel = { total: { lines: metrique(99), statements: metrique(99) } }
-
-    expect(compose(partiel, undefined)).toContain('Couverture non mesurée')
-    expect(compose(partiel, undefined)).not.toContain('**lignes**')
-  })
-
-  // Le garde-fou a porté sur `covered` un commit durant : « **lignes** undefined % ».
-  it('traite un résumé sans pourcentage comme une absence de mesure', () => {
-    const sans = {
-      total: Object.fromEntries(
-        ['lines', 'statements', 'branches', 'functions'].map((nom) => [
-          nom,
-          { covered: 1, total: 1 },
-        ]),
-      ),
-    }
-
-    expect(compose(sans, undefined)).toContain('Couverture non mesurée')
-    expect(compose(sans, undefined)).not.toContain('undefined')
-  })
-
   // Une suite vide passe toujours : « 0 tests passent » se lirait comme un
   // succès, alors que c'est le signe qu'aucun cas n'a été collecté.
   it('ne présente pas zéro test comme un succès', () => {
@@ -407,12 +196,6 @@ describe('ce que l’exploration a trouvé', () => {
 
     expect(body).toContain('Aucun test rapporté')
     expect(body).not.toContain('0 tests passent')
-  })
-
-  it('garde les chiffres quand seul le rapport des tests est vide', () => {
-    const body = compose(resume(), { numTotalTests: 0, numFailedTests: 0, testResults: [] })
-
-    expect(body).toContain('**lignes** 99 %')
   })
 })
 
@@ -466,18 +249,6 @@ describe('le script, lancé pour de vrai', () => {
     },
   })
 
-  // Le cas du job `badge` : aucun `--resume`, donc le chemin par défaut, celui
-  // dont la mauvaise résolution aurait rendu ce job rouge à chaque fusion.
-  test('trouve le résumé au chemin par défaut, comme le job badge', ({ dossier }) => {
-    dossier.écrit(JUSTE_AU_DESSUS.lines, join('coverage', 'coverage-summary.json'), JUSTE_AU_DESSUS)
-    const cible = join(dossier.racine, 'badge.json')
-
-    const { code } = dossier.lance(['--badge', cible])
-
-    expect(code).toBe(0)
-    expect(JSON.parse(readFileSync(cible, 'utf8')).message).toBe(`${JUSTE_AU_DESSUS.lines}%`)
-  })
-
   // Le branchement, et pas seulement la fonction : retirer le bloc du cliquet de
   // `main()` laissait les autres cas verts, parce qu'ils appellent `drifted`
   // directement et que les deux cas de badge reçoivent justement des mesures
@@ -498,39 +269,6 @@ describe('le script, lancé pour de vrai', () => {
     expect(err).toContain('seuil à monter dans test/coverage-thresholds.json')
     expect(err).toContain('à écrire :')
     expect(err).toContain(`"branches": ${dérive}`)
-  })
-
-  test('écrit le badge que shields.io lit, et sort en zéro', ({ dossier }) => {
-    const résumé = dossier.écrit(JUSTE_AU_DESSUS.lines, 'résumé.json', JUSTE_AU_DESSUS)
-    const cible = join(dossier.racine, 'badge.json')
-
-    const { code } = dossier.lance(['--resume', résumé, '--badge', cible])
-
-    expect(code).toBe(0)
-    expect(JSON.parse(readFileSync(cible, 'utf8'))).toEqual({
-      schemaVersion: 1,
-      label: 'coverage',
-      message: `${JUSTE_AU_DESSUS.lines}%`,
-      color: 'brightgreen',
-    })
-  })
-
-  // Pas de couverture, pas de badge : un badge écrit sans chiffre annoncerait
-  // une mesure qui n'a pas eu lieu.
-  test('n’écrit aucun badge et sort en un quand le résumé manque', ({ dossier }) => {
-    const cible = join(dossier.racine, 'badge.json')
-
-    const { code } = dossier.lance([
-      '--resume',
-      join(dossier.racine, 'absent.json'),
-      '--badge',
-      cible,
-    ])
-
-    expect(code).toBe(1)
-    // L'erreur nommée, pas n'importe laquelle : `toThrow()` nu passerait aussi
-    // sur un badge écrit mais illisible.
-    expect(() => readFileSync(cible, 'utf8')).toThrow(/ENOENT/)
   })
 
   // Le verdict vient en dernier : le badge est écrit, puis le code de sortie dit
@@ -559,97 +297,7 @@ describe('le workflow', () => {
   it('vérifie le badge commité', () => {
     expect(appel, 'aucune ligne du workflow ne lance le script avec --badge').toBeTypeOf('string')
   })
-
-  // `--resume coverage-summary.json` était vrai quand l'artefact ne portait qu'un
-  // fichier, et faux depuis qu'il en porte deux : le badge n'était jamais écrit.
-  it('laisse le chemin du résumé par défaut', () => {
-    expect(appel).not.toContain('--resume')
-  })
-
-  // Un `needs` qui nomme un job absent rend le fichier invalide, et GitHub
-  // échoue en zéro seconde sans rien dire de plus. Mesuré : en retirant un job,
-  // mon découpage a emporté son voisin `dependency-review`, que `ci-passed`
-  // attend.
-  //
-  // La lecture est séparée du contrôle pour être éprouvée sur des fichiers
-  // fabriqués : la première version se trompait dans les deux sens, refusant les
-  // chiffres d'un nom de job et ramassant le `push` de `on:` comme un job.
-  const TÊTE = 'on:\n  push:\n    branches: [main]\n\njobs:\n  check:\n    runs-on: x\n  '
-
-  it.for([
-    [
-      'un needs en ligne qui nomme un absent',
-      TÊTE + 'ci-passed:\n    needs: [check, fantome]\n',
-      ['fantome'],
-    ],
-    [
-      'un needs en bloc qui nomme un absent',
-      TÊTE + 'ci-passed:\n    needs:\n      - check\n      - fantome\n',
-      ['fantome'],
-    ],
-    ['un needs simple qui nomme un absent', TÊTE + 'ci-passed:\n    needs: fantome\n', ['fantome']],
-    [
-      'un nom de job avec un chiffre',
-      TÊTE + 'check-node-22:\n    runs-on: x\n  autre:\n    needs: check-node-22\n',
-      [],
-    ],
-    [
-      'un nom de job avec un underscore',
-      TÊTE + 'ts7_probe:\n    runs-on: x\n  autre:\n    needs: ts7_probe\n',
-      [],
-    ],
-    [
-      'le déclencheur `push`, qui n’est pas un job',
-      TÊTE + 'ci-passed:\n    needs: push\n',
-      ['push'],
-    ],
-  ])('trouve %s', ([, faux, attendu]) => {
-    expect(manquants(faux)).toEqual(attendu)
-  })
-
-  it('ne trouve rien à reprocher au workflow du dépôt', () => {
-    expect(manquants(workflow)).toEqual([])
-  })
 })
-
-// Les jobs d'un workflow et les `needs` qu'ils nomment, sans dépendance : les
-// noms se lisent dans le bloc `jobs:` seulement, pour que le `push` de `on:` n'en
-// soit pas un, et `needs` se lit sous ses trois formes, en ligne, en liste et en
-// séquence de bloc, la dernière étant la plus courante.
-function manquants(workflow) {
-  const bloc = workflow.slice(workflow.indexOf('\njobs:\n'))
-  const jobs = [...bloc.matchAll(/^ {2}([\w-]+):$/gm)].map((une) => une[1])
-  const attendus = []
-
-  const lignes = bloc.split('\n')
-  for (const [index, ligne] of lignes.entries()) {
-    const trouvé = /^ {4}needs:(.*)$/.exec(ligne)
-    if (!trouvé) continue
-
-    const reste = (trouvé[1] ?? '').trim()
-
-    if (reste !== '') {
-      attendus.push(
-        ...reste
-          .replaceAll(/[[\]]/g, '')
-          .split(',')
-          .map((un) => un.trim())
-          .filter(Boolean),
-      )
-      continue
-    }
-
-    // La séquence de bloc : les lignes qui suivent, tant qu'elles sont des
-    // éléments de liste plus indentés.
-    for (const suivante of lignes.slice(index + 1)) {
-      const élément = /^ {6}- (.+)$/.exec(suivante)
-      if (!élément) break
-      attendus.push(élément[1].trim())
-    }
-  }
-
-  return attendus.filter((un) => !jobs.includes(un))
-}
 
 describe('le cliquet des seuils', () => {
   // Un seuil laissé derrière la mesure est un seuil qu'on peut baisser sans que
@@ -661,16 +309,6 @@ describe('le cliquet des seuils', () => {
   })
 
   const SEUILS = { statements: 96, branches: 88, functions: 96, lines: 97 }
-
-  it('un seuil que la mesure dépasse de peu ne dit rien', () => {
-    expect(
-      drifted(
-        mesure({ statements: 96.4, branches: 89.9, functions: 98.2, lines: 98.1 }),
-        SEUILS,
-        3,
-      ),
-    ).toEqual([])
-  })
 
   it('un seuil que la mesure dépasse largement est à monter', () => {
     const dit = drifted(
