@@ -1,4 +1,5 @@
-// Un document cité mais introuvable ne fait rougir personne.
+// Un document cité mais introuvable ne fait rougir personne : un déplacement de
+// dossier en a cassé plusieurs d'un coup, dont deux dans du code publié.
 
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'

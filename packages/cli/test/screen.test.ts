@@ -1,3 +1,12 @@
+// Le serveur démarré, Chromium ouvert, et ce qui s'affiche vérifié : une route
+// qui répond ne dit pas qu'une story se rend, et au moment où ces cas ont été
+// écrits toutes les routes répondaient sur une page blanche.
+//
+// Ils copient `apps/demo` avant de la démarrer, `startDev` écrivant sous la
+// racine reçue et l'empreinte de la démonstration étant suivie par git.
+// L'optimiseur pouvant déclencher un `full-reload` après le crawl, ils sondent
+// le nombre de navigations du cadre au lieu de l'affirmer.
+
 import {
   cpSync,
   existsSync,

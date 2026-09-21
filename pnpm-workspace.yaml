@@ -18,6 +18,12 @@ catalog:
   jsdom: ^30.0.1
   playwright: ^1.62.1
   tsconfck: ^3.1.6
+  # Version exacte et pas une plage : l'API de génération de types n'est pas
+  # stable, et une version corrective en changerait le comportement chez les
+  # consommateurs. La lignée 6 tient à vue-tsc, qui charge un chemin de l'API
+  # programmatique que la 7 n'expose plus. vp pack émet pourtant les déclarations
+  # publiées avec son propre TypeScript 7 : deux compilateurs, l'un vérifie,
+  # l'autre émet.
   typescript: 6.0.3
   vite: ^8.2.1
   vitest: ^4.1.10

@@ -8,18 +8,17 @@ const prose = (...files) => decide(files).prose
 
 test('ce qui fait foi demande une revue, malgré son extension', () => {
   expect(prose('docs/contracts.md')).toBe(false)
-  expect(prose('docs/internal/comprendre.md')).toBe(false)
   expect(prose('CLAUDE.md')).toBe(false)
   expect(prose('.claude/skills/review/SKILL.md')).toBe(false)
 })
 
 test('un seul fichier qui fait foi suffit à exiger la revue', () => {
-  expect(prose('README.md', 'docs/guide.md', 'docs/internal/comprendre.md')).toBe(false)
+  expect(prose('README.md', 'docs/guide.md', 'docs/contracts.md')).toBe(false)
 })
 
 test('les dossiers comptent comme les fichiers, pour que scinder ne relâche rien', () => {
   expect(prose('docs/contracts/section-6.md')).toBe(false)
-  expect(prose('docs/internal/comprendre/2026-08.md')).toBe(false)
+  expect(prose('.claude/skills/review/SKILL.md')).toBe(false)
 })
 
 test('CLAUDE.md compte à toute profondeur', () => {

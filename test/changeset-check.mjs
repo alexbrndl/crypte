@@ -1,6 +1,13 @@
 // Une pull request qui change un paquet publié dépose sa note de version.
 //
 // Le contrôle ne juge pas le contenu de la note : il vérifie qu'elle existe.
+//
+// Un fichier publié dont toutes les lignes changées sont des `//` ou des lignes
+// vides n'en exige pas. Un bloc `/** */` si : posé sur un type exporté, il est
+// émis dans le `.d.ts` publié là où un `//` en est retiré. Deux sorties de
+// l'exemption : un commentaire directif, qui a la forme d'un commentaire et
+// l'effet d'une ligne de code, et un fichier sans patch, l'API n'en fournissant
+// plus au-delà d'une certaine taille.
 
 import { execFileSync } from 'node:child_process'
 import { argv, env, exit } from 'node:process'

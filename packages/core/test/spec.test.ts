@@ -12,13 +12,10 @@ const protocol = join(here, '..', 'src', 'protocol')
 const docs = join(here, '..', '..', '..', 'docs')
 const spec = readFileSync(join(docs, 'contracts.md'), 'utf8')
 
-// L'historique d'avant la v1.0 vit à part, en français : il porte le raisonnement
-// de huit versions, que le document public résume en un tableau.
-const history = readFileSync(join(docs, 'internal', 'spec-journal.md'), 'utf8')
-
+// La section 9 porte le tableau des versions et, sous lui, le détail d'avant la
+// v1.0 en français. Un nom retiré n'a le droit d'apparaître que là.
 const LOG = '## 9. Version log'
-const [normative = '', log = ''] = spec.split(LOG)
-const journal = `${log}\n${history}`
+const [normative = '', journal = ''] = spec.split(LOG)
 
 // Les portions de code de la partie normative, blocs et fragments. C'est de là
 // qu'on réimplémente, donc la seule matière où un nom mort fait des dégâts. Le
@@ -83,7 +80,7 @@ describe('la spécification et le code', () => {
   const declared = declaredNames()
 
   it('lit bien les deux', () => {
-    expect(log, 'section 9 introuvable').not.toBe('')
+    expect(journal, 'section 9 introuvable').not.toBe('')
     expect(declared.length).toBeGreaterThan(10)
     expect(normativeCode.length).toBeGreaterThan(1000)
 

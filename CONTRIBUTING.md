@@ -34,13 +34,12 @@ vp run ready
 packages/core     @crypte/core    the core, three entries: protocol, ui, preview
 packages/cli      @crypte/cli     the `crypte` binary
 packages/react    @crypte/react   the React adapter
-docs/                             public documents, in English
-docs/internal/                    maintainer notes, in French
+docs/                             the specification and the guide, in English
 ```
 
-`docs/contracts.md` is the reference for the story format, the manifest, the protocol and the plugin contract. `docs/internal/comprendre.md` explains what each mechanism is for and what breaks without it.
+`docs/contracts.md` is the reference for the story format, the manifest, the protocol and the plugin contract. What a mechanism is for, and what breaks without it, is a comment beside it.
 
-**Design notes stay in French.** What you read to use Crypte, or to propose a change, is in English. What is written for the maintainer is not: those are precise rules, and a loose translation would lose more than it gains. The choice, what was turned down, and what would reopen it are in `docs/internal/comprendre.md`.
+**The language follows the reader.** What you read to use Crypte, or to propose a change, is in English: this file, the README, the contracts, the guide, and every comment in published code, which `test/published-english.test.mjs` holds. The comments on the repository's own tooling are in French, and so are `CLAUDE.md` and the skills.
 
 ## Module format
 
@@ -69,7 +68,7 @@ One branch per change, named in kebab-case.
 
 Before opening a pull request, check that `vp check`, `vp run -r pack` and `vp test` pass locally. Continuous integration replays all three on Node 22 and 24, and also checks that the committed generated exports are up to date.
 
-**If your change adds a moving part** — a workflow, a script, a configuration that encodes a decision, or a test whose assertion is not obvious — update `docs/internal/comprendre.md` with three answers: what it does, why it exists, and what breaks if you remove it.
+**If your change adds a moving part** — a workflow, a script, a configuration that encodes a decision, or a test whose assertion is not obvious — write a comment beside it answering what breaks if someone removes it. That is the one thing nobody can recover by reading the code.
 
 The other way round: do not document code that reads by itself.
 

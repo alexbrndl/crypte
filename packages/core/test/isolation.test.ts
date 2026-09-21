@@ -4,6 +4,18 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+// L'étanchéité des trois entrées, lue sur `dist` et non sur les sources.
+//
+// Une fuite ne recopie pas le code : l'outil produit un chunk séparé et un
+// import, qu'un test lisant la seule entrée laisserait passer. D'où la fermeture
+// des imports relatifs, et l'échec sur une cible non résolue, sans quoi la
+// fermeture retomberait en silence au fichier d'entrée.
+//
+// Rien ne s'ancre sur la forme d'un artefact, ni nom de chunk ni constante : une
+// sortie de bundler change sans prévenir, et le cas devient tour à tour
+// complaisant et cassant. Les fixtures s'écrivent dans un dossier temporaire,
+// jamais dans `dist`, qui est le contenu publié.
+
 // L'étanchéité des trois entrées, lue sur les bundles.
 
 const dist = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist')

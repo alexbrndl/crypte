@@ -99,6 +99,12 @@ jobs:
       # `ls-files` avant le diff : `git diff` ne voit que ce qui est suivi, donc
       # une empreinte sortie de l'index laisserait cette étape verte et le
       # verrou s'éteindrait sans bruit.
+      # La suite écrit l'empreinte des fixtures ; cette étape échoue si le
+      # fichier commité ne correspond plus. Rien ne la lit aujourd'hui, donc
+      # sans ce verrou l'historique décrirait un état qui n'existe plus. Il
+      # n'existe pas de script pour la régénérer : le producteur est du
+      # TypeScript non exposé, et `vp node` exigerait une extension explicite
+      # sur chaque import relatif, ce que la quatrième contrainte interdit.
       - name: Generated files are up to date
         run: |
           git ls-files --error-unmatch packages/cli/test/fixture/.crypte/fingerprint.json apps/demo/.crypte/fingerprint.json
@@ -202,7 +208,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
 
-  # Seul job exigé par le ruleset.
+  # Seul job exigé par le ruleset. Les exiger un par un graverait la composition
+  # de la matrice dans un réglage stocké hors du dépôt : le jour où une version
+  # de Node la quitte, la pull request attendrait sans message un contrôle qui ne
+  # viendra jamais. Sa condition lit `needs.*.result`, jamais une liste écrite à
+  # la main.
   ci-passed:
     if: always()
     needs: [check, coverage, budgets, dependency-review]

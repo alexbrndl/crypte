@@ -33,6 +33,16 @@ export const MESURES = {
 
 // En unités SI, comme les cibles sont écrites : « moins de 300 Ko », « moins de
 // 15 Mo ». Passer en Kio ferait bouger une cible de 2,4 % sans décision.
+//
+// Le poids du shell couvre `dist/shell` entier et pas seulement `assets/` :
+// `index.html` est le premier fichier téléchargé, et tout ce que Vite émettrait
+// ailleurs échapperait au budget en silence. Le poids installé se lit sur ce que
+// les paquets déclarent, sans empaqueter : pnpm n'est pas garanti sur un runner,
+// et npm refuse de tourner ici à cause de `devEngines`.
+//
+// Le démarrage à froid se mesure jusqu'à la première story rendue, pas jusqu'au
+// serveur à l'écoute : Vite compile à la demande, donc ce chronomètre-là mesure
+// un traitement qui n'a rien traité et ne bougerait plus quoi qu'on ajoute.
 function mo(n) {
   return `${(n / 1e6).toFixed(1)} Mo`
 }

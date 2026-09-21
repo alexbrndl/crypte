@@ -3,6 +3,17 @@
 //
 // Le rapport de couverture vivait dans les journaux d'un job que personne
 // n'ouvre.
+//
+// Les seuils vivent dans `test/coverage-thresholds.json`, jamais dans
+// `vite.config.ts` : évalués aux deux endroits, ils rougissaient deux fois pour
+// la même raison. Conséquence assumée, `vp test --coverage` seul n'émet aucun
+// verdict, c'est `pnpm ready` qui l'applique en local.
+//
+// Le commentaire est supprimé puis reposté pour rester près du dernier commit,
+// et retrouvé par son marqueur. La liste vient de l'API REST et non de
+// `gh pr view --json comments`, qui rend un identifiant GraphQL sur lequel la
+// mise à jour répond 404. Sans mesure, il dit qu'il n'a rien mesuré plutôt que
+// d'afficher des chiffres verts sous une CI rouge.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'

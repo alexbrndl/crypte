@@ -4,6 +4,12 @@ import type { PluginMessage } from '../src/protocol/channel'
 //
 // Une augmentation vaut pour tout le programme compilé, pas pour le fichier qui
 // la déclare : les regrouper ici rend visible le contexte de tous les tests.
+//
+// D'où trois programmes séparés. Celui-ci, avec plugins. `no-plugin.test.ts`,
+// sans, qui compile ses `@ts-expect-error` hors de cette simulation ; une
+// directive inutilisée étant elle-même une erreur, il échoue dans les deux sens.
+// Et `packages/react/test/public-augmentation.ts`, qui passe par les `.d.ts`
+// publiés, seul chemin où `@crypte/core/protocol` se résout comme chez un plugin.
 
 declare module '../src/protocol/prop' {
   interface PluginPropDetails {

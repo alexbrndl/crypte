@@ -1,6 +1,6 @@
 # Instructions pour les agents
 
-Lire `docs/internal/comprendre.md` avant toute modification de structure, et `docs/contracts.md` avant toute question de format, de manifeste, de protocole ou de plugin.
+Lire `docs/contracts.md` avant toute question de format, de manifeste, de protocole ou de plugin. Pour tout le reste, **le code et ses commentaires font foi** : il n'y a pas de document de conception.
 
 **`docs/contracts.md` est un guide, pas une loi.** Il a été écrit au début, avant que le code existe, et la construction a corrigé plusieurs de ses affirmations. Quand le document et le code divergent, **c'est le code qui a raison et le document qui se corrige**, dans le même diff. `packages/core/test/spec.test.ts` tient déjà ce sens-là : il exige que le document décrive ce que le protocole expose, jamais l'inverse.
 
@@ -51,9 +51,9 @@ gh pr create --draft --title "…"    # 1. jamais directement ouverte
 gh pr ready <numéro>                 # 6. une fois les points traités
 ```
 
-**La seule exception, et elle est mécanique.** Un diff dont tous les fichiers sont des `.md`, aucun n'étant `docs/contracts.md`, `docs/internal/comprendre.md`, un `CLAUDE.md` ni quoi que ce soit sous `.claude/`, saute les étapes 3 et 4. `require-review.yml` le constate tout seul.
+**La seule exception, et elle est mécanique.** Un diff dont tous les fichiers sont des `.md`, aucun n'étant `docs/contracts.md`, un `CLAUDE.md` ni quoi que ce soit sous `.claude/`, saute les étapes 3 et 4. `require-review.yml` le constate tout seul.
 
-Ces quatre formes ne sont pas de la prose malgré leur extension : les deux premières font foi, les deux dernières portent ces règles-ci, donc une erreur dedans se propage à toutes les sessions suivantes.
+Ces trois formes ne sont pas de la prose malgré leur extension : la première est la spécification, les deux autres portent ces règles-ci, donc une erreur dedans se propage à toutes les sessions suivantes.
 
 Le classement vit dans `test/review-check.mjs` et non dans le workflow, pour que `test/review-check.test.mjs` puisse vérifier ce qu'il refuse. Le mode d'échec est une exemption qui s'élargit en silence.
 
@@ -63,7 +63,7 @@ _Pourquoi cette exception existe :_ deux revues d'affilée ont rendu un verdict 
 
 **Une décision de conception qui arrive en cours de pull request devient une issue.** Renommer un champ, réorganiser des fichiers, ajouter un mécanisme d'extension : chacune crée une surface qu'aucune revue n'a vue. Ouvrir l'issue, la lier, continuer.
 
-**Une décision se note quand elle est prise**, dans `docs/internal/comprendre.md`, avant la fin de la session. Ce qu'on fait, ce qu'on écarte, pourquoi, et **ce qui la rouvrirait**. Le dernier champ est celui qui manque partout ailleurs.
+**Une décision se note quand elle est prise, à côté du code qu'elle décide.** Ce qu'on fait, pourquoi, et **ce qui la rouvrirait**. Le dernier champ est celui qui manque partout ailleurs. Une décision qui ne se rattache à aucun fichier n'a pas besoin d'être écrite.
 
 **Ce qui reste non corrigé après une revue devient une issue**, avec ce qui a été mesuré et pourquoi ce n'est pas fait ici. **Sauf une observation**, qui se corrige dans le même passage ou se tait : trois issues sont nées de cette lecture-là pour des broutilles de deux lignes, et c'est la seule catégorie que la vérification fabrique elle-même.
 
@@ -98,6 +98,10 @@ fix: resolve aliases from jsconfig  plutôt que   correction du bug
 
 **Un motif `git ls-files` qui ne rend rien.** `git ls-files 'packages/*/src'` rend **zéro fichier** : le `*` d'un pathspec git ne traverse pas le séparateur. Un garde écrit comme ça surveille le vide et passe au vert pour cette seule raison. Lister le dossier parent et filtrer.
 
+**Du code mort ne part que si deux réfuteurs ont échoué à l'atteindre.** Un candidat est nommé par une mesure, jamais par une opinion. Deux agents essaient ensuite de l'atteindre par des angles opposés, l'un en remontant les appelants jusqu'à un vrai point d'entrée, l'autre en écrivant une sonde et en l'exécutant. Le candidat ne part que si les deux échouent, et **tout doute qu'ils admettent compte comme atteignable**. Une réfutation qui ne nomme aucune mesure ne vaut pas plus que la lecture qu'elle contredit.
+
+Dans un fichier de test la règle s'inverse : le candidat est une assertion morte, les réfuteurs tentent de la faire rougir en cassant la garantie dans le source, et **une assertion qui vise le mauvais côté de sa paire se répare au lieu de se supprimer**.
+
 **Un doute se tranche par une commande, pas par la relecture.**
 
 ---
@@ -110,11 +114,17 @@ fix: resolve aliases from jsconfig  plutôt que   correction du bug
 
 Écrire **le fait, pas le raisonnement.** `« button-- pour tout nom cyrillique »` se comprend, `« la normalisation restreinte à l'alphabet latin provoquait une perte de segments »` ne se comprend pas. Quand l'explication est longue, se demander d'abord si le problème n'est pas le nom ou le code.
 
+**La langue se décide par public, pas par dossier.** Ce qu'un utilisateur ou un contributeur lit est en anglais : `README.md`, `CONTRIBUTING.md`, les contrats, le guide, les messages d'erreur du CLI et les commentaires du code publié, que `test/published-english.test.mjs` tient. Les notes de mainteneur sont en français : ce fichier, les skills, et les commentaires de l'outillage du dépôt.
+
 **Pas de documentation pour du code qui se lit tout seul.** Documenter tout produit de la documentation que personne ne lit, donc aucune documentation.
 
-**`docs/internal/comprendre.md` ne se met à jour que si l'oublier casserait quelque chose.** Un mécanisme dont on peut oublier la raison, et qu'on supprimerait alors par erreur, y va avec ce qui casse si on l'enlève. Le reste, non.
+**On n'écrit que ce dont l'oubli casserait quelque chose.** Un mécanisme dont on peut oublier la raison, et qu'on supprimerait alors par erreur, porte un commentaire disant ce qui casse si on l'enlève. Le reste, non.
 
 **Ordre d'un fichier.** Le type principal en premier, ses pièces ensuite, le point d'extension en dernier. Sauf pour un fichier de réexports : un groupe par module, un commentaire d'une ligne par groupe, et dans un groupe les noms suivent l'ordre de leur fichier source, pas l'alphabet.
+
+**Un contrôle vérifie d'abord qu'il a lu quelque chose.** Une compilation vide réussit, une extraction muette annonce que tout est conforme, un dossier absent pèse zéro octet. Chaque contrôle qui parcourt une liste vérifie qu'elle n'est pas vide, en premier cas du fichier, et chaque budget lève au lieu de rendre zéro. Un contrôle vert qui n'affirme plus rien est le mode d'échec le plus coûteux du dépôt, et il ne se voit pas en relisant le garde : chaque garde a une sonde qui casse la garantie et vérifie qu'il rougit.
+
+La couverture ne prouve rien non plus : un test qui appelle sans rien affirmer couvre à 100 %. D'où les `toMatchInlineSnapshot`, qui fixent le message entier là où un `toContain` passait sur une phrase à moitié fausse.
 
 **Tests.** Tout contrat public a un test qui vérifie qu'il accepte ce que la spécification décrit **et qu'il refuse le reste**. La seconde moitié est celle qui compte : un test sans cas négatif passerait à l'identique sur un type qui n'exige rien.
 

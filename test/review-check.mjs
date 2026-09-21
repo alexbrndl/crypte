@@ -19,12 +19,7 @@ const MARKER = '<!-- crypte-review -->'
 // portée de dossier sont une forme supportée, donc `apps/x/.claude/` doit compter
 // comme la racine, sinon le mécanisme de revue se modifie sans revue d'un niveau
 // plus bas.
-const AUTHORITY = [
-  /^docs\/contracts(\.md$|\/)/,
-  /^docs\/internal\/comprendre(\.md$|\/)/,
-  /(^|\/)CLAUDE\.md$/,
-  /(^|\/)\.claude\//,
-]
+const AUTHORITY = [/^docs\/contracts(\.md$|\/)/, /(^|\/)CLAUDE\.md$/, /(^|\/)\.claude\//]
 
 // Rend ce qui a été vu, et si le diff se relit tout seul.
 export function decide(filenames) {

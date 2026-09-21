@@ -7,6 +7,9 @@ const partagé = {
   testTimeout: 20_000,
   hookTimeout: 30_000,
   expect: { poll: { timeout: 10_000 } },
+  // Les cas seuls, pas les fichiers : mélanger les fichiers annulerait le
+  // lancement des plus longs d'abord. C'est le seul moyen de voir un couplage
+  // entre deux cas.
   sequence: { shuffle: { tests: true, files: false } },
 }
 
@@ -32,6 +35,9 @@ export default defineConfig({
     // lint et à son `typeCheck` sans que personne le voie. Les instantanés
     // d'aujourd'hui sont du JavaScript produit.
     ignorePatterns: ['packages/cli/test/fixture/**', '**/test/snapshots/*.js'],
+    // Les deux, sinon `vp check` formate et linte sans vérifier aucun type, et
+    // `export const x: string = 42` passe le contrôle, le pack et la CI. Les
+    // retirer rend le `tsconfig` strict décoratif.
     options: {
       typeAware: true,
       typeCheck: true,
