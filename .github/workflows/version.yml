@@ -2,7 +2,6 @@ name: Version
 
 # Ce workflow ne publie rien. Il maintient la pull request « Version Packages »
 # qui accumule les changesets. La publication npm viendra séparément.
-# Voir docs/internal/comprendre.md.
 
 on:
   push:
