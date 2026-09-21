@@ -7,7 +7,6 @@ import { ConfigError } from '../src/errors'
 // Ce que la commande fait de ses arguments. Rien ne l'éprouvait : la couverture
 // donnait 0 % sur l'entrée du CLI, donc l'aide, la version et le code de sortie
 // d'une erreur de configuration reposaient sur la lecture seule.
-// Voir docs/internal/comprendre.md.
 
 const AIDE = `crypte — protocol v${PROTOCOL_VERSION}, commands: dev, check, init`
 

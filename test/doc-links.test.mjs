@@ -1,5 +1,4 @@
 // Un document cité mais introuvable ne fait rougir personne.
-// Voir docs/internal/comprendre.md.
 
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
@@ -12,7 +11,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SCANNED = /\.(md|ts|tsx|mjs|yml|yaml|json|vue)$/
 
 // D'un fichier qui écrit des chemins dans des chaînes, on ne lit que les
-// commentaires. Voir docs/internal/comprendre.md.
+// commentaires.
 const WRITES_PATHS = /\.(ts|tsx|mjs)$/
 const COMMENT = /^\s*(\/\/|\/\*|\*)/
 

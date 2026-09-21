@@ -15,7 +15,6 @@ import {
 } from '../src/serve'
 
 // Ce que `crypte dev` sert vraiment, mesuré sur un serveur qui écoute.
-// Voir docs/internal/comprendre.md.
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), 'fixture')
 

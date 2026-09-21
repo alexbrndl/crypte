@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { declaredIn } from './exported-names'
 
 // L'écart entre la spécification et le code, qui a produit douze constats de
-// revue sur le lot 2. Voir docs/internal/comprendre.md.
+// revue sur le lot 2.
 
 const here = dirname(fileURLToPath(import.meta.url))
 const protocol = join(here, '..', 'src', 'protocol')

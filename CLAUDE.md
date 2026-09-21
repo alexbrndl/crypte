@@ -12,6 +12,8 @@ Le détail du processus vit dans les skills, `/explore`, `/review` et `/changese
 
 Elles ne se rediscutent pas dans une issue. Chacune protège d'une panne précise, et trois d'entre elles se corrigent mal une fois le code écrit.
 
+**Deux ont un test, deux n'en ont pas.** La 3 et la 4 sont tenues par `packages/core/test/isolation.test.ts` et `test/publishing.test.mjs`. La 1 et la 2 tiennent aujourd'hui, mais par habitude : personne n'est prévenu si elles tombent.
+
 **1. `@crypte/core` n'est jamais embarqué en copie.**
 Il est une `dependency` déclarée de `@crypte/cli` et de `@crypte/react`, jamais recopié dans leurs bundles.
 _Sinon :_ deux instances du même module tournent en parallèle, le canal et les registres se dédoublent en silence, et le symptôme observé n'a aucun rapport visible avec sa cause.
@@ -88,9 +90,13 @@ fix: resolve aliases from jsconfig  plutôt que   correction du bug
 
 **Vérifier avant de commiter.** `vp check | grep 'pass:|error:' && git commit` ne protège de rien : `grep` réussit aussi quand il trouve `error:`. Enchaîner sur le code de sortie de `vp check` seul.
 
+**Un sous-agent tué laisse sa sonde dans l'arbre.** Un workflow arrêté en cours, plafond de dépense ou interruption, ne défait rien : `if (wanted.has(file))` est resté `if (true)` dans `dev.ts`, et le cas rouge a été mis sur le compte des éditions du moment, avec copie du dépôt et vidage de cache avant qu'un `git diff` ne le montre. Après tout arrêt de workflow, lire `git diff` et écarter toute ligne modifiée qui n'est pas un commentaire.
+
 **`git add -A` pendant qu'un sous-agent travaille.** Les sondes qu'il pose dans l'arbre entrent dans l'index sans un mot : un commit de quatre fichiers en a emporté huit, dont une mutation de `App.vue` et un fichier de cas jetable. Tant qu'un workflow tourne, commiter par chemins explicites, et relire `git show --name-status` après.
 
 **Causes.** Ne jamais attribuer une cause sans l'avoir isolée par une mesure. Avant d'écrire « c'est à cause de X », changer X seul et vérifier que le chiffre bouge. Vérifier aussi que la mesure mesure quelque chose : un chronomètre sur un traitement qui n'a rien traité donne un résultat parfaitement stable et parfaitement faux.
+
+**Un motif `git ls-files` qui ne rend rien.** `git ls-files 'packages/*/src'` rend **zéro fichier** : le `*` d'un pathspec git ne traverse pas le séparateur. Un garde écrit comme ça surveille le vide et passe au vert pour cette seule raison. Lister le dossier parent et filtrer.
 
 **Un doute se tranche par une commande, pas par la relecture.**
 
@@ -98,9 +104,11 @@ fix: resolve aliases from jsconfig  plutôt que   correction du bug
 
 ## Documentation
 
-**Une ligne, ou rien.** Un en-tête de module tient en une ligne, un commentaire aussi. Ce qui ne tient pas va dans `docs/internal/comprendre.md`, et le commentaire y renvoie d'un mot.
+**Tout va dans les commentaires.** Le code et ses commentaires doivent se suffire : il n'y a pas de document où renvoyer ce qui déborde. Un commentaire peut donc faire plusieurs lignes quand il le faut.
 
-Écrire **le fait, pas le raisonnement.** `« button-- pour tout nom cyrillique »` se comprend, `« la normalisation restreinte à l'alphabet latin provoquait une perte de segments »` ne se comprend pas. Quand l'explication ne passe pas en une ligne, se demander d'abord si le problème n'est pas le nom ou le code.
+**Le plus court et le plus simple possible.** C'est la contrainte qui remplace la limite de longueur : chaque phrase gagne sa place, et celle qui peut sauter saute. Écrire pour quelqu'un qui découvre le fichier.
+
+Écrire **le fait, pas le raisonnement.** `« button-- pour tout nom cyrillique »` se comprend, `« la normalisation restreinte à l'alphabet latin provoquait une perte de segments »` ne se comprend pas. Quand l'explication est longue, se demander d'abord si le problème n'est pas le nom ou le code.
 
 **Pas de documentation pour du code qui se lit tout seul.** Documenter tout produit de la documentation que personne ne lit, donc aucune documentation.
 
@@ -110,7 +118,7 @@ fix: resolve aliases from jsconfig  plutôt que   correction du bug
 
 **Tests.** Tout contrat public a un test qui vérifie qu'il accepte ce que la spécification décrit **et qu'il refuse le reste**. La seconde moitié est celle qui compte : un test sans cas négatif passerait à l'identique sur un type qui n'exige rien.
 
-Les tests vivent dans `test/`, jamais à côté de la source.
+Les tests vivent dans un dossier `test/`, jamais dans `src/` : un par paquet, plus celui de la racine pour l'outillage du dépôt.
 
 ---
 

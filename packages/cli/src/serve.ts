@@ -1,5 +1,4 @@
 // The two pages `crypte dev` serves, and where each comes from.
-// See docs/internal/comprendre.md and docs/internal/comprendre.md.
 
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -172,7 +171,6 @@ function previewHtml(): string {
 // top-level scope: `import { adapter } from './setup'` next to `const adapter =
 // adapter` is a `SyntaxError: Identifier 'adapter' has already been declared`, so
 // the preview never loads at all. Measured, and it held for a dozen names.
-// See docs/internal/comprendre.md.
 const OWN = '__crypte_'
 
 // The entry has no parent to propagate to: without this, every keystroke in a
@@ -193,7 +191,8 @@ function hot(files: string[]): string[] {
     '',
     `      ${OWN}modules[${OWN}paths[index]] = module`,
     '',
-    '      // A repaired file forgets its failure: comprendre.md says why.',
+    '      // Kept, this failure outlives the repair: the panel would still',
+    '      // show a stack pointing at a line that no longer exists.',
     `      delete ${OWN}broken[${OWN}paths[index]]`,
     '    })',
     '',
@@ -265,7 +264,10 @@ export function previewEntry(project: Project, files: string[] = []): string {
   // shell waiting for a catalogue that never comes. Only the files that produced
   // an entry are imported.
   //
-  // One promise each, not a static `import`: see docs/internal/comprendre.md.
+  // One promise each, not a static `import`: discovery reads story files without
+  // running them, so a file that throws at import is only found here, and a
+  // static import would take the whole entry down. The specifier stays a
+  // literal, or Vite drops these files from its module graph.
   const loads = files.map((file) => {
     const path = JSON.stringify(`/${file}`)
 

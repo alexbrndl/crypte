@@ -19,7 +19,7 @@ export interface Problem {
 
 // Which files are opened, not which ones count: the parser refuses every other
 // extension anyway. It is a read filter, and the tree it walks is a project's,
-// so the measure is on a real one. See docs/internal/comprendre.md.
+// so the measure is on a real one.
 const READ = ['.tsx', '.jsx', '.ts', '.js']
 
 // A story whose component is gone. The producer resolves `component.file`
@@ -32,8 +32,9 @@ export function orphans(project: Project, entries: ReturnType<typeof storiesOf>)
     .map((entry) => ({ kind: 'orphan' as const, file: entry.component.file, name: entry.id }))
 }
 
-// Whether the project could have reached that identifier. A bare specifier no
-// alias resolves belongs to a package or a plugin, and 1.2 says to stay quiet.
+// A bare specifier no alias resolves belongs to a package or a plugin: the
+// identifier reaches here unchanged and looks like a deleted component.
+// Without this filter, `crypte check` exits 1 on a correct project.
 function addressable(specifier: string, project: Project): boolean {
   if (!isBareSpecifier(specifier)) return true
 

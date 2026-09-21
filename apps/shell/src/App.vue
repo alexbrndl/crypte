@@ -6,7 +6,6 @@ import { landing, unreadable, type Shown } from './recover'
 
 // Le shell ne connaît aucun framework : il est construit à l'avance et livré dans
 // le CLI, là où la preview est compilée chez l'utilisateur.
-// Voir docs/internal/comprendre.md.
 
 const MANIFEST = '/@crypte/manifest.json'
 

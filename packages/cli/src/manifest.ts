@@ -17,7 +17,8 @@ import { detailsOf } from './props'
 import { entriesOf, posix, STORY_EXTENSIONS } from './stories'
 import type { Project } from './project'
 
-// The build writes here, and Git ignores it: see docs/internal/comprendre.md.
+// The build writes here, and Git ignores it: the fingerprint beside it is what
+// gets committed.
 export const OUTPUT = join('.crypte', 'manifest.json')
 
 // Folders no project keeps stories in, and walking them is slow enough to be
@@ -53,7 +54,7 @@ export function storyFilesOf(catalogue: Catalogue): string[] {
 }
 
 // The reader judges one file at a time and cannot tell a story that stopped from
-// a helper: only the previous catalogue knows. See docs/internal/comprendre.md.
+// a helper: only the previous catalogue knows.
 const GONE = 'this file no longer produces any story'
 
 export function buildCatalogue(project: Project, before?: Catalogue): Catalogue {
@@ -251,7 +252,9 @@ function notAnEntry(value: unknown): string | undefined {
 }
 
 // The first value JSON would not return as it was, named and located, or the
-// value itself. Why refusing rather than dropping: docs/internal/comprendre.md.
+// value itself. The whole entry is refused rather than the value dropped: in
+// an array, dropping one element shifts the rest, which changes the data
+// instead of losing it.
 function serialisable(
   value: unknown,
   at = '',

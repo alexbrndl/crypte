@@ -12,7 +12,7 @@ import App from '../src/App.vue'
 
 // Le composant du shell, monté dans un DOM. Il était le plus gros fichier que
 // rien n'exécutait hors navigateur : 184 lignes, et la couverture ne pouvait même
-// pas le lire faute d'un test qui le charge. Voir docs/internal/comprendre.md.
+// pas le lire faute d'un test qui le charge.
 
 // Entrée complète, et sans `as never` : la version d'avant n'avait pas de champ
 // `type`, ce que le transtypage taisait. Le shell ne lisait donc que des entrées

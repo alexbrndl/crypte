@@ -1,5 +1,8 @@
-// The committed shape of a catalogue. See docs/internal/comprendre.md and section 4 of
-// docs/contracts.md.
+// The committed shape of a catalogue, section 4.6 of docs/contracts.md.
+//
+// Committed on purpose: it is the only file that makes a catalogue change
+// visible in a pull request diff, and a reviewer never runs a build. The
+// manifest cannot hold that role, it moves on every build.
 
 import { createHash } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'

@@ -1,5 +1,5 @@
 // L'état d'un projet qui installe le noyau seul, compilé sans
-// `test/plugin-simulation.d.ts`. Voir docs/internal/comprendre.md.
+// `test/plugin-simulation.d.ts`.
 //
 // Chaque `@ts-expect-error` doit être consommé : une directive inutilisée est
 // elle-même une erreur, donc la compilation échoue dans les deux sens.

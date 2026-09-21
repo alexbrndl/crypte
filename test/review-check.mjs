@@ -1,7 +1,7 @@
 // Une pull request dont le diff ne se relit pas tout seul porte une revue.
 //
 // Le contrôle ne produit aucune revue : il vérifie qu'elle existe, et seulement
-// quand le diff en mérite une. Voir docs/internal/comprendre.md.
+// quand le diff en mérite une.
 
 import { execFileSync } from 'node:child_process'
 import { argv, env, exit } from 'node:process'

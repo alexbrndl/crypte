@@ -1,4 +1,4 @@
-// Le code publié est en anglais. Voir docs/internal/comprendre.md.
+// Aucun français dans `packages/*/src` : le source publié part chez l'utilisateur.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'

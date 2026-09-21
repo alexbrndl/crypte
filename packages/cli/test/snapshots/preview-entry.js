@@ -61,7 +61,8 @@ if (import.meta.hot) {
 
       __crypte_modules[__crypte_paths[index]] = module
 
-      // A repaired file forgets its failure: comprendre.md says why.
+      // Kept, this failure outlives the repair: the panel would still
+      // show a stack pointing at a line that no longer exists.
       delete __crypte_broken[__crypte_paths[index]]
     })
 

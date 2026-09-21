@@ -17,7 +17,7 @@ export interface Story<P> {
 }
 
 // Accepts no key while the extension point is empty: an interface with no
-// property would accept any object. See docs/internal/comprendre.md.
+// property would accept any object.
 export type StoryOptions = [keyof PluginStoryOptions] extends [never]
   ? Record<string, never>
   : PluginStoryOptions

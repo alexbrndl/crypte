@@ -248,7 +248,8 @@ describe('la garantie de sérialisation', () => {
     ])
   })
 
-  // Laisser tomber la clé a été essayé et repris, voir docs/internal/comprendre.md.
+  // Laisser tomber la clé a été essayé puis repris : dans un tableau, retirer un
+  // élément décale tous les suivants, ce qui change la donnée au lieu de la perdre.
   it('refuse une clé requise laissée à undefined plutôt que de l’abandonner', async () => {
     const catalogue = await build(
       contributing('p', () => [{ ...tokens('color--brand'), tokens: undefined }]),

@@ -35,8 +35,10 @@ export function ordered(paths: Record<string, string[]>): [string, string[]][] {
   })
 }
 
-// A plugin, not `resolve.alias`: an alias rewrites unconditionally, where a missing
-// target must fall back to normal resolution. See docs/internal/comprendre.md.
+// A plugin, not `resolve.alias`: an alias rewrites unconditionally, where a
+// missing target must fall back to normal resolution, as TypeScript does.
+// Without that fallback, translating `@*` swallows `@vee/runtime-core` and no
+// scoped package resolves any more.
 export function pathsPlugin({ paths, base }: ProjectPaths): Plugin {
   const ranked = ordered(paths)
 

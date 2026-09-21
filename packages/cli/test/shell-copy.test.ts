@@ -9,7 +9,6 @@ import { describe, expect, it } from 'vitest'
 // pourquoi l'arbre ne se rafraîchissait pas, alors que le correctif était là et
 // que le shell servi ne le portait pas.
 //
-// Voir docs/internal/comprendre.md.
 
 const here = dirname(fileURLToPath(import.meta.url))
 const sources = join(here, '..', '..', '..', 'apps', 'shell', 'src')

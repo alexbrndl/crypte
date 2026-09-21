@@ -1,5 +1,4 @@
 // What the `crypte` command does with its arguments.
-// See docs/internal/comprendre.md.
 
 import { PROTOCOL_VERSION } from '@crypte/core/protocol'
 import { check as verify } from './check'

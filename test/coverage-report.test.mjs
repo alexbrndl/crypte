@@ -7,7 +7,6 @@ import { MARKER, badge, compose, drifted, failing, options, publish } from './co
 
 // Ce que le commentaire de pull request dit, et ce qu'il remplace. Le script
 // écrit sur une pull request : sans ces cas, sa seule épreuve serait une pousse.
-// Voir docs/internal/comprendre.md.
 
 // Les seuils réels du dépôt, lus et jamais recopiés. Les cas qui traversent le
 // badge ou le script les franchissent pour de vrai : un chiffre écrit à la main
@@ -202,7 +201,7 @@ describe('ce que l’exploration a trouvé', () => {
 // Le câblage du script entier, lancé en sous-processus. Le job `badge` ne tourne
 // que sur `main`, donc rien d'autre ne l'éprouve : c'est exactement la panne que
 // ce lot a corrigée sur `--resume`, trouvée par une simulation à la main faute
-// d'un cas. Voir docs/internal/comprendre.md.
+// d'un cas.
 describe('le script, lancé pour de vrai', () => {
   const SCRIPT = join(process.cwd(), 'test', 'coverage-report.mjs')
 
@@ -287,7 +286,6 @@ describe('le script, lancé pour de vrai', () => {
 // Ce que le cas ci-dessus ne peut pas prouver : que le workflow appelle le script
 // avec les bons arguments. La panne était là, pas dans le script. Le dépôt compare
 // déjà un document au code de cette façon, dans `spec.test.ts`.
-// Voir docs/internal/comprendre.md.
 describe('le workflow', () => {
   const workflow = readFileSync('.github/workflows/ci.yml', 'utf8')
   const appel = workflow

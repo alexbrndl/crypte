@@ -1,5 +1,4 @@
 // Où retomber quand l'identifiant affiché a disparu du catalogue.
-// Voir docs/internal/comprendre.md.
 
 import type { StoryEntry } from '@crypte/core/protocol'
 

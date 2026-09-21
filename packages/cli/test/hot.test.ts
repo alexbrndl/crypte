@@ -27,7 +27,6 @@ import { MANIFEST_ROUTE } from '../src/serve'
 // tomber six cas sur onze, et deux couplages étaient déjà documentés en
 // commentaire faute de savoir les retirer. Une fixture les supprime tous, et
 // vitest la démonte même si le cas lève.
-// Voir docs/internal/comprendre.md.
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), 'fixture')
 

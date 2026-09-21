@@ -1,4 +1,8 @@
-// Reading story files, without running them. See docs/internal/comprendre.md.
+// Reading story files, without running them.
+//
+// `parseSync`, re-exported by Vite from Oxc, so no dependency is added. Not
+// `parseAst` beside it: that one reads JavaScript only and fails on `as const`
+// and on a generic arrow in `.tsx`.
 
 import { readFileSync } from 'node:fs'
 import { relative, sep } from 'node:path'
@@ -6,8 +10,8 @@ import { storyId, type StoryEntry } from '@crypte/core/protocol'
 import { parseSync } from 'vite'
 import { keyOf, literalOf, propertyOf, type Node } from './ast'
 
-// The four extensions a project can write. A project without TypeScript writes
-// its stories in JavaScript: see docs/internal/comprendre.md.
+// The four extensions a project can write, JavaScript included: a project
+// without TypeScript writes its stories in `.js`.
 export const STORY_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx']
 
 // The name a story gets when the file declares none: section 2.2 of contracts.
@@ -55,7 +59,7 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
     // shell: a wrapper written `export default memo(Frame)`, a barrel that
     // re-exports `defineStories`, a helper that imports it to wrap it, all read
     // as a story under one shape rule or another. Measured, one counterexample
-    // per branch. Voir docs/internal/comprendre.md.
+    // per branch.
     const called = calls(body, named)
 
     return {
@@ -172,7 +176,7 @@ type StoriesRead =
   | { kind: 'unusable'; reason: string }
 
 // The one place that decides. A fourth kind stops compiling on the `never`
-// below. See docs/internal/comprendre.md.
+// below.
 function produced(read: StoriesRead): { stories: Declared[]; reason?: string } {
   switch (read.kind) {
     case 'noBlock':

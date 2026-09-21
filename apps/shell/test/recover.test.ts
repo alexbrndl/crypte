@@ -4,7 +4,7 @@ import { landing, recovered, unreadable } from '../src/recover'
 
 // Où retombe la sélection quand le catalogue change sous elle. Perdre sa place à
 // chaque frappe est pire que ne pas recharger du tout, d'où un repli plutôt
-// qu'une sélection vide. Voir docs/internal/comprendre.md.
+// qu'une sélection vide.
 
 function entry(id: string, name: string, storyFile: string): StoryEntry {
   return { id, name, path: ['Badge'], storyFile, component: { name: 'Badge', file: 'x' } } as never

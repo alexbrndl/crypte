@@ -1,7 +1,6 @@
 // Ce que le dépôt promet sur la publication : ne pas publier, et déclarer
 // `sideEffects` sur le seul paquet qui le porte. Ce que ce fichier **ne** tient
 // pas est la justesse de cette déclaration : voir le bloc en bas.
-// Voir docs/internal/comprendre.md.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'

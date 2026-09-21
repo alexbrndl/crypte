@@ -3,7 +3,6 @@
 // Partagé par `protocol/index.test.ts` et `spec.test.ts`, qui posaient la même
 // question à deux copies : elles avaient déjà divergé, et la plus stricte
 // abandonnait en silence les entrées qu'elle ne reconnaissait pas.
-// Voir docs/internal/comprendre.md.
 
 // Un type n'existe pas à l'exécution : il n'y a rien à énumérer dans le module
 // importé, d'où la lecture du texte. Les formes couvrent celles que le protocole

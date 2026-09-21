@@ -1,6 +1,5 @@
 // Le classement décide si une revue est exigée. Ce qu'il laisse passer par erreur
 // rend vert un contrôle qui ne vérifie plus rien, d'où les cas négatifs.
-// Voir docs/internal/comprendre.md.
 
 import { expect, test } from 'vitest'
 import { changedSince, decide, marked, reviewsOf } from './review-check.mjs'

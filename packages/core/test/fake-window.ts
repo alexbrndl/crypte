@@ -2,7 +2,7 @@
 //
 // Reproduit les deux règles du navigateur dont le canal dépend : un message
 // n'est livré que si `targetOrigin` désigne l'origine du destinataire, et il est
-// cloné, donc rien de non sérialisable ne traverse. Voir docs/internal/comprendre.md.
+// cloné, donc rien de non sérialisable ne traverse.
 
 type Listener = (event: MessageEvent) => void
 

@@ -4,7 +4,7 @@ import { expect, test } from 'vitest'
 // Le projet de types annonçait « no errors » en n'ayant **rien** compilé : sans
 // `tsconfig` nommé, vitest prend le plus proche, et aucun programme n'incluait
 // les `*.test-d.ts`. Une assertion volontairement fausse passait, mesuré.
-// Ces cas gardent le câblage, pas les types. Voir docs/internal/comprendre.md.
+// Ces cas gardent le câblage, pas les types.
 
 const config = readFileSync('vite.config.ts', 'utf8')
 const programme = JSON.parse(readFileSync('tsconfig.types.json', 'utf8'))

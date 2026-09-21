@@ -32,7 +32,7 @@ export function required(found: { imports: string[]; expression: string } | unde
 
 // The packages the configuration imports, by bare name, for Vite to pre-bundle.
 // A linked workspace package that is not pre-bundled keeps serving stale dependency
-// URLs across a re-optimisation. See docs/internal/comprendre.md.
+// URLs across a re-optimisation.
 export function configPackages(project: Project): string[] {
   const sources = configSources(project)
   const statements = [...(sources.adapter?.imports ?? []), ...(sources.wrap?.imports ?? [])]
@@ -253,7 +253,7 @@ const CARRIES = new Set([
 const MEMBERS = new Set(['MethodDefinition', 'PropertyDefinition', 'AccessorProperty'])
 
 // The `TS…` nodes that hold a value, and so the only ones the walk enters: one
-// missing here drops an import the entry needs. See docs/internal/comprendre.md.
+// missing here drops an import the entry needs.
 const VALUED = new Set([
   'TSAsExpression',
   'TSSatisfiesExpression',
@@ -267,8 +267,9 @@ const VALUED = new Set([
 ])
 
 // The keys by which a value node points at a type. Doubled with the family
-// above on purpose: a name has to be missing from both lists to travel.
-// Voir docs/internal/comprendre.md.
+// above on purpose: a name has to be missing from both lists to travel. Missing
+// here, a type reaches the optimiser, which finds no package for it and
+// complains at every start-up.
 const TYPED = new Set(['typeAnnotation', 'typeArguments', 'typeParameters', 'returnType'])
 
 // The names an expression takes from outside itself. A key (`{ react: true }`) and
@@ -287,7 +288,7 @@ function referenced(node: Node): Set<string> {
     const inner = current as Node
 
     // Types name nothing the browser loads, and a type position is any `TS…`
-    // node outside `VALUED`. Voir docs/internal/comprendre.md.
+    // node outside `VALUED`.
     if (inner.type.startsWith('TS') && !VALUED.has(inner.type)) return
 
     // Named, then walked through: a name can hang off an identifier, and stopping

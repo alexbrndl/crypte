@@ -20,7 +20,10 @@ coverage/
 # committed, and Git ignores a negation inside an excluded folder.
 #
 # `**/` because a pattern holding a slash is anchored to this file's directory,
-# and the test fixture is a project of its own further down. See docs/decisions.md.
+# and the test fixture is a project of its own further down.
+#
+# The manifest is rewritten on every build: its history would weigh hundreds of
+# megabytes for what the fingerprint beside it records in a few kilobytes.
 **/.crypte/manifest.json
 
 # Copies de la fixture écrites par les cas de rechargement.

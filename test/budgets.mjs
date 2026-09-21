@@ -1,6 +1,5 @@
 // Les cinq budgets du produit, mesurés plutôt qu'annoncés. Le cinquième, le
 // compte de clés obligatoires, est un type et vit dans `config.test-d.ts`.
-// Voir docs/internal/comprendre.md.
 
 import { execFileSync } from 'node:child_process'
 import { gzipSync } from 'node:zlib'
@@ -32,9 +31,8 @@ export const MESURES = {
   adapterLines: { titre: 'Adaptateur React', format: (n) => `${n} lignes` },
 }
 
-// En unités SI, comme les cibles de l'issue les écrit : « moins de 300 Ko »,
-// « moins de 15 Mo ». `docs/internal/comprendre.md` compte en Kio ailleurs,
-// et convertir ici ferait bouger une cible de 2,4 % sans décision.
+// En unités SI, comme les cibles sont écrites : « moins de 300 Ko », « moins de
+// 15 Mo ». Passer en Kio ferait bouger une cible de 2,4 % sans décision.
 function mo(n) {
   return `${(n / 1e6).toFixed(1)} Mo`
 }
@@ -168,7 +166,7 @@ export function externalDeps(paquets, catalogue, racine = RACINE) {
 // Épingler plutôt que garder la portée : une portée laisse le registre décider
 // le jour du lancement, donc une version mineure de Vite ferait rougir un
 // contrôle requis sur un commit qui n'a rien changé. Les dépendances
-// transitives flottent encore, et `docs/internal/comprendre.md` le dit.
+// transitives, elles, flottent encore : seul le premier niveau est épinglé.
 function posée(nom, dossier, racine) {
   for (const base of [dossier, racine]) {
     const manifeste = join(base, 'node_modules', nom, 'package.json')
@@ -208,6 +206,10 @@ export function ownBytes(paquets = PAQUETS) {
 // Les pairs sont exclus, `--legacy-peer-deps` : `react` et `react-dom` sont
 // fournis par le projet hôte, et les compter reviendrait à facturer deux fois
 // ce qui est déjà installé.
+//
+// Les binaires natifs de Vite en sont la plus grosse part et restent comptés :
+// l'utilisateur les télécharge. Leur taille change d'une plateforme à l'autre,
+// donc le plafond tient sur celle qui juge et ne mord que sur un gros écart.
 export async function installedBytes() {
   const travail = mkdtempSync(join(tmpdir(), 'crypte-poids-'))
 
@@ -412,7 +414,7 @@ export function table(rendus) {
     ...lignes,
     '',
     '- <sub>**Démarrage à froid** : de `crypte dev` à la première story rendue dans un navigateur, cache d’optimisation vidé, médiane de trois lancements.</sub>',
-    '- <sub>**Poids installé** : les deux paquets et leur fermeture transitive, dépendances de développement et pairs exclus. Voir la note du seuil dans `docs/internal/comprendre.md`.</sub>',
+    '- <sub>**Poids installé** : les deux paquets et leur fermeture transitive, dépendances de développement et pairs exclus. Les binaires natifs de Vite en sont la plus grosse part et restent comptés.</sub>',
     '- <sub>**Configuration obligatoire**, le cinquième budget, est un type et non un chiffre : `packages/cli/test/config.test-d.ts` tient que `CrypteConfig` en exige exactement deux, `stories` et `adapter`.</sub>',
   ].join('\n')
 }

@@ -31,7 +31,6 @@ import {
 // Les cinq budgets du produit. Ce qui compte ici est qu'une mesure absente ne
 // puisse jamais passer pour un budget tenu : un dossier vide rendant zéro
 // donnerait un verdict vert sur rien.
-// Voir docs/internal/comprendre.md.
 
 const jetables = []
 

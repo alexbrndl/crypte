@@ -4,7 +4,7 @@ import react, { ADAPTER_NAME, createAdapter, type Adapter } from '../src/index'
 
 // L'adaptateur, monté dans un DOM. Il était le seul fichier publié qu'aucun test
 // n'exécutait : 0 % de couverture, et deux cas navigateur pour seule preuve, à
-// travers toute la pile. Voir docs/internal/comprendre.md.
+// travers toute la pile.
 
 const test = base.extend<{ monte: { adapter: Adapter; hote: HTMLElement } }>({
   // Le paramètre vide est la forme que vitest lit pour savoir quelles fixtures

@@ -2,7 +2,7 @@
 // request, mis à jour en place plutôt qu'empilé.
 //
 // Le rapport de couverture vivait dans les journaux d'un job que personne
-// n'ouvre. Voir docs/internal/comprendre.md.
+// n'ouvre.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -16,7 +16,7 @@ export const MARKER = '<!-- crypte-coverage -->'
 
 // Les seuils, lus du même fichier que `vite.config.ts`. Recopiés ici, ils
 // auraient dérivé : le commentaire aurait annoncé un seuil que la porte
-// n'applique pas. Voir docs/internal/comprendre.md.
+// n'applique pas.
 const THRESHOLDS = JSON.parse(
   readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'coverage-thresholds.json'), 'utf8'),
 )
@@ -29,7 +29,7 @@ const LEGEND = [
 // Ce que la mesure ne couvre pas, dit à côté d'elle : un chiffre à 100 % qui
 // tait une exclusion est un mensonge par omission.
 const EXCLUDED =
-  '<sub>Hors mesure : trois fichiers de câblage, l’entrée du CLI, le montage du shell et un module de types. Voir docs/internal/comprendre.md.</sub>'
+  '<sub>Hors mesure : trois fichiers de câblage, l’entrée du CLI, le montage du shell et un module de types.</sub>'
 
 const LABELS = {
   statements: 'instructions',
@@ -174,7 +174,6 @@ export function compose(summary, results, sha) {
 // Le badge du README, au format « endpoint » que shields.io sait lire. Les
 // lignes plutôt qu'une autre métrique : c'est celle que tout le monde entend par
 // « couverture ». Arrondi vers le bas : 98,55 affiché « 99 % » flatterait.
-// Voir docs/internal/comprendre.md.
 export function badge(summary) {
   const pct = summary?.total?.lines?.pct
   if (typeof pct !== 'number')

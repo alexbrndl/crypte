@@ -1,5 +1,5 @@
 // `crypte init`: writes the `crypte.config.ts` of section 1.5 in an existing
-// project. See docs/internal/comprendre.md.
+// project.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
