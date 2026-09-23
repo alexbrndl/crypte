@@ -217,6 +217,25 @@ describe('l’écran', () => {
     await expect.poll(ecran.vu).toBe('Étiquette')
   })
 
+  // L'autre sens du cas ci-dessus : une story qui marchait, qu'une modification
+  // casse. Vite garde alors l'ancien module sans rien dire, et le shell
+  // réaffichait la version d'avant l'édition avec son statut « rendu ». DCJ-296.
+  test('dit qu’une story saine ne rend plus quand une modification la casse', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+
+    const file = join(ecran.root, 'stories', 'Badge.tsx')
+    const saine = readFileSync(file, 'utf8')
+    writeFileSync(file, `${saine}\nthrow new Error('cassée par la modification')\n`)
+
+    const alerte = ecran.page.getByRole('alert')
+    await expect.poll(() => alerte.textContent()).toContain('cassée par la modification')
+
+    // Et la réparation fait oublier l'échec.
+    writeFileSync(file, saine)
+    await expect.poll(() => alerte.count()).toBe(0)
+    await expect.poll(ecran.vu).toBe('Nouveau')
+  })
+
   // Ce que React rafraîchit lui-même : le composant est repris par Fast Refresh,
   // pas par le chemin chaud de l'entrée.
   test('rafraîchit la story affichée quand son composant change', async ({ ecran }) => {
