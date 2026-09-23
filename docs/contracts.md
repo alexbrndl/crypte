@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.7, reference document. A project brief points here instead of restating these shapes.
+> Version 1.8, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -396,7 +396,7 @@ One rule, no extra field, and no collapsible group in the shell.
 
 Some shapes cannot be resolved by reading syntax alone, and fall back to an explicit declaration.
 
-The common one is CVA: `VariantProps<typeof badgeVariants>` is derived from a function call at runtime. Resolving it would need a full type checker, which Oxc is not. Those options go in `details.options`.
+CVA is read when the file holds it: for `VariantProps<typeof badgeVariants>`, with `const badgeVariants = cva(base, { variants })` in the same file, each variant becomes an `enum` whose options are its keys, and `defaultVariants` gives its default unless the component's own pattern writes one. A `badgeVariants` imported from another file, a variant keyed `true`/`false` (a boolean to CVA), or a key the file cannot name stays `unknown`, and its options go in `details.options`.
 
 ---
 
@@ -828,7 +828,6 @@ Left out on purpose. Some belong to a project brief, others wait for a demonstra
 - How the sidebar, the search and the panels look and behave.
 - Caching and start-up work.
 - The storage format of `visual-tests` baselines.
-- Reading CVA options automatically, in the `docs` plugin.
 - A write API for `crypte serve`, such as comments or editing. Postponed.
 
 **Out of reserve since 21 August 2026, and now planned:**
@@ -879,6 +878,13 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.8.** CVA options read from the file, which is what a shadcn kit needs to show anything.
+
+| Before | After |
+| --- | --- |
+| 3.5 said CVA needed a full type checker | `VariantProps<typeof x>` with `x = cva(…)` in the same file gives one `enum` per variant, its keys as options and `defaultVariants` as default |
+| section 7 left reading CVA to the `docs` plugin | inference does it, and an imported `x` still falls back to `details.options` |
 
 **v1.7.** `children` in the call code, which is what a field meant to be copied owes its reader.
 
