@@ -3,6 +3,7 @@ import "<racine>/packages/cli/test/fixture/src/styles/app.css"
 
 const __crypte_modules = {}
 const __crypte_broken = {}
+const __crypte_stale = new Map()
 
 await Promise.all([
   import("/stories/Gardee.tsx").then((module) => { __crypte_modules["/stories/Gardee.tsx"] = module }, (error) => { __crypte_broken["/stories/Gardee.tsx"] = error }),
@@ -35,6 +36,10 @@ function __crypte_render(id, overrides) {
   const __crypte_failure = __crypte_broken[__crypte_path]
   if (__crypte_failure) throw __crypte_failure
 
+  // A module that failed to reload leaves its old version in place, and this
+  // frame cannot tell which stories use it: until it reloads, none renders.
+  for (const failed of __crypte_stale.values()) throw failed
+
   const module = __crypte_modules[__crypte_path]
   if (!module) throw new Error(`no module for ${entry.storyFile}`)
 
@@ -59,23 +64,47 @@ if (import.meta.hot) {
   // this module, which then runs again rather than reloading the frame.
   import.meta.hot.accept()
 
-  // Each story file an update touched, imported again here with its own
+  // Each module an update touched, imported again here with its own
   // timestamp. Vite says nothing when a module fails to reload: it keeps the
   // old one, and the shell showed the version before the edit as rendered.
   // A failure is kept and thrown at the next render, a success forgets it.
+  // This entry is left out: importing it again would run it a second time.
   import.meta.hot.on('vite:afterUpdate', async ({ updates }) => {
-    const touched = updates.filter((one) => __crypte_paths.has(one.path))
+    const touched = updates.filter(
+      (one) => one.type === 'js-update' && one.path !== "/@crypte/preview.js",
+    )
     if (touched.length === 0) return
 
     await Promise.all(
       touched.map((one) =>
         import(/* @vite-ignore */ `${one.path}?t=${one.timestamp}`).then(
           (module) => {
+            __crypte_stale.delete(one.path)
+            if (!__crypte_paths.has(one.path)) return
             __crypte_modules[one.path] = module
             delete __crypte_broken[one.path]
           },
           (error) => {
-            __crypte_broken[one.path] = error
+            if (__crypte_paths.has(one.path)) __crypte_broken[one.path] = error
+            else __crypte_stale.set(one.path, error)
+          },
+        ),
+      ),
+    )
+
+    // A story file that failed because of another module stays broken, and
+    // nothing touches its file once that module is repaired. Each one is tried
+    // again, under a new timestamp so the browser does not return the failure.
+    const waiting = Object.keys(__crypte_broken).filter((path) => !touched.some((one) => one.path === path))
+    await Promise.all(
+      waiting.map((path) =>
+        import(/* @vite-ignore */ `${path}?t=${Date.now()}`).then(
+          (module) => {
+            __crypte_modules[path] = module
+            delete __crypte_broken[path]
+          },
+          (error) => {
+            __crypte_broken[path] = error
           },
         ),
       ),

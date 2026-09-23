@@ -240,6 +240,33 @@ describe('l’écran', () => {
     await expect.poll(ecran.vu).toBe('Nouveau')
   })
 
+  // Le même défaut un niveau plus bas : c'est le composant qui casse, et Fast
+  // Refresh garde l'ancien sans rien dire.
+  test('dit qu’une story ne rend plus quand son composant casse', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+
+    const file = join(ecran.root, 'src', 'components', 'Badge.tsx')
+    const sain = readFileSync(file, 'utf8')
+    writeFileSync(file, `${sain}\nthrow new Error('composant cassé')\n`)
+
+    const alerte = ecran.page.getByRole('alert')
+    await expect.poll(() => alerte.textContent()).toContain('composant cassé')
+
+    // Une story voisine modifiée fait réexécuter l'entrée, qui range alors
+    // l'échec sous le fichier de la story Badge : c'est ce fichier-là que la
+    // réparation du composant doit aussi délivrer.
+    const voisine = join(ecran.root, 'stories', 'Tag.tsx')
+    writeFileSync(voisine, `${readFileSync(voisine, 'utf8')}\n`)
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    await expect.poll(() => alerte.textContent()).toContain('composant cassé')
+
+    // Hors de la fenêtre de 50 ms du surveillant, voir le cas ci-dessus.
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    writeFileSync(file, sain)
+    await expect.poll(() => alerte.count()).toBe(0)
+    await expect.poll(ecran.vu).toBe('Nouveau')
+  })
+
   // Ce que React rafraîchit lui-même : le composant est repris par Fast Refresh,
   // pas par le chemin chaud de l'entrée.
   test('rafraîchit la story affichée quand son composant change', async ({ ecran }) => {
