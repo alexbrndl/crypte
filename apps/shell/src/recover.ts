@@ -10,7 +10,7 @@ export function unreadable(error: unknown): string {
 }
 
 // Hors du composant pour être testable : la distinction entre `null`, une entrée
-// et `'effacée'` ne s'éprouve pas depuis un rendu Vue.
+// et une story perdue ne s'éprouve pas depuis un rendu Vue.
 export function landing(
   shown: Shown,
   before: readonly StoryEntry[],
@@ -23,10 +23,15 @@ export function landing(
   // se sélectionnait plus jamais tout seul une fois la première story écrite.
   if (after.length === 0) return { id: null, shown, status: undefined }
 
-  return { id: null, shown: 'effacée', status: 'la story affichée a disparu' }
+  // La story perdue est gardée, avec le catalogue d'où elle a disparu : quand
+  // son fichier revient, c'est elle qu'on retrouve.
+  const lost = shown !== null && 'lost' in shown ? shown : { lost: shown as StoryEntry, before }
+  return { id: null, shown: lost, status: 'la story affichée a disparu' }
 }
 
-export type Shown = StoryEntry | null | 'effacée'
+// `lost` : la sélection vient d'être perdue, avec le catalogue d'où elle a
+// disparu, pour la retrouver si son fichier revient.
+export type Shown = StoryEntry | null | { lost: StoryEntry; before: readonly StoryEntry[] }
 
 // L'identifiant vient du chemin et du nom : un renommage le change. Le fichier et
 // le rang y survivent, d'où le repli sur eux.
@@ -35,11 +40,12 @@ export function recovered(
   before: readonly StoryEntry[],
   after: readonly StoryEntry[],
 ): string | null {
-  // `null` (rien n'a jamais été affiché) veut la première story ; `'effacée'` (la
-  // sélection vient d'être perdue) ne veut rien. Confondus, le shell saute sur la
-  // première story juste après avoir dit qu'il n'y a plus rien à afficher.
-  if (shown === 'effacée') return null
+  // `null` (rien n'a jamais été affiché) veut la première story ; une story
+  // perdue ne veut qu'elle-même, par les mêmes règles qu'une story présente.
+  // Confondus, le shell saute sur la première story juste après avoir dit qu'il
+  // n'y a plus rien à afficher.
   if (shown === null) return after[0]?.id ?? null
+  if ('lost' in shown) return recovered(shown.lost, shown.before, after)
   if (after.some((entry) => entry.id === shown.id)) return shown.id
 
   const rank = sameFile(shown.storyFile, before).findIndex((entry) => entry.id === shown.id)
