@@ -187,7 +187,7 @@ export function publish(file, given, run = gh) {
 
 function main([file, given]) {
   if (!file) {
-    console.error('usage : node test/post-review.mjs <verdict.json> [numéro]')
+    console.error('usage : node scripts/post-review.mjs <verdict.json> [numéro]')
     console.error('        1 = verdict refusé, 2 = publication manquée')
     exit(1)
   }

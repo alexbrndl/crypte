@@ -43,7 +43,7 @@ _Mesuré :_ la pull request qui a produit cette ligne réécrivait neuf entrées
 
 **Un diff dont tous les fichiers sont des `.md`, aucun n'étant l'une des formes ci-dessus, n'a pas besoin de revue.** `require-review.yml` le constate et passe au vert tout seul, donc la pull request se fusionne sans qu'aucun marqueur existe.
 
-Le classement vit dans `test/review-check.mjs`. Ne le réimplémente pas de tête : `node test/review-check.mjs <numéro>` dit ce qu'il en pense.
+Le classement vit dans `scripts/review-check.mjs`. Ne le réimplémente pas de tête : `node scripts/review-check.mjs <numéro>` dit ce qu'il en pense.
 
 Ne lance pas `/review` dans ce cas : deux verdicts vides d'affilée sur de la prose sont ce qui apprend à ne plus lire les suivants, et c'est le seul mode d'échec qui compte ici.
 
@@ -70,7 +70,7 @@ La formulation compte : une première version de cette règle ne parlait que des
 Le sous-agent rend son verdict et se termine. Écris-le dans un fichier JSON au format de la section 6, et **publie-le immédiatement, avant de lire les points en détail et avant toute correction** :
 
 ```bash
-node test/post-review.mjs revue.json <numéro>
+node scripts/post-review.mjs revue.json <numéro>
 ```
 
 Le script refuse un verdict mal formé, compte les revues marquées avant et après, et échoue si le compte n'a pas bougé. Code 1, le verdict est refusé, corrige-le. Code 2, la revue n'est pas arrivée, et rien d'autre ne compte tant que ce n'est pas le cas.
@@ -104,7 +104,7 @@ Lis ensuite `CLAUDE.md` et, si le diff touche au format de story, au manifeste, 
 
 ## 3. Ce que le dépôt vérifie déjà
 
-`vp test --coverage` dit ce que les tests exécutent. Il n'applique pas les seuils : c'est `node test/coverage-report.mjs` qui rend le verdict, une fois la mesure faite, et c'est lui que le contrôle `coverage` de la pull request exécute. **Lance les deux plutôt que de juger à la lecture** si le diff est éprouvé : une ligne neuve jamais exécutée est un constat en soi, et il se mesure en cinq secondes.
+`vp test --coverage` dit ce que les tests exécutent. Il n'applique pas les seuils : c'est `node scripts/coverage-report.mjs` qui rend le verdict, une fois la mesure faite, et c'est lui que le contrôle `coverage` de la pull request exécute. **Lance les deux plutôt que de juger à la lecture** si le diff est éprouvé : une ligne neuve jamais exécutée est un constat en soi, et il se mesure en cinq secondes.
 
 Ce qu'il ne dit pas : qu'une ligne exécutée est vérifiée. Un test qui appelle sans rien affirmer la couvre à 100 %. Un `toContain` sur un fragment de message, ou un `toThrow()` nu, sont donc des constats recevables même sur du code couvert.
 
@@ -184,7 +184,7 @@ Construis un fichier JSON, puis envoie-le :
 
 Un verdict sans compte de bloquants est inutilisable : celui qui le reçoit ne peut pas savoir ce qui retient la pull request, et retombe alors à tout corriger, ce qui est la boucle qu'on cherche à fermer.
 
-`test/post-review.mjs` refuse le fichier tant que ces conditions ne sont pas réunies : le marqueur seul sur la première ligne, `event` à `COMMENT`, un niveau en tête de chaque point, un `path` et une `line` pour chacun, ce `path` appartenant au diff quand les fichiers du diff sont lisibles, cette `line` tombant dans une portion du diff quand le point vise le côté droit, et un compte de bloquants égal au nombre de points ancrés qui en portent le niveau.
+`scripts/post-review.mjs` refuse le fichier tant que ces conditions ne sont pas réunies : le marqueur seul sur la première ligne, `event` à `COMMENT`, un niveau en tête de chaque point, un `path` et une `line` pour chacun, ce `path` appartenant au diff quand les fichiers du diff sont lisibles, cette `line` tombant dans une portion du diff quand le point vise le côté droit, et un compte de bloquants égal au nombre de points ancrés qui en portent le niveau.
 
 La dernière est la moins évidente : **un bloquant laissé dans le corps n'est pas résolvable, donc ne bloque rien.** Le compte annoncé et les points ancrés doivent donc coïncider.
 

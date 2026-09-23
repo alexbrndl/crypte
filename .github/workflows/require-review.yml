@@ -47,4 +47,4 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         # Sans numéro, sur workflow_dispatch, le script le retrouve depuis la
         # branche : `gh pr view` a besoin du dépôt cloné, d'où le checkout.
-        run: node test/review-check.mjs $PR
+        run: node scripts/review-check.mjs $PR

@@ -28,7 +28,6 @@ Crypte takes the other bet: layers from the start, so that it stays light withou
 | Document | Contents |
 | --- | --- |
 | [`docs/contracts.md`](docs/contracts.md) | story format, manifest, channel protocol, plugin contract, and what is built |
-| [`docs/guide.md`](docs/guide.md) | getting a workshop running, with examples the suite replays |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | install, checks, and how a change gets in |
 
 Why a mechanism exists, and what breaks without it, is a comment beside that mechanism. There is no separate design document.

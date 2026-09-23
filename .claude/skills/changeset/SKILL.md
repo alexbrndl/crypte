@@ -22,7 +22,7 @@ git diff --stat origin/main...HEAD
 
 Les trois derniers comptent **en entier**, sans regarder quel champ a bougé. Distinguer `exports` de `scripts` demanderait de rapprocher deux versions du fichier pour un gain faible : une note de trop coûte quatre lignes, une note manquée publie une version fausse.
 
-Ce critère est exécutable, dans `test/changeset-check.mjs`. **Si tu hésites, lance-le** plutôt que de trancher à la lecture : `node test/changeset-check.mjs <numéro>`. Le divorce entre ce texte et ce code est exactement ce qui a produit un point bloquant sur la pull request qui a introduit le contrôle.
+Ce critère est exécutable, dans `scripts/changeset-check.mjs`. **Si tu hésites, lance-le** plutôt que de trancher à la lecture : `node scripts/changeset-check.mjs <numéro>`. Le divorce entre ce texte et ce code est exactement ce qui a produit un point bloquant sur la pull request qui a introduit le contrôle.
 
 **Rien à déclarer**, et c'est le cas le plus fréquent : documentation, intégration continue, outillage, tests, `packages/*/test/**`, `apps/**` qui n'est jamais publié.
 

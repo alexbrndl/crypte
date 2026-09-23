@@ -4,7 +4,7 @@
 // Le rapport de couverture vivait dans les journaux d'un job que personne
 // n'ouvre.
 //
-// Les seuils vivent dans `test/coverage-thresholds.json`, jamais dans
+// Les seuils vivent dans `scripts/coverage-thresholds.json`, jamais dans
 // `vite.config.ts` : évalués aux deux endroits, ils rougissaient deux fois pour
 // la même raison. Conséquence assumée, `vp test --coverage` seul n'émet aucun
 // verdict, c'est `pnpm ready` qui l'applique en local.
@@ -301,7 +301,7 @@ function main(args) {
 
   if (dérives.length > 0) {
     console.error(
-      `seuil à monter dans test/coverage-thresholds.json : ${dérives.join(' ; ')}. ` +
+      `seuil à monter dans scripts/coverage-thresholds.json : ${dérives.join(' ; ')}. ` +
         'Un seuil laissé derrière la mesure est un seuil qu’on peut baisser sans rien faire rougir.',
     )
     // Le fichier prêt à coller, planchers arrondis vers le bas. Sans lui, l'auteur

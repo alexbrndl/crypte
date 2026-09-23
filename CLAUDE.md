@@ -55,7 +55,7 @@ gh pr ready <numéro>                 # 6. une fois les points traités
 
 Ces trois formes ne sont pas de la prose malgré leur extension : la première est la spécification, les deux autres portent ces règles-ci, donc une erreur dedans se propage à toutes les sessions suivantes.
 
-Le classement vit dans `test/review-check.mjs`, et `node test/review-check.mjs <numéro>` dit ce qu'il en pense.
+Le classement vit dans `scripts/review-check.mjs`, et `node scripts/review-check.mjs <numéro>` dit ce qu'il en pense.
 
 _Pourquoi cette exception existe :_ deux revues d'affilée ont rendu un verdict vide sur de la documentation. Une revue qui ne trouve rien apprend à ne plus lire les suivantes.
 
@@ -132,7 +132,7 @@ La couverture ne prouve rien non plus : un test qui appelle sans rien affirmer c
 
 **Tests.** Tout contrat public a un test qui vérifie qu'il accepte ce que la spécification décrit **et qu'il refuse le reste**. La seconde moitié est celle qui compte : un test sans cas négatif passerait à l'identique sur un type qui n'exige rien.
 
-Les tests vivent dans un dossier `test/`, jamais dans `src/` : un par paquet, plus celui de la racine pour l'outillage du dépôt.
+Les tests vivent dans un dossier `test/`, jamais dans `src/` : un par paquet, plus celui de la racine pour les promesses du dépôt. Les scripts de CI vivent dans `scripts/`, sans test.
 
 ---
 

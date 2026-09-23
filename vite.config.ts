@@ -96,8 +96,8 @@ export default defineConfig({
         '**/*.d.ts',
       ],
       // Les seuils ne sont **pas** ici. Ils vivent dans
-      // `test/coverage-thresholds.json` et sont évalués une seule fois, par
-      // `test/coverage-report.mjs`, donc par le contrôle `coverage` de la pull
+      // `scripts/coverage-thresholds.json` et sont évalués une seule fois, par
+      // `scripts/coverage-report.mjs`, donc par le contrôle `coverage` de la pull
       // request : évalués aux deux endroits, ils rougissaient deux fois pour la
       // même raison et le contrôle visible n'attrapait rien de plus.
       // `pnpm ready` les applique en local.

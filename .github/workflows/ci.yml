@@ -139,7 +139,7 @@ jobs:
             && github.event.pull_request.head.repo.full_name == github.repository)
             && github.event.pull_request.number || '' }}
         run: |
-          node test/coverage-report.mjs \
+          node scripts/coverage-report.mjs \
             ${PR:+--pr "$PR"} \
             --sha "${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
 
@@ -152,9 +152,9 @@ jobs:
       # Aucun droit d'écriture, aucune branche, et `pnpm ready` le régénère.
       - name: Le badge commité dit le chiffre mesuré
         run: |
-          node test/coverage-report.mjs --badge /tmp/coverage.json > /dev/null
+          node scripts/coverage-report.mjs --badge /tmp/coverage.json > /dev/null
           diff /tmp/coverage.json .github/coverage.json && exit 0
-          echo "::error::Le badge de .github/coverage.json est périmé. Si cette branche ne touche pas la couverture, fusionner \`main\` dedans suffit : le badge y est déjà à jour. Sinon, lancer \`vp test --coverage && node test/coverage-report.mjs --badge .github/coverage.json\` et commiter le fichier."
+          echo "::error::Le badge de .github/coverage.json est périmé. Si cette branche ne touche pas la couverture, fusionner \`main\` dedans suffit : le badge y est déjà à jour. Sinon, lancer \`vp test --coverage && node scripts/coverage-report.mjs --badge .github/coverage.json\` et commiter le fichier."
           exit 1
 
   # Les cinq budgets du produit, mesurés à chaque pull request. Un job à part
@@ -198,7 +198,7 @@ jobs:
       # Le tableau part au résumé du run, les dépassements sur l'erreur
       # standard, où `::error::` les annote. Le code de sortie décide.
       - name: Report budgets
-        run: node test/budgets.mjs >> "$GITHUB_STEP_SUMMARY"
+        run: node scripts/budgets.mjs >> "$GITHUB_STEP_SUMMARY"
 
   dependency-review:
     if: github.event_name == 'pull_request'
