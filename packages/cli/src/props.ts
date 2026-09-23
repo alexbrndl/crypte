@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs'
 import type { PropKind, ResolvedPropDetails } from '@crypte/core/protocol'
 import { parseSync } from 'vite'
-import { literalOf, type Node } from './ast'
+import { literalOf, propertyOf, type Node } from './ast'
 
 interface Comment {
   type: string
@@ -46,14 +46,14 @@ export function detailsOf(file: string, exported: string): Record<string, Resolv
 
   const details: Record<string, ResolvedPropDetails> = {}
 
-  for (const { name, optional, method, annotation, at } of named) {
+  for (const { name, optional, method, annotation, at, read, preset } of named) {
     const described = describe(source, comments, at)
     const kind = method
       ? { type: 'function' as PropKind }
-      : annotation
-        ? kindOf(annotation)
-        : { type: 'unknown' as PropKind }
-    const fallback = defaults.values[name]
+      : (read ?? (annotation ? kindOf(annotation) : { type: 'unknown' as PropKind }))
+    // The pattern's default is what the component passes, so it wins even when
+    // its value cannot be read.
+    const fallback = defaults.named.has(name) ? defaults.values[name] : preset
 
     details[name] = {
       ...kind,
@@ -76,6 +76,10 @@ interface Member {
   annotation: Node | undefined
   // Where the member starts, so the comment that precedes it can be found.
   at: number
+  // A kind already read from somewhere other than an annotation.
+  read?: { type: PropKind; options?: unknown[] }
+  // A default the type's source declares, which the pattern's own overrides.
+  preset?: unknown
 }
 
 // The first parameter of the exported component, whatever shape declares it.
@@ -127,17 +131,36 @@ function membersOf(body: Node[], parameter: Node): Member[] | undefined {
     | undefined
   if (!annotation) return undefined
 
-  const literal = annotation.type === 'TSTypeLiteral' ? annotation : namedType(body, annotation)
+  return typeMembers(body, annotation)
+}
 
-  return literal ? signatures(literal) : undefined
+// `ComponentProps<'button'> & VariantProps<typeof x> & { asChild?: boolean }`,
+// the shadcn shape: each part that resolves adds its members, and a part that
+// does not, the DOM one here, adds none.
+function typeMembers(
+  body: Node[],
+  annotation: Node,
+  seen = new Set<string>(),
+): Member[] | undefined {
+  if (annotation.type === 'TSTypeLiteral') return signatures(annotation)
+
+  if (annotation.type === 'TSIntersectionType') {
+    return (annotation['types'] as Node[]).flatMap((one) => typeMembers(body, one, seen) ?? [])
+  }
+
+  return (
+    variants(body, annotation['typeName'] as Node | null, annotation) ??
+    namedType(body, annotation, seen)
+  )
 }
 
 // The declaration a type reference points at, when this file holds it.
-function namedType(body: Node[], annotation: Node): Node | undefined {
+// `seen` stops `type P = P & Q`: it does not type-check, but it parses.
+function namedType(body: Node[], annotation: Node, seen: Set<string>): Member[] | undefined {
   if (annotation.type !== 'TSTypeReference') return undefined
 
   const name = (annotation['typeName'] as Node | null)?.['name']
-  if (typeof name !== 'string') return undefined
+  if (typeof name !== 'string' || seen.has(name)) return undefined
 
   for (const node of body) {
     const declaration = (node['declaration'] ?? node) as Node
@@ -145,14 +168,88 @@ function namedType(body: Node[], annotation: Node): Node | undefined {
     const declared = (declaration['id'] as Node | null)?.['name']
     if (declared !== name) continue
 
-    if (declaration.type === 'TSInterfaceDeclaration') return declaration['body'] as Node
-    if (declaration.type === 'TSTypeAliasDeclaration') {
-      const aliased = declaration['typeAnnotation'] as Node
-      if (aliased.type === 'TSTypeLiteral') return aliased
+    if (declaration.type === 'TSInterfaceDeclaration') {
+      const inherited = (declaration['extends'] as Node[]).flatMap(
+        (one) => variants(body, one['expression'] as Node, one) ?? [],
+      )
+      return [...inherited, ...signatures(declaration['body'] as Node)]
+    }
+    if (declaration.type === 'TSTypeAliasDeclaration')
+      return typeMembers(body, declaration['typeAnnotation'] as Node, new Set([...seen, name]))
+  }
+
+  return undefined
+}
+
+// CVA's options are keys of an object literal, so reading them needs no type
+// checker as long as `const x = cva(base, { variants })` is in this file. An
+// imported `x`, or one built any other way, stays out of reach and its props
+// keep coming from the pattern alone.
+//
+// A variant keyed `true` or `false` is a boolean to CVA, not those two
+// strings: it stays `unknown` rather than offering them. Reopened by a design
+// system that writes one.
+function variants(body: Node[], name: Node | null, reference: Node): Member[] | undefined {
+  if (name?.['name'] !== 'VariantProps') return undefined
+
+  const query = ((reference['typeArguments'] as Node | null)?.['params'] as Node[] | undefined)?.[0]
+  const target = query?.type === 'TSTypeQuery' ? (query['exprName'] as Node)['name'] : undefined
+  if (typeof target !== 'string') return undefined
+
+  const config = cvaConfig(body, target)
+  const declared = propertyOf(config, 'variants')
+  if (declared?.type !== 'ObjectExpression') return undefined
+
+  const defaults = propertyOf(config, 'defaultVariants')
+
+  return (declared['properties'] as Node[]).flatMap((one) => {
+    if (one.type !== 'Property') return []
+    const name = nameOf(one['key'] as Node, one['computed'] === true)
+    if (name === undefined) return []
+
+    const preset = literalOf(propertyOf(defaults ?? undefined, name))?.value
+    return [
+      {
+        name,
+        optional: true,
+        annotation: undefined,
+        at: one.start,
+        read: optionsOf(one['value'] as Node),
+        ...(preset === undefined ? {} : { preset }),
+      },
+    ]
+  })
+}
+
+// The second argument of `cva(…)` assigned to that name in this file.
+function cvaConfig(body: Node[], target: string): Node | undefined {
+  for (const node of body) {
+    const declaration = (node['declaration'] ?? node) as Node
+    if (declaration.type !== 'VariableDeclaration') continue
+
+    for (const one of declaration['declarations'] as Node[]) {
+      const init = one['init'] as Node | null
+      if ((one['id'] as Node | null)?.['name'] !== target || init?.type !== 'CallExpression')
+        continue
+      if ((init['callee'] as Node)['name'] !== 'cva') return undefined
+      return (init['arguments'] as Node[])[1]
     }
   }
 
   return undefined
+}
+
+// One key the file cannot name drops the whole enum, never just itself.
+function optionsOf(value: Node): { type: PropKind; options?: unknown[] } {
+  if (value.type !== 'ObjectExpression') return { type: 'unknown' }
+
+  const keys = (value['properties'] as Node[]).map((one) =>
+    one.type === 'Property' ? nameOf(one['key'] as Node, one['computed'] === true) : undefined,
+  )
+  if (keys.some((one) => one === undefined || one === 'true' || one === 'false'))
+    return { type: 'unknown' }
+
+  return { type: 'enum', options: keys }
 }
 
 // The name a key writes. A computed key has none that can be read without
@@ -174,7 +271,7 @@ function signatures(literal: Node): Member[] {
 
   return (found ?? [])
     .filter((one) => one.type === 'TSPropertySignature' || one.type === 'TSMethodSignature')
-    .flatMap((one) => {
+    .flatMap((one): Member[] => {
       const name = nameOf(one['key'] as Node, one['computed'] === true)
       if (name === undefined) return []
 

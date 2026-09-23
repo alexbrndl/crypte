@@ -342,3 +342,82 @@ export function Badge({ level }: P) { return null }`
     expect(read(source)).toEqual({ level: { type: 'number', required: true } })
   })
 })
+
+// La forme shadcn : les options d'un variant sont les clés de l'objet passé à
+// `cva(…)`, lisibles tant que cet appel est dans le fichier.
+describe('les variants CVA', () => {
+  const variants = `const badgeVariants = cva('base', {
+  variants: {
+    tone: { neutral: 'a', 'on-dark': 'b' },
+    size: { sm: 'c', lg: 'd' },
+  },
+  defaultVariants: { tone: 'neutral', size: 'sm' },
+})`
+
+  it('lit les options de chaque variant dans la forme shadcn', () => {
+    const source = `${variants}
+export function Badge({ className, tone = 'on-dark', ...props }: ComponentProps<'span'> &
+  VariantProps<typeof badgeVariants> & { asChild?: boolean }) { return null }`
+
+    expect(read(source)).toEqual({
+      tone: { type: 'enum', options: ['neutral', 'on-dark'], required: false, default: 'on-dark' },
+      size: { type: 'enum', options: ['sm', 'lg'], required: false, default: 'sm' },
+      asChild: { type: 'boolean', required: false },
+      className: { type: 'unknown', required: false },
+    })
+  })
+
+  it('les lit aussi dans une interface qui étend VariantProps', () => {
+    const source = `${variants}
+interface P extends HTMLAttributes<HTMLSpanElement>, VariantProps<typeof badgeVariants> { label: string }
+export function Badge({ label }: P) { return null }`
+
+    expect(Object.keys(read(source))).toEqual(['tone', 'size', 'label'])
+  })
+
+  it('les lit derrière un alias, et ne boucle pas sur un alias qui se cite', () => {
+    const source = `${variants}
+type P = ComponentProps<'span'> & VariantProps<typeof badgeVariants>
+type Q = Q & { loop?: string }
+export function Badge({ tone }: P) { return null }
+export function Loop({ loop }: Q) { return null }`
+
+    expect(Object.keys(read(source))).toEqual(['tone', 'size'])
+    expect(read(source, 'Loop')).toEqual({ loop: { type: 'string', required: false } })
+  })
+
+  it('ne rend pas le défaut de CVA quand le motif en écrit un qui ne se lit pas', () => {
+    const source = `${variants}
+export function Badge({ tone = pick() }: VariantProps<typeof badgeVariants>) { return null }`
+
+    expect(read(source)['tone']).toEqual({
+      type: 'enum',
+      options: ['neutral', 'on-dark'],
+      required: false,
+    })
+  })
+
+  it('rend unknown pour un appel que le fichier ne déclare pas', () => {
+    const imported = `import { badgeVariants } from './variants'
+export function Badge({ tone }: VariantProps<typeof badgeVariants>) { return null }`
+    const other = `const badgeVariants = tv('base', { variants: { tone: { a: '' } } })
+export function Badge({ tone }: VariantProps<typeof badgeVariants>) { return null }`
+
+    for (const source of [imported, other])
+      expect(read(source)).toEqual({ tone: { type: 'unknown', required: false } })
+  })
+
+  it('rend unknown pour un variant booléen, non littéral, ou dont une clé est numérique ou calculée', () => {
+    const source = `export const badgeVariants = cva('base', {
+  variants: { tone: { true: 'a', false: 'b' }, size: { [SM]: 'c' }, gap: { 1: 'd' }, wide: WIDE },
+})
+export function Badge(props: VariantProps<typeof badgeVariants>) { return null }`
+
+    expect(read(source)).toEqual({
+      tone: { type: 'unknown', required: false },
+      size: { type: 'unknown', required: false },
+      gap: { type: 'unknown', required: false },
+      wide: { type: 'unknown', required: false },
+    })
+  })
+})
