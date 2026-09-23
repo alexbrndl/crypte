@@ -53,27 +53,41 @@ function __crypte_render(id, overrides) {
 const __crypte_channel = __crypte_channelOf({ render: __crypte_render })
 
 if (import.meta.hot) {
-  const __crypte_paths = ["/stories/Gardee.tsx"]
+  const __crypte_paths = new Set(["/stories/Gardee.tsx"])
 
-  import.meta.hot.accept(__crypte_paths, (updated) => {
-    updated.forEach((module, index) => {
-      if (!module) return
+  // Accepted whole. A story file that React cannot refresh sends Vite back to
+  // this module, which then runs again rather than reloading the frame.
+  import.meta.hot.accept()
 
-      __crypte_modules[__crypte_paths[index]] = module
+  // Each story file an update touched, imported again here with its own
+  // timestamp. Vite says nothing when a module fails to reload: it keeps the
+  // old one, and the shell showed the version before the edit as rendered.
+  // A failure is kept and thrown at the next render, a success forgets it.
+  import.meta.hot.on('vite:afterUpdate', async ({ updates }) => {
+    const touched = updates.filter((one) => __crypte_paths.has(one.path))
+    if (touched.length === 0) return
 
-      // Kept, this failure outlives the repair: the panel would still
-      // show a stack pointing at a line that no longer exists.
-      delete __crypte_broken[__crypte_paths[index]]
-    })
+    await Promise.all(
+      touched.map((one) =>
+        import(/* @vite-ignore */ `${one.path}?t=${one.timestamp}`).then(
+          (module) => {
+            __crypte_modules[one.path] = module
+            delete __crypte_broken[one.path]
+          },
+          (error) => {
+            __crypte_broken[one.path] = error
+          },
+        ),
+      ),
+    )
 
     __crypte_channel.again()
   })
 
-  // A story file that React cannot refresh makes Vite run this module again,
-  // with a new channel and a new adapter. The old ones go first: left behind,
-  // the old channel still answers the shell and the old root still holds the
-  // container, so each save leaked one of each. `unmount` is optional: the
-  // contract does not require it of an adapter.
+  // Running again builds a new channel and a new adapter. The old ones go
+  // first: left behind, the old channel still answers the shell and the old
+  // root still holds the container, so each save leaked one of each.
+  // `unmount` is optional: the contract does not require it of an adapter.
   import.meta.hot.dispose(() => {
     __crypte_channel.dispose()
     __crypte_adapter.unmount?.()
