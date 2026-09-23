@@ -81,6 +81,8 @@ interface Ecran {
   // Le nombre de fois que le cadre a navigué, pour distinguer une mise à jour à
   // chaud d'un rechargement.
   navigations: () => number
+  // Ce que la page a écrit en erreur dans la console, depuis son ouverture.
+  plaintes: () => string[]
 }
 
 const test = base.extend<{ ecran: Ecran }>({
@@ -124,6 +126,7 @@ const test = base.extend<{ ecran: Ecran }>({
         page,
         root,
         navigations: () => navigations,
+        plaintes: () => plaintes,
         vu: async () => {
           const rendu = await page
             .frameLocator('iframe[title="preview"]')
@@ -255,6 +258,10 @@ describe('l’écran', () => {
     await expect.poll(ecran.vu).toContain('Renouvelé')
 
     expect(ecran.navigations()).toBe(avant)
+    // Une sauvegarde réexécute l'entrée. Sans le `dispose` de l'entrée, l'ancienne
+    // racine React restait accrochée au conteneur, et la console le disait :
+    // « createRoot() on a container that has already been passed ». DCJ-290.
+    expect(ecran.plaintes()).toEqual([])
   })
 })
 
