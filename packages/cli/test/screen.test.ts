@@ -252,6 +252,14 @@ describe('l’écran', () => {
     const alerte = ecran.page.getByRole('alert')
     await expect.poll(() => alerte.textContent()).toContain('composant cassé')
 
+    // Une story voisine modifiée fait réexécuter l'entrée, qui range alors
+    // l'échec sous le fichier de la story Badge : c'est ce fichier-là que la
+    // réparation du composant doit aussi délivrer.
+    const voisine = join(ecran.root, 'stories', 'Tag.tsx')
+    writeFileSync(voisine, `${readFileSync(voisine, 'utf8')}\n`)
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    await expect.poll(() => alerte.textContent()).toContain('composant cassé')
+
     // Hors de la fenêtre de 50 ms du surveillant, voir le cas ci-dessus.
     await new Promise((resolve) => setTimeout(resolve, 300))
     writeFileSync(file, sain)

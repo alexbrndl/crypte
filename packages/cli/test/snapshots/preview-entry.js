@@ -92,6 +92,24 @@ if (import.meta.hot) {
       ),
     )
 
+    // A story file that failed because of another module stays broken, and
+    // nothing touches its file once that module is repaired. Each one is tried
+    // again, under a new timestamp so the browser does not return the failure.
+    const waiting = Object.keys(__crypte_broken).filter((path) => !touched.some((one) => one.path === path))
+    await Promise.all(
+      waiting.map((path) =>
+        import(/* @vite-ignore */ `${path}?t=${Date.now()}`).then(
+          (module) => {
+            __crypte_modules[path] = module
+            delete __crypte_broken[path]
+          },
+          (error) => {
+            __crypte_broken[path] = error
+          },
+        ),
+      ),
+    )
+
     __crypte_channel.again()
   })
 
