@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Manifest, SkippedFile, StoryEntry } from '@crypte/core/protocol'
-import { createShellChannel } from '@crypte/core/ui'
+import { createShellChannel } from '@crypte/core/shell'
 import { computed, onMounted, ref, useTemplateRef } from 'vue'
 import { landing, unreadable, type Shown } from './recover'
 

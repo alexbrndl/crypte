@@ -10,7 +10,7 @@
   "exports": {
     "./preview": "./dist/preview.js",
     "./protocol": "./dist/protocol.js",
-    "./ui": "./dist/ui.js",
+    "./shell": "./dist/shell.js",
     "./package.json": "./package.json"
   },
   "scripts": {

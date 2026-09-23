@@ -4,7 +4,7 @@ export default defineConfig({
   pack: {
     entry: {
       protocol: 'src/protocol/index.ts',
-      ui: 'src/ui/index.ts',
+      shell: 'src/shell/index.ts',
       preview: 'src/preview/index.ts',
     },
     format: ['esm'],

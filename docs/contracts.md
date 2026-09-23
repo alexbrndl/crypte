@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.9, reference document. A project brief points here instead of restating these shapes.
+> Version 1.10, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -718,7 +718,7 @@ A plugin is an object with a name and three optional surfaces.
 ```ts
 interface CryptePlugin {
   name: string
-  ui?: UIContribution
+  shell?: ShellContribution
   preview?: PreviewHooks
   node?: NodeHooks
 }
@@ -726,11 +726,11 @@ interface CryptePlugin {
 
 | Surface | Runs in | Role |
 | --- | --- | --- |
-| `ui` | shell | panel, toolbar button |
+| `shell` | shell | panel, toolbar button |
 | `preview` | iframe | lifecycle around a render |
 | `node` | CLI | build step, command |
 
-`NodeHooks` is specified in 6.3. `UIContribution` is not: it is written with the first plugin that draws a panel, tracked in DCJ-194, and until then the core declares it opaque, the way it declares an adapter opaque.
+`NodeHooks` is specified in 6.3. `ShellContribution` is not: it is written with the first plugin that draws a panel, tracked in DCJ-194, and until then the core declares it opaque, the way it declares an adapter opaque.
 
 **`PreviewHooks` is specified in 6.2 and the core declares it opaque too.** The shapes below are what it will be; no preview calls them yet, and nothing would be gained by typing a surface with no caller. Section 8 carries that gap.
 
@@ -861,7 +861,7 @@ This document is a contract. This section is the only place that says what exist
 | 4, the manifest | built, and written by `crypte dev` at start-up and on every restart of the configuration. A story file added or broken changes what is served without rewriting the file. Of the two natures of entry it can carry, only `story` is produced |
 | 4.6, the fingerprint | built, and written by `crypte dev` at start-up only: it is committed, so a restart leaves the working tree alone |
 | 5, the channel | built and exercised on both sides |
-| 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. `ui` and `preview` are named and declared opaque. **Provisional, and not one step closer to stable**: 6.5 asks for `controls` and `a11y`, and `tokens` is neither |
+| 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. `shell` and `preview` are named and declared opaque. **Provisional, and not one step closer to stable**: 6.5 asks for `controls` and `a11y`, and `tokens` is neither |
 
 **`dev`, `check` and `init` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled by the project's own Vite. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte init` writes the configuration of 1.5 into a project that already has its components, and has no section of its own because the file it writes is 1.5 itself.
 
@@ -869,7 +869,7 @@ Seven known gaps between this document and the code:
 
 - A path alias cannot replace an installed package. `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because the resolver runs after Vite's own. TypeScript would return the replacement file.
 - **Inference reads what a file declares, never what a type it cannot resolve holds.** A type alias, an interface and a `cva(…)` call declared in the component file are followed. An imported type, a generic, a DOM part of an intersection, and an `extends` clause other than `VariantProps` of a local `cva` each leave only what the component file writes by hand, which for a DOM pass-through is the names in its destructuring pattern. Enumerating the rest needs the type checker, and inventing names is what 4.2 forbids.
-- **`UIContribution` and `PreviewHooks` are declared opaque by the core**, though 6.2 specifies the second one in full. Neither has a caller: no shell panel comes from a plugin, and no preview runs a lifecycle hook. Typing a surface nobody calls would buy nothing and could not be taken back.
+- **`ShellContribution` and `PreviewHooks` are declared opaque by the core**, though 6.2 specifies the second one in full. Neither has a caller: no shell panel comes from a plugin, and no preview runs a lifecycle hook. Typing a surface nobody calls would buy nothing and could not be taken back.
 - The serialisation of 4.5 is guaranteed on **contributed** entries and merely true of the others. A plugin's entry is checked and refused with what offends named; everything the CLI reads itself comes from source text and is serialisable by construction, so nothing exercises the guarantee there.
 - **A `tokens` entry is written and nothing displays one.** `@crypte/tokens` contributes families read from a project's CSS custom properties, and the demonstration carries four. No screen shows them: the shell keeps out of its tree what it cannot draw, so they travel in the manifest and stop there. The page that draws them belongs to the shell's own project.
 - **`crypte check` says nothing about the fingerprint.** 4.6 gives it the job of telling a project that its record is behind, and it reports the two problems of 1.2 and nothing else. Whether a stale record should fail the command is undecided, which is why it is not guessed here.
@@ -878,6 +878,13 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.10.** The shell side named `shell`, which is where it runs, before a component package makes `ui` mean something else.
+
+| Before | After |
+| --- | --- |
+| the core's shell entry was `@crypte/core/ui` | it is `@crypte/core/shell`, beside `preview` and `protocol` |
+| a plugin contributed `ui?: UIContribution` | it contributes `shell?: ShellContribution`, still opaque until DCJ-194 |
 
 **v1.9.** A prop typed by an alias of the same file, which is how a union is written once it serves twice.
 
@@ -923,7 +930,7 @@ Seven known gaps between this document and the code:
 | --- | --- |
 | `NodeContext` carried only the root | it carries the declared style sheet too, since a plugin reading CSS could otherwise only guess which file was meant |
 | nothing said what a numeric token's `value` held | it is a string like every other value, and the kind says how to read it |
-| section 6 was written against no consumer | `@crypte/tokens` is written against its `node` surface, which is what turned 6.3 from prose into something measured. It is not one of the two plugins 6.5 waits for, both of which use `ui` |
+| section 6 was written against no consumer | `@crypte/tokens` is written against its `node` surface, which is what turned 6.3 from prose into something measured. It is not one of the two plugins 6.5 waits for, both of which use `shell` |
 | section 0 held two guiding rules | it holds three: what a project already writes is read and not declared again, and stories are the one exception. Writing the first plugin is what made the asymmetry worth stating |
 
 **v1.3.** The `node` surface of a plugin, which is what a manifest entry coming from anywhere but a story file needs.

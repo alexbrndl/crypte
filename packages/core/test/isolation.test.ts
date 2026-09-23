@@ -12,7 +12,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 // fermeture retomberait en silence au fichier d'entrée.
 //
 // Les cas cherchent des chaînes que les sources écrivent et que le bundler
-// recopie telles quelles, `NFD` et les marqueurs `__crypte_ui__`, jamais un nom
+// recopie telles quelles, `NFD` et les marqueurs `__crypte_shell__`, jamais un nom
 // de chunk qu'il invente : celui-là change sans prévenir. Les fixtures s'écrivent
 // dans un dossier temporaire, jamais dans `dist`, qui est le contenu publié.
 
@@ -92,7 +92,7 @@ describe('le suivi des imports', () => {
 })
 
 describe('isolation des entrées de @crypte/core', () => {
-  it('protocol ne contient rien de ui ni de preview', () => {
+  it('protocol ne contient rien de shell ni de preview', () => {
     const protocol = closureOf('protocol')
 
     // Les deux cas sur `protocol` n'ont que des assertions négatives, qui
@@ -101,7 +101,7 @@ describe('isolation des entrées de @crypte/core', () => {
     // ligne de réexport de l'entrée, donc satisfait même sans le code.
     expect(protocol).toContain('NFD')
 
-    expect(protocol).not.toContain('__crypte_ui__')
+    expect(protocol).not.toContain('__crypte_shell__')
     expect(protocol).not.toContain('__crypte_preview__')
   })
 
@@ -114,12 +114,12 @@ describe('isolation des entrées de @crypte/core', () => {
   // L'autre sens : les deux côtés du canal n'ont besoin que de `channel`. Importer
   // la barrière leur faisait embarquer `id.ts` et `manifest.ts` en code mort.
   // Sur la fermeture, comme les autres cas. Une version antérieure exigeait de
-  // `ui` qu'il n'ait aucun import relatif : ce critère-là aurait rougi le jour où
-  // `ui` lit une valeur du canal, sans qu'aucune étanchéité soit rompue.
+  // `shell` qu'il n'ait aucun import relatif : ce critère-là aurait rougi le jour où
+  // `shell` lit une valeur du canal, sans qu'aucune étanchéité soit rompue.
   //
-  // Le cas est aujourd'hui vacant pour `ui`, qui n'importe que des types : il
+  // Le cas est aujourd'hui vacant pour `shell`, qui n'importe que des types : il
   // mordra dès qu'il importera une valeur, comme `preview` le fait déjà.
-  it.each(['ui', 'preview'])('%s n’embarque que ce dont il se sert', (entry) => {
+  it.each(['shell', 'preview'])('%s n’embarque que ce dont il se sert', (entry) => {
     const closure = closureOf(entry)
     expect(closure).toContain(`__crypte_${entry}__`)
 

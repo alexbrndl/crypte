@@ -122,7 +122,7 @@ Si tu trouves un point bloquant portant sur une **entrée jamais éprouvée**, d
 
 **Ce qui est recherché**, dans cet ordre :
 
-1. **Les quatre contraintes structurelles de `CLAUDE.md`.** Une dépendance interne embarquée en copie, un composant placé dans `core/ui` sans qu'un plugin réel le demande, un import de `vite-plus` dans du code publié, une entrée de `core` qui en tire une autre.
+1. **Les quatre contraintes structurelles de `CLAUDE.md`.** Une dépendance interne embarquée en copie, un composant placé dans `core/shell` sans qu'un plugin réel le demande, un import de `vite-plus` dans du code publié, une entrée de `core` qui en tire une autre.
 2. **Les contrats de `docs/contracts.md`**, s'ils sont concernés. Un écart entre le document et le code est un constat recevable, mais le document n'est pas la loi : il a été écrit avant le code. Dire lequel des deux est faux, et pourquoi.
 3. **Les contradictions internes.** Une décision consignée dans la documentation et prise à l'envers dans le code, un mécanisme rendu inopérant par un autre changement, un test qui ne peut plus échouer.
 4. **La règle de documentation.** Le diff ajoute-t-il un mécanisme dont on pourrait oublier la raison, et qu'on supprimerait alors par erreur ? Si oui, et seulement si oui, un commentaire doit vivre **à côté de ce mécanisme**, disant ce qui casse si on l'enlève. Il n'y a pas de document où le renvoyer. Un mécanisme qui se lit tout seul n'en porte pas.
