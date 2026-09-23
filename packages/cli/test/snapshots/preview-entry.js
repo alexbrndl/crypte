@@ -68,4 +68,14 @@ if (import.meta.hot) {
 
     __crypte_channel.again()
   })
+
+  // A story file that React cannot refresh makes Vite run this module again,
+  // with a new channel and a new adapter. The old ones go first: left behind,
+  // the old channel still answers the shell and the old root still holds the
+  // container, so each save leaked one of each. `unmount` is optional: the
+  // contract does not require it of an adapter.
+  import.meta.hot.dispose(() => {
+    __crypte_channel.dispose()
+    __crypte_adapter.unmount?.()
+  })
 }
