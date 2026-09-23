@@ -396,9 +396,9 @@ export function Badge({ tone }: VariantProps<typeof badgeVariants>) { return nul
       expect(read(source)).toEqual({ tone: { type: 'unknown', required: false } })
   })
 
-  it('rend unknown pour un variant booléen ou une clé qu’il ne sait pas nommer', () => {
-    const source = `const badgeVariants = cva('base', {
-  variants: { tone: { true: 'a', false: 'b' }, size: { [SM]: 'c' }, gap: { 1: 'd' } },
+  it('rend unknown pour un variant booléen, non littéral, ou une clé qu’il ne sait pas nommer', () => {
+    const source = `export const badgeVariants = cva('base', {
+  variants: { tone: { true: 'a', false: 'b' }, size: { [SM]: 'c' }, gap: { 1: 'd' }, wide: WIDE },
 })
 export function Badge(props: VariantProps<typeof badgeVariants>) { return null }`
 
@@ -406,6 +406,7 @@ export function Badge(props: VariantProps<typeof badgeVariants>) { return null }
       tone: { type: 'unknown', required: false },
       size: { type: 'unknown', required: false },
       gap: { type: 'unknown', required: false },
+      wide: { type: 'unknown', required: false },
     })
   })
 })
