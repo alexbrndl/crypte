@@ -63,6 +63,7 @@ test('aucun code publié n’importe vite-plus', () => {
     .split('\n')
     .filter((f) => f.includes('/src/'))
 
+  expect(sources, 'aucune source lue').not.toEqual([])
   expect(sources.filter((f) => lire(f).includes('vite-plus'))).toEqual([])
 })
 

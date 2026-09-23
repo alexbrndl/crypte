@@ -116,7 +116,7 @@ Dans un fichier de test la règle s'inverse : le candidat est une assertion mort
 
 Écrire **le fait, pas le raisonnement.** `« button-- pour tout nom cyrillique »` se comprend, `« la normalisation restreinte à l'alphabet latin provoquait une perte de segments »` ne se comprend pas. Quand l'explication est longue, se demander d'abord si le problème n'est pas le nom ou le code.
 
-**La langue se décide par public, pas par dossier.** Ce qu'un utilisateur ou un contributeur lit est en anglais : `README.md`, `CONTRIBUTING.md`, les contrats, le guide, les messages d'erreur du CLI et les commentaires du code publié. Les notes de mainteneur sont en français : ce fichier, les skills, et les commentaires de l'outillage du dépôt.
+**La langue se décide par public, pas par dossier.** Ce qu'un utilisateur ou un contributeur lit est en anglais : `README.md`, `CONTRIBUTING.md`, les contrats, les messages d'erreur du CLI et les commentaires du code publié. Les notes de mainteneur sont en français : ce fichier, les skills, et les commentaires de l'outillage du dépôt.
 
 **Pas de documentation pour du code qui se lit tout seul.** Documenter tout produit de la documentation que personne ne lit, donc aucune documentation.
 

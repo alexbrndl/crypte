@@ -27,15 +27,15 @@ La distinction tient en une phrase : **des faits, jamais d'interprétation.**
 
 Le critère est mécanique, pour ne pas être rejugé à chaque revue :
 
-| Le diff touche                                                                  | Modèle         |
-| ------------------------------------------------------------------------------- | -------------- |
-| de la prose, de la configuration ou des workflows                               | petit modèle   |
-| ce qui se relit sans procédure : `docs/contracts.md`, `CLAUDE.md`, `.claude/**` | modèle courant |
-| au moins un fichier sous `packages/*/src/**` ou `apps/**`                       | modèle courant |
+| Le diff touche                                                                                  | Modèle         |
+| ----------------------------------------------------------------------------------------------- | -------------- |
+| de la prose, de la configuration ou des workflows                                               | petit modèle   |
+| ce qui exige la procédure malgré son extension : `docs/contracts.md`, `CLAUDE.md`, `.claude/**` | modèle courant |
+| au moins un fichier sous `packages/*/src/**` ou `apps/**`                                       | modèle courant |
 
 Le code garde donc toujours le modèle courant : le petit modèle ne s'applique jamais là où le raisonnement est le plus exigeant. En cas de doute sur la nature du diff, prends le modèle courant.
 
-**Quatre formes valent du code, malgré leur extension.** Les deux premières font foi, `docs/contracts.md` le dit de lui-même. `CLAUDE.md` et les skills encodent les règles de travail, donc une erreur dedans se propage à toutes les sessions suivantes.
+**Trois formes valent du code, malgré leur extension.** `docs/contracts.md` est la spécification. `CLAUDE.md` et les skills encodent les règles de travail, donc une erreur dedans se propage à toutes les sessions suivantes.
 
 _Mesuré :_ la pull request qui a produit cette ligne réécrivait neuf entrées d'un registre de décisions sur 908 lignes de diff. Le petit modèle l'a relue en trois appels d'outils et rendu un verdict vide, alors qu'une relecture manuelle du même diff avait trouvé deux erreurs. Le critère par emplacement ne suit pas ce qu'il représente, et une liste de noms suffit à le corriger sans rendre la table jugeable au cas par cas.
 

@@ -11,12 +11,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 // des imports relatifs, et l'échec sur une cible non résolue, sans quoi la
 // fermeture retomberait en silence au fichier d'entrée.
 //
-// Rien ne s'ancre sur la forme d'un artefact, ni nom de chunk ni constante : une
-// sortie de bundler change sans prévenir, et le cas devient tour à tour
-// complaisant et cassant. Les fixtures s'écrivent dans un dossier temporaire,
-// jamais dans `dist`, qui est le contenu publié.
-
-// L'étanchéité des trois entrées, lue sur les bundles.
+// Les cas cherchent des chaînes que les sources écrivent et que le bundler
+// recopie telles quelles, `NFD` et les marqueurs `__crypte_ui__`, jamais un nom
+// de chunk qu'il invente : celui-là change sans prévenir. Les fixtures s'écrivent
+// dans un dossier temporaire, jamais dans `dist`, qui est le contenu publié.
 
 const dist = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist')
 

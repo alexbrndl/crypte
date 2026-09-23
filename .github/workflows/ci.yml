@@ -99,12 +99,11 @@ jobs:
       # `ls-files` avant le diff : `git diff` ne voit que ce qui est suivi, donc
       # une empreinte sortie de l'index laisserait cette étape verte et le
       # verrou s'éteindrait sans bruit.
-      # La suite écrit l'empreinte des fixtures ; cette étape échoue si le
-      # fichier commité ne correspond plus. Rien ne la lit aujourd'hui, donc
-      # sans ce verrou l'historique décrirait un état qui n'existe plus. Il
-      # n'existe pas de script pour la régénérer : le producteur est du
-      # TypeScript non exposé, et `vp node` exigerait une extension explicite
-      # sur chaque import relatif, ce que la quatrième contrainte interdit.
+      #
+      # Rien ne lit l'empreinte aujourd'hui, donc sans ce verrou l'historique
+      # décrirait un état qui n'existe plus. Il n'existe pas de script pour la
+      # régénérer : le producteur est du TypeScript non exposé, et `vp node`
+      # exigerait une extension explicite sur chaque import relatif des sources.
       - name: Generated files are up to date
         run: |
           git ls-files --error-unmatch packages/cli/test/fixture/.crypte/fingerprint.json apps/demo/.crypte/fingerprint.json

@@ -34,12 +34,12 @@ vp run ready
 packages/core     @crypte/core    the core, three entries: protocol, ui, preview
 packages/cli      @crypte/cli     the `crypte` binary
 packages/react    @crypte/react   the React adapter
-docs/                             the specification and the guide, in English
+docs/                             the specification, in English
 ```
 
 `docs/contracts.md` is the reference for the story format, the manifest, the protocol and the plugin contract. What a mechanism is for, and what breaks without it, is a comment beside it.
 
-**The language follows the reader.** What you read to use Crypte, or to propose a change, is in English: this file, the README, the contracts, the guide, and every comment in published code. The comments on the repository's own tooling are in French, and so are `CLAUDE.md` and the skills.
+**The language follows the reader.** What you read to use Crypte, or to propose a change, is in English: this file, the README, the contracts, and every comment in published code. The comments on the repository's own tooling are in French, and so are `CLAUDE.md` and the skills.
 
 ## Module format
 

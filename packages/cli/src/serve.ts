@@ -98,7 +98,8 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
       // This also answers `/` and `/index.html`, by sirv's own `extensions`
       // default, and it is registered first: the shell is prebuilt and never
       // passes through `transformIndexHtml`, so it takes no Vite client. That is
-      // the whole difference with the preview below, and `dev.test.ts` holds it.
+      // the whole difference with the preview below. `appType: 'custom'` is what
+      // holds it: Vite then serves no HTML page of its own.
       server.middlewares.use(sirv(shell, { dev: true, etag: true }))
 
       // Before Vite's own middlewares rather than after. The fallback above is
