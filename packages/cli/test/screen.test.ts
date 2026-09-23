@@ -230,10 +230,10 @@ describe('l’écran', () => {
     const alerte = ecran.page.getByRole('alert')
     await expect.poll(() => alerte.textContent()).toContain('cassée par la modification')
 
-    // Et la réparation fait oublier l'échec. Pas tout de suite : sous Linux, le
-    // surveillant de Vite laisse passer une seconde écriture qui suit la première
-    // de quelques millisecondes. Mesuré en CI : réparation écrite 23 ms après la
-    // casse, jamais vue. Un auteur ne corrige pas aussi vite.
+    // Et la réparation fait oublier l'échec. Pas tout de suite : le surveillant
+    // de Vite ignore une seconde modification du même fichier dans les 50 ms qui
+    // suivent la première. En CI, la réparation tombait 23 ms après la casse et
+    // n'était jamais vue. Un auteur ne corrige pas aussi vite.
     await new Promise((resolve) => setTimeout(resolve, 300))
     writeFileSync(file, saine)
     await expect.poll(() => alerte.count()).toBe(0)
