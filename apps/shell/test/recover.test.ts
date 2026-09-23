@@ -39,8 +39,18 @@ describe('la sélection après un changement de catalogue', () => {
   // Le troisième état. Confondu avec « rien n'a jamais été affiché », une
   // sauvegarde sur n'importe quel autre fichier faisait sauter la sélection sur
   // la première story, juste après avoir dit qu'il n'y avait plus rien.
-  it('ne propose rien après une sélection perdue', () => {
-    expect(recovered('effacée', [defaut, alerte], [defaut, alerte, autre])).toBeNull()
+  it('ne propose rien tant que le fichier de la story perdue reste absent', () => {
+    const perdue = { lost: alerte, before: [defaut, alerte, autre] }
+
+    expect(recovered(perdue, [autre], [autre])).toBeNull()
+  })
+
+  // Une erreur de syntaxe retire le fichier entier du catalogue, et sa
+  // réparation l'y remet : la story perdue revient à l'écran.
+  it('revient sur la story perdue quand son fichier revient', () => {
+    const perdue = { lost: alerte, before: [defaut, alerte, autre] }
+
+    expect(recovered(perdue, [autre], [defaut, alerte, autre])).toBe(alerte.id)
   })
 })
 
@@ -55,7 +65,7 @@ describe('l’atterrissage après un rafraîchissement', () => {
   it('efface et le dit quand la sélection est perdue', () => {
     expect(landing(alerte, [defaut, alerte, autre], [autre])).toEqual({
       id: null,
-      shown: 'effacée',
+      shown: { lost: alerte, before: [defaut, alerte, autre] },
       status: 'la story affichée a disparu',
     })
   })
