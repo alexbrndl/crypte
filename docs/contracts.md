@@ -868,7 +868,7 @@ This document is a contract. This section is the only place that says what exist
 Seven known gaps between this document and the code:
 
 - A path alias cannot replace an installed package. `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because the resolver runs after Vite's own. TypeScript would return the replacement file.
-- **Inference reads what a file declares, never what a type it cannot resolve holds.** A type alias, an interface and a `cva(…)` call declared in the component file are followed. An imported type, a generic, and a DOM part of an intersection or an `extends` clause each leave only what the component file writes by hand, which for a DOM pass-through is the names in its destructuring pattern. Enumerating the rest needs the type checker, and inventing names is what 4.2 forbids.
+- **Inference reads what a file declares, never what a type it cannot resolve holds.** A type alias, an interface and a `cva(…)` call declared in the component file are followed. An imported type, a generic, a DOM part of an intersection, and an `extends` clause other than `VariantProps` of a local `cva` each leave only what the component file writes by hand, which for a DOM pass-through is the names in its destructuring pattern. Enumerating the rest needs the type checker, and inventing names is what 4.2 forbids.
 - **`UIContribution` and `PreviewHooks` are declared opaque by the core**, though 6.2 specifies the second one in full. Neither has a caller: no shell panel comes from a plugin, and no preview runs a lifecycle hook. Typing a surface nobody calls would buy nothing and could not be taken back.
 - The serialisation of 4.5 is guaranteed on **contributed** entries and merely true of the others. A plugin's entry is checked and refused with what offends named; everything the CLI reads itself comes from source text and is serialisable by construction, so nothing exercises the guarantee there.
 - **A `tokens` entry is written and nothing displays one.** `@crypte/tokens` contributes families read from a project's CSS custom properties, and the demonstration carries four. No screen shows them: the shell keeps out of its tree what it cannot draw, so they travel in the manifest and stop there. The page that draws them belongs to the shell's own project.
@@ -884,7 +884,7 @@ Seven known gaps between this document and the code:
 | Before | After |
 | --- | --- |
 | `rank: Rank`, with `type Rank = 'gold' \| 'silver'` above, gave `unknown` | it gives the enum the union written in place gives; an imported alias stays `unknown` |
-| section 8 listed intersections and `extends` as never read | it names what is followed in the file, and leaves only imported, generic and DOM parts out |
+| section 8 listed intersections and `extends` as never read | it names what is followed in the file; an `extends` is read only for `VariantProps` of a local `cva` |
 
 **v1.8.** CVA options read from the file, which is what a shadcn kit needs to show anything.
 
