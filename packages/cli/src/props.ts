@@ -50,7 +50,7 @@ export function detailsOf(file: string, exported: string): Record<string, Resolv
     const described = describe(source, comments, at)
     const kind = method
       ? { type: 'function' as PropKind }
-      : (read ?? (annotation ? kindOf(annotation) : { type: 'unknown' as PropKind }))
+      : (read ?? (annotation ? kindOf(annotation, body) : { type: 'unknown' as PropKind }))
     // The pattern's default is what the component passes, so it wins even when
     // its value cannot be read.
     const fallback = defaults.named.has(name) ? defaults.values[name] : preset
@@ -152,6 +152,18 @@ function typeMembers(
     variants(body, annotation['typeName'] as Node | null, annotation) ??
     namedType(body, annotation, seen)
   )
+}
+
+// What `type name = …` names, when this file declares it.
+function aliasOf(body: Node[], name: string): Node | undefined {
+  for (const node of body) {
+    const declaration = (node['declaration'] ?? node) as Node
+    if (declaration.type !== 'TSTypeAliasDeclaration') continue
+    if ((declaration['id'] as Node | null)?.['name'] === name)
+      return declaration['typeAnnotation'] as Node
+  }
+
+  return undefined
 }
 
 // The declaration a type reference points at, when this file holds it.
@@ -374,7 +386,11 @@ function describe(source: string, comments: Comment[], at: number): string | und
 // rather than `object`, which would claim more than the file says.
 const NODES = new Set(['ReactNode', 'ReactElement', 'Element', 'JSX.Element'])
 
-function kindOf(annotation: Node): { type: PropKind; options?: unknown[] } {
+function kindOf(
+  annotation: Node,
+  body: Node[],
+  seen = new Set<string>(),
+): { type: PropKind; options?: unknown[] } {
   switch (annotation.type) {
     case 'TSStringKeyword':
       return { type: 'string' }
@@ -391,7 +407,7 @@ function kindOf(annotation: Node): { type: PropKind; options?: unknown[] } {
     case 'TSUnionType':
       return union(annotation)
     case 'TSTypeReference':
-      return reference(annotation)
+      return reference(annotation, body, seen)
     default:
       return { type: 'unknown' }
   }
@@ -414,9 +430,20 @@ function union(annotation: Node): { type: PropKind; options?: unknown[] } {
   return { type: 'enum', options: read.map((one) => one?.value) }
 }
 
-function reference(annotation: Node): { type: PropKind } {
+// A type alias of this file is read as what it names, so `rank: Rank` gives
+// the same enum as the union written in place. An imported one stays
+// `unknown`. `seen` stops `type A = A`, which parses without type-checking.
+function reference(
+  annotation: Node,
+  body: Node[],
+  seen: Set<string>,
+): { type: PropKind; options?: unknown[] } {
   const typeName = annotation['typeName'] as Node | null
   const name = typeName?.['name'] ?? (typeName?.['right'] as Node | null)?.['name']
+
+  const local = typeName?.type === 'Identifier' && !seen.has(String(name))
+  const aliased = local ? aliasOf(body, String(name)) : undefined
+  if (aliased) return kindOf(aliased, body, new Set([...seen, String(name)]))
 
   if (name === 'Array' || name === 'ReadonlyArray') return { type: 'array' }
   if (typeof name === 'string' && NODES.has(name)) return { type: 'node' }

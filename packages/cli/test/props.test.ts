@@ -421,3 +421,29 @@ export function Badge(props: VariantProps<typeof badgeVariants>) { return null }
     })
   })
 })
+
+describe('un alias de type du même fichier', () => {
+  it('se lit comme ce qu’il nomme, et un alias importé reste unknown', () => {
+    const source = `import type { Imported } from './types'
+type Rank = 1 | 2 | 3
+type Label = string
+type Loop = Loop
+export function Badge(props: {
+  inline: 1 | 2 | 3
+  rank: Rank
+  label: Label
+  imported: Imported
+  qualified: Types.Rank
+  loop: Loop
+}) { return null }`
+
+    expect(read(source)).toEqual({
+      inline: { type: 'enum', options: [1, 2, 3], required: true },
+      rank: { type: 'enum', options: [1, 2, 3], required: true },
+      label: { type: 'string', required: true },
+      imported: { type: 'unknown', required: true },
+      qualified: { type: 'unknown', required: true },
+      loop: { type: 'unknown', required: true },
+    })
+  })
+})
