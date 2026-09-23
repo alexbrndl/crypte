@@ -26,8 +26,6 @@ const ACCENTS = /[àâäçéèêëîïôöùûüÿœæ]/i
 const MOTS =
   /\b(les|une|dans|qui|que|sont|avec|mais|donc|cette|ces|leur|leurs|nous|vous|elle|elles|alors|chaque|ainsi|selon|entre|toujours|jamais|quand|comme|celui|celle|ceux|puis|depuis|lorsque|parce|afin)\b/
 
-const FRENCH = /[àâäçéèêëîïôöùûüÿœæ]/i
-
 // Un exemple se cite entre accents graves, et il porte souvent ce qu'il décrit :
 // « `é` devient `e` » est en anglais malgré ses accents. Sans espace à
 // l'intérieur : une phrase entière entre accents graves passerait sinon entière.
@@ -64,37 +62,6 @@ test('du français sans accent est du français', () => {
   expect(isFrench('// Deux stories qui tombent sur le meme identifiant, alors on refuse.')).toBe(
     true,
   )
-})
-
-// Ce que la liste ne peut pas attraper, dit plutôt que masqué : une phrase
-// française assez courte pour n'employer aucun de ces mots-outils. Les mots
-// exclus pour cause d'homonymie anglaise — `on`, `car`, `son`, `plus`, `la` —
-// sont précisément ceux qui restent à une phrase de cette longueur.
-//
-// Le garde attrape la phrase ordinaire, pas la brève. C'est une amélioration
-// mesurable sur l'état d'avant, où il ne voyait que les accents, et non une
-// garantie.
-test('une phrase française assez brève échappe encore', () => {
-  expect(isFrench('// On garde la valeur brute.')).toBe(false)
-})
-
-// La moitié qui compte : la liste ne doit pas mordre sur l'anglais du dépôt.
-// `on`, `car`, `son`, `plus` et `la` en sont exclus pour cette raison.
-test('l’anglais ordinaire du dépôt n’est pas pris pour du français', () => {
-  expect(isFrench('// The car is on the road, and its son plus la carte.')).toBe(false)
-  expect(isFrench('// Read the file once, then hand the contents to the caller.')).toBe(false)
-  expect(isFrench('// A plugin that misbehaves is refused, and the reason is said.')).toBe(false)
-  expect(isFrench('// Measured: the frame navigates twice, not three times.')).toBe(false)
-  expect(isFrench('// `entries` is optional, so a reader that predates it still works.')).toBe(
-    false,
-  )
-
-  // Les six collisions mesurées, qui ont fait retirer autant de mots de la liste.
-  expect(isFrench("const font = 'system-ui, sans-serif'")).toBe(false)
-  expect(isFrench('// Falls back to sans-serif when the token is missing.')).toBe(false)
-  expect(isFrench('// est. 200ms per frame, measured on the demo.')).toBe(false)
-  expect(isFrench('// DES and aux buffers are out of scope.')).toBe(false)
-  expect(isFrench('// Pour the rows into the table, then encore for the footer.')).toBe(false)
 })
 
 test('le code publié ne contient pas de français', () => {

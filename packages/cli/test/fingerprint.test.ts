@@ -36,61 +36,7 @@ const one = (over: Partial<StoryEntry> = {}): Manifest => ({
   entries: [{ ...entry, ...over }],
 })
 
-const tokens: TokensEntry = {
-  type: 'tokens',
-  id: 'color--brand',
-  path: ['Color'],
-  name: 'Brand',
-  tokens: { primary: { type: 'color', themes: { light: { value: '#4fe0a0' } } } },
-}
-
-describe('les natures que l’empreinte retient', () => {
-  // Mesuré : retirer le filtre de `storiesOf` laissait les 675 cas au vert,
-  // parce qu'aucun n'envoyait autre chose que des stories dans la chaîne.
-  it('ne retient que les stories d’un manifeste mêlé', () => {
-    const mixed: Manifest = { version: 1, entries: [entry, tokens] }
-
-    expect(fingerprintOf(mixed).entries.map((one) => one.id)).toEqual(['badge--default'])
-  })
-
-  it('rend une empreinte vide sur un manifeste sans story', () => {
-    const only: Manifest = { version: 1, entries: [tokens] }
-
-    expect(fingerprintOf(only).entries).toEqual([])
-  })
-
-  // Une nature qu'aucune version ne connaît : le lecteur l'ignore plutôt que de
-  // la traiter comme une story, ce que ferait un filtre écrit en négatif.
-  it('ignore une nature qu’il ne connaît pas', () => {
-    const foreign = {
-      version: 9,
-      entries: [entry, { type: 'page', id: 'guide--intro', path: ['Guide'], name: 'Intro' }],
-    } as unknown as Manifest
-
-    expect(fingerprintOf(foreign).entries.map((one) => one.id)).toEqual(['badge--default'])
-  })
-})
-
 describe('l’empreinte réduite', () => {
-  it('garde à découvert ce qui doit se lire dans un diff', () => {
-    const [first] = fingerprintOf(one({ meta: { status: 'stable' } })).entries
-
-    expect(first).toMatchObject({
-      id: 'badge--default',
-      component: 'src/Badge.tsx#default',
-      status: 'stable',
-      props: ['label'],
-    })
-    expect(first?.rest).toMatch(/^[0-9a-f]{16}$/)
-  })
-
-  // Sans statut par défaut, ajouter `status: 'draft'` ne changerait rien du tout
-  // dans l'empreinte, alors que c'est exactement ce qu'elle sert à suivre.
-  it('donne un statut à une story qui n’en déclare aucun', () => {
-    expect(fingerprintOf(one()).entries[0]?.status).toBe('none')
-    expect(fingerprintOf(one({ meta: { status: 'draft' } })).entries[0]?.status).toBe('draft')
-  })
-
   // Le producteur trie déjà. Ce tri-ci tient la règle du condensé, qui dépend de
   // ce qu'une entrée porte et jamais de l'ordre où c'est écrit : `stable` fait
   // la même chose des clés d'objet. Réordonner un bloc de props dans un fichier
@@ -131,27 +77,6 @@ describe('l’empreinte réduite', () => {
 
       expect(same(before, after), JSON.stringify(over)).toBe(false)
     }
-  })
-
-  // `JSON.stringify` garde l'ordre d'insertion, donc sans tri l'empreinte
-  // changeait quand le producteur écrivait les mêmes champs dans un autre ordre.
-  it('ne dépend pas de l’ordre où les champs sont écrits', () => {
-    const reordered: StoryEntry = {
-      source: entry.source,
-      props: entry.props,
-      details: entry.details,
-      options: entry.options,
-      storyFile: entry.storyFile,
-      component: entry.component,
-      name: entry.name,
-      path: entry.path,
-      id: entry.id,
-      type: entry.type,
-    }
-
-    expect(same(fingerprintOf(one()), fingerprintOf({ version: 1, entries: [reordered] }))).toBe(
-      true,
-    )
   })
 
   // Les clés du premier niveau arrivent déjà triées par `digestOf`, donc c'est

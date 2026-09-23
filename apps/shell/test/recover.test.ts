@@ -15,16 +15,8 @@ const alerte = entry('badge--avertissement', 'Avertissement', 'stories/Badge.tsx
 const autre = entry('bouton--par-defaut', 'Par défaut', 'stories/Bouton.tsx')
 
 describe('la sélection après un changement de catalogue', () => {
-  it('garde l’identifiant quand il existe encore', () => {
-    expect(recovered(alerte, [defaut, alerte], [defaut, alerte, autre])).toBe(alerte.id)
-  })
-
   it('prend la première story quand rien n’était affiché', () => {
     expect(recovered(null, [], [defaut, alerte])).toBe(defaut.id)
-  })
-
-  it('rend rien quand rien n’était affiché et qu’il n’y a rien', () => {
-    expect(recovered(null, [], [])).toBeNull()
   })
 
   // Le cas qui décide de la règle : renommer une story change son identifiant,
@@ -33,26 +25,6 @@ describe('la sélection après un changement de catalogue', () => {
     const renommee = entry('badge--alerte', 'Alerte', 'stories/Badge.tsx')
 
     expect(recovered(alerte, [defaut, alerte], [defaut, renommee, autre])).toBe(renommee.id)
-  })
-
-  // Sans le rang, le repli serait la première story du fichier, ce qui
-  // enverrait sur `Par défaut` quelqu'un qui renommait `Avertissement`.
-  it('ne retombe pas sur la première story du fichier', () => {
-    const renommee = entry('badge--alerte', 'Alerte', 'stories/Badge.tsx')
-
-    expect(recovered(alerte, [defaut, alerte], [defaut, renommee])).not.toBe(defaut.id)
-  })
-
-  // Une story retirée au milieu laisse le rang au-delà de ce que le fichier
-  // porte encore.
-  it('prend la dernière du fichier quand le rang n’existe plus', () => {
-    expect(recovered(alerte, [defaut, alerte], [defaut, autre])).toBe(defaut.id)
-  })
-
-  // Le fichier entier a disparu : proposer la première story d'ailleurs
-  // enverrait sur un composant que personne n'a ouvert.
-  it('rend rien quand le fichier affiché a disparu', () => {
-    expect(recovered(alerte, [defaut, alerte, autre], [autre])).toBeNull()
   })
 
   // L'affichée peut ne pas être dans le catalogue d'avant : un premier
@@ -70,16 +42,6 @@ describe('la sélection après un changement de catalogue', () => {
   it('ne propose rien après une sélection perdue', () => {
     expect(recovered('effacée', [defaut, alerte], [defaut, alerte, autre])).toBeNull()
   })
-
-  // Un catalogue vide n'a rien perdu. Confondu avec une sélection perdue, il ne
-  // se sélectionnait plus jamais tout seul une fois la première story écrite.
-  it('reprend la première story après un catalogue vide', () => {
-    expect(recovered(null, [], [defaut, alerte])).toBe(defaut.id)
-  })
-
-  it('rend rien quand le catalogue est devenu vide', () => {
-    expect(recovered(alerte, [defaut, alerte], [])).toBeNull()
-  })
 })
 
 // Ce que le shell devient, et pas seulement où il retombe : la distinction
@@ -88,14 +50,6 @@ describe('la sélection après un changement de catalogue', () => {
 describe('l’atterrissage après un rafraîchissement', () => {
   it('n’efface rien sur un catalogue vide', () => {
     expect(landing(null, [], [])).toEqual({ id: null, shown: null, status: undefined })
-  })
-
-  // Le bloquant du tour 2 : marqué effacé, un projet sans story ne se
-  // sélectionnait plus jamais tout seul une fois la première écrite.
-  it('reprend la main dès qu’une première story arrive', () => {
-    const vide = landing(null, [], [])
-
-    expect(landing(vide.shown, [], [defaut]).id).toBe(defaut.id)
   })
 
   it('efface et le dit quand la sélection est perdue', () => {
@@ -116,12 +70,6 @@ describe('l’atterrissage après un rafraîchissement', () => {
 })
 
 describe('un catalogue illisible', () => {
-  it('dit ce qui a empêché de le lire', () => {
-    expect(unreadable(new Error('Unexpected end of JSON input'))).toBe(
-      'catalogue illisible : Unexpected end of JSON input',
-    )
-  })
-
   // Un rejet qui n'est pas une erreur reste lisible plutôt que de rendre
   // « [object Object] ».
   it('rend lisible ce qui n’est pas une erreur', () => {

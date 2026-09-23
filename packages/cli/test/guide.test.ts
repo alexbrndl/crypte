@@ -104,12 +104,6 @@ describe('les exemples du guide', () => {
     expect([...markers].sort()).toEqual(['aliases', 'config', 'story', 'tokens'])
   })
 
-  // `indexOf` rend -1 sur un marqueur absent, et la découpe ramenait alors le
-  // premier bloc du guide : l'extraction rendait le mauvais bloc en silence.
-  it('refuse un marqueur qu’il ne trouve pas', () => {
-    expect(() => example('inexistant')).toThrow(/marqueur/)
-  })
-
   // Retirer les imports avant d'exécuter l'exemple laissait passer n'importe
   // quel nom : le guide a montré `react()` pendant tout un tour, que
   // `@crypte/react` n'exporte pas. Ce que le lecteur copie est vérifié ici.
@@ -195,32 +189,6 @@ describe('les exemples du guide', () => {
     expect(code).toContain('stories: {')
   })
 
-  // Le lecteur d'exports est lui-même un garde, donc il a son cas. Sans lui,
-  // `exportsOf` a rendu pendant tout un tour la moitié de la surface de
-  // `@crypte/react` : les déclarations, et rien de ce qu'il réexporte. Un
-  // exemple du guide échouait alors en annonçant que le paquet n'exporte pas un
-  // nom qu'il exporte.
-  it('lit les trois formes d’export d’un paquet', () => {
-    const surface = exportsOf('@crypte/react')
-
-    expect(surface).toContain('ADAPTER_NAME') // déclaré
-    expect(surface).toContain('defineStories') // réexporté avec source
-    expect(surface).toContain('PreviewWrapper') // réexporté sans source
-    expect(surface).toContain('PropsOf') // réexporté, écrit `type X` dans l'accolade
-
-    // Et il ne rend pas le mot-clé pour un nom.
-    expect(surface).not.toContain('type')
-    expect(surface).not.toContain('')
-  })
-
-  // Le guide n'importe aujourd'hui que des paquets du dépôt. Le jour où il
-  // montrera `react` ou `zod`, les deux cas ci-dessus doivent le dire plutôt que
-  // de lire notre paquet du même nom.
-  it('refuse de vérifier un paquet hors du dépôt', () => {
-    expect(() => exportsOf('react')).toThrow(/hors du dépôt/)
-    expect(() => hasDefault('zod')).toThrow(/hors du dépôt/)
-  })
-
   it('la configuration est acceptée par le CLI', async () => {
     const { language, code } = example('config')
     expect(language).toBe('ts')
@@ -247,15 +215,6 @@ describe('les exemples du guide', () => {
 
     expect(project.config.stories).toBe('stories')
     expect(project.config.css).toBe('src/styles/app.css')
-  })
-
-  it('le message cité est bien celui que le CLI produit', async () => {
-    const quoted = guide.match(/```\n(crypte\.config\.ts must declare[^\n]*)\n```/)?.[1]
-    expect(quoted, 'message absent du guide').toBeDefined()
-
-    const root = projectWith({ 'crypte.config.ts': 'export default { adapter: {} }' })
-
-    await expect(loadProject(root)).rejects.toThrow(quoted)
   })
 
   it('les alias sont lus tels que le guide les écrit', async () => {

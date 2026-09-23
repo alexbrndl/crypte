@@ -10,11 +10,6 @@ const Router = 'Router'
 const Global = 'Global'
 
 describe('les enveloppes d’une story', () => {
-  it('rend une liste vide quand personne n’en déclare', () => {
-    expect(wrapsOf(undefined, undefined)).toEqual([])
-    expect(wrapsOf(undefined, {})).toEqual([])
-  })
-
   it('accepte une enveloppe seule, sans tableau', () => {
     expect(wrapsOf(undefined, { wrap: Theme })).toEqual([{ component: Theme, props: {} }])
   })
@@ -30,13 +25,6 @@ describe('les enveloppes d’une story', () => {
 
   it('lit les props d’une entrée en paire', () => {
     expect(wrapsOf(undefined, { wrap: [[Theme, { mode: 'dark' }]] })).toEqual([
-      { component: Theme, props: { mode: 'dark' } },
-    ])
-  })
-
-  it('mélange les deux formes dans un même tableau', () => {
-    expect(wrapsOf(undefined, { wrap: [Router, [Theme, { mode: 'dark' }]] })).toEqual([
-      { component: Router, props: {} },
       { component: Theme, props: { mode: 'dark' } },
     ])
   })

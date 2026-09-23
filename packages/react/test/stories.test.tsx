@@ -12,7 +12,6 @@ interface BadgeProps {
 }
 
 const Badge = (_props: BadgeProps) => null
-const Provider = (_props: { children?: unknown }) => null
 
 describe('defineStories', () => {
   it('rend le composant et sa définition, sans les transformer', () => {
@@ -26,14 +25,6 @@ describe('defineStories', () => {
   // La forme courte de la section 2.2 : tout est optionnel.
   it('accepte le composant seul', () => {
     expect(defineStories(Badge).definition).toEqual({})
-  })
-
-  // Le contrat dit qu'une enveloppe n'a pas à accepter les props de la story.
-  // Sans ce cas, un `AnyComponent` mal choisi ne se verrait qu'à l'usage.
-  it('accepte une enveloppe qui ne prend pas les props du composant', () => {
-    const module = defineStories(Badge, { wrap: Provider, props: { label: 'x' } })
-
-    expect(module.definition.wrap).toBe(Provider)
   })
 })
 

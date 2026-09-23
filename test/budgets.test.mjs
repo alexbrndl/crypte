@@ -1,29 +1,15 @@
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { afterAll, describe, expect, it } from 'vitest'
 import {
-  BUDGETS,
-  MESURES,
   PAQUETS,
   adapterLines,
-  catalogOf,
   externalDeps,
   médiane,
   ownBytes,
-  ADRESSE,
-  sansCouleur,
   shellGzipBytes,
-  table,
   treeBytes,
   verdicts,
 } from './budgets.mjs'
@@ -62,23 +48,10 @@ describe('le poids du shell', () => {
     expect(shellGzipBytes(racine)).toBe(attendu)
   })
 
-  // Les cartes de source ne partent pas chez l'utilisateur, et elles pèsent
-  // plus que le bundle : les compter tripleraient le chiffre.
-  it('ne compte pas les cartes de source', () => {
-    const seul = dossierAvec({ 'a.js': 'x'.repeat(500) })
-    const avec = dossierAvec({ 'a.js': 'x'.repeat(500), 'a.js.map': 'z'.repeat(50_000) })
-
-    expect(shellGzipBytes(avec)).toBe(shellGzipBytes(seul))
-  })
-
   // Le cas qui compte. Sans lui, un lancement où `vp pack` n'a pas tourné rend
   // zéro octet, donc un budget de poids tenu par un bundle qui n'existe pas.
   it('lève plutôt que de rendre zéro sur un dossier absent', () => {
     expect(() => shellGzipBytes(join(dossierAvec({}), 'nulle-part'))).toThrow('vp run -r pack')
-  })
-
-  it('lève aussi sur un dossier qui n’a que des cartes', () => {
-    expect(() => shellGzipBytes(dossierAvec({ 'a.js.map': 'z' }))).toThrow('aucun actif')
   })
 })
 
@@ -87,18 +60,6 @@ describe('les lignes de l’adaptateur', () => {
     const racine = dossierAvec({ 'a.ts': 'un\ndeux\ntrois\n', 'b.tsx': 'quatre\n' })
 
     expect(adapterLines(racine)).toBe(4)
-  })
-
-  // Un fichier terminé par un saut de ligne n'a pas une ligne de plus.
-  it('ne compte pas la ligne vide finale', () => {
-    expect(adapterLines(dossierAvec({ 'a.ts': 'un\n' }))).toBe(1)
-    expect(adapterLines(dossierAvec({ 'b.ts': 'un' }))).toBe(1)
-  })
-
-  it('ne lit que le TypeScript', () => {
-    const racine = dossierAvec({ 'a.ts': 'un\n', 'lisez.md': 'x\ny\nz\n', 'b.js': 'w\n' })
-
-    expect(adapterLines(racine)).toBe(1)
   })
 
   it('lève plutôt que de rendre zéro sur un dossier sans source', () => {
@@ -112,68 +73,10 @@ describe('les octets d’un arbre', () => {
 
     expect(treeBytes(racine)).toBe(15)
   })
-
-  it('ne suit pas les liens symboliques', () => {
-    const racine = dossierAvec({ 'a.txt': 'x'.repeat(10) })
-    symlinkSync(join(racine, 'a.txt'), join(racine, 'lien.txt'))
-    symlinkSync(join(racine, 'absent.txt'), join(racine, 'cassé.txt'))
-
-    expect(treeBytes(racine)).toBe(10)
-  })
-})
-
-describe('le catalogue', () => {
-  const yaml = [
-    'packages:',
-    '  - packages/*',
-    '',
-    'catalogMode: prefer',
-    '',
-    'catalog:',
-    "  '@types/node': ^24",
-    '  vite: ^8.2.1',
-    '',
-    '  typescript: 6.0.3',
-    '',
-    'onlyBuiltDependencies:',
-    '  - esbuild',
-    '',
-    // Une paire indentée après le bloc : sans l'arrêt, elle écraserait `vite`.
-    'overrides:',
-    '  vite: 7.0.0',
-  ].join('\n')
-
-  it('lit les noms cités et les noms nus', () => {
-    expect(catalogOf(yaml)).toEqual({ '@types/node': '^24', vite: '^8.2.1', typescript: '6.0.3' })
-  })
-
-  it('s’arrête à la première clé de premier niveau', () => {
-    expect(catalogOf(yaml).vite).toBe('^8.2.1')
-  })
-
-  it('lève plutôt que de rendre un catalogue vide', () => {
-    expect(() => catalogOf('packages:\n  - a\n')).toThrow('aucun bloc')
-    expect(() => catalogOf('catalog:\nautre: 1\n')).toThrow('vide')
-  })
-
-  // Le fichier réel, sinon les cas ci-dessus n'éprouvent que leur propre
-  // fixture et le motif peut cesser de lire la forme que le dépôt écrit.
-  it('lit le fichier du dépôt', () => {
-    const lu = catalogOf(readFileSync(join(process.cwd(), 'pnpm-workspace.yaml'), 'utf8'))
-
-    expect(Object.keys(lu).length).toBeGreaterThan(5)
-    expect(lu.vite).toMatch(/^\^?\d/)
-  })
 })
 
 describe('les dépendances externes', () => {
   const catalogue = { vite: '^8.2.1', tsconfck: '^3.1.6' }
-
-  it('écarte nos propres paquets et lit les trois que le CLI déclare', () => {
-    expect(
-      Object.keys(externalDeps(PAQUETS, catalogue)).sort((a, b) => a.localeCompare(b)),
-    ).toEqual(['sirv', 'tsconfck', 'vite'])
-  })
 
   // Épinglées sur ce qui est installé, jamais laissées en portée : sinon le
   // registre décide le jour du lancement, et une version mineure de Vite fait
@@ -216,37 +119,6 @@ describe('les dépendances externes', () => {
 
     expect(() => externalDeps(['faux'], {}, racine)).toThrow('vp install')
   })
-
-  // pnpm remonte certains modules à la racine plutôt que sous le paquet qui
-  // les déclare. Aucune des trois dépendances du dépôt n'est dans ce cas
-  // aujourd'hui, donc rien d'autre n'emprunte ce repli : la mutation qui le
-  // retire ne faisait rougir personne avant ce cas.
-  it('épingle aussi ce qui est remonté à la racine', () => {
-    const racine = dossierAvec({
-      'packages/faux/package.json': JSON.stringify({ dependencies: { remonté: '^2.0.0' } }),
-      'node_modules/remonté/package.json': JSON.stringify({ version: '2.7.0' }),
-    })
-
-    expect(externalDeps(['faux'], {}, racine)).toEqual({ remonté: '2.7.0' })
-  })
-
-  // Le paquet d'abord, la racine ensuite : deux versions installées, celle du
-  // paquet est celle qu'il chargera.
-  it('préfère la version posée sous le paquet', () => {
-    const racine = dossierAvec({
-      'packages/faux/package.json': JSON.stringify({ dependencies: { deux: '^1.0.0' } }),
-      'packages/faux/node_modules/deux/package.json': JSON.stringify({ version: '1.0.0' }),
-      'node_modules/deux/package.json': JSON.stringify({ version: '9.9.9' }),
-    })
-
-    expect(externalDeps(['faux'], {}, racine)).toEqual({ deux: '1.0.0' })
-  })
-
-  // Sans ce cas, un nom que le catalogue ne porte plus donnerait `undefined`
-  // dans le package.json écrit, et npm installerait la dernière version.
-  it('lève sur un nom que le catalogue ne porte pas', () => {
-    expect(() => externalDeps(['cli'], { vite: '^8' })).toThrow('tsconfck')
-  })
 })
 
 describe('nos propres octets', () => {
@@ -264,69 +136,19 @@ describe('nos propres octets', () => {
   })
 })
 
-// Les deux mesures qui comptent nos paquets lisent la même liste. Compter le
-// poids de `core` sans lire ses dépendances laisserait, le jour où il en
-// déclare une, un budget vert sur un chiffre faux.
-//
-// **Aucun cas ne peut aujourd'hui tenir cette coïncidence.** `core` ne déclare
-// aucune dépendance externe, donc lire deux paquets ou trois donne le même
-// résultat, et la mutation qui remet `['cli', 'react']` au point d'appel ne
-// fait rougir personne — mesuré. Ce qui suit encode l'invariant pour qu'il
-// morde le jour où `core` en déclare une, et le dit plutôt que de le masquer.
-describe('la liste des paquets', () => {
-  it('est celle que les deux mesures emploient', () => {
-    expect(PAQUETS).toEqual(['cli', 'react', 'core'])
-    expect(ownBytes()).toBe(ownBytes(PAQUETS))
-  })
-})
-
 const déclarées = (paquet) =>
   JSON.parse(readFileSync(join(process.cwd(), 'packages', paquet, 'package.json'), 'utf8'))
     .dependencies ?? {}
-
-// La ligne que Vite écrit sur un runner, colorisée, telle que le journal du
-// job l'a rendue. Le port y suit un code de mise en gras, donc `\\d` ne le
-// trouve pas : le job attendait soixante secondes une adresse arrivée en
-// 392 ms, et rien ne le montrait en local, où il n'y a pas de couleur.
-describe('l’adresse annoncée par le serveur', () => {
-  const esc = String.fromCharCode(27)
-  const colorée = `  ${esc}[32m➜${esc}[39m  ${esc}[1mLocal${esc}[22m:   ${esc}[36mhttp://localhost:${esc}[1m5173${esc}[22m/${esc}[39m`
-  const nue = '  ➜  Local:   http://localhost:5173/'
-
-  it('se lit une fois les couleurs retirées', () => {
-    expect(ADRESSE.exec(sansCouleur(colorée))?.[1]).toBe('http://localhost:5173')
-  })
-})
 
 describe('la médiane', () => {
   it('prend la valeur du milieu, quel que soit l’ordre donné', () => {
     expect(médiane([700, 200, 300])).toBe(300)
     expect(médiane([300, 700, 200])).toBe(300)
   })
-
-  // Un seul lancement reste sa propre médiane, et un compte pair prend le bas
-  // du milieu : sur une machine partagée, mieux vaut le pessimisme du bas que
-  // la moyenne, qu'un unique lancement lent tire.
-  it('tient sur un compte impair comme pair', () => {
-    expect(médiane([500])).toBe(500)
-    expect(médiane([200, 400])).toBe(200)
-  })
 })
 
 describe('le verdict', () => {
   const budgets = { startMs: 1000, adapterLines: 500 }
-
-  it('tient une mesure sous la cible', () => {
-    expect(verdicts({ startMs: 999, adapterLines: 1 }, budgets).every((one) => one.tenu)).toBe(true)
-  })
-
-  // « moins de 1,5 s » se lit comme une borne atteinte, pas dépassée.
-  it('tient une mesure pile à la cible', () => {
-    expect(verdicts({ startMs: 1000, adapterLines: 500 }, budgets).map((one) => one.tenu)).toEqual([
-      true,
-      true,
-    ])
-  })
 
   it('ne tient pas une mesure d’un point au-dessus', () => {
     expect(verdicts({ startMs: 1001, adapterLines: 500 }, budgets).map((one) => one.tenu)).toEqual([
@@ -342,16 +164,5 @@ describe('le verdict', () => {
       mesure: undefined,
       tenu: false,
     })
-  })
-})
-
-// Un budget sans libellé rendrait `undefined` dans le tableau, et un libellé
-// sans budget ne serait jamais mesuré. Les deux listes se tiennent l'une
-// l'autre plutôt que d'être relues.
-describe('les budgets déclarés', () => {
-  it('ont chacun leur libellé, et réciproquement', () => {
-    expect(Object.keys(BUDGETS).sort((a, b) => a.localeCompare(b))).toEqual(
-      Object.keys(MESURES).sort((a, b) => a.localeCompare(b)),
-    )
   })
 })

@@ -102,6 +102,8 @@ fix: resolve aliases from jsconfig  plutôt que   correction du bug
 
 Dans un fichier de test la règle s'inverse : le candidat est une assertion morte, les réfuteurs tentent de la faire rougir en cassant la garantie dans le source, et **une assertion qui vise le mauvais côté de sa paire se répare au lieu de se supprimer**.
 
+**Un retrait « couvert ailleurs » se vérifie sur l'ensemble, pas par groupe.** Deux tris ont retiré chacun leur cas en citant celui de l'autre, et le démarrage muet n'était plus gardé par rien. Chaque contrôle avait cassé le code avec la coupe de son seul groupe. Après une coupe répartie, relancer la couverture et comparer **branche par branche** avec la version d'avant : un seuil tenu au total peut cacher une branche que plus rien n'exécute, et c'était ici presque toujours un chemin de refus.
+
 **Un doute se tranche par une commande, pas par la relecture.**
 
 ---

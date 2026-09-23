@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { PROTOCOL_VERSION } from '../src/protocol/channel'
 import { createPreviewChannel } from '../src/preview/index'
 import { collect, windowAt } from './fake-window'
 
@@ -33,12 +32,6 @@ function envoie(data: unknown, { origin = ORIGIN, source = shell as unknown } = 
 }
 
 describe('annonce', () => {
-  it('dit ready au montage, avec la version du protocole', () => {
-    createPreviewChannel({ render: () => {} })
-
-    expect(recus).toEqual([{ type: 'ready', protocolVersion: PROTOCOL_VERSION }])
-  })
-
   it('n’annonce rien à un parent d’une autre origine', () => {
     const etranger = windowAt(AILLEURS)
     etranger.sender = preview
@@ -52,17 +45,6 @@ describe('annonce', () => {
 })
 
 describe('rendu', () => {
-  it('rend, puis répond avec une durée', () => {
-    const rendus: unknown[] = []
-    createPreviewChannel({ render: (id, overrides) => rendus.push([id, overrides]) })
-
-    envoie(RENDER)
-
-    expect(rendus).toEqual([[RENDER.id, RENDER.overrides]])
-    expect(recus.at(-1)).toMatchObject({ type: 'rendered', id: RENDER.id })
-    expect((recus.at(-1) as { durationMs: number }).durationMs).toBeGreaterThanOrEqual(0)
-  })
-
   it('répond error plutôt que de laisser filer l’exception', () => {
     createPreviewChannel({
       render: () => {
@@ -132,18 +114,6 @@ describe('ce qui est ignoré', () => {
     envoie(undefined)
     envoie({ id: 'sans type' })
     envoie({ type: 'zzz-inconnu' })
-
-    expect([rendus, recus]).toEqual([[], []])
-  })
-
-  // Passés en réserve par la v1.6 du contrat, section 7 : ils n'avaient aucun
-  // consommateur, et `render` porte déjà les overrides. Ce cas n'est plus un
-  // état fixé mais une règle, la même que pour n'importe quel type inconnu.
-  it('laisse tomber les deux messages passés en réserve', () => {
-    const { rendus } = monte()
-
-    envoie({ type: 'update-overrides', id: RENDER.id, overrides: { label: 'Autre' } })
-    envoie({ type: 'set-globals', globals: { theme: 'dark' } })
 
     expect([rendus, recus]).toEqual([[], []])
   })

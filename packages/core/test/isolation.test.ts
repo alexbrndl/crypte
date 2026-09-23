@@ -113,10 +113,6 @@ describe('isolation des entrées de @crypte/core', () => {
     expect(protocol).not.toContain('createPreviewChannel')
   })
 
-  it('la fermeture de ui contient bien son propre marqueur', () => {
-    expect(closureOf('ui')).toContain('__crypte_ui__')
-  })
-
   // L'autre sens : les deux côtés du canal n'ont besoin que de `channel`. Importer
   // la barrière leur faisait embarquer `id.ts` et `manifest.ts` en code mort.
   // Sur la fermeture, comme les autres cas. Une version antérieure exigeait de

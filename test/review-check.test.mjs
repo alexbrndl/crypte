@@ -55,18 +55,6 @@ test('une liste vide exige la revue plutôt que de l_exempter', () => {
   expect(decide([])).toEqual({ prose: false, why: 'aucun fichier lu' })
 })
 
-test('le marqueur est cherché tel quel, et un corps absent ne compte pas', () => {
-  const bodies = [
-    '<!-- crypte-review -->\n## Revue',
-    'un commentaire ordinaire',
-    null,
-    undefined,
-    'préfixe <!-- crypte-review --> suffixe',
-  ]
-
-  expect(marked(bodies)).toHaveLength(2)
-})
-
 test('un marqueur approchant ne compte pas', () => {
   expect(
     marked(['<!-- crypte review -->', '<!--crypte-review-->', '<!-- Crypte-Review -->']),

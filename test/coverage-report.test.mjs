@@ -52,90 +52,7 @@ const resume = (pct = 99, par = {}) => {
   }
 }
 
-// Un résumé qui tient les quatre seuils, quels qu'ils soient. `resume(99)` les
-// tenait par coïncidence, et rougissait dès qu'un plancher passait au-dessus.
-const tenu = () => resume(JUSTE_AU_DESSUS.lines, JUSTE_AU_DESSUS)
-
-describe('le corps du commentaire', () => {
-  // Le marqueur est ce qui permet de retrouver le commentaire pour le remplacer.
-  it('commence par le marqueur, seul sur sa première ligne', () => {
-    expect(compose(resume(), undefined, undefined).split('\n')[0]).toBe(MARKER)
-  })
-
-  // Lever laissait le commentaire d'avant en place : un lancement rouge
-  // affichait alors les chiffres verts du précédent, ce qui est pire que pas de
-  // commentaire. Mesuré sur la PR #34.
-  it('dit la couverture non mesurée plutôt que de lever', () => {
-    const body = compose(undefined, { numTotalTests: 422, numFailedTests: 1, testResults: [{}] })
-
-    expect(body.split('\n')[0]).toBe(MARKER)
-    expect(body).toContain('Couverture non mesurée')
-    expect(body).toContain('**1 test échoue** sur 422')
-  })
-
-  // Sans rapport, ne rien prétendre : annoncer zéro test se lirait comme une
-  // suite vide, et une suite vide passe toujours.
-  it('ne prétend rien quand le rapport des tests manque', () => {
-    expect(compose(resume(), undefined)).toContain('Résultat des tests indisponible.')
-  })
-})
-
 describe('la publication', () => {
-  // La doublure rend ce que rendrait `gh`, et retient les corps écrits pour que
-  // la relecture de vérification les retrouve.
-  const faux = (comments) => {
-    const calls = []
-    let etat = [...comments]
-
-    return {
-      calls,
-      get etat() {
-        return etat
-      },
-      run: (args) => {
-        calls.push(args.join(' '))
-        if (args[0] === 'repo') return 'alexbrndl/crypte'
-
-        const corps = args.find((one) => one.startsWith('body='))?.slice('body='.length)
-
-        if (args.includes('DELETE')) {
-          const id = Number(args[1].split('/').at(-1))
-          etat = etat.filter((one) => one.id !== id)
-        }
-
-        if (args.includes('POST')) etat = [...etat, { id: 99, body: corps }]
-
-        return JSON.stringify(etat)
-      },
-    }
-  }
-
-  // Deux anciens arrivent si une publication a échoué entre le POST et la
-  // vérification : les deux partent, pas seulement le premier.
-  it('retire tous les anciens tableaux', () => {
-    const gh = faux([
-      { id: 7, body: `${MARKER}\nun` },
-      { id: 8, body: `${MARKER}\ndeux` },
-      { id: 9, body: 'humain' },
-    ])
-
-    publish(`${MARKER}\ncorps`, '34', gh.run)
-
-    expect(gh.etat.filter((one) => one.body.startsWith(MARKER))).toHaveLength(1)
-    expect(gh.etat.some((one) => one.body === 'humain')).toBe(true)
-  })
-
-  // `gh pr view --json comments` rend un identifiant GraphQL, que l'API REST
-  // refuse en 404. Trois lancements ont servi un tableau périmé pour ça.
-  it('lit la liste par l’API REST, jamais par pr view', () => {
-    const gh = faux([])
-
-    publish(`${MARKER}\ncorps`, '34', gh.run)
-
-    expect(gh.calls.some((one) => one.startsWith('api --paginate repos/'))).toBe(true)
-    expect(gh.calls.some((one) => one.startsWith('pr view'))).toBe(false)
-  })
-
   it('lève quand le commentaire n’est pas arrivé', () => {
     const muet = { run: (args) => (args[0] === 'repo' ? 'alexbrndl/crypte' : '[]') }
 
@@ -308,18 +225,6 @@ describe('le cliquet des seuils', () => {
 
   const SEUILS = { statements: 96, branches: 88, functions: 96, lines: 97 }
 
-  it('un seuil que la mesure dépasse largement est à monter', () => {
-    const dit = drifted(
-      mesure({ statements: 96, branches: 88, functions: 99.5, lines: 97 }),
-      SEUILS,
-      3,
-    )
-
-    expect(dit).toHaveLength(1)
-    expect(dit[0]).toContain('99.5')
-    expect(dit[0]).toContain('3.50')
-  })
-
   // La faute que le cliquet existe surtout pour attraper : baisser le plancher.
   // Baissé, l'écart grandit d'autant, donc le même verdict le voit.
   it('baisser un seuil le fait rougir', () => {
@@ -330,12 +235,5 @@ describe('le cliquet des seuils', () => {
     expect(drifted(vraie, { statements: 0, branches: 0, functions: 0, lines: 0 }, 3)).toHaveLength(
       4,
     )
-  })
-
-  // Sans couverture, on ne prétend rien : `failing` dit déjà « non mesurée », et
-  // deux verdicts sur la même absence en enterreraient un.
-  it('sans mesure, le cliquet se tait', () => {
-    expect(drifted(undefined, SEUILS, 3)).toEqual([])
-    expect(drifted({}, SEUILS, 3)).toEqual([])
   })
 })

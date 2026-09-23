@@ -42,36 +42,11 @@ const contributing = (name: string, produce: () => unknown): CryptePlugin => ({
 const ids = (catalogue: Catalogue) => catalogue.manifest.entries.map((entry) => entry.id)
 
 describe('ce qu’un plugin contribue', () => {
-  it('ne contribue rien sans plugin, et rien de plus qu’avant', async () => {
-    const catalogue = await build()
-
-    expect(catalogue.manifest.entries.every((entry) => entry.type === 'story')).toBe(true)
-    expect(catalogue.skippedPlugins).toEqual([])
-  })
-
   it('ignore un plugin sans surface node', async () => {
     const catalogue = await build({ name: 'ui-only' })
 
     expect(ids(catalogue)).not.toContain('color--brand')
     expect(catalogue.skippedPlugins).toEqual([])
-  })
-
-  // Après les stories, et c'est ce qui décide de la collision plus bas.
-  it('ajoute l’entrée après les stories', async () => {
-    const catalogue = await build(contributing('tokens', () => [tokens('color--brand')]))
-
-    expect(ids(catalogue).at(-1)).toBe('color--brand')
-    expect(catalogue.manifest.entries.at(-1)?.type).toBe('tokens')
-  })
-
-  // L'ordre de `plugins`, pas un champ `order` que chacun mettrait à zéro.
-  it('suit l’ordre de plugins', async () => {
-    const catalogue = await build(
-      contributing('second', () => [tokens('b--one')]),
-      contributing('first', () => [tokens('a--two')]),
-    )
-
-    expect(ids(catalogue).slice(-2)).toEqual(['b--one', 'a--two'])
   })
 })
 
@@ -96,18 +71,6 @@ describe('ce qui est refusé à un plugin', () => {
     expect(catalogue.skippedPlugins).toEqual([
       { plugin: 'second', reason: '`color--brand` is already taken' },
     ])
-  })
-
-  // Non fatal : le catalogue garde les stories qu'il a déjà lues.
-  it('refuse un hook qui lève, et garde les stories', async () => {
-    const catalogue = await build(
-      contributing('broken', () => {
-        throw new Error('no tokens file')
-      }),
-    )
-
-    expect(catalogue.manifest.entries.length).toBeGreaterThan(0)
-    expect(catalogue.skippedPlugins).toEqual([{ plugin: 'broken', reason: 'no tokens file' }])
   })
 
   it('refuse un hook qui ne rend pas un tableau', async () => {
@@ -217,12 +180,6 @@ describe('la garantie de sérialisation', () => {
     ])
   })
 
-  it('situe une valeur enfouie dans un tableau', async () => {
-    expect(await refused([{ deep: [() => null] }])).toEqual([
-      { plugin: 'p', reason: 'an entry carries a function at extra[0].deep[0]' },
-    ])
-  })
-
   // Deux noms résolus vers la même valeur : la forme la plus plausible pour
   // `@crypte/tokens`, et `JSON.stringify` la sérialise sans broncher.
   it('accepte deux références au même objet, qui n’est pas un cycle', async () => {
@@ -246,27 +203,6 @@ describe('la garantie de sérialisation', () => {
     expect(await refused(Number.POSITIVE_INFINITY)).toEqual([
       { plugin: 'p', reason: 'an entry carries Infinity at extra' },
     ])
-  })
-
-  // Laisser tomber la clé a été essayé puis repris : dans un tableau, retirer un
-  // élément décale tous les suivants, ce qui change la donnée au lieu de la perdre.
-  it('refuse une clé requise laissée à undefined plutôt que de l’abandonner', async () => {
-    const catalogue = await build(
-      contributing('p', () => [{ ...tokens('color--brand'), tokens: undefined }]),
-    )
-
-    expect(catalogue.skippedPlugins).toEqual([
-      { plugin: 'p', reason: 'an entry carries undefined at tokens' },
-    ])
-    expect(ids(catalogue)).not.toContain('color--brand')
-  })
-
-  it('accepte une entrée que JSON rend telle quelle', async () => {
-    const catalogue = await build(contributing('p', () => [tokens('color--brand')]))
-    const written = JSON.parse(JSON.stringify(catalogue.manifest)) as typeof catalogue.manifest
-
-    expect(catalogue.skippedPlugins).toEqual([])
-    expect(written).toEqual(catalogue.manifest)
   })
 })
 

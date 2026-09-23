@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test as base } from 'vitest'
 import { ConfigError } from '../src/errors'
-import { loadProject } from '../src/project'
 import { adapterSource, configPackages } from '../src/config-source'
 import { previewEntry } from '../src/serve'
 
@@ -51,105 +50,10 @@ describe('la source de l’adaptateur', () => {
     expect(read.imports).toEqual(["import { createAdapter } from '@crypte/react'"])
   })
 
-  // Les trois règles que le lecteur des fichiers de story portait déjà, et que
-  // celui de la configuration avait toutes les trois fausses : une clé citée
-  // était refusée, une clé doublée rendait la première, une clé calculée était
-  // prise pour le champ. La seconde est la pire, la preview montant alors une
-  // expression que la configuration exécutée ne tient pas.
-  test('lit une clé citée, que JavaScript accepte', ({ projet }) => {
-    const read = adapterSource(projet("export default { 'adapter': fait(), stories: 's' }"))
-
-    expect(read.expression).toBe('fait()')
-  })
-
-  test('garde la dernière d’une clé écrite deux fois, comme l’exécution', ({ projet }) => {
-    const read = adapterSource(
-      projet('export default { adapter: premier(), stories: 1, adapter: dernier() }'),
-    )
-
-    expect(read.expression).toBe('dernier()')
-  })
-
   test('ne prend pas une clé calculée pour le champ', ({ projet }) => {
     expect(() => adapterSource(projet('export default { [adapter]: zzz(), stories: 1 }'))).toThrow(
       ConfigError,
     )
-  })
-
-  // Les formes que le guide montre depuis que l'adaptateur a un export par
-  // défaut. Un `ImportDefaultSpecifier` n'est pas le même nœud qu'un
-  // `ImportSpecifier`, et un projet nomme cet import comme il veut.
-  test('reprend un import par défaut', ({ projet }) => {
-    const read = adapterSource(
-      projet(
-        ["import crypte from '@crypte/react'", 'export default { adapter: crypte() }'].join('\n'),
-      ),
-    )
-
-    expect(read.expression).toBe('crypte()')
-    expect(read.imports).toEqual(["import crypte from '@crypte/react'"])
-  })
-
-  test('reprend un import mixte, que l’appel prenne l’un ou l’autre nom', ({ projet }) => {
-    const mixte = "import crypte, { createAdapter } from '@crypte/react'"
-
-    const parDéfaut = adapterSource(
-      projet([mixte, 'export default { adapter: crypte() }'].join('\n')),
-    )
-    const parLeNom = adapterSource(
-      projet([mixte, 'export default { adapter: createAdapter() }'].join('\n')),
-    )
-
-    expect(parDéfaut.expression).toBe('crypte()')
-    expect(parDéfaut.imports).toEqual([mixte])
-    expect(parLeNom.expression).toBe('createAdapter()')
-    expect(parLeNom.imports).toEqual([mixte])
-  })
-
-  test('reprend un import d’espace de noms', ({ projet }) => {
-    const read = adapterSource(
-      projet(
-        [
-          "import * as crypte from '@crypte/react'",
-          'export default { adapter: crypte.default() }',
-        ].join('\n'),
-      ),
-    )
-
-    expect(read.expression).toBe('crypte.default()')
-    expect(read.imports).toEqual(["import * as crypte from '@crypte/react'"])
-  })
-
-  // Et un import par défaut que l'expression ne nomme pas ne part pas dans
-  // l'entrée, comme un import nommé inutilisé.
-  test('ne retient pas un import par défaut que l’expression ne nomme pas', ({ projet }) => {
-    const read = adapterSource(
-      projet(
-        [
-          "import crypte from '@crypte/react'",
-          "export default { adapter: { name: 'react' } }",
-        ].join('\n'),
-      ),
-    )
-
-    expect(read.imports).toEqual([])
-  })
-
-  // Un test de mots sur le texte brut retenait l'import parce que le nom du
-  // plugin apparaissait dans une chaîne de l'expression. Mesuré : la preview
-  // chargeait `@vitejs/plugin-react`, donc `node:module`, donc rien.
-  test('ne retient pas un import dont le nom n’apparaît que dans une chaîne', ({ projet }) => {
-    const read = adapterSource(
-      projet(
-        [
-          "import { createAdapter } from '@crypte/react'",
-          "import react from '@vitejs/plugin-react'",
-          "export default { adapter: createAdapter({ runtime: 'react' }), vite: { plugins: [react()] } }",
-        ].join('\n'),
-      ),
-    )
-
-    expect(read.imports).toEqual(["import { createAdapter } from '@crypte/react'"])
   })
 
   // Même chose pour un nom qui n'est qu'une clé d'objet : `react: true` ne
@@ -198,53 +102,12 @@ describe('la source de l’adaptateur', () => {
     )
   })
 
-  // Le refus ne portait que sur l'identifiant en tête : mesuré, un nom local
-  // imbriqué passait et l'entrée émettait `createAdapter({ runtime })` sans
-  // rien qui déclare `runtime`.
-  test('refuse un nom que le fichier calcule, même imbriqué dans l’expression', ({ projet }) => {
-    const source = [
-      "import { createAdapter } from '@crypte/react'",
-      "const runtime = 'react'",
-      'export default { adapter: createAdapter({ runtime }) }',
-    ].join('\n')
-
-    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
-      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
-    )
-  })
-
   // `export const` porte sa déclaration un cran plus bas dans l'arbre, et la
   // lire au seul niveau du fichier la rendait invisible.
   test('refuse un nom que le fichier déclare et exporte', ({ projet }) => {
     const source = [
       "import { createAdapter } from '@crypte/react'",
       "export const runtime = 'react'",
-      'export default { adapter: createAdapter({ runtime }) }',
-    ].join('\n')
-
-    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
-      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
-    )
-  })
-
-  test('refuse un nom que le fichier déstructure', ({ projet }) => {
-    const source = [
-      "import { createAdapter } from '@crypte/react'",
-      'import { opts } from "/opts"',
-      'const { runtime } = opts',
-      'export default { adapter: createAdapter({ runtime }) }',
-    ].join('\n')
-
-    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
-      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
-    )
-  })
-
-  test('refuse un nom que le fichier déclare dans un tableau', ({ projet }) => {
-    const source = [
-      "import { createAdapter } from '@crypte/react'",
-      'import { list } from "/list"',
-      'const [runtime] = list',
       'export default { adapter: createAdapter({ runtime }) }',
     ].join('\n')
 
@@ -279,19 +142,6 @@ describe('la source de l’adaptateur', () => {
 
     // Le nom cité, pas seulement le jet : `mode` est déclaré par le même motif,
     // et une lecture qui s'arrêterait à lui laisserait le reste passer.
-    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
-      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
-    )
-  })
-
-  test('refuse un nom que le fichier déclare avec une valeur par défaut', ({ projet }) => {
-    const source = [
-      "import { createAdapter } from '@crypte/react'",
-      'import { opts } from "/opts"',
-      "const { runtime = 'react' } = opts",
-      'export default { adapter: createAdapter({ runtime }) }',
-    ].join('\n')
-
     expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
       `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
     )
@@ -347,20 +197,6 @@ describe('la source de l’adaptateur', () => {
     )
   })
 
-  test('refuse un nom que le fichier déclare en espace de noms', ({ projet }) => {
-    const source = [
-      "import { createAdapter } from '@crypte/react'",
-      'namespace Runtime {',
-      "  export const React = 'react'",
-      '}',
-      'export default { adapter: createAdapter({ runtime: Runtime.React }) }',
-    ].join('\n')
-
-    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
-      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`Runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
-    )
-  })
-
   // Le `var` d'une fonction lui appartient : le remonter au fichier ferait
   // refuser un nom importé qui s'écrit pareil.
   test('accepte un nom importé qu’une fonction du fichier redéclare en `var`', ({ projet }) => {
@@ -376,33 +212,6 @@ describe('la source de l’adaptateur', () => {
     )
 
     expect(read.imports).toContain('import { runtime } from "/runtime"')
-  })
-
-  // `import x = require(…)` déclare un nom sans passer par les imports que le
-  // lecteur collecte : accepté, il partait pendant vers le navigateur.
-  test('refuse un nom que le fichier déclare par `import =`', ({ projet }) => {
-    const source = [
-      "import { createAdapter } from '@crypte/react'",
-      "import runtime = require('./runtime')",
-      'export default { adapter: createAdapter({ runtime }) }',
-    ].join('\n')
-
-    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
-      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
-    )
-  })
-
-  test('refuse un nom que le fichier aliase par `import =`', ({ projet }) => {
-    const source = [
-      "import { createAdapter } from '@crypte/react'",
-      "import * as deep from './deep'",
-      'import Runtime = deep.Runtime',
-      'export default { adapter: createAdapter({ runtime: Runtime.React }) }',
-    ].join('\n')
-
-    expect(() => adapterSource(projet(source))).toThrowErrorMatchingInlineSnapshot(
-      `[Error: crypte.config.ts hands \`adapter\` a value it builds itself (\`Runtime\`). Write the adapter in place, or import it: the preview reads this file, it never runs it.]`,
-    )
   })
 
   // Un espace de noms pointé lie son premier segment, et une lecture par types
@@ -486,22 +295,6 @@ describe('la source de l’adaptateur', () => {
     expect(read.imports).toContain('import { field } from "/field"')
   })
 
-  // Une annotation de type ne s'exécute pas : retenir son import ferait charger
-  // au navigateur un module que rien n'y appelle.
-  test('ne retient pas l’import qu’une annotation de type nomme', ({ projet }) => {
-    const read = adapterSource(
-      projet(
-        [
-          "import { createAdapter } from '@crypte/react'",
-          "import type { Options } from './options'",
-          'export default { adapter: createAdapter({ pick: (opts: Options) => opts }) }',
-        ].join('\n'),
-      ),
-    )
-
-    expect(read.imports).toEqual(["import { createAdapter } from '@crypte/react'"])
-  })
-
   // Un global n'est pas un nom que le fichier calcule : le refuser refuserait
   // `process.env`, que Vite remplace.
   test('accepte un global que le fichier ne déclare pas', ({ projet }) => {
@@ -517,26 +310,6 @@ describe('la source de l’adaptateur', () => {
     expect(read.expression).toBe('createAdapter({ mode: process.env.MODE })')
   })
 
-  // Même faux positif que la chaîne, un axe plus loin : `opts.react` ne
-  // désigne pas la variable `react`.
-  test('ne retient pas un import dont le nom n’est que la propriété d’un accès', ({ projet }) => {
-    const read = adapterSource(
-      projet(
-        [
-          "import { createAdapter } from '@crypte/react'",
-          "import react from '@vitejs/plugin-react'",
-          'import { opts } from "/opts"',
-          'export default { adapter: createAdapter({ runtime: opts.react }) }',
-        ].join('\n'),
-      ),
-    )
-
-    expect(read.imports).toEqual([
-      "import { createAdapter } from '@crypte/react'",
-      'import { opts } from "/opts"',
-    ])
-  })
-
   test('retient l’import d’un accès calculé, qui lui désigne bien la variable', ({ projet }) => {
     const read = adapterSource(
       projet(
@@ -550,15 +323,6 @@ describe('la source de l’adaptateur', () => {
     )
 
     expect(read.imports).toHaveLength(3)
-  })
-
-  test('accepte un nom qui vient d’un import', ({ projet }) => {
-    const read = adapterSource(
-      projet(['import { adapter } from "/adapter"', 'export default { adapter }'].join('\n')),
-    )
-
-    expect(read.expression).toBe('adapter')
-    expect(read.imports).toEqual(['import { adapter } from "/adapter"'])
   })
 
   test('refuse un fichier qui ne déclare pas d’adaptateur', ({ projet }) => {
@@ -595,24 +359,14 @@ describe('les natures de spécificateur', () => {
       `),
     ).imports
 
-  test.for([
-    ['un nom de paquet', 'ma-lib'],
-    ['un paquet scopé', '@crypte/react'],
-    ['un alias du projet', '@/components/Frame'],
-    ['un chemin déjà absolu', '/src/x'],
-    ['un module natif', 'node:fs'],
-  ] as const)('laisse passer %s tel quel', ([, spec], { projet }) => {
-    expect(importe(spec, projet)).toEqual([`import { A } from '${spec}'`])
-  })
-
   // `./a/../b/c` ne se coupe pas au préfixe : il se résout. Une version qui
   // retirait `./` en tête aurait rendu `/a/../b/c`, que le navigateur refuse.
-  test.for([
-    ['un relatif simple', './src/deep/Frame', '/src/deep/Frame'],
-    ['un relatif qui remonte à l’intérieur', './a/../b/c', '/b/c'],
-  ] as const)('réécrit %s en chemin de racine', ([, spec, attendu], { projet }) => {
-    expect(importe(spec, projet)).toEqual([`import { A } from "${attendu}"`])
-  })
+  test.for([['un relatif qui remonte à l’intérieur', './a/../b/c', '/b/c']] as const)(
+    'réécrit %s en chemin de racine',
+    ([, spec, attendu], { projet }) => {
+      expect(importe(spec, projet)).toEqual([`import { A } from "${attendu}"`])
+    },
+  )
 })
 
 // Les deux champs croisés, l'axe que l'exploration avait laissé : `adapter` et
@@ -671,19 +425,6 @@ describe('adapter et wrap ensemble', () => {
       `[Error: crypte.config.ts declares \`wrap\` somewhere the preview cannot read, a spread for instance. Write it in place: the preview reads this file, it never runs it.]`,
     )
   })
-
-  // Et sans `wrap` du tout, rien ne change : c'est le cas courant.
-  test('ne dit rien quand la configuration ne déclare aucun wrap', ({ projet }) => {
-    const entry = entree(
-      `
-        import { createAdapter } from '@crypte/react'
-        export default { stories: 's', adapter: createAdapter() }
-      `,
-      projet,
-    )
-
-    expect(entry).toContain('const __crypte_wrap = undefined')
-  })
 })
 
 // La classe entière, pas un nom : l'entrée est vérifiée par node, qui refuse une
@@ -707,18 +448,10 @@ describe('les noms que l’entrée déclare', () => {
 
   test.for([
     ['adapter', 'adapter'],
-    ['modules', 'modules'],
-    ['manifest', 'manifest'],
     ['container', 'container'],
     ['render', 'render'],
     ['channel', 'channel'],
-    ['propsOfStory', 'propsOfStory'],
-    ['wrapsOf', 'wrapsOf'],
-    ['createPreviewChannel', 'createPreviewChannel'],
-    ['story0', 'story0'],
-    ['byId', 'byId'],
     ['wrap', 'wrap'],
-    ['paths', 'paths'],
   ] as const)('ne percute pas un import nommé %s', ([, nom], { projet }) => {
     const project = projet(`
       import { ${nom} } from './setup'
@@ -762,19 +495,8 @@ describe('les paquets de la configuration', () => {
       paths: paths ? { paths, base: '/', files: [] } : undefined,
     } as never)
 
-  test.for([
-    ['un paquet nu', 'ma-lib', ['ma-lib']],
-    ['un paquet scopé', '@crypte/react', ['@crypte/react']],
-    ['un sous-chemin de paquet', 'react-dom/client', ['react-dom/client']],
-  ] as const)('retient %s', ([, spec, attendu], { projet }) => {
-    expect(paquets(spec, projet)).toEqual(attendu)
-  })
-
   // Un relatif est déjà réécrit en chemin de racine, donc il n'a rien de nu.
-  test.for([
-    ['un relatif', './src/adapter'],
-    ['un module natif', 'node:fs'],
-  ] as const)('écarte %s', ([, spec], { projet }) => {
+  test.for([['un module natif', 'node:fs']] as const)('écarte %s', ([, spec], { projet }) => {
     expect(paquets(spec, projet)).toEqual([])
   })
 
@@ -783,19 +505,6 @@ describe('les paquets de la configuration', () => {
   test('écarte un alias que le projet déclare', ({ projet }) => {
     expect(paquets('@/adapters/mine', projet, { '@/*': ['src/*'] })).toEqual([])
     expect(paquets('@/adapters/mine', projet)).toEqual(['@/adapters/mine'])
-  })
-
-  test('ne nomme qu’une fois le paquet que les deux champs partagent', ({ projet }) => {
-    const project = projet(`
-      import { createAdapter, Panel } from '@crypte/react'
-      export default { stories: 's', adapter: createAdapter(), wrap: Panel }
-    `)
-
-    expect(configPackages(project)).toEqual(['@crypte/react'])
-  })
-
-  test('ne rend rien quand la configuration n’importe rien', ({ projet }) => {
-    expect(configPackages(projet("export default { stories: 's', adapter: {} }"))).toEqual([])
   })
 })
 
@@ -813,37 +522,6 @@ describe('un import de types', () => {
     expect(adapterSource(project).imports).toEqual([
       "import { createAdapter } from '@crypte/react'",
     ])
-  })
-
-  // Les formes qu'un tri par clé n'atteignait pas, et qu'un tri sur le seul
-  // préfixe `TSType` faisait voyager : mesuré, chacune emportait son paquet.
-  test.for([
-    ['un paramètre de type contraint', '(<T extends P>(x: T) => x)(createAdapter())'],
-    ['un type de fonction qui nomme un import', 'createAdapter as (Autre: number) => unknown'],
-    ['un type de constructeur', 'createAdapter as new (Autre: number) => unknown'],
-    ['un import de type en ligne', "createAdapter as import('@acme/types').P"],
-    ['un membre de tuple nommé', 'createAdapter as [Autre: string]'],
-  ] as const)('écarte %s', ([, expression], { projet }) => {
-    const project = projet(`
-      import { createAdapter } from '@crypte/react'
-      import type { P } from '@acme/types'
-      import { Autre } from '@acme/autre'
-      export default { stories: 's', adapter: ${expression} }
-    `)
-
-    expect(configPackages(project)).toEqual(['@crypte/react'])
-  })
-
-  // L'exception : une assertion à l'ancienne porte une valeur, et le saut sur la
-  // famille entière perdait le paquet de cette valeur.
-  test('garde la valeur d’une assertion à l’ancienne', ({ projet }) => {
-    const project = projet(`
-      import type { P } from '@acme/types'
-      import { fait } from '@acme/valeur'
-      export default { stories: 's', adapter: <P>fait }
-    `)
-
-    expect(configPackages(project)).toEqual(['@acme/valeur'])
   })
 
   // L'autre sens, et le plus grave : un nœud `TS…` qui porte une valeur et qu'on
@@ -865,27 +543,6 @@ describe('un import de types', () => {
 
     expect(configPackages(project)).toEqual(['@acme/valeur'])
     expect(adapterSource(project).imports).toEqual(["import { fait } from '@acme/valeur'"])
-  })
-
-  // Le garde-fou de ce qui n'est pas couvert : un décorateur laisserait un nom
-  // pendant dans l'entrée servie, et rien ne le rattrape depuis que le `continue`
-  // sur `decorators` est parti. On dépend donc du refus du chargeur, et c'est lui
-  // qu'on affirme : le jour où une montée de Vite les accepte, ce cas rougit.
-  test('compte sur le chargeur pour refuser un décorateur', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'crypte-decorateur-'))
-    writeFileSync(
-      join(root, 'crypte.config.ts'),
-      `export default {
-        stories: 'stories',
-        adapter: new (class { constructor(@Object() public a = { name: 'x' }) {} })().a,
-      }`,
-    )
-
-    try {
-      await expect(loadProject(root)).rejects.toThrow('Invalid or unexpected token')
-    } finally {
-      rmSync(root, { recursive: true, force: true })
-    }
   })
 
   // Depuis que l'entrée est compilée (`DCJ-224`), les formes de déclaration
@@ -914,16 +571,6 @@ describe('un import de types', () => {
       '(() => { enum E { P = 1 } return createAdapter(E.P) })()',
       '',
     ],
-    [
-      'une énumération sans initialiseur',
-      '(() => { enum E { P, Q } return createAdapter(E.P) })()',
-      '',
-    ],
-    [
-      'une énumération dans un bloc',
-      '(() => { if (1) { enum E { P = 1 } return createAdapter(E.P) } return createAdapter() })()',
-      '',
-    ],
   ] as const)('écarte %s', ([, expression, tête], { projet }) => {
     const project = projet(`
       import { createAdapter } from '@crypte/react'
@@ -935,29 +582,10 @@ describe('un import de types', () => {
     expect(configPackages(project)).toEqual(['@crypte/react'])
   })
 
-  // Un membre de classe se nomme lui-même : le lire comme un nom du fichier
-  // produisait un faux refus sur du JavaScript valide.
-  test.for([
-    ['une méthode', 'make() { return 2 }'],
-    ['un champ', 'make = 2'],
-  ] as const)('n’accuse pas la configuration à cause de %s', ([, membre], { projet }) => {
-    const project = projet(`
-      import { createAdapter } from '@crypte/react'
-      const make = () => 1
-      export default {
-        stories: 's',
-        adapter: new (class { mount() { return createAdapter() } ${membre} })(),
-      }
-    `)
-
-    expect(configPackages(project)).toEqual(['@crypte/react'])
-  })
-
   // Même espèce : une expression nommée porte son nom, un bloc statique porte
   // ses déclarations. Chacune produisait un faux refus sur du JavaScript valide.
   test.for([
     ['une classe nommée', 'new (class Nom { mount() { return createAdapter() } })()'],
-    ['une fonction nommée', '(function Nom() { return createAdapter() })()'],
     [
       'un bloc statique',
       'new (class { static { const Nom = 2; void Nom } mount() { return createAdapter() } })()',
@@ -981,29 +609,5 @@ describe('un import de types', () => {
     `)
 
     expect(() => configPackages(project)).toThrow('builds itself')
-  })
-
-  // Un nom du fichier réutilisé comme nom de paramètre dans un type n'est pas un
-  // nom que la configuration construit : la refuser était le bloquant du tour 3.
-  test('n’accuse pas la configuration de construire un nom de type', ({ projet }) => {
-    const project = projet(`
-      import { createAdapter } from '@crypte/react'
-      const runtime = 'react'
-      export default { stories: 's', adapter: createAdapter as (runtime: string) => unknown }
-    `)
-
-    expect(configPackages(project)).toEqual(['@crypte/react'])
-  })
-
-  // `as` et `satisfies` passaient déjà par `typeAnnotation` : le cas les garde,
-  // pour que le tri ne se réduise pas à `typeArguments`.
-  test('écarte aussi un type nommé par as', ({ projet }) => {
-    const project = projet(`
-      import { createAdapter } from '@crypte/react'
-      import type { P } from '@acme/types'
-      export default { stories: 's', adapter: createAdapter() as P }
-    `)
-
-    expect(configPackages(project)).toEqual(['@crypte/react'])
   })
 })

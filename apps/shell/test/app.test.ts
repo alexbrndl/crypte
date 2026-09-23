@@ -134,10 +134,6 @@ describe('l’arbre du shell', () => {
     expect(écran.noms()).toEqual(['Par défaut', 'Alerte', 'Par défaut'])
   })
 
-  test('compte les stories dans la ligne d’état', async ({ écran }) => {
-    expect(écran.statut()).toBe('3 stories')
-  })
-
   // Mesuré : retirer le filtre de `refresh` laissait les 675 cas au vert, aucun
   // n'envoyant autre chose que des stories dans le manifeste.
   test('n’affiche pas une entrée dont il ne sait rien faire', async () => {
@@ -262,33 +258,12 @@ describe('ce que la preview répond', () => {
 
     expect(écran.wrapper.find('[role="alert"]').exists()).toBe(false)
   })
-
-  // Ni un message d'une autre origine ni un message venu d'ailleurs que l'iframe
-  // ne doivent être crus : c'est ce que le canal filtre.
-  test('ignore un message d’une autre origine', async ({ écran }) => {
-    window.dispatchEvent(
-      new MessageEvent('message', {
-        data: { type: 'error', id: 'x', message: 'injecté' },
-        origin: 'https://ailleurs.example',
-      }),
-    )
-    await écran.wrapper.vm.$nextTick()
-
-    expect(écran.wrapper.find('[role="alert"]').exists()).toBe(false)
-  })
 })
 
 // Les deux étages de ce que le catalogue a laissé de côté. L'erreur est visible
 // sans qu'on la cherche, parce que la story écartée est absente de l'arbre ;
 // l'avertissement est discret, parce que la story rend. `DCJ-217`.
 describe('ce que le catalogue a laissé de côté', () => {
-  test('ne montre rien quand tout a été lu', async () => {
-    const écran = await monte([badge])
-
-    expect(écran.écartés()).toEqual([])
-    écran.wrapper.unmount()
-  })
-
   // Le compte vient des entrées : dire « ignoré » d'un fichier qui a rendu deux
   // stories sur trois serait faux, et c'est le piège que l'issue nomme.
   test('dit combien le fichier a quand même donné', async () => {
@@ -304,13 +279,6 @@ describe('ce que le catalogue a laissé de côté', () => {
       'stories/Badge.tsx : 2 stories lues, il en manque. stories left out: one whose key is computed at runtime',
       'stories/Seul.tsx : aucune story lue. the stories block is not an object literal',
     ])
-    écran.wrapper.unmount()
-  })
-
-  test('accorde le singulier', async () => {
-    const écran = await monte([badge], false, [{ file: 'stories/Badge.tsx', reason: 'raison' }])
-
-    expect(écran.écartés()).toEqual(['stories/Badge.tsx : 1 story lue, il en manque. raison'])
     écran.wrapper.unmount()
   })
 

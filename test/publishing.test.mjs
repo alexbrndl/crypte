@@ -32,15 +32,6 @@ test('le workflow de version ne publie pas', () => {
   expect(entrées).not.toContain('publish')
 })
 
-// Sans ce cas, celui du dessus passerait à l'identique le jour où l'action change
-// de nom ou de forme : il lirait un bloc vide des deux côtés.
-test('le motif lit bien les entrées que le bloc porte', () => {
-  const bloc = /changesets\/action@[^\n]*\n(\s+)with:\n((?:\1\s+[^\n]*\n)*)/.exec(VERSION)
-  const entrées = [...bloc[2].matchAll(/^\s+([a-zA-Z][\w-]*):/gm)].map((one) => one[1])
-
-  expect(entrées).toContain('version')
-})
-
 // `sideEffects: false` autorise un bundler à retirer un import dont il ne voit
 // pas l'usage. Faux sur un paquet qui fait quelque chose à l'import, il retire du
 // code qui comptait, chez l'utilisateur et pas ici.

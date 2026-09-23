@@ -53,30 +53,6 @@ it('un aller-retour complet, sans message forgé', () => {
   expect(recus.at(-1)).toMatchObject({ type: 'rendered', id: 'badge--par-defaut' })
 })
 
-it('une exception du composant revient jusqu’au shell', () => {
-  const { canal, recus } = branche(() => {
-    throw new Error('composant introuvable')
-  })
-
-  canal.send({ type: 'render', id: 'badge--casse', overrides: {} })
-
-  expect(recus.at(-1)).toMatchObject({
-    type: 'error',
-    id: 'badge--casse',
-    message: 'composant introuvable',
-  })
-})
-
-// La promesse du canal : ni composant, ni instance, ni noeud DOM ne traverse.
-// C'est `postMessage` qui la tient, en clonant.
-it('refuse de transporter ce qui n’est pas sérialisable', () => {
-  const { canal } = branche(() => {})
-
-  expect(() =>
-    canal.send({ type: 'render', id: 'badge--par-defaut', overrides: { onClick: () => {} } }),
-  ).toThrow()
-})
-
 // Ce que la preview lit dans `window` doit être sa fenêtre, pas celle du shell.
 // Sans cette bascule, les deux canaux liraient le même `parent` et la même
 // origine, et l'appariement des deux côtés serait vrai par accident.

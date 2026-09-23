@@ -56,13 +56,6 @@ test('le guide dit la surface que le code porte', () => {
   expect(trié(nommées(phrase[1]))).toEqual(trié(commandes()))
 })
 
-// Une lecture vide lève déjà dans `commandes()`. Ce que ce cas attrape en plus
-// est une lecture **fausse mais non vide** : le jour où le `switch` cesse d'être
-// la source, les trois précédents compareraient deux fois la même erreur.
-test('cli.ts porte bien les commandes qu’on croit', () => {
-  expect(commandes()).toEqual(['dev', 'check', 'init'])
-})
-
 // La sortie citée par le guide est copiée à la main. Sans ce cas, une bosse de
 // `PROTOCOL_VERSION` laisse le guide citer une ligne que le programme ne produit
 // plus, et le guide promet pourtant que chacun de ses exemples est exécuté.

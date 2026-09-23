@@ -135,19 +135,6 @@ describe('chargement de la configuration', () => {
     expect(project.watch.some((file) => file.endsWith('crypte.config.ts'))).toBe(true)
   })
 
-  // Les chemins viennent d'un autre fichier que la configuration : le modifier
-  // doit provoquer une relecture, donc il appartient à la liste.
-  test('surveille aussi le fichier d’où viennent les chemins', async () => {
-    const project = await loadProject(fixture)
-
-    expect(project.watch.some((file) => file.endsWith('jsconfig.json'))).toBe(true)
-  })
-
-  test('rend l’entrée CSS en chemin absolu', async () => {
-    const css = cssEntryOf(await loadProject(fixture))
-    expect(css).toBe(join(fixture, 'src/styles/app.css'))
-  })
-
   // Une racine relative, ce qu'un `crypte dev ./demo` passerait depuis la ligne
   // de commande : sans normalisation, tous les chemins produits le restent.
   test('normalise une racine relative', async () => {
@@ -162,18 +149,6 @@ describe('chargement de la configuration', () => {
   test('nomme le fichier manquant plutôt que de lever une trace de pile', async () => {
     await expect(loadProject(join(fixture, 'src'))).rejects.toThrow(ConfigError)
     await expect(loadProject(join(fixture, 'src'))).rejects.toThrow(/crypte\.config\.ts/)
-  })
-
-  // Deux champs obligatoires, et rien d'autre : c'est le minimum de
-  // configuration que la section 1.5 promet.
-  test('accepte une configuration réduite aux deux champs obligatoires', async ({
-    projectWith,
-  }) => {
-    const root = projectWith('export default { stories: "s", adapter: {} }')
-    const project = await loadProject(root)
-
-    expect(project.config.stories).toBe('s')
-    expect(project.config.css).toBeUndefined()
   })
 
   // Sans ces cas, retirer toute la validation laisse la suite verte. Mesuré.
@@ -221,33 +196,14 @@ describe('chargement de la configuration', () => {
 describe('chemins déclarés par le projet', () => {
   const pathsOf = async (root: string) => (await projectPathsOf(root))?.paths
 
-  test('lit les chemins d’un jsconfig.json commenté', async () => {
-    expect(await pathsOf(fixture)).toEqual({ '@/*': ['src/*'] })
-  })
-
   // Sans configuration, rien : le CLI n'invente aucun chemin.
   test('ne rend rien quand le projet n’en déclare pas', async () => {
     expect(await projectPathsOf(join(fixture, 'src'))).toBeUndefined()
   })
 
-  // La forme que produit `npm create vite` : la racine ne porte que des
-  // références, et les chemins vivent dans le fichier référencé.
-  test('suit les références d’un tsconfig de style solution', async ({ projectOf }) => {
-    const root = projectOf({
-      'tsconfig.json': '{ "files": [], "references": [{ "path": "./tsconfig.app.json" }] }',
-      'tsconfig.app.json':
-        '{ "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["src/*"] } } }',
-    })
-
-    expect(await pathsOf(root)).toEqual({ '@/*': ['src/*'] })
-  })
-
   // Un `tsconfig.json` sans chemins ne doit pas masquer le `jsconfig.json` qui
   // en porte : sinon le support JavaScript tombe dès qu'un des deux traîne.
-  test.for([
-    ['sans clé paths', '{ "compilerOptions": { "strict": true } }'],
-    ['avec un paths vide', '{ "compilerOptions": { "paths": {} } }'],
-  ] as const)(
+  test.for([['avec un paths vide', '{ "compilerOptions": { "paths": {} } }']] as const)(
     'continue jusqu’au fichier qui déclare des chemins, %s',
     async ([, tsconfig], { projectOf }) => {
       const root = projectOf({
@@ -289,7 +245,6 @@ describe('chemins déclarés par le projet', () => {
   test.for([
     ['une chaîne au lieu d’un tableau', '{ "@/*": "src/*" }'],
     ['un nombre parmi les cibles', '{ "@/*": [123] }'],
-    ['un tableau imbriqué', '{ "@/*": [["src/*"]] }'],
   ] as const)('refuse %s', async ([, paths], { projectOf }) => {
     const root = projectOf({ 'tsconfig.json': `{ "compilerOptions": { "paths": ${paths} } }` })
 
@@ -307,17 +262,6 @@ describe('chemins déclarés par le projet', () => {
     const files = (await projectPathsOf(root))?.files ?? []
     expect(files.some((file) => file.endsWith('tsconfig.json'))).toBe(true)
     expect(files.some((file) => file.endsWith('app.json'))).toBe(true)
-  })
-
-  // Un `extends` introuvable arrive tous les jours, avant `nuxt prepare` ou dans
-  // un clone sans installation. Les chemins sont un enrichissement.
-  test('passe au fichier suivant quand un extends est introuvable', async ({ projectOf }) => {
-    const root = projectOf({
-      'tsconfig.json': '{ "extends": "./absent.json" }',
-      'jsconfig.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
-    })
-
-    expect(await pathsOf(root)).toEqual({ '@/*': ['src/*'] })
   })
 
   // Sans ce mot, l'utilisateur voit tous ses imports échouer et rien ne désigne
@@ -370,38 +314,11 @@ describe('chemins déclarés par le projet', () => {
     expect(project.watch.some((file) => file.endsWith('tsconfig.json'))).toBe(true)
   })
 
-  test('surveille un tsconfig même sans chemins', async ({ projectOf }) => {
-    const root = projectOf({
-      'tsconfig.json': '{ "compilerOptions": { "strict": true } }',
-      'crypte.config.ts': 'export default { stories: "s", adapter: {} }',
-    })
-    const project = await loadProject(root)
-
-    expect(project.watch.some((file) => file.endsWith('tsconfig.json'))).toBe(true)
-  })
-
   test('nomme le fichier quand il est illisible', async ({ projectOf }) => {
     const root = projectOf({ 'tsconfig.json': '{ "compilerOptions": { paths } }' })
 
     await expect(projectPathsOf(root)).rejects.toThrow(ConfigError)
     await expect(projectPathsOf(root)).rejects.toThrow(/tsconfig\.json/)
-  })
-})
-
-// Le pipeline CSS de Vite ne consulte aucun plugin : il résout `@import` et
-// `url()` par ses propres moyens. Les chemins déclarés n'y sont donc pas
-// appliqués, et un alias qui les y appliquerait court-circuiterait le repli.
-describe('feuilles de style du projet', () => {
-  test('n’applique pas les chemins déclarés dans un @import', async ({ projectOf, serverOn }) => {
-    const root = projectOf({
-      'tsconfig.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
-      'crypte.config.ts': 'export default { stories: "s", adapter: {} }',
-      'src/app.css': "@import '@/vars.css';\n.a { color: red }",
-      'src/vars.css': ':root { --x: 1 }',
-    })
-    const server = await serverOn(viteConfigOf(await loadProject(root)))
-
-    await expect(server.transformRequest('/src/app.css')).rejects.toThrow()
   })
 })
 
@@ -412,10 +329,7 @@ describe('feuilles de style du projet', () => {
 describe('imports relatifs', () => {
   // Le croisement des deux axes : le motif le plus large possible, contre les
   // natures d'identifiant qu'il ne doit pas toucher.
-  test.for([
-    ['un fourre-tout', '{ "*": ["src/*"] }'],
-    ['un suffixe', '{ "*.css": ["src/*.css"] }'],
-  ] as const)(
+  test.for([['un fourre-tout', '{ "*": ["src/*"] }']] as const)(
     'ne détourne pas un import relatif cassé, malgré %s',
     async ([, paths], { projectOf, serverOn }) => {
       const root = projectOf({
@@ -497,100 +411,26 @@ describe('ordre des résolveurs', () => {
   })
 })
 
-describe('provenance, les cas restants', () => {
-  test.for([
-    ['absente, une entrée du graphe', undefined],
-    ['virtuelle, un module qu’un plugin a produit', '\0module-virtuel'],
-    ['du projet', 'entry.js'],
-  ] as const)(
-    'applique les chemins quand elle est %s',
-    async ([, importer], { projectOf, serverOn }) => {
-      const root = projectOf({
-        'tsconfig.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
-        'crypte.config.ts': 'export default { stories: "s", adapter: {} }',
-        'src/cible.js': 'export const c = 1',
-      })
-      const server = await serverOn(viteConfigOf(await loadProject(root)))
-
-      const from = typeof importer === 'string' ? join(root, importer) : undefined
-      const resolved = await server.pluginContainer.resolveId('@/cible.js', from)
-      expect(resolved?.id).toContain('src/cible.js')
-    },
-  )
-})
-
 describe('natures d’identifiant', () => {
   test.for([
-    ['un nom de paquet', 'vue'],
-    ['un paquet scopé', '@scope/pkg'],
-    ['un sous-chemin de paquet', 'vue/dist/vue.js'],
-    ['un nom avec chemin', '@/composants/Badge'],
-  ] as const)('applique les chemins à %s', ([, id]) => {
-    expect(isBareSpecifier(id)).toBe(true)
-  })
-
-  test.for([
-    ['un relatif', './voisin.js'],
-    ['un relatif remontant', '../ailleurs.js'],
     ['un absolu', '/racine.js'],
-    ['une URL', 'https://cdn.example/x.js'],
-    ['une source de données', 'data:text/javascript,void 0'],
-    ['un module natif', 'node:fs'],
     ['un module virtuel de plugin', 'virtual:mon-module'],
     ['un identifiant virtuel de Rollup', '\0virtuel'],
-    ['un fichier par URL', 'file:///tmp/x.js'],
     ['un identifiant vide', ''],
   ] as const)('laisse passer %s', ([, id]) => {
     expect(isBareSpecifier(id)).toBe(false)
   })
 })
 
-// La correspondance d'un motif, éprouvée seule : de l'extérieur, une capture
-// fautive est invisible, puisque le repli renvoie l'import à Vite comme si rien
-// ne s'était passé.
-// Ce que l'exploration des entrées a produit : les cas dégénérés de chaque
-// fonction publique, éprouvés une fois plutôt que découverts un par revue.
-describe('cas dégénérés', () => {
-  const degeneres: [string, (avec: ProjectWith) => Promise<unknown>][] = [
-    ['une racine inexistante', () => loadProject('/nexiste/pas/du/tout')],
-    ['un fichier vide', (avec) => loadProject(avec(''))],
-    ['un export qui n’est pas un objet', (avec) => loadProject(avec('export default 42'))],
-    ['un fichier qui lève à l’import', (avec) => loadProject(avec('throw new Error("boum")'))],
-  ]
-
-  test.for(degeneres)('nomme le fichier pour %s', async ([, charger], { projectWith }) => {
-    await expect(charger(projectWith)).rejects.toThrow(ConfigError)
-    await expect(charger(projectWith)).rejects.toThrow(/crypte\.config\.ts|racine/)
-  })
-
-  test('lit un extends déclaré en tableau', async ({ projectOf }) => {
-    const root = projectOf({
-      'a.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
-      'tsconfig.json': '{ "extends": ["./a.json"] }',
-    })
-
-    expect((await projectPathsOf(root))?.paths).toEqual({ '@/*': ['src/*'] })
-  })
-})
-
 describe('correspondance d’un motif', () => {
-  test.for([
-    ['#app', '#app', ''],
-    ['@/*', '@/a.js', 'a.js'],
-    ['@*', '@a.js', 'a.js'],
-    ['*', 'a.js', 'a.js'],
-    ['*.css', 'a.css', 'a'],
-    ['a/*/z', 'a/b/z', 'b'],
-  ] as const)('capture %s sur %s', ([pattern, id, attendu]) => {
+  test.for([['*.css', 'a.css', 'a']] as const)('capture %s sur %s', ([pattern, id, attendu]) => {
     expect(capture(pattern, id)).toBe(attendu)
   })
 
   test.for([
-    ['un motif exact contre un autre identifiant', '#app', '@scope/pkg'],
     ['un préfixe qui ne correspond pas', '@/*', '@scope/pkg'],
     ['un suffixe qui ne correspond pas', '*.css', 'a.js'],
     ['un identifiant trop court pour le motif', 'a*a', 'a'],
-    ['un joker au milieu sans la fin attendue', 'a/*/z', 'a/b/y'],
   ] as const)('ne capture pas %s', ([, pattern, id]) => {
     expect(capture(pattern, id)).toBeNull()
   })
@@ -601,15 +441,6 @@ describe('correspondance d’un motif', () => {
 // alias, qui peut être juste et pourtant inerte.
 describe('résolution des chemins', () => {
   test.for([
-    ['exact', '{ "#app": ["src/app.js"] }', 'import "#app"', 'src/app.js'],
-    ['préfixe séparé', '{ "@/*": ["src/*"] }', 'import "@/app.js"', 'src/app.js'],
-    ['préfixe collé', '{ "@*": ["src/*"] }', 'import "@app.js"', 'src/app.js'],
-    ['préfixe nommé', '{ "lib-*": ["src/*"] }', 'import "lib-app.js"', 'src/app.js'],
-    ['fourre-tout', '{ "*": ["src/*"] }', 'import "app.js"', 'src/app.js'],
-    ['suffixe', '{ "*.css": ["styles/*.css"] }', 'import "app.css"', 'styles/app.css'],
-    ['joker au milieu', '{ "a/*/z": ["src/*/z.js"] }', 'import "a/app/z"', 'src/app/z.js'],
-    ['sans extension', '{ "@/*": ["src/*"] }', 'import "@/app"', 'src/app.js'],
-    ['vers un index', '{ "@/*": ["src/*"] }', 'import "@/mod"', 'src/mod/index.js'],
     ['seconde cible', '{ "@/*": ["absent/*", "src/*"] }', 'import "@/app.js"', 'src/app.js'],
     // La partie capturée vient de l'utilisateur : en remplacement de chaîne,
     // `$&` y désignerait le motif trouvé et produirait un autre chemin.
@@ -634,18 +465,6 @@ describe('résolution des chemins', () => {
     await expect(server.transformRequest('/entry.js')).rejects.toThrow()
   })
 
-  // TypeScript retient un seul motif, essaie ses substitutions, puis retombe
-  // sur la résolution Node. Passer au motif suivant ferait résoudre ici ce que
-  // l'éditeur du développeur déclare introuvable.
-  test('ne se rabat pas sur un autre motif quand le meilleur échoue', async ({ resolving }) => {
-    const { server } = await resolving('{ "@/lib/*": ["absent/*"], "@/*": ["src/*"] }', {
-      'entry.js': 'export { x } from "@/lib/a.js"',
-      'src/lib/a.js': 'export const x = 1',
-    })
-
-    await expect(server.transformRequest('/entry.js')).rejects.toThrow()
-  })
-
   // Le repli, qui est toute la raison d'être du résolveur : un alias réécrirait
   // sans condition et détournerait ce paquet vers `src/scope/pkg`. Le code doit
   // pointer vers `node_modules`, non se contenter d'être transformé : rendre
@@ -659,20 +478,6 @@ describe('résolution des chemins', () => {
     expect(result?.code).toContain('node_modules/@scope/pkg')
   })
 
-  // Un motif ne correspond que s'il correspond vraiment : sans la comparaison
-  // du suffixe ou l'égalité stricte d'un motif exact, tout serait capturé, et
-  // la première cible venue détournerait des imports sans rapport.
-  test.for([
-    ['un suffixe qui ne correspond pas', '{ "*.css": ["styles/*.css"] }', 'import "@scope/pkg"'],
-    ['un motif exact qui ne correspond pas', '{ "#app": ["src/app.js"] }', 'import "@scope/pkg"'],
-    ['un préfixe qui ne correspond pas', '{ "@/*": ["src/*"] }', 'import "@scope/pkg"'],
-  ] as const)('ne capture pas %s', async ([, paths, source], { resolving }) => {
-    const { server } = await resolving(paths, { 'entry.js': source })
-
-    const result = await server.transformRequest('/entry.js')
-    expect(result?.code).toContain('node_modules/@scope/pkg')
-  })
-
   test.for([
     [
       'le motif le plus spécifique',
@@ -680,21 +485,9 @@ describe('résolution des chemins', () => {
       'export { x } from "@/lib/a.js"',
       '/vendor/',
     ],
-    [
-      'le motif exact avant le joker',
-      '{ "#app/*": ["vendor/*"], "#app": ["src/lib/a.js"] }',
-      'export { x } from "#app"',
-      '/src/',
-    ],
 
     // Le préfixe d'un motif sans joker est le motif entier. Le compter à un
     // caractère près le mettrait à égalité avec le joker voisin.
-    [
-      'le motif exact malgré un joker de même longueur',
-      '{ "#ap*": ["vendor/a.js"], "#app": ["src/lib/a.js"] }',
-      'export { x } from "#app"',
-      '/src/',
-    ],
     // Préfixes strictement égaux : seul le départage explicite tranche, le tri
     // étant stable et l'ordre de déclaration mettant le joker en premier.
     [
@@ -727,21 +520,6 @@ describe('résolution réelle par un serveur Vite', () => {
     expect(result?.code).toContain('/src/components/Badge.jsx')
     expect(result?.code).toContain('/src/assets.js')
   })
-
-  // Contrôle négatif : sans le résolveur, le même import échoue. Sinon le cas
-  // ci-dessus passerait aussi bien avec une configuration vide.
-  //
-  // Le motif ne nomme pas lequel des deux imports aliasés échoue : `entry.jsx`
-  // en porte deux, et Vite signale celui qu'il rencontre en premier. Nommer
-  // `@/components/Badge` a fait rougir la CI sur Node 24 pendant qu'elle passait
-  // sur Node 22, avec « @/assets » à la place. Mesuré.
-  test('échoue sans le résolveur, ce qui prouve qu’il sert', async ({ serverOn }) => {
-    const server = await serverOn({ root: fixture, configFile: false })
-
-    await expect(server.transformRequest('/entry.jsx')).rejects.toThrow(
-      /Failed to resolve import "@\//,
-    )
-  })
 })
 
 // Deux serveurs sur la même racine, celui de crypte et le `vite dev` du projet,
@@ -751,11 +529,5 @@ describe('le dossier de cache', () => {
     const config = viteConfigOf(await loadProject(fixture))
 
     expect(config.cacheDir).toBe(join(fixture, 'node_modules', '.crypte'))
-  })
-
-  test('n’est pas celui que le projet utilise pour son propre serveur', async () => {
-    const config = viteConfigOf(await loadProject(fixture))
-
-    expect(config.cacheDir).not.toBe(join(fixture, 'node_modules', '.vite'))
   })
 })

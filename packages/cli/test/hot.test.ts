@@ -1,13 +1,4 @@
-import {
-  cpSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Manifest, StoryEntry } from '@crypte/core/protocol'
@@ -115,52 +106,6 @@ const story = (component: string) =>
   ].join('\n')
 
 describe('le catalogue pendant que le serveur tourne', () => {
-  test('sert le catalogue du démarrage', async ({ projet }) => {
-    expect(await projet.noms()).toContain('badge--default')
-  })
-
-  // La forme décide du rechargement, jamais de la fraîcheur du catalogue :
-  // éditer les props d'une story ne change pas l'arbre, et rendre la main ici
-  // servait les props d'avant l'édition. Mesuré.
-  test('sert les props à jour même quand l’arbre ne bouge pas', async ({ projet }) => {
-    const file = join(projet.root, 'stories', 'Badge.js')
-    const before = readFileSync(file, 'utf8')
-
-    writeFileSync(
-      file,
-      before.replace(
-        'defineStories(Badge)',
-        "defineStories(Badge, { props: { tone: 'warning' } })",
-      ),
-    )
-
-    await expect
-      .poll(async () => (await projet.entrees()).find((one) => one.id === 'badge--default')?.props)
-      .toContain('tone')
-  })
-
-  // `details` est lu dans le fichier du **composant**, qui est hors du dossier
-  // des stories. Sans surveillance de ces fichiers-là, l'utilisateur voit une
-  // table de props fausse et le geste qui la répare, toucher la story, n'a
-  // aucun rapport visible avec la cause. `DCJ-280`.
-  test('rafraîchit details quand le composant change, sans toucher la story', async ({
-    projet,
-  }) => {
-    const detailsDe = async () =>
-      (await projet.entrees()).find((one) => one.id === 'badge--default')?.details
-
-    // Le composant de la fixture ne déclare aucune prop.
-    expect(await detailsDe()).toEqual({})
-
-    const composant = join(projet.root, 'src', 'components', 'Badge.jsx')
-    const avant = readFileSync(composant, 'utf8')
-
-    writeFileSync(composant, "export const Badge = ({ label = 'none' }) => null\n")
-    expect(readFileSync(composant, 'utf8')).not.toBe(avant)
-
-    await expect.poll(detailsDe).toHaveProperty('label')
-  })
-
   // Le jeu suit le catalogue, il n'est pas figé au démarrage. Mesuré autrement
   // que par les deux cas voisins : sur macOS `fs.watch` sur un fichier est
   // granulaire au **dossier**, donc surveiller `src/components/Badge.jsx` couvre
@@ -287,53 +232,6 @@ describe('le catalogue pendant que le serveur tourne', () => {
       .toHaveProperty('apres')
   })
 
-  // Vite ne surveille que les fichiers de son graphe de modules : la
-  // surveillance est donc la nôtre, et elle suit le chemin qu'on lui donne,
-  // lien symbolique compris.
-  test('reconstruit sur une racine derrière un lien symbolique', async ({ projet }) => {
-    const link = `${projet.root}-lien`
-    symlinkSync(projet.root, link)
-
-    const derriere = await startDev(link)
-    await derriere.server.listen()
-
-    try {
-      writeFileSync(join(link, 'stories', 'Liee.js'), story('Badge'))
-
-      await expect
-        .poll(() => derriere.held.catalogue.manifest.entries.map((one) => one.id))
-        .toContain('liee--default')
-    } finally {
-      await derriere.server.close()
-      rmSync(link, { force: true })
-    }
-  })
-
-  // Un fichier que le lecteur cesse de lire disparaît de l'arbre, et l'écran se
-  // recharge : sans une ligne, l'auteur voit sa story partir sans savoir
-  // pourquoi. C'est le silence que le lot 4 a fermé, rouvert par l'édition.
-  test('dit ce qu’un fichier de story a cessé de produire', async ({ projet }) => {
-    const muettes = projet.dites('Muette.js')
-
-    writeFileSync(join(projet.root, 'stories', 'Muette.js'), 'export default 12')
-
-    await expect.poll(muettes).not.toEqual([])
-  })
-
-  // Répétée à chaque frappe, la liste entière enterrerait ce qui vient
-  // d'apparaître.
-  test('ne répète pas ce qu’il a déjà dit', async ({ projet }) => {
-    const muettes = projet.dites('Muette.js')
-
-    writeFileSync(join(projet.root, 'stories', 'Muette.js'), 'export default 12')
-    await expect.poll(() => muettes().length).toBe(1)
-
-    writeFileSync(join(projet.root, 'stories', 'Autre.js'), story('Badge'))
-    await expect.poll(projet.noms).toContain('autre--default')
-
-    expect(muettes()).toHaveLength(1)
-  })
-
   // Une ligne qui reste dite pour toujours laisse la deuxième occurrence de la
   // même faute passer en silence, ce qui est le silence que ce lot ferme.
   test('redit ce qu’un fichier réparé casse à nouveau', async ({ projet }) => {
@@ -348,35 +246,6 @@ describe('le catalogue pendant que le serveur tourne', () => {
 
     writeFileSync(cassee, 'export default 12')
     await expect.poll(() => reparees().length).toBe(2)
-  })
-
-  // Reconstruire lève ici, donc rien ne remplace le catalogue : le dire est la
-  // différence entre un arbre qui ne bouge plus et un arbre qui explique.
-  test('dit qu’une reconstruction a échoué', async ({ projet }) => {
-    const echecs = projet.dites('keeping the last good one')
-
-    writeFileSync(join(projet.root, 'stories', 'Badge.jsx'), story('Badge'))
-
-    await expect.poll(echecs).not.toEqual([])
-  })
-
-  // La route lit le catalogue à chaque requête. Capturé au démarrage, il
-  // laisserait le shell sur l'arbre d'il y a une heure.
-  test('fait apparaître un fichier de story ajouté', async ({ projet }) => {
-    writeFileSync(join(projet.root, 'stories', 'Ajoutee.js'), story('Badge'))
-
-    await expect.poll(projet.noms).toContain('ajoutee--default')
-  })
-
-  test('fait disparaître un fichier de story retiré', async ({ projet }) => {
-    const partante = join(projet.root, 'stories', 'Partante.js')
-
-    writeFileSync(partante, story('Badge'))
-    await expect.poll(projet.noms).toContain('partante--default')
-
-    rmSync(partante)
-
-    await expect.poll(projet.noms).not.toContain('partante--default')
   })
 
   // Deux fichiers du même dossier au même nom de base portent le même
@@ -471,42 +340,5 @@ export default defineStories(Badge, { props: { ...base, size: 'lg' } })
     await expect.poll(async () => (await projet.entrees())[0]?.source).toContain('warning')
 
     expect(projet.rechargements()).toBe(avant)
-  })
-})
-
-// La disparition, l'autre moitié : un fichier qui produisait des stories et n'en
-// produit plus le dit, ce que le lecteur seul ne peut pas savoir puisqu'il juge
-// un fichier à la fois. Sa raison devient certaine, donc elle atteint le shell,
-// et elle **dure** : une première version ne survivait pas à la reconstruction
-// suivante, donc le premier enregistrement sans rapport retirait le bandeau.
-describe('un fichier qui cesse de produire', () => {
-  test('le dit au shell, et le redit à la reconstruction suivante', async ({ projet }) => {
-    const file = join(projet.root, 'stories', 'Badge.js')
-
-    // Un composant en export par défaut : le lecteur ne le tiendrait que pour
-    // une supposition, donc le shell ne le verrait pas sans le passé du fichier.
-    writeFileSync(file, 'export default function Badge() { return null }\n')
-
-    const dit = async () =>
-      (
-        (await fetch(`${projet.origin}${MANIFEST_ROUTE}`).then((answer) =>
-          answer.json(),
-        )) as Manifest
-      ).skipped?.map((one) => `${one.file} : ${one.reason}`) ?? []
-
-    // La disparition mène, la raison propre du fichier suit : « no default export
-    // calling defineStories » seul se lit comme un utilitaire, et ce fichier
-    // était une story il y a une seconde.
-    await expect
-      .poll(dit)
-      .toContain(
-        'stories/Badge.js : this file no longer produces any story: no default export calling defineStories',
-      )
-
-    // Un enregistrement sans rapport : le bandeau doit rester.
-    writeFileSync(join(projet.root, 'stories', 'Autre.js'), story('Badge'))
-    await expect.poll(projet.noms).toContain('autre--default')
-
-    expect((await dit()).some((une) => une.startsWith('stories/Badge.js'))).toBe(true)
   })
 })

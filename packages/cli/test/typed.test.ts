@@ -18,6 +18,11 @@ import { startDev } from '../src/dev'
 // pas transformé par son extension : mesuré, la renommer en `.ts` ne change
 // rien. `as never` partait donc au navigateur, qui mourait sur un `SyntaxError`
 // avant le canal, donc sans `ready` et sur un cadre vide. `DCJ-224`.
+//
+// Le seul cas navigateur à froid, sans préchauffage : ni fetch de l'entrée ni
+// `waitForRequestsIdle` avant `page.goto`. C'est lui qui voit une
+// réoptimisation vider `#root` au premier chargement. Ne pas aligner sa mise en
+// place sur celle de `screen.test.ts`, qui préchauffe.
 
 const demo = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'apps', 'demo')
 

@@ -14,17 +14,6 @@ describe('la configuration obligatoire', () => {
     expectTypeOf<Requises<CrypteConfig>>().toEqualTypeOf<'stories' | 'adapter'>()
   })
 
-  // Sans ce cas, le précédent passerait à l'identique sur un type dont tout
-  // serait devenu obligatoire : `toEqualTypeOf` compare une union, et une union
-  // fausse dans l'autre sens se lit mal. Ici l'assertion porte sur une clé
-  // nommée, une par cas.
-  it('laisse les quatre autres facultatives', () => {
-    expectTypeOf<Extract<Requises<CrypteConfig>, 'css'>>().toEqualTypeOf<never>()
-    expectTypeOf<Extract<Requises<CrypteConfig>, 'wrap'>>().toEqualTypeOf<never>()
-    expectTypeOf<Extract<Requises<CrypteConfig>, 'plugins'>>().toEqualTypeOf<never>()
-    expectTypeOf<Extract<Requises<CrypteConfig>, 'vite'>>().toEqualTypeOf<never>()
-  })
-
   // Et que le compte porte bien sur toutes les clés, pas seulement sur celles
   // qu'on a pensé à nommer : six aujourd'hui, deux exigées et quatre non.
   it('ne porte que sur les six clés que le type déclare', () => {

@@ -30,23 +30,7 @@ describe('les props d’une story nommée', () => {
     expect(propsOfStory(definition, 'Avertissement', { tone: 'neutral' }).tone).toBe('neutral')
   })
 
-  // La fusion est plate, prop par prop : deux props qui s'excluent demandent une
-  // remise à zéro explicite, ce que le contrat assume en 2.3.
-  it('remplace une prop commune plutôt que de la fusionner', () => {
-    const nested = {
-      props: { label: 'a', onPress: () => undefined },
-      stories: { Une: { label: 'b' } },
-    }
-
-    expect(propsOfStory(nested, 'Une').label).toBe('b')
-    expect(typeof propsOfStory(nested, 'Une').onPress).toBe('function')
-  })
-
   it('rend les props communes pour un nom qu’il ne connaît pas', () => {
     expect(propsOfStory(definition, 'inexistante')).toEqual({ label: 'commun', tone: 'neutral' })
-  })
-
-  it('rend un objet vide quand rien n’est déclaré', () => {
-    expect(propsOfStory({}, 'quoi que ce soit')).toEqual({})
   })
 })

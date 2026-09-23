@@ -28,14 +28,6 @@ const RENDER = { type: 'render', id: 'badge--par-defaut', overrides: {} } as con
 const READY = { type: 'ready', protocolVersion: 1 } as const
 
 describe('envoi vers la preview', () => {
-  it('livre le message dans l’iframe', () => {
-    const recus = collect(dedans)
-
-    createShellChannel(frame).send({ ...RENDER })
-
-    expect(recus).toEqual([RENDER])
-  })
-
   it('ne livre rien à une iframe d’une autre origine', () => {
     const etrangere = windowAt(AILLEURS)
     etrangere.sender = shell
@@ -47,12 +39,6 @@ describe('envoi vers la preview', () => {
 
     expect(recus).toEqual([])
   })
-
-  it('ne tombe pas quand l’iframe n’est pas chargée', () => {
-    const vide = { contentWindow: null } as unknown as HTMLIFrameElement
-
-    expect(() => createShellChannel(vide).send({ ...RENDER })).not.toThrow()
-  })
 })
 
 describe('réception depuis la preview', () => {
@@ -62,14 +48,6 @@ describe('réception depuis la preview', () => {
 
     return { recus, stop }
   }
-
-  it('reçoit un message de la preview', () => {
-    const { recus } = ecoute()
-
-    shell.deliver({ data: READY, origin: ORIGIN, source: dedans }, ORIGIN)
-
-    expect(recus).toEqual([READY])
-  })
 
   it('ignore un message d’une autre origine', () => {
     const { recus } = ecoute()

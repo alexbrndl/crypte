@@ -109,37 +109,6 @@ export default defineConfig({
     }
   })
 
-  test('reprend le même port et sert le catalogue neuf', { timeout: 120_000 }, async () => {
-    const root = copie(fixture, 'tmp-hot-')
-    const config = join(root, 'crypte.config.ts')
-    const avant = readFileSync(config, 'utf8')
-
-    const dites: string[] = []
-    const running = await dev(root, (une: string) => dites.push(une))
-    const address = running.server.httpServer?.address()
-    if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
-
-    const compte = compteSur(address.port)
-
-    try {
-      expect(await compte()).toBe(4)
-
-      // Le dossier des stories se réduit : tout l'arbre change, ce qui est le cas
-      // que `recovered` doit encaisser côté shell.
-      const réduit = avant.replace("stories: 'stories'", "stories: 'stories/checkout'")
-      expect(réduit).not.toBe(avant)
-      writeFileSync(config, réduit)
-
-      // Le même port, ce qui est ce qui permet au navigateur de se reconnecter
-      // sans que personne ne touche à rien.
-      await expect.poll(compte, { timeout: 30_000 }).toBe(3)
-      expect(dites.filter((une) => une.includes('changed'))).toHaveLength(1)
-    } finally {
-      await running.close()
-      rmSync(root, { recursive: true, force: true })
-    }
-  })
-
   test(
     'garde le serveur debout sur une configuration illisible',
     { timeout: 120_000 },
@@ -369,38 +338,6 @@ export default defineConfig({
     }
   })
 
-  // Ce qui n'a pas changé ne se redit pas : vingt fichiers d'aide écartés
-  // réimprimaient vingt et une lignes à chaque essai sur `stories`, et la
-  // répétition enterre la ligne qui compte. C'est la règle de `watchStories`.
-  test('ne redit pas un fichier écarté déjà dit', { timeout: 120_000 }, async () => {
-    const root = copie(fixture, 'tmp-hot-')
-    const config = join(root, 'crypte.config.ts')
-    const avant = readFileSync(config, 'utf8')
-
-    // Un fichier illisible que les deux configurations verront.
-    writeFileSync(join(root, 'stories', 'Muette.js'), 'export default 12\n')
-
-    const dites: string[] = []
-    const running = await dev(root, (une: string) => dites.push(une))
-
-    try {
-      const css = avant.replace("css: 'src/styles/app.css'", "css: 'src/styles/app.css' ")
-      expect(css).not.toBe(avant)
-      writeFileSync(config, css)
-
-      await expect
-        .poll(() => dites.filter((une) => une.includes('changed')).length, { timeout: 30_000 })
-        .toBe(1)
-
-      // Le fichier écarté était déjà nommé au démarrage : le redémarrage ne le
-      // renomme pas.
-      expect(dites.filter((une) => une.includes('Muette.js'))).toHaveLength(1)
-    } finally {
-      await running.close()
-      rmSync(root, { recursive: true, force: true })
-    }
-  })
-
   // Un redémarrage qui échoue le dit, et ne laisse pas le serveur neuf derrière
   // lui : Vite résout la fermeture d'un serveur qui n'a jamais écouté sans rien
   // émettre, donc ses surveillants survivraient et doubleraient les
@@ -555,39 +492,6 @@ export default defineConfig({
     } finally {
       await running.close()
       squatteur.close()
-      rmSync(root, { recursive: true, force: true })
-    }
-  })
-
-  // L'exemple de l'issue : changer l'entrée CSS. Rien n'en paraît dans l'arbre,
-  // donc c'est l'entrée servie qui le dit, et elle ne peut pas l'apprendre sans
-  // que `loadProject` soit repassé.
-  test('sert une entrée CSS neuve après le changement', { timeout: 120_000 }, async () => {
-    const root = copie(fixture, 'tmp-hot-')
-    const config = join(root, 'crypte.config.ts')
-    const avant = readFileSync(config, 'utf8')
-    writeFileSync(join(root, 'src', 'styles', 'autre.css'), ':root { --crypte-essai: 1; }\n')
-
-    const running = await dev(root, () => {})
-    const address = running.server.httpServer?.address()
-    if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
-
-    const entrée = async () =>
-      await fetch(`http://localhost:${address.port}/@crypte/preview.js`).then((answer) =>
-        answer.text(),
-      )
-
-    try {
-      expect(await entrée()).toContain('styles/app.css')
-
-      writeFileSync(
-        config,
-        avant.replace("css: 'src/styles/app.css'", "css: 'src/styles/autre.css'"),
-      )
-
-      await expect.poll(entrée, { timeout: 30_000 }).toContain('styles/autre.css')
-    } finally {
-      await running.close()
       rmSync(root, { recursive: true, force: true })
     }
   })

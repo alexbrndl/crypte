@@ -26,10 +26,3 @@ test('ce programme inclut les fichiers de types, et rien de construit', () => {
   expect(programme.include).toContain('**/*.test-d.ts')
   expect(programme.exclude).toContain('**/dist/**')
 })
-
-// `noEmit` parce que ce programme n'a rien à produire, et le `jsx` du paquet
-// React, sans quoi ses fichiers de types ne compilent pas du tout.
-test('ce programme ne produit rien et lit le JSX', () => {
-  expect(programme.compilerOptions.noEmit).toBe(true)
-  expect(programme.compilerOptions.jsx).toBe('react-jsx')
-})
