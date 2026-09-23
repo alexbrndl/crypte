@@ -375,6 +375,17 @@ export function Badge({ label }: P) { return null }`
     expect(Object.keys(read(source))).toEqual(['tone', 'size', 'label'])
   })
 
+  it('les lit derrière un alias, et ne boucle pas sur un alias qui se cite', () => {
+    const source = `${variants}
+type P = ComponentProps<'span'> & VariantProps<typeof badgeVariants>
+type Q = Q & { loop?: string }
+export function Badge({ tone }: P) { return null }
+export function Loop({ loop }: Q) { return null }`
+
+    expect(Object.keys(read(source))).toEqual(['tone', 'size'])
+    expect(read(source, 'Loop')).toEqual({ loop: { type: 'string', required: false } })
+  })
+
   it('ne rend pas le défaut de CVA quand le motif en écrit un qui ne se lit pas', () => {
     const source = `${variants}
 export function Badge({ tone = pick() }: VariantProps<typeof badgeVariants>) { return null }`
@@ -396,7 +407,7 @@ export function Badge({ tone }: VariantProps<typeof badgeVariants>) { return nul
       expect(read(source)).toEqual({ tone: { type: 'unknown', required: false } })
   })
 
-  it('rend unknown pour un variant booléen, non littéral, ou une clé qu’il ne sait pas nommer', () => {
+  it('rend unknown pour un variant booléen, non littéral, ou dont une clé est numérique ou calculée', () => {
     const source = `export const badgeVariants = cva('base', {
   variants: { tone: { true: 'a', false: 'b' }, size: { [SM]: 'c' }, gap: { 1: 'd' }, wide: WIDE },
 })

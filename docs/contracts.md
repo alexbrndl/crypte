@@ -396,7 +396,7 @@ One rule, no extra field, and no collapsible group in the shell.
 
 Some shapes cannot be resolved by reading syntax alone, and fall back to an explicit declaration.
 
-CVA is read when the file holds it: for `VariantProps<typeof badgeVariants>`, with `const badgeVariants = cva(base, { variants })` in the same file, each variant becomes an `enum` whose options are its keys, and `defaultVariants` gives its default unless the component's own pattern writes one. A `badgeVariants` imported from another file, a variant keyed `true`/`false` (a boolean to CVA), or a key the file cannot name stays `unknown`, and its options go in `details.options`.
+CVA is read when the file holds it: for `VariantProps<typeof badgeVariants>`, written on the parameter, behind a local alias or in an interface's `extends`, with `const badgeVariants = cva(base, { variants })` in the same file, each variant becomes an `enum` whose options are its keys, and `defaultVariants` gives its default unless the component's own pattern writes one. A `badgeVariants` imported from another file, a variant keyed `true`/`false` (a boolean to CVA), or a numeric or computed key stays `unknown`, and its options go in `details.options`.
 
 ---
 

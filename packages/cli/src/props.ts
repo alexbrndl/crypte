@@ -137,24 +137,30 @@ function membersOf(body: Node[], parameter: Node): Member[] | undefined {
 // `ComponentProps<'button'> & VariantProps<typeof x> & { asChild?: boolean }`,
 // the shadcn shape: each part that resolves adds its members, and a part that
 // does not, the DOM one here, adds none.
-function typeMembers(body: Node[], annotation: Node): Member[] | undefined {
+function typeMembers(
+  body: Node[],
+  annotation: Node,
+  seen = new Set<string>(),
+): Member[] | undefined {
   if (annotation.type === 'TSTypeLiteral') return signatures(annotation)
 
   if (annotation.type === 'TSIntersectionType') {
-    return (annotation['types'] as Node[]).flatMap((one) => typeMembers(body, one) ?? [])
+    return (annotation['types'] as Node[]).flatMap((one) => typeMembers(body, one, seen) ?? [])
   }
 
   return (
-    variants(body, annotation['typeName'] as Node | null, annotation) ?? namedType(body, annotation)
+    variants(body, annotation['typeName'] as Node | null, annotation) ??
+    namedType(body, annotation, seen)
   )
 }
 
 // The declaration a type reference points at, when this file holds it.
-function namedType(body: Node[], annotation: Node): Member[] | undefined {
+// `seen` stops `type P = P & Q`: it does not type-check, but it parses.
+function namedType(body: Node[], annotation: Node, seen: Set<string>): Member[] | undefined {
   if (annotation.type !== 'TSTypeReference') return undefined
 
   const name = (annotation['typeName'] as Node | null)?.['name']
-  if (typeof name !== 'string') return undefined
+  if (typeof name !== 'string' || seen.has(name)) return undefined
 
   for (const node of body) {
     const declaration = (node['declaration'] ?? node) as Node
@@ -168,10 +174,8 @@ function namedType(body: Node[], annotation: Node): Member[] | undefined {
       )
       return [...inherited, ...signatures(declaration['body'] as Node)]
     }
-    if (declaration.type === 'TSTypeAliasDeclaration') {
-      const aliased = declaration['typeAnnotation'] as Node
-      if (aliased.type === 'TSTypeLiteral') return signatures(aliased)
-    }
+    if (declaration.type === 'TSTypeAliasDeclaration')
+      return typeMembers(body, declaration['typeAnnotation'] as Node, new Set([...seen, name]))
   }
 
   return undefined
