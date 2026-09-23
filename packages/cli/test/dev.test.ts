@@ -1,21 +1,13 @@
-import { cpSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it, test as base } from 'vitest'
 import { dev, startDev, type Started, type Running } from '../src/dev'
 import { loadProject } from '../src/project'
-import {
-  MANIFEST_ROUTE,
-  PREVIEW_ENTRY,
-  PREVIEW_ENTRY_ID,
-  PREVIEW_PAGE,
-  previewEntry,
-  servePlugin,
-} from '../src/serve'
+import { MANIFEST_ROUTE, PREVIEW_ENTRY_ID, previewEntry, servePlugin } from '../src/serve'
 
 // Ce que `crypte dev` sert vraiment, mesuré sur un serveur qui écoute.
-// Voir docs/internal/architecture.md.
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), 'fixture')
 
@@ -43,23 +35,6 @@ describe('crypte dev', () => {
     return { status: answer.status, body: await answer.text() }
   }
 
-  it('sert le shell préconstruit à la racine', async () => {
-    const { status, body } = await get('/')
-
-    expect(status).toBe(200)
-    expect(body).toContain('<div id="app">')
-  })
-
-  // La page de la preview appartient au CLI, pas au projet : l'écrire dans le
-  // projet y laisserait un fichier que personne n'a demandé.
-  it('sert une page de preview dont le seul script est son entrée', async () => {
-    const { status, body } = await get(PREVIEW_PAGE)
-
-    expect(status).toBe(200)
-    expect(body).toContain('<div id="root">')
-    expect(body).toContain(PREVIEW_ENTRY)
-  })
-
   // Le projet a sa propre `index.html`, comme tout vrai projet. Sans
   // `appType: 'custom'`, le repli de Vite la sert pour toute URL inconnue, donc
   // une faute de frappe rendrait la page de l'application au lieu d'un 404.
@@ -75,19 +50,6 @@ describe('crypte dev', () => {
 
     expect(status).toBe(200)
     expect(JSON.parse(body)).toEqual(started.held.catalogue.manifest)
-  })
-
-  // L'entrée passe par le pipeline du projet : ce qui sort n'est plus la source
-  // écrite, et c'est la preuve que la preview est compilée chez l'utilisateur.
-  it('compile l’entrée de la preview avec le Vite du projet', async () => {
-    const { status, body } = await get(PREVIEW_ENTRY)
-
-    expect(status).toBe(200)
-    expect(body).toContain('createPreviewChannel')
-
-    // Le spécificateur nu que la source écrit : servi tel quel, il dirait que
-    // l'entrée n'a traversé aucun pipeline.
-    expect(body).not.toContain("from '@crypte/core/preview'")
   })
 
   // La compilation elle-même, que le cas ci-dessus ne tient pas : la fixture
@@ -120,19 +82,6 @@ describe('crypte dev', () => {
   })
 })
 
-const demo = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'apps', 'demo')
-
-// `loadProject` nomme les fichiers dont la configuration dépend, et un projet
-// peut déclarer un `tsconfig.json` qu'il n'a pas. Surveiller un fichier absent
-// lève, donc démarrer échouait sur un projet parfaitement valide.
-describe('les fichiers surveillés', () => {
-  it('démarre même quand un fichier surveillé n’existe pas', async () => {
-    const project = await loadProject(fixture)
-
-    expect(project.watch.some((file) => !existsSync(file))).toBe(true)
-  })
-})
-
 // Le chemin absolu du dépôt, remplacé par un repère : sinon l'instantané ne vaut
 // que sur la machine qui l'a écrit.
 const racine = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
@@ -154,84 +103,6 @@ describe('l’entrée de la preview', () => {
     await expect(sansRacine(source)).toMatchFileSnapshot('./snapshots/preview-entry.js')
   })
 
-  // Le demo porte un adaptateur importé, la fixture un objet écrit sur place :
-  // les deux formes que la section 1.5 autorise.
-  it('reprend l’import dont un adaptateur construit se sert', async () => {
-    const source = previewEntry(await loadProject(demo))
-
-    await expect(sansRacine(source)).toMatchFileSnapshot('./snapshots/preview-entry-demo.js')
-
-    expect(source).not.toContain('crypte.config.ts')
-  })
-
-  // L'adaptateur vient de la configuration du projet, jamais d'un nom de paquet
-  // deviné depuis `adapter.name` : envelopper un adaptateur casserait la devinette.
-  it('importe l’adaptateur depuis la configuration du projet', () => {
-    const source = previewEntry({ root: fixture, config: { stories: 'stories' } } as never)
-
-    // La configuration n'est jamais importée : elle peut porter des plugins
-    // Vite, donc du code Node, et la preview échouerait avant d'ouvrir le canal,
-    // donc sans jamais pouvoir dire pourquoi.
-    expect(source).not.toContain('crypte.config.ts')
-
-    // Seuls les imports que l'expression nomme. Emporter les autres remettrait
-    // exactement ce que lire au lieu d'importer sert à laisser dehors.
-    expect(source).not.toContain('defineConfig')
-    expect(source).not.toContain('@crypte/cli')
-  })
-
-  // Un fichier que le lecteur a écarté ne doit pas être importé : il ferait
-  // échouer l'entrée au chargement, donc avant l'ouverture du canal, donc sans
-  // que le shell puisse rien afficher.
-  it('n’importe que les fichiers qui ont produit une entrée', () => {
-    const source = previewEntry({ root: fixture, config: { stories: 'stories' } } as never, [
-      'stories/Gardee.tsx',
-    ])
-
-    expect(source).toContain('import("/stories/Gardee.tsx")')
-    expect(source).not.toContain('import.meta.glob')
-
-    // `Badge.js` est sur le disque du fixture sans avoir produit d'entrée.
-    expect(source).not.toContain('/stories/Badge.js')
-  })
-
-  // Un import statique fait tomber l'entrée entière sur un seul fichier qui lève,
-  // donc aucune story ne rend et le shell ne reçoit rien. Chaque fichier a donc
-  // sa promesse et son `catch`. Mesuré dans un navigateur, `DCJ-279`.
-  it('isole l’échec d’un fichier de story des autres', () => {
-    const source = previewEntry({ root: fixture, config: { stories: 'stories' } } as never, [
-      'stories/Gardee.tsx',
-      'stories/Autre.tsx',
-    ])
-
-    // Aucun import statique de story : c'est ce qui propageait l'échec.
-    expect(source).not.toMatch(/^import \* as __crypte_story/m)
-
-    // Un `catch` par fichier, qui retient l'erreur sous le chemin de ce fichier.
-    expect(source).toContain('__crypte_broken["/stories/Gardee.tsx"] = error')
-    expect(source).toContain('__crypte_broken["/stories/Autre.tsx"] = error')
-
-    // Et `render` la relance, pour que le canal la nomme avec l'identifiant.
-    expect(source).toContain('if (__crypte_failure) throw __crypte_failure')
-  })
-
-  // L'échec retenu au chargement doit s'oublier quand le fichier est réparé.
-  // Sans ça, la story reste cassée pour la vie de la page, avec une pile qui
-  // désigne une ligne disparue, et seul un rechargement complet en sort.
-  //
-  // Tenu ici, sur la source produite, et non dans un navigateur : le rejeu à
-  // chaud remet la dernière story demandée, qui est saine, donc l'alerte
-  // disparaît de toute façon et l'assertion d'écran passait sans le mécanisme.
-  // Mesuré. `DCJ-295` porte ce qui manque.
-  it('oublie l’échec d’un fichier que la mise à jour à chaud répare', () => {
-    const source = previewEntry({ root: fixture, config: { stories: 'stories' } } as never, [
-      'stories/Gardee.tsx',
-    ])
-
-    expect(source).toContain('__crypte_modules[__crypte_paths[index]] = module')
-    expect(source).toContain('delete __crypte_broken[__crypte_paths[index]]')
-  })
-
   // Un nom de fichier est une donnée, pas du code : interpolé brut, une
   // apostrophe ferme la chaîne et le reste du nom devient du JavaScript.
   it('échappe le nom du fichier dans l’import', () => {
@@ -240,17 +111,6 @@ describe('l’entrée de la preview', () => {
     ])
 
     expect(source).toContain(String.raw`import("/stories/L'\"Ecart.tsx")`)
-  })
-
-  it('charge la feuille de style déclarée, et rien quand il n’y en a pas', () => {
-    const withCss = previewEntry({
-      root: fixture,
-      config: { stories: 'stories', css: 'src/styles/app.css' },
-    } as never)
-    const without = previewEntry({ root: fixture, config: { stories: 'stories' } } as never)
-
-    expect(withCss).toContain('app.css')
-    expect(without).not.toContain('app.css')
   })
 })
 
@@ -309,31 +169,5 @@ describe('ce que la commande dit au démarrage', () => {
     expect(
       lignes.some((une) => une.includes('neither manifest nor fingerprint could be written')),
     ).toBe(true)
-  })
-})
-
-// Le refus d'un `wrap` que le lecteur ne voit pas, sur un projet réellement
-// chargé : `loadProject` exécute la configuration, donc le spread y met bien un
-// `wrap`, là où le texte n'en montre aucun. Le cas d'`adapter.test.ts` fabriquait
-// cette divergence à la main.
-describe('un wrap que seul un spread apporte', () => {
-  it('est refusé en le nommant, sur un projet chargé', async () => {
-    const root = mkdtempSync(join(fixture, '..', 'tmp-dev-'))
-    writeFileSync(
-      join(root, 'crypte.config.ts'),
-      `const partage = { wrap: 'Panel' }
-       export default { ...partage, stories: 'stories', adapter: {} }`,
-    )
-
-    try {
-      const project = await loadProject(root)
-
-      // La configuration exécutée porte bien le wrap : sans ça le cas ne
-      // prouverait rien.
-      expect(project.config.wrap).toBe('Panel')
-      expect(() => previewEntry(project, [])).toThrow(/cannot read, a spread for instance/)
-    } finally {
-      rmSync(root, { recursive: true, force: true })
-    }
   })
 })

@@ -39,11 +39,11 @@ jobs:
       - run: vp run -r pack
       - run: vp check
       # vp check ne lit pas les composants monofichiers Vue : leur contenu, template
-      # compris, n'est vérifié que par vue-tsc. Voir docs/internal/architecture.md.
+      # compris, n'est vérifié que par vue-tsc.
       - run: vp run -r typecheck
       # Le navigateur des cas d'écran. Sans lui `chromium.launch()` échoue sur
       # un exécutable absent, et le seul contrôle qui voit ce que l'utilisateur
-      # voit tombe. Voir docs/internal/architecture.md.
+      # voit tombe.
       #
       # En cache sur la version du catalogue : 95 Mo par exécution et par version
       # de Node, et une fois 9 min 11 à lui seul. Les paquets système ne vivent
@@ -72,7 +72,6 @@ jobs:
       # `github-actions` annote les fichiers du diff aux lignes qui échouent, ce
       # qui évite d'ouvrir les journaux pour savoir quoi. `json` écrit le compte
       # que le résumé et le commentaire affichent.
-      # Voir docs/internal/architecture.md.
       - run: >
           vp test --coverage
           --reporter=default --reporter=github-actions
@@ -95,11 +94,16 @@ jobs:
       # Deux choses sont écrites par la suite et commitées : les réexports
       # générés, et l'empreinte de la fixture. Le régime est celui d'un fichier
       # de verrouillage, et ce diff en est le contrôle : le réparer, c'est
-      # relancer la suite puis commiter. Voir docs/internal/architecture.md.
+      # relancer la suite puis commiter.
       #
       # `ls-files` avant le diff : `git diff` ne voit que ce qui est suivi, donc
       # une empreinte sortie de l'index laisserait cette étape verte et le
       # verrou s'éteindrait sans bruit.
+      #
+      # Rien ne lit l'empreinte aujourd'hui, donc sans ce verrou l'historique
+      # décrirait un état qui n'existe plus. Il n'existe pas de script pour la
+      # régénérer : le producteur est du TypeScript non exposé, et `vp node`
+      # exigerait une extension explicite sur chaque import relatif des sources.
       - name: Generated files are up to date
         run: |
           git ls-files --error-unmatch packages/cli/test/fixture/.crypte/fingerprint.json apps/demo/.crypte/fingerprint.json
@@ -109,7 +113,6 @@ jobs:
   # journaux d'un autre job. Il affiche le tableau, le commente, et rend le
   # verdict : c'est le seul endroit où les seuils sont évalués, vitest ne les
   # porte pas.
-  # Voir docs/internal/architecture.md.
   coverage:
     if: ${{ !cancelled() }}
     needs: check
@@ -135,7 +138,7 @@ jobs:
             && github.event.pull_request.head.repo.full_name == github.repository)
             && github.event.pull_request.number || '' }}
         run: |
-          node test/coverage-report.mjs \
+          node scripts/coverage-report.mjs \
             ${PR:+--pr "$PR"} \
             --sha "${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
 
@@ -148,16 +151,15 @@ jobs:
       # Aucun droit d'écriture, aucune branche, et `pnpm ready` le régénère.
       - name: Le badge commité dit le chiffre mesuré
         run: |
-          node test/coverage-report.mjs --badge /tmp/coverage.json > /dev/null
+          node scripts/coverage-report.mjs --badge /tmp/coverage.json > /dev/null
           diff /tmp/coverage.json .github/coverage.json && exit 0
-          echo "::error::Le badge de .github/coverage.json est périmé. Si cette branche ne touche pas la couverture, fusionner \`main\` dedans suffit : le badge y est déjà à jour. Sinon, lancer \`vp test --coverage && node test/coverage-report.mjs --badge .github/coverage.json\` et commiter le fichier."
+          echo "::error::Le badge de .github/coverage.json est périmé. Si cette branche ne touche pas la couverture, fusionner \`main\` dedans suffit : le badge y est déjà à jour. Sinon, lancer \`vp test --coverage && node scripts/coverage-report.mjs --badge .github/coverage.json\` et commiter le fichier."
           exit 1
 
   # Les cinq budgets du produit, mesurés à chaque pull request. Un job à part
   # plutôt qu'une étape de `check` : le tableau se lit en tête du run, et le
   # verdict porte un nom sur la pull request au lieu d'être enterré dans les
   # journaux d'un autre job. Même raison que `coverage`.
-  # Voir docs/internal/architecture.md.
   budgets:
     runs-on: ubuntu-latest
     # 20 comme `check`, parce que ce job fait strictement plus : la même
@@ -195,7 +197,7 @@ jobs:
       # Le tableau part au résumé du run, les dépassements sur l'erreur
       # standard, où `::error::` les annote. Le code de sortie décide.
       - name: Report budgets
-        run: node test/budgets.mjs >> "$GITHUB_STEP_SUMMARY"
+        run: node scripts/budgets.mjs >> "$GITHUB_STEP_SUMMARY"
 
   dependency-review:
     if: github.event_name == 'pull_request'
@@ -205,7 +207,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
 
-  # Seul job exigé par le ruleset. Voir docs/internal/architecture.md.
+  # Seul job exigé par le ruleset. Les exiger un par un graverait la composition
+  # de la matrice dans un réglage stocké hors du dépôt : le jour où une version
+  # de Node la quitte, la pull request attendrait sans message un contrôle qui ne
+  # viendra jamais. Sa condition lit `needs.*.result`, jamais une liste écrite à
+  # la main.
   ci-passed:
     if: always()
     needs: [check, coverage, budgets, dependency-review]

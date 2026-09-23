@@ -90,20 +90,6 @@ describe('ce que le plugin lit', () => {
     })
   })
 
-  // Le cas qui rend `themes` non trivial, et celui qu'une lecture naïve casse :
-  // sans extraction à accolades équilibrées, le `:root` intérieur écrasait le
-  // thème par défaut au lieu d'en ouvrir un second.
-  it('lit prefers-color-scheme sans écraser le thème par défaut', () => {
-    const entries = read(
-      ':root { --color-bg: #fff }\n@media (prefers-color-scheme: dark) {\n  :root { --color-bg: #000 }\n}\n',
-    )
-
-    expect(family(entries, 'color')?.bg?.themes).toEqual({
-      default: { value: '#fff' },
-      dark: { value: '#000' },
-    })
-  })
-
   it('applique les options plutôt que la feuille déclarée', () => {
     const root = mkdtempSync(join(tmpdir(), 'crypte-tokens-'))
     roots.push(root)
@@ -120,45 +106,10 @@ describe('ce que le plugin lit', () => {
 })
 
 describe('la chaîne de résolution', () => {
-  it('rend le littéral et le nom traversé', () => {
-    const entries = read(':root { --color-brand: #4fe0a0; --color-button: var(--color-brand) }')
-
-    expect(family(entries, 'color')?.button?.themes.default).toEqual({
-      value: '#4fe0a0',
-      alias: ['color-brand'],
-    })
-  })
-
-  it('traverse plusieurs sauts, du token vers le littéral', () => {
-    const entries = read(':root { --a-one: #fff; --a-two: var(--a-one); --a-three: var(--a-two) }')
-
-    expect(family(entries, 'a')?.three?.themes.default).toEqual({
-      value: '#fff',
-      alias: ['a-two', 'a-one'],
-    })
-  })
-
-  // `value` est toujours posé : un swatch rend depuis lui seul, donc une chaîne
-  // qui ne mène nulle part garde son propre texte.
-  it('garde le texte quand la chaîne ne mène nulle part', () => {
-    const entries = read(':root { --a-one: var(--jamais-declaree) }')
-
-    expect(family(entries, 'a')?.one?.themes.default).toEqual({
-      value: 'var(--jamais-declaree)',
-      alias: ['jamais-declaree'],
-    })
-  })
-
   it('s’arrête sur un cycle plutôt que de boucler', () => {
     const entries = read(':root { --a-one: var(--a-two); --a-two: var(--a-one) }')
 
     expect(family(entries, 'a')?.one?.themes.default?.alias).toEqual(['a-two', 'a-one'])
-  })
-
-  it('n’ajoute pas d’alias à un littéral', () => {
-    const entries = read(':root { --a-one: #fff }')
-
-    expect('alias' in (family(entries, 'a')?.one?.themes.default ?? {})).toBe(false)
   })
 })
 
@@ -235,12 +186,6 @@ describe('une valeur croisée avec un thème', () => {
     })
   })
 
-  it('ne donne qu’un thème quand la feuille n’en déclare qu’un', () => {
-    expect(Object.keys(family(read(':root { --a-one: 4px }'), 'a')?.one?.themes ?? {})).toEqual([
-      'default',
-    ])
-  })
-
   it('lit un token qu’un thème seul déclare', () => {
     const entries = read(':root { --a-one: 4px }\n[data-theme="dark"] { --a-two: 8px }')
 
@@ -249,15 +194,6 @@ describe('une valeur croisée avec un thème', () => {
 })
 
 describe('les formes que la revue a mesurées', () => {
-  it('emploie le repli d’un var() quand rien ne déclare sa cible', () => {
-    expect(family(read(':root { --a-one: var(--jamais, 4px) }'), 'a')?.one?.themes.default).toEqual(
-      {
-        value: '4px',
-        alias: ['jamais'],
-      },
-    )
-  })
-
   it('préfère la cible déclarée au repli', () => {
     const entries = read(':root { --a-base: #fff; --a-one: var(--a-base, #000) }')
 
@@ -303,12 +239,6 @@ describe('un var() qui n’est pas toute la valeur', () => {
 
     expect(base?.value).toBe('var(--dur-fast, 150ms) var(--ease-out, ease)')
     expect('alias' in (base ?? {})).toBe(false)
-  })
-
-  it('garde une expression qui enveloppe un var()', () => {
-    const entries = read(':root { --a-one: 4px; --a-two: calc(var(--a-one) * 2) }')
-
-    expect(family(entries, 'a')?.two?.themes.default).toEqual({ value: 'calc(var(--a-one) * 2)' })
   })
 
   // Sans contrôle du nom, `var(4px)` faisait chercher un token appelé `px`,

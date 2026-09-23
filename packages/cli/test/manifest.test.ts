@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { Manifest } from '@crypte/core/protocol'
 import { afterAll, describe, expect, it } from 'vitest'
 import { buildCatalogue, OUTPUT, storiesOf, storyFiles, writeCatalogue } from '../src/manifest'
 import { loadProject } from '../src/project'
@@ -34,37 +35,6 @@ function projectWith(files: Record<string, string>): string {
 const CONFIG = "export default { stories: 'stories', adapter: { name: 'react' } }\n"
 
 describe('le catalogue', () => {
-  it('rassemble les stories de la fixture', async () => {
-    const { manifest, skipped } = buildCatalogue(await loadProject(fixture))
-
-    expect(skipped).toEqual([])
-    expect(manifest.version).toBe(1)
-    expect(manifest.entries.map((entry) => entry.id)).toEqual([
-      'badge--default',
-      'checkout/ordersummary--par-defaut',
-      'checkout/ordersummary--avec-reference',
-      'checkout/ordersummary--replie-sur-mobile',
-    ])
-  })
-
-  // Sans tri, deux machines écrivent deux fichiers différents pour le même
-  // dossier, et l'empreinte du lot 4 ter change sans raison.
-  it('parcourt le dossier dans un ordre stable', () => {
-    const root = projectWith({
-      'stories/b.ts': '',
-      'stories/a.ts': '',
-      'stories/sub/c.ts': '',
-      'stories/sub/a.ts': '',
-    })
-
-    expect(storyFiles(join(root, 'stories')).map((file) => file.slice(root.length + 9))).toEqual([
-      'a.ts',
-      'b.ts',
-      join('sub', 'a.ts'),
-      join('sub', 'c.ts'),
-    ])
-  })
-
   it('ne ramasse que les quatre extensions', () => {
     const root = projectWith({
       'stories/A.ts': '',
@@ -159,43 +129,6 @@ describe('le catalogue', () => {
     await expect(async () => buildCatalogue(await loadProject(root))).rejects.toThrow(
       /`stories` does not exist/,
     )
-  })
-
-  // La section 4.2 promet un fichier, pas l'identifiant que la story écrit.
-  it('résout le composant en chemin de projet', async () => {
-    const { manifest } = buildCatalogue(await loadProject(fixture))
-
-    expect(storiesOf(manifest).map((entry) => entry.component.file)).toEqual([
-      'src/components/Badge.jsx',
-      'src/components/checkout/OrderSummary.jsx',
-      'src/components/checkout/OrderSummary.jsx',
-      'src/components/checkout/OrderSummary.jsx',
-    ])
-  })
-
-  it('résout aussi un import relatif', async () => {
-    const root = projectWith({
-      'crypte.config.ts': CONFIG,
-      'src/Card.jsx': 'export const Card = () => null\n',
-      'stories/Card.js': "import { Card } from '../src/Card'\nexport default defineStories(Card)\n",
-    })
-
-    const { manifest } = buildCatalogue(await loadProject(root))
-
-    expect(storiesOf(manifest)[0]?.component.file).toBe('src/Card.jsx')
-  })
-
-  // Rendre un chemin inventé serait pire que rendre l'identifiant : un écran
-  // ouvrirait un fichier qui n'existe pas. `crypte check` dira l'orpheline.
-  it('garde l’identifiant quand aucun fichier ne répond', async () => {
-    const root = projectWith({
-      'crypte.config.ts': CONFIG,
-      'stories/Card.js': "import { Card } from '../src/Card'\nexport default defineStories(Card)\n",
-    })
-
-    const { manifest } = buildCatalogue(await loadProject(root))
-
-    expect(storiesOf(manifest)[0]?.component.file).toBe('../src/Card')
   })
 
   // La résolution tournait une fois par story, sur un objet de composant
@@ -337,5 +270,88 @@ export function Card({ label, tone }: P) { return null }
       required: true,
       description: 'Lue du composant.',
     })
+  })
+})
+
+// Le manifeste de la fixture, en entier, écrit à la main. Les autres cas
+// vérifient un champ à la fois ; celui-ci fige la forme, donc un champ qui
+// apparaît, disparaît ou change de nom se voit ici et nulle part ailleurs.
+const EXPECTED: Manifest = {
+  version: 1,
+  entries: [
+    {
+      type: 'story',
+      id: 'badge--default',
+      path: ['Badge'],
+      name: 'Default',
+      component: { name: 'Badge', file: 'src/components/Badge.jsx', export: 'Badge' },
+      storyFile: 'stories/Badge.js',
+      options: {},
+      details: {},
+      props: [],
+      source: '<Badge />',
+    },
+    {
+      type: 'story',
+      id: 'checkout/ordersummary--par-defaut',
+      path: ['checkout', 'OrderSummary'],
+      name: 'Par défaut',
+      component: {
+        name: 'OrderSummary',
+        file: 'src/components/checkout/OrderSummary.jsx',
+        export: 'default',
+      },
+      storyFile: 'stories/checkout/OrderSummary.jsx',
+      options: {},
+      details: {},
+      props: ['benefits', 'title'],
+      meta: { status: 'stable', owner: 'checkout' },
+      source:
+        "<OrderSummary title=\"Formule complète\" benefits={['Historique complet', 'Données vérifiées']} />",
+    },
+    {
+      type: 'story',
+      id: 'checkout/ordersummary--avec-reference',
+      path: ['checkout', 'OrderSummary'],
+      name: 'Avec référence',
+      component: {
+        name: 'OrderSummary',
+        file: 'src/components/checkout/OrderSummary.jsx',
+        export: 'default',
+      },
+      storyFile: 'stories/checkout/OrderSummary.jsx',
+      options: {},
+      details: {},
+      props: ['benefits', 'reference', 'title'],
+      meta: { status: 'stable', owner: 'checkout' },
+      source:
+        '<OrderSummary title="Formule complète" benefits={[\'Historique complet\', \'Données vérifiées\']} reference="REF-4821-KD" />',
+    },
+    {
+      type: 'story',
+      id: 'checkout/ordersummary--replie-sur-mobile',
+      path: ['checkout', 'OrderSummary'],
+      name: 'Replié sur mobile',
+      component: {
+        name: 'OrderSummary',
+        file: 'src/components/checkout/OrderSummary.jsx',
+        export: 'default',
+      },
+      storyFile: 'stories/checkout/OrderSummary.jsx',
+      options: { responsive: 'mobile' },
+      details: {},
+      props: ['benefits', 'children', 'reference', 'title'],
+      meta: { status: 'stable', owner: 'checkout' },
+      source:
+        '<OrderSummary title="Formule complète" benefits={[\'Historique complet\', \'Données vérifiées\']} reference="REF-4821"><span>Neuf</span></OrderSummary>',
+    },
+  ],
+}
+
+describe('la forme du manifeste', () => {
+  it('est celle que la fixture produit, champ pour champ', async () => {
+    const { manifest } = buildCatalogue(await loadProject(fixture))
+
+    expect(manifest).toEqual(EXPECTED)
   })
 })

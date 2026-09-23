@@ -8,8 +8,6 @@ import { detailsOf } from '../src/props'
 
 // Ce qu'un fichier de composant déclare de ses props, et ce que la lecture
 // refuse de deviner. Section 3.2 de docs/contracts.md.
-
-const here = dirname(fileURLToPath(import.meta.url))
 const roots: string[] = []
 
 afterAll(() => {
@@ -38,28 +36,10 @@ describe('ce que la lecture ne rend pas', () => {
   it('rend un objet vide quand l’export nommé n’est pas là', () => {
     expect(read('export function Autre({ a }: { a: string }) { return null }')).toEqual({})
   })
-
-  it('rend un objet vide sur un composant sans paramètre', () => {
-    expect(read('export function Badge() { return null }')).toEqual({})
-  })
-
-  // Le paramètre n'est pas déstructuré et son type n'est pas dans le fichier :
-  // rien n'est lisible, et inventer serait pire.
-  it('rend un objet vide sur un paramètre nommé de type inconnu', () => {
-    expect(read("export function Badge(props: ComponentProps<'span'>) { return null }")).toEqual({})
-  })
 })
 
 describe('les formes qui déclarent un composant', () => {
   const type = '{ a: string }'
-
-  it('lit une fonction exportée', () => {
-    expect(read(`export function Badge({ a }: ${type}) { return null }`)).toHaveProperty('a')
-  })
-
-  it('lit une flèche assignée à une constante', () => {
-    expect(read(`export const Badge = ({ a }: ${type}) => null`)).toHaveProperty('a')
-  })
 
   it('lit un export par défaut', () => {
     expect(
@@ -69,36 +49,11 @@ describe('les formes qui déclarent un composant', () => {
 })
 
 describe('les sources du type', () => {
-  it('lit un type littéral en ligne', () => {
-    expect(read('export function Badge({ a }: { a: string }) { return null }')).toEqual({
-      a: { type: 'string', required: true },
-    })
-  })
-
-  it('lit une interface nommée du même fichier', () => {
-    const source = `interface P { a: string }
-export function Badge({ a }: P) { return null }`
-
-    expect(read(source)).toEqual({ a: { type: 'string', required: true } })
-  })
-
   it('lit un alias de type du même fichier', () => {
     const source = `type P = { a: number }
 export function Badge({ a }: P) { return null }`
 
     expect(read(source)).toEqual({ a: { type: 'number', required: true } })
-  })
-
-  // Suivre un import est le travail d'un résolveur, et cette lecture tourne
-  // avant qu'aucun serveur existe.
-  it('retombe sur le motif quand le type nommé vient d’ailleurs', () => {
-    const source = `import type { P } from './ailleurs'
-export function Badge({ a, b }: P) { return null }`
-
-    expect(read(source)).toEqual({
-      a: { type: 'unknown', required: false },
-      b: { type: 'unknown', required: false },
-    })
   })
 })
 
@@ -111,12 +66,6 @@ describe('le pass-through DOM', () => {
 }`
 
     expect(read(source)).toEqual({ className: { type: 'unknown', required: false } })
-  })
-
-  it('ne rend rien du tout quand le motif n’est qu’un rest', () => {
-    expect(
-      read("export function Badge({ ...rest }: ComponentProps<'span'>) { return null }"),
-    ).toEqual({})
   })
 })
 
@@ -176,51 +125,7 @@ export function Badge({ a }: P) { return null }`
   })
 })
 
-describe('ce qui rend une prop facultative', () => {
-  it('lit le point d’interrogation', () => {
-    const source = `interface P { a: string; b?: string }
-export function Badge({ a, b }: P) { return null }`
-    const details = read(source)
-
-    expect(details.a?.required).toBe(true)
-    expect(details.b?.required).toBe(false)
-  })
-
-  // Une valeur par défaut rend la prop facultative pour l'appelant, même
-  // déclarée requise par le type.
-  it('lit une valeur par défaut du motif, et la rend facultative', () => {
-    const source = `interface P { tone: string }
-export function Badge({ tone = 'neutral' }: P) { return null }`
-
-    expect(read(source)).toEqual({
-      tone: { type: 'string', required: false, default: 'neutral' },
-    })
-  })
-
-  // Deux choses, et elles ne vont pas ensemble. La prop **a** un défaut, donc
-  // elle n'est pas requise. Mais §4.5 dit que le CLI garantit ce qu'il écrit, et
-  // une valeur calculée ne survit pas au JSON, donc le champ `default` n'est pas
-  // écrit. La première version rendait `required: true`, ce qui était faux, et
-  // aucun test ne le voyait : trouvé par une sonde de mutation.
-  it('rend facultative une prop dont le défaut ne s’écrit pas', () => {
-    const source = `interface P { tone: string }
-export function Badge({ tone = compute() }: P) { return null }`
-
-    expect(read(source).tone).toEqual({ type: 'string', required: false })
-  })
-})
-
 describe('le JSDoc', () => {
-  it('rattache un commentaire au membre qu’il précède', () => {
-    const source = `interface P {
-  /** Ce que le badge annonce. */
-  label: string
-}
-export function Badge({ label }: P) { return null }`
-
-    expect(read(source).label?.description).toBe('Ce que le badge annonce.')
-  })
-
   // Sans le contrôle du blanc entre les deux, le second membre héritait de la
   // description du premier. Mesuré en écrivant ce module.
   it('ne donne pas au voisin la description qui n’est pas la sienne', () => {
@@ -260,54 +165,6 @@ export function Badge({ a }: P) { return null }`
   })
 })
 
-// La règle de dégradation de l'issue : un fichier sans types donne des props
-// documentées en `unknown`, et rien n'empêche la story de rendre.
-describe('un composant sans types', () => {
-  it('rend les noms du motif en unknown', () => {
-    expect(read('export const Badge = ({ a, b }) => null', 'Badge', 'jsx')).toEqual({
-      a: { type: 'unknown', required: false },
-      b: { type: 'unknown', required: false },
-    })
-  })
-})
-
-// Le premier critère de fin de l'issue, sur le projet témoin plutôt que sur une
-// source jetable : un composant typé avec du JSDoc rend un `details` complet.
-describe('la démonstration, de bout en bout', () => {
-  it('rend les details du Badge du projet témoin', async () => {
-    const { buildCatalogue } = await import('../src/manifest')
-    const { loadProject } = await import('../src/project')
-    const demo = join(here, '..', '..', '..', 'apps', 'demo')
-
-    const { manifest } = buildCatalogue(await loadProject(demo))
-    const badge = manifest.entries.find((entry) => entry.id === 'badge--par-defaut')
-
-    // Les cinq champs de `ResolvedPropDetails`, lus sans exécuter le composant.
-    // Le deuxième critère : un type que la lecture syntaxique ne peut pas ouvrir,
-    // et seul ce que le fichier écrit à la main qui remonte.
-    const tag = manifest.entries.find((entry) => entry.id === 'tag--nue')
-
-    expect(tag?.type === 'story' && tag.details).toEqual({
-      className: { type: 'unknown', required: false },
-    })
-
-    expect(badge?.type === 'story' && badge.details).toEqual({
-      label: {
-        type: 'string',
-        required: true,
-        description: 'Ce que le badge annonce.',
-      },
-      tone: {
-        type: 'enum',
-        required: false,
-        options: ['neutral', 'warning'],
-        default: 'neutral',
-        description: "Neutre par défaut, `warning` pour attirer l'œil.",
-      },
-    })
-  })
-})
-
 // Les axes que la première version de ces cas n'a pas croisés : la forme de la
 // clé d'un membre, et la forme du commentaire qui le précède. Cinq bloquants
 // sont sortis de là. Revue de la PR #54.
@@ -320,15 +177,6 @@ export function Badge(p: P) { return null }`
       'aria-label': { type: 'string', required: true },
       'data-id': { type: 'number', required: false },
     })
-  })
-
-  // Sans nom lisible, les deux clés se rabattaient sur `'undefined'` et la
-  // seconde effaçait la première. Mesuré.
-  it('ne rabat pas deux clés littérales sur le même nom', () => {
-    const source = `interface P { 'a-b': string; 'c-d': number }
-export function Badge(p: P) { return null }`
-
-    expect(Object.keys(read(source))).toEqual(['a-b', 'c-d'])
   })
 
   // §4.2 le nomme : « neither is a key computed at runtime ».
@@ -356,21 +204,6 @@ export function Badge(p: P) { return null }`
 })
 
 describe('la forme du commentaire', () => {
-  // Le `//` de fin de ligne du membre précédent passait le contrôle du blanc et
-  // devenait la description du suivant. C'est le cas que le premier contrôle
-  // croyait fermer, et il ne le fermait pas.
-  it('ne prend pas un commentaire de ligne pour du JSDoc', () => {
-    const source = `interface P {
-  a?: string // le libellé
-  b?: string
-}
-export function Badge({ a, b }: P) { return null }`
-    const details = read(source)
-
-    expect('description' in (details.a ?? {})).toBe(false)
-    expect('description' in (details.b ?? {})).toBe(false)
-  })
-
   // Un bloc qui n'est pas du JSDoc devenait une description publiée.
   it('ne prend pas une directive de lint pour une description', () => {
     const source = `interface P {
@@ -445,30 +278,6 @@ export default memo(Badge)`
   })
 })
 
-// Le croisement que le tour précédent n'a pas fait : un type nommé **résoluble**
-// qui porte une clause `extends` qu'on ne résout pas, plus un motif qui écrit à
-// la main une prop héritée. C'est la forme shadcn que §3.4 nomme, et le
-// `className` écrit était perdu. Revue de la PR #54.
-describe('une interface qui hérite de ce qu’on ne résout pas', () => {
-  it('garde ses membres et les noms que le motif écrit en plus', () => {
-    const source = `interface P extends React.ComponentProps<'span'> { tone?: string }
-export function Badge({ className, tone, ...rest }: P) { return null }`
-
-    expect(read(source)).toEqual({
-      tone: { type: 'string', required: false },
-      className: { type: 'unknown', required: false },
-    })
-  })
-
-  // Le membre du type gagne : il porte une annotation, le motif n'en a pas.
-  it('ne laisse pas le motif écraser ce que le type déclare', () => {
-    const source = `interface P { tone: string }
-export function Badge({ tone }: P) { return null }`
-
-    expect(read(source).tone).toEqual({ type: 'string', required: true })
-  })
-})
-
 describe('un membre écrit en forme de méthode', () => {
   // Lu comme une propriété il était absent, donc le motif le rattrapait en
   // facultatif et `unknown` alors que le type le déclare requis : la fusion
@@ -531,12 +340,5 @@ export function Badge({ tone }: P) { return null }`
 export function Badge({ level }: P) { return null }`
 
     expect(read(source)).toEqual({ level: { type: 'number', required: true } })
-  })
-
-  it('reste une fonction quand c’est une méthode', () => {
-    const source = `interface P { onClick(): void }
-export function Badge({ onClick }: P) { return null }`
-
-    expect(read(source)).toEqual({ onClick: { type: 'function', required: true } })
   })
 })

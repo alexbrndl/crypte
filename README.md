@@ -28,10 +28,9 @@ Crypte takes the other bet: layers from the start, so that it stays light withou
 | Document | Contents |
 | --- | --- |
 | [`docs/contracts.md`](docs/contracts.md) | story format, manifest, channel protocol, plugin contract, and what is built |
-| [`docs/decisions.md`](docs/decisions.md) | what we chose, what we turned down, and what would reopen it |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | install, checks, and how a change gets in |
 
-Design notes live in `docs/internal/` and are written in French. See `docs/decisions.md` for why.
+Why a mechanism exists, and what breaks without it, is a comment beside that mechanism. There is no separate design document.
 
 ## Roadmap
 
@@ -55,4 +54,3 @@ Each of these is a project in the tracker, with its own issues.
 
 **No telemetry in the CLI.** Not now, not later. Whatever `serve` reports in its paid mode will be documented before it exists rather than after.
 
-[`docs/decisions.md`](docs/decisions.md) carries the reasoning and what was turned down. `docs/internal/plugins.md` carries the status of each plugin, one line each.

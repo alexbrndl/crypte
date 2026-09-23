@@ -11,5 +11,8 @@ export default defineConfig({
     format: ['esm'],
     platform: 'node',
     dts: true,
+    // Pas de `exports: true` ici, contrairement aux trois autres paquets : la
+    // génération réécrit aussi `bin` en dérivant son nom de celui du paquet. La
+    // commande installée s'appellerait `cli`, sans erreur de build.
   },
 })

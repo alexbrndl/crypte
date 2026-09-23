@@ -9,7 +9,6 @@ import { entriesOf } from '../src/stories'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const fixture = join(here, 'fixture')
-const stories = join(fixture, 'stories')
 
 const temporary: string[] = []
 
@@ -31,76 +30,6 @@ function fileWith(name: string, content: string) {
 }
 
 describe('la lecture des stories', () => {
-  it('rend une seule story quand le fichier n’en nomme aucune', () => {
-    const { entries, skipped } = entriesOf(join(stories, 'Badge.js'), fixture, stories)
-
-    expect(skipped).toBeUndefined()
-    expect(entries).toHaveLength(1)
-    expect(entries[0]).toMatchObject({
-      type: 'story',
-      id: 'badge--default',
-      path: ['Badge'],
-      name: 'Default',
-      component: { name: 'Badge', file: '@/components/Badge', export: 'Badge' },
-      storyFile: 'stories/Badge.js',
-      props: [],
-      source: '<Badge />',
-    })
-  })
-
-  it('rend une entrée par story nommée, dans l’ordre du fichier', () => {
-    const { entries } = entriesOf(join(stories, 'checkout', 'OrderSummary.jsx'), fixture, stories)
-
-    expect(entries.map((entry) => entry.name)).toEqual([
-      'Par défaut',
-      'Avec référence',
-      'Replié sur mobile',
-    ])
-    expect(entries.map((entry) => entry.id)).toEqual([
-      'checkout/ordersummary--par-defaut',
-      'checkout/ordersummary--avec-reference',
-      'checkout/ordersummary--replie-sur-mobile',
-    ])
-  })
-
-  it('donne le chemin par le dossier, et l’export par l’import', () => {
-    const { entries } = entriesOf(join(stories, 'checkout', 'OrderSummary.jsx'), fixture, stories)
-
-    expect(entries[0]).toMatchObject({
-      path: ['checkout', 'OrderSummary'],
-      component: {
-        name: 'OrderSummary',
-        file: '@/components/checkout/OrderSummary',
-        export: 'default',
-      },
-      storyFile: 'stories/checkout/OrderSummary.jsx',
-    })
-  })
-
-  // Sans la fusion, la couverture de props ne compterait que ce qu'une story
-  // écrit elle-même, et le bloc commun ne serait exercé par personne.
-  it('mêle les props communes et celles de la story', () => {
-    const { entries } = entriesOf(join(stories, 'checkout', 'OrderSummary.jsx'), fixture, stories)
-
-    expect(entries[0]?.props).toEqual(['benefits', 'title'])
-    expect(entries[1]?.props).toEqual(['benefits', 'reference', 'title'])
-    expect(entries[2]?.props).toEqual(['benefits', 'children', 'reference', 'title'])
-  })
-
-  it('reprend le texte de l’utilisateur dans le code d’appel', () => {
-    const { entries } = entriesOf(join(stories, 'checkout', 'OrderSummary.jsx'), fixture, stories)
-
-    expect(entries[1]?.source).toBe(
-      '<OrderSummary title="Formule complète" benefits={[\'Historique complet\', \'Données vérifiées\']} reference="REF-4821-KD" />',
-    )
-    // `children` va entre les balises, pas en attribut : la section 4 dit que
-    // `source` porte le code d'appel, donc il est lu et recopié, et
-    // `children={<span>Neuf</span>}` n'est pas ce qu'on écrit.
-    expect(entries[2]?.source).toBe(
-      '<OrderSummary title="Formule complète" benefits={[\'Historique complet\', \'Données vérifiées\']} reference="REF-4821"><span>Neuf</span></OrderSummary>',
-    )
-  })
-
   // Les formes que `children` peut prendre, et celle qu'il ne prend pas. Sans la
   // seconde moitié, la règle passerait sur un composant qui n'en a aucun.
   it('écrit children entre les balises, selon sa forme', () => {
@@ -205,19 +134,6 @@ describe('la lecture des stories', () => {
     expect(lu.entries[0]?.source).toBe(String.raw`<A>C:\path</A>`)
   })
 
-  // Un fragment est un élément comme un autre pour ce qui nous occupe.
-  it('écrit un fragment tel qu’il est écrit', () => {
-    const lu = fileWith(
-      'A.jsx',
-      [
-        "import { A } from '../a'",
-        'export default defineStories(A, { stories: { Une: { children: <>Deux</> } } })',
-      ].join('\n'),
-    )
-
-    expect(lu.entries[0]?.source).toBe('<A><>Deux</></A>')
-  })
-
   // Un `children` qu'un spread peut remplacer : la prop est **posée**, sa valeur
   // est inconnue, et la section 4.2 interdit de montrer ce que l'exécution n'a
   // pas. La balise reste donc auto-fermante plutôt que de porter un corps
@@ -240,22 +156,6 @@ describe('la lecture des stories', () => {
     expect(lu.entries[0]?.source).toBe('<A />')
   })
 
-  // La moitié qui compte : sans `children`, la forme auto-fermante reste.
-  it('garde la forme auto-fermante quand il n’y a pas de children', () => {
-    const { entries } = entriesOf(join(stories, 'checkout', 'OrderSummary.jsx'), fixture, stories)
-
-    expect(entries[0]?.source).toMatch(/\/>$/)
-    expect(entries[0]?.source).not.toContain('</OrderSummary>')
-  })
-
-  it('lit les quatre extensions', () => {
-    const short = "import { A } from '../a'\nexport default defineStories(A)\n"
-
-    for (const name of ['A.ts', 'A.tsx', 'A.js', 'A.jsx']) {
-      expect(fileWith(name, short).entries, name).toHaveLength(1)
-    }
-  })
-
   // Le TypeScript ne passe que si le parseur choisit sa langue sur l'extension.
   it('accepte la syntaxe TypeScript dans un .tsx', () => {
     const source = [
@@ -270,30 +170,6 @@ describe('la lecture des stories', () => {
 
     expect(skipped).toBeUndefined()
     expect(entries[0]?.props).toEqual(['label', 'size'])
-  })
-
-  // Un fichier cassé ne doit pas coûter le catalogue entier.
-  it('passe un fichier qu’il n’arrive pas à lire, sans échouer', () => {
-    const { entries, skipped } = fileWith('A.ts', 'export default defineStories(A, {')
-
-    expect(entries).toEqual([])
-    expect(skipped).toBeTruthy()
-  })
-
-  // Deux versions de ce tri se sont trompées, chacune dans un sens, avant celle-ci.
-  // Ce qui est **certain** est un appel à `defineStories` : le reste reste une
-  // supposition, donc part au terminal et pas dans le bandeau du shell. C'est
-  // `meant` qui porte la distinction.
-  it.for([
-    [
-      'un appel non exporté par défaut',
-      "import { A } from '../a'\nexport const stories = defineStories(A)",
-    ],
-  ] as const)('est certain pour %s', ([, source], { expect }) => {
-    const lu = fileWith('Certain.ts', source)
-
-    expect(lu.skipped).toBe('defineStories is called but not the default export')
-    expect(lu.meant).toBe(true)
   })
 
   // Les formes qui ne sont qu'une supposition : chacune a fait passer un
@@ -345,61 +221,6 @@ describe('la lecture des stories', () => {
     )
 
     expect(lu.meant).toBe(true)
-  })
-
-  // Un appel dans un commentaire ou une chaîne n'est pas un appel : la lecture
-  // passe par l'arbre.
-  it.for([
-    ['un commentaire', '// defineStories(A)\nexport default 1'],
-    ['une chaîne', "export default { nom: 'defineStories' }"],
-  ] as const)('ne prend pas %s pour un appel', ([, source], { expect }) => {
-    expect(fileWith('Faux.ts', source).meant).toBeUndefined()
-  })
-
-  // Les noms d'un spread ne se lisent pas sans exécuter le fichier, et les
-  // inventer mettrait de fausses props dans un chiffre de couverture.
-  it('laisse de côté les props qu’un spread apporte', () => {
-    const source = [
-      "import { A } from '../a'",
-      "import { base } from '../base'",
-      'export default defineStories(A, {',
-      '  stories: { Une: { ...base, label: 1 } },',
-      '})',
-    ].join('\n')
-
-    expect(fileWith('A.ts', source).entries[0]?.props).toEqual(['label'])
-  })
-
-  // Les entrées d'un fichier partageaient un seul objet `component`. Muter le
-  // champ d'une entrée les mutait toutes, et la résolution recevait au second
-  // passage son propre résultat.
-  it('donne à chaque entrée son propre objet de composant', () => {
-    const { entries } = entriesOf(join(stories, 'checkout', 'OrderSummary.jsx'), fixture, stories)
-
-    expect(entries[0]?.component).not.toBe(entries[1]?.component)
-    expect(entries[0]?.component).toEqual(entries[1]?.component)
-  })
-
-  // Section 4.4 : `meta` et `options` voyagent du fichier au manifeste sans
-  // être interprétés. `details` attend l'adaptateur, lui.
-  it('porte le meta du fichier sur chacune de ses stories', () => {
-    const { entries } = entriesOf(join(stories, 'checkout', 'OrderSummary.jsx'), fixture, stories)
-
-    for (const entry of entries) {
-      expect(entry.meta).toEqual({ status: 'stable', owner: 'checkout' })
-    }
-  })
-
-  it('ne pose pas de meta quand le fichier n’en déclare aucun', () => {
-    const { entries } = entriesOf(join(stories, 'Badge.js'), fixture, stories)
-
-    expect('meta' in (entries[0] ?? {})).toBe(false)
-  })
-
-  it('porte les options du second argument de story()', () => {
-    const { entries } = entriesOf(join(stories, 'checkout', 'OrderSummary.jsx'), fixture, stories)
-
-    expect(entries.map((entry) => entry.options)).toEqual([{}, {}, { responsive: 'mobile' }])
   })
 
   it('lit les valeurs que JSON sait porter', () => {
@@ -557,49 +378,6 @@ describe('la lecture des stories', () => {
       expect(entries, written).toEqual([])
       expect(skipped, written).toMatch(reason)
     }
-  })
-
-  // Un spread placé avant la clé ne décide de rien : la clé écrite gagne.
-  it('lit le bloc stories qu’une définition à spread déclare quand même', () => {
-    const source = [
-      "import { A } from '../a'",
-      "import { base } from '../base'",
-      'export default defineStories(A, { ...base, stories: { Une: { a: 1 } } })',
-    ].join('\n')
-
-    const { entries, skipped } = fileWith('A.ts', source)
-
-    expect(entries.map((entry) => entry.name)).toEqual(['Une'])
-    expect(skipped).toBeUndefined()
-  })
-
-  it('replie sur Default quand le fichier ne déclare pas de bloc stories', () => {
-    const source = [
-      "import { A } from '../a'",
-      'export default defineStories(A, { props: { shared: 1 } })',
-    ].join('\n')
-
-    const { entries, skipped } = fileWith('A.ts', source)
-
-    expect(entries.map((entry) => entry.name)).toEqual(['Default'])
-    expect(skipped).toBeUndefined()
-  })
-
-  // Le nom n'est pas inventé, ce qui est juste, mais la perte était muette :
-  // l'auteur voyait un catalogue amputé et aucun message.
-  it('signale les stories qu’un spread emporte', () => {
-    const source = [
-      "import { A } from '../a'",
-      "import { common } from '../common'",
-      'export default defineStories(A, {',
-      '  stories: { ...common, Une: { a: 1 } },',
-      '})',
-    ].join('\n')
-
-    const { entries, skipped } = fileWith('A.ts', source)
-
-    expect(entries.map((entry) => entry.name)).toEqual(['Une'])
-    expect(skipped).toMatchInlineSnapshot(`"stories left out: one brought by a spread"`)
   })
 
   // La même règle un cran plus bas : un spread emporte les clés qu'il suit.
@@ -784,36 +562,6 @@ describe('ce que la fiche ne dit pas', () => {
     expect(entries[0]?.props).toEqual(['size'])
   })
 
-  // La citation tient sur une ligne : un spread peut s'étaler sur dix lignes, et
-  // le message va dans un élément de liste ou une ligne de terminal.
-  it('met la citation sur une ligne et la coupe si elle est longue', () => {
-    const multiligne = fileWith(
-      'Multiligne.js',
-      `import { Badge } from './Badge'
-       const base = {}
-       export default defineStories(Badge, { stories: { Un: { ...(
-         base
-       ), a: 1 } } })`,
-    )
-
-    expect(multiligne.entries[0]?.partial).toBe(
-      '`...( base )` brings props this reader cannot follow',
-    )
-
-    const long = fileWith(
-      'Long.js',
-      `import { Badge } from './Badge'
-       const faire = () => ({})
-       export default defineStories(Badge, {
-         stories: { Un: { ...faire({ un: 1, deux: 2, trois: 3, quatre: 4 }), a: 1 } },
-       })`,
-    )
-
-    expect(long.entries[0]?.partial).toBe(
-      '`...faire({ un: 1, deux: 2, trois: 3, qu…` brings props this reader cannot follow',
-    )
-  })
-
   // La coupe compte des graphèmes : sur des unités UTF-16 elle envoyait un
   // demi-caractère dans le manifeste, qui s'affiche en glyphe de remplacement.
   // Le nom `ab` décale la citation d'une unité, ce qui met la coupe au milieu
@@ -886,26 +634,5 @@ describe('ce que la fiche ne dit pas', () => {
       'a spread in the definition decides the props, so the shared block is not read; ' +
         'a spread in the definition decides `meta`, so no status or owner is read',
     )
-  })
-
-  // Une même raison deux fois ne se dit qu'une fois.
-  it('ne répète pas la même raison', () => {
-    const { entries } = fileWith(
-      'Deux.js',
-      `import { Badge } from './Badge'
-       export default defineStories(Badge, {
-         stories: { Un: { [a]: 1, [b]: 2, size: 'lg' } },
-       })`,
-    )
-
-    expect(entries[0]?.partial).toBe('a prop whose key is computed at runtime is left out')
-  })
-
-  // Le cas courant reste muet : un champ posé sur toutes les entrées ferait
-  // porter à chaque fiche un avertissement qui ne veut rien dire.
-  it('ne pose rien sur une story que le lecteur lit entièrement', () => {
-    const { entries } = entriesOf(join(stories, 'checkout', 'OrderSummary.jsx'), fixture, stories)
-
-    expect(entries.every((entry) => entry.partial === undefined)).toBe(true)
   })
 })

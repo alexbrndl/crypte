@@ -3,11 +3,13 @@ import { defineConfig } from 'vite-plus'
 // Les réglages que tout projet de test doit avoir. Écrits ici parce que le projet
 // `shell` étend la configuration du shell, pas la racine : sans eux, ses cas
 // tournaient dans un ordre fixe et avec le défaut d'une seconde d'`expect.poll`.
-// Voir docs/internal/architecture.md.
 const partagé = {
   testTimeout: 20_000,
   hookTimeout: 30_000,
   expect: { poll: { timeout: 10_000 } },
+  // Les cas seuls, pas les fichiers : mélanger les fichiers annulerait le
+  // lancement des plus longs d'abord. C'est le seul moyen de voir un couplage
+  // entre deux cas.
   sequence: { shuffle: { tests: true, files: false } },
 }
 
@@ -33,12 +35,19 @@ export default defineConfig({
     // lint et à son `typeCheck` sans que personne le voie. Les instantanés
     // d'aujourd'hui sont du JavaScript produit.
     ignorePatterns: ['packages/cli/test/fixture/**', '**/test/snapshots/*.js'],
+    // Les deux, sinon `vp check` formate et linte sans vérifier aucun type, et
+    // `export const x: string = 42` passe le contrôle, le pack et la CI. Les
+    // retirer rend le `tsconfig` strict décoratif.
     options: {
       typeAware: true,
       typeCheck: true,
     },
     overrides: [
       {
+        // Aucun React dans le noyau, `preview` compris : c'est le fichier le
+        // plus proche du montage, donc le plus exposé à un import de commodité.
+        // Sans cette règle, un adaptateur Vue devient impossible sans réécrire
+        // le noyau.
         files: ['packages/core/src/**'],
         rules: {
           'no-restricted-imports': [
@@ -53,7 +62,7 @@ export default defineConfig({
     // `**/.crypte/**` : l'empreinte est écrite par la suite et commitée, donc
     // deux mécanismes se disputaient sa forme. Le formateur compactait ses
     // tableaux au commit, l'écriture les dépliait au test suivant, et l'arbre
-    // n'était jamais propre. Voir docs/internal/architecture.md.
+    // n'était jamais propre.
     // Les instantanés sont écrits par vitest et relus en revue : le formateur et
     // l'écriture se disputeraient leur forme, comme ils l'ont fait pour
     // l'empreinte.
@@ -69,7 +78,7 @@ export default defineConfig({
     //
     // Les seuils sont au plancher mesuré, pas à 100 : un seuil qu'on baisse pour
     // faire passer un lot ne garde plus rien. Ils montent quand un lot les
-    // dépasse. Voir docs/internal/architecture.md.
+    // dépasse.
     coverage: {
       include: ['packages/*/src/**', 'apps/shell/src/**'],
 
@@ -87,11 +96,11 @@ export default defineConfig({
         '**/*.d.ts',
       ],
       // Les seuils ne sont **pas** ici. Ils vivent dans
-      // `test/coverage-thresholds.json` et sont évalués une seule fois, par
-      // `test/coverage-report.mjs`, donc par le contrôle `coverage` de la pull
+      // `scripts/coverage-thresholds.json` et sont évalués une seule fois, par
+      // `scripts/coverage-report.mjs`, donc par le contrôle `coverage` de la pull
       // request : évalués aux deux endroits, ils rougissaient deux fois pour la
       // même raison et le contrôle visible n'attrapait rien de plus.
-      // `pnpm ready` les applique en local. Voir docs/internal/architecture.md.
+      // `pnpm ready` les applique en local.
     },
 
     // Les cas navigateur et le rechargement à chaud copient un projet par cas et
@@ -148,10 +157,6 @@ export default defineConfig({
           exclude: [
             '**/node_modules/**',
             '**/screen.test.ts',
-            '**/reopt.test.ts',
-            '**/typed.test.ts',
-            '**/plugin.test.ts',
-            '**/aside.test.ts',
             '**/restart.test.ts',
             '**/adapter.test.tsx',
             '**/app.test.ts',
@@ -185,16 +190,9 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'écran',
-          include: [
-            '**/screen.test.ts',
-            '**/reopt.test.ts',
-            '**/typed.test.ts',
-            '**/plugin.test.ts',
-            '**/aside.test.ts',
-            '**/restart.test.ts',
-          ],
+          include: ['**/screen.test.ts', '**/restart.test.ts'],
           sequence: { groupOrder: 1 },
-          // Un fichier à la fois : ils sont six, et « seuls sur la machine »
+          // Un fichier à la fois : ils sont deux, et « seuls sur la machine »
           // est ce que `groupOrder` achète. Deux Chromium et deux serveurs en
           // parallèle rendraient à l'un la charge que l'autre existe pour
           // éprouver.

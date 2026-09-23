@@ -1,5 +1,4 @@
 // Les copies de projet qu'un lancement tué laisse derrière lui.
-// Voir docs/internal/architecture.md.
 
 import { globSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'

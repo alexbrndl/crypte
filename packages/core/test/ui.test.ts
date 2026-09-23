@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { PreviewMessage } from '../src/protocol/channel'
+import { PROTOCOL_VERSION, type PreviewMessage } from '../src/protocol/channel'
+import { createPreviewChannel } from '../src/preview/index'
 import { createShellChannel } from '../src/ui/index'
 import { collect, windowAt } from './fake-window'
 
@@ -28,14 +29,6 @@ const RENDER = { type: 'render', id: 'badge--par-defaut', overrides: {} } as con
 const READY = { type: 'ready', protocolVersion: 1 } as const
 
 describe('envoi vers la preview', () => {
-  it('livre le message dans l’iframe', () => {
-    const recus = collect(dedans)
-
-    createShellChannel(frame).send({ ...RENDER })
-
-    expect(recus).toEqual([RENDER])
-  })
-
   it('ne livre rien à une iframe d’une autre origine', () => {
     const etrangere = windowAt(AILLEURS)
     etrangere.sender = shell
@@ -47,12 +40,6 @@ describe('envoi vers la preview', () => {
 
     expect(recus).toEqual([])
   })
-
-  it('ne tombe pas quand l’iframe n’est pas chargée', () => {
-    const vide = { contentWindow: null } as unknown as HTMLIFrameElement
-
-    expect(() => createShellChannel(vide).send({ ...RENDER })).not.toThrow()
-  })
 })
 
 describe('réception depuis la preview', () => {
@@ -62,14 +49,6 @@ describe('réception depuis la preview', () => {
 
     return { recus, stop }
   }
-
-  it('reçoit un message de la preview', () => {
-    const { recus } = ecoute()
-
-    shell.deliver({ data: READY, origin: ORIGIN, source: dedans }, ORIGIN)
-
-    expect(recus).toEqual([READY])
-  })
 
   it('ignore un message d’une autre origine', () => {
     const { recus } = ecoute()
@@ -97,5 +76,61 @@ describe('réception depuis la preview', () => {
 
     expect(shell.listenerCount()).toBe(0)
     expect(recus).toEqual([])
+  })
+})
+
+// Les deux côtés branchés l'un sur l'autre. Le reste des cas forge une direction
+// à la fois ; ici, personne ne forge rien.
+
+// Monte les deux canaux, chacun dans son contexte. `window` désigne le shell au
+// retour, comme dans le document qui pilote ; la simulation le bascule d'elle-
+// même vers la fenêtre qui reçoit, le temps de chaque distribution.
+function branche(render: (id: string, overrides: Record<string, unknown>) => void) {
+  const shell = windowAt(ORIGIN)
+  const preview = windowAt(ORIGIN)
+
+  preview.parent = shell
+  preview.sender = shell
+  shell.sender = preview
+
+  const recus: unknown[] = []
+
+  // Le shell d'abord, comme dans un navigateur : il pose l'iframe, qui se
+  // charge ensuite et annonce `ready`. L'ordre inverse perdrait l'annonce.
+  global.window = shell
+  const canal = createShellChannel({ contentWindow: preview } as unknown as HTMLIFrameElement)
+  const stop = canal.onMessage((message) => recus.push(message))
+
+  global.window = preview
+  createPreviewChannel({ render })
+  global.window = shell
+
+  return { shell, preview, canal, recus, stop }
+}
+
+describe('l’aller-retour entre les deux côtés', () => {
+  it('un aller-retour complet, sans message forgé', () => {
+    const rendus: unknown[] = []
+    const { canal, recus } = branche((id, overrides) => rendus.push([id, overrides]))
+
+    expect(recus).toEqual([{ type: 'ready', protocolVersion: PROTOCOL_VERSION }])
+
+    canal.send({ type: 'render', id: 'badge--par-defaut', overrides: { label: 'Neuf' } })
+
+    expect(rendus).toEqual([['badge--par-defaut', { label: 'Neuf' }]])
+    expect(recus.at(-1)).toMatchObject({ type: 'rendered', id: 'badge--par-defaut' })
+  })
+
+  // Ce que la preview lit dans `window` doit être sa fenêtre, pas celle du shell.
+  // Sans cette bascule, les deux canaux liraient le même `parent` et la même
+  // origine, et l'appariement des deux côtés serait vrai par accident.
+  it('chaque côté lit sa propre fenêtre pendant la distribution', () => {
+    const vues: unknown[] = []
+    const { shell, preview, canal } = branche(() => vues.push(global.window))
+
+    canal.send({ type: 'render', id: 'badge--par-defaut', overrides: {} })
+
+    expect(vues).toEqual([preview])
+    expect(global.window).toBe(shell)
   })
 })

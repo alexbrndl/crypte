@@ -4,10 +4,8 @@ import { createShellChannel } from '@crypte/core/ui'
 import { computed, onMounted, ref, useTemplateRef } from 'vue'
 import { landing, unreadable, type Shown } from './recover'
 
-// Le shell ne connaît aucun framework : il lit un manifeste et parle par le
-// canal. C'est ce qui lui permet d'être construit à l'avance et livré dans le
-// CLI, là où la preview est compilée chez l'utilisateur.
-// Voir docs/decisions.md.
+// Le shell ne connaît aucun framework : il est construit à l'avance et livré dans
+// le CLI, là où la preview est compilée chez l'utilisateur.
 
 const MANIFEST = '/@crypte/manifest.json'
 
@@ -30,12 +28,9 @@ const failure = ref<{ id: string; message: string; stack?: string } | null>(null
 let channel: ReturnType<typeof createShellChannel> | null = null
 let ready = false
 
-// Ce qu'un fichier écarté a quand même donné, compté sur les entrées plutôt que
-// lu d'un champ : `skipped.file` et `entry.storyFile` sont le même chemin, donc
-// un compte de plus dans le manifeste pourrait le contredire.
-//
-// Le message dépend du compte, sinon il mentirait : « ce fichier a été ignoré »
-// est faux d'un fichier qui a rendu trois stories sur quatre.
+// Compté sur les entrées, pas lu d'un champ : un compte porté par le manifeste
+// pourrait contredire `entry.storyFile`. Le message suit le compte, « ignoré »
+// étant faux d'un fichier qui a rendu trois stories sur quatre.
 const setAside = computed(() =>
   skipped.value.map((one) => {
     const read = entries.value.filter((entry) => entry.storyFile === one.file).length
@@ -164,10 +159,8 @@ onMounted(() => {
     </nav>
 
     <div>
-      <!-- Visible sans qu'on la cherche, et au-dessus de la preview : une story
-           écartée est absente de l'arbre, donc rien d'autre ne la nomme. Jamais
-           bloquant, un fichier en cours d'écriture ne doit pas coûter le
-           catalogue. -->
+      <!-- Au-dessus de la preview et jamais bloquant : une story écartée est
+           absente de l'arbre, donc rien d'autre ne la nomme. -->
       <section v-if="setAside.length > 0" class="set-aside" role="status">
         <h2>Ce que Crypte n'a pas pu lire</h2>
         <ul>

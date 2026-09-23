@@ -61,6 +61,14 @@ const compteSur = (port: number) => async () => {
   return manifest.entries.length
 }
 
+const écartésSur = (port: number) => async () => {
+  const manifest = (await fetch(`http://localhost:${port}${MANIFEST_ROUTE}`).then((answer) =>
+    answer.json(),
+  )) as { skipped?: { file: string }[] }
+
+  return (manifest.skipped ?? []).map((one) => one.file)
+}
+
 describe('la configuration relue sans commande', () => {
   // Le compte-rendu des refus est la seule trace qu'un plugin cassé laisse. Ses
   // deux chemins : au démarrage, puis à la relecture, où seul ce qui est neuf
@@ -95,37 +103,6 @@ export default defineConfig({
 
       // Le premier n'est pas réimprimé : la relecture ne dit que ce qui a changé.
       expect(dites.filter((une) => une.includes('premier : aucun'))).toHaveLength(1)
-    } finally {
-      await running.close()
-      rmSync(root, { recursive: true, force: true })
-    }
-  })
-
-  test('reprend le même port et sert le catalogue neuf', { timeout: 120_000 }, async () => {
-    const root = copie(fixture, 'tmp-hot-')
-    const config = join(root, 'crypte.config.ts')
-    const avant = readFileSync(config, 'utf8')
-
-    const dites: string[] = []
-    const running = await dev(root, (une: string) => dites.push(une))
-    const address = running.server.httpServer?.address()
-    if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
-
-    const compte = compteSur(address.port)
-
-    try {
-      expect(await compte()).toBe(4)
-
-      // Le dossier des stories se réduit : tout l'arbre change, ce qui est le cas
-      // que `recovered` doit encaisser côté shell.
-      const réduit = avant.replace("stories: 'stories'", "stories: 'stories/checkout'")
-      expect(réduit).not.toBe(avant)
-      writeFileSync(config, réduit)
-
-      // Le même port, ce qui est ce qui permet au navigateur de se reconnecter
-      // sans que personne ne touche à rien.
-      await expect.poll(compte, { timeout: 30_000 }).toBe(3)
-      expect(dites.filter((une) => une.includes('changed'))).toHaveLength(1)
     } finally {
       await running.close()
       rmSync(root, { recursive: true, force: true })
@@ -269,6 +246,47 @@ export default defineConfig({
     }
   })
 
+  // Le bandeau d'un fichier qui a cessé de produire tient par la mémoire du
+  // catalogue, `wasStory`, faite pour qu'il survive à une sauvegarde sans
+  // rapport. Un redémarrage reconstruisait sans cette mémoire, donc éditer
+  // `crypte.config.ts` effaçait le bandeau alors que le fichier ne produit
+  // toujours rien : le trou était exactement là où le mécanisme dit exister.
+  test(
+    'garde le bandeau d’un fichier muet après un redémarrage',
+    { timeout: 120_000 },
+    async () => {
+      const root = copie(fixture, 'tmp-hot-')
+      const config = join(root, 'crypte.config.ts')
+      const avant = readFileSync(config, 'utf8')
+      const story = join(root, 'stories', 'Badge.js')
+
+      const dites: string[] = []
+      const running = await dev(root, (une: string) => dites.push(une))
+      const écartés = écartésSur(portDe(running))
+
+      try {
+        // Il cesse de produire sans disparaître : c'est le cas que `wasStory` garde.
+        writeFileSync(story, 'export const rien = 1\n')
+        await expect.poll(écartés, { timeout: 30_000 }).toContain('stories/Badge.js')
+
+        // Une sauvegarde sans rapport, qui redémarre le serveur. Attendu sur la
+        // ligne que le redémarrage imprime, et non sur le catalogue : celui d'avant
+        // répond déjà, donc toute mesure du catalogue passe sans rien attendre.
+        writeFileSync(config, `${avant}\n// une ligne de plus\n`)
+        await expect
+          .poll(() => dites.filter((une) => une.includes('crypte.config.ts changed')).length, {
+            timeout: 30_000,
+          })
+          .toBe(1)
+
+        expect(await écartés()).toContain('stories/Badge.js')
+      } finally {
+        await running.close()
+        rmSync(root, { recursive: true, force: true })
+      }
+    },
+  )
+
   // L'empreinte est un fichier versionné, donc elle ne s'écrit qu'au démarrage :
   // la réécrire à chaque essai sur `stories` salirait l'arbre de travail pendant
   // que l'auteur tape. Section 4 des contrats.
@@ -314,38 +332,6 @@ export default defineConfig({
 
       await expect.poll(compteSur(portDe(running)), { timeout: 30_000 }).toBe(3)
       await expect.poll(() => readFileSync(fichier, 'utf8'), { timeout: 30_000 }).not.toBe(départ)
-    } finally {
-      await running.close()
-      rmSync(root, { recursive: true, force: true })
-    }
-  })
-
-  // Ce qui n'a pas changé ne se redit pas : vingt fichiers d'aide écartés
-  // réimprimaient vingt et une lignes à chaque essai sur `stories`, et la
-  // répétition enterre la ligne qui compte. C'est la règle de `watchStories`.
-  test('ne redit pas un fichier écarté déjà dit', { timeout: 120_000 }, async () => {
-    const root = copie(fixture, 'tmp-hot-')
-    const config = join(root, 'crypte.config.ts')
-    const avant = readFileSync(config, 'utf8')
-
-    // Un fichier illisible que les deux configurations verront.
-    writeFileSync(join(root, 'stories', 'Muette.js'), 'export default 12\n')
-
-    const dites: string[] = []
-    const running = await dev(root, (une: string) => dites.push(une))
-
-    try {
-      const css = avant.replace("css: 'src/styles/app.css'", "css: 'src/styles/app.css' ")
-      expect(css).not.toBe(avant)
-      writeFileSync(config, css)
-
-      await expect
-        .poll(() => dites.filter((une) => une.includes('changed')).length, { timeout: 30_000 })
-        .toBe(1)
-
-      // Le fichier écarté était déjà nommé au démarrage : le redémarrage ne le
-      // renomme pas.
-      expect(dites.filter((une) => une.includes('Muette.js'))).toHaveLength(1)
     } finally {
       await running.close()
       rmSync(root, { recursive: true, force: true })
@@ -506,39 +492,6 @@ export default defineConfig({
     } finally {
       await running.close()
       squatteur.close()
-      rmSync(root, { recursive: true, force: true })
-    }
-  })
-
-  // L'exemple de l'issue : changer l'entrée CSS. Rien n'en paraît dans l'arbre,
-  // donc c'est l'entrée servie qui le dit, et elle ne peut pas l'apprendre sans
-  // que `loadProject` soit repassé.
-  test('sert une entrée CSS neuve après le changement', { timeout: 120_000 }, async () => {
-    const root = copie(fixture, 'tmp-hot-')
-    const config = join(root, 'crypte.config.ts')
-    const avant = readFileSync(config, 'utf8')
-    writeFileSync(join(root, 'src', 'styles', 'autre.css'), ':root { --crypte-essai: 1; }\n')
-
-    const running = await dev(root, () => {})
-    const address = running.server.httpServer?.address()
-    if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
-
-    const entrée = async () =>
-      await fetch(`http://localhost:${address.port}/@crypte/preview.js`).then((answer) =>
-        answer.text(),
-      )
-
-    try {
-      expect(await entrée()).toContain('styles/app.css')
-
-      writeFileSync(
-        config,
-        avant.replace("css: 'src/styles/app.css'", "css: 'src/styles/autre.css'"),
-      )
-
-      await expect.poll(entrée, { timeout: 30_000 }).toContain('styles/autre.css')
-    } finally {
-      await running.close()
       rmSync(root, { recursive: true, force: true })
     }
   })

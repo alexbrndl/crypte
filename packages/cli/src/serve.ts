@@ -1,22 +1,17 @@
 // The two pages `crypte dev` serves, and where each comes from.
-// See docs/decisions.md and docs/internal/architecture.md.
 
-import { existsSync, readFileSync } from 'node:fs'
-import { dirname, join, relative, resolve, sep } from 'node:path'
+import { existsSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sirv from 'sirv'
-import { parseSync, transformWithOxc, type Plugin, type ViteDevServer } from 'vite'
+import { transformWithOxc, type Plugin, type ViteDevServer } from 'vite'
 import { ConfigError } from './errors'
-import { capture, isBareSpecifier } from './paths'
 import { storyFilesOf, type Catalogue } from './manifest'
 import { cssEntryOf, type Project } from './project'
+import { configSources, required } from './config-source'
 
-// The shell is built ahead of time and copied into `dist/shell` when the CLI is
-// packed. It knows no framework: it reads a manifest and talks over the channel.
-//
-// Resolved from the package root rather than from this file, which sits in
-// `src/` before the build and in `dist/` after it. Walking up to `package.json`
-// gives the same answer in both cases.
+// Walks up to `package.json` rather than resolving from this file, which sits in
+// `src/` before the build and in `dist/` after it.
 function packageRoot(): string {
   let here = dirname(fileURLToPath(import.meta.url))
 
@@ -37,9 +32,7 @@ const SHELL = join(packageRoot(), 'dist', 'shell')
 export const PREVIEW_ENTRY = '/@crypte/preview.js'
 
 // Rollup's mark for a module that has no file. Without it the entry is taken for
-// a path, and every import inside it resolves against a folder that does not
-// exist. Measured: `@crypte/core/preview` was looked for six levels above the
-// project.
+// a path, and every import inside it resolves against a folder that does not exist.
 const VIRTUAL = '\0'
 
 // The id the module graph knows the entry by. Exported so a rebuild can
@@ -65,9 +58,10 @@ function shellAssets(): string {
   return SHELL
 }
 
-// One plugin for both pages. Neither is a file in the project: they belong to
-// the CLI, and writing them into the project would leave behind something
-// nobody asked for.
+// One plugin for both pages: `sirv` serves the prebuilt shell, the middleware
+// below builds the preview. Neither is a file in the project: they belong to the
+// CLI, and writing them into the project would leave behind something nobody
+// asked for.
 //
 // The catalogue is read at each request, never captured: a story added while
 // the server runs must reach the shell without a restart.
@@ -82,17 +76,13 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
   return {
     name: 'crypte:serve',
 
-    // `custom`, not `spa`: Vite's fallback rewrites every unknown URL to
-    // `/index.html`, so `/preview.html` and the manifest route were both served
-    // the shell's page. Measured. Both pages are served here, and there is
-    // nothing left to guess.
+    // `custom`, not `spa`: Vite's `spa` fallback rewrites every unknown URL to
+    // `/index.html`, so `/preview.html` and the manifest get the shell's page.
     config() {
       return {
         appType: 'custom',
-        // The channel comes from the CLI's own dependencies, never from the
-        // project's. Section 1.4 of docs/contracts.md: a user installs two
-        // packages, and `@crypte/core` is not one of them. Without this alias
-        // the preview asks their project for a package they never declared.
+        // Without this alias the preview asks the user's project for
+        // `@crypte/core`, which it never installed. Section 1.4 of docs/contracts.md.
         resolve: { alias: { '@crypte/core/preview': channelPath() } },
       }
     },
@@ -100,9 +90,17 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
     configureServer(server) {
       dev = server
 
-      // The shell's own files, `/assets/…`, served from where they were copied.
-      // Without this the page loads and its bundle answers 404: Vite is rooted
-      // in the project, which knows nothing of them. Measured, blank screen.
+      // The shell in full, its page and its `/assets/…`, served from where they
+      // were copied. Vite is rooted in the project, which knows nothing of them:
+      // without this the page loads and its bundle answers 404. Measured, blank
+      // screen.
+      //
+      // This also answers `/` and `/index.html`, by sirv's own `extensions`
+      // default. The shell is served as a file, so it never passes through
+      // `transformIndexHtml` and takes no Vite client: the whole difference with
+      // the preview below. Vite's HTML middleware, the only one that injects the
+      // client, is not mounted under `custom`, which this plugin sets; under `spa`
+      // it would run after every plugin middleware. Either way sirv answers first.
       server.middlewares.use(sirv(shell, { dev: true, etag: true }))
 
       // Before Vite's own middlewares rather than after. The fallback above is
@@ -116,16 +114,13 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
           return
         }
 
-        const html = url === '/' || url === '/index.html' ? shellHtml(shell) : undefined
-        const page = url === PREVIEW_PAGE ? previewHtml() : html
-
-        if (page === undefined) {
+        if (url !== PREVIEW_PAGE) {
           next()
           return
         }
 
         server
-          .transformIndexHtml(url, page)
+          .transformIndexHtml(url, previewHtml())
           .then((transformed) => {
             response.setHeader('Content-Type', 'text/html')
             response.end(transformed)
@@ -141,10 +136,8 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
     load(id) {
       if (id !== PREVIEW_ENTRY_ID) return undefined
 
-      // Typed here rather than by Vite: a virtual module is not transformed by
-      // its extension, measured. The entry copies the configuration's own
-      // expression, so `adapter: createAdapter() as Kind` reached the browser as
-      // TypeScript and died on a `SyntaxError`. `DCJ-224`.
+      // Compiled here: a virtual module is not transformed by its extension, and
+      // the entry copies the configuration's TypeScript expression verbatim.
       return compiled(previewEntry(project, storyFilesOf(current())), project.root, dev, (one) =>
         this.warn(one),
       )
@@ -160,10 +153,6 @@ function channelPath(): string {
   } catch (cause) {
     throw new ConfigError('@crypte/core/preview is not resolvable from @crypte/cli.', { cause })
   }
-}
-
-function shellHtml(shell: string): string {
-  return readFileSync(join(shell, 'index.html'), 'utf8')
 }
 
 function previewHtml(): string {
@@ -184,431 +173,11 @@ function previewHtml(): string {
 // top-level scope: `import { adapter } from './setup'` next to `const adapter =
 // adapter` is a `SyntaxError: Identifier 'adapter' has already been declared`, so
 // the preview never loads at all. Measured, and it held for a dozen names.
-// See docs/internal/architecture.md.
 const OWN = '__crypte_'
 
-// What the browser needs to build the adapter: the imports it uses, and the
-// expression itself, both taken from the project's configuration as text.
-//
-// Read and never executed. Importing `crypte.config.ts` from the preview looked
-// tidier and was wrong: section 1.5 allows `vite: { plugins: [react()] }` there,
-// so the browser would load a Vite plugin, which reaches for `node:module`. The
-// entry would fail before `createPreviewChannel`, so no `ready` would leave and
-// the shell would sit on an empty frame with nothing to show.
-//
-// Guessing a package from `adapter.name` is the other wrong answer: it breaks
-// the moment somebody wraps an adapter. The text says what the author wrote.
-export function adapterSource(project: Project): { imports: string[]; expression: string } {
-  return required(configSources(project).adapter)
-}
-
-// The adapter is the one field the entry cannot do without. Written once: two
-// copies of this sentence would drift, and it is the message a user reads.
-function required(found: { imports: string[]; expression: string } | undefined): {
-  imports: string[]
-  expression: string
-} {
-  if (found === undefined) {
-    throw new ConfigError(
-      'crypte.config.ts must declare `adapter` in the object it exports, written in place.',
-    )
-  }
-
-  return found
-}
-
-// The packages the configuration imports for the preview, by their bare name.
-//
-// Vite pre-bundles these rather than serving them as graph modules. A linked
-// workspace package is the awkward middle case: it sits in `node_modules` but is
-// not pre-bundled, so its rewritten dependency URLs are never invalidated when
-// the optimiser rewrites its bundles. Measured on the demo: after two
-// re-optimisations the adapter was still served with two stale hashes, and the
-// browser assembled four generations at once, which is the missing export of
-// `DCJ-221`. See docs/internal/architecture.md.
-export function configPackages(project: Project): string[] {
-  const sources = configSources(project)
-  const statements = [...(sources.adapter?.imports ?? []), ...(sources.wrap?.imports ?? [])]
-
-  // A specifier the project's own paths capture is one of its files, not a
-  // package: `@/adapters/mine` reads as bare and would be handed to the optimiser,
-  // which has no package to pre-bundle. Judged by the resolver's own `capture`
-  // rather than by a rule about `@`. Measured at exploration.
-  const aliased = (one: string) =>
-    Object.keys(project.paths?.paths ?? {}).some((pattern) => capture(pattern, one) !== null)
-
-  const named = statements
-    .map((one) => /from\s+['"]([^'"]+)['"]/.exec(one)?.[1])
-    .filter((one): one is string => one !== undefined)
-    .filter((one) => isBareSpecifier(one) && !aliased(one))
-
-  return [...new Set(named)]
-}
-
-// Both fields the browser needs from the configuration, read in one parse: the
-// adapter, and the global `wrap` of section 2.5 when the file declares one.
-function configSources(project: Project): {
-  adapter?: { imports: string[]; expression: string }
-  wrap?: { imports: string[]; expression: string }
-} {
-  const file = join(project.root, 'crypte.config.ts')
-  const source = readFileSync(file, 'utf8')
-  const parsed = parseSync('crypte.config.ts', source)
-
-  if (parsed.errors.length > 0) {
-    throw new ConfigError(`crypte.config.ts could not be parsed: ${parsed.errors[0]?.message}`)
-  }
-
-  return {
-    adapter: fieldSource('adapter', source, parsed, project.root),
-    wrap: fieldSource('wrap', source, parsed, project.root),
-  }
-}
-
-// One field of the exported object, as text, plus the imports it names. Rends
-// `undefined` when the file does not declare it: `adapter` is required and its
-// caller says so, `wrap` is not.
-function fieldSource(
-  field: string,
-  source: string,
-  parsed: ReturnType<typeof parseSync>,
-  root: string,
-): { imports: string[]; expression: string } | undefined {
-  const value = fieldExpression(parsed.program.body as unknown as Node[], field)
-  if (value === undefined) return undefined
-
-  const locals = new Map<string, Node>()
-  for (const one of parsed.module.staticImports as unknown as Node[]) {
-    for (const entry of (one['entries'] as Node[]) ?? []) {
-      locals.set((entry['localName'] as Node)['value'] as string, one)
-    }
-  }
-
-  const names = referenced(value)
-
-  // A name this file declares is something it computed, which the browser
-  // cannot reach: only the expression and its imports travel. `{ adapter }`
-  // written short emitted `const adapter = adapter`, and `const runtime =
-  // 'react'` used as `createAdapter({ runtime })` emitted the same kind of
-  // dangling name: a ReferenceError at load time, so before the channel opens,
-  // so an empty frame with nothing to say. Measured, both.
-  //
-  // Declared here rather than anywhere: a name that is neither declared nor
-  // imported is a global, and refusing those would refuse `process.env`.
-  const own = declared(parsed.program.body as unknown as Node[])
-  const built = [...names].find((name) => own.has(name))
-  if (built !== undefined) {
-    throw new ConfigError(
-      `crypte.config.ts hands \`${field}\` a value it builds itself (\`${built}\`). ` +
-        `Write the ${field} in place, or import it: the preview reads this file, it never runs it.`,
-    )
-  }
-
-  // Only the imports the expression really names, read from the tree and not
-  // from the text. A word test also matches inside a string, so
-  // `createAdapter({ runtime: 'react' })` carried `import react from
-  // '@vitejs/plugin-react'` into the browser: the very thing reading rather
-  // than importing exists to avoid. Measured.
-  const needed = new Set<Node>()
-  for (const name of names) {
-    const one = locals.get(name)
-    if (one) needed.add(one)
-  }
-
-  const imports = [...needed].map((one) => served(one, source, field, root))
-
-  return { imports, expression: source.slice(value.start, value.end) }
-}
-
-// An import of the configuration, rewritten for the entry the browser loads. The
-// entry is a virtual module, so a relative specifier resolves against its own
-// path and not against the project: `./src/components/Frame` failed to resolve,
-// measured on the demo. Story files are already emitted root-absolute, and this
-// makes the configuration's imports travel the same way.
-function served(one: Node, source: string, field: string, root: string): string {
-  const request = one['moduleRequest'] as Node | undefined
-  const specifier = request?.['value'] as string | undefined
-  const statement = source.slice(one.start, one.end)
-
-  if (request === undefined || specifier === undefined || !specifier.startsWith('.')) {
-    return statement
-  }
-
-  // Resolved against the real root, not by normalising a string:
-  // `posix.normalize('/../x')` yields `/x`, so a `../` escaped in silence.
-  // Measured.
-  const inside = relative(root, resolve(root, specifier))
-  const rooted = `/${inside.split(sep).join('/')}`
-
-  if (inside.startsWith('..')) {
-    throw new ConfigError(
-      `crypte.config.ts imports \`${specifier}\` for \`${field}\`, which is outside the project. ` +
-        'The preview serves the project, so move the file under it or import a package.',
-    )
-  }
-
-  return (
-    statement.slice(0, request.start - one.start) +
-    JSON.stringify(rooted) +
-    statement.slice(request.end - one.start)
-  )
-}
-
-// The names a list of statements declares. Used on the file, where everything
-// else an expression mentions is either imported or global, and on a block
-// inside the expression, where the same names are the expression's own.
-function declared(body: Node[]): Set<string> {
-  const found = new Set<string>()
-
-  for (const node of body) {
-    // `export const runtime = …` holds its declaration one level deeper, and
-    // reading only the top level made it look undeclared. Measured.
-    const one =
-      node.type === 'ExportNamedDeclaration'
-        ? ((node['declaration'] as Node | undefined) ?? node)
-        : node
-
-    // Read from the shape, not from a list of node types. The list was the bug:
-    // it named `VariableDeclaration`, then `FunctionDeclaration` and
-    // `ClassDeclaration`, then `TSEnumDeclaration`, then `TSModuleDeclaration`,
-    // then `TSImportEqualsDeclaration`, one per review, each accepted until
-    // named. Every form that binds a name carries it in `id` or `declarations`,
-    // and nothing else at the top level of a module does.
-    for (const name of bindings(one['id'] as Node | undefined)) found.add(name)
-
-    for (const declarator of (one['declarations'] as Node[]) ?? []) {
-      for (const name of bindings(declarator['id'] as Node | undefined)) found.add(name)
-    }
-  }
-
-  hoisted(body, found)
-
-  return found
-}
-
-// A `var` belongs to the file or to the function, never to the block it sits
-// in: `{ var runtime = 'react' }` declares `runtime` for everything after it.
-// Read statement by statement, it looked undeclared and the name left pending
-// towards the browser. Measured.
-function hoisted(node: unknown, found: Set<string>): void {
-  if (node === null || typeof node !== 'object') return
-
-  if (Array.isArray(node)) {
-    for (const item of node) hoisted(item, found)
-    return
-  }
-
-  const inner = node as Node
-
-  // A function's own `var` is its own, so the walk stops at its edge.
-  if (FUNCTIONS.has(inner.type)) return
-
-  if (inner.type === 'VariableDeclaration' && inner['kind'] === 'var') {
-    for (const declarator of (inner['declarations'] as Node[]) ?? []) {
-      for (const name of bindings(declarator['id'] as Node | undefined)) found.add(name)
-    }
-  }
-
-  for (const held of Object.values(inner)) hoisted(held, found)
-}
-
-// Every name a binding position holds, read from the shape rather than from a
-// list of pattern types. That list was the same mistake as the one above, a
-// level down: `namespace runtime.deep` holds `runtime` in a qualified name, and
-// it read nothing. Measured.
-//
-// What is not a binding is skipped rather than tolerated, because this is read
-// in two senses that do not forgive the same error. For `declared`, a name too
-// many refuses a valid config with a message. For the names a function of the
-// expression carries, a name too many drops the import that name needed, so the
-// entry emits it dangling: `({ [field]: value }) => value` swallowed `field`,
-// which is an expression and never a binding. Measured.
-function bindings(node: Node | undefined): string[] {
-  const found: string[] = []
-
-  const walk = (current: unknown): void => {
-    if (current === null || typeof current !== 'object') return
-
-    if (Array.isArray(current)) {
-      for (const item of current) walk(item)
-      return
-    }
-
-    const inner = current as Node
-    if (inner.type === 'Identifier') {
-      found.push(inner['name'] as string)
-      return
-    }
-
-    for (const [key, held] of Object.entries(inner)) {
-      // A default's right side and a key, computed or not, are expressions. The
-      // key of `{ a: b }` binds `b`, and the key of `{ [field]: value }` binds
-      // `value`: neither binds what is written on the left.
-      if (key === 'right' && inner.type === 'AssignmentPattern') continue
-      if (key === 'key' && inner.type === 'Property') continue
-      if (key === 'typeAnnotation') continue
-      walk(held)
-    }
-  }
-
-  walk(node)
-
-  return found
-}
-
-const FUNCTIONS = new Set(['ArrowFunctionExpression', 'FunctionExpression', 'FunctionDeclaration'])
-
-// The node types that carry their own names, so that a parameter shadowing a
-// name of the file does not make the expression look like it uses that name. A
-// class expression is one: it carries its own `id` and its static blocks.
-const CARRIES = new Set([
-  ...FUNCTIONS,
-  'CatchClause',
-  'ClassExpression',
-  'ClassDeclaration',
-  'StaticBlock',
-])
-
-// A class member names itself, so `class { make() {} }` does not read a `make`
-// of the file. Measured: it produced a false « builds itself » refusal.
-const MEMBERS = new Set(['MethodDefinition', 'PropertyDefinition', 'AccessorProperty'])
-
-// The `TS…` nodes that hold a value, so the only ones the walk enters. The five
-// expressions hold it under `expression`, a parameter property under
-// `parameter`, an enum member under `initializer`. A `namespace` is left out:
-// the configuration loader refuses one nested in an expression, measured, and
-// there is no other place for it. Voir docs/internal/architecture.md.
-const VALUED = new Set([
-  'TSAsExpression',
-  'TSSatisfiesExpression',
-  'TSNonNullExpression',
-  'TSTypeAssertion',
-  'TSInstantiationExpression',
-  'TSParameterProperty',
-  'TSEnumDeclaration',
-  'TSEnumBody',
-  'TSEnumMember',
-])
-
-// The keys by which a value node points at a type. Doubled with the family
-// above on purpose: a name has to be missing from both lists to travel.
-// Voir docs/internal/architecture.md.
-const TYPED = new Set(['typeAnnotation', 'typeArguments', 'typeParameters', 'returnType'])
-
-// The names an expression takes from outside itself. A string is not one, and
-// neither is a name that only sits where a name cannot be read: the key of an
-// object written `{ react: true }`, the property of an access written
-// `opts.react`. Both made `@vitejs/plugin-react` travel. Measured.
-function referenced(node: Node): Set<string> {
-  const found = new Set<string>()
-
-  const walk = (current: unknown, bound: Set<string>): void => {
-    if (current === null || typeof current !== 'object') return
-
-    if (Array.isArray(current)) {
-      for (const item of current) walk(item, bound)
-      return
-    }
-
-    const inner = current as Node
-
-    // Types name nothing the browser loads, and a type position is any `TS…`
-    // node outside `VALUED`. Voir docs/internal/architecture.md.
-    if (inner.type.startsWith('TS') && !VALUED.has(inner.type)) return
-
-    // Named, then walked through: a name can hang off an identifier, and stopping
-    // here left its import behind. Measured on `opts.react`, where `react` is
-    // read from the property of an access, not from the file.
-    if (inner.type === 'Identifier') {
-      const name = inner['name'] as string
-      if (!bound.has(name)) found.add(name)
-    }
-
-    // `(opts) => opts.react` names nothing of the file, even where the file
-    // declares `opts`: the expression brings that name with it.
-    const inside = CARRIES.has(inner.type) ? new Set(bound) : bound
-    if (inside !== bound) {
-      for (const param of (inner['params'] as Node[]) ?? []) {
-        for (const name of bindings(param)) inside.add(name)
-      }
-
-      for (const name of bindings(inner['param'] as Node | undefined)) inside.add(name)
-
-      // A named expression names itself: `new (class Frame {})()` reads no
-      // `Frame` of the file. Measured, it produced a false « builds itself ».
-      for (const name of bindings(inner['id'] as Node | undefined)) inside.add(name)
-
-      // A static block holds its statements directly, a function under a block.
-      const body = inner['body'] as Node | Node[] | undefined
-      const statements = Array.isArray(body)
-        ? body
-        : body?.type === 'BlockStatement'
-          ? ((body['body'] as Node[]) ?? [])
-          : []
-
-      for (const name of declared(statements)) inside.add(name)
-    }
-
-    const fixed =
-      inner['computed'] === true
-        ? undefined
-        : inner.type === 'Property'
-          ? 'key'
-          : inner.type === 'MemberExpression'
-            ? 'property'
-            : MEMBERS.has(inner.type)
-              ? 'key'
-              : inner.type === 'TSEnumMember'
-                ? 'id'
-                : undefined
-
-    for (const [key, held] of Object.entries(inner)) {
-      if (key === fixed || TYPED.has(key)) continue
-      walk(held, inside)
-    }
-  }
-
-  walk(node, new Set())
-
-  return found
-}
-
-interface Node {
-  type: string
-  start: number
-  end: number
-  [key: string]: unknown
-}
-
-// `export default defineConfig({ … })` or `export default { … }`, and the
-// `adapter` property of whichever it is.
-function fieldExpression(body: Node[], field: string): Node | undefined {
-  const exported = body.find((node) => node.type === 'ExportDefaultDeclaration')
-  const declaration = exported?.['declaration'] as Node | undefined
-  const object =
-    declaration?.type === 'CallExpression'
-      ? ((declaration['arguments'] as Node[])[0] as Node | undefined)
-      : declaration
-
-  if (object?.type !== 'ObjectExpression') return undefined
-
-  const found = (object['properties'] as Node[]).find(
-    (property) =>
-      property.type === 'Property' && (property['key'] as Node | undefined)?.['name'] === field,
-  )
-  return found?.['value'] as Node | undefined
-}
-
-// Replaying the last render on a hot update, rather than letting Vite reload the
-// page. The entry has no parent to propagate to, so without this every keystroke
-// in a component reloads the iframe and remounts the whole tree.
-//
-// Through the channel, never around it: it owns what was last asked for and the
-// reporting that goes with it. Drawing from here left a failing edit throwing
-// into this callback, so no `error` reached the shell.
-//
-// The catalogue does not change here: a file whose stories changed name or count
-// makes the server reload the page instead. See docs/internal/architecture.md.
+// The entry has no parent to propagate to: without this, every keystroke in a
+// component reloads the iframe and remounts the tree. Replayed through the
+// channel, never from here, so a failing edit reaches the shell as an `error`.
 function hot(files: string[]): string[] {
   if (files.length === 0) return []
 
@@ -624,7 +193,8 @@ function hot(files: string[]): string[] {
     '',
     `      ${OWN}modules[${OWN}paths[index]] = module`,
     '',
-    '      // A repaired file forgets its failure: architecture.md says why.',
+    '      // Kept, this failure outlives the repair: the panel would still',
+    '      // show a stack pointing at a line that no longer exists.',
     `      delete ${OWN}broken[${OWN}paths[index]]`,
     '    })',
     '',
@@ -696,7 +266,10 @@ export function previewEntry(project: Project, files: string[] = []): string {
   // shell waiting for a catalogue that never comes. Only the files that produced
   // an entry are imported.
   //
-  // One promise each, not a static `import`: see docs/internal/architecture.md.
+  // One promise each, not a static `import`: discovery reads story files without
+  // running them, so a file that throws at import is only found here, and a
+  // static import would take the whole entry down. The specifier stays a
+  // literal, or Vite drops these files from its module graph.
   const loads = files.map((file) => {
     const path = JSON.stringify(`/${file}`)
 
@@ -705,11 +278,8 @@ export function previewEntry(project: Project, files: string[] = []): string {
 
   return [
     `import { createPreviewChannel as ${OWN}channelOf, propsOfStory as ${OWN}propsOf, wrapsOf as ${OWN}wrapsOf } from '@crypte/core/preview'`,
-    // Deduplicated across the two fields: `adapter` and `wrap` can come from the
-    // same `import`, and emitting it twice is a `SyntaxError: Identifier … has
-    // already been declared`. The preview then never loads, so no story renders
-    // at all. Measured, and the demo misses it: its two names come from two
-    // files.
+    // `adapter` and `wrap` can come from the same `import`, and emitting it twice
+    // is a `SyntaxError: Identifier … has already been declared`.
     ...new Set([...adapter.imports, ...(wrap?.imports ?? [])]),
     ...(css ? [`import ${JSON.stringify(css)}`] : []),
     '',

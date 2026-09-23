@@ -27,23 +27,23 @@ La distinction tient en une phrase : **des faits, jamais d'interprétation.**
 
 Le critère est mécanique, pour ne pas être rejugé à chaque revue :
 
-| Le diff touche                                                                        | Modèle         |
-| ------------------------------------------------------------------------------------- | -------------- |
-| de la prose, de la configuration ou des workflows                                     | petit modèle   |
-| ce qui fait foi : `docs/contracts.md`, `docs/decisions.md`, `CLAUDE.md`, `.claude/**` | modèle courant |
-| au moins un fichier sous `packages/*/src/**` ou `apps/**`                             | modèle courant |
+| Le diff touche                                                                                  | Modèle         |
+| ----------------------------------------------------------------------------------------------- | -------------- |
+| de la prose, de la configuration ou des workflows                                               | petit modèle   |
+| ce qui exige la procédure malgré son extension : `docs/contracts.md`, `CLAUDE.md`, `.claude/**` | modèle courant |
+| au moins un fichier sous `packages/*/src/**` ou `apps/**`                                       | modèle courant |
 
 Le code garde donc toujours le modèle courant : le petit modèle ne s'applique jamais là où le raisonnement est le plus exigeant. En cas de doute sur la nature du diff, prends le modèle courant.
 
-**Quatre formes valent du code, malgré leur extension.** Les deux premières font foi, `docs/contracts.md` le dit de lui-même. `CLAUDE.md` et les skills encodent les règles de travail, donc une erreur dedans se propage à toutes les sessions suivantes.
+**Trois formes valent du code, malgré leur extension.** `docs/contracts.md` est la spécification. `CLAUDE.md` et les skills encodent les règles de travail, donc une erreur dedans se propage à toutes les sessions suivantes.
 
-_Mesuré :_ la pull request qui a produit cette ligne réécrivait neuf entrées de `docs/decisions.md` sur 908 lignes de diff. Le petit modèle l'a relue en trois appels d'outils et rendu un verdict vide, alors qu'une relecture manuelle du même diff avait trouvé deux erreurs. Le critère par emplacement ne suit pas ce qu'il représente, et une liste de noms suffit à le corriger sans rendre la table jugeable au cas par cas.
+_Mesuré :_ la pull request qui a produit cette ligne réécrivait neuf entrées d'un registre de décisions sur 908 lignes de diff. Le petit modèle l'a relue en trois appels d'outils et rendu un verdict vide, alors qu'une relecture manuelle du même diff avait trouvé deux erreurs. Le critère par emplacement ne suit pas ce qu'il représente, et une liste de noms suffit à le corriger sans rendre la table jugeable au cas par cas.
 
 ### Quand la revue n'est pas exigée du tout
 
 **Un diff dont tous les fichiers sont des `.md`, aucun n'étant l'une des formes ci-dessus, n'a pas besoin de revue.** `require-review.yml` le constate et passe au vert tout seul, donc la pull request se fusionne sans qu'aucun marqueur existe.
 
-Le classement vit dans `test/review-check.mjs`, couvert par `test/review-check.test.mjs`. Ne le réimplémente pas de tête : `node test/review-check.mjs <numéro>` dit ce qu'il en pense.
+Le classement vit dans `scripts/review-check.mjs`. Ne le réimplémente pas de tête : `node scripts/review-check.mjs <numéro>` dit ce qu'il en pense.
 
 Ne lance pas `/review` dans ce cas : deux verdicts vides d'affilée sur de la prose sont ce qui apprend à ne plus lire les suivants, et c'est le seul mode d'échec qui compte ici.
 
@@ -70,7 +70,7 @@ La formulation compte : une première version de cette règle ne parlait que des
 Le sous-agent rend son verdict et se termine. Écris-le dans un fichier JSON au format de la section 6, et **publie-le immédiatement, avant de lire les points en détail et avant toute correction** :
 
 ```bash
-node test/post-review.mjs revue.json <numéro>
+node scripts/post-review.mjs revue.json <numéro>
 ```
 
 Le script refuse un verdict mal formé, compte les revues marquées avant et après, et échoue si le compte n'a pas bougé. Code 1, le verdict est refusé, corrige-le. Code 2, la revue n'est pas arrivée, et rien d'autre ne compte tant que ce n'est pas le cas.
@@ -104,7 +104,7 @@ Lis ensuite `CLAUDE.md` et, si le diff touche au format de story, au manifeste, 
 
 ## 3. Ce que le dépôt vérifie déjà
 
-`vp test --coverage` dit ce que les tests exécutent. Il n'applique pas les seuils : c'est `node test/coverage-report.mjs` qui rend le verdict, une fois la mesure faite, et c'est lui que le contrôle `coverage` de la pull request exécute. **Lance les deux plutôt que de juger à la lecture** si le diff est éprouvé : une ligne neuve jamais exécutée est un constat en soi, et il se mesure en cinq secondes.
+`vp test --coverage` dit ce que les tests exécutent. Il n'applique pas les seuils : c'est `node scripts/coverage-report.mjs` qui rend le verdict, une fois la mesure faite, et c'est lui que le contrôle `coverage` de la pull request exécute. **Lance les deux plutôt que de juger à la lecture** si le diff est éprouvé : une ligne neuve jamais exécutée est un constat en soi, et il se mesure en cinq secondes.
 
 Ce qu'il ne dit pas : qu'une ligne exécutée est vérifiée. Un test qui appelle sans rien affirmer la couvre à 100 %. Un `toContain` sur un fragment de message, ou un `toThrow()` nu, sont donc des constats recevables même sur du code couvert.
 
@@ -123,9 +123,9 @@ Si tu trouves un point bloquant portant sur une **entrée jamais éprouvée**, d
 **Ce qui est recherché**, dans cet ordre :
 
 1. **Les quatre contraintes structurelles de `CLAUDE.md`.** Une dépendance interne embarquée en copie, un composant placé dans `core/ui` sans qu'un plugin réel le demande, un import de `vite-plus` dans du code publié, une entrée de `core` qui en tire une autre.
-2. **Les contrats de `docs/contracts.md`**, s'ils sont concernés. Ils font foi et ne se rediscutent pas ici.
+2. **Les contrats de `docs/contracts.md`**, s'ils sont concernés. Un écart entre le document et le code est un constat recevable, mais le document n'est pas la loi : il a été écrit avant le code. Dire lequel des deux est faux, et pourquoi.
 3. **Les contradictions internes.** Une décision consignée dans la documentation et prise à l'envers dans le code, un mécanisme rendu inopérant par un autre changement, un test qui ne peut plus échouer.
-4. **La règle de documentation.** Le diff ajoute-t-il un mécanisme dont on pourrait oublier la raison, et qu'on supprimerait alors par erreur ? Si oui, et seulement si oui, `docs/internal/architecture.md` doit être mis à jour dans le même diff, avec ce qui casse si on l'enlève. Un mécanisme qui se lit tout seul n'y va pas.
+4. **La règle de documentation.** Le diff ajoute-t-il un mécanisme dont on pourrait oublier la raison, et qu'on supprimerait alors par erreur ? Si oui, et seulement si oui, un commentaire doit vivre **à côté de ce mécanisme**, disant ce qui casse si on l'enlève. Il n'y a pas de document où le renvoyer. Un mécanisme qui se lit tout seul n'en porte pas.
 
 **Ce qui n'est pas recherché.** Le style, le nommage, le formatage, la structure des fichiers : `vp check` s'en occupe déjà. Les arbitrages non plus, publier maintenant ou plus tard, telle bibliothèque plutôt qu'une autre : ce sont des décisions humaines, pas des écarts.
 
@@ -147,7 +147,7 @@ En cas d'hésitation entre deux niveaux, prendre le plus bas et dire pourquoi : 
 
 **Le critère d'arrêt de la boucle est là.** La pull request sort du brouillon quand aucun bloquant ne reste, pas quand la revue est vide. Les points **importants** qui restent deviennent des issues ; les observations se corrigent ou se taisent.
 
-**Lis `docs/decisions.md` avant de rédiger.** Ce qui y figure est arbitré : le re-signaler n'apprend rien. Il porte les choix et ce qui les rouvrirait ; un constat qui montre qu'une décision est devenue fausse est en revanche recevable, et c'est même ce qu'on attend de lui. Si un point du fichier est devenu bloquant, c'est en revanche un constat à part entière, et il faut dire ce qui a changé.
+**Un arbitrage déjà écrit ne se re-signale pas.** Les commentaires du code portent les choix et ce qui les rouvrirait : les redire n'apprend rien. Un constat qui montre qu'un de ces choix est devenu faux est en revanche recevable, et c'est ce qu'on attend d'une revue ; il faut alors dire **ce qui a changé**.
 
 ## 6. Le format du verdict
 
@@ -184,7 +184,7 @@ Construis un fichier JSON, puis envoie-le :
 
 Un verdict sans compte de bloquants est inutilisable : celui qui le reçoit ne peut pas savoir ce qui retient la pull request, et retombe alors à tout corriger, ce qui est la boucle qu'on cherche à fermer.
 
-`test/post-review.mjs` refuse le fichier tant que ces conditions ne sont pas réunies : le marqueur seul sur la première ligne, `event` à `COMMENT`, un niveau en tête de chaque point, un `path` et une `line` pour chacun, ce `path` appartenant au diff quand les fichiers du diff sont lisibles, cette `line` tombant dans une portion du diff quand le point vise le côté droit, et un compte de bloquants égal au nombre de points ancrés qui en portent le niveau.
+`scripts/post-review.mjs` refuse le fichier tant que ces conditions ne sont pas réunies : le marqueur seul sur la première ligne, `event` à `COMMENT`, un niveau en tête de chaque point, un `path` et une `line` pour chacun, ce `path` appartenant au diff quand les fichiers du diff sont lisibles, cette `line` tombant dans une portion du diff quand le point vise le côté droit, et un compte de bloquants égal au nombre de points ancrés qui en portent le niveau.
 
 La dernière est la moins évidente : **un bloquant laissé dans le corps n'est pas résolvable, donc ne bloque rien.** Le compte annoncé et les points ancrés doivent donc coïncider.
 

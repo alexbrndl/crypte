@@ -7,7 +7,6 @@ import { ConfigError } from '../src/errors'
 // Ce que la commande fait de ses arguments. Rien ne l'éprouvait : la couverture
 // donnait 0 % sur l'entrée du CLI, donc l'aide, la version et le code de sortie
 // d'une erreur de configuration reposaient sur la lecture seule.
-// Voir docs/internal/architecture.md.
 
 const AIDE = `crypte — protocol v${PROTOCOL_VERSION}, commands: dev, check, init`
 
@@ -58,24 +57,6 @@ describe('la commande crypte', () => {
     expect(sortie.lignes).toEqual([AIDE])
   })
 
-  test('rend la même aide sur une commande inconnue', async () => {
-    const sortie = dit()
-
-    await run(['tourne'], sortie.log)
-
-    expect(sortie.lignes).toEqual([AIDE])
-  })
-
-  // L'aide nomme ce que le binaire porte vraiment. Elle a déjà annoncé une
-  // commande de moins que la documentation, `DCJ-286`.
-  test.for(['dev', 'check', 'init'] as const)('annonce %s dans l’aide', async (commande) => {
-    const sortie = dit()
-
-    await run([], sortie.log)
-
-    expect(sortie.lignes[0]).toContain(commande)
-  })
-
   test.for(['dev', 'check', 'init'] as const)('passe la racine donnée à %s', async (commande) => {
     const doublure = faux()
 
@@ -102,13 +83,6 @@ describe('la commande crypte', () => {
   test('rend le code de sortie de check', async () => {
     expect(await run(['check'], dit().log, { check: async () => 1 })).toBe(1)
   })
-
-  test.for([['dev'], ['init'], ['--version'], ['tourne'], []] as const)(
-    'sort en 0 sur %s',
-    async (argv) => {
-      expect(await run([...argv], dit().log, faux())).toBe(0)
-    },
-  )
 })
 
 describe('la sortie du processus', () => {

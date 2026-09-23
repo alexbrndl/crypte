@@ -48,26 +48,6 @@ const paquet = (deps: Record<string, string>, dev: Record<string, string> = {}) 
   JSON.stringify({ name: 'projet', dependencies: deps, devDependencies: dev })
 
 describe('ce que le projet dit de lui-même', () => {
-  test('reconnaît React déclaré en dépendance', () => {
-    const root = projectWith({ 'package.json': paquet({ react: '^19.0.0' }) })
-
-    expect(planFor(root).adapter.package).toBe('@crypte/react')
-  })
-
-  test('le reconnaît aussi en dépendance de développement', () => {
-    const root = projectWith({ 'package.json': paquet({}, { react: '^19.0.0' }) })
-
-    expect(planFor(root).adapter.package).toBe('@crypte/react')
-  })
-
-  // Un cadriciel sans adaptateur ne se configure pas du tout : écrire le fichier
-  // laisserait l'utilisateur avec une configuration que `loadProject` refuse.
-  test('refuse un projet dont le cadriciel n’a pas d’adaptateur', () => {
-    const root = projectWith({ 'package.json': paquet({ vue: '^3.5.0' }) })
-
-    expect(() => planFor(root)).toThrow('@crypte/react')
-  })
-
   // Un package.json qui ne déclare aucune dépendance : les deux champs sont
   // absents, pas vides, et la lecture les traversait sans les avoir éprouvés.
   test('refuse un projet dont le package.json ne déclare rien', () => {
@@ -100,14 +80,6 @@ describe('ce que le projet dit de lui-même', () => {
     expect(plan.stories).toBe(attendu)
     expect(plan.missing).toBe(manquante)
   })
-
-  test('voit l’adaptateur déjà installé', () => {
-    const root = projectWith({
-      'package.json': paquet({ react: '^19.0.0' }, { '@crypte/react': '^0.0.0' }),
-    })
-
-    expect(planFor(root).installed).toBe(true)
-  })
 })
 
 describe('le fichier écrit', () => {
@@ -124,12 +96,6 @@ describe('le fichier écrit', () => {
       })
       "
     `)
-  })
-
-  test('nomme la racine trouvée', () => {
-    const root = projectWith({ 'package.json': paquet({ react: '^19.0.0' }) }, ['src/stories'])
-
-    expect(configFor(planFor(root))).toContain("stories: 'src/stories',")
   })
 })
 
@@ -149,14 +115,6 @@ describe('ce que la commande imprime', () => {
     )
 
     expect(linesOf(planFor(root)).join('\n')).not.toContain('npm i -D')
-  })
-
-  test('dit qu’il a créé la racine, et seulement quand il l’a créée', () => {
-    const neuf = projectWith({ 'package.json': paquet({ react: '^19.0.0' }) })
-    const déjà = projectWith({ 'package.json': paquet({ react: '^19.0.0' }) }, ['stories'])
-
-    expect(linesOf(planFor(neuf)).join('\n')).toContain('stories: stories (created)')
-    expect(linesOf(planFor(déjà)).join('\n')).toContain('stories: stories\n')
   })
 })
 

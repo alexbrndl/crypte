@@ -1,28 +1,24 @@
-// Reading story files, without running them. See docs/internal/architecture.md.
+// Reading story files, without running them.
+//
+// `parseSync`, re-exported by Vite from Oxc, so no dependency is added. Not
+// `parseAst` beside it: that one reads JavaScript only and fails on `as const`
+// and on a generic arrow in `.tsx`.
 
 import { readFileSync } from 'node:fs'
 import { relative, sep } from 'node:path'
 import { storyId, type StoryEntry } from '@crypte/core/protocol'
 import { parseSync } from 'vite'
+import { keyOf, literalOf, propertyOf, type Node } from './ast'
 
-// The four extensions a project can write. A project without TypeScript writes
-// its stories in JavaScript: see docs/decisions.md.
+// The four extensions a project can write, JavaScript included: a project
+// without TypeScript writes its stories in `.js`.
 export const STORY_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx']
 
 // The name a story gets when the file declares none: section 2.2 of contracts.
 const ONLY_STORY = 'Default'
 
-export interface Node {
-  type: string
-  start: number
-  end: number
-  [key: string]: unknown
-}
-
-// What one story file produced, and why it produced no more. Nothing here is
-// ever fatal: one story must not cost the whole catalogue. A file may give no
-// entry and a reason, entries and a reason, or entries alone. The reason covers
-// what could not be read and what the file simply does not name.
+// What one story file produced, and why it produced no more. Never fatal: a
+// file gives entries and a reason at once rather than losing the catalogue.
 export interface StoryFileRead {
   entries: StoryEntry[]
   skipped?: string
@@ -30,10 +26,8 @@ export interface StoryFileRead {
   // replacing it: section 3.2. Carried apart from the entries because it is an
   // input, per file, while `StoryEntry.details` is the merged result.
   details?: Record<string, unknown>
-  // Whether the file meant to be a story, which decides where the reason goes:
-  // the terminal takes everything, the shell only what is certain. Guessing it
-  // from the shape of the default export had a counterexample per branch,
-  // measured. Voir docs/internal/architecture.md.
+  // Whether the file meant to be a story: the terminal takes every reason, the
+  // shell only the certain ones. Not inferable from the default export's shape.
   meant?: boolean
 }
 
@@ -65,7 +59,7 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
     // shell: a wrapper written `export default memo(Frame)`, a barrel that
     // re-exports `defineStories`, a helper that imports it to wrap it, all read
     // as a story under one shape rule or another. Measured, one counterexample
-    // per branch. Voir docs/internal/architecture.md.
+    // per branch.
     const called = calls(body, named)
 
     return {
@@ -146,7 +140,7 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
         id: storyId(path, story.name),
         path,
         name: story.name,
-        component: { ...component },
+        component,
         storyFile,
         options: options ?? {},
         details: {},
@@ -174,20 +168,15 @@ interface Declared {
   unread: string[]
 }
 
-// What a file says about its stories. Three answers, never two: this reader can
-// also fail to know, and that answer is the one four review rounds kept losing.
-//
-// `noBlock` is the only one that earns the single `Default` of section 2.2.
-// Squeezed into a boolean, every shape it could not read fell on that side and
-// invented a story its author never wrote, with an identifier that becomes a
-// URL and a baseline key. Here a new shape has to pick one of the three.
+// Three answers, not a boolean: only `noBlock` earns the implicit `Default` of
+// section 2.2, so a shape this reader cannot read never invents a story.
 type StoriesRead =
   | { kind: 'noBlock' }
   | { kind: 'these'; stories: Declared[]; reason?: string }
   | { kind: 'unusable'; reason: string }
 
 // The one place that decides. A fourth kind stops compiling on the `never`
-// below. See docs/internal/architecture.md.
+// below.
 function produced(read: StoriesRead): { stories: Declared[]; reason?: string } {
   switch (read.kind) {
     case 'noBlock':
@@ -338,13 +327,9 @@ function asStoryLiteral(value: Node): { props: Node | null; options: Node | null
     : undefined
 }
 
-// Whether a spread decides the value of a key rather than the file. True when a
-// spread follows the key, and true for any spread when the key is absent, since
-// `findLastIndex` gives -1 and every position is then after it.
-//
-// The **last** occurrence, the one `propertyOf` reads: on
-// `{ props: a, ...base, props: b }` the spread precedes the value that wins, so
-// it decides nothing.
+// Whether a spread decides a key's value rather than the file. The **last**
+// occurrence, not the first: on `{ props: a, ...base, props: b }` the spread
+// precedes the winning value. Key absent, -1, so any spread decides.
 function shadowed(object: Node | undefined, name: string): boolean {
   if (object?.type !== 'ObjectExpression') return false
 
@@ -357,11 +342,6 @@ function shadowed(object: Node | undefined, name: string): boolean {
   )
 
   return properties.some((property, index) => property.type !== 'Property' && index > at)
-}
-
-// The name a non-computed key carries, quoted or bare.
-function keyOf(key: Node): string {
-  return key.type === 'Identifier' ? (key['name'] as string) : String(key['value'])
 }
 
 // The local name an import binds to an exported one, so a helper renamed on
@@ -390,11 +370,8 @@ function defineStoriesCall(body: Node[], name: string): Node | undefined {
   return callee?.type === 'Identifier' && callee['name'] === name ? call : undefined
 }
 
-// Whether the file calls something **at the top level of the module**. Three
-// forms named `defineStories` without being a story: an import specifier, a
-// re-export, an object key ; and one called it while being a helper, a factory
-// written `export const make = (C) => defineStories(C, {})`. A story calls it
-// where the module runs, so that is the only place worth reading. Measured.
+// Whether the file calls something **at the top level of the module**: a story
+// calls it where the module runs, a re-export or a factory body does not.
 function calls(body: Node[], name: string): boolean {
   const called = (current: unknown): boolean => {
     if (current === null || typeof current !== 'object') return false
@@ -432,23 +409,6 @@ const FUNCTIONS_AND_CLASSES = new Set([
   'ClassDeclaration',
   'ClassExpression',
 ])
-
-// A key can be quoted, so `{ 'meta': … }` has to be found too. A computed key
-// is never a match: nothing says what it holds without running the file.
-function propertyOf(object: Node | undefined, name: string): Node | null {
-  if (object?.type !== 'ObjectExpression') return null
-
-  // The last one, not the first: a key written twice keeps its last value at
-  // runtime, and `find` would read the one the file discards.
-  const found = (object['properties'] as Node[]).findLast(
-    (property) =>
-      property.type === 'Property' &&
-      property['computed'] !== true &&
-      keyOf(property['key'] as Node) === name,
-  )
-
-  return (found?.['value'] as Node | undefined) ?? null
-}
 
 // What an object literal did not give up. A spread's names and a computed key
 // cannot be read without running the file, so the note quotes what the file
@@ -497,14 +457,9 @@ function written(source: string, node: Node): string {
   return signes.length > 40 ? `${signes.slice(0, 39).join('')}…` : one
 }
 
-// The props an object literal writes, kept in order and paired with their value.
-// A spread and a key computed at runtime both carry names we cannot read without
-// running the file, so they are left out rather than guessed: a wrong name would
-// enter a coverage figure and a prop search.
-//
-// A value is `undefined` when a spread of the same object follows it. The name is
-// certain, since the literal sets it whatever the spread holds, but the value is
-// not, so it is left out of the call code rather than shown wrong.
+// The props an object literal writes, in order. A spread or a computed key is
+// left out rather than guessed. A value is `undefined` when a later spread may
+// replace it: the name is certain, the value is not.
 function propsOf(object: Node | null): Map<string, Node | undefined> {
   const props = new Map<string, Node | undefined>()
   if (object?.type !== 'ObjectExpression') return props
@@ -535,11 +490,8 @@ function callOf(name: string, props: Map<string, Node | undefined>, source: stri
       const raw = source.slice(value.start, value.end)
 
       if (value.type === 'Literal' && typeof value['value'] === 'string') {
-        // Quoted only when JSX gives the same string back. `JSON.stringify`
-        // escapes for JavaScript, not for JSX: on a value holding a double
-        // quote it writes an attribute the parser refuses, so the copied code
-        // does not compile at all. Measured. Braces carry a JavaScript literal
-        // instead, which is always valid and never ambiguous.
+        // Quoted only when JSX gives back the same string, braces otherwise:
+        // see `ATTRIBUTE_HOSTILE`.
         const text = value['value'] as string
 
         return ATTRIBUTE_HOSTILE.test(text)
@@ -560,24 +512,17 @@ function callOf(name: string, props: Map<string, Node | undefined>, source: stri
   return body === undefined ? `${opening} />` : `${opening}>${body}</${name}>`
 }
 
-// What goes between the tags. Section 4 says `source` carries the call code, so
-// it is read and copied: `children` as an attribute is valid JSX and not what
-// anybody writes. Measured on the demonstration, where every `children` came out
-// as an attribute of a self-closing tag.
-//
-// `undefined` when there is nothing to put there, which keeps the self-closing
-// form. A prop a spread may replace is in that case too: its value is unknown,
-// and section 4.2 forbids showing what the run does not have.
+// What goes between the tags: `children` as an attribute is valid JSX and not
+// what anybody writes. `undefined` keeps the self-closing form, including for a
+// value a spread may replace, which section 4.2 forbids showing.
 function childrenOf(props: Map<string, Node | undefined>, source: string): string | undefined {
   if (!props.has('children')) return undefined
 
   const value = props.get('children')
   if (value === undefined) return undefined
 
-  // Parentheses survive the parse, so an element wrapped in them is a
-  // `ParenthesizedExpression` and not a `JSXElement`. That is the form one
-  // writes as soon as the element spans several lines, which is exactly the
-  // case this exists for. Measured: it came out as `{(<span>x</span>)}`.
+  // Parentheses survive the parse: a multi-line element is a
+  // `ParenthesizedExpression`, not a `JSXElement`.
   const inner = unwrapped(value)
   const raw = source.slice(inner.start, inner.end)
 
@@ -642,82 +587,8 @@ function record(node: Node | null | undefined): Record<string, unknown> | undefi
   return read ? (read.value as Record<string, unknown>) : undefined
 }
 
-// The value an expression writes, when it is one JSON can hold. Anything else
-// gives `undefined`, and the key that carried it is left out rather than
-// guessed: section 4.5 promises that everything in the manifest survives a JSON
-// round trip, and `JSON.stringify` drops what it cannot represent in silence.
-//
-// Wrapped in an object so that a literal `null` and "not a literal" stay apart.
-// Exported for `props.ts`, which needs the same answer on a prop's default and
-// on an enum's options. A second copy of these rules would drift: the bigint and
-// the regular expression below are the two that cost a whole manifest.
-export function literalOf(node: Node | null | undefined): { value: unknown } | undefined {
-  if (!node) return undefined
-
-  switch (node.type) {
-    case 'Literal': {
-      // A regular expression is a `Literal` too, and it does not survive JSON.
-      if ('regex' in node) return undefined
-      const value = node['value']
-      return typeof value === 'bigint' ? undefined : { value }
-    }
-
-    // `` `stable` `` is written by nobody, but `${}`-free templates cost one line.
-    case 'TemplateLiteral': {
-      const parts = node['quasis'] as Node[]
-      if ((node['expressions'] as Node[]).length > 0 || parts.length !== 1) return undefined
-      return { value: (parts[0]?.['value'] as { cooked?: string })?.cooked ?? '' }
-    }
-
-    // `-1` is a unary expression, not a negative literal.
-    case 'UnaryExpression': {
-      if (node['operator'] !== '-') return undefined
-      const inner = literalOf(node['argument'] as Node)
-      return typeof inner?.value === 'number' ? { value: -inner.value } : undefined
-    }
-
-    case 'ArrayExpression': {
-      const values: unknown[] = []
-
-      // One unreadable element drops the whole array. Skipping it would shift
-      // every index after it, which changes the data instead of losing it.
-      for (const element of node['elements'] as (Node | null)[]) {
-        const read = literalOf(element)
-        if (!read) return undefined
-        values.push(read.value)
-      }
-
-      return { value: values }
-    }
-
-    case 'ObjectExpression': {
-      const value: Record<string, unknown> = {}
-
-      for (const property of node['properties'] as Node[]) {
-        // A spread, a method, or a computed key: none of them can be read
-        // without running the file.
-        if (property.type !== 'Property' || property['computed'] === true) return undefined
-
-        const key = property['key'] as Node
-        const read = literalOf(property['value'] as Node)
-        if (!read) return undefined
-
-        value[key.type === 'Identifier' ? (key['name'] as string) : String(key['value'])] =
-          read.value
-      }
-
-      return { value }
-    }
-
-    default:
-      return undefined
-  }
-}
-
-// Where the component comes from, read from the import that binds its name.
-// `undefined` when no import binds it, or when the binding is a namespace
-// object, which names no export at all. Both give a file the reader skips: a
-// component it cannot place is worse in the manifest than absent from it.
+// Where the component comes from. `undefined` when no import binds the name, or
+// binds it as a namespace object, which names no export: the file is skipped.
 function componentRef(module: unknown, name: string) {
   const imports = (module as { staticImports: Node[] }).staticImports
 

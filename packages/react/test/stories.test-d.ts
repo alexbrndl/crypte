@@ -12,7 +12,7 @@ import {
 
 // Ce que l'inférence du paquet promet, éprouvé à la compilation. Aucun test
 // d'exécution ne peut le voir : dégrader `PropsOf` en `any` laissait `vp check`
-// et les 480 cas au vert, mesuré. Voir docs/internal/architecture.md.
+// et les 480 cas au vert, mesuré.
 
 interface BadgeProps {
   label: string
@@ -92,6 +92,6 @@ describe('le joint avec le noyau', () => {
     const wraps = wrapsOf(undefined, { wrap: Badge })
 
     expectTypeOf(wraps).toEqualTypeOf<PreviewWrapper[]>()
-    expectTypeOf(adapter.mount).parameter(3).toEqualTypeOf<readonly PreviewWrapper[] | undefined>()
+    expectTypeOf(adapter.mount).parameter(3).toEqualTypeOf<readonly PreviewWrapper[]>()
   })
 })

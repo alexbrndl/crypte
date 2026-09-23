@@ -1,7 +1,7 @@
 // Une pull request dont le diff ne se relit pas tout seul porte une revue.
 //
 // Le contrôle ne produit aucune revue : il vérifie qu'elle existe, et seulement
-// quand le diff en mérite une. Voir docs/internal/architecture.md.
+// quand le diff en mérite une.
 
 import { execFileSync } from 'node:child_process'
 import { argv, env, exit } from 'node:process'
@@ -10,7 +10,7 @@ import { pathToFileURL } from 'node:url'
 const MARKER = '<!-- crypte-review -->'
 
 // Ce qui fait foi, ou ce qui porte les règles de travail. De la prose se relit
-// sans procédure ; ces quatre formes non, malgré leur extension.
+// sans procédure ; celles-ci non, malgré leur extension.
 //
 // Les dossiers sont acceptés à côté des fichiers : le jour où `docs/contracts.md`
 // se scinde, l'exemption ne doit pas s'élargir en silence.
@@ -19,11 +19,7 @@ const MARKER = '<!-- crypte-review -->'
 // portée de dossier sont une forme supportée, donc `apps/x/.claude/` doit compter
 // comme la racine, sinon le mécanisme de revue se modifie sans revue d'un niveau
 // plus bas.
-const AUTHORITY = [
-  /^docs\/(contracts|decisions)(\.md$|\/)/,
-  /(^|\/)CLAUDE\.md$/,
-  /(^|\/)\.claude\//,
-]
+const AUTHORITY = [/^docs\/contracts(\.md$|\/)/, /(^|\/)CLAUDE\.md$/, /(^|\/)\.claude\//]
 
 // Rend ce qui a été vu, et si le diff se relit tout seul.
 export function decide(filenames) {

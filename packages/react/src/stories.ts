@@ -1,8 +1,5 @@
-// What a developer writes in a story file, for React.
-//
-// The types live here and not in the core: the core knows no framework, and
-// inferring a component's props is exactly the framework's business.
-// See section 2.3 of docs/contracts.md.
+// What a developer writes in a story file, for React: section 2.3 of
+// docs/contracts.md. Here and not in the core, which knows no framework.
 
 import type { ComponentType } from 'react'
 import type { Story, StoryDefinition, StoryOptions } from '@crypte/core/protocol'
@@ -23,12 +20,8 @@ export interface StoryModule<C> {
   definition: StoryDefinition<PropsOf<C>, AnyComponent>
 }
 
-// Returns what it was given, typed. There is nothing to compute: the CLI reads
-// the file without running it, and the preview needs the component and the
-// definition, not a transformation of them.
-//
-// Doing more here would put a second source of truth beside the reader, and the
-// two would drift the day one of them learns something the other does not.
+// Returns what it was given, typed. Nothing is computed here: the CLI reads the
+// file without running it, so added logic would be a second source of truth.
 export function defineStories<C extends ComponentType<never>>(
   component: C,
   definition: StoryDefinition<PropsOf<C>, AnyComponent> = {},

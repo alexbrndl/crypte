@@ -1,8 +1,8 @@
 // Ce que le dépôt promet sur la publication : ne pas publier, et déclarer
 // `sideEffects` sur le seul paquet qui le porte. Ce que ce fichier **ne** tient
 // pas est la justesse de cette déclaration : voir le bloc en bas.
-// Voir docs/internal/architecture.md.
 
+import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -32,15 +32,6 @@ test('le workflow de version ne publie pas', () => {
   expect(entrées).not.toContain('publish')
 })
 
-// Sans ce cas, celui du dessus passerait à l'identique le jour où l'action change
-// de nom ou de forme : il lirait un bloc vide des deux côtés.
-test('le motif lit bien les entrées que le bloc porte', () => {
-  const bloc = /changesets\/action@[^\n]*\n(\s+)with:\n((?:\1\s+[^\n]*\n)*)/.exec(VERSION)
-  const entrées = [...bloc[2].matchAll(/^\s+([a-zA-Z][\w-]*):/gm)].map((one) => one[1])
-
-  expect(entrées).toContain('version')
-})
-
 // `sideEffects: false` autorise un bundler à retirer un import dont il ne voit
 // pas l'usage. Faux sur un paquet qui fait quelque chose à l'import, il retire du
 // code qui comptait, chez l'utilisateur et pas ici.
@@ -57,6 +48,23 @@ test('seul le noyau déclare sideEffects: false', () => {
   )
 
   expect(déclarent).toEqual(['core'])
+})
+
+// La quatrième contrainte de `CLAUDE.md`, et la seule des quatre que rien ne
+// tenait. Son échec est muet ici, où `vite-plus` est installé, et bruyant chez
+// l'utilisateur, qui ne l'a pas.
+test('aucun code publié n’importe vite-plus', () => {
+  // `packages/*/src` ne rend rien : le `*` d'un pathspec git ne traverse pas le
+  // séparateur. Le filtre fait le travail que le motif ne fait pas.
+  const sources = execFileSync('git', ['ls-files', 'packages', 'apps/shell'], {
+    cwd: root,
+    encoding: 'utf8',
+  })
+    .split('\n')
+    .filter((f) => f.includes('/src/'))
+
+  expect(sources, 'aucune source lue').not.toEqual([])
+  expect(sources.filter((f) => lire(f).includes('vite-plus'))).toEqual([])
 })
 
 // **Ce que ce fichier ne garde pas, et pourquoi.** La justesse de

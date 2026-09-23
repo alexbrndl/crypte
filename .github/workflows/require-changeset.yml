@@ -2,7 +2,7 @@ name: Require changeset
 
 # Ce workflow n'écrit aucune note de version. Il vérifie qu'une pull request
 # touchant un paquet publié en dépose une. La note est écrite en local par le
-# skill /changeset. Voir docs/internal/architecture.md.
+# skill /changeset.
 
 on:
   pull_request:
@@ -40,4 +40,4 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         # Sans numéro, sur workflow_dispatch, le script le retrouve depuis la
         # branche : `gh pr view` a besoin du dépôt cloné, d'où le checkout.
-        run: node test/changeset-check.mjs $PR
+        run: node scripts/changeset-check.mjs $PR

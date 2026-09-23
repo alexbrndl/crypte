@@ -12,12 +12,13 @@ import {
   type StoryEntry,
 } from '@crypte/core/protocol'
 import { ConfigError, reason } from './errors'
-import { best, isBareSpecifier, ordered } from './paths'
+import { best, isBareSpecifier, ordered, substituted } from './paths'
 import { detailsOf } from './props'
 import { entriesOf, posix, STORY_EXTENSIONS } from './stories'
 import type { Project } from './project'
 
-// The build writes here, and Git ignores it: see docs/decisions.md.
+// The build writes here, and Git ignores it: the fingerprint beside it is what
+// gets committed.
 export const OUTPUT = join('.crypte', 'manifest.json')
 
 // Folders no project keeps stories in, and walking them is slow enough to be
@@ -52,12 +53,8 @@ export function storyFilesOf(catalogue: Catalogue): string[] {
   return [...new Set(storiesOf(catalogue.manifest).map((entry) => entry.storyFile))]
 }
 
-// `before` is the catalogue this one replaces, and it exists for one message:
-// a file that produced stories and produces none any more says so. The reader
-// alone cannot know it, since it judges one file at a time and a file that no
-// longer names `defineStories` is indistinguishable from a helper. Without it,
-// editing a story into something unreadable took it out of the tree in silence,
-// which is what lot 4 closed. See docs/internal/architecture.md.
+// The reader judges one file at a time and cannot tell a story that stopped from
+// a helper: only the previous catalogue knows.
 const GONE = 'this file no longer produces any story'
 
 export function buildCatalogue(project: Project, before?: Catalogue): Catalogue {
@@ -90,10 +87,11 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
     // Once per file, not once per story: every entry of a file names the same
     // component, and each resolution probes the file system.
     //
-    // It is also the second guard against handing the resolver its own output.
-    // A project-relative path is a bare identifier too, so it would go back
-    // through the `paths` patterns and could land on another file. The first
-    // guard is in `entriesOf`, where each entry owns its `component`.
+    // It is also what stops the resolver being handed its own output. A
+    // project-relative path is a bare identifier too, so it would go back
+    // through the `paths` patterns and could land on another file. What protects
+    // is the replacement below, never a mutation: every entry reads the
+    // specifier the file wrote, whatever the entry beside it received.
     const resolved = read.entries[0]
       ? componentFile(read.entries[0].component.file, file, project)
       : undefined
@@ -118,19 +116,9 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
   const gave = new Set(entries.map((entry) => entry.storyFile))
   const reasons = new Map(skipped.map((one) => [one.file, one.reason]))
 
-  // A file that produced a story in this run and produces none now. Its own
-  // reason becomes certain, whatever it is: the file is a story that stopped
-  // working, not a helper the reader guessed about. With no reason at all, the
-  // disappearance is the reason.
-  //
-  // Carried by `wasStory` rather than read from the previous entries: those lose
-  // the file as soon as it stops producing, so the note lasted exactly one
-  // rebuild and the next unrelated save took the banner away. Measured.
-  //
-  // Dropped when the file is not one of those just walked, rather than when
-  // `existsSync` says it is gone: on a case-insensitive file system, renaming
-  // `Badge.ts` to `badge.ts` left the old spelling existing, so the banner named
-  // a file gone under that name and never went away. Measured.
+  // `wasStory` and not the previous entries, which lose the file as soon as it
+  // stops producing. `walked` and not `existsSync`: a case-insensitive rename of
+  // `Badge.ts` to `badge.ts` leaves the old spelling existing forever.
   const was = (before?.wasStory ?? []).filter((file) => walked.has(file))
 
   for (const file of was) {
@@ -151,10 +139,8 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
 
   skipped.sort((one, other) => one.file.localeCompare(other.file, 'en'))
 
-  // The shell sees only what is certain: a `defineStories` call that will not be
-  // found, a file that does not parse, a file that stopped producing. The rest
-  // stays a guess, so it goes to the terminal, which is a log at start-up and
-  // not a banner above the preview.
+  // Only what is certain reaches the manifest, so a file the reader merely
+  // guessed about cannot raise a banner. The rest goes to the terminal.
   const certain = skipped.filter((one) => sure.has(one.file))
 
   // After the stories, never before: a contribution that lands on an identifier
@@ -174,13 +160,8 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
   }
 }
 
-// Inference completed by what the story file wrote, per prop and field by field:
-// section 3.2. An explicit field replaces only itself, so a `min` written by hand
-// keeps the type and the description inference found.
-//
-// A prop the file names and inference did not is kept: the author is documenting
-// something the reader could not see, and dropping it would lose the only word
-// anybody wrote about it.
+// Inference completed field by field by what the story file wrote, section 3.2.
+// A prop only the file names is kept: nobody else wrote anything about it.
 function completed(
   inferred: Record<string, ResolvedPropDetails>,
   written: Record<string, unknown> | undefined,
@@ -199,12 +180,8 @@ function completed(
   return details
 }
 
-// What the `node` surface of each plugin contributes, in the order `plugins`
-// declares them, and what was refused of it. Section 6.3 of docs/contracts.md.
-//
-// Nothing here is fatal. A plugin is not the author's text: one that throws, or
-// that lands on a taken identifier, must not stop a dev server from serving the
-// stories it already read.
+// What each plugin's `node` surface contributes, section 6.3 of docs/contracts.md.
+// Nothing is fatal: a plugin that throws must not cost the stories already read.
 function contributionsOf(
   project: Project,
   taken: Set<string>,
@@ -259,10 +236,8 @@ function contributionsOf(
   return { entries, skipped }
 }
 
-// What a plugin's return value has to be before anything else reads it.
-// `ContributedEntry` holds at compile time and a plugin arrives compiled, so an
-// entry typed `story` reaches here; unrefused, it would enter the manifest and,
-// through `storiesOf`, the committed fingerprint.
+// `ContributedEntry` holds at compile time only, and a plugin arrives compiled: an
+// entry typed `story` reaches here and would enter the committed fingerprint.
 function notAnEntry(value: unknown): string | undefined {
   if (typeof value !== 'object' || value === null || Array.isArray(value))
     return 'an entry is not an object'
@@ -277,7 +252,9 @@ function notAnEntry(value: unknown): string | undefined {
 }
 
 // The first value JSON would not return as it was, named and located, or the
-// value itself. Why refusing rather than dropping: docs/internal/architecture.md.
+// value itself. The whole entry is refused rather than the value dropped: in
+// an array, dropping one element shifts the rest, which changes the data
+// instead of losing it.
 function serialisable(
   value: unknown,
   at = '',
@@ -377,13 +354,9 @@ export function storyFiles(folder: string): string[] {
 // extension Vite does list ahead of it.
 const RESOLVED = ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json', '.vue']
 
-// The story names its component with the identifier the project writes, alias
-// included. Section 4.2 promises a file, so the identifier is turned into one.
-//
-// This is not Vite's resolver: it runs with no plugin and no `exports` field,
-// because the manifest is written before any server exists. It covers what a
-// component import looks like, and hands back the identifier untouched when it
-// finds nothing. `crypte check` is what will report the orphan case.
+// Section 4.2 promises a file, so the story's identifier, alias included, is
+// turned into one. Not Vite's resolver, since the manifest is written before any
+// server exists; what it cannot resolve comes back untouched for `crypte check`.
 function componentFile(specifier: string, storyFile: string, project: Project): string {
   const found = candidates(specifier, storyFile, project)
     .map(probe)
@@ -401,19 +374,11 @@ function candidates(specifier: string, storyFile: string, project: Project): str
   const matched = best(ordered(paths.paths), specifier)
   if (!matched) return []
 
-  return matched.targets.map((target) =>
-    resolve(
-      paths.base,
-      target.replace('*', () => matched.captured),
-    ),
-  )
+  return matched.targets.map((target) => substituted(paths.base, target, matched.captured))
 }
 
-// A target with no extension is a file to complete, or a folder holding an
-// `index`. Both are what an import of a component looks like.
-//
-// Every file before any `index`, the order Node and Vite use. Interleaving the
-// two made `Card/index.tsx` win over `Card.js`.
+// Every file before any `index`, the order Node and Vite use. Interleaving the two
+// loops made `Card/index.tsx` win over `Card.js`.
 function probe(candidate: string): string | undefined {
   if (extname(candidate) && isFile(candidate)) return candidate
 

@@ -25,21 +25,16 @@ export async function readProjectPaths(
   const seen: string[] = []
 
   for (const configName of CONFIG_NAMES) {
-    // `root` bounds the walk up: without it, a project with no configuration
-    // would inherit one from some parent folder.
-    // The file enters the list before it is even read: unreadable, without
-    // paths, or with some, changing it changes what gets resolved, so it has
-    // to trigger a reload.
+    // `root` bounds the walk up, or a project with no configuration inherits a
+    // parent's. Listed before being read: changing it must trigger a reload.
     seen.push(join(root, configName))
 
     let result: TSConfckParseResult
     try {
       result = await parse(resolve(root, PROBE), { configName, root })
     } catch (cause) {
-      // A missing `extends` target happens every day: `./.nuxt/tsconfig.json`
-      // before `nuxt prepare`, or `@tsconfig/node22` in a clone with no
-      // install. Paths are an improvement, not a condition to start: move on to
-      // the next file rather than stopping everything.
+      // A missing `extends` target is routine: `.nuxt/tsconfig.json` before
+      // `nuxt prepare`. Paths are an improvement, not a condition to start.
       if ((cause as { code?: string }).code === 'EXTENDS_RESOLVE') {
         // Kept for the end: the next file may provide the paths, and warning
         // about a loss that does not happen is barely better than silence.
@@ -61,11 +56,8 @@ export async function readProjectPaths(
 
     seen.push(...filesOf(result))
     const found = pathsIn(result)
-    // A file found with no paths does not end the search: a minimal
-    // `tsconfig.json` would otherwise make the neighbouring `jsconfig.json`
-    // unreachable. The files already walked count as much as the one that gave
-    // the paths: a `tsconfig.json` with no `paths`, read first, may gain some
-    // tomorrow, and it is read before the one that answers today.
+    // A pathless file does not end the search, and every file walked stays watched,
+    // not just the one that answered: it may gain `paths` tomorrow.
     if (found) return { paths: found, files: [...new Set([...seen, ...found.files])] }
   }
 
@@ -116,10 +108,8 @@ function filesOf(result: TSConfckParseResult): string[] {
   return [...new Set([result.tsconfigFile, ...chain].filter(Boolean))]
 }
 
-// `tsconfck` makes `baseUrl` absolute, but not the paths: inherited through
-// `extends`, they stay relative to the file that **declares** them. A project
-// extending `@tsconfig/node22` and declaring its own would otherwise have them
-// counted from `node_modules`.
+// `tsconfck` makes `baseUrl` absolute but not the paths: they stay relative to
+// the file that declares them, not to an extended one in `node_modules`.
 function baseOf(result: TSConfckParseResult): string {
   const baseUrl = result.tsconfig?.compilerOptions?.baseUrl as string | undefined
   if (baseUrl) return baseUrl

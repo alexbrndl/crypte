@@ -4,8 +4,14 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { declaredIn, namesInBlocks, REEXPORT_BLOCK } from '../exported-names'
 
+// `index.ts` réexporte tout ce que les modules déclarent, modules pris dans le
+// dossier et jamais énumérés à la main. Les consommateurs internes importent
+// depuis les fichiers, donc un nom oublié quitterait l'API publique sans faire
+// rougir ni le typage ni la construction. Un réexport renommé compte pour son
+// nom public, `export *` est refusé.
+
 // La porte d'entrée réexporte-t-elle tout ? Un nom oublié disparaît de l'API
-// publique sans que rien d'autre ne bronche. Voir docs/internal/architecture.md.
+// publique sans que rien d'autre ne bronche.
 
 const here = dirname(fileURLToPath(import.meta.url))
 const protocol = join(here, '..', '..', 'src', 'protocol')

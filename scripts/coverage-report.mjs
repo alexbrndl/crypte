@@ -2,7 +2,18 @@
 // request, mis à jour en place plutôt qu'empilé.
 //
 // Le rapport de couverture vivait dans les journaux d'un job que personne
-// n'ouvre. Voir docs/internal/architecture.md.
+// n'ouvre.
+//
+// Les seuils vivent dans `scripts/coverage-thresholds.json`, jamais dans
+// `vite.config.ts` : évalués aux deux endroits, ils rougissaient deux fois pour
+// la même raison. Conséquence assumée, `vp test --coverage` seul n'émet aucun
+// verdict, c'est `pnpm ready` qui l'applique en local.
+//
+// Le commentaire est supprimé puis reposté pour rester près du dernier commit,
+// et retrouvé par son marqueur. La liste vient de l'API REST et non de
+// `gh pr view --json comments`, qui rend un identifiant GraphQL sur lequel la
+// mise à jour répond 404. Sans mesure, il dit qu'il n'a rien mesuré plutôt que
+// d'afficher des chiffres verts sous une CI rouge.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -16,7 +27,7 @@ export const MARKER = '<!-- crypte-coverage -->'
 
 // Les seuils, lus du même fichier que `vite.config.ts`. Recopiés ici, ils
 // auraient dérivé : le commentaire aurait annoncé un seuil que la porte
-// n'applique pas. Voir docs/internal/architecture.md.
+// n'applique pas.
 const THRESHOLDS = JSON.parse(
   readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'coverage-thresholds.json'), 'utf8'),
 )
@@ -29,7 +40,7 @@ const LEGEND = [
 // Ce que la mesure ne couvre pas, dit à côté d'elle : un chiffre à 100 % qui
 // tait une exclusion est un mensonge par omission.
 const EXCLUDED =
-  '<sub>Hors mesure : trois fichiers de câblage, l’entrée du CLI, le montage du shell et un module de types. Voir docs/internal/architecture.md.</sub>'
+  '<sub>Hors mesure : trois fichiers de câblage, l’entrée du CLI, le montage du shell et un module de types.</sub>'
 
 const LABELS = {
   statements: 'instructions',
@@ -174,7 +185,6 @@ export function compose(summary, results, sha) {
 // Le badge du README, au format « endpoint » que shields.io sait lire. Les
 // lignes plutôt qu'une autre métrique : c'est celle que tout le monde entend par
 // « couverture ». Arrondi vers le bas : 98,55 affiché « 99 % » flatterait.
-// Voir docs/internal/architecture.md.
 export function badge(summary) {
   const pct = summary?.total?.lines?.pct
   if (typeof pct !== 'number')
@@ -291,7 +301,7 @@ function main(args) {
 
   if (dérives.length > 0) {
     console.error(
-      `seuil à monter dans test/coverage-thresholds.json : ${dérives.join(' ; ')}. ` +
+      `seuil à monter dans scripts/coverage-thresholds.json : ${dérives.join(' ; ')}. ` +
         'Un seuil laissé derrière la mesure est un seuil qu’on peut baisser sans rien faire rougir.',
     )
     // Le fichier prêt à coller, planchers arrondis vers le bas. Sans lui, l'auteur

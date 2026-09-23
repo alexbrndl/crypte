@@ -1,7 +1,7 @@
 // Poste un verdict de revue sur la pull request, et vérifie qu'il y est arrivé.
 //
 // Deux lots, vingt et une relectures, deux revues postées : c'est l'étape qui se
-// perd. Voir docs/internal/architecture.md.
+// perd.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
@@ -187,7 +187,7 @@ export function publish(file, given, run = gh) {
 
 function main([file, given]) {
   if (!file) {
-    console.error('usage : node test/post-review.mjs <verdict.json> [numéro]')
+    console.error('usage : node scripts/post-review.mjs <verdict.json> [numéro]')
     console.error('        1 = verdict refusé, 2 = publication manquée')
     exit(1)
   }
