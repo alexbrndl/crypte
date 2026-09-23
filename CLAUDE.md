@@ -61,7 +61,7 @@ _Pourquoi cette exception existe :_ deux revues d'affilée ont rendu un verdict 
 
 **Le statut du tracker suit le travail, pas la fin du travail.** En ouvrant la branche, **In Progress** ; en sortant du brouillon, **Review Tech** ; à la fusion, **Done**.
 
-**Une décision de conception qui arrive en cours de pull request devient une issue.** Renommer un champ, réorganiser des fichiers, ajouter un mécanisme d'extension : chacune crée une surface qu'aucune revue n'a vue. Ouvrir l'issue, la lier, continuer.
+**Une décision de conception qui arrive en cours de pull request se signale.** Renommer un champ, réorganiser des fichiers, ajouter un mécanisme d'extension : chacune crée une surface qu'aucune revue n'a vue. La nommer au propriétaire et **proposer** une issue ; c'est lui qui décide de l'ouvrir ou de traiter la décision dans la pull request.
 
 **Une décision se note quand elle est prise, à côté du code qu'elle décide.** Ce qu'on fait, pourquoi, et **ce qui la rouvrirait**. Le dernier champ est celui qui manque partout ailleurs. Une décision qui ne se rattache à aucun fichier n'a pas besoin d'être écrite.
 
