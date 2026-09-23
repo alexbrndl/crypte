@@ -94,10 +94,6 @@ const test = base.extend<{ ecran: Ecran }>({
 
     const started = await startDev(root)
     await started.server.listen()
-    started.server.watcher.on('all', (event, file) => {
-      if (file.includes('stories'))
-        console.log('DIAG watcher', event, file.split('/').slice(-2).join('/'), Date.now())
-    })
 
     const address = started.server.httpServer?.address()
     if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
@@ -229,14 +225,16 @@ describe('l’écran', () => {
 
     const file = join(ecran.root, 'stories', 'Badge.tsx')
     const saine = readFileSync(file, 'utf8')
-    console.log('DIAG casse écrite', Date.now())
     writeFileSync(file, `${saine}\nthrow new Error('cassée par la modification')\n`)
 
     const alerte = ecran.page.getByRole('alert')
     await expect.poll(() => alerte.textContent()).toContain('cassée par la modification')
 
-    // Et la réparation fait oublier l'échec.
-    console.log('DIAG réparation écrite', Date.now())
+    // Et la réparation fait oublier l'échec. Pas tout de suite : sous Linux, le
+    // surveillant de Vite laisse passer une seconde écriture qui suit la première
+    // de quelques millisecondes. Mesuré en CI : réparation écrite 23 ms après la
+    // casse, jamais vue. Un auteur ne corrige pas aussi vite.
+    await new Promise((resolve) => setTimeout(resolve, 300))
     writeFileSync(file, saine)
     await expect.poll(() => alerte.count()).toBe(0)
     await expect.poll(ecran.vu).toBe('Nouveau')
