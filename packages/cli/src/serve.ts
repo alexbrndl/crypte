@@ -99,9 +99,8 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
       // default. The shell is served as a file, so it never passes through
       // `transformIndexHtml` and takes no Vite client: the whole difference with
       // the preview below. Vite's HTML middleware, the only one that injects the
-      // client, runs after every plugin middleware, returned ones included, so
-      // sirv always answers first. Measured under `appType: 'spa'` as under
-      // `custom`.
+      // client, is not mounted under `custom`, which this plugin sets; under `spa`
+      // it would run after every plugin middleware. Either way sirv answers first.
       server.middlewares.use(sirv(shell, { dev: true, etag: true }))
 
       // Before Vite's own middlewares rather than after. The fallback above is
