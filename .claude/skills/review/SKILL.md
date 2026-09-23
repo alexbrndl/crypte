@@ -43,7 +43,7 @@ _Mesuré :_ la pull request qui a produit cette ligne réécrivait neuf entrées
 
 **Un diff dont tous les fichiers sont des `.md`, aucun n'étant l'une des formes ci-dessus, n'a pas besoin de revue.** `require-review.yml` le constate et passe au vert tout seul, donc la pull request se fusionne sans qu'aucun marqueur existe.
 
-Le classement vit dans `test/review-check.mjs`, couvert par `test/review-check.test.mjs`. Ne le réimplémente pas de tête : `node test/review-check.mjs <numéro>` dit ce qu'il en pense.
+Le classement vit dans `test/review-check.mjs`. Ne le réimplémente pas de tête : `node test/review-check.mjs <numéro>` dit ce qu'il en pense.
 
 Ne lance pas `/review` dans ce cas : deux verdicts vides d'affilée sur de la prose sont ce qui apprend à ne plus lire les suivants, et c'est le seul mode d'échec qui compte ici.
 

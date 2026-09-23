@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # Le script n'a aucune dépendance : Node et gh sont fournis par le runner,
       # donc ni installation ni construction. Le classement qui décide de l'exemption
-      # y vit plutôt qu'ici, pour être couvert par test/review-check.test.mjs.
+      # y vit plutôt qu'ici, où un `case` dans un `run:` ne s'essaie qu'en poussant.
       - name: Chercher le marqueur de revue
         env:
           GH_TOKEN: ${{ github.token }}

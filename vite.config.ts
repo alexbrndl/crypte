@@ -157,10 +157,6 @@ export default defineConfig({
           exclude: [
             '**/node_modules/**',
             '**/screen.test.ts',
-            '**/reopt.test.ts',
-            '**/typed.test.ts',
-            '**/plugin.test.ts',
-            '**/aside.test.ts',
             '**/restart.test.ts',
             '**/adapter.test.tsx',
             '**/app.test.ts',
@@ -194,16 +190,9 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'écran',
-          include: [
-            '**/screen.test.ts',
-            '**/reopt.test.ts',
-            '**/typed.test.ts',
-            '**/plugin.test.ts',
-            '**/aside.test.ts',
-            '**/restart.test.ts',
-          ],
+          include: ['**/screen.test.ts', '**/restart.test.ts'],
           sequence: { groupOrder: 1 },
-          // Un fichier à la fois : ils sont six, et « seuls sur la machine »
+          // Un fichier à la fois : ils sont deux, et « seuls sur la machine »
           // est ce que `groupOrder` achète. Deux Chromium et deux serveurs en
           // parallèle rendraient à l'un la charge que l'autre existe pour
           // éprouver.

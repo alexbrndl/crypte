@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createPreviewChannel } from '../src/preview/index'
+import { createPreviewChannel, propsOfStory, wrapsOf } from '../src/preview/index'
 import { collect, windowAt } from './fake-window'
 
 const ORIGIN = 'https://crypte.test'
@@ -168,5 +168,93 @@ describe('ce qui est ignoré', () => {
 
     expect(preview.listenerCount()).toBe(0)
     expect([rendus, recus]).toEqual([[], []])
+  })
+})
+
+// La fusion des props d'une story nommée. Dans le noyau et pas dans un
+// adaptateur : elle ne fait que mêler des objets simples, et deux adaptateurs la
+// refaisant chacun divergeraient. Voir la section 2.3 de docs/contracts.md.
+describe('les props d’une story nommée', () => {
+  const definition = {
+    props: { label: 'commun', tone: 'neutral' },
+    stories: {
+      'Par défaut': {},
+      Avertissement: { tone: 'warning' },
+      'Avec options': { props: { label: 'propre' }, options: {} },
+    },
+  }
+
+  it('met les props communes sous celles de la story', () => {
+    expect(propsOfStory(definition, 'Par défaut')).toEqual({ label: 'commun', tone: 'neutral' })
+    expect(propsOfStory(definition, 'Avertissement')).toEqual({ label: 'commun', tone: 'warning' })
+  })
+
+  // La forme longue passe par `props`, la forme courte est les props elles-mêmes.
+  it('lit les deux formes d’une story', () => {
+    expect(propsOfStory(definition, 'Avec options')).toEqual({ label: 'propre', tone: 'neutral' })
+  })
+
+  // Les surcharges du shell viennent en dernier : c'est tout leur objet.
+  it('pose les surcharges au-dessus de tout', () => {
+    expect(propsOfStory(definition, 'Avertissement', { tone: 'neutral' }).tone).toBe('neutral')
+  })
+
+  it('rend les props communes pour un nom qu’il ne connaît pas', () => {
+    expect(propsOfStory(definition, 'inexistante')).toEqual({ label: 'commun', tone: 'neutral' })
+  })
+})
+
+// L'ordre des enveloppes, et rien d'autre : composer les composants appartient à
+// l'adaptateur, mettre cette forme à plat n'appartient à aucun framework.
+// Section 2.5 de docs/contracts.md.
+describe('les enveloppes d’une story', () => {
+  const Theme = 'Theme'
+  const Router = 'Router'
+  const Global = 'Global'
+
+  it('accepte une enveloppe seule, sans tableau', () => {
+    expect(wrapsOf(undefined, { wrap: Theme })).toEqual([{ component: Theme, props: {} }])
+  })
+
+  // La première entrée est la plus extérieure : c'est la règle du contrat, et
+  // l'inverser rendrait un Router à l'intérieur de son thème.
+  it('garde l’ordre du tableau, extérieure en premier', () => {
+    expect(wrapsOf(undefined, { wrap: [Router, Theme] })).toEqual([
+      { component: Router, props: {} },
+      { component: Theme, props: {} },
+    ])
+  })
+
+  it('lit les props d’une entrée en paire', () => {
+    expect(wrapsOf(undefined, { wrap: [[Theme, { mode: 'dark' }]] })).toEqual([
+      { component: Theme, props: { mode: 'dark' } },
+    ])
+  })
+
+  // Le cœur du contrat : le `wrap` global enveloppe celui du fichier, qui
+  // enveloppe le composant. Donc le global vient en premier.
+  it('met le wrap global à l’extérieur de celui du fichier', () => {
+    expect(wrapsOf(Global, { wrap: Theme })).toEqual([
+      { component: Global, props: {} },
+      { component: Theme, props: {} },
+    ])
+  })
+
+  it('accepte un wrap global seul, sans wrap de fichier', () => {
+    expect(wrapsOf([Global, Router], undefined)).toEqual([
+      { component: Global, props: {} },
+      { component: Router, props: {} },
+    ])
+  })
+
+  // Les formes dégénérées : `null` là où un composant est attendu ne doit pas
+  // faire monter une enveloppe vide, qui rendrait la story invisible.
+  it('écarte une entrée sans composant', () => {
+    expect(wrapsOf(null, { wrap: [null, Theme] })).toEqual([{ component: Theme, props: {} }])
+    expect(wrapsOf(undefined, { wrap: [[null, { mode: 'dark' }]] })).toEqual([])
+  })
+
+  it('traite une paire sans props comme une enveloppe nue', () => {
+    expect(wrapsOf(undefined, { wrap: [[Theme]] })).toEqual([{ component: Theme, props: {} }])
   })
 })

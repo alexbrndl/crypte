@@ -12,8 +12,10 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -52,6 +54,22 @@ afterAll(async () => {
   await browser?.close()
 })
 
+// Une copie de la démonstration, cache d'optimisation retiré. Un cache écrit par
+// une autre configuration fait réoptimiser sous la page, ce qui est `DCJ-221`,
+// et chaque cas rougirait alors pour cette raison. Posé avant d'être retiré :
+// `apps/demo` n'a pas toujours de cache, et l'affirmation passait sans rien
+// surveiller. `7483a9c` avait perdu cette ligne en silence.
+function copie(): string {
+  const root = mkdtempSync(join(demo, '..', 'tmp-demo-'))
+  cpSync(demo, root, { recursive: true })
+
+  mkdirSync(join(root, 'node_modules', '.crypte', 'deps'), { recursive: true })
+  rmSync(join(root, 'node_modules', '.crypte'), { recursive: true, force: true })
+  expect(existsSync(join(root, 'node_modules', '.crypte', 'deps'))).toBe(false)
+
+  return root
+}
+
 interface Ecran {
   page: Page
   root: string
@@ -70,18 +88,7 @@ const test = base.extend<{ ecran: Ecran }>({
   // initialiser. Le renommer fait collecter zéro test : mesuré. Le lint le
   // signale, et c'est un avertissement assumé.
   ecran: async ({}, use) => {
-    const root = mkdtempSync(join(demo, '..', 'tmp-demo-'))
-    cpSync(demo, root, { recursive: true })
-
-    // Le cache d'optimisation hérité de la copie s'en va : un cache écrit par une
-    // autre configuration fait réoptimiser sous la page, ce qui est `DCJ-221`, et
-    // le préchauffage ci-dessous suppose de partir froid. Affirmé plutôt que
-    // supposé : `7483a9c` a perdu cette ligne en silence.
-    // Posé avant d'être retiré : `apps/demo` n'a pas toujours de cache, donc
-    // l'affirmation ci-dessous passait sans rien surveiller.
-    mkdirSync(join(root, 'node_modules', '.crypte', 'deps'), { recursive: true })
-    rmSync(join(root, 'node_modules', '.crypte'), { recursive: true, force: true })
-    expect(existsSync(join(root, 'node_modules', '.crypte', 'deps'))).toBe(false)
+    const root = copie()
 
     const started = await startDev(root)
     await started.server.listen()
@@ -139,10 +146,34 @@ const test = base.extend<{ ecran: Ecran }>({
   },
 })
 
+// Le shell servi est une copie préconstruite, pas les sources. Éditer
+// `apps/shell/src` sans reconstruire laisse donc tous les cas ci-dessous juger
+// la version d'avant, et ils passent. Mesuré : une heure perdue à chercher
+// pourquoi l'arbre ne se rafraîchissait pas, alors que le correctif était là.
+function recent(folder: string): number {
+  return Math.max(
+    ...readdirSync(folder, { withFileTypes: true, recursive: true })
+      .filter((entry) => entry.isFile())
+      .map((entry) => statSync(join(entry.parentPath, entry.name)).mtimeMs),
+  )
+}
+
+describe('la copie du shell', () => {
+  base('n’est pas plus vieille que ses sources', () => {
+    const ici = dirname(fileURLToPath(import.meta.url))
+    expect(
+      recent(join(ici, '..', 'dist', 'shell')) >=
+        recent(join(ici, '..', '..', '..', 'apps', 'shell', 'src')),
+      'la copie du shell est plus vieille que `apps/shell/src` : lance `vp run -r pack`, ' +
+        'sinon les cas navigateur jugent la version d’avant et passent quand même',
+    ).toBe(true)
+  })
+})
+
 // Plus de `retry` : celui d'avant contournait `DCJ-221`, une réoptimisation des
 // dépendances dont la preview ne se relevait pas. La cause est corrigée, les
-// paquets que la configuration nomme étant pré-empaquetés, et `reopt.test.ts`
-// reproduit la course à la demande.
+// paquets que la configuration nomme étant pré-empaquetés, et le cas à froid
+// plus bas la reproduit à la demande.
 describe('l’écran', () => {
   // Le jumeau du cas ci-dessous, à l'**import** plutôt qu'au rendu. La
   // découverte lit les fichiers sans les exécuter, donc un fichier qui lève à
@@ -224,5 +255,153 @@ describe('l’écran', () => {
     await expect.poll(ecran.vu).toContain('Renouvelé')
 
     expect(ecran.navigations()).toBe(avant)
+  })
+})
+
+// Le critère de fin de `DCJ-217` : un fichier dont une clé de story est calculée,
+// un autre dont un bloc de props porte un spread. L'utilisateur voit une erreur
+// pour le premier sans la chercher, une note discrète pour le second, et ni l'un
+// ni l'autre ne l'empêche de travailler.
+describe('ce que le catalogue a laissé de côté, à l’écran', () => {
+  base('se voit sans empêcher de travailler', { timeout: 120_000 }, async () => {
+    const root = copie()
+
+    // Une clé de story calculée : le fichier rend une story et en perd une.
+    writeFileSync(
+      join(root, 'stories', 'Calculee.tsx'),
+      `import { defineStories } from '@crypte/react'
+import { Badge } from '@/components/Badge'
+
+const nom = 'Calculée'
+
+export default defineStories(Badge, {
+  props: { label: 'Lue' },
+  stories: { Lue: {}, [nom]: { label: 'Perdue' } },
+})
+`,
+    )
+
+    // Un spread dans un bloc de props : la story rend, sa fiche est partielle.
+    writeFileSync(
+      join(root, 'stories', 'Partielle.tsx'),
+      `import { defineStories } from '@crypte/react'
+import { Badge } from '@/components/Badge'
+
+const base = { label: 'Partielle' }
+
+export default defineStories(Badge, {
+  stories: { Un: { ...base, tone: 'calm' } },
+})
+`,
+    )
+
+    const started = await startDev(root, () => {})
+    await started.server.listen()
+    const address = started.server.httpServer?.address()
+    if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
+
+    const page = await browser.newPage()
+
+    try {
+      await page.goto(`http://localhost:${address.port}`)
+
+      // L'erreur, visible sans la chercher, et qui dit ce que le fichier a
+      // quand même donné.
+      const écartés = page.locator('.set-aside li')
+      await expect.poll(() => écartés.count(), { timeout: 30_000 }).toBe(1)
+      expect(await écartés.first().textContent()).toContain('stories/Calculee.tsx')
+      expect(await écartés.first().textContent()).toContain('1 story lue, il en manque')
+
+      // Rien n'empêche de travailler : la story lue du même fichier est là et
+      // rend, ce qui est la moitié qu'un message ne doit pas coûter.
+      await page.getByRole('button', { name: 'Lue', exact: true }).click()
+      await expect
+        .poll(() => page.frameLocator('iframe[title="preview"]').locator('#root').textContent(), {
+          timeout: 30_000,
+        })
+        .toBe('Lue')
+
+      // La note discrète, sur la story dont la fiche est partielle.
+      await page.getByRole('button', { name: 'Un', exact: true }).click()
+      await expect
+        .poll(() => page.locator('.partial').textContent(), { timeout: 30_000 })
+        .toContain('`...base`')
+    } finally {
+      await page.close()
+      await started.server.close()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
+// Une configuration en TypeScript. L'entrée recopie l'expression de
+// `crypte.config.ts` telle quelle, et un module virtuel n'est pas transformé par
+// son extension : `as never` partait au navigateur, qui mourait sur un
+// `SyntaxError` avant le canal, donc sans `ready` et sur un cadre vide. `DCJ-224`.
+//
+// Le seul cas à froid, sans préchauffage : ni fetch de l'entrée ni
+// `waitForRequestsIdle` avant `page.goto`. C'est lui qui voit une réoptimisation
+// vider `#root` au premier chargement. Ne pas lui donner la fixture `ecran`, qui
+// préchauffe.
+describe('une configuration qui porte de la syntaxe TypeScript', () => {
+  base('laisse la preview rendre', { timeout: 120_000 }, async () => {
+    // Les trois formes qu'un auteur écrit vraiment : une assertion, un argument
+    // de type, un `satisfies`. Chacune seule suffisait à vider le cadre.
+    //
+    // Construites et affirmées **avant** la copie : une assertion qui rougit ici
+    // laisserait sinon une copie entière d'`apps/demo` sur le disque, invisible
+    // puisque `apps/tmp-demo-*` est ignoré par git.
+    const source = readFileSync(join(demo, 'crypte.config.ts'), 'utf8')
+    const typée = source
+      .replace(
+        "import crypte from '@crypte/react'",
+        "import crypte, { type Adapter } from '@crypte/react'",
+      )
+      .replace('adapter: crypte(),', 'adapter: crypte() satisfies Adapter as Adapter,')
+      .replace('wrap: Panel,', 'wrap: Panel as typeof Panel,')
+
+    expect(typée).toContain('type Adapter')
+    expect(typée).toContain('satisfies Adapter as Adapter')
+    expect(typée).toContain('wrap: Panel as typeof Panel')
+
+    const root = copie()
+    writeFileSync(join(root, 'crypte.config.ts'), typée)
+
+    const started = await startDev(root, () => {})
+    await started.server.listen()
+    const address = started.server.httpServer?.address()
+    if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
+
+    const page = await browser.newPage()
+    const plaintes: string[] = []
+    page.on('pageerror', (error) => plaintes.push(error.message))
+
+    try {
+      await page.goto(`http://localhost:${address.port}`)
+
+      // Bavard comme les autres cas navigateur : un `#root` vide ne nomme
+      // personne, et c'est la plainte du navigateur qui dit la panne.
+      const vu = async () => {
+        const rendu = await page
+          .frameLocator('iframe[title="preview"]')
+          .locator('#root')
+          .textContent()
+          .catch(() => '<cadre absent>')
+
+        if (rendu) return rendu
+
+        return `<vide> ${plaintes.slice(-2).join(' | ')}`
+      }
+
+      await expect.poll(vu, { timeout: 30_000 }).toBe('Nouveau')
+
+      // Le symptôme exact, pour qu'un futur changement d'entrée ne le ramène pas
+      // sous un autre message.
+      expect(plaintes.filter((une) => /SyntaxError|Unexpected/.test(une))).toEqual([])
+    } finally {
+      await page.close()
+      await started.server.close()
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })

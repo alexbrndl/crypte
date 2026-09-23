@@ -55,7 +55,7 @@ gh pr ready <numéro>                 # 6. une fois les points traités
 
 Ces trois formes ne sont pas de la prose malgré leur extension : la première est la spécification, les deux autres portent ces règles-ci, donc une erreur dedans se propage à toutes les sessions suivantes.
 
-Le classement vit dans `test/review-check.mjs` et non dans le workflow, pour que `test/review-check.test.mjs` puisse vérifier ce qu'il refuse. Le mode d'échec est une exemption qui s'élargit en silence.
+Le classement vit dans `test/review-check.mjs`, et `node test/review-check.mjs <numéro>` dit ce qu'il en pense.
 
 _Pourquoi cette exception existe :_ deux revues d'affilée ont rendu un verdict vide sur de la documentation. Une revue qui ne trouve rien apprend à ne plus lire les suivantes.
 
@@ -116,13 +116,15 @@ Dans un fichier de test la règle s'inverse : le candidat est une assertion mort
 
 Écrire **le fait, pas le raisonnement.** `« button-- pour tout nom cyrillique »` se comprend, `« la normalisation restreinte à l'alphabet latin provoquait une perte de segments »` ne se comprend pas. Quand l'explication est longue, se demander d'abord si le problème n'est pas le nom ou le code.
 
-**La langue se décide par public, pas par dossier.** Ce qu'un utilisateur ou un contributeur lit est en anglais : `README.md`, `CONTRIBUTING.md`, les contrats, le guide, les messages d'erreur du CLI et les commentaires du code publié, que `test/published-english.test.mjs` tient. Les notes de mainteneur sont en français : ce fichier, les skills, et les commentaires de l'outillage du dépôt.
+**La langue se décide par public, pas par dossier.** Ce qu'un utilisateur ou un contributeur lit est en anglais : `README.md`, `CONTRIBUTING.md`, les contrats, le guide, les messages d'erreur du CLI et les commentaires du code publié. Les notes de mainteneur sont en français : ce fichier, les skills, et les commentaires de l'outillage du dépôt.
 
 **Pas de documentation pour du code qui se lit tout seul.** Documenter tout produit de la documentation que personne ne lit, donc aucune documentation.
 
 **On n'écrit que ce dont l'oubli casserait quelque chose.** Un mécanisme dont on peut oublier la raison, et qu'on supprimerait alors par erreur, porte un commentaire disant ce qui casse si on l'enlève. Le reste, non.
 
 **Ordre d'un fichier.** Le type principal en premier, ses pièces ensuite, le point d'extension en dernier. Sauf pour un fichier de réexports : un groupe par module, un commentaire d'une ligne par groupe, et dans un groupe les noms suivent l'ordre de leur fichier source, pas l'alphabet.
+
+**On ne teste pas les tests.** Les scripts de CI, la documentation et les commentaires n'ont pas de fichier de test : un test ne se justifie que s'il éprouve le produit, ou une promesse du dépôt dont l'échec serait silencieux et irréversible, comme publier sur npm.
 
 **Un contrôle vérifie d'abord qu'il a lu quelque chose.** Une compilation vide réussit, une extraction muette annonce que tout est conforme, un dossier absent pèse zéro octet. Chaque contrôle qui parcourt une liste vérifie qu'elle n'est pas vide, en premier cas du fichier, et chaque budget lève au lieu de rendre zéro. Un contrôle vert qui n'affirme plus rien est le mode d'échec le plus coûteux du dépôt, et il ne se voit pas en relisant le garde : chaque garde a une sonde qui casse la garantie et vérifie qu'il rougit.
 
