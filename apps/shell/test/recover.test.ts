@@ -52,6 +52,16 @@ describe('la sélection après un changement de catalogue', () => {
 
     expect(recovered(perdue, [autre], [defaut, alerte, autre])).toBe(alerte.id)
   })
+
+  // Réparée et renommée d'un même geste : c'est le catalogue gardé à la perte
+  // qui donne son rang, celui d'avant la réparation ne la contient plus.
+  it('retrouve par son rang une story perdue qui revient renommée', () => {
+    const perdue = { lost: alerte, before: [defaut, alerte, autre] }
+    const renommee = entry('badge--attention', 'Attention', 'stories/Badge.tsx')
+    const derniere = entry('badge--z', 'Z', 'stories/Badge.tsx')
+
+    expect(recovered(perdue, [autre], [defaut, renommee, derniere, autre])).toBe(renommee.id)
+  })
 })
 
 // Ce que le shell devient, et pas seulement où il retombe : la distinction

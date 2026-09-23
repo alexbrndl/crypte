@@ -17,9 +17,7 @@ export function landing(
   after: readonly StoryEntry[],
 ): { id: string | null; shown: Shown; status: string | undefined } {
   const id = recovered(shown, before, after)
-  if (id !== null) {
-    return { id, shown: after.find((entry) => entry.id === id) ?? shown, status: undefined }
-  }
+  if (id !== null) return { id, shown, status: undefined }
 
   // Un catalogue vide n'a rien perdu. Marqué comme une sélection perdue, il ne
   // se sélectionnait plus jamais tout seul une fois la première story écrite.
