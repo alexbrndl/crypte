@@ -1,4 +1,12 @@
-import { cpSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Manifest, StoryEntry } from '@crypte/core/protocol'
@@ -267,6 +275,17 @@ describe('le catalogue pendant que le serveur tourne', () => {
     // décidé quand elle paraît. Par la route, le cas ne voyait le catalogue
     // gardé que par chance : mesuré.
     expect(projet.retenu()).toEqual(before)
+  })
+
+  // L'empreinte suit les stories pendant la session : `crypte check` échoue sur
+  // une empreinte en retard, et une story ajoutée sans redémarrer la laissait
+  // telle qu'au démarrage.
+  test('réécrit l’empreinte quand une story change', async ({ projet }) => {
+    writeFileSync(join(projet.root, 'stories', 'Tardive.js'), story('Badge'))
+
+    await expect
+      .poll(() => readFileSync(join(projet.root, '.crypte', 'fingerprint.json'), 'utf8'))
+      .toContain('tardive--default')
   })
 
   // Le module virtuel de l'entrée nomme ses imports un par un : sans

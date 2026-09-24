@@ -312,7 +312,8 @@ export function staleOf(project: Project, manifest: Manifest): Problem[] {
   try {
     committed = JSON.parse(readFileSync(file, 'utf8'))
   } catch {
-    return [{ kind: 'stale', file: FINGERPRINT, name: 'behind' }]
+    // Conflict markers left by a merge, most often.
+    return [{ kind: 'stale', file: FINGERPRINT, name: 'unreadable' }]
   }
 
   return JSON.stringify(committed) === JSON.stringify(fingerprintOf(manifest))
@@ -327,6 +328,13 @@ function named(root: string, file: string): string {
   return said.startsWith('..') ? file : said
 }
 
+// How each state of a stale fingerprint reads in a sentence.
+const STALE: Record<string, string> = {
+  missing: 'missing',
+  unreadable: 'unreadable',
+  behind: 'behind the stories',
+}
+
 // What the user reads. Orphans and a stale fingerprint decide the exit code; a
 // component with no story is a warning and never fails, which 1.2 states.
 export function linesOf(problems: Problem[]): string[] {
@@ -334,7 +342,7 @@ export function linesOf(problems: Problem[]): string[] {
     one.kind === 'orphan'
       ? `${one.name}: its component is gone, ${one.file}`
       : one.kind === 'stale'
-        ? `${one.file} is ${one.name === 'missing' ? 'missing' : 'behind the stories'}: run crypte dev and commit it`
+        ? `${one.file} is ${STALE[one.name] ?? one.name}: run crypte dev and commit it`
         : `${one.file}: ${one.name} has no story`,
   )
 

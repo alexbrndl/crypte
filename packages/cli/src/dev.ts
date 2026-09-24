@@ -152,6 +152,11 @@ function watchStories(
   // fails the same way, and repeating it buries what follows.
   let failed: string | undefined
 
+  // The fingerprint last written, so a rebuild rewrites it only when the stories
+  // changed it. Kept up to date here because `crypte check` fails on a stale
+  // one: written at start-up only, a story edited mid-session left it behind.
+  let recorded = JSON.stringify(fingerprintOf(held.catalogue.manifest))
+
   const rebuild = (): void => {
     if (stopped) return
 
@@ -180,6 +185,16 @@ function watchStories(
     // never whether the catalogue is current, and editing props leaves it untouched.
     const same = shape(next) === shape(held.catalogue)
     held.catalogue = next
+
+    const fingerprint = fingerprintOf(next.manifest)
+    if (JSON.stringify(fingerprint) !== recorded) {
+      try {
+        writeFingerprint(project.root, fingerprint)
+        recorded = JSON.stringify(fingerprint)
+      } catch (error) {
+        log(`the fingerprint could not be written: ${reason(error)}`)
+      }
+    }
 
     // After `held`, so a watcher that fires during this reads the new
     // catalogue. A story that changed component points at another file now.
@@ -340,9 +355,9 @@ function write(root: string, catalogue: Catalogue, fingerprint: boolean): string
     // drift apart for the rest of the session.
     writeCatalogue(root, catalogue.manifest)
 
-    // The fingerprint is committed, so it is written at start-up only: rewriting
-    // it on each valid edit of the configuration would dirty the working tree
-    // while the author tries out a `stories` path.
+    // Not on a restart of the configuration: rewriting the committed file on
+    // each valid edit would dirty the working tree while the author tries out a
+    // `stories` path. A story edit rewrites it in `rebuild` instead.
     if (fingerprint) writeFingerprint(root, fingerprintOf(catalogue.manifest))
 
     return undefined

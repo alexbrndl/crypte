@@ -348,9 +348,11 @@ describe('l’empreinte', () => {
 
   test('sort en 1 sur un fichier qui ne se lit pas', async () => {
     const root = await recorded(projet())
-    writeFileSync(join(root, FINGERPRINT), '{ tronqué')
+    const lignes: string[] = []
+    writeFileSync(join(root, FINGERPRINT), '<<<<<<< HEAD\n{}\n=======\n{}\n>>>>>>> autre\n')
 
-    expect(await check(root, () => {})).toBe(1)
+    expect(await check(root, (line) => lignes.push(line))).toBe(1)
+    expect(lignes).toEqual(['.crypte/fingerprint.json is unreadable: run crypte dev and commit it'])
   })
 
   test('ne compte pas une mise en forme pour un changement', async () => {
