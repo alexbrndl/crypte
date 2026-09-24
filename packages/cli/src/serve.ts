@@ -350,8 +350,10 @@ export function previewEntry(project: Project, files: string[] = []): string {
     // modules it names, its boundary and the module it accepted, and a module
     // that still fails comes back on `vite:error`. A module that is not its own
     // boundary, a plain `.ts` imported by a component, is named by neither, so
-    // its error can outlive its fix: the single-failure naming below then names
-    // nothing, and never a wrong file.
+    // its error can outlive its fix. The single-failure naming below then names
+    // nothing, or, if that stale error is alone and a fetch fails with no
+    // `vite:error` (Vite's 504 on an outdated optimised dependency), names the
+    // repaired file. Rare, dev only, and cleared by the next reload.
     `const ${OWN}loadErrors = new Map()`,
     'if (import.meta.hot) {',
     `  import.meta.hot.on('vite:error', ({ err }) => { ${OWN}loadErrors.set(${OWN}modulePath(err.id ?? err.loc?.file ?? ''), err) })`,
