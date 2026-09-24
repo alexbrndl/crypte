@@ -1,6 +1,6 @@
 // Ce que le dépôt promet sur la publication : ne pas publier, et déclarer
-// `sideEffects` sur le seul paquet qui le porte. Ce que ce fichier **ne** tient
-// pas est la justesse de cette déclaration : voir le bloc en bas.
+// `sideEffects` sur le seul paquet qui le porte. La justesse de cette
+// déclaration est tenue par `packages/core/test/side-effects.test.ts`.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
@@ -41,8 +41,8 @@ test('le workflow de version ne publie pas', () => {
 // le DOM, le CLI est un binaire, `tokens` est une fabrique de plugin, et `ui`
 // livre une feuille de style qu'un bundler retirerait.
 //
-// Ce cas fixe **quel paquet déclare**, et rien de plus. Que la déclaration soit
-// méritée n'est vérifié par rien, et le bloc en bas dit pourquoi.
+// Ce cas fixe **quel paquet déclare**. Que la déclaration soit méritée, c'est
+// `packages/core/test/side-effects.test.ts` qui le vérifie.
 test('seul le noyau déclare sideEffects: false', () => {
   const déclarent = ['core', 'cli', 'react', 'tokens', 'ui'].filter(
     (nom) => JSON.parse(lire('packages', nom, 'package.json')).sideEffects === false,
@@ -88,20 +88,3 @@ test('aucun paquet ni le CLI ne dépend de @crypte/ui', () => {
   expect(déclarent).toEqual([])
   expect(sources.filter((f) => lire(f).includes('@crypte/ui'))).toEqual([])
 })
-
-// **Ce que ce fichier ne garde pas, et pourquoi.** La justesse de
-// `sideEffects: false` — qu'aucun fichier du noyau n'agisse vraiment à l'import —
-// a été tentée par un critère ligne à ligne. Trois tours de revue ont trouvé
-// trois familles de trous à chaque fois : un appel imbriqué dans un littéral
-// (`const r = { c: make() }`), une flèche annotée en TypeScript, une liaison que
-// le formateur replie, `export default class`, `as const`.
-//
-// Le critère juste demande un arbre syntaxique, pas une expression régulière.
-// `parseSync` d'oxc le ferait, et il n'est **pas joignable depuis `test/`** :
-// `vite` est une dépendance de `packages/cli`, pas de la racine. L'ajouter à la
-// racine pour un seul garde est la machinerie que `DCJ-276` existe pour réduire.
-//
-// Donc ce fichier garde **la déclaration**, qui est exacte et tient en un cas, et
-// pas la promesse qu'elle porte. Un garde approximatif sur cette promesse serait
-// pire que pas de garde : il dirait vert sur les formes qu'il ne voit pas. Suivi
-// en `DCJ-297`.

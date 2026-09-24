@@ -379,6 +379,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.2.1(@types/node@24.13.3)
       vitest:
         specifier: 'catalog:'
         version: 4.1.10(@types/node@24.13.3)(@vitest/browser-preview@4.1.10)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.13.3))
