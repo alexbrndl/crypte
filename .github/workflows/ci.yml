@@ -200,7 +200,7 @@ jobs:
         run: node scripts/budgets.mjs >> "$GITHUB_STEP_SUMMARY"
       # Le shell compilé que `pack` vient de produire, audité par Lighthouse en
       # performance et en accessibilité ; les seuils vivent dans
-      # `lighthouserc.cjs`. `always()` : un budget dépassé ne doit pas cacher le
+      # `lighthouserc.cjs`. `!cancelled()` : un budget dépassé ne doit pas cacher le
       # verdict d'accessibilité. `vp dlx` et non `npx`, que `devEngines` refuse.
       - name: Lighthouse
         if: ${{ !cancelled() }}
