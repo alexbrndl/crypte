@@ -7,7 +7,7 @@ const __crypte_stale = new Map()
 const __crypte_loadErrors = new Map()
 if (import.meta.hot) {
   import.meta.hot.on('vite:error', ({ err }) => { __crypte_loadErrors.set(__crypte_modulePath(err.id ?? err.loc?.file ?? ''), err) })
-  import.meta.hot.on('vite:beforeUpdate', ({ updates }) => { for (const one of updates) __crypte_loadErrors.delete(one.path) })
+  import.meta.hot.on('vite:beforeUpdate', ({ updates }) => { for (const one of updates) { __crypte_loadErrors.delete(one.path); __crypte_loadErrors.delete(one.acceptedPath) } })
 }
 
 await Promise.all([

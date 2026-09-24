@@ -346,14 +346,16 @@ export function previewEntry(project: Project, files: string[] = []): string {
     // and line. A component that does not load only rejects an import with
     // `Failed to fetch dynamically imported module`, which named a sound story
     // file; Vite says which module failed, on `vite:error`. Listened to before
-    // the loads, so a failure at start-up is caught too. A module leaves when it
-    // is updated again, and comes back if it still fails, so the map holds what
-    // fails now: a repaired module left in it would stop the single-failure
-    // naming below from naming anything.
+    // the loads, so a failure at start-up is caught too. An update clears the
+    // modules it names, its boundary and the module it accepted, and a module
+    // that still fails comes back on `vite:error`. A module that is not its own
+    // boundary, a plain `.ts` imported by a component, is named by neither, so
+    // its error can outlive its fix: the single-failure naming below then names
+    // nothing, and never a wrong file.
     `const ${OWN}loadErrors = new Map()`,
     'if (import.meta.hot) {',
     `  import.meta.hot.on('vite:error', ({ err }) => { ${OWN}loadErrors.set(${OWN}modulePath(err.id ?? err.loc?.file ?? ''), err) })`,
-    `  import.meta.hot.on('vite:beforeUpdate', ({ updates }) => { for (const one of updates) ${OWN}loadErrors.delete(one.path) })`,
+    `  import.meta.hot.on('vite:beforeUpdate', ({ updates }) => { for (const one of updates) { ${OWN}loadErrors.delete(one.path); ${OWN}loadErrors.delete(one.acceptedPath) } })`,
     '}',
     ...(loads.length > 0 ? ['', `await Promise.all([`, ...loads, `])`] : []),
     `const ${OWN}manifest = await fetch(${JSON.stringify(MANIFEST_ROUTE)}).then((answer) => answer.json())`,
