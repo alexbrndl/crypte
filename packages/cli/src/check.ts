@@ -1,7 +1,7 @@
 // `crypte check`: the three problems section 1.2 names. See docs/contracts.md.
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { dirname, join, relative, sep } from 'node:path'
+import { dirname, join, relative, resolve, sep } from 'node:path'
 import { parseSync } from 'vite'
 import type { Manifest } from '@crypte/core/protocol'
 import { configWrappers } from './config-source'
@@ -13,7 +13,7 @@ import type { Node } from './ast'
 import { wrappersOf } from './stories'
 
 export interface Problem {
-  kind: 'orphan' | 'unstoried' | 'stale'
+  kind: 'orphan' | 'unstoried' | 'stale' | 'unreadable'
   // Project-relative for a component the producer resolved. An orphan carries
   // the identifier the story wrote instead, and a component outside the root
   // its absolute path: both read where a chain of `..` would not.
@@ -33,7 +33,17 @@ export function orphans(project: Project, entries: ReturnType<typeof storiesOf>)
   return entries
     .filter((entry) => !existsSync(join(project.root, entry.component.file)))
     .filter((entry) => addressable(entry.component.file, project))
-    .map((entry) => ({ kind: 'orphan' as const, file: entry.component.file, name: entry.id }))
+    .map((entry) => ({ kind: 'orphan' as const, file: shown(project, entry), name: entry.id }))
+}
+
+// Where an orphan's component was, read from the project root. The story wrote
+// it relative to itself: `../src/components/Badge` from the root names nothing.
+// An alias or a package name reads the same from anywhere, so it stays.
+function shown(project: Project, entry: ReturnType<typeof storiesOf>[number]): string {
+  const specifier = entry.component.file
+  if (!specifier.startsWith('.')) return specifier
+
+  return named(project.root, resolve(project.root, dirname(entry.storyFile), specifier))
 }
 
 // A bare specifier no alias resolves belongs to a package or a plugin: the
@@ -269,7 +279,7 @@ function isElement(node: Node): boolean {
   return false
 }
 
-// The two problems read from the stories, in the order 1.2 lists them; the
+// The problems read from the stories, in the order 1.2 lists them; the
 // fingerprint is `staleOf`'s. Never throws: a project that
 // cannot be read is the caller's message, not this function's.
 export function problemsOf(
@@ -277,6 +287,18 @@ export function problemsOf(
   manifest: Manifest = buildCatalogue(project).manifest,
 ): Problem[] {
   const entries = storiesOf(manifest)
+
+  // A story file meant as one and not read is a broken story, like an orphan.
+  // While one exists, nobody knows which component it covers, so the components
+  // with no story are not listed: accusing its component sent the reader to the
+  // wrong file. When in doubt, report nothing, which 1.2 asks.
+  const unreadable = (manifest.skipped ?? []).map((one) => ({
+    kind: 'unreadable' as const,
+    file: one.file,
+    name: one.reason,
+  }))
+  if (unreadable.length > 0) return [...orphans(project, entries), ...unreadable]
+
   const known = new Set([...storied(project, entries), ...wrappers(project, entries)])
   const unstoried: Problem[] = []
 
@@ -335,16 +357,23 @@ const STALE: Record<string, string> = {
   behind: 'behind the stories',
 }
 
-// What the user reads. Orphans and a stale fingerprint decide the exit code; a
-// component with no story is a warning and never fails, which 1.2 states.
+// What the user reads. Orphans, unreadable story files and a stale fingerprint
+// decide the exit code; a component with no story is a warning and never
+// fails, which 1.2 states.
 export function linesOf(problems: Problem[]): string[] {
   const said = problems.map((one) =>
     one.kind === 'orphan'
       ? `${one.name}: its component is gone, ${one.file}`
       : one.kind === 'stale'
         ? `${one.file} is ${STALE[one.name] ?? one.name}: run crypte dev and commit it`
-        : `${one.file}: ${one.name} has no story`,
+        : one.kind === 'unreadable'
+          ? `${one.file}: this story file cannot be read, ${one.name}`
+          : `${one.file}: ${one.name} has no story`,
   )
+
+  if (problems.some((one) => one.kind === 'unreadable')) {
+    said.push('components with no story are not listed while a story file cannot be read')
+  }
 
   return said.length === 0 ? ['nothing to report'] : said
 }

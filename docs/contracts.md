@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.15, reference document. A project brief points here instead of restating these shapes.
+> Version 1.16, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -50,9 +50,10 @@ The `x` form carries JSX. A structured `children` prop forces it, which is commo
 
 ### 1.2 `crypte check`
 
-The command reports three problems:
+The command reports four problems:
 
-- **Orphan story**: the component it points at is gone.
+- **Orphan story**: the component it points at is gone. Its path reads from the project root.
+- **Unreadable story file**: a file meant as a story that cannot be read. It fails the command like an orphan, and while one exists the components with no story are not listed, since nobody knows which one it covers.
 - **Component with no story**: an exported component has no story. This one is a warning and never fails the command.
 - **Stale fingerprint**: `.crypte/fingerprint.json` is missing, or differs from what the stories give today (4.6). It fails the command, so a CI running `crypte check` refuses a branch that did not update it.
 
@@ -858,7 +859,7 @@ This document is a contract. This section is the only place that says what exist
 | Section | State |
 | --- | --- |
 | 1.1, story files | discovered and read, in the four extensions. The tree, the identifiers and the call code come out of them |
-| 1.2, `crypte check` | built, all three problems. The component with no story is looked for in the folders the stories already point at, since no components root is declared anywhere |
+| 1.2, `crypte check` | built, all four problems. The component with no story is looked for in the folders the stories already point at, since no components root is declared anywhere |
 | 1.5, project configuration | the config is read, and the declared style sheet is loaded by the preview |
 | 1.5, path aliases | built |
 | 2 and 3, the types | built, and `defineStories` and `story` with them. Inference reads what a component file declares, and 3.2's merge completes it from the story file |
@@ -882,6 +883,13 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.16.** `crypte check` names an unreadable story file, which it used to blame on the component.
+
+| Before | After |
+| --- | --- |
+| a story file that did not parse made its component read "has no story" | the file is named with its reason and fails the command; components with no story are not listed meanwhile |
+| an orphan's path was the one the story wrote, relative to it | it reads from the project root |
 
 **v1.15.** Reordering props no longer moves the fingerprint, which was its one measured noise.
 
