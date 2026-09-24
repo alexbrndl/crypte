@@ -11,7 +11,9 @@ module.exports = {
   ci: {
     collect: {
       staticDistDir: 'apps/shell/dist',
-      numberOfRuns: 1,
+      // Trois passages, jugés sur leur médiane : sur un seul, un runner lent a
+      // rendu 0,77 en performance là où le même shell faisait 0,97.
+      numberOfRuns: 3,
       settings: {
         onlyCategories: ['performance', 'accessibility'],
         chromeFlags: '--headless=new',
@@ -19,8 +21,8 @@ module.exports = {
     },
     assert: {
       assertions: {
-        'categories:performance': ['error', { minScore: 0.9 }],
-        'categories:accessibility': ['error', { minScore: 1 }],
+        'categories:performance': ['error', { minScore: 0.9, aggregationMethod: 'median' }],
+        'categories:accessibility': ['error', { minScore: 1, aggregationMethod: 'median' }],
       },
     },
   },
