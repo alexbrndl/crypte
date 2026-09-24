@@ -161,8 +161,8 @@ function recent(folder: string): number {
   )
 }
 
-describe('la copie du shell', () => {
-  base('n’est pas plus vieille que ses sources', () => {
+describe('the shell copy', () => {
+  base('is not older than its sources', () => {
     const ici = dirname(fileURLToPath(import.meta.url))
     expect(
       recent(join(ici, '..', 'dist', 'shell')) >=
@@ -177,13 +177,13 @@ describe('la copie du shell', () => {
 // dépendances dont la preview ne se relevait pas. La cause est corrigée, les
 // paquets que la configuration nomme étant pré-empaquetés, et le cas à froid
 // plus bas la reproduit à la demande.
-describe('l’écran', () => {
+describe('the screen', () => {
   // Le jumeau du cas ci-dessous, à l'**import** plutôt qu'au rendu. La
   // découverte lit les fichiers sans les exécuter, donc un fichier qui lève à
   // l'import entre au catalogue. Importé statiquement, il emportait l'entrée
   // entière : cadre vide, aucun `ready`, et le shell muet sur les autres stories
   // qui, elles, rendent très bien. Mesuré dans un navigateur, `DCJ-279`.
-  test('nomme une story qui lève à l’import, et laisse les autres rendre', async ({ ecran }) => {
+  test('names a story that throws on import and lets the others render', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
 
     writeFileSync(
@@ -220,7 +220,7 @@ describe('l’écran', () => {
   // L'autre sens du cas ci-dessus : une story qui marchait, qu'une modification
   // casse. Vite garde alors l'ancien module sans rien dire, et le shell
   // réaffichait la version d'avant l'édition avec son statut « rendu ». DCJ-296.
-  test('dit qu’une story saine ne rend plus quand une modification la casse', async ({ ecran }) => {
+  test('says a healthy story no longer renders when an edit breaks it', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
 
     const file = join(ecran.root, 'stories', 'Badge.tsx')
@@ -242,7 +242,7 @@ describe('l’écran', () => {
 
   // Le même défaut un niveau plus bas : c'est le composant qui casse, et Fast
   // Refresh garde l'ancien sans rien dire.
-  test('dit qu’une story ne rend plus quand son composant casse', async ({ ecran }) => {
+  test('says a story no longer renders when its component breaks', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
 
     const file = join(ecran.root, 'src', 'components', 'Badge.tsx')
@@ -269,7 +269,7 @@ describe('l’écran', () => {
 
   // Ce que React rafraîchit lui-même : le composant est repris par Fast Refresh,
   // pas par le chemin chaud de l'entrée.
-  test('rafraîchit la story affichée quand son composant change', async ({ ecran }) => {
+  test('refreshes the displayed story when its component changes', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
 
     await ecran.page.getByRole('button', { name: 'Libellé long' }).click()
@@ -297,7 +297,7 @@ describe('l’écran', () => {
   // saisit pas : sans le chemin chaud de l'entrée, Vite ne trouve personne pour
   // accepter et recharge le cadre. Mesuré, c'est ce cas et non le précédent qui
   // éprouve `hot`.
-  test('rafraîchit les props d’une story sans recharger le cadre', async ({ ecran }) => {
+  test('refreshes a story’s props without reloading the frame', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
 
     const avant = ecran.navigations()
@@ -319,8 +319,8 @@ describe('l’écran', () => {
 // un autre dont un bloc de props porte un spread. L'utilisateur voit une erreur
 // pour le premier sans la chercher, une note discrète pour le second, et ni l'un
 // ni l'autre ne l'empêche de travailler.
-describe('ce que le catalogue a laissé de côté, à l’écran', () => {
-  base('se voit sans empêcher de travailler', { timeout: 120_000 }, async () => {
+describe('what the catalogue left out, on screen', () => {
+  base('shows without blocking work', { timeout: 120_000 }, async () => {
     const root = copie()
 
     // Une clé de story calculée : le fichier rend une story et en perd une.
@@ -400,8 +400,8 @@ export default defineStories(Badge, {
 // `waitForRequestsIdle` avant `page.goto`. C'est lui qui voit une réoptimisation
 // vider `#root` au premier chargement. Ne pas lui donner la fixture `ecran`, qui
 // préchauffe.
-describe('une configuration qui porte de la syntaxe TypeScript', () => {
-  base('laisse la preview rendre', { timeout: 120_000 }, async () => {
+describe('a config that carries TypeScript syntax', () => {
+  base('lets the preview render', { timeout: 120_000 }, async () => {
     // Les trois formes qu'un auteur écrit vraiment : une assertion, un argument
     // de type, un `satisfies`. Chacune seule suffisait à vider le cadre.
     //

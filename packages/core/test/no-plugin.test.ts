@@ -35,11 +35,11 @@ function run(args: string[], target = project): { ok: boolean; output: string } 
 }
 
 // La compilation dépasse le délai par défaut de vitest.
-describe('le noyau installé seul', { timeout: 60_000 }, () => {
+describe('core installed alone', { timeout: 60_000 }, () => {
   // `--listFiles` vérifie les types comme un appel nu : une seule compilation
   // porte donc les deux garanties. Et celle sur le programme passe en premier,
   // parce qu'une compilation qui ne compile rien réussit.
-  it('refuse ce qu’aucun plugin n’a déclaré, et accepte ses propres champs', () => {
+  it('refuses what no plugin declared and accepts its own fields', () => {
     const { ok, output } = run(['--listFiles'])
 
     expect(output).toContain(join('no-plugin', 'cases.ts'))
@@ -51,8 +51,8 @@ describe('le noyau installé seul', { timeout: 60_000 }, () => {
 // La simulation du noyau augmente les modules sources. Le chemin que la
 // spécification recommande, augmenter `@crypte/core/protocol`, passe par les
 // types publiés et n'était éprouvé nulle part.
-describe('l’augmentation par la porte d’entrée publique', { timeout: 60_000 }, () => {
-  it('fusionne à travers les types publiés', () => {
+describe('augmentation through the public entry point', { timeout: 60_000 }, () => {
+  it('merges through the published types', () => {
     const { ok, output } = run(['--listFiles'], publicPath)
 
     expect(output).toContain('public-augmentation.ts')

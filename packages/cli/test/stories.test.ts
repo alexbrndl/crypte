@@ -29,10 +29,10 @@ function fileWith(name: string, content: string) {
   return entriesOf(file, root, join(root, 'stories'))
 }
 
-describe('la lecture des stories', () => {
+describe('story reading', () => {
   // Les formes que `children` peut prendre, et celle qu'il ne prend pas. Sans la
   // seconde moitié, la règle passerait sur un composant qui n'en a aucun.
-  it('écrit children entre les balises, selon sa forme', () => {
+  it('writes children between the tags, according to its shape', () => {
     const lu = (children: string) =>
       fileWith(
         'A.jsx',
@@ -78,7 +78,7 @@ describe('la lecture des stories', () => {
   // Les parenthèses survivent à l'analyse, donc l'élément qu'elles entourent
   // n'est pas un `JSXElement`. C'est la forme qu'on écrit dès qu'il tient sur
   // plusieurs lignes, donc le cas même pour lequel ce lot existe.
-  it('déballe les parenthèses autour d’un élément', () => {
+  it('unwraps the parentheses around an element', () => {
     const lu = (children: string) =>
       fileWith(
         'A.jsx',
@@ -95,7 +95,7 @@ describe('la lecture des stories', () => {
   // `JSON.stringify` échappe pour JavaScript, pas pour JSX : sur `a"b` il
   // produisait un attribut que le parser refuse, donc du code copié qui ne
   // compile pas. Mesuré avec `parseSync`.
-  it('écrit un attribut que JSX accepte', () => {
+  it('writes an attribute JSX accepts', () => {
     const lu = (valeur: string) =>
       fileWith(
         'A.jsx',
@@ -122,7 +122,7 @@ describe('la lecture des stories', () => {
   // La moitié qui compte : entre les balises, le texte est émis brut, donc ces
   // mêmes caractères n'y ont besoin de rien. Sans ce cas, on pourrait croire que
   // les deux prédicats devraient être un seul.
-  it('laisse une barre oblique nue entre les balises', () => {
+  it('leaves a bare slash between the tags', () => {
     const lu = fileWith(
       'A.jsx',
       [
@@ -142,7 +142,7 @@ describe('la lecture des stories', () => {
   // La clé est écrite **avant** le spread, sinon rien ne la pose : `{ ...base }`
   // seul ne nomme aucune prop, donc le cas sortait avant la branche qu'il
   // annonce et restait vert quand on la cassait. Mesuré.
-  it('n’invente pas de corps pour un children qu’un spread peut remplacer', () => {
+  it('does not invent a body for a children a spread can replace', () => {
     const lu = fileWith(
       'A.jsx',
       [
@@ -157,7 +157,7 @@ describe('la lecture des stories', () => {
   })
 
   // Le TypeScript ne passe que si le parseur choisit sa langue sur l'extension.
-  it('accepte la syntaxe TypeScript dans un .tsx', () => {
+  it('accepts TypeScript syntax in a .tsx', () => {
     const source = [
       "import { A } from '../a'",
       'const size = 4 as const',
@@ -175,13 +175,13 @@ describe('la lecture des stories', () => {
   // Les formes qui ne sont qu'une supposition : chacune a fait passer un
   // utilitaire pour une story ratée sous une règle de forme ou une autre.
   it.for([
-    ['un composant enveloppé', "import { memo } from 'react'\nexport default memo(() => null)"],
-    ['une flèche', 'export default () => null'],
-    ['un barrel qui réexporte defineStories', "export { defineStories } from '@crypte/react'"],
-    ['un import sans appel', "import { defineStories } from '@crypte/react'\nexport default 1"],
-    ['un nombre', 'export default 12'],
-    ['aucun export par défaut', 'const base = { a: 1 }\nexport { base }'],
-  ] as const)('reste une supposition pour %s', ([, source], { expect }) => {
+    ['a wrapped component', "import { memo } from 'react'\nexport default memo(() => null)"],
+    ['an arrow function', 'export default () => null'],
+    ['a barrel that re-exports defineStories', "export { defineStories } from '@crypte/react'"],
+    ['an import without a call', "import { defineStories } from '@crypte/react'\nexport default 1"],
+    ['a number', 'export default 12'],
+    ['no default export', 'const base = { a: 1 }\nexport { base }'],
+  ] as const)('stays a guess for %s', ([, source], { expect }) => {
     const lu = fileWith('Suppose.ts', source)
 
     expect(lu.skipped).toBe('no default export calling defineStories')
@@ -191,17 +191,17 @@ describe('la lecture des stories', () => {
   // Un appel dans un corps de fonction est celui d'une fabrique, pas d'une story :
   // il s'exécute quand la fonction tourne, pas quand le module tourne.
   it.for([
-    ['une flèche', 'export const make = (C) => defineStories(C, {})'],
-    ['une fonction', 'export function make(C) { return defineStories(C, {}) }'],
-    ['une méthode de classe', 'export class F { make(C) { return defineStories(C, {}) } }'],
-  ] as const)('ne prend pas pour une story un appel dans %s', ([, source]) => {
+    ['an arrow function', 'export const make = (C) => defineStories(C, {})'],
+    ['a function', 'export function make(C) { return defineStories(C, {}) }'],
+    ['a class method', 'export class F { make(C) { return defineStories(C, {}) } }'],
+  ] as const)('does not take a call inside %s for a story', ([, source]) => {
     const lu = fileWith('Fabrique.ts', `import { defineStories } from '@crypte/react'\n${source}`)
 
     expect(lu.meant).toBeUndefined()
   })
 
   // L'alias marche, et échouait en silence avant : ni story, ni message.
-  it('lit une story dont defineStories est importé sous un autre nom', () => {
+  it('reads a story whose defineStories is imported under another name', () => {
     const { entries } = fileWith(
       'Alias.ts',
       `import { defineStories as define } from '@crypte/react'
@@ -212,7 +212,7 @@ describe('la lecture des stories', () => {
     expect(entries.map((entry) => entry.id)).toEqual(['alias--default'])
   })
 
-  it('signale un alias que son export nommé rend introuvable', () => {
+  it('reports an alias its named export makes unresolvable', () => {
     const lu = fileWith(
       'AliasNomme.ts',
       `import { defineStories as define } from '@crypte/react'
@@ -223,7 +223,7 @@ describe('la lecture des stories', () => {
     expect(lu.meant).toBe(true)
   })
 
-  it('lit les valeurs que JSON sait porter', () => {
+  it('reads the values JSON can carry', () => {
     const source = [
       "import { A } from '../a'",
       'export default defineStories(A, {',
@@ -243,7 +243,7 @@ describe('la lecture des stories', () => {
   // `JSON.stringify` laisse tomber en silence ce qu'il ne sait pas représenter.
   // Écrire la clé quand même mettrait dans le manifeste une valeur qui
   // disparaît à l'écriture : section 4.5.
-  it('laisse tomber un meta dont une valeur ne survit pas au JSON', () => {
+  it('drops a meta with a value that does not survive JSON', () => {
     const cases = [
       'meta: { at: new Date() }',
       'meta: { on: () => null }',
@@ -267,7 +267,7 @@ describe('la lecture des stories', () => {
 
   // Une référence manquante était fatale, là où une erreur de syntaxe ne
   // l'était pas : l'asymétrie était l'inverse de celle qui est documentée.
-  it('passe un fichier dont le composant n’est pas importé', () => {
+  it('skips a file whose component is not imported', () => {
     const { entries, skipped } = fileWith('A.ts', 'export default defineStories(A)\n')
 
     expect(entries).toEqual([])
@@ -276,7 +276,7 @@ describe('la lecture des stories', () => {
 
   // Un espace de noms ne nomme aucun export, donc `export: 'A'` désignerait un
   // export qui n'existe pas.
-  it('passe un composant lié par un import d’espace de noms', () => {
+  it('skips a component bound by a namespace import', () => {
     const source = "import * as A from '../a'\nexport default defineStories(A)\n"
 
     expect(fileWith('A.ts', source).skipped).toMatchInlineSnapshot(
@@ -284,7 +284,7 @@ describe('la lecture des stories', () => {
     )
   })
 
-  it('garde le nom d’origine d’un composant renommé à l’import', () => {
+  it('keeps the original name of a component renamed on import', () => {
     const source = "import { Origin as A } from '../a'\nexport default defineStories(A)\n"
 
     expect(fileWith('A.ts', source).entries[0]?.component).toEqual({
@@ -296,7 +296,7 @@ describe('la lecture des stories', () => {
 
   // Un nom de story est une URL, une clé de baseline et l'ancre d'un
   // commentaire : prendre le nom de la variable donnerait les trois faux.
-  it('laisse tomber une story dont la clé est calculée', () => {
+  it('drops a story with a computed key', () => {
     const source = [
       "import { A } from '../a'",
       'export default defineStories(A, {',
@@ -316,7 +316,7 @@ describe('la lecture des stories', () => {
   // fichier dont les clés sont toutes illisibles en nomme, donc replier
   // inventait une entrée que l'auteur n'a jamais écrite, avec un identifiant
   // qui devient une URL et une clé de baseline.
-  it('ne replie pas sur Default quand le fichier nomme des stories illisibles', () => {
+  it('does not fall back to Default when the file names unreadable stories', () => {
     const source = [
       "import { A } from '../a'",
       'export default defineStories(A, {',
@@ -335,7 +335,7 @@ describe('la lecture des stories', () => {
 
   // Les quatre formes du bloc. Le premier tour n'avait fermé que la dernière,
   // donc `stories: {}` et `stories: shared` redonnaient l'entrée fantôme.
-  it('ne replie pas sur Default quand le bloc n’est pas lisible', () => {
+  it('does not fall back to Default when the block is unreadable', () => {
     const cases = [
       ['stories: {}', /names no story/],
       ['stories: shared', /not an object literal/],
@@ -357,7 +357,7 @@ describe('la lecture des stories', () => {
 
   // Un cran au-dessus du bloc : c'est l'objet qui le contient qui n'est pas
   // lisible, et un `stories` absent ne prouve alors rien du tout.
-  it('ne replie pas sur Default quand la définition n’est pas lisible', () => {
+  it('does not fall back to Default when the definition is unreadable', () => {
     const cases = [
       ['config', /definition is not an object literal/],
       ['{ ...base }', /a spread in the definition decides the stories/],
@@ -381,7 +381,7 @@ describe('la lecture des stories', () => {
   })
 
   // La même règle un cran plus bas : un spread emporte les clés qu'il suit.
-  it('laisse de côté une story qu’un spread plus loin peut remplacer', () => {
+  it('leaves out a story a later spread can replace', () => {
     const source = [
       "import { A } from '../a'",
       "import { base } from '../base'",
@@ -399,7 +399,7 @@ describe('la lecture des stories', () => {
   })
 
   // `find` prenait la première, l'exécution garde la dernière.
-  it('garde la dernière valeur d’une clé écrite deux fois', () => {
+  it('keeps the last value of a key written twice', () => {
     const source = [
       "import { A } from '../a'",
       'export default defineStories(A, {',
@@ -418,7 +418,7 @@ describe('la lecture des stories', () => {
   // `shadowed` visait la première occurrence, `propertyOf` lit la dernière. Sur
   // une clé écrite de part et d'autre d'un spread, le bloc était jeté alors que
   // la valeur qui gagne n'est précédée d'aucun spread.
-  it('lit une clé réécrite après un spread', () => {
+  it('reads a key rewritten after a spread', () => {
     const source = [
       "import { A } from '../a'",
       "import { base } from '../base'",
@@ -438,7 +438,7 @@ describe('la lecture des stories', () => {
 
   // Le nom reste certain, le littéral le pose quoi que porte le spread. La
   // valeur ne l'est pas, donc elle ne part pas dans le code d'appel.
-  it('garde le nom mais pas la valeur qu’un spread interne peut remplacer', () => {
+  it('keeps the name but not the value an inner spread can replace', () => {
     const source = [
       "import { A } from '../a'",
       "import { base } from '../base'",
@@ -456,7 +456,7 @@ describe('la lecture des stories', () => {
 
   // `props` et `meta` se lisent de la même façon, donc ils courent le même
   // risque : une liste de props fausse ment dans un chiffre de couverture.
-  it('ne lit pas les props ni le meta qu’un spread peut remplacer', () => {
+  it('does not read the props or the meta a spread can replace', () => {
     const source = [
       "import { A } from '../a'",
       "import { base } from '../base'",
@@ -474,7 +474,7 @@ describe('la lecture des stories', () => {
     expect(entries[0]?.meta).toBeUndefined()
   })
 
-  it('laisse de côté une prop dont la clé est calculée', () => {
+  it('leaves out a prop with a computed key', () => {
     const source = [
       "import { A } from '../a'",
       'export default defineStories(A, {',
@@ -490,7 +490,7 @@ describe('la lecture des stories', () => {
 
   // La section 2.3 type `Partial<P> | Story<P>` : la seconde forme s'écrit à la
   // main, sans passer par le helper.
-  it('lit un Story écrit à la main comme le helper l’écrirait', () => {
+  it('reads a hand-written Story as the helper would write it', () => {
     const source = [
       "import { A } from '../a'",
       'export default defineStories(A, {',
@@ -506,7 +506,7 @@ describe('la lecture des stories', () => {
 
   // N'importe quel appel était traité comme le helper, donc son premier
   // argument passait pour des props.
-  it('ne prend pas l’appel d’une autre fonction pour le helper', () => {
+  it('does not take a call to another function for the helper', () => {
     const source = [
       "import { A } from '../a'",
       "import { make } from '../make'",
@@ -518,7 +518,7 @@ describe('la lecture des stories', () => {
     expect(fileWith('A.ts', source).entries[0]?.props).toEqual([])
   })
 
-  it('suit le helper renommé à l’import', () => {
+  it('follows the helper renamed on import', () => {
     const source = [
       "import { A } from '../a'",
       "import { story as s } from '@crypte/react'",
@@ -533,7 +533,7 @@ describe('la lecture des stories', () => {
     expect(entries[0]?.options).toEqual({ b: 2 })
   })
 
-  it('trouve un bloc dont la clé est entre guillemets', () => {
+  it('finds a block with a quoted key', () => {
     const source = [
       "import { A } from '../a'",
       "export default defineStories(A, { 'meta': { status: 'stable' }, 'props': { a: 1 } })",
@@ -549,8 +549,8 @@ describe('la lecture des stories', () => {
 // La seconde moitié de la règle du lot 4 : ce qui est laissé de côté est dit.
 // L'étage du fichier vit dans `skipped`, celui de l'entrée dans `partial`, et
 // une story dont la fiche est partielle rend quand même. `DCJ-217`.
-describe('ce que la fiche ne dit pas', () => {
-  it('cite le spread que le fichier a écrit', () => {
+describe('what the entry does not say', () => {
+  it('quotes the spread the file wrote', () => {
     const { entries } = fileWith(
       'Spread.js',
       `import { Badge } from './Badge'
@@ -567,7 +567,7 @@ describe('ce que la fiche ne dit pas', () => {
   // Le nom `ab` décale la citation d'une unité, ce qui met la coupe au milieu
   // d'une paire de substitution : sans ce décalage, elle tombait par chance sur
   // une frontière et le cas ne surveillait rien. Mesuré.
-  it('ne coupe pas un caractère en deux', () => {
+  it('does not split a character in two', () => {
     const { entries } = fileWith(
       'Astral.js',
       `import { Badge } from './Badge'
@@ -585,7 +585,7 @@ describe('ce que la fiche ne dit pas', () => {
     ).toBe(false)
   })
 
-  it('dit la clé de prop calculée sans nommer ce qu’elle vaut', () => {
+  it('reports the computed prop key without naming its value', () => {
     const { entries } = fileWith(
       'Calculee.js',
       `import { Badge } from './Badge'
@@ -597,7 +597,7 @@ describe('ce que la fiche ne dit pas', () => {
   })
 
   // Le bloc partagé vaut pour tout le fichier, donc sa note aussi.
-  it('porte la note du bloc partagé sur chaque entrée', () => {
+  it('carries the shared block note on every entry', () => {
     const { entries } = fileWith(
       'Partage.js',
       `import { Badge } from './Badge'
@@ -617,7 +617,7 @@ describe('ce que la fiche ne dit pas', () => {
 
   // Deux pertes que rien ne disait avant ce lot : un spread de la définition
   // décide `props`, un autre décide `meta`, et l'entrée sortait muette.
-  it('dit un spread qui décide le bloc partagé et le meta', () => {
+  it('reports a spread that decides the shared block and the meta', () => {
     const { entries } = fileWith(
       'Definition.js',
       `import { Badge } from './Badge'

@@ -41,8 +41,8 @@ const contributing = (name: string, produce: () => unknown): CryptePlugin => ({
 
 const ids = (catalogue: Catalogue) => catalogue.manifest.entries.map((entry) => entry.id)
 
-describe('ce qu’un plugin contribue', () => {
-  it('ignore un plugin sans surface node', async () => {
+describe('what a plugin contributes', () => {
+  it('ignores a plugin without a node surface', async () => {
     const catalogue = await build({ name: 'ui-only' })
 
     expect(ids(catalogue)).not.toContain('color--brand')
@@ -50,9 +50,9 @@ describe('ce qu’un plugin contribue', () => {
   })
 })
 
-describe('ce qui est refusé à un plugin', () => {
+describe('what a plugin is refused', () => {
   // La story gagne : elle vient du fichier de l'auteur, l'entrée du plugin non.
-  it('refuse une entrée qui prend l’identifiant d’une story', async () => {
+  it('refuses an entry that takes a story’s id', async () => {
     const catalogue = await build(contributing('greedy', () => [tokens(STORY)]))
 
     expect(ids(catalogue).filter((id) => id === STORY)).toHaveLength(1)
@@ -61,7 +61,7 @@ describe('ce qui est refusé à un plugin', () => {
     ])
   })
 
-  it('refuse au second plugin l’identifiant que le premier a pris', async () => {
+  it('refuses the second plugin the id the first one took', async () => {
     const catalogue = await build(
       contributing('first', () => [tokens('color--brand')]),
       contributing('second', () => [tokens('color--brand')]),
@@ -73,7 +73,7 @@ describe('ce qui est refusé à un plugin', () => {
     ])
   })
 
-  it('refuse un hook qui ne rend pas un tableau', async () => {
+  it('refuses a hook that does not return an array', async () => {
     const catalogue = await build(contributing('confused', () => ({ nope: true })))
 
     expect(catalogue.skippedPlugins).toEqual([
@@ -84,8 +84,8 @@ describe('ce qui est refusé à un plugin', () => {
 
 // L'axe que la première version de ces cas n'a pas croisé : ce que le hook rend
 // vraiment, et non un `TokensEntry` bien formé. Trois bloquants en sont sortis.
-describe('ce que le hook rend vraiment', () => {
-  it('refuse ce qui n’est pas une entrée, en le disant', async () => {
+describe('what the hook actually returns', () => {
+  it('refuses what is not an entry, and says so', async () => {
     const catalogue = await build(contributing('junk', () => [42, 'nope', {}]))
 
     expect(catalogue.manifest.entries).not.toContain(42)
@@ -96,7 +96,7 @@ describe('ce que le hook rend vraiment', () => {
     ])
   })
 
-  it('refuse une entrée sans type connu', async () => {
+  it('refuses an entry without a known type', async () => {
     const catalogue = await build(
       contributing('odd', () => [{ id: 'x--y', type: 'page', path: [], name: 'x' }]),
     )
@@ -109,7 +109,7 @@ describe('ce que le hook rend vraiment', () => {
   // `Exclude` ne tient qu'à la compilation, et un plugin tiers arrive compilé.
   // Sans refus à l'exécution, l'entrée entre dans le manifeste et dans
   // `fingerprint.json`, qui est commité.
-  it('refuse une story contribuée, que le typage seul ne pouvait pas arrêter', async () => {
+  it('refuses a contributed story, which typing alone could not stop', async () => {
     const story = {
       type: 'story',
       id: 'faux--story',
@@ -133,18 +133,18 @@ describe('ce que le hook rend vraiment', () => {
 
 // La garantie de la section 4.5, sur la première entrée qui ne soit pas
 // sérialisable par construction.
-describe('la garantie de sérialisation', () => {
+describe('the serialization guarantee', () => {
   const refused = async (value: unknown) =>
     (await build(contributing('p', () => [{ ...tokens('color--brand'), extra: value }])))
       .skippedPlugins
 
-  it('refuse une fonction, en la situant', async () => {
+  it('refuses a function, and locates it', async () => {
     expect(await refused(() => null)).toEqual([
       { plugin: 'p', reason: 'an entry carries a function at extra' },
     ])
   })
 
-  it('refuse une valeur undefined, en la situant', async () => {
+  it('refuses an undefined value, and locates it', async () => {
     expect(await refused(undefined)).toEqual([
       { plugin: 'p', reason: 'an entry carries undefined at extra' },
     ])
@@ -154,7 +154,7 @@ describe('la garantie de sérialisation', () => {
   })
 
   // `JSON.stringify` lève sur un `bigint` et laisse tomber un `symbol`.
-  it('refuse un bigint et un symbol', async () => {
+  it('refuses a bigint and a symbol', async () => {
     expect(await refused(1n)).toEqual([
       { plugin: 'p', reason: 'an entry carries a bigint at extra' },
     ])
@@ -165,13 +165,13 @@ describe('la garantie de sérialisation', () => {
 
   // `JSON.stringify` la rend en chaîne, donc ce qui revient n'est pas ce qui
   // est parti. Même raison pour une `Map` ou une instance de classe.
-  it('refuse une Date', async () => {
+  it('refuses a Date', async () => {
     expect(await refused(new Date(0))).toEqual([
       { plugin: 'p', reason: 'an entry carries a Date value at extra' },
     ])
   })
 
-  it('refuse un cycle plutôt que de boucler', async () => {
+  it('refuses a cycle rather than looping', async () => {
     const cyclic: Record<string, unknown> = {}
     cyclic.self = cyclic
 
@@ -182,7 +182,7 @@ describe('la garantie de sérialisation', () => {
 
   // Deux noms résolus vers la même valeur : la forme la plus plausible pour
   // `@crypte/tokens`, et `JSON.stringify` la sérialise sans broncher.
-  it('accepte deux références au même objet, qui n’est pas un cycle', async () => {
+  it('accepts two references to the same object, which is not a cycle', async () => {
     const shared = { type: 'color' as const, themes: { light: { value: '#4fe0a0' } } }
     const catalogue = await build(
       contributing('aliasing', () => [
@@ -196,7 +196,7 @@ describe('la garantie de sérialisation', () => {
 
   // `JSON.stringify` les rend `null`, donc le sens change sans un mot : c'est
   // exactement la mutation muette pour laquelle ce contrôle existe.
-  it('refuse NaN et Infinity', async () => {
+  it('refuses NaN and Infinity', async () => {
     expect(await refused(Number.NaN)).toEqual([
       { plugin: 'p', reason: 'an entry carries NaN at extra' },
     ])
@@ -210,8 +210,8 @@ describe('la garantie de sérialisation', () => {
 // une entrée dans son manifeste sans qu'aucune ligne du noyau ne connaisse les
 // tokens. Sur la démonstration, pas sur la fixture, parce que c'est elle qui
 // porte une feuille de style et un `crypte.config.ts` complet.
-describe('la démonstration, de bout en bout', () => {
-  it('porte une entrée tokens que @crypte/tokens a produite', async () => {
+describe('the demo, end to end', () => {
+  it('carries a tokens entry produced by @crypte/tokens', async () => {
     const catalogue = buildCatalogue(await loadProject(demo))
     const entries = catalogue.manifest.entries.filter((entry) => entry.type === 'tokens')
 
@@ -226,7 +226,7 @@ describe('la démonstration, de bout en bout', () => {
 
   // Le thème sombre vient d'un `@media`, et l'alias d'un `var()` : les deux
   // formes que la lecture naïve manque.
-  it('lit le thème sombre et la chaîne d’alias de la démonstration', async () => {
+  it('reads the demo’s dark theme and alias chain', async () => {
     const catalogue = buildCatalogue(await loadProject(demo))
     const colors = catalogue.manifest.entries.find((entry) => entry.id === 'tokens--color')
 

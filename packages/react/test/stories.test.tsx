@@ -14,7 +14,7 @@ interface BadgeProps {
 const Badge = (_props: BadgeProps) => null
 
 describe('defineStories', () => {
-  it('rend le composant et sa définition, sans les transformer', () => {
+  it('returns the component and its definition untransformed', () => {
     const definition = { props: { label: 'Neuf' }, stories: { 'Par défaut': {} } }
     const module = defineStories(Badge, definition)
 
@@ -23,13 +23,13 @@ describe('defineStories', () => {
   })
 
   // La forme courte de la section 2.2 : tout est optionnel.
-  it('accepte le composant seul', () => {
+  it('accepts the component alone', () => {
     expect(defineStories(Badge).definition).toEqual({})
   })
 })
 
 describe('story', () => {
-  it('sépare les props des options', () => {
+  it('separates props from options', () => {
     const options = { responsive: 'mobile' } as unknown as StoryOptions
 
     expect(story<BadgeProps>({ label: 'x' }, options)).toEqual({ props: { label: 'x' }, options })
@@ -37,7 +37,7 @@ describe('story', () => {
 
   // Sans cette absence, une entrée du manifeste porterait `options: undefined`,
   // que `JSON.stringify` laisse tomber en silence : section 4.5.
-  it('ne pose pas d’options quand il n’y en a pas', () => {
+  it('sets no options when there are none', () => {
     expect('options' in story<BadgeProps>({ label: 'x' })).toBe(false)
   })
 })

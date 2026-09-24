@@ -35,22 +35,22 @@ function reexported(): Set<string> {
   return new Set(namesInBlocks(source, REEXPORT_BLOCK))
 }
 
-describe('porte d’entrée du protocole', () => {
+describe('protocol entry point', () => {
   const exposed = reexported()
 
   // Sans ce cas, un dossier mal résolu ne laisserait rien à comparer.
-  it('lit les modules du protocole', () => {
+  it('reads the protocol modules', () => {
     expect(MODULES.length).toBeGreaterThan(0)
     expect(MODULES).toContain('manifest')
   })
 
   // Un `export *` exposerait des noms sans les nommer, hors de portée du contrôle.
-  it('n’emploie pas de réexport global', () => {
+  it('uses no wildcard re-export', () => {
     const source = readFileSync(join(protocol, 'index.ts'), 'utf8')
     expect(source).not.toMatch(/export\s+\*/)
   })
 
-  it.each(MODULES)('réexporte tout ce que %s déclare', (module) => {
+  it.each(MODULES)('re-exports everything %s declares', (module) => {
     const names = namesOf(module)
 
     expect(names.length, `aucune déclaration lue dans ${module}.ts`).toBeGreaterThan(0)
@@ -62,7 +62,7 @@ describe('porte d’entrée du protocole', () => {
 
   // Contrôle négatif, posé sur le lecteur et non sur son résultat : un nom
   // absent du dépôt ne prouvait rien, puisque rien ne pouvait l'y mettre.
-  it('ne lit que les noms des accolades d’un réexport', () => {
+  it('reads only the names inside a re-export’s braces', () => {
     const source = [
       '// StoryMeta, cité hors de tout bloc',
       "export type { Story } from './story'",

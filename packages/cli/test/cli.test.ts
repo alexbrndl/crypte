@@ -38,8 +38,8 @@ const faux = () => {
   }
 }
 
-describe('la commande crypte', () => {
-  test.for(['--version', '-v'] as const)('rend la version sur %s', async (drapeau) => {
+describe('the crypte command', () => {
+  test.for(['--version', '-v'] as const)('prints the version on %s', async (drapeau) => {
     const sortie = dit()
 
     await run([drapeau], sortie.log)
@@ -49,7 +49,7 @@ describe('la commande crypte', () => {
 
   // Le numéro de protocole est dans l'aide : un utilisateur qui écrit un plugin
   // le lit là, et le voir dériver de la constante est tout l'intérêt.
-  test('rend l’aide et la version du protocole sans commande', async () => {
+  test('prints the help and the protocol version without a command', async () => {
     const sortie = dit()
 
     await run([], sortie.log)
@@ -57,7 +57,7 @@ describe('la commande crypte', () => {
     expect(sortie.lignes).toEqual([AIDE])
   })
 
-  test.for(['dev', 'check', 'init'] as const)('passe la racine donnée à %s', async (commande) => {
+  test.for(['dev', 'check', 'init'] as const)('passes the given root to %s', async (commande) => {
     const doublure = faux()
 
     await run([commande, '/un/projet'], dit().log, doublure)
@@ -68,7 +68,7 @@ describe('la commande crypte', () => {
   // Sans racine, le dossier courant : c'est ce qu'une commande nue doit faire,
   // et rien ne le vérifiait.
   test.for(['dev', 'check', 'init'] as const)(
-    'prend le dossier courant quand la racine manque sur %s',
+    'uses the current directory when the root is missing on %s',
     async (commande) => {
       const doublure = faux()
 
@@ -80,15 +80,15 @@ describe('la commande crypte', () => {
 
   // Le code de sortie de `check` est le sien : les orphelines font échouer la
   // commande, et l'avaler rendrait le contrôle vert dans une intégration.
-  test('rend le code de sortie de check', async () => {
+  test('returns the exit code of check', async () => {
     expect(await run(['check'], dit().log, { check: async () => 1 })).toBe(1)
   })
 })
 
-describe('la sortie du processus', () => {
+describe('the process exit', () => {
   // Une erreur de configuration est la faute de l'utilisateur : son message,
   // sans trace de pile, et un code 1.
-  test('sort en 1 avec le message d’une erreur de configuration', () => {
+  test('exits with 1 and the message of a config error', () => {
     const sortie = dit()
 
     expect(exitCode(new ConfigError('crypte.config.ts est introuvable'), sortie.log)).toBe(1)
@@ -97,7 +97,7 @@ describe('la sortie du processus', () => {
 
   // Et tout le reste est une panne : la relancer garde sa trace, la ravaler
   // ferait sortir en 1 un bogue du CLI comme s'il venait du projet.
-  test('relance ce qui n’est pas une erreur de configuration', () => {
+  test('rethrows what is not a config error', () => {
     const sortie = dit()
     const panne = new TypeError('x is not a function')
 

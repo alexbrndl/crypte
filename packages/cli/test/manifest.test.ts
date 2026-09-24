@@ -34,8 +34,8 @@ function projectWith(files: Record<string, string>): string {
 
 const CONFIG = "export default { stories: 'stories', adapter: { name: 'react' } }\n"
 
-describe('le catalogue', () => {
-  it('ne ramasse que les quatre extensions', () => {
+describe('the catalogue', () => {
+  it('picks up only the four extensions', () => {
     const root = projectWith({
       'stories/A.ts': '',
       'stories/A.tsx': '',
@@ -57,7 +57,7 @@ describe('le catalogue', () => {
   // Le bandeau du shell ne montre que le certain, le terminal garde tout : deux
   // règles de forme se sont trompées avant celle-ci, chacune dans un sens, donc
   // ce qui reste une supposition ne va pas dans une interface permanente.
-  it('ne met dans le manifeste que ce qui est certain', async () => {
+  it('puts only what is certain in the manifest', async () => {
     const root = projectWith({
       'crypte.config.ts': CONFIG,
       'stories/A.ts': "import { A } from '../a'\nexport default defineStories(A)\n",
@@ -75,7 +75,7 @@ describe('le catalogue', () => {
 
   // Supprimer une story est délibéré : un bandeau pour elle serait une ligne sur
   // laquelle personne ne peut agir.
-  it('oublie un fichier qui a été supprimé', async () => {
+  it('forgets a file that was deleted', async () => {
     const root = projectWith({
       'crypte.config.ts': CONFIG,
       'stories/A.ts': "import { A } from '../a'\nexport default defineStories(A)\n",
@@ -91,7 +91,7 @@ describe('le catalogue', () => {
     expect(après.wasStory).toEqual([])
   })
 
-  it('signale un fichier illisible sans perdre les autres', async () => {
+  it('reports an unreadable file without losing the others', async () => {
     const root = projectWith({
       'crypte.config.ts': CONFIG,
       'stories/A.ts': "import { A } from '../a'\nexport default defineStories(A)\n",
@@ -107,7 +107,7 @@ describe('le catalogue', () => {
 
   // L'identifiant est une URL, une clé de baseline et l'ancre d'un commentaire.
   // Une collision doit être nommée, pas tranchée en silence.
-  it('refuse deux stories qui tombent sur le même identifiant', async () => {
+  it('refuses two stories that land on the same id', async () => {
     const root = projectWith({
       'crypte.config.ts': CONFIG,
       'stories/A.ts': [
@@ -123,7 +123,7 @@ describe('le catalogue', () => {
     expect(() => buildCatalogue(project)).toThrow(/a--avec-reference/)
   })
 
-  it('nomme le dossier de stories quand il manque', async () => {
+  it('names the stories folder when it is missing', async () => {
     const root = projectWith({ 'crypte.config.ts': CONFIG })
 
     await expect(async () => buildCatalogue(await loadProject(root))).rejects.toThrow(
@@ -135,7 +135,7 @@ describe('le catalogue', () => {
   // partagé. Au second passage elle recevait son propre résultat, un chemin
   // relatif à la racine, qui est un identifiant « bare » et repassait par les
   // motifs : les deux entrées finissaient sur `lib/src/Card.jsx`.
-  it('résout le composant une fois par fichier, pas une fois par story', async () => {
+  it('resolves the component once per file, not once per story', async () => {
     const root = projectWith({
       'crypte.config.ts': CONFIG,
       'jsconfig.json': '{ "compilerOptions": { "baseUrl": ".", "paths": { "*": ["./lib/*"] } } }',
@@ -160,7 +160,7 @@ describe('le catalogue', () => {
   // L'ordre des extensions doit être celui que vite@8.2.1 documente pour
   // `resolve.extensions`. Tout autre ordre fait résoudre un composant ici et un
   // autre dans la preview, sur un projet qui porte les deux fichiers.
-  it('résout dans l’ordre d’extensions de Vite', async () => {
+  it('resolves in Vite’s extension order', async () => {
     const root = projectWith({
       'crypte.config.ts': CONFIG,
       'src/Card.js': 'export const Card = () => null\n',
@@ -176,7 +176,7 @@ describe('le catalogue', () => {
   // Chaque fichier avant tout `index`, l'ordre de Node. L'extension du fichier
   // vient ici après celle de l'index dans la liste : sans ce cas, l'entrelacement
   // rendait la même réponse et la garantie ne tenait rien.
-  it('préfère un fichier à un dossier portant un index', async () => {
+  it('prefers a file over a folder holding an index', async () => {
     const root = projectWith({
       'crypte.config.ts': CONFIG,
       'src/Card.ts': 'export const Card = () => null\n',
@@ -189,7 +189,7 @@ describe('le catalogue', () => {
     expect(storiesOf(manifest)[0]?.component.file).toBe('src/Card.ts')
   })
 
-  it('écrit un JSON relu tel quel', async () => {
+  it('writes JSON that reads back unchanged', async () => {
     const project = await loadProject(fixture)
     const root = projectWith({})
     const { manifest } = buildCatalogue(project)
@@ -203,7 +203,7 @@ describe('le catalogue', () => {
 
 // La règle de fusion de la section 3.2 : `details` **complète** l'inférence, par
 // prop et champ par champ. Elle était écrite sans qu'aucun cas ne la garde.
-describe('details, l’inférence complétée par le fichier', () => {
+describe('details, inference completed by the file', () => {
   const component = `export interface P {
   /** Lue du composant. */
   label: string
@@ -227,7 +227,7 @@ export function Card({ label, tone }: P) { return null }
     return entry?.type === 'story' ? entry.details : undefined
   }
 
-  it('rend l’inférence seule quand le fichier ne déclare rien', async () => {
+  it('returns inference alone when the file declares nothing', async () => {
     expect(await detailsOn('{}')).toEqual({
       label: { type: 'string', required: true, description: 'Lue du composant.' },
       tone: { type: 'enum', required: false, options: ['a', 'b'] },
@@ -236,14 +236,14 @@ export function Card({ label, tone }: P) { return null }
 
   // Un champ explicite remplace **lui seul**. Le type, la description et le
   // caractère requis viennent toujours de l'inférence.
-  it('remplace le champ écrit, et garde les autres', async () => {
+  it('replaces the written field and keeps the others', async () => {
     expect(await detailsOn("{ details: { label: { description: 'écrite à la main' } } }")).toEqual({
       label: { type: 'string', required: true, description: 'écrite à la main' },
       tone: { type: 'enum', required: false, options: ['a', 'b'] },
     })
   })
 
-  it('ajoute un champ que l’inférence ne connaît pas', async () => {
+  it('adds a field inference does not know', async () => {
     const details = await detailsOn('{ details: { tone: { min: 0 } } }')
 
     expect(details?.tone).toEqual({ type: 'enum', required: false, options: ['a', 'b'], min: 0 })
@@ -252,7 +252,7 @@ export function Card({ label, tone }: P) { return null }
   // Une prop que le fichier nomme et que l'inférence n'a pas vue : l'auteur
   // documente ce que le lecteur ne pouvait pas voir, et la perdre perdrait le
   // seul mot écrit à son sujet.
-  it('garde une prop que l’inférence n’a pas trouvée', async () => {
+  it('keeps a prop inference did not find', async () => {
     const details = await detailsOn("{ details: { hidden: { description: 'via un spread' } } }")
 
     expect(details?.hidden).toEqual({
@@ -262,7 +262,7 @@ export function Card({ label, tone }: P) { return null }
     })
   })
 
-  it('ignore une entrée de details qui n’est pas un objet', async () => {
+  it('ignores a details entry that is not an object', async () => {
     const details = await detailsOn("{ details: { label: 'pas un objet' } }")
 
     expect(details?.label).toEqual({
@@ -348,8 +348,8 @@ const EXPECTED: Manifest = {
   ],
 }
 
-describe('la forme du manifeste', () => {
-  it('est celle que la fixture produit, champ pour champ', async () => {
+describe('the manifest shape', () => {
+  it('is the one the fixture produces, field by field', async () => {
     const { manifest } = buildCatalogue(await loadProject(fixture))
 
     expect(manifest).toEqual(EXPECTED)

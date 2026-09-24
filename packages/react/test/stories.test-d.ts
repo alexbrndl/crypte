@@ -25,47 +25,47 @@ const Provider = (_props: { children?: unknown }) => null
 describe('PropsOf', () => {
   // `any` est le mode d'échec silencieux : il accepte tout, donc plus rien n'est
   // vérifié dans un fichier de story, et aucun cas d'exécution ne s'en aperçoit.
-  it('rend exactement les props du composant, jamais any', () => {
+  it('returns exactly the component props, never any', () => {
     expectTypeOf<PropsOf<typeof Badge>>().toEqualTypeOf<BadgeProps>()
     expectTypeOf<PropsOf<typeof Badge>>().not.toBeAny()
   })
 
   // Le second embranchement du type conditionnel : ce qui n'est pas un composant
   // ne porte pas de props.
-  it('rend never sur ce qui n’est pas un composant', () => {
+  it('returns never for what is not a component', () => {
     expectTypeOf<PropsOf<string>>().toBeNever()
   })
 })
 
 describe('defineStories', () => {
-  it('porte le composant reçu, sans l’élargir', () => {
+  it('carries the given component without widening it', () => {
     expectTypeOf(defineStories(Badge)).toEqualTypeOf<StoryModule<typeof Badge>>()
     expectTypeOf(defineStories(Badge).component).toEqualTypeOf<typeof Badge>()
   })
 
   // Ce qui fait l'autocomplétion d'un fichier de story : les props de la
   // définition viennent du composant, pas d'un alias que l'auteur écrirait.
-  it('type les props de la définition depuis le composant', () => {
+  it('types the definition props from the component', () => {
     expectTypeOf(defineStories(Badge).definition.props).toEqualTypeOf<
       Partial<BadgeProps> | undefined
     >()
   })
 
-  it('refuse une prop que le composant ne déclare pas', () => {
+  it('refuses a prop the component does not declare', () => {
     // @ts-expect-error `taille` n'est pas une prop de Badge
     defineStories(Badge, { props: { label: 'Neuf', taille: 2 } })
   })
 
   // Une enveloppe n'a aucune raison d'accepter les props de la story, sans quoi
   // `wrap: Provider` cesserait de compiler sur `defineStories(Badge, …)`.
-  it('accepte une enveloppe qui ne prend pas les props de la story', () => {
+  it('accepts a wrapper that does not take the story props', () => {
     expectTypeOf<AnyComponent>().toEqualTypeOf<ComponentType<never>>()
     defineStories(Badge, { wrap: Provider })
   })
 })
 
 describe('story', () => {
-  it('accepte une part des props, et refuse une clé inconnue', () => {
+  it('accepts part of the props and refuses an unknown key', () => {
     expectTypeOf(story<BadgeProps>({ label: 'Neuf' }).props).toEqualTypeOf<Partial<BadgeProps>>()
 
     // @ts-expect-error `taille` n'est pas une prop de Badge
@@ -76,8 +76,8 @@ describe('story', () => {
 // La contrainte que les autres cas ne voient pas : retirer `C extends
 // ComponentType<never>` les laisse tous verts, `PropsOf<42>` valant `never` sans
 // faire échouer une assertion. Mesuré.
-describe('la contrainte de defineStories', () => {
-  it('refuse ce qui n’est pas un composant', () => {
+describe('the defineStories constraint', () => {
+  it('refuses what is not a component', () => {
     // @ts-expect-error un nombre n'est pas un composant
     defineStories(42)
   })
@@ -86,8 +86,8 @@ describe('la contrainte de defineStories', () => {
 // Le joint entre les deux paquets publiés : ce que `wrapsOf` rend doit entrer
 // dans `mount` sans cast. Ils sont faits pour s'emboîter, et rien ne le voyait,
 // l'entrée générée étant du JavaScript.
-describe('le joint avec le noyau', () => {
-  it('accepte telle quelle la liste que wrapsOf rend', () => {
+describe('the seam with core', () => {
+  it('accepts the list wrapsOf returns as is', () => {
     const adapter = createAdapter()
     const wraps = wrapsOf(undefined, { wrap: Badge })
 

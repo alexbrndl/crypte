@@ -19,7 +19,7 @@ const VERSION = lire('.github', 'workflows', 'version.yml')
 // C'est le seul geste irréversible du dépôt : `CLAUDE.md` dit qu'un nom de paquet
 // publié ne se reprend plus après 72 heures. Le câblage qui l'empêche est une
 // **absence**, et une absence ne se voit pas en relisant un diff qui ajoute.
-test('le workflow de version ne publie pas', () => {
+test('the version workflow does not publish', () => {
   // Le bloc `with:` de l'action, et lui seul : `publish` apparaît par ailleurs
   // dans les commentaires qui expliquent pourquoi il n'est pas là.
   const bloc = /changesets\/action@[^\n]*\n(\s+)with:\n((?:\1\s+[^\n]*\n)*)/.exec(VERSION)
@@ -43,7 +43,7 @@ test('le workflow de version ne publie pas', () => {
 //
 // Ce cas fixe **quel paquet déclare**. Que la déclaration soit méritée, c'est
 // `packages/core/test/side-effects.test.ts` qui le vérifie.
-test('seul le noyau déclare sideEffects: false', () => {
+test('only core declares sideEffects: false', () => {
   const déclarent = ['core', 'cli', 'react', 'tokens', 'ui'].filter(
     (nom) => JSON.parse(lire('packages', nom, 'package.json')).sideEffects === false,
   )
@@ -54,7 +54,7 @@ test('seul le noyau déclare sideEffects: false', () => {
 // La quatrième contrainte de `CLAUDE.md`, et la seule des quatre que rien ne
 // tenait. Son échec est muet ici, où `vite-plus` est installé, et bruyant chez
 // l'utilisateur, qui ne l'a pas.
-test('aucun code publié n’importe vite-plus', () => {
+test('no published code imports vite-plus', () => {
   // `packages/*/src` ne rend rien : le `*` d'un pathspec git ne traverse pas le
   // séparateur. Le filtre fait le travail que le motif ne fait pas.
   const sources = execFileSync('git', ['ls-files', 'packages', 'apps/shell'], {
@@ -71,7 +71,7 @@ test('aucun code publié n’importe vite-plus', () => {
 // `@crypte/ui` est une feuille du graphe : un paquet qui l'importerait ferait
 // charger des composants Vue à qui ne voulait que des types, la panne que la
 // troisième contrainte de `CLAUDE.md` existe pour empêcher.
-test('aucun paquet ni le CLI ne dépend de @crypte/ui', () => {
+test('no package, CLI included, depends on @crypte/ui', () => {
   const paquets = ['core', 'cli', 'react', 'tokens']
   const déclarent = paquets.filter((nom) => {
     const manifeste = JSON.parse(lire('packages', nom, 'package.json'))

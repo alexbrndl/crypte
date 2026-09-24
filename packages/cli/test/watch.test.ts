@@ -24,8 +24,8 @@ function fauxWatch() {
   return { watch, ouverts, vivants }
 }
 
-describe('la temporisation', () => {
-  it('ne lance qu’une fois, après le dernier appel', () => {
+describe('the debounce', () => {
+  it('runs only once, after the last call', () => {
     vi.useFakeTimers()
     const run = vi.fn()
     const { soon } = debounced(run, 20)
@@ -42,7 +42,7 @@ describe('la temporisation', () => {
 
   // La fenêtre que le vrai système de fichiers n'expose pas : armée juste avant
   // l'arrêt, elle reconstruisait après lui.
-  it('ne lance rien d’armé avant l’arrêt, ni après', () => {
+  it('runs nothing armed before the stop, nor after', () => {
     vi.useFakeTimers()
     const run = vi.fn()
     const { soon, stop } = debounced(run, 20)
@@ -56,10 +56,10 @@ describe('la temporisation', () => {
   })
 })
 
-describe('les surveillants de composant', () => {
+describe('component watchers', () => {
   // Une sauvegarde atomique remplace l'inode : le surveillant d'avant devient
   // muet, et seule une réouverture sur le même chemin entend la suivante.
-  it('rouvre le surveillant d’un fichier renommé par-dessus', () => {
+  it('reopens the watcher of a file renamed over', () => {
     const faux = fauxWatch()
     const changed = vi.fn()
     const surveillants = componentWatchers(changed, () => {}, faux.watch)
@@ -74,7 +74,7 @@ describe('les surveillants de composant', () => {
     expect(changed).toHaveBeenCalledTimes(1)
   })
 
-  it('n’ouvre plus rien une fois arrêté, pas même sur un renommage tardif', () => {
+  it('opens nothing once stopped, not even on a late rename', () => {
     const faux = fauxWatch()
     const surveillants = componentWatchers(
       () => {},
@@ -92,7 +92,7 @@ describe('les surveillants de composant', () => {
     expect(surveillants.watched()).toEqual([])
   })
 
-  it('garde ce qui reste voulu et ferme le reste', () => {
+  it('keeps what is still wanted and closes the rest', () => {
     const faux = fauxWatch()
     const surveillants = componentWatchers(
       () => {},
@@ -109,7 +109,7 @@ describe('les surveillants de composant', () => {
     expect(surveillants.watched()).toEqual(['Badge.jsx', 'Tag.jsx'])
   })
 
-  it('dit quel fichier n’a pas pu être surveillé, et continue', () => {
+  it('reports which file could not be watched, and goes on', () => {
     const failed = vi.fn()
     const surveillants = componentWatchers(
       () => {},

@@ -99,17 +99,17 @@ function effectsOf(file: string, source: string): string[] {
     .map((node) => source.slice(node['start'] as number, node['end'] as number))
 }
 
-describe('ce qu’un fichier du noyau exécute à l’import', () => {
+describe('what a core file runs on import', () => {
   // `packages/*/src` ne rend rien comme pathspec : le dossier parent, filtré.
   const files = execFileSync('git', ['ls-files', 'src'], { cwd: root, encoding: 'utf8' })
     .split('\n')
     .filter((one) => one.endsWith('.ts'))
 
-  it('lit des fichiers', () => {
+  it('reads files', () => {
     expect(files.length).toBeGreaterThan(5)
   })
 
-  it('ne trouve rien dans le noyau', () => {
+  it('finds nothing in core', () => {
     const found = files.flatMap((one) =>
       effectsOf(one, readFileSync(join(root, one), 'utf8')).map((effect) => `${one}: ${effect}`),
     )
@@ -142,7 +142,7 @@ describe('ce qu’un fichier du noyau exécute à l’import', () => {
     "import x = require('./y')",
     'export class A { m(@log x) {} }',
     'export class A { constructor(@inj private y) {} }',
-  ])('signale %s', (source) => {
+  ])('flags %s', (source) => {
     // L'instruction elle-même, pas seulement « quelque chose » : un fragment qui
     // ne se lit pas serait signalé aussi.
     expect(effectsOf('x.ts', source)).toEqual([source])
@@ -168,7 +168,7 @@ describe('ce qu’un fichier du noyau exécute à l’import', () => {
     'declare function f(): void',
     "export class A { ['a']() {} }",
     'export class A { m(x = make()) {} }',
-  ])('ne signale pas %s', (source) => {
+  ])('does not flag %s', (source) => {
     expect(effectsOf('x.ts', source)).toEqual([])
   })
 
@@ -176,7 +176,7 @@ describe('ce qu’un fichier du noyau exécute à l’import', () => {
   // d'un paramètre rest sans erreur et ne le met nulle part dans l'arbre, donc
   // rien ici ne peut le voir. Le jour où ce cas rougit, oxc le garde, et il
   // rejoint la table « signale ».
-  it('ne voit pas un décorateur de paramètre rest, que le parseur jette', () => {
+  it('misses a rest parameter decorator, which the parser drops', () => {
     expect(effectsOf('x.ts', 'export class A { m(@log ...r) {} }')).toEqual([])
   })
 })

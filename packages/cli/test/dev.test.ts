@@ -38,14 +38,14 @@ describe('crypte dev', () => {
   // Le projet a sa propre `index.html`, comme tout vrai projet. Sans
   // `appType: 'custom'`, le repli de Vite la sert pour toute URL inconnue, donc
   // une faute de frappe rendrait la page de l'application au lieu d'un 404.
-  it('ne sert jamais la page du projet à la place d’une route inconnue', async () => {
+  it('never serves the project page in place of an unknown route', async () => {
     const { status, body } = await get('/pas-une-route')
 
     expect(status).toBe(404)
     expect(body).not.toContain('la page du projet')
   })
 
-  it('sert le catalogue depuis la mémoire, pas depuis le fichier écrit', async () => {
+  it('serves the catalogue from memory, not from the written file', async () => {
     const { status, body } = await get(MANIFEST_ROUTE)
 
     expect(status).toBe(200)
@@ -57,7 +57,7 @@ describe('crypte dev', () => {
   // change rien. L'entrée recopie l'expression de la configuration, donc un
   // `as` arriverait au navigateur et la preview mourrait sur un `SyntaxError`.
   // `DCJ-224`.
-  it('retire le TypeScript que la configuration a écrit', async () => {
+  it('strips the TypeScript the config wrote', async () => {
     const root = mkdtempSync(join(tmpdir(), 'crypte-typed-'))
     const project = { root, config: { stories: 'stories' } } as never
 
@@ -87,7 +87,7 @@ describe('crypte dev', () => {
 const racine = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 const sansRacine = (source: string) => source.replaceAll(racine, '<racine>')
 
-describe('l’entrée de la preview', () => {
+describe('the preview entry', () => {
   // L'entrée entière, dans un fichier que la revue lit comme un diff.
   //
   // Elle remplace six assertions par sous-chaîne sur cette même source. Une
@@ -95,7 +95,7 @@ describe('l’entrée de la preview', () => {
   // raison ; un instantané compare tout, donc il ne peut pas passer pour la
   // mauvaise raison. Il se met à jour par `vp test -u`, et sa mise à jour se
   // relit.
-  it('rend une entrée que la revue lit en entier', async () => {
+  it('returns an entry the review reads in full', async () => {
     const source = previewEntry(await loadProject(fixture), ['stories/Gardee.tsx'])
 
     // La racine du dépôt est remplacée : l'entrée porte le chemin absolu de la
@@ -105,7 +105,7 @@ describe('l’entrée de la preview', () => {
 
   // Un nom de fichier est une donnée, pas du code : interpolé brut, une
   // apostrophe ferme la chaîne et le reste du nom devient du JavaScript.
-  it('échappe le nom du fichier dans l’import', () => {
+  it('escapes the file name in the import', () => {
     const source = previewEntry({ root: fixture, config: { stories: 'stories' } } as never, [
       String.raw`stories/L'"Ecart.tsx`,
     ])
@@ -117,7 +117,7 @@ describe('l’entrée de la preview', () => {
 // La commande elle-même, et non le serveur qu'elle monte : ces lignes-ci sont
 // tout ce que l'utilisateur voit au démarrage, et la couverture les donnait
 // jamais exécutées.
-describe('ce que la commande dit au démarrage', () => {
+describe('what the command says on startup', () => {
   const commande = base.extend<{ projet: { root: string; dit: () => Promise<string[]> } }>({
     // Le paramètre vide est la forme que vitest lit pour savoir quelles fixtures
     // initialiser. Le renommer fait collecter zéro test : mesuré.
@@ -142,13 +142,13 @@ describe('ce que la commande dit au démarrage', () => {
     },
   })
 
-  commande('compte les stories servies', async ({ projet }) => {
+  commande('counts the served stories', async ({ projet }) => {
     expect(await projet.dit()).toContain('4 stories')
   })
 
   // Un fichier que le lecteur n'a pas su lire est nommé, avec sa raison : c'est
   // le silence que le lot 4 a fermé, et il vaut aussi au démarrage.
-  commande('nomme les fichiers de story laissés de côté', async ({ projet }) => {
+  commande('names the story files left out', async ({ projet }) => {
     writeFileSync(join(projet.root, 'stories', 'Muette.js'), 'export default 12')
 
     const lignes = await projet.dit()
@@ -160,7 +160,7 @@ describe('ce que la commande dit au démarrage', () => {
   // Le manifeste et l'empreinte s'écrivent sous `.crypte`. Un fichier à cette
   // place fait échouer l'écriture, et l'utilisateur doit l'apprendre plutôt que
   // de chercher un manifeste qui n'arrivera jamais.
-  commande('dit quand ni le manifeste ni l’empreinte n’ont pu être écrits', async ({ projet }) => {
+  commande('says when neither manifest nor fingerprint could be written', async ({ projet }) => {
     rmSync(join(projet.root, '.crypte'), { recursive: true, force: true })
     writeFileSync(join(projet.root, '.crypte'), 'pas un dossier')
 

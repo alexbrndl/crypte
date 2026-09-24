@@ -47,22 +47,22 @@ function projectWith(files: Record<string, string>, dossiers: string[] = []): st
 const paquet = (deps: Record<string, string>, dev: Record<string, string> = {}) =>
   JSON.stringify({ name: 'projet', dependencies: deps, devDependencies: dev })
 
-describe('ce que le projet dit de lui-même', () => {
+describe('what the project says about itself', () => {
   // Un package.json qui ne déclare aucune dépendance : les deux champs sont
   // absents, pas vides, et la lecture les traversait sans les avoir éprouvés.
-  test('refuse un projet dont le package.json ne déclare rien', () => {
+  test('refuses a project whose package.json declares nothing', () => {
     const root = projectWith({ 'package.json': JSON.stringify({ name: 'projet' }) })
 
     expect(() => planFor(root)).toThrow('No framework recognised')
   })
 
-  test('refuse un projet sans package.json', () => {
+  test('refuses a project without package.json', () => {
     expect(() => planFor(projectWith({}))).toThrow('No framework recognised')
   })
 
   // Sans ce cas, un package.json illisible passerait pour un projet sans
   // cadriciel, et le message accuserait le mauvais fichier.
-  test('nomme le package.json quand il ne se lit pas', () => {
+  test('names package.json when it cannot be read', () => {
     const root = projectWith({ 'package.json': '{ ceci ne se lit pas' })
 
     expect(() => planFor(root)).toThrow('package.json could not be read')
@@ -73,7 +73,7 @@ describe('ce que le projet dit de lui-même', () => {
     [['src/stories'], 'src/stories', false],
     [['stories', 'src/stories'], 'stories', false],
     [[], 'stories', true],
-  ] as const)('propose %s comme racine', ([dossiers, attendu, manquante]) => {
+  ] as const)('suggests %s as root', ([dossiers, attendu, manquante]) => {
     const root = projectWith({ 'package.json': paquet({ react: '^19.0.0' }) }, [...dossiers])
     const plan = planFor(root)
 
@@ -82,8 +82,8 @@ describe('ce que le projet dit de lui-même', () => {
   })
 })
 
-describe('le fichier écrit', () => {
-  test('porte les deux clés requises de la section 1.5, et rien d’autre', () => {
+describe('the written file', () => {
+  test('holds the two required keys of section 1.5, and nothing else', () => {
     const root = projectWith({ 'package.json': paquet({ react: '^19.0.0' }) }, ['stories'])
 
     expect(configFor(planFor(root))).toMatchInlineSnapshot(`
@@ -99,14 +99,14 @@ describe('le fichier écrit', () => {
   })
 })
 
-describe('ce que la commande imprime', () => {
-  test('donne la commande d’installation quand l’adaptateur manque', () => {
+describe('what the command prints', () => {
+  test('gives the install command when the adapter is missing', () => {
     const root = projectWith({ 'package.json': paquet({ react: '^19.0.0' }) }, ['stories'])
 
     expect(linesOf(planFor(root)).join('\n')).toContain('npm i -D @crypte/cli @crypte/react')
   })
 
-  test('ne la donne pas quand il est là', () => {
+  test('does not give it when the adapter is there', () => {
     const root = projectWith(
       {
         'package.json': paquet({ react: '^19.0.0' }, { '@crypte/react': '^0.0.0' }),
@@ -118,10 +118,10 @@ describe('ce que la commande imprime', () => {
   })
 })
 
-describe('la commande', () => {
+describe('the command', () => {
   // Une configuration existante porte des réponses que cette commande ne sait
   // pas reconstruire, les plugins Vite d'abord.
-  test('n’écrase jamais une configuration existante', () => {
+  test('never overwrites an existing config', () => {
     const root = projectWith({
       'package.json': paquet({ react: '^19.0.0' }),
       'crypte.config.ts': '// la mienne',
@@ -133,7 +133,7 @@ describe('la commande', () => {
 
   // `buildCatalogue` refuse une racine qui n'existe pas : sans la créer, la
   // configuration écrite ne démarrerait pas.
-  test('crée la racine de stories quand elle manque', () => {
+  test('creates the stories root when it is missing', () => {
     const root = projectWith({ 'package.json': paquet({ react: '^19.0.0' }) })
 
     init(root, () => {})
@@ -141,7 +141,7 @@ describe('la commande', () => {
     expect(existsSync(join(root, 'stories'))).toBe(true)
   })
 
-  test('n’écrit rien quand aucun cadriciel n’est reconnu', () => {
+  test('writes nothing when no framework is recognised', () => {
     const root = projectWith({ 'package.json': paquet({ vue: '^3.5.0' }) })
 
     expect(() => init(root, () => {})).toThrow()
@@ -152,8 +152,8 @@ describe('la commande', () => {
 // Le critère de fin de `DCJ-175` : la configuration écrite doit être
 // fonctionnelle. Sur une copie de la démonstration, donc avec les vrais paquets
 // résolus, et éprouvée par le chargeur réel puis par le catalogue.
-describe('la configuration produite', () => {
-  test('se charge et donne un catalogue', { timeout: 60_000 }, async () => {
+describe('the generated config', () => {
+  test('loads and yields a catalogue', { timeout: 60_000 }, async () => {
     const root = mkdtempSync(join(demo, '..', 'tmp-demo-'))
     temporary.push(root)
     cpSync(demo, root, { recursive: true })

@@ -67,7 +67,7 @@ const OUTSIDE_THE_CHANNEL = ['NFD', 'NFC', 'MANIFEST_VERSION']
 // Contrôle négatif du suivi lui-même, sur deux fichiers écrits ici. L'ancrer sur
 // la répartition en chunks le faisait rougir au premier refactoring légitime, et
 // se taire quand la répartition rendait l'entrée autosuffisante.
-describe('le suivi des imports', () => {
+describe('import tracking', () => {
   // Hors de `dist`, qui est le contenu publié : un run interrompu avant le
   // nettoyage y laisserait deux modules, qui partiraient dans le paquet npm.
   let sandbox: string
@@ -84,15 +84,15 @@ describe('le suivi des imports', () => {
     if (sandbox) rmSync(sandbox, { recursive: true, force: true })
   })
 
-  it('atteint un fichier que l’entrée ne fait qu’importer', () => {
+  it('reaches a file the entry only imports', () => {
     const entryOnly = readFileSync(join(sandbox, 'probe-entry.js'), 'utf8')
     expect(entryOnly).not.toContain('__crypte_probe__')
     expect(closureOf('probe-entry', sandbox)).toContain('__crypte_probe__')
   })
 })
 
-describe('isolation des entrées de @crypte/core', () => {
-  it('protocol ne contient rien de shell ni de preview', () => {
+describe('isolation of @crypte/core entries', () => {
+  it('protocol contains nothing from shell or preview', () => {
     const protocol = closureOf('protocol')
 
     // Les deux cas sur `protocol` n'ont que des assertions négatives, qui
@@ -105,7 +105,7 @@ describe('isolation des entrées de @crypte/core', () => {
     expect(protocol).not.toContain('__crypte_preview__')
   })
 
-  it('la fermeture de protocol reste close', () => {
+  it('the protocol closure stays closed', () => {
     const protocol = closureOf('protocol')
     expect(protocol).not.toContain('createShellChannel')
     expect(protocol).not.toContain('createPreviewChannel')
@@ -119,7 +119,7 @@ describe('isolation des entrées de @crypte/core', () => {
   //
   // Le cas est aujourd'hui vacant pour `shell`, qui n'importe que des types : il
   // mordra dès qu'il importera une valeur, comme `preview` le fait déjà.
-  it.each(['shell', 'preview'])('%s n’embarque que ce dont il se sert', (entry) => {
+  it.each(['shell', 'preview'])('%s bundles only what it uses', (entry) => {
     const closure = closureOf(entry)
     expect(closure).toContain(`__crypte_${entry}__`)
 
