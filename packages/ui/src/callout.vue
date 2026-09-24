@@ -1,3 +1,6 @@
+<!-- One consumer today, the shell's render failure and set-aside notice:
+     promoted ahead of the site, which is starting now and draws the same
+     notices. Reopened if the site ships without using it. -->
 <script setup lang="ts">
 defineProps<{
   tone: 'warning' | 'danger'

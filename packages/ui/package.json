@@ -15,7 +15,8 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "pack": "vp pack && vue-tsc -p tsconfig.build.json"
+    "pack": "vp pack && vue-tsc -p tsconfig.build.json",
+    "typecheck": "vue-tsc --noEmit"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.1",
