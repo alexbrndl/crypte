@@ -90,6 +90,9 @@ describe('the crypte command', () => {
     [['dev', '--port'], 'crypte dev: unknown option --port'],
     [['dev', '.', '--port', '3000'], 'crypte dev: unknown option --port'],
     [['dev', 'a', 'b'], 'crypte dev: unexpected argument b'],
+    [['--version', 'foo'], 'crypte --version: unexpected argument foo'],
+    [['serve', '--port'], 'crypte: unknown command serve, see crypte --help'],
+    [['serve', 'a', 'b'], 'crypte: unknown command serve, see crypte --help'],
   ] as const)('refuses %j instead of running the command', async ([argv, ligne]) => {
     const erreur = dit()
     const doublure = faux()

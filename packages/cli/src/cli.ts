@@ -52,39 +52,41 @@ export async function run(
     return 0
   }
 
+  // The command first: `serve --port` is a wrong command, not a wrong option.
+  // A misspelled command in a script or a CI must fail, not print the help and
+  // pass.
+  const version = command === '--version' || command === '-v'
+  if (!version && command !== 'dev' && command !== 'check' && command !== 'init') {
+    warn(`crypte: unknown command ${command}, see crypte --help`)
+    return 1
+  }
+
   // No command takes an option yet, so anything that looks like one is a typo,
-  // not a folder named `--port`, and a second folder is one too.
+  // not a folder named `--port`. And each takes at most its root: `--version`
+  // none, the three commands one.
   const option = rest.find((one) => one.startsWith('-'))
   if (option !== undefined) {
     warn(`crypte ${command}: unknown option ${option}`)
     return 1
   }
-  if (rest.length > 1) {
-    warn(`crypte ${command}: unexpected argument ${rest[1]}`)
+  const extra = rest[version ? 0 : 1]
+  if (extra !== undefined) {
+    warn(`crypte ${command}: unexpected argument ${extra}`)
     return 1
+  }
+
+  if (version) {
+    log('0.0.0')
+    return 0
   }
 
   const root = rest[0] ?? process.cwd()
 
-  switch (command) {
-    case '--version':
-    case '-v':
-      log('0.0.0')
-      return 0
-    case 'dev':
-      await (commands.dev ?? start)(root)
-      return 0
-    case 'check':
-      return await (commands.check ?? verify)(root, log)
-    case 'init':
-      ;(commands.init ?? create)(root, log)
-      return 0
-    // A misspelled command in a script or a CI must fail, not print the help
-    // and pass.
-    default:
-      warn(`crypte: unknown command ${command}, see crypte --help`)
-      return 1
-  }
+  if (command === 'check') return await (commands.check ?? verify)(root, log)
+  if (command === 'init') (commands.init ?? create)(root, log)
+  else await (commands.dev ?? start)(root)
+
+  return 0
 }
 
 // A configuration error is the user's mistake, not a crash: it leaves by its
