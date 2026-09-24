@@ -73,8 +73,8 @@ function digestOf(entry: StoryEntry): string {
   return createHash('sha256').update(stable(rest)).digest('hex').slice(0, 16)
 }
 
-// `source` with its attributes sorted, as text: two never share a name, so the
-// order is the same as sorting by name. It keeps the author's order
+// `source` with its attributes sorted as text, which makes it independent of
+// the order the author wrote them in. `source` itself keeps that order
 // because it is displayed, so reordering a block of props moved the digest
 // while the render stayed the same. The producer writes no spread, so the order
 // of attributes carries no meaning here.
