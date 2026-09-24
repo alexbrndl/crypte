@@ -379,11 +379,11 @@ describe('command', () => {
     expect(lignes).toEqual(['carte--default: its component is gone, src/Carte'])
   })
 
-  // L'avertissement ne fait jamais échouer la commande : 1.2 le dit, et un
-  // projet qui ne raconte pas tout n'est pas un projet en faute.
-  // Un fichier de story cassé est nommé, et fait échouer comme une orpheline.
-  // Son composant n'est pas accusé : tant qu'il n'est pas lu, on ne sait pas
-  // lequel c'est, donc les composants sans story ne sont pas listés.
+  // Un fichier de story qui n'a rien donné est nommé, en avertissement : ce peut
+  // être une forme correcte que le lecteur ne suit pas. Son composant n'est pas
+  // accusé, et tant qu'il n'est pas lu, les composants sans story ne sont pas
+  // listés. Un fichier lu en partie n'en est pas un : ses entrées nomment son
+  // composant.
   test('names an unreadable story file instead of blaming its component', async () => {
     const lignes: string[] = []
     const root = await recorded(
@@ -398,7 +398,7 @@ describe('command', () => {
       }),
     )
 
-    expect(await check(root, (line) => lignes.push(line))).toBe(1)
+    expect(await check(root, (line) => lignes.push(line))).toBe(0)
     expect(lignes).toHaveLength(2)
     expect(lignes[0]).toMatch(/^stories\/Carte\.ts: this story file cannot be read, \S/)
     expect(lignes[1]).toBe(
@@ -406,6 +406,24 @@ describe('command', () => {
     )
   })
 
+  test('does not count a partly read story file as unreadable', async () => {
+    const lignes: string[] = []
+    const root = await recorded(
+      projectWith({
+        'crypte.config.ts': CONFIG,
+        'src/Carte.tsx': 'export const Carte = () => <p />',
+        'src/Autre.tsx': 'export const Autre = () => <p />',
+        'stories/Carte.ts':
+          "import { Carte } from '../src/Carte'\nconst noms = ['b']\nexport default defineStories(Carte, { stories: { a: {}, [noms[0]]: {} } })",
+      }),
+    )
+
+    expect(await check(root, (line) => lignes.push(line))).toBe(0)
+    expect(lignes).toEqual(['src/Autre.tsx: Autre has no story'])
+  })
+
+  // L'avertissement ne fait jamais échouer la commande : 1.2 le dit, et un
+  // projet qui ne raconte pas tout n'est pas un projet en faute.
   test('exits with 0 on a component without a story', async () => {
     const lignes: string[] = []
     const root = await recorded(

@@ -1,4 +1,4 @@
-// `crypte check`: the three problems section 1.2 names. See docs/contracts.md.
+// `crypte check`: the four problems section 1.2 names. See docs/contracts.md.
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
@@ -14,9 +14,10 @@ import { wrappersOf } from './stories'
 
 export interface Problem {
   kind: 'orphan' | 'unstoried' | 'stale' | 'unreadable'
-  // Project-relative for a component the producer resolved. An orphan carries
-  // the identifier the story wrote instead, and a component outside the root
-  // its absolute path: both read where a chain of `..` would not.
+  // Project-relative for a component the producer resolved, and for an orphan
+  // the story reached by a relative path. An orphan reached by an alias or a
+  // package keeps what the story wrote, and a component outside the root its
+  // absolute path: all read where a chain of `..` would not.
   file: string
   name: string
 }
@@ -288,15 +289,17 @@ export function problemsOf(
 ): Problem[] {
   const entries = storiesOf(manifest)
 
-  // A story file meant as one and not read is a broken story, like an orphan.
-  // While one exists, nobody knows which component it covers, so the components
-  // with no story are not listed: accusing its component sent the reader to the
-  // wrong file. When in doubt, report nothing, which 1.2 asks.
-  const unreadable = (manifest.skipped ?? []).map((one) => ({
-    kind: 'unreadable' as const,
-    file: one.file,
-    name: one.reason,
-  }))
+  // A file meant as a story that gave none: a syntax error, or a form this
+  // reader does not follow on correct code, `defineStories(memo(Card))` for one.
+  // A warning, then, never a failure. While one exists, nobody knows which
+  // component it covers, so the components with no story are not listed:
+  // accusing its component sent the reader to the wrong file. A file that gave
+  // part of its stories is in `skipped` too, and is not one of these: its
+  // entries name its component. Reopened if the two causes can be told apart.
+  const read = new Set(entries.map((entry) => entry.storyFile))
+  const unreadable = (manifest.skipped ?? [])
+    .filter((one) => !read.has(one.file))
+    .map((one) => ({ kind: 'unreadable' as const, file: one.file, name: one.reason }))
   if (unreadable.length > 0) return [...orphans(project, entries), ...unreadable]
 
   const known = new Set([...storied(project, entries), ...wrappers(project, entries)])
@@ -357,9 +360,9 @@ const STALE: Record<string, string> = {
   behind: 'behind the stories',
 }
 
-// What the user reads. Orphans, unreadable story files and a stale fingerprint
-// decide the exit code; a component with no story is a warning and never
-// fails, which 1.2 states.
+// What the user reads. Orphans and a stale fingerprint decide the exit code; a
+// component with no story and an unreadable story file are warnings and never
+// fail, which 1.2 states.
 export function linesOf(problems: Problem[]): string[] {
   const said = problems.map((one) =>
     one.kind === 'orphan'
@@ -388,5 +391,5 @@ export async function check(
 
   for (const line of linesOf(problems)) log(line)
 
-  return problems.some((one) => one.kind !== 'unstoried') ? 1 : 0
+  return problems.some((one) => one.kind === 'orphan' || one.kind === 'stale') ? 1 : 0
 }

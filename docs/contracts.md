@@ -53,11 +53,11 @@ The `x` form carries JSX. A structured `children` prop forces it, which is commo
 The command reports four problems:
 
 - **Orphan story**: the component it points at is gone. Its path reads from the project root.
-- **Unreadable story file**: a file meant as a story that cannot be read. It fails the command like an orphan, and while one exists the components with no story are not listed, since nobody knows which one it covers.
+- **Unreadable story file**: a file meant as a story that gave none. It is a warning and never fails the command, since it can be a correct form the reader does not follow. While one exists, the components with no story are not listed, since nobody knows which one it covers. A file that gave part of its stories is not one.
 - **Component with no story**: an exported component has no story. This one is a warning and never fails the command.
 - **Stale fingerprint**: `.crypte/fingerprint.json` is missing, or differs from what the stories give today (4.6). It fails the command, so a CI running `crypte check` refuses a branch that did not update it.
 
-The second check only looks at exports **identified as components**: a capitalised name that returns an element. Utility functions exported from a component file, such as `stepFromProgress` in `ProgressLoader.tsx`, are never reported. Nor is a component the project already declares as a frame, in the `wrap` of its configuration or of a story file (2.5): it is context, not a component missing its page.
+The component-with-no-story check only looks at exports **identified as components**: a capitalised name that returns an element. Utility functions exported from a component file, such as `stepFromProgress` in `ProgressLoader.tsx`, are never reported. Nor is a component the project already declares as a frame, in the `wrap` of its configuration or of a story file (2.5): it is context, not a component missing its page.
 
 **When in doubt, report nothing.** A false warning costs more than a miss: it teaches people to ignore the command.
 
@@ -888,7 +888,7 @@ Seven known gaps between this document and the code:
 
 | Before | After |
 | --- | --- |
-| a story file that did not parse made its component read "has no story" | the file is named with its reason and fails the command; components with no story are not listed meanwhile |
+| a story file that did not parse made its component read "has no story" | the file is named with its reason, as a warning; components with no story are not listed meanwhile |
 | an orphan's path was the one the story wrote, relative to it | it reads from the project root |
 
 **v1.15.** Reordering props no longer moves the fingerprint, which was its one measured noise.
