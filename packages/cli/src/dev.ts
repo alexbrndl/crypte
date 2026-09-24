@@ -10,6 +10,7 @@ import { buildCatalogue, storiesOf, writeCatalogue, type Catalogue } from './man
 import { loadProject, viteConfigOf, type Project } from './project'
 import { configPackages } from './config-source'
 import { servePlugin, PREVIEW_ENTRY_ID, PREVIEW_PAGE } from './serve'
+import { componentWatchers, debounced } from './watch'
 
 // What `dev` closes when it stops watching. An `FSWatcher` satisfies it, and so
 // does the set of component watchers, which is replaced at every build and so
@@ -129,19 +130,8 @@ function watchStories(
   held: Held,
   log: (line: string) => void,
 ): { closers: Closer[]; watched: () => string[] } {
-  let pending: ReturnType<typeof setTimeout> | undefined
-
-  // One save fires several events, hence the debounce. And once stopped, nothing:
-  // a timer armed just before the close rebuilt after it, and `syncComponents`
-  // reopened one watcher per component into a map nobody closes.
-  let stopped = false
-
-  const soon = (): void => {
-    if (stopped) return
-
-    clearTimeout(pending)
-    pending = setTimeout(rebuild, 20)
-  }
+  // One save fires several events, hence the debounce.
+  const { soon, stop: settle } = debounced(() => rebuild(), 20)
 
   // What the last build left out, seeded from the start-up build whose lines `dev`
   // has already printed. Replaced at each build, never grown: kept for ever, a file
@@ -153,8 +143,6 @@ function watchStories(
   let failed: string | undefined
 
   const rebuild = (): void => {
-    if (stopped) return
-
     let next: Catalogue
     try {
       next = buildCatalogue(project, held.catalogue)
@@ -214,65 +202,27 @@ function watchStories(
   const watcher = watch(join(project.root, project.config.stories), { recursive: true }, soon)
 
   // One watcher per component file, not a folder: their common ancestor is often
-  // the project root. Keyed by path, so a rebuild keeps the ones that did not move.
-  const components = new Map<string, FSWatcher>()
-
-  // `fs.watch` on a file follows the inode: an editor that saves atomically kills
-  // the watcher, hence the reopen on `rename`. And the last reason each file could
-  // not be watched, so a lasting cause is said once and not at every rebuild.
+  // the project root. And the last reason each file could not be watched, so a
+  // lasting cause is said once and not at every rebuild.
   const unwatchable = new Map<string, string>()
 
-  const watchComponent = (file: string): FSWatcher | undefined => {
-    try {
-      return watch(file, (type) => {
-        if (type === 'rename') reopen(file)
+  const components = componentWatchers(soon, (file, error) => {
+    // A file that is not there is ordinary: section 8 says a component reached
+    // through a plugin keeps the identifier the story wrote. Anything else is
+    // not, and a watcher missing in silence is the failure this lot closes.
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
 
-        soon()
-      })
-    } catch (error) {
-      // A file that is not there is ordinary: section 8 says a component reached
-      // through a plugin keeps the identifier the story wrote. Anything else is
-      // not, and a watcher missing in silence is the failure this lot closes.
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        // Once, and again if the cause changes: `syncComponents` retries every
-        // file it does not hold at each rebuild.
-        const line = `${file} is not watched, so its props will not refresh: ${reason(error)}`
-        if (line !== unwatchable.get(file)) log(line)
-        unwatchable.set(file, line)
-      }
-
-      return undefined
-    }
-  }
-
-  // Closed and reopened on the same path, from the watcher's own callback, which
-  // Node allows. Guarded like `soon` and `rebuild`: it is a third way to open one.
-  const reopen = (file: string): void => {
-    if (stopped) return
-
-    components.get(file)?.close()
-    components.delete(file)
-
-    const one = watchComponent(file)
-    if (one) components.set(file, one)
-  }
+    // Once, and again if the cause changes: `syncComponents` retries every file
+    // it does not hold at each rebuild.
+    const line = `${file} is not watched, so its props will not refresh: ${reason(error)}`
+    if (line !== unwatchable.get(file)) log(line)
+    unwatchable.set(file, line)
+  })
 
   const syncComponents = (catalogue: Catalogue): void => {
     const wanted = new Set(componentFiles(project.root, catalogue))
-
-    for (const [file, one] of components) {
-      if (wanted.has(file)) continue
-      one.close()
-      components.delete(file)
-      unwatchable.delete(file)
-    }
-
-    for (const file of wanted) {
-      if (components.has(file)) continue
-
-      const one = watchComponent(file)
-      if (one) components.set(file, one)
-    }
+    for (const file of unwatchable.keys()) if (!wanted.has(file)) unwatchable.delete(file)
+    components.sync(wanted)
   }
 
   // Seeded from the start-up build, like `said` above: without this, the first
@@ -281,11 +231,8 @@ function watchStories(
   syncComponents(held.catalogue)
 
   const stop = (): void => {
-    stopped = true
-    clearTimeout(pending)
-
-    for (const one of components.values()) one.close()
-    components.clear()
+    settle()
+    components.stop()
   }
 
   server.httpServer?.on('close', () => {
@@ -295,7 +242,7 @@ function watchStories(
 
   return {
     closers: [watcher, { close: stop }],
-    watched: () => [...components.keys()].sort(),
+    watched: components.watched,
   }
 }
 

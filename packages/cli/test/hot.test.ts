@@ -213,8 +213,8 @@ describe('le catalogue pendant que le serveur tourne', () => {
   // intégration continue, qui tourne sur `ubuntu-latest`. Sur macOS il reste
   // vert même sans la réouverture : mesuré, c'est le surveillant d'un **autre**
   // composant qui capte l'écriture, les surveillants de fichier s'y déclenchant
-  // entre voisins. Le voir passer en local ne dit donc rien, et ce n'est pas une
-  // raison de le simplifier.
+  // entre voisins. La réouverture elle-même est tenue sur toutes les plates-
+  // formes par `watch.test.ts` ; ce cas-ci éprouve le serveur entier.
   test('survit à une sauvegarde atomique du composant', async ({ projet }) => {
     const composant = join(projet.root, 'src', 'components', 'Badge.jsx')
     const temporaire = join(projet.root, 'src', 'components', '.Badge.jsx.tmp')
