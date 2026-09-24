@@ -4,8 +4,11 @@ import "<racine>/packages/cli/test/fixture/src/styles/app.css"
 const __crypte_modules = {}
 const __crypte_broken = {}
 const __crypte_stale = new Map()
-let __crypte_loadError
-if (import.meta.hot) import.meta.hot.on('vite:error', ({ err }) => { __crypte_loadError = err })
+const __crypte_loadErrors = new Map()
+if (import.meta.hot) {
+  import.meta.hot.on('vite:error', ({ err }) => { __crypte_loadErrors.set(__crypte_modulePath(err.id ?? err.loc?.file ?? ''), err) })
+  import.meta.hot.on('vite:beforeUpdate', ({ updates }) => { for (const one of updates) __crypte_loadErrors.delete(one.path) })
+}
 
 await Promise.all([
   import("/stories/Gardee.tsx").then((module) => { __crypte_modules["/stories/Gardee.tsx"] = module }, (error) => { __crypte_broken["/stories/Gardee.tsx"] = error }),
@@ -27,11 +30,21 @@ const __crypte_byId = new Map(
     .map((entry) => [entry.id, entry]),
 )
 
-// A failed fetch of a module, told by the error Vite reported for it: the
-// file from the project root, its line, and the code frame as the stack.
+function __crypte_modulePath(id) {
+  return '/' + String(id).split('?')[0].replace("<racine>/packages/cli/test/fixture/", '')
+}
+
+// A failed fetch of a module, told by the error Vite reported for that very
+// module: the browser's message carries its URL. The fetch of a story file
+// fails for a module it imports, which the URL does not say, so a file is
+// named then only when a single module is failing. Otherwise the failure
+// stays as it is, rather than name a file that may be sound.
 function __crypte_named(failure) {
-  const err = __crypte_loadError
-  if (!err || !(failure instanceof TypeError) || !failure.message.startsWith('Failed to fetch dynamically imported module')) return failure
+  const prefix = 'Failed to fetch dynamically imported module:'
+  if (!(failure instanceof TypeError) || !failure.message.startsWith(prefix)) return failure
+  const url = failure.message.slice(prefix.length).trim()
+  const err = __crypte_loadErrors.get(new URL(url, location.href).pathname) ?? (__crypte_loadErrors.size === 1 ? [...__crypte_loadErrors.values()][0] : undefined)
+  if (!err) return failure
   const root = "<racine>/packages/cli/test/fixture/"
   const file = String(err.id ?? err.loc?.file ?? '').replace(root, '')
   const at = err.loc ? `${file}:${err.loc.line}:${err.loc.column}` : file

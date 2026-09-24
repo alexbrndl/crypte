@@ -289,6 +289,56 @@ describe('the screen', () => {
     expect(await alerte.textContent()).not.toContain('Failed to fetch')
   })
 
+  // Deux composants cassés : la story nomme le sien, pas le dernier cassé. Une
+  // erreur gardée seule et pour toujours faisait accuser `Tag.tsx` pour l'échec
+  // de `Badge.tsx`. Puis, une fois réparés, leurs erreurs sont oubliées : restées,
+  // elles empêchaient de nommer le composant d'une story ajoutée ensuite.
+  test('names its own component while another is broken, then forgets both', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+
+    const badge = join(ecran.root, 'src', 'components', 'Badge.tsx')
+    const tag = join(ecran.root, 'src', 'components', 'Tag.tsx')
+    const badgeSain = readFileSync(badge, 'utf8')
+    const tagSain = readFileSync(tag, 'utf8')
+    // Hors de la fenêtre de 50 ms du surveillant entre deux écritures.
+    const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+    writeFileSync(badge, `${badgeSain}\nconst = ;\n`)
+    const alerte = ecran.page.getByRole('alert')
+    await expect.poll(() => alerte.textContent()).toMatch(/Badge\.tsx:\d+/)
+
+    await pause(300)
+    writeFileSync(tag, `${tagSain}\nconst = ;\n`)
+    await pause(1_500)
+    expect(await alerte.textContent()).toMatch(/Badge\.tsx:\d+/)
+    expect(await alerte.textContent()).not.toContain('Tag.tsx')
+
+    writeFileSync(tag, tagSain)
+    await pause(300)
+    writeFileSync(badge, badgeSain)
+    await expect.poll(() => alerte.count()).toBe(0)
+    await expect.poll(ecran.vu).toBe('Nouveau')
+
+    writeFileSync(
+      join(ecran.root, 'src', 'components', 'Rompu.tsx'),
+      'export const Rompu = () => <p>rompu</p>\nconst = ;\n',
+    )
+    writeFileSync(
+      join(ecran.root, 'stories', 'Rompu.tsx'),
+      [
+        "import { defineStories } from '@crypte/react'",
+        "import { Rompu } from '@/components/Rompu'",
+        '',
+        'export default defineStories(Rompu, { stories: { Rompue: {} } })',
+        '',
+      ].join('\n'),
+    )
+    const rompue = ecran.page.getByRole('button', { name: 'Rompue', exact: true })
+    await expect.poll(() => rompue.count()).toBe(1)
+    await rompue.click()
+    await expect.poll(() => alerte.textContent()).toMatch(/src\/components\/Rompu\.tsx:\d+:\d+/)
+  })
+
   // Le même défaut au chargement de l'entrée : une story ajoutée dont le
   // composant ne se charge pas échoue à son import, pas à une reprise à chaud.
   test('names the component file when a new story cannot load it', async ({ ecran }) => {
@@ -314,7 +364,7 @@ describe('the screen', () => {
     await rompue.click()
 
     const alerte = ecran.page.getByRole('alert')
-    await expect.poll(() => alerte.textContent()).toMatch(/src\/components\/Rompu\.tsx:\d+:\d+/)
+    await expect.poll(() => alerte.textContent()).toMatch(/src\/components\/Rompu\.tsx:2:\d+/)
     expect(await alerte.textContent()).not.toContain('Failed to fetch')
   })
 
