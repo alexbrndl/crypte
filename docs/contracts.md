@@ -83,6 +83,7 @@ npm i -D @crypte/cli @crypte/react
 | `@crypte/react` | adapter, `defineStories`, `story` | yes, the one for their framework |
 | `@crypte/core` | the core, an internal dependency | no, never imported directly |
 | `@crypte/<plugin>` | plugins, one at a time | on demand |
+| `@crypte/ui` | the components the shell, plugins and the site draw in common; Vue as its only peer, and nothing in the core or the CLI imports it | no, unless building on Crypte's look |
 
 The package name and the command name are independent: `@crypte/cli` declares a binary called `crypte`, and the user types `crypte dev`.
 

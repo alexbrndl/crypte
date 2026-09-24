@@ -10,7 +10,8 @@
     "pack": "vp build"
   },
   "dependencies": {
-    "@crypte/core": "workspace:*"
+    "@crypte/core": "workspace:*",
+    "@crypte/ui": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
