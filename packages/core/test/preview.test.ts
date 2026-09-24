@@ -31,8 +31,8 @@ function envoie(data: unknown, { origin = ORIGIN, source = shell as unknown } = 
   preview.deliver({ data, origin, source }, ORIGIN)
 }
 
-describe('annonce', () => {
-  it('n’annonce rien à un parent d’une autre origine', () => {
+describe('announcement', () => {
+  it('announces nothing to a parent from another origin', () => {
     const etranger = windowAt(AILLEURS)
     etranger.sender = preview
     preview.parent = etranger
@@ -44,8 +44,8 @@ describe('annonce', () => {
   })
 })
 
-describe('rendu', () => {
-  it('répond error plutôt que de laisser filer l’exception', () => {
+describe('rendering', () => {
+  it('answers error rather than letting the exception escape', () => {
     createPreviewChannel({
       render: () => {
         throw new Error('composant introuvable')
@@ -61,7 +61,7 @@ describe('rendu', () => {
     expect((recus.at(-1) as { stack?: string }).stack).toContain('Error')
   })
 
-  it('rend le message d’une exception qui n’est pas une Error', () => {
+  it('returns the message of an exception that is not an Error', () => {
     createPreviewChannel({
       render: () => {
         throw 'juste une chaîne'
@@ -78,7 +78,7 @@ describe('rendu', () => {
   })
 })
 
-describe('ce qui est ignoré', () => {
+describe('what is ignored', () => {
   function monte(render: (id: string) => void = () => {}) {
     const rendus: unknown[] = []
     const canal = createPreviewChannel({
@@ -92,7 +92,7 @@ describe('ce qui est ignoré', () => {
     return { rendus, canal, stop: () => canal.dispose() }
   }
 
-  it('un message d’une autre origine', () => {
+  it('a message from another origin', () => {
     const { rendus } = monte()
 
     envoie(RENDER, { origin: AILLEURS })
@@ -100,7 +100,7 @@ describe('ce qui est ignoré', () => {
     expect([rendus, recus]).toEqual([[], []])
   })
 
-  it('un message d’une autre fenêtre que le parent', () => {
+  it('a message from a window other than the parent', () => {
     const { rendus } = monte()
 
     envoie(RENDER, { source: windowAt(ORIGIN) })
@@ -108,7 +108,7 @@ describe('ce qui est ignoré', () => {
     expect([rendus, recus]).toEqual([[], []])
   })
 
-  it('un message sans type reconnaissable', () => {
+  it('a message without a recognizable type', () => {
     const { rendus } = monte()
 
     envoie(undefined)
@@ -120,7 +120,7 @@ describe('ce qui est ignoré', () => {
 
   // Le rejeu passe par le même chemin que le canal : sans ça, une mise à jour à
   // chaud qui lève jetait dans le callback et rien ne remontait au shell.
-  it('rejoue la dernière demande, avec son compte rendu', () => {
+  it('replays the last request, with its report', () => {
     const { rendus, canal } = monte()
 
     envoie(RENDER)
@@ -131,7 +131,7 @@ describe('ce qui est ignoré', () => {
     expect(recus.map((message) => (message as { type: string }).type)).toEqual(['rendered'])
   })
 
-  it('rend l’erreur d’un rejeu qui lève', () => {
+  it('returns the error of a replay that throws', () => {
     let doitLever = false
     const { canal } = monte(() => {
       if (doitLever) throw new Error('ce composant ne rend plus')
@@ -151,7 +151,7 @@ describe('ce qui est ignoré', () => {
     ])
   })
 
-  it('ne rejoue rien tant que rien n’a été demandé', () => {
+  it('replays nothing until something is requested', () => {
     const { rendus, canal } = monte()
 
     canal.again()
@@ -159,7 +159,7 @@ describe('ce qui est ignoré', () => {
     expect([rendus, recus]).toEqual([[], []])
   })
 
-  it('tout, une fois désabonné', () => {
+  it('everything, once unsubscribed', () => {
     const { rendus, stop } = monte()
 
     expect(preview.listenerCount()).toBe(1)
@@ -174,7 +174,7 @@ describe('ce qui est ignoré', () => {
 // La fusion des props d'une story nommée. Dans le noyau et pas dans un
 // adaptateur : elle ne fait que mêler des objets simples, et deux adaptateurs la
 // refaisant chacun divergeraient. Voir la section 2.3 de docs/contracts.md.
-describe('les props d’une story nommée', () => {
+describe('the props of a named story', () => {
   const definition = {
     props: { label: 'commun', tone: 'neutral' },
     stories: {
@@ -184,22 +184,22 @@ describe('les props d’une story nommée', () => {
     },
   }
 
-  it('met les props communes sous celles de la story', () => {
+  it('puts the shared props under those of the story', () => {
     expect(propsOfStory(definition, 'Par défaut')).toEqual({ label: 'commun', tone: 'neutral' })
     expect(propsOfStory(definition, 'Avertissement')).toEqual({ label: 'commun', tone: 'warning' })
   })
 
   // La forme longue passe par `props`, la forme courte est les props elles-mêmes.
-  it('lit les deux formes d’une story', () => {
+  it('reads both forms of a story', () => {
     expect(propsOfStory(definition, 'Avec options')).toEqual({ label: 'propre', tone: 'neutral' })
   })
 
   // Les surcharges du shell viennent en dernier : c'est tout leur objet.
-  it('pose les surcharges au-dessus de tout', () => {
+  it('puts the overrides above everything', () => {
     expect(propsOfStory(definition, 'Avertissement', { tone: 'neutral' }).tone).toBe('neutral')
   })
 
-  it('rend les props communes pour un nom qu’il ne connaît pas', () => {
+  it('returns the shared props for a name it does not know', () => {
     expect(propsOfStory(definition, 'inexistante')).toEqual({ label: 'commun', tone: 'neutral' })
   })
 })
@@ -207,25 +207,25 @@ describe('les props d’une story nommée', () => {
 // L'ordre des enveloppes, et rien d'autre : composer les composants appartient à
 // l'adaptateur, mettre cette forme à plat n'appartient à aucun framework.
 // Section 2.5 de docs/contracts.md.
-describe('les enveloppes d’une story', () => {
+describe('the wrappers of a story', () => {
   const Theme = 'Theme'
   const Router = 'Router'
   const Global = 'Global'
 
-  it('accepte une enveloppe seule, sans tableau', () => {
+  it('accepts a single wrapper, without an array', () => {
     expect(wrapsOf(undefined, { wrap: Theme })).toEqual([{ component: Theme, props: {} }])
   })
 
   // La première entrée est la plus extérieure : c'est la règle du contrat, et
   // l'inverser rendrait un Router à l'intérieur de son thème.
-  it('garde l’ordre du tableau, extérieure en premier', () => {
+  it('keeps the array order, outermost first', () => {
     expect(wrapsOf(undefined, { wrap: [Router, Theme] })).toEqual([
       { component: Router, props: {} },
       { component: Theme, props: {} },
     ])
   })
 
-  it('lit les props d’une entrée en paire', () => {
+  it('reads the props of a pair entry', () => {
     expect(wrapsOf(undefined, { wrap: [[Theme, { mode: 'dark' }]] })).toEqual([
       { component: Theme, props: { mode: 'dark' } },
     ])
@@ -233,14 +233,14 @@ describe('les enveloppes d’une story', () => {
 
   // Le cœur du contrat : le `wrap` global enveloppe celui du fichier, qui
   // enveloppe le composant. Donc le global vient en premier.
-  it('met le wrap global à l’extérieur de celui du fichier', () => {
+  it('puts the global wrap outside the file one', () => {
     expect(wrapsOf(Global, { wrap: Theme })).toEqual([
       { component: Global, props: {} },
       { component: Theme, props: {} },
     ])
   })
 
-  it('accepte un wrap global seul, sans wrap de fichier', () => {
+  it('accepts a global wrap alone, without a file wrap', () => {
     expect(wrapsOf([Global, Router], undefined)).toEqual([
       { component: Global, props: {} },
       { component: Router, props: {} },
@@ -249,12 +249,12 @@ describe('les enveloppes d’une story', () => {
 
   // Les formes dégénérées : `null` là où un composant est attendu ne doit pas
   // faire monter une enveloppe vide, qui rendrait la story invisible.
-  it('écarte une entrée sans composant', () => {
+  it('drops an entry without a component', () => {
     expect(wrapsOf(null, { wrap: [null, Theme] })).toEqual([{ component: Theme, props: {} }])
     expect(wrapsOf(undefined, { wrap: [[null, { mode: 'dark' }]] })).toEqual([])
   })
 
-  it('traite une paire sans props comme une enveloppe nue', () => {
+  it('treats a pair without props as a bare wrapper', () => {
     expect(wrapsOf(undefined, { wrap: [[Theme]] })).toEqual([{ component: Theme, props: {} }])
   })
 })

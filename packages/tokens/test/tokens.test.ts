@@ -29,14 +29,14 @@ function read(css: string | undefined, options?: TokensOptions): TokensEntry[] {
 const family = (entries: TokensEntry[], name: string) =>
   entries.find((one) => one.name === name)?.tokens
 
-describe('ce que le plugin ne produit pas', () => {
+describe('what the plugin does not produce', () => {
   // La contrainte dure de l'issue : il entre dans le préréglage par défaut,
   // donc il tourne chez des gens qui ne l'ont pas demandé.
   // Une feuille bien remplie **sur le disque**, et un contexte qui ne la déclare
   // pas. Sans le fichier, ce cas passerait aussi sur un plugin qui devine un
   // chemin, et c'est ce qu'il existe pour interdire : mesuré, la version d'avant
   // restait verte en faisant deviner `styles.css`.
-  it('ne devine aucun chemin quand le projet ne déclare pas de feuille', () => {
+  it('guesses no path when the project declares no stylesheet', () => {
     const root = mkdtempSync(join(tmpdir(), 'crypte-tokens-'))
     roots.push(root)
     writeFileSync(join(root, 'styles.css'), ':root { --color-bg: #fff }')
@@ -45,27 +45,27 @@ describe('ce que le plugin ne produit pas', () => {
     expect(tokens().node?.entries?.({ root })).toEqual([])
   })
 
-  it('ne produit rien quand la feuille déclarée n’existe pas', () => {
+  it('produces nothing when the declared stylesheet does not exist', () => {
     expect(read(undefined, { files: ['absente.css'] })).toEqual([])
   })
 
-  it('ne produit rien d’une feuille sans variable', () => {
+  it('produces nothing from a stylesheet without variables', () => {
     expect(read(':root { color: red }\n.a { padding: 0 }')).toEqual([])
   })
 
   // Une classe ou un attribut que personne n'a déclaré comme thème serait une
   // devinette, et un mauvais thème est pire qu'un thème manquant.
-  it('ne lit pas un sélecteur qui n’est pas un thème', () => {
+  it('does not read a selector that is not a theme', () => {
     expect(read('.dark { --color-bg: #000 }')).toEqual([])
   })
 
-  it('ne lit pas une variable commentée', () => {
+  it('does not read a commented-out variable', () => {
     expect(read(':root { /* --color-bg: #000; */ }')).toEqual([])
   })
 })
 
-describe('ce que le plugin lit', () => {
-  it('groupe par premier segment, et garde un nom sans segment', () => {
+describe('what the plugin reads', () => {
+  it('groups by first segment, and keeps a name without a segment', () => {
     const entries = read(':root { --color-brand: #4fe0a0; --radius: 4px }')
 
     // La section 4.3 joint le chemin au nom par `--`, pas par `/`.
@@ -75,13 +75,13 @@ describe('ce que le plugin lit', () => {
     expect(Object.keys(family(entries, 'radius') ?? {})).toEqual(['radius'])
   })
 
-  it('range une variable de :root dans le thème par défaut', () => {
+  it('files a :root variable under the default theme', () => {
     const entries = read(':root { --color-bg: #fff }')
 
     expect(family(entries, 'color')?.bg?.themes).toEqual({ default: { value: '#fff' } })
   })
 
-  it('lit un thème nommé par data-theme', () => {
+  it('reads a theme named by data-theme', () => {
     const entries = read(`:root { --color-bg: #fff }\n[data-theme='dark'] { --color-bg: #000 }`)
 
     expect(family(entries, 'color')?.bg?.themes).toEqual({
@@ -90,7 +90,7 @@ describe('ce que le plugin lit', () => {
     })
   })
 
-  it('applique les options plutôt que la feuille déclarée', () => {
+  it('applies the options rather than the declared stylesheet', () => {
     const root = mkdtempSync(join(tmpdir(), 'crypte-tokens-'))
     roots.push(root)
     writeFileSync(join(root, 'declaree.css'), ':root { --a-one: 1px }')
@@ -105,24 +105,24 @@ describe('ce que le plugin lit', () => {
   })
 })
 
-describe('la chaîne de résolution', () => {
-  it('s’arrête sur un cycle plutôt que de boucler', () => {
+describe('the resolution chain', () => {
+  it('stops on a cycle rather than looping', () => {
     const entries = read(':root { --a-one: var(--a-two); --a-two: var(--a-one) }')
 
     expect(family(entries, 'a')?.one?.themes.default?.alias).toEqual(['a-two', 'a-one'])
   })
 })
 
-describe('la nature d’un token', () => {
+describe('the kind of a token', () => {
   const kindOf = (value: string) => family(read(`:root { --a-one: ${value} }`), 'a')?.one?.type
 
-  it('lit les couleurs', () => {
+  it('reads colors', () => {
     expect(kindOf('#4fe0a0')).toBe('color')
     expect(kindOf('rgb(1 2 3)')).toBe('color')
     expect(kindOf('oklch(0.7 0.1 150)')).toBe('color')
   })
 
-  it('lit les dimensions et les nombres', () => {
+  it('reads dimensions and numbers', () => {
     expect(kindOf('4px')).toBe('dimension')
     expect(kindOf('1.5rem')).toBe('dimension')
     expect(kindOf('-2%')).toBe('dimension')
@@ -131,14 +131,14 @@ describe('la nature d’un token', () => {
 
   // `fontFamily` et `fontWeight` demandent la propriété sur laquelle la variable
   // est employée, qu'elle ne porte pas. Ils retombent sur `unknown`.
-  it('retombe sur unknown plutôt que de deviner', () => {
+  it('falls back to unknown rather than guessing', () => {
     expect(kindOf('system-ui, sans-serif')).toBe('unknown')
     expect(kindOf('cubic-bezier(0.2, 0, 0, 1)')).toBe('unknown')
   })
 
   // Le thème par défaut est consulté en premier, mais un `unknown` de sa part ne
   // ferme pas la question : la nature décrit le token, pas la valeur d'un thème.
-  it('laisse un autre thème nommer la nature que le défaut n’a pas nommée', () => {
+  it('lets another theme name the kind the default did not name', () => {
     const entries = read(':root { --a-one: var(--absente) }\n[data-theme="dark"] { --a-one: #000 }')
 
     expect(family(entries, 'a')?.one?.type).toBe('color')
@@ -147,7 +147,7 @@ describe('la nature d’un token', () => {
   // L'ordre des thèmes ne suit pas celui du fichier : sans l'ordre imposé, un
   // thème sombre venu d'un `@media` était parcouru en premier, et `themes` se
   // sérialisait `dark` avant `default`. Mesuré.
-  it('range le thème par défaut en premier, quel que soit l’ordre du fichier', () => {
+  it('puts the default theme first, whatever the file order', () => {
     const media = read(
       ':root { --a-one: #fff }\n@media (prefers-color-scheme: dark) { :root { --a-one: #000 } }',
     )
@@ -159,10 +159,10 @@ describe('la nature d’un token', () => {
 // Le croisement que la première version de ces cas n'a pas fait : chaque forme de
 // valeur, littéral / alias / repli, contre chaque forme de thème. Le bloquant de
 // la revue de #52 vivait dans une de ces cases.
-describe('une valeur croisée avec un thème', () => {
+describe('a value crossed with a theme', () => {
   // Sans repli du thème sur le défaut, ce token n'avait aucune valeur sombre, et
   // la pastille n'avait rien à dessiner en sombre.
-  it('suit un alias jusqu’à ce que le thème a redéfini', () => {
+  it('follows an alias down to what the theme redefined', () => {
     const entries = read(
       ':root { --color-base: #e5e7eb; --color-bg: var(--color-base) }\n@media (prefers-color-scheme: dark) { :root { --color-base: #374151 } }',
     )
@@ -175,7 +175,7 @@ describe('une valeur croisée avec un thème', () => {
 
   // Un lecteur prend `themes[courant]` et doit y trouver quelque chose, donc un
   // token que le thème ne redéfinit pas y porte quand même sa valeur.
-  it('donne à chaque token chaque thème, même sans redéfinition', () => {
+  it('gives every token every theme, even without a redefinition', () => {
     const entries = read(
       ':root { --a-one: 4px; --a-two: #fff }\n[data-theme="dark"] { --a-two: #000 }',
     )
@@ -186,15 +186,15 @@ describe('une valeur croisée avec un thème', () => {
     })
   })
 
-  it('lit un token qu’un thème seul déclare', () => {
+  it('reads a token only one theme declares', () => {
     const entries = read(':root { --a-one: 4px }\n[data-theme="dark"] { --a-two: 8px }')
 
     expect(family(entries, 'a')?.two?.themes).toEqual({ dark: { value: '8px' } })
   })
 })
 
-describe('les formes que la revue a mesurées', () => {
-  it('préfère la cible déclarée au repli', () => {
+describe('the shapes the review measured', () => {
+  it('prefers the declared target over the fallback', () => {
     const entries = read(':root { --a-base: #fff; --a-one: var(--a-base, #000) }')
 
     expect(family(entries, 'a')?.one?.themes.default?.value).toBe('#fff')
@@ -202,7 +202,7 @@ describe('les formes que la revue a mesurées', () => {
 
   // Le CLI résout ce champ par `resolve`, donc un `css` absolu marche chez lui.
   // Le plugin joignait, et lisait `<root>/<root>/…` sans que rien ne le dise.
-  it('lit une feuille déclarée par un chemin absolu', () => {
+  it('reads a stylesheet declared by an absolute path', () => {
     const root = mkdtempSync(join(tmpdir(), 'crypte-tokens-'))
     roots.push(root)
     writeFileSync(join(root, 'styles.css'), ':root { --a-one: #fff }')
@@ -215,7 +215,7 @@ describe('les formes que la revue a mesurées', () => {
   // Un bloc jamais refermé court jusqu'à la fin, ce qu'un navigateur en fait.
   // Le laisser dans le reste remettait son `:root` dans le thème par défaut et
   // l'écrasait, c'est-à-dire la panne même que `liftDark` empêche.
-  it('traite un @media sombre jamais refermé comme allant jusqu’à la fin', () => {
+  it('treats an unclosed dark @media as running to the end', () => {
     const entries = read(
       ':root { --a-one: #fff }\n@media (prefers-color-scheme: dark) { :root { --a-one: #000 }',
     )
@@ -230,8 +230,8 @@ describe('les formes que la revue a mesurées', () => {
 // Un `var()` n'est un alias que s'il **est** toute la valeur. Traiter le premier
 // d'une expression comme tel a fait disparaître le reste, en silence, et c'était
 // une régression du tour de correction précédent. Revue de la PR #52.
-describe('un var() qui n’est pas toute la valeur', () => {
-  it('garde une valeur composite entière, sans alias', () => {
+describe('a var() that is not the whole value', () => {
+  it('keeps a composite value whole, without an alias', () => {
     const entries = read(
       ':root { --dur-fast: 200ms; --transition-base: var(--dur-fast, 150ms) var(--ease-out, ease) }',
     )
@@ -243,21 +243,21 @@ describe('un var() qui n’est pas toute la valeur', () => {
 
   // Sans contrôle du nom, `var(4px)` faisait chercher un token appelé `px`,
   // le préfixe étant retiré sans vérifier qu'il était là. Mesuré.
-  it('ne prend pas pour un alias un var() dont l’intérieur n’est pas un nom', () => {
+  it('does not take a var() whose inside is not a name for an alias', () => {
     const entries = read(':root { --a-one: var(4px); --a-two: var() }')
 
     expect(family(entries, 'a')?.one?.themes.default).toEqual({ value: 'var(4px)' })
     expect(family(entries, 'a')?.two?.themes.default).toEqual({ value: 'var()' })
   })
 
-  it('ne prend pas pour un alias un var() jamais refermé', () => {
+  it('does not take an unclosed var() for an alias', () => {
     const entries = read(':root { --a-one: var(--a, calc(1px) }')
 
     expect(family(entries, 'a')?.one?.themes.default).toEqual({ value: 'var(--a, calc(1px)' })
   })
 
   // Un repli vide n'est pas un repli : pris pour tel, il écrivait `value: ''`.
-  it('garde le texte quand le repli est vide', () => {
+  it('keeps the text when the fallback is empty', () => {
     const entries = read(':root { --a-one: var(--absente,) }')
 
     expect(family(entries, 'a')?.one?.themes.default).toEqual({
@@ -266,7 +266,7 @@ describe('un var() qui n’est pas toute la valeur', () => {
     })
   })
 
-  it('suit un repli qui est lui-même un var()', () => {
+  it('follows a fallback that is itself a var()', () => {
     const entries = read(':root { --a-base: 8px; --a-one: var(--absente, var(--a-base)) }')
 
     expect(family(entries, 'a')?.one?.themes.default).toEqual({

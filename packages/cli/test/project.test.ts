@@ -119,15 +119,15 @@ const test = base.extend<{
 // tel quel : en rendre une copie ferait perdre l'identité des plugins que le
 // projet y met.
 describe('defineConfig', () => {
-  test('rend l’objet reçu, sans le copier', () => {
+  test('returns the object it receives, without copying it', () => {
     const config = { stories: 'stories', adapter: {} }
 
     expect(defineConfig(config)).toBe(config)
   })
 })
 
-describe('chargement de la configuration', () => {
-  test('lit un crypte.config.ts et suit ses dépendances', async () => {
+describe('config loading', () => {
+  test('reads a crypte.config.ts and tracks its dependencies', async () => {
     const project = await loadProject(fixture)
 
     expect(project.config.stories).toBe('stories')
@@ -137,7 +137,7 @@ describe('chargement de la configuration', () => {
 
   // Une racine relative, ce qu'un `crypte dev ./demo` passerait depuis la ligne
   // de commande : sans normalisation, tous les chemins produits le restent.
-  test('normalise une racine relative', async () => {
+  test('normalizes a relative root', async () => {
     const project = await loadProject(relative(process.cwd(), fixture))
 
     expect(isAbsolute(project.root)).toBe(true)
@@ -146,7 +146,7 @@ describe('chargement de la configuration', () => {
 
   // Le message nomme le fichier attendu et l'endroit cherché : sans cela,
   // l'utilisateur ne sait pas si le fichier manque ou s'il est mal placé.
-  test('nomme le fichier manquant plutôt que de lever une trace de pile', async () => {
+  test('names the missing file rather than throwing a stack trace', async () => {
     await expect(loadProject(join(fixture, 'src'))).rejects.toThrow(ConfigError)
     await expect(loadProject(join(fixture, 'src'))).rejects.toThrow(/crypte\.config\.ts/)
   })
@@ -154,7 +154,7 @@ describe('chargement de la configuration', () => {
   // Sans ces cas, retirer toute la validation laisse la suite verte. Mesuré.
   // Vite lève sur un module sans export par défaut, avec un message qui parle
   // de configuration Vite. Le rattraper est la seule façon de nommer le fichier.
-  test('nomme le fichier quand il n’exporte rien', async ({ projectWith }) => {
+  test('names the file when it exports nothing', async ({ projectWith }) => {
     const root = projectWith('export const config = { stories: "s" }')
 
     await expect(loadProject(root)).rejects.toThrow(ConfigError)
@@ -162,28 +162,28 @@ describe('chargement de la configuration', () => {
   })
 
   test.for([
-    ['sans stories', 'export default { adapter: {} }', /stories/],
-    ['avec un stories vide', 'export default { stories: "", adapter: {} }', /stories/],
-    ['sans adapter', 'export default { stories: "s" }', /adapter/],
+    ['without stories', 'export default { adapter: {} }', /stories/],
+    ['with an empty stories', 'export default { stories: "", adapter: {} }', /stories/],
+    ['without adapter', 'export default { stories: "s" }', /adapter/],
     // Les facultatifs aussi : mal typés, ils lèvent plus loin sur un spread ou
     // un `resolve`, avec une erreur qui ne nomme ni le fichier ni le champ.
     [
-      'avec un css qui n’est pas un chemin',
+      'with a css that is not a path',
       'export default { stories: "s", adapter: {}, css: 12 }',
       /css/,
     ],
     [
-      'avec des plugins qui ne sont pas un tableau',
+      'with plugins that are not an array',
       'export default { stories: "s", adapter: {}, plugins: {} }',
       /plugins/,
     ],
     [
-      'avec un vite.plugins mal formé',
+      'with a malformed vite.plugins',
       'export default { stories: "s", adapter: {}, vite: { plugins: {} } }',
       /vite\.plugins/,
     ],
   ] as const)(
-    'refuse une configuration %s, en nommant le champ',
+    'refuses a config %s, naming the field',
     async ([, source, attendu], { projectWith }) => {
       const root = projectWith(source)
 
@@ -193,18 +193,18 @@ describe('chargement de la configuration', () => {
   )
 })
 
-describe('chemins déclarés par le projet', () => {
+describe('paths declared by the project', () => {
   const pathsOf = async (root: string) => (await projectPathsOf(root))?.paths
 
   // Sans configuration, rien : le CLI n'invente aucun chemin.
-  test('ne rend rien quand le projet n’en déclare pas', async () => {
+  test('returns nothing when the project declares none', async () => {
     expect(await projectPathsOf(join(fixture, 'src'))).toBeUndefined()
   })
 
   // Un `tsconfig.json` sans chemins ne doit pas masquer le `jsconfig.json` qui
   // en porte : sinon le support JavaScript tombe dès qu'un des deux traîne.
-  test.for([['avec un paths vide', '{ "compilerOptions": { "paths": {} } }']] as const)(
-    'continue jusqu’au fichier qui déclare des chemins, %s',
+  test.for([['with an empty paths', '{ "compilerOptions": { "paths": {} } }']] as const)(
+    'goes on to the file that declares paths, %s',
     async ([, tsconfig], { projectOf }) => {
       const root = projectOf({
         'tsconfig.json': tsconfig,
@@ -217,7 +217,7 @@ describe('chemins déclarés par le projet', () => {
 
   // `tsconfck` rend `baseUrl` absolu mais pas les chemins : hérités d'un autre
   // dossier, ils se comptent depuis le fichier qui les déclare.
-  test('compte les chemins hérités depuis le fichier qui les déclare', async ({ projectOf }) => {
+  test('resolves inherited paths from the file that declares them', async ({ projectOf }) => {
     const root = projectOf({
       'base.json': '{ "compilerOptions": { "paths": { "@shared/*": ["shared/src/*"] } } }',
       'app/tsconfig.json': '{ "extends": "../base.json" }',
@@ -228,7 +228,7 @@ describe('chemins déclarés par le projet', () => {
 
   // Et l'inverse, la forme courante : le projet étend un fichier lointain,
   // `@tsconfig/node22` par exemple, et déclare ses propres chemins.
-  test('compte les chemins déclarés localement depuis le projet', async ({ projectOf }) => {
+  test('resolves locally declared paths from the project', async ({ projectOf }) => {
     const root = projectOf({
       'base.json': '{ "compilerOptions": { "strict": true } }',
       'app/tsconfig.json':
@@ -243,9 +243,9 @@ describe('chemins déclarés par le projet', () => {
   // Sans ces contrôles, une cible mal typée lève un `TypeError` remonté comme
   // panne interne, au lieu du message que l'erreur de configuration mérite.
   test.for([
-    ['une chaîne au lieu d’un tableau', '{ "@/*": "src/*" }'],
-    ['un nombre parmi les cibles', '{ "@/*": [123] }'],
-  ] as const)('refuse %s', async ([, paths], { projectOf }) => {
+    ['a string instead of an array', '{ "@/*": "src/*" }'],
+    ['a number among the targets', '{ "@/*": [123] }'],
+  ] as const)('refuses %s', async ([, paths], { projectOf }) => {
     const root = projectOf({ 'tsconfig.json': `{ "compilerOptions": { "paths": ${paths} } }` })
 
     await expect(projectPathsOf(root)).rejects.toThrow(ConfigError)
@@ -253,7 +253,7 @@ describe('chemins déclarés par le projet', () => {
   })
 
   // La racine désigne le projet référencé : la modifier change les chemins.
-  test('surveille la racine autant que le fichier référencé', async ({ projectOf }) => {
+  test('watches the root as well as the referenced file', async ({ projectOf }) => {
     const root = projectOf({
       'tsconfig.json': '{ "files": [], "references": [{ "path": "./app.json" }] }',
       'app.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
@@ -266,7 +266,7 @@ describe('chemins déclarés par le projet', () => {
 
   // Sans ce mot, l'utilisateur voit tous ses imports échouer et rien ne désigne
   // la cause, qui est dans un fichier qu'il n'a pas encore généré.
-  test('avertit quand un extends introuvable fait perdre les chemins', async ({ projectOf }) => {
+  test('warns when a missing extends loses the paths', async ({ projectOf }) => {
     const root = projectOf({ 'tsconfig.json': '{ "extends": "./.nuxt/tsconfig.json" }' })
     const dits: string[] = []
 
@@ -276,7 +276,7 @@ describe('chemins déclarés par le projet', () => {
 
   // Et se tait quand le fichier suivant les fournit : annoncer une perte qui
   // n'a pas lieu vaut à peine mieux que le silence.
-  test('ne dit rien quand le fichier suivant fournit les chemins', async ({ projectOf }) => {
+  test('says nothing when the next file provides the paths', async ({ projectOf }) => {
     const root = projectOf({
       'tsconfig.json': '{ "extends": "./absent.json" }',
       'jsconfig.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
@@ -294,17 +294,14 @@ describe('chemins déclarés par le projet', () => {
   // puisqu'il est consulté avant.
   test.for([
     [
-      'quand un autre fichier fournit les chemins',
+      'when another file provides the paths',
       {
         'tsconfig.json': '{ "compilerOptions": { "strict": true } }',
         'jsconfig.json': '{ "compilerOptions": { "paths": { "@/*": ["src/*"] } } }',
       },
     ],
-    [
-      'quand son extends est introuvable',
-      { 'tsconfig.json': '{ "extends": "./.nuxt/tsconfig.json" }' },
-    ],
-  ] as const)('surveille le tsconfig %s', async ([, fichiers], { projectOf }) => {
+    ['when its extends is missing', { 'tsconfig.json': '{ "extends": "./.nuxt/tsconfig.json" }' }],
+  ] as const)('watches the tsconfig %s', async ([, fichiers], { projectOf }) => {
     const root = projectOf({
       ...fichiers,
       'crypte.config.ts': 'export default { stories: "s", adapter: {} }',
@@ -314,7 +311,7 @@ describe('chemins déclarés par le projet', () => {
     expect(project.watch.some((file) => file.endsWith('tsconfig.json'))).toBe(true)
   })
 
-  test('nomme le fichier quand il est illisible', async ({ projectOf }) => {
+  test('names the file when it is unreadable', async ({ projectOf }) => {
     const root = projectOf({ 'tsconfig.json': '{ "compilerOptions": { paths } }' })
 
     await expect(projectPathsOf(root)).rejects.toThrow(ConfigError)
@@ -326,11 +323,11 @@ describe('chemins déclarés par le projet', () => {
 // plus : appliquer les chemins à un import relatif. Comme il passe après les
 // résolveurs de Vite, seuls les imports relatifs **cassés** lui parviennent, et
 // les détourner ferait charger un autre module au lieu d'échouer.
-describe('imports relatifs', () => {
+describe('relative imports', () => {
   // Le croisement des deux axes : le motif le plus large possible, contre les
   // natures d'identifiant qu'il ne doit pas toucher.
-  test.for([['un fourre-tout', '{ "*": ["src/*"] }']] as const)(
-    'ne détourne pas un import relatif cassé, malgré %s',
+  test.for([['a catch-all', '{ "*": ["src/*"] }']] as const)(
+    'does not redirect a broken relative import, despite %s',
     async ([, paths], { projectOf, serverOn }) => {
       const root = projectOf({
         'tsconfig.json': `{ "compilerOptions": { "paths": ${paths} } }`,
@@ -354,8 +351,8 @@ describe('imports relatifs', () => {
 // Le troisième axe : d'où vient l'import. Les chemins du projet ne valent que
 // pour ses fichiers, et une dépendance qui importe un paquet absent se verrait
 // sinon servir du code de l'application.
-describe('provenance de l’import', () => {
-  test('n’applique pas les chemins à un fichier installé', async ({ projectOf, serverOn }) => {
+describe('import origin', () => {
+  test('does not apply the paths to an installed file', async ({ projectOf, serverOn }) => {
     const root = projectOf({
       'tsconfig.json': '{ "compilerOptions": { "paths": { "*": ["src/*"] } } }',
       'crypte.config.ts': 'export default { stories: "s", adapter: {} }',
@@ -372,7 +369,7 @@ describe('provenance de l’import', () => {
 // Les quatre provenances possibles, complétant celle du fichier installé.
 // L'ordre entre le résolveur et les plugins que le projet déclare. Le repli
 // rend ce choix peu risqué, mais il reste un choix, et rien ne le gardait.
-describe('ordre des résolveurs', () => {
+describe('resolver order', () => {
   // Le plugin est déclaré là où un projet le déclare, dans `vite.plugins` de sa
   // configuration : l'ajouter à la main court-circuiterait l'ordre qu'on teste.
   const projetAvecPlugin = (projectOf: ProjectOf, enforce: string) =>
@@ -393,7 +390,7 @@ describe('ordre des résolveurs', () => {
       'autre/cible.js': 'export const c = 2',
     })
 
-  test('applique les chemins avant les plugins du projet', async ({ projectOf, serverOn }) => {
+  test('applies the paths before the project plugins', async ({ projectOf, serverOn }) => {
     const root = projetAvecPlugin(projectOf, '')
     const server = await serverOn(viteConfigOf(await loadProject(root)))
 
@@ -402,7 +399,7 @@ describe('ordre des résolveurs', () => {
   })
 
   // Et ce qu'un plugin fait quand il veut la main avant lui.
-  test('cède la main à un plugin qui déclare enforce pre', async ({ projectOf, serverOn }) => {
+  test('yields to a plugin that declares enforce pre', async ({ projectOf, serverOn }) => {
     const root = projetAvecPlugin(projectOf, "enforce: 'pre',")
     const server = await serverOn(viteConfigOf(await loadProject(root)))
 
@@ -411,27 +408,27 @@ describe('ordre des résolveurs', () => {
   })
 })
 
-describe('natures d’identifiant', () => {
+describe('specifier kinds', () => {
   test.for([
-    ['un absolu', '/racine.js'],
-    ['un module virtuel de plugin', 'virtual:mon-module'],
-    ['un identifiant virtuel de Rollup', '\0virtuel'],
-    ['un identifiant vide', ''],
-  ] as const)('laisse passer %s', ([, id]) => {
+    ['an absolute path', '/racine.js'],
+    ['a plugin virtual module', 'virtual:mon-module'],
+    ['a Rollup virtual id', '\0virtuel'],
+    ['an empty id', ''],
+  ] as const)('lets %s through', ([, id]) => {
     expect(isBareSpecifier(id)).toBe(false)
   })
 })
 
-describe('correspondance d’un motif', () => {
-  test.for([['*.css', 'a.css', 'a']] as const)('capture %s sur %s', ([pattern, id, attendu]) => {
+describe('pattern matching', () => {
+  test.for([['*.css', 'a.css', 'a']] as const)('captures %s on %s', ([pattern, id, attendu]) => {
     expect(capture(pattern, id)).toBe(attendu)
   })
 
   test.for([
-    ['un préfixe qui ne correspond pas', '@/*', '@scope/pkg'],
-    ['un suffixe qui ne correspond pas', '*.css', 'a.js'],
-    ['un identifiant trop court pour le motif', 'a*a', 'a'],
-  ] as const)('ne capture pas %s', ([, pattern, id]) => {
+    ['a prefix that does not match', '@/*', '@scope/pkg'],
+    ['a suffix that does not match', '*.css', 'a.js'],
+    ['an id too short for the pattern', 'a*a', 'a'],
+  ] as const)('does not capture %s', ([, pattern, id]) => {
     expect(capture(pattern, id)).toBeNull()
   })
 })
@@ -439,13 +436,13 @@ describe('correspondance d’un motif', () => {
 // L'espace des motifs est fini : TypeScript en admet au plus un joker. Ces cas
 // le parcourent en entier, par une résolution réelle et non par la forme d'un
 // alias, qui peut être juste et pourtant inerte.
-describe('résolution des chemins', () => {
+describe('path resolution', () => {
   test.for([
-    ['seconde cible', '{ "@/*": ["absent/*", "src/*"] }', 'import "@/app.js"', 'src/app.js'],
+    ['second target', '{ "@/*": ["absent/*", "src/*"] }', 'import "@/app.js"', 'src/app.js'],
     // La partie capturée vient de l'utilisateur : en remplacement de chaîne,
     // `$&` y désignerait le motif trouvé et produirait un autre chemin.
-    ['une capture contenant $&', '{ "@/*": ["src/*"] }', 'import "@/a$&b.js"', 'src/a$&b.js'],
-  ] as const)('résout le motif %s', async ([, paths, source, cible], { resolving }) => {
+    ['a capture containing $&', '{ "@/*": ["src/*"] }', 'import "@/a$&b.js"', 'src/a$&b.js'],
+  ] as const)('resolves the pattern %s', async ([, paths, source, cible], { resolving }) => {
     const { server } = await resolving(paths, {
       'entry.js': source,
       [cible]: 'export const x = 1',
@@ -456,7 +453,7 @@ describe('résolution des chemins', () => {
 
   // Un motif sans aucune cible retient quand même : TypeScript n'essaie pas le
   // motif suivant non plus, il retombe sur la résolution normale.
-  test('ne se rabat pas quand le motif retenu n’a aucune cible', async ({ resolving }) => {
+  test('does not fall back when the chosen pattern has no target', async ({ resolving }) => {
     const { server } = await resolving('{ "@/*": [], "@*": ["src/*"] }', {
       'entry.js': 'import "@/a.js"',
       'src/a.js': 'export const x = 1',
@@ -469,7 +466,7 @@ describe('résolution des chemins', () => {
   // sans condition et détournerait ce paquet vers `src/scope/pkg`. Le code doit
   // pointer vers `node_modules`, non se contenter d'être transformé : rendre
   // l'identifiant tel quel passerait aussi, sans avoir rien résolu.
-  test('laisse Vite résoudre un paquet qu’aucune cible ne couvre', async ({ resolving }) => {
+  test('lets Vite resolve a package no target covers', async ({ resolving }) => {
     const { server } = await resolving('{ "@*": ["src/*"] }', {
       'entry.js': 'import "@scope/pkg"',
     })
@@ -480,7 +477,7 @@ describe('résolution des chemins', () => {
 
   test.for([
     [
-      'le motif le plus spécifique',
+      'the most specific pattern',
       '{ "@/*": ["src/*"], "@/lib/*": ["vendor/*"] }',
       'export { x } from "@/lib/a.js"',
       '/vendor/',
@@ -491,12 +488,12 @@ describe('résolution des chemins', () => {
     // Préfixes strictement égaux : seul le départage explicite tranche, le tri
     // étant stable et l'ordre de déclaration mettant le joker en premier.
     [
-      'le motif exact à préfixe égal',
+      'the exact pattern on an equal prefix',
       '{ "#app*": ["vendor/a.js"], "#app": ["src/lib/a.js"] }',
       'export { x } from "#app"',
       '/src/',
     ],
-  ] as const)('retient %s', async ([, paths, source, attendu], { resolving }) => {
+  ] as const)('picks %s', async ([, paths, source, attendu], { resolving }) => {
     const { server } = await resolving(paths, {
       'entry.js': source,
       'src/lib/a.js': 'export const x = 1',
@@ -510,8 +507,8 @@ describe('résolution des chemins', () => {
 
 // Le lot existe pour lever ce risque : que la résolution échoue sur un projet
 // réel se découvrirait autrement au moment de servir la preview.
-describe('résolution réelle par un serveur Vite', () => {
-  test('résout un alias et un asset depuis un fichier .jsx', async ({ serverOn }) => {
+describe('real resolution by a Vite server', () => {
+  test('resolves an alias and an asset from a .jsx file', async ({ serverOn }) => {
     const project = await loadProject(fixture)
     const server = await serverOn(viteConfigOf(project))
 
@@ -524,8 +521,8 @@ describe('résolution réelle par un serveur Vite', () => {
 
 // Deux serveurs sur la même racine, celui de crypte et le `vite dev` du projet,
 // écriraient le même `_metadata.json` de dépendances optimisées.
-describe('le dossier de cache', () => {
-  test('est propre à crypte, dans les node_modules du projet', async () => {
+describe('the cache directory', () => {
+  test('belongs to crypte, in the project node_modules', async () => {
     const config = viteConfigOf(await loadProject(fixture))
 
     expect(config.cacheDir).toBe(join(fixture, 'node_modules', '.crypte'))

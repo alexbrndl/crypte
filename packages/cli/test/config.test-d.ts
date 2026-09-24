@@ -9,14 +9,14 @@ type Requises<T> = {
   [K in keyof T]-?: object extends Pick<T, K> ? never : K
 }[keyof T]
 
-describe('la configuration obligatoire', () => {
-  it('en exige exactement deux', () => {
+describe('the required config', () => {
+  it('requires exactly two keys', () => {
     expectTypeOf<Requises<CrypteConfig>>().toEqualTypeOf<'stories' | 'adapter'>()
   })
 
   // Et que le compte porte bien sur toutes les clés, pas seulement sur celles
   // qu'on a pensé à nommer : six aujourd'hui, deux exigées et quatre non.
-  it('ne porte que sur les six clés que le type déclare', () => {
+  it('covers only the six keys the type declares', () => {
     expectTypeOf<keyof CrypteConfig>().toEqualTypeOf<
       'stories' | 'adapter' | 'css' | 'wrap' | 'plugins' | 'vite'
     >()

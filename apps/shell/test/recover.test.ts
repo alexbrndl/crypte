@@ -14,14 +14,14 @@ const defaut = entry('badge--par-defaut', 'Par défaut', 'stories/Badge.tsx')
 const alerte = entry('badge--avertissement', 'Avertissement', 'stories/Badge.tsx')
 const autre = entry('bouton--par-defaut', 'Par défaut', 'stories/Bouton.tsx')
 
-describe('la sélection après un changement de catalogue', () => {
-  it('prend la première story quand rien n’était affiché', () => {
+describe('the selection after a catalog change', () => {
+  it('takes the first story when nothing was displayed', () => {
     expect(recovered(null, [], [defaut, alerte])).toBe(defaut.id)
   })
 
   // Le cas qui décide de la règle : renommer une story change son identifiant,
   // et le même rang dans le même fichier désigne la story renommée.
-  it('suit un renommage sur place, par le rang dans le fichier', () => {
+  it('follows an in-place rename, by rank in the file', () => {
     const renommee = entry('badge--alerte', 'Alerte', 'stories/Badge.tsx')
 
     expect(recovered(alerte, [defaut, alerte], [defaut, renommee, autre])).toBe(renommee.id)
@@ -30,7 +30,7 @@ describe('la sélection après un changement de catalogue', () => {
   // L'affichée peut ne pas être dans le catalogue d'avant : un premier
   // rafraîchissement échoué laisse une sélection sans liste. Le rang vaut alors
   // -1, et prendre la dernière du fichier vaut mieux que ne rien rendre.
-  it('retombe sur la dernière du fichier quand l’affichée n’était pas dans la liste', () => {
+  it('falls back to the last one in the file when the displayed one was not in the list', () => {
     const renommee = entry('badge--alerte', 'Alerte', 'stories/Badge.tsx')
 
     expect(recovered(alerte, [], [defaut, renommee])).toBe(renommee.id)
@@ -39,7 +39,7 @@ describe('la sélection après un changement de catalogue', () => {
   // Le troisième état. Confondu avec « rien n'a jamais été affiché », une
   // sauvegarde sur n'importe quel autre fichier faisait sauter la sélection sur
   // la première story, juste après avoir dit qu'il n'y avait plus rien.
-  it('ne propose rien tant que le fichier de la story perdue reste absent', () => {
+  it('offers nothing while the lost story’s file stays missing', () => {
     const perdue = { lost: alerte, before: [defaut, alerte, autre] }
 
     expect(recovered(perdue, [autre], [autre])).toBeNull()
@@ -47,7 +47,7 @@ describe('la sélection après un changement de catalogue', () => {
 
   // Une erreur de syntaxe retire le fichier entier du catalogue, et sa
   // réparation l'y remet : la story perdue revient à l'écran.
-  it('revient sur la story perdue quand son fichier revient', () => {
+  it('returns to the lost story when its file comes back', () => {
     const perdue = { lost: alerte, before: [defaut, alerte, autre] }
 
     expect(recovered(perdue, [autre], [defaut, alerte, autre])).toBe(alerte.id)
@@ -55,7 +55,7 @@ describe('la sélection après un changement de catalogue', () => {
 
   // Réparée et renommée d'un même geste : c'est le catalogue gardé à la perte
   // qui donne son rang, celui d'avant la réparation ne la contient plus.
-  it('retrouve par son rang une story perdue qui revient renommée', () => {
+  it('finds by rank a lost story that comes back renamed', () => {
     const perdue = { lost: alerte, before: [defaut, alerte, autre] }
     const renommee = entry('badge--attention', 'Attention', 'stories/Badge.tsx')
     const derniere = entry('badge--z', 'Z', 'stories/Badge.tsx')
@@ -67,12 +67,12 @@ describe('la sélection après un changement de catalogue', () => {
 // Ce que le shell devient, et pas seulement où il retombe : la distinction
 // entre « rien n'a jamais été affiché » et « la sélection vient d'être perdue »
 // se décide ici, hors d'un rendu Vue.
-describe('l’atterrissage après un rafraîchissement', () => {
-  it('n’efface rien sur un catalogue vide', () => {
+describe('the landing after a refresh', () => {
+  it('clears nothing on an empty catalog', () => {
     expect(landing(null, [], [])).toEqual({ id: null, shown: null, status: undefined })
   })
 
-  it('efface et le dit quand la sélection est perdue', () => {
+  it('clears and says so when the selection is lost', () => {
     expect(landing(alerte, [defaut, alerte, autre], [autre])).toEqual({
       id: null,
       shown: { lost: alerte, before: [defaut, alerte, autre] },
@@ -80,7 +80,7 @@ describe('l’atterrissage après un rafraîchissement', () => {
     })
   })
 
-  it('ne redit rien tant que la sélection tient', () => {
+  it('says nothing more while the selection holds', () => {
     expect(landing(alerte, [defaut, alerte], [defaut, alerte])).toEqual({
       id: alerte.id,
       shown: alerte,
@@ -89,10 +89,10 @@ describe('l’atterrissage après un rafraîchissement', () => {
   })
 })
 
-describe('un catalogue illisible', () => {
+describe('an unreadable catalog', () => {
   // Un rejet qui n'est pas une erreur reste lisible plutôt que de rendre
   // « [object Object] ».
-  it('rend lisible ce qui n’est pas une erreur', () => {
+  it('makes readable what is not an error', () => {
     expect(unreadable(503)).toBe('catalogue illisible : 503')
   })
 })

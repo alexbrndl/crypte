@@ -76,10 +76,10 @@ function declaredNames(): string[] {
     .flatMap((file) => declaredIn(readFileSync(join(protocol, file), 'utf8')))
 }
 
-describe('la spécification et le code', () => {
+describe('the spec and the code', () => {
   const declared = declaredNames()
 
-  it('lit bien les deux', () => {
+  it('reads both', () => {
     expect(journal, 'section 9 introuvable').not.toBe('')
     expect(declared.length).toBeGreaterThan(10)
     expect(normativeCode.length).toBeGreaterThan(1000)
@@ -93,7 +93,7 @@ describe('la spécification et le code', () => {
 
   // Douze constats de revue venaient de là : un nom renommé qui survit dans la
   // partie qui fait foi, et qu'on réimplémente depuis elle.
-  it('ne garde aucun nom retiré dans le code de la spécification', () => {
+  it('keeps no retired name in the spec code', () => {
     for (const [name, pattern] of RETIRED) {
       expect(
         normativeCode,
@@ -107,7 +107,7 @@ describe('la spécification et le code', () => {
   // à faire passer un type que le document qui fait foi ne décrit nulle part.
   // Comme mot entier, sinon `Manifest` est satisfait par `ManifestEntry`, et les
   // trois types centraux du protocole n'étaient surveillés par rien.
-  it('décrit tout ce que le protocole expose', () => {
+  it('describes everything the protocol exposes', () => {
     for (const name of declared) {
       expect(normative, `${name} est exporté mais absent de la partie normative`).toMatch(
         new RegExp(`\\b${name}\\b`),
@@ -118,7 +118,7 @@ describe('la spécification et le code', () => {
   // Citer un nom ne coûte rien : un type mentionné en passant satisfaisait le
   // contrôle précédent. Un champ absent du bloc qui décrit son interface est en
   // revanche un contrat que personne ne peut réimplémenter depuis le document.
-  it('décrit chaque champ dans le bloc de son interface', () => {
+  it('describes each field in its interface block', () => {
     for (const { name, fields } of declaredInterfaces()) {
       if (fields.length === 0) continue
 
@@ -142,7 +142,7 @@ describe('la spécification et le code', () => {
 
   // Deux listes tenues à la main, donc deux façons de se périmer en silence :
   // une exception qui dispense un type existant, un nom « retiré » qui est revenu.
-  it('ne garde aucune liste devenue fausse', () => {
+  it('keeps no list that has gone stale', () => {
     for (const name of NOT_OURS) {
       expect(declared, `${name} est déclaré par le noyau, retire-le des exceptions`).not.toContain(
         name,

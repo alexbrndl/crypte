@@ -5,7 +5,7 @@ import { Callout } from '../src'
 // Ce que le shell et le site reçoivent : le ton comme seul réglage, le reste
 // (rôle, classe, densité) laissé au contexte qui le pose.
 describe('Callout', () => {
-  it('rend son contenu sous le ton demandé', () => {
+  it('renders its content under the requested tone', () => {
     const wrapper = mount(Callout, {
       props: { tone: 'danger' },
       slots: { default: '<h2>Titre</h2>' },
@@ -15,7 +15,7 @@ describe('Callout', () => {
     expect(wrapper.get('.callout > h2').text()).toBe('Titre')
   })
 
-  it('laisse le rôle et la classe à qui l’emploie', () => {
+  it('leaves role and class to the caller', () => {
     const wrapper = mount(Callout, {
       props: { tone: 'warning' },
       attrs: { role: 'status', class: 'set-aside' },

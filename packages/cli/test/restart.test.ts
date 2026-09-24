@@ -61,15 +61,18 @@ const écartésSur = (port: number) => async () => {
   return (manifest.skipped ?? []).map((one) => one.file)
 }
 
-describe('la configuration relue sans commande', () => {
+describe('the config reread without a command', () => {
   // Le compte-rendu des refus est la seule trace qu'un plugin cassé laisse. Ses
   // deux chemins : au démarrage, puis à la relecture, où seul ce qui est neuf
   // s'imprime, la règle que les fichiers écartés suivent déjà.
-  test('dit ce qu’un plugin s’est vu refuser, sans le répéter', { timeout: 120_000 }, async () => {
-    const root = copie(fixture, 'tmp-hot-')
-    const config = join(root, 'crypte.config.ts')
+  test(
+    'reports what a plugin was refused, without repeating it',
+    { timeout: 120_000 },
+    async () => {
+      const root = copie(fixture, 'tmp-hot-')
+      const config = join(root, 'crypte.config.ts')
 
-    const avec = (nom: string, raison: string) => `import { defineConfig } from '@crypte/cli'
+      const avec = (nom: string, raison: string) => `import { defineConfig } from '@crypte/cli'
 
 export default defineConfig({
   stories: 'stories',
@@ -78,127 +81,120 @@ export default defineConfig({
 })
 `
 
-    writeFileSync(config, avec('premier', 'aucun fichier de tokens'))
+      writeFileSync(config, avec('premier', 'aucun fichier de tokens'))
+
+      const dites: string[] = []
+      const running = await dev(root, (une: string) => dites.push(une))
+
+      try {
+        expect(dites).toContain('1 plugin contribution(s) refused:')
+        expect(dites).toContain('  premier : aucun fichier de tokens')
+
+        writeFileSync(config, avec('second', 'toujours aucun'))
+
+        await expect
+          .poll(() => dites.filter((une) => une.includes('second')).length, { timeout: 30_000 })
+          .toBe(1)
+
+        // Le premier n'est pas réimprimé : la relecture ne dit que ce qui a changé.
+        expect(dites.filter((une) => une.includes('premier : aucun'))).toHaveLength(1)
+      } finally {
+        await running.close()
+        rmSync(root, { recursive: true, force: true })
+      }
+    },
+  )
+
+  test('keeps the server up on an unreadable config', { timeout: 120_000 }, async () => {
+    const root = copie(fixture, 'tmp-hot-')
+    const config = join(root, 'crypte.config.ts')
+    const avant = readFileSync(config, 'utf8')
 
     const dites: string[] = []
     const running = await dev(root, (une: string) => dites.push(une))
+    const address = running.server.httpServer?.address()
+    if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
+
+    const compte = compteSur(address.port)
 
     try {
-      expect(dites).toContain('1 plugin contribution(s) refused:')
-      expect(dites).toContain('  premier : aucun fichier de tokens')
-
-      writeFileSync(config, avec('second', 'toujours aucun'))
+      writeFileSync(config, 'export default {')
 
       await expect
-        .poll(() => dites.filter((une) => une.includes('second')).length, { timeout: 30_000 })
+        .poll(() => dites.filter((une) => une.includes('could not be read')).length, {
+          timeout: 30_000,
+        })
         .toBe(1)
 
-      // Le premier n'est pas réimprimé : la relecture ne dit que ce qui a changé.
-      expect(dites.filter((une) => une.includes('premier : aucun'))).toHaveLength(1)
+      // Debout, et sur le catalogue d'avant : un fichier à moitié écrit est un
+      // état ordinaire de la frappe.
+      expect(await compte()).toBe(4)
+
+      // Le même échec ne se dit qu'une fois : pendant une conversion, chaque
+      // sauvegarde échoue de la même façon et la répétition enterre la ligne
+      // qui suit. Un contenu différent, donc un échec différent, se dit.
+      writeFileSync(config, 'export default { ')
+      await expect
+        .poll(() => dites.filter((une) => une.includes('could not be read')).length, {
+          timeout: 30_000,
+        })
+        .toBe(2)
+
+      writeFileSync(config, 'export default { ')
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      expect(dites.filter((une) => une.includes('could not be read'))).toHaveLength(2)
+
+      // Et il repart quand le fichier redevient lisible.
+      const réparé = avant.replace("stories: 'stories'", "stories: 'stories/checkout'")
+      expect(réparé).not.toBe(avant)
+      writeFileSync(config, réparé)
+      await expect.poll(compte, { timeout: 30_000 }).toBe(3)
     } finally {
       await running.close()
       rmSync(root, { recursive: true, force: true })
     }
   })
 
-  test(
-    'garde le serveur debout sur une configuration illisible',
-    { timeout: 120_000 },
-    async () => {
-      const root = copie(fixture, 'tmp-hot-')
-      const config = join(root, 'crypte.config.ts')
-      const avant = readFileSync(config, 'utf8')
-
-      const dites: string[] = []
-      const running = await dev(root, (une: string) => dites.push(une))
-      const address = running.server.httpServer?.address()
-      if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
-
-      const compte = compteSur(address.port)
-
-      try {
-        writeFileSync(config, 'export default {')
-
-        await expect
-          .poll(() => dites.filter((une) => une.includes('could not be read')).length, {
-            timeout: 30_000,
-          })
-          .toBe(1)
-
-        // Debout, et sur le catalogue d'avant : un fichier à moitié écrit est un
-        // état ordinaire de la frappe.
-        expect(await compte()).toBe(4)
-
-        // Le même échec ne se dit qu'une fois : pendant une conversion, chaque
-        // sauvegarde échoue de la même façon et la répétition enterre la ligne
-        // qui suit. Un contenu différent, donc un échec différent, se dit.
-        writeFileSync(config, 'export default { ')
-        await expect
-          .poll(() => dites.filter((une) => une.includes('could not be read')).length, {
-            timeout: 30_000,
-          })
-          .toBe(2)
-
-        writeFileSync(config, 'export default { ')
-        await new Promise((resolve) => setTimeout(resolve, 500))
-
-        expect(dites.filter((une) => une.includes('could not be read'))).toHaveLength(2)
-
-        // Et il repart quand le fichier redevient lisible.
-        const réparé = avant.replace("stories: 'stories'", "stories: 'stories/checkout'")
-        expect(réparé).not.toBe(avant)
-        writeFileSync(config, réparé)
-        await expect.poll(compte, { timeout: 30_000 }).toBe(3)
-      } finally {
-        await running.close()
-        rmSync(root, { recursive: true, force: true })
-      }
-    },
-  )
-
   // Deux sauvegardes de suite finissent sur la dernière. Ce cas **n'éprouve pas**
   // la fenêtre de chevauchement : un redémarrage prend 43 ms mesurées, donc la
   // seconde sauvegarde arrive après la fin de la première, et une version à
   // drapeau passerait à l'identique. La fenêtre fait une vingtaine de
   // millisecondes et aucun test ne la force de façon fiable. Ce que ce cas tient est l'ordre : la dernière gagne.
-  test(
-    'ne perd pas une sauvegarde arrivée pendant un redémarrage',
-    { timeout: 120_000 },
-    async () => {
-      const root = copie(fixture, 'tmp-hot-')
-      const config = join(root, 'crypte.config.ts')
-      const avant = readFileSync(config, 'utf8')
+  test('does not lose a save that arrives during a restart', { timeout: 120_000 }, async () => {
+    const root = copie(fixture, 'tmp-hot-')
+    const config = join(root, 'crypte.config.ts')
+    const avant = readFileSync(config, 'utf8')
 
-      const dites: string[] = []
-      const running = await dev(root, (une: string) => dites.push(une))
-      const address = running.server.httpServer?.address()
-      if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
+    const dites: string[] = []
+    const running = await dev(root, (une: string) => dites.push(une))
+    const address = running.server.httpServer?.address()
+    if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
 
-      const compte = compteSur(address.port)
+    const compte = compteSur(address.port)
 
-      try {
-        const réduit = avant.replace("stories: 'stories'", "stories: 'stories/checkout'")
-        expect(réduit).not.toBe(avant)
+    try {
+      const réduit = avant.replace("stories: 'stories'", "stories: 'stories/checkout'")
+      expect(réduit).not.toBe(avant)
 
-        writeFileSync(config, réduit)
-        await new Promise((resolve) => setTimeout(resolve, 300))
-        writeFileSync(config, avant)
+      writeFileSync(config, réduit)
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      writeFileSync(config, avant)
 
-        // La dernière gagne : le catalogue revient à quatre, pas trois.
-        await expect.poll(compte, { timeout: 30_000 }).toBe(4)
-        expect(dites.filter((une) => une.includes('changed'))).toHaveLength(2)
-      } finally {
-        await running.close()
-        rmSync(root, { recursive: true, force: true })
-      }
-    },
-  )
+      // La dernière gagne : le catalogue revient à quatre, pas trois.
+      await expect.poll(compte, { timeout: 30_000 }).toBe(4)
+      expect(dites.filter((une) => une.includes('changed'))).toHaveLength(2)
+    } finally {
+      await running.close()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
 
   // Ce que le démarrage dit, un redémarrage le redit : les fichiers écartés, et
   // l'échec d'écriture quand il y en a un. Le `watchStories` du serveur neuf
   // s'amorce sur son propre catalogue, donc sans ça ces lignes ne seraient
   // **jamais** imprimées, ce qui est le silence que `DCJ-217` a fermé.
-  test('redit les fichiers écartés après un redémarrage', { timeout: 120_000 }, async () => {
+  test('reports the skipped files again after a restart', { timeout: 120_000 }, async () => {
     const root = copie(fixture, 'tmp-hot-')
     const config = join(root, 'crypte.config.ts')
     const avant = readFileSync(config, 'utf8')
@@ -243,48 +239,44 @@ export default defineConfig({
   // rapport. Un redémarrage reconstruisait sans cette mémoire, donc éditer
   // `crypte.config.ts` effaçait le bandeau alors que le fichier ne produit
   // toujours rien : le trou était exactement là où le mécanisme dit exister.
-  test(
-    'garde le bandeau d’un fichier muet après un redémarrage',
-    { timeout: 120_000 },
-    async () => {
-      const root = copie(fixture, 'tmp-hot-')
-      const config = join(root, 'crypte.config.ts')
-      const avant = readFileSync(config, 'utf8')
-      const story = join(root, 'stories', 'Badge.js')
+  test('keeps the banner of a silent file after a restart', { timeout: 120_000 }, async () => {
+    const root = copie(fixture, 'tmp-hot-')
+    const config = join(root, 'crypte.config.ts')
+    const avant = readFileSync(config, 'utf8')
+    const story = join(root, 'stories', 'Badge.js')
 
-      const dites: string[] = []
-      const running = await dev(root, (une: string) => dites.push(une))
-      const écartés = écartésSur(portDe(running))
+    const dites: string[] = []
+    const running = await dev(root, (une: string) => dites.push(une))
+    const écartés = écartésSur(portDe(running))
 
-      try {
-        // Il cesse de produire sans disparaître : c'est le cas que `wasStory` garde.
-        writeFileSync(story, 'export const rien = 1\n')
-        await expect.poll(écartés, { timeout: 30_000 }).toContain('stories/Badge.js')
+    try {
+      // Il cesse de produire sans disparaître : c'est le cas que `wasStory` garde.
+      writeFileSync(story, 'export const rien = 1\n')
+      await expect.poll(écartés, { timeout: 30_000 }).toContain('stories/Badge.js')
 
-        // Une sauvegarde sans rapport, qui redémarre le serveur. Attendu sur la
-        // ligne que le redémarrage imprime, et non sur le catalogue : celui d'avant
-        // répond déjà, donc toute mesure du catalogue passe sans rien attendre.
-        writeFileSync(config, `${avant}\n// une ligne de plus\n`)
-        await expect
-          .poll(() => dites.filter((une) => une.includes('crypte.config.ts changed')).length, {
-            timeout: 30_000,
-          })
-          .toBe(1)
+      // Une sauvegarde sans rapport, qui redémarre le serveur. Attendu sur la
+      // ligne que le redémarrage imprime, et non sur le catalogue : celui d'avant
+      // répond déjà, donc toute mesure du catalogue passe sans rien attendre.
+      writeFileSync(config, `${avant}\n// une ligne de plus\n`)
+      await expect
+        .poll(() => dites.filter((une) => une.includes('crypte.config.ts changed')).length, {
+          timeout: 30_000,
+        })
+        .toBe(1)
 
-        expect(await écartés()).toContain('stories/Badge.js')
-      } finally {
-        await running.close()
-        rmSync(root, { recursive: true, force: true })
-      }
-    },
-  )
+      expect(await écartés()).toContain('stories/Badge.js')
+    } finally {
+      await running.close()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
 
   // L'empreinte suit le catalogue servi, redémarrage compris : garder un nouveau
   // chemin `stories` la laissait en retard, et `crypte check` échouait pendant
   // que `crypte dev` tournait. Revenir en arrière rend les mêmes octets, donc un
   // essai ne laisse rien dans l'arbre.
   test(
-    'réécrit l’empreinte sur un redémarrage, et la rend intacte au retour',
+    'rewrites the fingerprint on a restart, and restores it intact on the way back',
     { timeout: 120_000 },
     async () => {
       const root = copie(fixture, 'tmp-hot-')
@@ -314,7 +306,7 @@ export default defineConfig({
   // Le manifeste sur disque est un artefact que le shell peut lire, donc il suit
   // le catalogue : laissé derrière, il divergeait du manifeste servi pour toute
   // la session, sans que rien ne le dise.
-  test('réécrit le manifeste sur un redémarrage', { timeout: 120_000 }, async () => {
+  test('rewrites the manifest on a restart', { timeout: 120_000 }, async () => {
     const root = copie(fixture, 'tmp-hot-')
     const config = join(root, 'crypte.config.ts')
     const avant = readFileSync(config, 'utf8')
@@ -341,61 +333,54 @@ export default defineConfig({
   // émettre, donc ses surveillants survivraient et doubleraient les
   // redémarrages suivants. La fermeture de l'ancien est forcée à lever ici, seul
   // moyen d'atteindre ce chemin.
-  test(
-    'dit un redémarrage qui échoue, sans rien laisser derrière',
-    { timeout: 120_000 },
-    async () => {
-      const root = copie(fixture, 'tmp-hot-')
-      const config = join(root, 'crypte.config.ts')
-      const avant = readFileSync(config, 'utf8')
+  test('reports a failing restart, leaving nothing behind', { timeout: 120_000 }, async () => {
+    const root = copie(fixture, 'tmp-hot-')
+    const config = join(root, 'crypte.config.ts')
+    const avant = readFileSync(config, 'utf8')
 
-      const dites: string[] = []
-      const running = await dev(root, (une: string) => dites.push(une))
-      const serveur = running.server
-      const vraie = serveur.close.bind(serveur)
-      serveur.close = () => Promise.reject(new Error('fermeture refusée'))
+    const dites: string[] = []
+    const running = await dev(root, (une: string) => dites.push(une))
+    const serveur = running.server
+    const vraie = serveur.close.bind(serveur)
+    serveur.close = () => Promise.reject(new Error('fermeture refusée'))
 
-      try {
-        const réduit = avant.replace("stories: 'stories'", "stories: 'stories/checkout'")
-        expect(réduit).not.toBe(avant)
-        writeFileSync(config, réduit)
+    try {
+      const réduit = avant.replace("stories: 'stories'", "stories: 'stories/checkout'")
+      expect(réduit).not.toBe(avant)
+      writeFileSync(config, réduit)
 
-        await expect
-          .poll(() => dites.filter((une) => une.includes('could not be restarted')).length, {
-            timeout: 30_000,
-          })
-          .toBe(1)
+      await expect
+        .poll(() => dites.filter((une) => une.includes('could not be restarted')).length, {
+          timeout: 30_000,
+        })
+        .toBe(1)
 
-        // L'ancien tient toujours le port, donc la poignée le désigne encore et il
-        // sert encore son catalogue.
-        expect(await compteSur(portDe(running))()).toBe(4)
-      } finally {
-        serveur.close = vraie
-        await running.close()
-        rmSync(root, { recursive: true, force: true })
-      }
-    },
-  )
+      // L'ancien tient toujours le port, donc la poignée le désigne encore et il
+      // sert encore son catalogue.
+      expect(await compteSur(portDe(running))()).toBe(4)
+    } finally {
+      serveur.close = vraie
+      await running.close()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
 
   // `close()` pendant un redémarrage en vol. La fenêtre est rendue large et
   // déterministe par une configuration lente : sans ça le cas passait par hasard,
   // le redémarrage étant déjà fini au moment de la fermeture, et il ne
   // surveillait donc rien. Mesuré.
-  test(
-    'ne laisse rien derrière quand on ferme pendant un redémarrage',
-    { timeout: 120_000 },
-    async () => {
-      const root = copie(fixture, 'tmp-hot-')
-      const config = join(root, 'crypte.config.ts')
+  test('leaves nothing behind when closed during a restart', { timeout: 120_000 }, async () => {
+    const root = copie(fixture, 'tmp-hot-')
+    const config = join(root, 'crypte.config.ts')
 
-      const running = await dev(root, () => {})
-      const port = portDe(running)
+    const running = await dev(root, () => {})
+    const port = portDe(running)
 
-      // Une configuration qui met plus d'une demi-seconde à se charger : la
-      // fermeture tombe donc pendant `loadProject`, à coup sûr.
-      writeFileSync(
-        config,
-        `import { defineConfig } from '@crypte/cli'
+    // Une configuration qui met plus d'une demi-seconde à se charger : la
+    // fermeture tombe donc pendant `loadProject`, à coup sûr.
+    writeFileSync(
+      config,
+      `import { defineConfig } from '@crypte/cli'
 
 await new Promise((resolve) => setTimeout(resolve, 600))
 
@@ -405,66 +390,61 @@ export default defineConfig({
   adapter: { name: 'fixture' },
 })
 `,
-      )
+    )
 
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 200))
-        await running.close()
-        await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      await running.close()
+      await new Promise((resolve) => setTimeout(resolve, 1500))
 
-        // Le serveur neuf ne monte pas après la fermeture, et l'ancien est parti.
-        await expect(fetch(`http://localhost:${port}${MANIFEST_ROUTE}`)).rejects.toThrow()
-      } finally {
-        // Enveloppé comme les autres cas : quand celui-ci échoue, la raison est
-        // qu'un serveur répond encore sur ce port, donc sans `finally` le
-        // lancement fuit exactement ce que le cas existe pour attraper, dans la
-        // recherche de port du fichier suivant. Mesuré en revue.
-        await running.close().catch(() => undefined)
-        rmSync(root, { recursive: true, force: true })
-      }
-    },
-  )
+      // Le serveur neuf ne monte pas après la fermeture, et l'ancien est parti.
+      await expect(fetch(`http://localhost:${port}${MANIFEST_ROUTE}`)).rejects.toThrow()
+    } finally {
+      // Enveloppé comme les autres cas : quand celui-ci échoue, la raison est
+      // qu'un serveur répond encore sur ce port, donc sans `finally` le
+      // lancement fuit exactement ce que le cas existe pour attraper, dans la
+      // recherche de port du fichier suivant. Mesuré en revue.
+      await running.close().catch(() => undefined)
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
 
   // Une édition qui change les imports de la configuration change aussi la liste
   // surveillée : comparer le digest d'avant le chargement à celui d'après faisait
   // repartir un second redémarrage pour la même sauvegarde.
-  test(
-    'ne redémarre qu’une fois quand la liste surveillée change',
-    { timeout: 120_000 },
-    async () => {
-      const root = copie(fixture, 'tmp-hot-')
-      const config = join(root, 'crypte.config.ts')
-      const avant = readFileSync(config, 'utf8')
-      writeFileSync(join(root, 'extra.ts'), "export const dossier = 'stories/checkout'\n")
+  test('restarts only once when the watched list changes', { timeout: 120_000 }, async () => {
+    const root = copie(fixture, 'tmp-hot-')
+    const config = join(root, 'crypte.config.ts')
+    const avant = readFileSync(config, 'utf8')
+    writeFileSync(join(root, 'extra.ts'), "export const dossier = 'stories/checkout'\n")
 
-      const dites: string[] = []
-      const running = await dev(root, (une: string) => dites.push(une))
+    const dites: string[] = []
+    const running = await dev(root, (une: string) => dites.push(une))
 
-      try {
-        const importé = avant
-          .replace(
-            "import { defineConfig } from '@crypte/cli'",
-            "import { defineConfig } from '@crypte/cli'\nimport { dossier } from './extra'",
-          )
-          .replace("stories: 'stories'", 'stories: dossier')
-        expect(importé).not.toBe(avant)
-        writeFileSync(config, importé)
+    try {
+      const importé = avant
+        .replace(
+          "import { defineConfig } from '@crypte/cli'",
+          "import { defineConfig } from '@crypte/cli'\nimport { dossier } from './extra'",
+        )
+        .replace("stories: 'stories'", 'stories: dossier')
+      expect(importé).not.toBe(avant)
+      writeFileSync(config, importé)
 
-        await expect.poll(compteSur(portDe(running)), { timeout: 30_000 }).toBe(3)
-        await new Promise((resolve) => setTimeout(resolve, 800))
+      await expect.poll(compteSur(portDe(running)), { timeout: 30_000 }).toBe(3)
+      await new Promise((resolve) => setTimeout(resolve, 800))
 
-        expect(dites.filter((une) => une.includes('changed'))).toHaveLength(1)
-      } finally {
-        await running.close()
-        rmSync(root, { recursive: true, force: true })
-      }
-    },
-  )
+      expect(dites.filter((une) => une.includes('changed'))).toHaveLength(1)
+    } finally {
+      await running.close()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
 
   // Le port du serveur qui tourne est repris, et non recherché depuis 5173 : un
   // serveur tombé sur 5174 au démarrage bougeait sous l'onglet ouvert dès que le
   // port par défaut se libérait.
-  test('garde le port du serveur qui tournait', { timeout: 120_000 }, async () => {
+  test('keeps the port of the running server', { timeout: 120_000 }, async () => {
     const squatteur = createServer()
     await new Promise<void>((resolve) => squatteur.listen(5173, resolve))
 
@@ -506,7 +486,7 @@ export default defineConfig({
   // Le mécanisme réel est celui sur lequel l'issue compte : l'iframe, elle, est
   // transformée par Vite, donc elle se recharge, dit `ready`, et le shell relit
   // son catalogue à ce moment. C'est l'arbre du shell qui le prouve.
-  test('remet les deux pages en marche sans commande', { timeout: 180_000 }, async () => {
+  test('brings both pages back up without a command', { timeout: 180_000 }, async () => {
     const root = copie(demo, 'tmp-demo-')
     mkdirSync(join(root, 'node_modules', '.crypte', 'deps'), { recursive: true })
     rmSync(join(root, 'node_modules', '.crypte'), { recursive: true, force: true })

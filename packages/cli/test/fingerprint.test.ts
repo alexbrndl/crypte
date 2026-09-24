@@ -36,12 +36,12 @@ const one = (over: Partial<StoryEntry> = {}): Manifest => ({
   entries: [{ ...entry, ...over }],
 })
 
-describe('l’empreinte réduite', () => {
+describe('reduced fingerprint', () => {
   // Le producteur trie déjà. Ce tri-ci tient la règle du condensé, qui dépend de
   // ce qu'une entrée porte et jamais de l'ordre où c'est écrit : `stable` fait
   // la même chose des clés d'objet. Réordonner un bloc de props dans un fichier
   // de story change en revanche `source`, donc le condensé.
-  it('trie les props d’un manifeste qui ne l’aurait pas fait', () => {
+  it('sorts the props of a manifest that did not', () => {
     const a = fingerprintOf(one({ props: ['a', 'b'] }))
     const b = fingerprintOf(one({ props: ['b', 'a'] }))
 
@@ -55,7 +55,7 @@ describe('l’empreinte réduite', () => {
   // premier jet comparait une entrée sans `meta` à une entrée `status: 'stable'`,
   // donc la comparaison échouait sur le champ à découvert et le repliement de
   // `meta` n'était gardé par rien.
-  it('replie dans une empreinte tout ce qu’elle ne montre pas', () => {
+  it('folds into a fingerprint everything it does not show', () => {
     const stable = { status: 'stable' } as const
     const before = fingerprintOf(one({ meta: stable }))
 
@@ -82,7 +82,7 @@ describe('l’empreinte réduite', () => {
   // Réordonner les props d'une story change `source`, qui garde l'ordre de
   // l'auteur puisqu'elle s'affiche, et pas le rendu. Le condensé compare les
   // attributs triés, sans perdre ni une valeur changée ni les enfants.
-  it('ne bouge pas quand seuls les attributs de source changent d’ordre', () => {
+  it('stays still when only source attributes change order', () => {
     const ordre = (source: string) => fingerprintOf(one({ source }))
 
     expect(
@@ -105,7 +105,7 @@ describe('l’empreinte réduite', () => {
   // Les clés du premier niveau arrivent déjà triées par `digestOf`, donc c'est
   // sur un objet imbriqué que le tri de `stable` se mesure. Sans ce cas, retirer
   // ce tri ne faisait rougir personne.
-  it('ne dépend pas de l’ordre des clés d’un objet imbriqué', () => {
+  it('does not depend on the key order of a nested object', () => {
     const alphabetical = fingerprintOf(
       one({ details: { label: { type: 'string', required: true, description: 'x' } } }),
     )
@@ -116,18 +116,18 @@ describe('l’empreinte réduite', () => {
     expect(same(alphabetical, shuffled)).toBe(true)
   })
 
-  it('suit la version du manifeste', () => {
+  it('follows the manifest version', () => {
     expect(fingerprintOf({ version: 2, entries: [] }).version).toBe(2)
   })
 })
 
-describe('l’empreinte de la fixture', () => {
+describe('fixture fingerprint', () => {
   // Ce cas **écrit** le fichier commité : c'est lui le générateur, et le régime
   // de verrouillage est l'étape `git diff --exit-code` déjà en place en
   // intégration continue, celle qui garde les réexports générés. Un producteur
   // qui change sans que le fichier soit recommité fait donc rougir la CI, et le
   // moyen de la réparer est de lancer la suite.
-  it('est écrite à côté du manifeste', async () => {
+  it('is written next to the manifest', async () => {
     for (const root of [fixture, demo]) {
       const { manifest } = buildCatalogue(await loadProject(root))
       const built = fingerprintOf(manifest)

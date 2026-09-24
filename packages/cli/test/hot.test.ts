@@ -113,7 +113,7 @@ const story = (component: string) =>
     `export default defineStories(${component})`,
   ].join('\n')
 
-describe('le catalogue pendant que le serveur tourne', () => {
+describe('the catalog while the server runs', () => {
   // Le jeu suit le catalogue, il n'est pas figé au démarrage. Mesuré autrement
   // que par les deux cas voisins : sur macOS `fs.watch` sur un fichier est
   // granulaire au **dossier**, donc surveiller `src/components/Badge.jsx` couvre
@@ -121,7 +121,7 @@ describe('le catalogue pendant que le serveur tourne', () => {
   // qui relisent le composant pour une autre raison. Les deux font passer un cas
   // qui croit éprouver la resynchronisation. Le jeu surveillé se lit donc
   // directement.
-  test('surveille un composant qu’une story se met à citer', async ({ projet }) => {
+  test('watches a component a story starts citing', async ({ projet }) => {
     const autre = join(projet.root, 'src', 'autre', 'Autre.jsx')
 
     mkdirSync(dirname(autre), { recursive: true })
@@ -148,7 +148,7 @@ describe('le catalogue pendant que le serveur tourne', () => {
 
   // Et il lâche ce qui n'est plus cité : gardés, les surveillants s'accumulent
   // pour la durée du serveur, un par composant qu'une story a cité un jour.
-  test('cesse de surveiller un composant qu’aucune story ne cite plus', async ({ projet }) => {
+  test('stops watching a component no story cites anymore', async ({ projet }) => {
     const badge = join(projet.root, 'src', 'components', 'Badge.jsx')
 
     expect(projet.surveilles()).toContain(badge)
@@ -162,7 +162,7 @@ describe('le catalogue pendant que le serveur tourne', () => {
   // garde l'identifiant que la story a écrit, donc le chemin ne désigne aucun
   // fichier. `fs.watch` lève dessus, et une levée ici arrêterait la
   // reconstruction, donc le serveur, sur une story parfaitement ordinaire.
-  test('ne lève pas sur un composant que rien ne résout', async ({ projet }) => {
+  test('does not throw on a component nothing resolves', async ({ projet }) => {
     writeFileSync(
       join(projet.root, 'stories', 'Fantome.js'),
       "import { Fantome } from 'introuvable'\n\nexport default defineStories(Fantome)\n",
@@ -182,7 +182,7 @@ describe('le catalogue pendant que le serveur tourne', () => {
   // Le piège de la surveillance : la prendre trop large reconstruit le catalogue
   // à chaque frappe dans n'importe quel fichier du projet. Ce cas tient l'autre
   // moitié du contrat, ce qui n'est **pas** surveillé.
-  test('ne surveille que les composants qu’une story cite', async ({ projet }) => {
+  test('watches only the components a story cites', async ({ projet }) => {
     const cités = componentFiles(projet.root, projet.catalogue())
 
     expect(cités).toEqual([
@@ -215,7 +215,7 @@ describe('le catalogue pendant que le serveur tourne', () => {
   // composant qui capte l'écriture, les surveillants de fichier s'y déclenchant
   // entre voisins. La réouverture elle-même est tenue sur toutes les plates-
   // formes par `watch.test.ts` ; ce cas-ci éprouve le serveur entier.
-  test('survit à une sauvegarde atomique du composant', async ({ projet }) => {
+  test('survives an atomic save of the component', async ({ projet }) => {
     const composant = join(projet.root, 'src', 'components', 'Badge.jsx')
     const temporaire = join(projet.root, 'src', 'components', '.Badge.jsx.tmp')
 
@@ -242,7 +242,7 @@ describe('le catalogue pendant que le serveur tourne', () => {
 
   // Une ligne qui reste dite pour toujours laisse la deuxième occurrence de la
   // même faute passer en silence, ce qui est le silence que ce lot ferme.
-  test('redit ce qu’un fichier réparé casse à nouveau', async ({ projet }) => {
+  test('reports again what a repaired file breaks again', async ({ projet }) => {
     const reparees = projet.dites('Reparee.js')
     const cassee = join(projet.root, 'stories', 'Reparee.js')
 
@@ -260,7 +260,7 @@ describe('le catalogue pendant que le serveur tourne', () => {
   // identifiant, ce qu'un `crypte dev` rencontre pendant qu'on convertit un
   // fichier. La reconstruction lève, et garder le dernier catalogue bon est la
   // différence entre une sauvegarde qui clignote et un serveur qui s'arrête.
-  test('garde le catalogue quand la reconstruction échoue', async ({ projet }) => {
+  test('keeps the catalog when the rebuild fails', async ({ projet }) => {
     const before = projet.retenu()
     const echecs = projet.dites('keeping the last good one')
 
@@ -280,7 +280,7 @@ describe('le catalogue pendant que le serveur tourne', () => {
   // L'empreinte suit les stories pendant la session : `crypte check` échoue sur
   // une empreinte en retard, et une story ajoutée sans redémarrer la laissait
   // telle qu'au démarrage.
-  test('réécrit l’empreinte quand une story change', async ({ projet }) => {
+  test('rewrites the fingerprint when a story changes', async ({ projet }) => {
     writeFileSync(join(projet.root, 'stories', 'Tardive.js'), story('Badge'))
 
     await expect
@@ -291,7 +291,7 @@ describe('le catalogue pendant que le serveur tourne', () => {
   // Le module virtuel de l'entrée nomme ses imports un par un : sans
   // invalidation il resservirait la liste d'avant, donc une story visible dans
   // l'arbre et introuvable au rendu.
-  test('réécrit l’entrée de la preview après un ajout', async ({ projet }) => {
+  test('rewrites the preview entry after an addition', async ({ projet }) => {
     writeFileSync(join(projet.root, 'stories', 'Tardive.js'), story('Badge'))
     await expect.poll(projet.noms).toContain('tardive--default')
 
@@ -307,8 +307,8 @@ describe('le catalogue pendant que le serveur tourne', () => {
 // `partial` que sur `ready`, qu'un rechargement émet. Sans ces deux champs dans
 // la forme, les deux signaux du lot 5c n'apparaissaient qu'après un rechargement
 // à la main : trouvé en revue, `DCJ-217`.
-describe('ce qui déclenche un rechargement', () => {
-  test('recharge quand un fichier ajouté n’est pas lisible', async ({ projet }) => {
+describe('what triggers a reload', () => {
+  test('reloads when an added file is unreadable', async ({ projet }) => {
     const avant = projet.rechargements()
 
     writeFileSync(
@@ -319,7 +319,7 @@ describe('ce qui déclenche un rechargement', () => {
     await expect.poll(() => projet.rechargements()).toBeGreaterThan(avant)
   })
 
-  test('recharge quand une story existante devient partielle', async ({ projet }) => {
+  test('reloads when an existing story becomes partial', async ({ projet }) => {
     const file = join(projet.root, 'stories', 'Badge.js')
     const avant = projet.rechargements()
 
@@ -337,7 +337,7 @@ export default defineStories(Badge, { props: { ...base, size: 'lg' } })
 
   // Et le contraire, qui est ce que la forme protège : éditer une valeur de prop
   // reste une mise à jour à chaud.
-  test('ne recharge pas quand une valeur de prop change', async ({ projet }) => {
+  test('does not reload when a prop value changes', async ({ projet }) => {
     const file = join(projet.root, 'stories', 'Badge.js')
 
     writeFileSync(

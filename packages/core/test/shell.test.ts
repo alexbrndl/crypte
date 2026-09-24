@@ -28,8 +28,8 @@ afterEach(() => {
 const RENDER = { type: 'render', id: 'badge--par-defaut', overrides: {} } as const
 const READY = { type: 'ready', protocolVersion: 1 } as const
 
-describe('envoi vers la preview', () => {
-  it('ne livre rien à une iframe d’une autre origine', () => {
+describe('sending to the preview', () => {
+  it('delivers nothing to an iframe from another origin', () => {
     const etrangere = windowAt(AILLEURS)
     etrangere.sender = shell
     const recus = collect(etrangere)
@@ -42,7 +42,7 @@ describe('envoi vers la preview', () => {
   })
 })
 
-describe('réception depuis la preview', () => {
+describe('receiving from the preview', () => {
   function ecoute() {
     const recus: PreviewMessage[] = []
     const stop = createShellChannel(frame).onMessage((message) => recus.push(message))
@@ -50,7 +50,7 @@ describe('réception depuis la preview', () => {
     return { recus, stop }
   }
 
-  it('ignore un message d’une autre origine', () => {
+  it('ignores a message from another origin', () => {
     const { recus } = ecoute()
 
     shell.deliver({ data: READY, origin: AILLEURS, source: dedans }, ORIGIN)
@@ -58,7 +58,7 @@ describe('réception depuis la preview', () => {
     expect(recus).toEqual([])
   })
 
-  it('ignore un message d’une autre fenêtre', () => {
+  it('ignores a message from another window', () => {
     const { recus } = ecoute()
     const intruse = windowAt(ORIGIN)
 
@@ -67,7 +67,7 @@ describe('réception depuis la preview', () => {
     expect(recus).toEqual([])
   })
 
-  it('se désabonne', () => {
+  it('unsubscribes', () => {
     const { recus, stop } = ecoute()
 
     expect(shell.listenerCount()).toBe(1)
@@ -108,8 +108,8 @@ function branche(render: (id: string, overrides: Record<string, unknown>) => voi
   return { shell, preview, canal, recus, stop }
 }
 
-describe('l’aller-retour entre les deux côtés', () => {
-  it('un aller-retour complet, sans message forgé', () => {
+describe('the round trip between both sides', () => {
+  it('a full round trip, without a forged message', () => {
     const rendus: unknown[] = []
     const { canal, recus } = branche((id, overrides) => rendus.push([id, overrides]))
 
@@ -124,7 +124,7 @@ describe('l’aller-retour entre les deux côtés', () => {
   // Ce que la preview lit dans `window` doit être sa fenêtre, pas celle du shell.
   // Sans cette bascule, les deux canaux liraient le même `parent` et la même
   // origine, et l'appariement des deux côtés serait vrai par accident.
-  it('chaque côté lit sa propre fenêtre pendant la distribution', () => {
+  it('each side reads its own window during dispatch', () => {
     const vues: unknown[] = []
     const { shell, preview, canal } = branche(() => vues.push(global.window))
 

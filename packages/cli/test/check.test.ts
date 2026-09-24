@@ -54,48 +54,48 @@ function only(source: string): string[][] {
   return componentsIn(join(root, 'un.tsx'))
 }
 
-describe('les exports identifiés comme composants', () => {
+describe('exports identified as components', () => {
   // Ce qui ressemble à un composant sans en être un. Chaque ligne serait un
   // faux positif, et 1.2 les interdit nommément.
   test.for([
-    ['une fonction utilitaire', 'export function StepFromProgress(n) { return n + 1 }'],
-    ['une fonction qui lève', 'export function Carte() { throw new Error("non") }'],
-    ['un nom souligné', 'export const _Carte = () => <p />'],
-    ['un export sans déclaration', 'const Carte = () => <p />\nexport { Carte }'],
-    ['une classe', 'export class Carte extends Component { render() { return <p /> } }'],
-    ['une déstructuration', 'export const { Carte } = tout'],
-  ] as const)('ne retient pas %s', ([, source]) => {
+    ['a utility function', 'export function StepFromProgress(n) { return n + 1 }'],
+    ['a function that throws', 'export function Carte() { throw new Error("non") }'],
+    ['an underscored name', 'export const _Carte = () => <p />'],
+    ['an export without a declaration', 'const Carte = () => <p />\nexport { Carte }'],
+    ['a class', 'export class Carte extends Component { render() { return <p /> } }'],
+    ['a destructuring', 'export const { Carte } = tout'],
+  ] as const)('does not keep %s', ([, source]) => {
     expect(only(source)).toEqual([])
   })
 
   // Le corps. Un composant réel écrit rarement un `return` nu au premier rang.
   test.for([
-    ['un retour parenthésé', 'export const A = () => (<p />)', ['A']],
-    ['un fragment', 'export function A() { return <></> }', ['A']],
-    ['un retour tardif', 'export function A() { const x = 1; return <p /> }', ['A']],
-    ['une sortie anticipée', 'export function A(b) { if (b) return <p />; return null }', ['A']],
+    ['a parenthesized return', 'export const A = () => (<p />)', ['A']],
+    ['a fragment', 'export function A() { return <></> }', ['A']],
+    ['a late return', 'export function A() { const x = 1; return <p /> }', ['A']],
+    ['an early exit', 'export function A(b) { if (b) return <p />; return null }', ['A']],
     [
-      'une branche sinon',
+      'an else branch',
       'export function A(b) { if (b) { return null } else { return <p /> } }',
       ['A'],
     ],
-    ['un ternaire', 'export function A(b) { return b ? <p /> : null }', ['A']],
-    ['un et logique', 'export function A(b) { return b && <p /> }', ['A']],
-  ] as const)('retient %s', ([, source, attendu]) => {
+    ['a ternary', 'export function A(b) { return b ? <p /> : null }', ['A']],
+    ['a logical and', 'export function A(b) { return b && <p /> }', ['A']],
+  ] as const)('keeps %s', ([, source, attendu]) => {
     expect(only(source).flat()).toEqual(attendu)
   })
 
   // Le regroupement lui-même, que les deux tables ci-dessus aplatissent : un
   // composant exporté deux fois rend un groupe de deux noms, pas deux groupes.
   test.for([
-    ['un défaut écrit avant', 'export default Carte\nexport function Carte() { return <p /> }'],
-  ] as const)('groupe les deux noms de %s', ([, source]) => {
+    ['a default written first', 'export default Carte\nexport function Carte() { return <p /> }'],
+  ] as const)('groups both names of %s', ([, source]) => {
     expect(only(source)).toEqual([['Carte', 'default']])
   })
 
   // Deux alias pour un même composant : le défaut et un nom. Sans accumulation,
   // le second effacerait le premier et une story sur celui-là avertirait.
-  test('garde les deux alias d’un composant qui en porte deux', () => {
+  test('keeps both aliases of a component that has two', () => {
     const source =
       'export function Carte() { return <p /> }\nexport default Carte\nexport { Carte as Fiche }'
 
@@ -105,8 +105,8 @@ describe('les exports identifiés comme composants', () => {
   // Le défaut porte son propre nom local, et le fichier peut le réexporter :
   // sans consulter les alias là aussi, une story sur `Fiche` avertirait sur
   // `default`.
-  test.for([['sous son propre nom', 'export { Carte }', ['default', 'Carte']]] as const)(
-    'groupe un défaut nommé réexporté %s',
+  test.for([['under its own name', 'export { Carte }', ['default', 'Carte']]] as const)(
+    'groups a named default re-exported %s',
     ([, second, attendu]) => {
       const source = `export default function Carte() { return <p /> }\n${second}`
 
@@ -115,7 +115,7 @@ describe('les exports identifiés comme composants', () => {
   )
 
   // Un défaut anonyme ne lie aucun nom local, donc il n'y a rien à relier.
-  test('ne relie rien à un défaut anonyme', () => {
+  test('links nothing to an anonymous default', () => {
     const source = 'export default () => <p />\nexport { Carte as Fiche }'
 
     expect(only(source)).toEqual([['default']])
@@ -124,9 +124,9 @@ describe('les exports identifiés comme composants', () => {
   // Un export de type ne nomme rien à l'exécution : une story ne peut pas le
   // viser, donc le relier grossirait le groupe sur un nom qui n'existe pas.
   test.for([
-    ['sur la déclaration', 'export type { Carte as Fiche }'],
-    ['sur le spécificateur', 'export { type Carte as Fiche }'],
-  ] as const)('ne relie pas un alias de type %s', ([, second]) => {
+    ['on the declaration', 'export type { Carte as Fiche }'],
+    ['on the specifier', 'export { type Carte as Fiche }'],
+  ] as const)('does not link a type alias %s', ([, second]) => {
     const source = `export function Carte() { return <p /> }\n${second}`
 
     expect(only(source)).toEqual([['Carte']])
@@ -134,39 +134,39 @@ describe('les exports identifiés comme composants', () => {
 
   // Un nom d'export en chaîne, légal depuis ES2022. Il n'est pas lu, donc pas
   // relié : un oubli, et le sens du doute.
-  test('ne relie pas un alias écrit en chaîne', () => {
+  test('does not link an alias written as a string', () => {
     const source = 'export function Carte() { return <p /> }\nexport { Carte as "Fiche" }'
 
     expect(only(source)).toEqual([['Carte']])
   })
 
   // Le lien ne traverse pas un réexport : le fichier ne déclare alors rien.
-  test('ne relie rien sur un défaut venu d’un autre fichier', () => {
+  test('links nothing for a default from another file', () => {
     const source =
       "export function Carte() { return <p /> }\nexport { Carte as default } from './autre'"
 
     expect(only(source)).toEqual([['Carte']])
   })
 
-  test('se tait sur un fichier absent', () => {
+  test('stays silent on a missing file', () => {
     expect(componentsIn(join(projectWith({}), 'rien.tsx'))).toEqual([])
   })
 
-  test('se tait sur un fichier que l’analyseur refuse', () => {
+  test('stays silent on a file the parser rejects', () => {
     const root = projectWith({ 'cassé.tsx': 'export const A = () => <p' })
 
     expect(componentsIn(join(root, 'cassé.tsx'))).toEqual([])
   })
 })
 
-describe('la story orpheline', () => {
+describe('orphan story', () => {
   async function orphansOf(files: Record<string, string>): Promise<string[]> {
     const project = await loadProject(projectWith({ 'crypte.config.ts': CONFIG, ...files }))
 
     return orphans(project, storiesOf(buildCatalogue(project).manifest)).map((one) => one.file)
   }
 
-  test('signale un alias déclaré dont la cible a disparu', async () => {
+  test('reports a declared alias whose target is gone', async () => {
     expect(
       await orphansOf({
         'jsconfig.json': ALIAS,
@@ -177,7 +177,7 @@ describe('la story orpheline', () => {
 
   // Le doute de la section 8 : un identifiant que seul Vite atteint garde la
   // forme que la story a écrite, et rien ne le distingue d'un paquet installé.
-  test('se tait sur un identifiant qu’aucun alias ne couvre', async () => {
+  test('stays silent on an identifier no alias covers', async () => {
     expect(
       await orphansOf({
         'jsconfig.json': ALIAS,
@@ -187,7 +187,7 @@ describe('la story orpheline', () => {
     ).toEqual([])
   })
 
-  test('se tait sur un identifiant nu quand le projet ne déclare aucun alias', async () => {
+  test('stays silent on a bare identifier when the project declares no alias', async () => {
     expect(
       await orphansOf({
         'stories/Carte.ts':
@@ -197,8 +197,8 @@ describe('la story orpheline', () => {
   })
 })
 
-describe('le composant sans story', () => {
-  test('ne regarde pas un dossier qu’aucune story ne cite', async () => {
+describe('component without a story', () => {
+  test('does not look at a folder no story cites', async () => {
     const root = projectWith({
       'crypte.config.ts': CONFIG,
       'src/Carte.tsx': 'export const Carte = () => <p />',
@@ -212,7 +212,7 @@ describe('le composant sans story', () => {
 
   // Le lien ne vaut que pour le composant que le défaut reprend : un voisin
   // exporté dans le même fichier reste sans story.
-  test('signale le voisin, pas le composant relié au défaut', async () => {
+  test('reports the neighbour, not the component linked to the default', async () => {
     const root = projectWith({
       'crypte.config.ts': CONFIG,
       'src/Carte.tsx':
@@ -227,7 +227,7 @@ describe('le composant sans story', () => {
 
   // La clé est `fichier#export` : sans le fichier, une story sur l'un des deux
   // couvrirait l'autre en silence.
-  test('ne laisse pas un homonyme couvrir l’autre', async () => {
+  test('does not let one namesake cover the other', async () => {
     const root = projectWith({
       'crypte.config.ts': CONFIG,
       'src/Carte.tsx': 'export const Carte = () => <p />',
@@ -244,7 +244,7 @@ describe('le composant sans story', () => {
   // Le composant hors de la racine : un dépôt où les stories vivent dans un
   // paquet et les composants dans un autre. `relative` y rend une chaîne de
   // `..`, illisible dans un message, donc le chemin absolu est rendu tel quel.
-  test('nomme un composant hors de la racine par son chemin absolu', async () => {
+  test('names a component outside the root by its absolute path', async () => {
     const base = realpathSync(mkdtempSync(join(tmpdir(), 'crypte-hors-')))
     temporary.push(base)
     mkdirSync(join(base, 'app'), { recursive: true })
@@ -267,7 +267,7 @@ describe('le composant sans story', () => {
 // Un composant que le projet déclare comme cadre, par le `wrap` de la
 // configuration ou d'une story, n'attend pas de story. Ce qui le suit dans une
 // paire est une valeur donnée au cadre, pas un cadre.
-describe('les enveloppes déclarées', () => {
+describe('declared wrappers', () => {
   // `loadProject` exécute la configuration, qui importe un cadre écrit en JSX.
   // Sans ce `react/jsx-runtime`, le cas ne passe que là où pnpm a hissé React
   // dans `node_modules/.pnpm/node_modules`, et échoue en CI. Mesuré.
@@ -280,7 +280,7 @@ describe('les enveloppes déclarées', () => {
       'export const Cadre = ({ children }) => <div>{children}</div>\nexport const Ton = ({ children }) => <div>{children}</div>\nexport const Icone = () => <i />\nexport const Bouton = () => <button />',
   }
 
-  test('se tait sur les cadres de la configuration et des stories, pas sur le reste', async () => {
+  test('stays silent on the configuration and story frames, not on the rest', async () => {
     const root = projectWith({
       ...composants,
       'crypte.config.ts':
@@ -295,7 +295,7 @@ describe('les enveloppes déclarées', () => {
     ])
   })
 
-  test('ne laisse pas un cadre couvrir son homonyme d’un autre fichier', async () => {
+  test('does not let a frame cover its namesake from another file', async () => {
     const root = projectWith({
       ...composants,
       'src/autre/Ton.tsx': 'export const Ton = ({ children }) => <div>{children}</div>',
@@ -316,7 +316,7 @@ describe('les enveloppes déclarées', () => {
 // L'empreinte commitée face à celle que donnent les stories du jour. Absente ou
 // en retard, la commande sort en 1 : c'est ce qui permet à une CI de refuser une
 // branche qui ne l'a pas remise à jour.
-describe('l’empreinte', () => {
+describe('fingerprint', () => {
   const projet = () =>
     projectWith({
       'crypte.config.ts': CONFIG,
@@ -325,14 +325,14 @@ describe('l’empreinte', () => {
         "import { Carte } from '../src/Carte'\nexport default defineStories(Carte)",
     })
 
-  test('sort en 1 quand elle manque', async () => {
+  test('exits with 1 when it is missing', async () => {
     const lignes: string[] = []
 
     expect(await check(projet(), (line) => lignes.push(line))).toBe(1)
     expect(lignes).toEqual(['.crypte/fingerprint.json is missing: run crypte dev and commit it'])
   })
 
-  test('sort en 1 quand une story a changé depuis', async () => {
+  test('exits with 1 when a story has changed since', async () => {
     const lignes: string[] = []
     const root = await recorded(projet())
     writeFileSync(
@@ -346,7 +346,7 @@ describe('l’empreinte', () => {
     ])
   })
 
-  test('sort en 1 sur un fichier qui ne se lit pas', async () => {
+  test('exits with 1 on an unreadable file', async () => {
     const root = await recorded(projet())
     const lignes: string[] = []
     writeFileSync(join(root, FINGERPRINT), '<<<<<<< HEAD\n{}\n=======\n{}\n>>>>>>> autre\n')
@@ -355,7 +355,7 @@ describe('l’empreinte', () => {
     expect(lignes).toEqual(['.crypte/fingerprint.json is unreadable: run crypte dev and commit it'])
   })
 
-  test('ne compte pas une mise en forme pour un changement', async () => {
+  test('does not count formatting as a change', async () => {
     const root = await recorded(projet())
     const fichier = join(root, FINGERPRINT)
     writeFileSync(fichier, JSON.stringify(JSON.parse(readFileSync(fichier, 'utf8'))))
@@ -364,8 +364,8 @@ describe('l’empreinte', () => {
   })
 })
 
-describe('la commande', () => {
-  test('sort en 1 sur une story orpheline et la nomme', async () => {
+describe('command', () => {
+  test('exits with 1 on an orphan story and names it', async () => {
     const lignes: string[] = []
     const root = await recorded(
       projectWith({
@@ -381,7 +381,7 @@ describe('la commande', () => {
 
   // L'avertissement ne fait jamais échouer la commande : 1.2 le dit, et un
   // projet qui ne raconte pas tout n'est pas un projet en faute.
-  test('sort en 0 sur un composant sans story', async () => {
+  test('exits with 0 on a component without a story', async () => {
     const lignes: string[] = []
     const root = await recorded(
       projectWith({
@@ -397,14 +397,14 @@ describe('la commande', () => {
     expect(lignes).toEqual(['src/Bouton.tsx: Bouton has no story'])
   })
 
-  test('sort en 0 et le dit sur la fixture', async () => {
+  test('exits with 0 and says so on the fixture', async () => {
     const lignes: string[] = []
 
     expect(await check(fixture, (line) => lignes.push(line))).toBe(0)
     expect(lignes).toEqual(['nothing to report'])
   })
 
-  test('rend l’erreur de configuration d’un projet sans config', async () => {
+  test('returns the configuration error of a project without config', async () => {
     await expect(check(projectWith({}))).rejects.toThrow('No crypte.config.ts')
   })
 })

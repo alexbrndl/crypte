@@ -39,10 +39,10 @@ const Compteur = () => {
   )
 }
 
-describe('l’adaptateur React', () => {
+describe('the React adapter', () => {
   // La forme que le contrat montre en section 1.5, `adapter: react()`, et qui
   // manquait : le guide et la démonstration écrivaient `createAdapter()`.
-  test('rend le même adaptateur par son export par défaut', ({ monte }) => {
+  test('returns the same adapter through its default export', ({ monte }) => {
     const court = react()
 
     court.mount(monte.hote, Badge, { label: 'Neuf' }, [])
@@ -52,7 +52,7 @@ describe('l’adaptateur React', () => {
   })
 
   // Et l'erreur ne reste pas collée : la story suivante doit monter.
-  test('remonte une story qui marche après une erreur', ({ monte }) => {
+  test('mounts a working story after an error', ({ monte }) => {
     expect(() => monte.adapter.mount(monte.hote, Boum, {}, [])).toThrow('ne rend jamais')
 
     monte.adapter.mount(monte.hote, Badge, { label: 'Réparé' }, [])
@@ -62,7 +62,7 @@ describe('l’adaptateur React', () => {
 
   // La racine est réutilisée d'un montage à l'autre, ce qui est ce qui garde
   // l'état du composant quand on rejoue la même story.
-  test('garde l’état du composant d’un montage à l’autre', async ({ monte }) => {
+  test('keeps component state from one mount to the next', async ({ monte }) => {
     monte.adapter.mount(monte.hote, Compteur, {}, [])
     monte.hote.querySelector('button')?.click()
 
@@ -75,7 +75,7 @@ describe('l’adaptateur React', () => {
     expect(monte.hote.textContent).toBe('1')
   })
 
-  test('vide l’hôte au démontage', ({ monte }) => {
+  test('empties the host on unmount', ({ monte }) => {
     monte.adapter.mount(monte.hote, Badge, { label: 'Neuf' }, [])
     monte.adapter.unmount()
 
@@ -84,7 +84,7 @@ describe('l’adaptateur React', () => {
 
   // Deux démontages de suite arrivent quand la preview se ferme pendant un
   // rechargement : le second ne doit pas lever.
-  test('accepte un démontage sans montage, et un second démontage', ({ monte }) => {
+  test('accepts an unmount without a mount, and a second unmount', ({ monte }) => {
     expect(() => monte.adapter.unmount()).not.toThrow()
 
     monte.adapter.mount(monte.hote, Badge, {}, [])
@@ -95,7 +95,7 @@ describe('l’adaptateur React', () => {
 
   // Après un démontage, une nouvelle racine : l'état d'avant est perdu, ce qui
   // est ce qu'un changement de story doit faire.
-  test('repart d’un état neuf après un démontage', async ({ monte }) => {
+  test('starts from fresh state after an unmount', async ({ monte }) => {
     monte.adapter.mount(monte.hote, Compteur, {}, [])
     monte.hote.querySelector('button')?.click()
     await expect.poll(() => monte.hote.textContent).toBe('1')
@@ -110,7 +110,7 @@ describe('l’adaptateur React', () => {
 // Les enveloppes, la promesse de la section 2.5 : le `wrap` global enveloppe
 // celui du fichier, qui enveloppe le composant. Avant ce lot, `wrap` était lu,
 // typé, validé, puis jeté : une story qui déclarait un provider rendait sans lui.
-describe('les enveloppes', () => {
+describe('wrappers', () => {
   const Cadre =
     (nom: string) =>
     ({ children, ton }: { children?: unknown; ton?: string }) => (
@@ -123,7 +123,7 @@ describe('les enveloppes', () => {
   const Router = Cadre('router')
 
   // L'ordre est toute la règle : la première entrée est la plus extérieure.
-  test('met la première enveloppe à l’extérieur', ({ monte }) => {
+  test('puts the first wrapper outermost', ({ monte }) => {
     monte.adapter.mount(monte.hote, Badge, { label: 'Neuf' }, [
       { component: Router, props: {} },
       { component: Theme, props: {} },
@@ -135,7 +135,7 @@ describe('les enveloppes', () => {
 
   // Sans enveloppe, rien ne change : c'est le cas courant, et un cadre en trop
   // casserait la mise en page de toutes les stories existantes.
-  test('ne pose aucun cadre quand la liste est vide', ({ monte }) => {
+  test('adds no frame when the list is empty', ({ monte }) => {
     monte.adapter.mount(monte.hote, Badge, { label: 'Neuf' }, [])
 
     expect(monte.hote.querySelector('div')).toBeNull()
@@ -147,7 +147,7 @@ describe('les enveloppes', () => {
   // `wrap: Provider` ont le même type. Toute fonction est instanciée, donc elle
   // reçoit des props et non l'élément rendu. Qui attend l'élément obtient un
   // rendu faux, pas une ambiguïté.
-  test('instancie une fonction reçue par wrap, au lieu de l’appeler', ({ monte }) => {
+  test('instantiates a function passed to wrap instead of calling it', ({ monte }) => {
     const reçu: unknown[] = []
     const Fonction = (props: { children?: unknown }) => {
       reçu.push(props)
@@ -169,7 +169,7 @@ describe('les enveloppes', () => {
 
   // Une enveloppe qui lève doit remonter comme une story qui lève : sinon le
   // cadre reste vide et la preview annonce « rendered ».
-  test('relance l’erreur d’une enveloppe qui ne rend pas', ({ monte }) => {
+  test('rethrows the error of a wrapper that fails to render', ({ monte }) => {
     const Casse = () => {
       throw new Error('cette enveloppe ne rend jamais')
     }

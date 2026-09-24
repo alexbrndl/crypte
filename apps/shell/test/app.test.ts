@@ -126,17 +126,17 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('l’arbre du shell', () => {
+describe('the shell tree', () => {
   // L'arbre vient du chemin du manifeste, et aucun titre n'est déclaré nulle
   // part : c'est la section 1.1 des contrats.
-  test('groupe les stories par chemin, dans l’ordre du manifeste', async ({ écran }) => {
+  test('groups stories by path, in manifest order', async ({ écran }) => {
     expect(écran.wrapper.findAll('h2').map((one) => one.text())).toEqual(['Badge', 'Bouton'])
     expect(écran.noms()).toEqual(['Par défaut', 'Alerte', 'Par défaut'])
   })
 
   // Mesuré : retirer le filtre de `refresh` laissait les 675 cas au vert, aucun
   // n'envoyant autre chose que des stories dans le manifeste.
-  test('n’affiche pas une entrée dont il ne sait rien faire', async () => {
+  test('does not show an entry it cannot handle', async () => {
     const écran = await monte([badge, jetons])
 
     expect(écran.noms()).toEqual(['Par défaut'])
@@ -146,14 +146,14 @@ describe('l’arbre du shell', () => {
 
   // La ligne d'état dit des stories, donc elle compte des stories. Sans ce cas,
   // elle annonçait le total des entrées sous le mot « stories ».
-  test('ne compte que les stories dans la ligne d’état', async () => {
+  test('counts only stories in the status line', async () => {
     const écran = await monte([badge, alerte, jetons])
 
     expect(écran.statut()).toBe('2 stories')
     écran.wrapper.unmount()
   })
 
-  test('dit qu’il n’y a aucune story sur un catalogue vide', async () => {
+  test('says there is no story on an empty catalog', async () => {
     const écran = await monte([])
 
     expect(écran.wrapper.find('nav p').text()).toBe('aucune story')
@@ -162,7 +162,7 @@ describe('l’arbre du shell', () => {
 
   // Un catalogue illisible fige l'arbre : sans cette ligne, rien ne dirait
   // pourquoi il a cessé de suivre.
-  test('dit pourquoi un catalogue illisible n’a pas été lu', async () => {
+  test('says why an unreadable catalog was not read', async () => {
     const écran = await monte([badge], true)
 
     expect(écran.statut()).toBe('catalogue illisible : Unexpected end of JSON input')
@@ -170,8 +170,8 @@ describe('l’arbre du shell', () => {
   })
 })
 
-describe('la sélection', () => {
-  test('marque la story affichée', async ({ écran }) => {
+describe('the selection', () => {
+  test('marks the displayed story', async ({ écran }) => {
     await écran.wrapper.findAll('button')[1]?.trigger('click')
 
     expect(écran.wrapper.findAll('button')[1]?.attributes('aria-current')).toBe('true')
@@ -179,14 +179,14 @@ describe('la sélection', () => {
 
   // Rien ne part avant que la preview ait dit `ready` : un message envoyé à une
   // iframe qui n'écoute pas encore est perdu sans trace.
-  test('n’envoie rien avant que la preview soit prête', async ({ écran }) => {
+  test('sends nothing before the preview is ready', async ({ écran }) => {
     await écran.wrapper.findAll('button')[1]?.trigger('click')
     await vide(écran.wrapper)
 
     expect(écran.envoyés).toEqual([])
   })
 
-  test('envoie le rendu de la story cliquée une fois la preview prête', async ({ écran }) => {
+  test('sends the render of the clicked story once the preview is ready', async ({ écran }) => {
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
     await écran.wrapper.findAll('button')[1]?.trigger('click')
 
@@ -201,7 +201,7 @@ describe('la sélection', () => {
   // La ligne « preview prête, protocole v1 » n'est pas assertionnée parce qu'elle
   // n'est jamais visible : `refresh()` la remplace par le compte dans le même
   // tour. Trouvé par ce cas.
-  test('relit le catalogue et rend la première story sur ready', async ({ écran }) => {
+  test('rereads the catalog and renders the first story on ready', async ({ écran }) => {
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
 
     expect(écran.statut()).toBe('3 stories')
@@ -211,8 +211,8 @@ describe('la sélection', () => {
   })
 })
 
-describe('ce que la preview répond', () => {
-  test('dit la durée d’un rendu', async ({ écran }) => {
+describe('what the preview answers', () => {
+  test('states the duration of a render', async ({ écran }) => {
     await écran.répond({
       type: 'rendered',
       id: 'badge--defaut',
@@ -224,7 +224,7 @@ describe('ce que la preview répond', () => {
 
   // Une story qui échoue laisse un cadre vide, et un cadre vide sans message
   // ressemble à un outil cassé.
-  test('affiche l’erreur d’un rendu, avec sa pile', async ({ écran }) => {
+  test('shows a render error, with its stack', async ({ écran }) => {
     await écran.répond({
       type: 'error',
       id: 'badge--defaut',
@@ -242,7 +242,7 @@ describe('ce que la preview répond', () => {
 
   // Le cadre de la story d'avant ne doit plus être visible : le laisser ferait
   // croire que celle-ci a rendu.
-  test('cache le cadre pendant qu’une erreur est affichée', async ({ écran }) => {
+  test('hides the frame while an error is shown', async ({ écran }) => {
     await écran.répond({
       type: 'error',
       id: 'badge--defaut',
@@ -252,7 +252,7 @@ describe('ce que la preview répond', () => {
     expect(écran.wrapper.find('iframe').attributes('style')).toContain('display: none')
   })
 
-  test('retire l’erreur quand on change de story', async ({ écran }) => {
+  test('removes the error when the story changes', async ({ écran }) => {
     await écran.répond({ type: 'error', id: 'badge--defaut', message: 'boum' } as PreviewMessage)
     await écran.wrapper.findAll('button')[1]?.trigger('click')
 
@@ -263,10 +263,10 @@ describe('ce que la preview répond', () => {
 // Les deux étages de ce que le catalogue a laissé de côté. L'erreur est visible
 // sans qu'on la cherche, parce que la story écartée est absente de l'arbre ;
 // l'avertissement est discret, parce que la story rend. `DCJ-217`.
-describe('ce que le catalogue a laissé de côté', () => {
+describe('what the catalog left out', () => {
   // Le compte vient des entrées : dire « ignoré » d'un fichier qui a rendu deux
   // stories sur trois serait faux, et c'est le piège que l'issue nomme.
-  test('dit combien le fichier a quand même donné', async () => {
+  test('says how much the file still yielded', async () => {
     const écran = await monte([badge, alerte], false, [
       {
         file: 'stories/Badge.tsx',
@@ -284,7 +284,7 @@ describe('ce que le catalogue a laissé de côté', () => {
 
   // La fiche partielle suit la story affichée, pas le fichier : deux stories du
   // même fichier peuvent perdre des props différentes.
-  test('montre la note de la story affichée, et d’elle seule', async () => {
+  test('shows the note of the displayed story, and of it alone', async () => {
     const partielle = { ...badge, partial: '`...base` brings props this reader cannot follow' }
     const écran = await monte([partielle as never, alerte])
 
@@ -301,7 +301,7 @@ describe('ce que le catalogue a laissé de côté', () => {
 
   // La note dit « la story rend », donc elle ne s'affiche pas à côté d'un échec
   // de rendu, où l'encart rouge remplace justement l'iframe.
-  test('retire la note quand la story ne rend pas', async () => {
+  test('removes the note when the story does not render', async () => {
     const partielle = { ...badge, partial: '`...base` brings props this reader cannot follow' }
     const écran = await monte([partielle as never])
 
@@ -319,7 +319,7 @@ describe('ce que le catalogue a laissé de côté', () => {
 
   // Une erreur qui arrive après un changement de story ne concerne plus l'écran :
   // elle couvrait la story suivante et masquait sa note. Mesuré en revue.
-  test('ignore l’erreur d’une story qu’on a quittée', async () => {
+  test('ignores the error of a story already left', async () => {
     const partielle = { ...alerte, partial: '`...base` brings props this reader cannot follow' }
     const écran = await monte([badge, partielle as never])
 
@@ -340,7 +340,7 @@ describe('ce que le catalogue a laissé de côté', () => {
   // Le cas qui compte pour l'utilisateur : il corrige son fichier, la preview
   // redit `ready`, et le bandeau doit partir. Un avertissement qui survit à sa
   // cause apprend à ne plus le lire.
-  test('retire le bandeau quand le fichier corrigé ne l’exige plus', async () => {
+  test('removes the banner when the fixed file no longer calls for it', async () => {
     const manifests: Manifest[] = [
       {
         version: 1,
