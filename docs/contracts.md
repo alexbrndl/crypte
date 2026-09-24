@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.11, reference document. A project brief points here instead of restating these shapes.
+> Version 1.12, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -50,10 +50,11 @@ The `x` form carries JSX. A structured `children` prop forces it, which is commo
 
 ### 1.2 `crypte check`
 
-The command reports two problems:
+The command reports three problems:
 
 - **Orphan story**: the component it points at is gone.
 - **Component with no story**: an exported component has no story. This one is a warning and never fails the command.
+- **Stale fingerprint**: `.crypte/fingerprint.json` is missing, or differs from what the stories give today (4.6). It fails the command, so a CI running `crypte check` refuses a branch that did not update it.
 
 The second check only looks at exports **identified as components**: a capitalised name that returns an element. Utility functions exported from a component file, such as `stepFromProgress` in `ProgressLoader.tsx`, are never reported. Nor is a component the project already declares as a frame, in the `wrap` of its configuration or of a story file (2.5): it is context, not a component missing its page.
 
@@ -629,7 +630,7 @@ The fingerprint is not a smaller manifest and nothing reads it to render. It exi
 
 **Story entries only, and that is a boundary rather than an oversight.** Every field above is a story's: a component reference, a status, prop names. A `tokens` family changing therefore leaves the committed fingerprint untouched, so this file answers "what changed in the component catalogue", not "what changed in the manifest". Whether a token set deserves its own committed history is a separate question, and the first producer is what will settle it.
 
-**A missing or stale fingerprint is never fatal to a build.** It is a record, so the build writes it and moves on. Telling a project that its record is behind is the job of `crypte check`.
+**A missing or stale fingerprint is never fatal to a build.** It is a record, so the build writes it and moves on. Telling a project that its record is behind is the job of `crypte check`, which fails on it (1.2). The two are compared as data, so reformatting the file is not a change.
 
 ---
 
@@ -855,30 +856,37 @@ This document is a contract. This section is the only place that says what exist
 | Section | State |
 | --- | --- |
 | 1.1, story files | discovered and read, in the four extensions. The tree, the identifiers and the call code come out of them |
-| 1.2, `crypte check` | built, both problems. The second reads the folders the stories already point at, since no components root is declared anywhere |
+| 1.2, `crypte check` | built, all three problems. The component with no story is looked for in the folders the stories already point at, since no components root is declared anywhere |
 | 1.5, project configuration | the config is read, and the declared style sheet is loaded by the preview |
 | 1.5, path aliases | built |
 | 2 and 3, the types | built, and `defineStories` and `story` with them. Inference reads what a component file declares, and 3.2's merge completes it from the story file |
 | 4, the manifest | built, and written by `crypte dev` at start-up and on every restart of the configuration. A story file added or broken changes what is served without rewriting the file. Of the two natures of entry it can carry, only `story` is produced |
-| 4.6, the fingerprint | built, and written by `crypte dev` at start-up only: it is committed, so a restart leaves the working tree alone |
+| 4.6, the fingerprint | built, and written by `crypte dev` at start-up and whenever a story change alters it, so `crypte check` does not fail after an ordinary session. A restart of the configuration leaves it alone, since the file is committed and trying out a `stories` path should not dirty the tree; the next story change compares it with the catalogue served and aligns it |
 | 5, the channel | built and exercised on both sides |
 | 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. `shell` and `preview` are named and declared opaque. **Provisional, and not one step closer to stable**: 6.5 asks for `controls` and `a11y`, and `tokens` is neither |
 
 **`dev`, `check` and `init` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled by the project's own Vite. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte init` writes the configuration of 1.5 into a project that already has its components, and has no section of its own because the file it writes is 1.5 itself.
 
-Seven known gaps between this document and the code:
+Six known gaps between this document and the code:
 
 - A path alias cannot replace an installed package. `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because the resolver runs after Vite's own. TypeScript would return the replacement file.
 - **Inference reads what a file declares, never what a type it cannot resolve holds.** A type alias, an interface and a `cva(…)` call declared in the component file are followed. An imported type, a generic, a DOM part of an intersection, and an `extends` clause other than `VariantProps` of a local `cva` each leave only what the component file writes by hand, which for a DOM pass-through is the names in its destructuring pattern. Enumerating the rest needs the type checker, and inventing names is what 4.2 forbids.
 - **`ShellContribution` and `PreviewHooks` are declared opaque by the core**, though 6.2 specifies the second one in full. Neither has a caller: no shell panel comes from a plugin, and no preview runs a lifecycle hook. Typing a surface nobody calls would buy nothing and could not be taken back.
 - The serialisation of 4.5 is guaranteed on **contributed** entries and merely true of the others. A plugin's entry is checked and refused with what offends named; everything the CLI reads itself comes from source text and is serialisable by construction, so nothing exercises the guarantee there.
 - **A `tokens` entry is written and nothing displays one.** `@crypte/tokens` contributes families read from a project's CSS custom properties, and the demonstration carries four. No screen shows them: the shell keeps out of its tree what it cannot draw, so they travel in the manifest and stop there. The page that draws them belongs to the shell's own project.
-- **`crypte check` says nothing about the fingerprint.** 4.6 gives it the job of telling a project that its record is behind, and it reports the two problems of 1.2 and nothing else. Whether a stale record should fail the command is undecided, which is why it is not guessed here.
 - `component.file` is resolved without Vite. The producer runs before any server exists, so it applies the project's `paths` and tries the usual extensions, with no plugin and no `exports` field. A component reached through a plugin keeps the identifier the story wrote. `crypte check` calls such an entry an orphan only when the project could have reached it itself, that is a relative path or an alias it declares; anything else it leaves alone.
 
 ---
 
 ## 9. Version log
+
+**v1.12.** `crypte check` reads the fingerprint, which 4.6 gave it the job of and section 8 listed as a gap.
+
+| Before | After |
+| --- | --- |
+| a missing or stale fingerprint went unnoticed | it is 1.2's third problem, and it fails the command |
+| section 8 listed seven gaps | six |
+| `crypte dev` wrote the fingerprint at start-up only | it rewrites it when a story change alters it |
 
 **v1.11.** `crypte check` reads the frames a project declares, which were both of its warnings on the demonstration.
 

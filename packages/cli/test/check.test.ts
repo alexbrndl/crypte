@@ -1,9 +1,10 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, test } from 'vitest'
 import { check, componentsIn, orphans, problemsOf } from '../src/check'
+import { FINGERPRINT, fingerprintOf, writeFingerprint } from '../src/fingerprint'
 import { buildCatalogue, storiesOf } from '../src/manifest'
 import { loadProject } from '../src/project'
 
@@ -37,6 +38,14 @@ function projectWith(files: Record<string, string>): string {
 const CONFIG = "export default { stories: 'stories', adapter: { name: 'react' } }\n"
 
 const ALIAS = JSON.stringify({ compilerOptions: { baseUrl: '.', paths: { '@/*': ['src/*'] } } })
+
+// L'empreinte que `crypte dev` aurait commitée : sans elle, la commande sort en
+// 1 pour cette seule raison, et masque ce que le cas mesure.
+async function recorded(root: string): Promise<string> {
+  writeFingerprint(root, fingerprintOf(buildCatalogue(await loadProject(root)).manifest))
+
+  return root
+}
 
 // Un fichier qui n'exporte qu'un composant, pour ne mesurer qu'un axe à la fois.
 function only(source: string): string[][] {
@@ -304,14 +313,67 @@ describe('les enveloppes déclarées', () => {
   })
 })
 
-describe('la commande', () => {
-  test('sort en 1 sur une story orpheline et la nomme', async () => {
-    const lignes: string[] = []
-    const root = projectWith({
+// L'empreinte commitée face à celle que donnent les stories du jour. Absente ou
+// en retard, la commande sort en 1 : c'est ce qui permet à une CI de refuser une
+// branche qui ne l'a pas remise à jour.
+describe('l’empreinte', () => {
+  const projet = () =>
+    projectWith({
       'crypte.config.ts': CONFIG,
+      'src/Carte.tsx': 'export const Carte = () => <p />',
       'stories/Carte.ts':
         "import { Carte } from '../src/Carte'\nexport default defineStories(Carte)",
     })
+
+  test('sort en 1 quand elle manque', async () => {
+    const lignes: string[] = []
+
+    expect(await check(projet(), (line) => lignes.push(line))).toBe(1)
+    expect(lignes).toEqual(['.crypte/fingerprint.json is missing: run crypte dev and commit it'])
+  })
+
+  test('sort en 1 quand une story a changé depuis', async () => {
+    const lignes: string[] = []
+    const root = await recorded(projet())
+    writeFileSync(
+      join(root, 'stories/Carte.ts'),
+      "import { Carte } from '../src/Carte'\nexport default defineStories(Carte, { stories: { Autre: {} } })",
+    )
+
+    expect(await check(root, (line) => lignes.push(line))).toBe(1)
+    expect(lignes).toEqual([
+      '.crypte/fingerprint.json is behind the stories: run crypte dev and commit it',
+    ])
+  })
+
+  test('sort en 1 sur un fichier qui ne se lit pas', async () => {
+    const root = await recorded(projet())
+    const lignes: string[] = []
+    writeFileSync(join(root, FINGERPRINT), '<<<<<<< HEAD\n{}\n=======\n{}\n>>>>>>> autre\n')
+
+    expect(await check(root, (line) => lignes.push(line))).toBe(1)
+    expect(lignes).toEqual(['.crypte/fingerprint.json is unreadable: run crypte dev and commit it'])
+  })
+
+  test('ne compte pas une mise en forme pour un changement', async () => {
+    const root = await recorded(projet())
+    const fichier = join(root, FINGERPRINT)
+    writeFileSync(fichier, JSON.stringify(JSON.parse(readFileSync(fichier, 'utf8'))))
+
+    expect(await check(root, () => {})).toBe(0)
+  })
+})
+
+describe('la commande', () => {
+  test('sort en 1 sur une story orpheline et la nomme', async () => {
+    const lignes: string[] = []
+    const root = await recorded(
+      projectWith({
+        'crypte.config.ts': CONFIG,
+        'stories/Carte.ts':
+          "import { Carte } from '../src/Carte'\nexport default defineStories(Carte)",
+      }),
+    )
 
     expect(await check(root, (line) => lignes.push(line))).toBe(1)
     expect(lignes).toEqual(['carte--default: its component is gone, ../src/Carte'])
@@ -321,13 +383,15 @@ describe('la commande', () => {
   // projet qui ne raconte pas tout n'est pas un projet en faute.
   test('sort en 0 sur un composant sans story', async () => {
     const lignes: string[] = []
-    const root = projectWith({
-      'crypte.config.ts': CONFIG,
-      'src/Carte.tsx': 'export const Carte = () => <p />',
-      'src/Bouton.tsx': 'export const Bouton = () => <button />',
-      'stories/Carte.ts':
-        "import { Carte } from '../src/Carte'\nexport default defineStories(Carte)",
-    })
+    const root = await recorded(
+      projectWith({
+        'crypte.config.ts': CONFIG,
+        'src/Carte.tsx': 'export const Carte = () => <p />',
+        'src/Bouton.tsx': 'export const Bouton = () => <button />',
+        'stories/Carte.ts':
+          "import { Carte } from '../src/Carte'\nexport default defineStories(Carte)",
+      }),
+    )
 
     expect(await check(root, (line) => lignes.push(line))).toBe(0)
     expect(lignes).toEqual(['src/Bouton.tsx: Bouton has no story'])
