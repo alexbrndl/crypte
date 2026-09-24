@@ -1,9 +1,11 @@
-// `crypte check`: the two problems section 1.2 names. See docs/contracts.md.
+// `crypte check`: the three problems section 1.2 names. See docs/contracts.md.
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, relative, sep } from 'node:path'
 import { parseSync } from 'vite'
+import type { Manifest } from '@crypte/core/protocol'
 import { configWrappers } from './config-source'
+import { FINGERPRINT, fingerprintOf } from './fingerprint'
 import { componentFile, storiesOf, buildCatalogue } from './manifest'
 import { best, isBareSpecifier, ordered } from './paths'
 import { loadProject, type Project } from './project'
@@ -11,7 +13,7 @@ import type { Node } from './ast'
 import { wrappersOf } from './stories'
 
 export interface Problem {
-  kind: 'orphan' | 'unstoried'
+  kind: 'orphan' | 'unstoried' | 'stale'
   // Project-relative for a component the producer resolved. An orphan carries
   // the identifier the story wrote instead, and a component outside the root
   // its absolute path: both read where a chain of `..` would not.
@@ -267,10 +269,14 @@ function isElement(node: Node): boolean {
   return false
 }
 
-// The two problems, in the order 1.2 lists them. Never throws: a project that
+// The two problems read from the stories, in the order 1.2 lists them; the
+// fingerprint is `staleOf`'s. Never throws: a project that
 // cannot be read is the caller's message, not this function's.
-export function problemsOf(project: Project): Problem[] {
-  const entries = storiesOf(buildCatalogue(project).manifest)
+export function problemsOf(
+  project: Project,
+  manifest: Manifest = buildCatalogue(project).manifest,
+): Problem[] {
+  const entries = storiesOf(manifest)
   const known = new Set([...storied(project, entries), ...wrappers(project, entries)])
   const unstoried: Problem[] = []
 
@@ -291,6 +297,29 @@ export function problemsOf(project: Project): Problem[] {
   return [...orphans(project, entries), ...unstoried]
 }
 
+// The committed fingerprint against the one the stories give today, section 4.6.
+// Behind or missing fails the command: the file is committed so that a pull
+// request shows what its catalogue changed, and a CI running `crypte check` is
+// what refuses a branch that forgot to update it. Reopened if projects commit
+// stories without ever running `crypte dev`.
+export function staleOf(project: Project, manifest: Manifest): Problem[] {
+  const file = join(project.root, FINGERPRINT)
+  if (!existsSync(file)) return [{ kind: 'stale', file: FINGERPRINT, name: 'missing' }]
+
+  // Compared as data, never as text: whitespace in the committed file is not a
+  // change of catalogue.
+  let committed: unknown
+  try {
+    committed = JSON.parse(readFileSync(file, 'utf8'))
+  } catch {
+    return [{ kind: 'stale', file: FINGERPRINT, name: 'behind' }]
+  }
+
+  return JSON.stringify(committed) === JSON.stringify(fingerprintOf(manifest))
+    ? []
+    : [{ kind: 'stale', file: FINGERPRINT, name: 'behind' }]
+}
+
 // Project-relative, except outside the root where that is a chain of `..`.
 function named(root: string, file: string): string {
   const said = relative(root, file).split(sep).join('/')
@@ -298,13 +327,15 @@ function named(root: string, file: string): string {
   return said.startsWith('..') ? file : said
 }
 
-// What the user reads. The orphans decide the exit code; a component with no
-// story is a warning and never fails, which 1.2 states.
+// What the user reads. Orphans and a stale fingerprint decide the exit code; a
+// component with no story is a warning and never fails, which 1.2 states.
 export function linesOf(problems: Problem[]): string[] {
   const said = problems.map((one) =>
     one.kind === 'orphan'
       ? `${one.name}: its component is gone, ${one.file}`
-      : `${one.file}: ${one.name} has no story`,
+      : one.kind === 'stale'
+        ? `${one.file} is ${one.name === 'missing' ? 'missing' : 'behind the stories'}: run crypte dev and commit it`
+        : `${one.file}: ${one.name} has no story`,
   )
 
   return said.length === 0 ? ['nothing to report'] : said
@@ -314,9 +345,11 @@ export async function check(
   input: string,
   log: (line: string) => void = console.log,
 ): Promise<number> {
-  const problems = problemsOf(await loadProject(input))
+  const project = await loadProject(input)
+  const { manifest } = buildCatalogue(project)
+  const problems = [...problemsOf(project, manifest), ...staleOf(project, manifest)]
 
   for (const line of linesOf(problems)) log(line)
 
-  return problems.some((one) => one.kind === 'orphan') ? 1 : 0
+  return problems.some((one) => one.kind !== 'unstoried') ? 1 : 0
 }
