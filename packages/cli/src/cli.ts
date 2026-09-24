@@ -36,28 +36,35 @@ export function help(): string[] {
 const HELP = new Set(['--help', '-h'])
 
 // The command as the user typed it, and the exit code it deserves. Printing is
-// an argument too, for the same reason.
+// an argument too, for the same reason; a mistyped call goes to `warn`, stderr,
+// like a configuration error, so a pipe does not swallow it.
 export async function run(
   argv: readonly string[],
   log: (line: string) => void = console.log,
   commands: Partial<Commands> = {},
+  warn: (line: string) => void = console.error,
 ): Promise<number> {
-  const [command, target] = argv
+  const [command, ...rest] = argv
 
-  // After a command too: `init --help` read `--help` as the project folder.
-  if (command === undefined || HELP.has(command) || (target !== undefined && HELP.has(target))) {
+  // Anywhere after the command too: `init --help` read `--help` as the folder.
+  if (command === undefined || HELP.has(command) || rest.some((one) => HELP.has(one))) {
     for (const line of help()) log(line)
     return 0
   }
 
   // No command takes an option yet, so anything that looks like one is a typo,
-  // not a folder named `--port`.
-  if (target?.startsWith('-')) {
-    log(`crypte ${command}: unknown option ${target}`)
+  // not a folder named `--port`, and a second folder is one too.
+  const option = rest.find((one) => one.startsWith('-'))
+  if (option !== undefined) {
+    warn(`crypte ${command}: unknown option ${option}`)
+    return 1
+  }
+  if (rest.length > 1) {
+    warn(`crypte ${command}: unexpected argument ${rest[1]}`)
     return 1
   }
 
-  const root = target ?? process.cwd()
+  const root = rest[0] ?? process.cwd()
 
   switch (command) {
     case '--version':
@@ -75,7 +82,7 @@ export async function run(
     // A misspelled command in a script or a CI must fail, not print the help
     // and pass.
     default:
-      log(`crypte: unknown command ${command}, see crypte --help`)
+      warn(`crypte: unknown command ${command}, see crypte --help`)
       return 1
   }
 }

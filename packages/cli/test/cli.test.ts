@@ -47,17 +47,21 @@ describe('the crypte command', () => {
 
   // Le numéro de protocole est dans l'aide : un utilisateur qui écrit un plugin
   // le lit là, et le voir dériver de la constante est tout l'intérêt.
-  test.for([[], ['--help'], ['-h'], ['init', '--help'], ['dev', '-h']] as const)(
-    'prints the help on %j',
-    async (argv) => {
-      const sortie = dit()
-      const doublure = faux()
+  test.for([
+    [],
+    ['--help'],
+    ['-h'],
+    ['init', '--help'],
+    ['dev', '-h'],
+    ['dev', '.', '--help'],
+  ] as const)('prints the help on %j', async (argv) => {
+    const sortie = dit()
+    const doublure = faux()
 
-      expect(await run(argv, sortie.log, doublure)).toBe(0)
-      expect(sortie.lignes).toEqual(help())
-      expect(doublure.racines).toEqual([])
-    },
-  )
+    expect(await run(argv, sortie.log, doublure)).toBe(0)
+    expect(sortie.lignes).toEqual(help())
+    expect(doublure.racines).toEqual([])
+  })
 
   // L'aide nomme les trois commandes et la version du protocole : c'est ce
   // qu'on vient y chercher.
@@ -70,19 +74,28 @@ describe('the crypte command', () => {
     }
   })
 
-  test('fails on an unknown command and names it', async () => {
+  // Sur la sortie d'erreur, comme une erreur de configuration : un script qui
+  // redirige la sortie standard ne doit pas l'avaler.
+  test('fails on an unknown command and names it on stderr', async () => {
     const sortie = dit()
+    const erreur = dit()
 
-    expect(await run(['serve'], sortie.log)).toBe(1)
-    expect(sortie.lignes).toEqual(['crypte: unknown command serve, see crypte --help'])
+    expect(await run(['serve'], sortie.log, {}, erreur.log)).toBe(1)
+    expect(sortie.lignes).toEqual([])
+    expect(erreur.lignes).toEqual(['crypte: unknown command serve, see crypte --help'])
   })
 
-  test('fails on an unknown option instead of reading it as a folder', async () => {
-    const sortie = dit()
+  // À toute position, pas seulement juste après la commande.
+  test.for([
+    [['dev', '--port'], 'crypte dev: unknown option --port'],
+    [['dev', '.', '--port', '3000'], 'crypte dev: unknown option --port'],
+    [['dev', 'a', 'b'], 'crypte dev: unexpected argument b'],
+  ] as const)('refuses %j instead of running the command', async ([argv, ligne]) => {
+    const erreur = dit()
     const doublure = faux()
 
-    expect(await run(['dev', '--port'], sortie.log, doublure)).toBe(1)
-    expect(sortie.lignes).toEqual(['crypte dev: unknown option --port'])
+    expect(await run(argv, dit().log, doublure, erreur.log)).toBe(1)
+    expect(erreur.lignes).toEqual([ligne])
     expect(doublure.racines).toEqual([])
   })
 
