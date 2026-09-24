@@ -14,6 +14,27 @@ export interface Commands {
   init: typeof create
 }
 
+// What `--help` prints, and what a bare `crypte` prints. The protocol version
+// is there because a plugin author reads it there.
+export function help(): string[] {
+  return [
+    `crypte, protocol v${PROTOCOL_VERSION}`,
+    '',
+    'Usage: crypte <command> [root]',
+    '',
+    '  dev [root]     serve the workshop for the project at root',
+    '  check [root]   report orphan stories, a stale fingerprint, components with no story',
+    '  init [root]    write crypte.config.ts for a project that has components',
+    '',
+    '  --help, -h     print this help',
+    '  --version, -v  print the version',
+    '',
+    'root defaults to the current directory.',
+  ]
+}
+
+const HELP = new Set(['--help', '-h'])
+
 // The command as the user typed it, and the exit code it deserves. Printing is
 // an argument too, for the same reason.
 export async function run(
@@ -22,6 +43,20 @@ export async function run(
   commands: Partial<Commands> = {},
 ): Promise<number> {
   const [command, target] = argv
+
+  // After a command too: `init --help` read `--help` as the project folder.
+  if (command === undefined || HELP.has(command) || (target !== undefined && HELP.has(target))) {
+    for (const line of help()) log(line)
+    return 0
+  }
+
+  // No command takes an option yet, so anything that looks like one is a typo,
+  // not a folder named `--port`.
+  if (target?.startsWith('-')) {
+    log(`crypte ${command}: unknown option ${target}`)
+    return 1
+  }
+
   const root = target ?? process.cwd()
 
   switch (command) {
@@ -37,9 +72,11 @@ export async function run(
     case 'init':
       ;(commands.init ?? create)(root, log)
       return 0
+    // A misspelled command in a script or a CI must fail, not print the help
+    // and pass.
     default:
-      log(`crypte — protocol v${PROTOCOL_VERSION}, commands: dev, check, init`)
-      return 0
+      log(`crypte: unknown command ${command}, see crypte --help`)
+      return 1
   }
 }
 
