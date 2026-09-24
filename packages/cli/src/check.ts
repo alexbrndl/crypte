@@ -3,10 +3,12 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, relative, sep } from 'node:path'
 import { parseSync } from 'vite'
-import { storiesOf, buildCatalogue } from './manifest'
+import { configWrappers } from './config-source'
+import { componentFile, storiesOf, buildCatalogue } from './manifest'
 import { best, isBareSpecifier, ordered } from './paths'
 import { loadProject, type Project } from './project'
 import type { Node } from './ast'
+import { wrappersOf } from './stories'
 
 export interface Problem {
   kind: 'orphan' | 'unstoried'
@@ -62,6 +64,25 @@ function componentFolders(project: Project, entries: ReturnType<typeof storiesOf
 function storied(project: Project, entries: ReturnType<typeof storiesOf>): Set<string> {
   return new Set(
     entries.map((entry) => `${join(project.root, entry.component.file)}#${entry.component.export}`),
+  )
+}
+
+// The components the project already declares as frames, by the `wrap` of its
+// configuration or of a story file. They are context, not a component missing
+// its story.
+function wrappers(project: Project, entries: ReturnType<typeof storiesOf>): Set<string> {
+  const config = join(project.root, 'crypte.config.ts')
+  const declared = [
+    ...configWrappers(project).map((one) => ({ ...one, from: config })),
+    ...[...new Set(entries.map((entry) => join(project.root, entry.storyFile)))].flatMap((file) =>
+      wrappersOf(file).map((one) => ({ ...one, from: file })),
+    ),
+  ]
+
+  return new Set(
+    declared.map(
+      (one) => `${join(project.root, componentFile(one.file, one.from, project))}#${one.export}`,
+    ),
   )
 }
 
@@ -250,7 +271,7 @@ function isElement(node: Node): boolean {
 // cannot be read is the caller's message, not this function's.
 export function problemsOf(project: Project): Problem[] {
   const entries = storiesOf(buildCatalogue(project).manifest)
-  const known = storied(project, entries)
+  const known = new Set([...storied(project, entries), ...wrappers(project, entries)])
   const unstoried: Problem[] = []
 
   for (const folder of componentFolders(project, entries)) {

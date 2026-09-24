@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs'
 import { relative, sep } from 'node:path'
 import { storyId, type StoryEntry } from '@crypte/core/protocol'
 import { parseSync } from 'vite'
-import { keyOf, literalOf, propertyOf, type Node } from './ast'
+import { keyOf, literalOf, propertyOf, wrapperNames, type Node } from './ast'
 
 // The four extensions a project can write, JavaScript included: a project
 // without TypeScript writes its stories in `.js`.
@@ -359,6 +359,28 @@ function boundTo(module: unknown, exported: string): string | undefined {
   return undefined
 }
 
+// The imports a story file's `wrap` places as wrappers. Nothing when the file
+// is not a story the reader can follow: `crypte check` then reports what it
+// reports without it.
+export function wrappersOf(file: string): { file: string; export: string }[] {
+  let parsed: ReturnType<typeof parseSync>
+
+  try {
+    parsed = parseSync(file, readFileSync(file, 'utf8'))
+  } catch {
+    return []
+  }
+
+  const body = parsed.program.body as unknown as Node[]
+  const call = defineStoriesCall(body, boundTo(parsed.module, 'defineStories') ?? 'defineStories')
+  const definition = (call?.['arguments'] as Node[] | undefined)?.[1]
+
+  return wrapperNames(propertyOf(definition, 'wrap')).flatMap((name) => {
+    const found = componentRef(parsed.module, name)
+    return found ? [{ file: found.file, export: found.export }] : []
+  })
+}
+
 // `export default defineStories(…)`, and nothing else. A named export is not a
 // story module: section 2.3 of docs/contracts.md.
 function defineStoriesCall(body: Node[], name: string): Node | undefined {
@@ -589,7 +611,7 @@ function record(node: Node | null | undefined): Record<string, unknown> | undefi
 
 // Where the component comes from. `undefined` when no import binds the name, or
 // binds it as a namespace object, which names no export: the file is skipped.
-function componentRef(module: unknown, name: string) {
+export function componentRef(module: unknown, name: string) {
   const imports = (module as { staticImports: Node[] }).staticImports
 
   for (const one of imports) {

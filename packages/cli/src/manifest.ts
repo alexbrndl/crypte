@@ -357,7 +357,7 @@ const RESOLVED = ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json', '.vue']
 // Section 4.2 promises a file, so the story's identifier, alias included, is
 // turned into one. Not Vite's resolver, since the manifest is written before any
 // server exists; what it cannot resolve comes back untouched for `crypte check`.
-function componentFile(specifier: string, storyFile: string, project: Project): string {
+export function componentFile(specifier: string, storyFile: string, project: Project): string {
   const found = candidates(specifier, storyFile, project)
     .map(probe)
     .find((file) => file !== undefined)

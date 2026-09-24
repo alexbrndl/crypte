@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.10, reference document. A project brief points here instead of restating these shapes.
+> Version 1.11, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -55,7 +55,7 @@ The command reports two problems:
 - **Orphan story**: the component it points at is gone.
 - **Component with no story**: an exported component has no story. This one is a warning and never fails the command.
 
-The second check only looks at exports **identified as components**: a capitalised name that returns an element. Utility functions exported from a component file, such as `stepFromProgress` in `ProgressLoader.tsx`, are never reported.
+The second check only looks at exports **identified as components**: a capitalised name that returns an element. Utility functions exported from a component file, such as `stepFromProgress` in `ProgressLoader.tsx`, are never reported. Nor is a component the project already declares as a frame, in the `wrap` of its configuration or of a story file (2.5): it is context, not a component missing its page.
 
 **When in doubt, report nothing.** A false warning costs more than a miss: it teaches people to ignore the command.
 
@@ -879,6 +879,12 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.11.** `crypte check` reads the frames a project declares, which were both of its warnings on the demonstration.
+
+| Before | After |
+| --- | --- |
+| a component named in a `wrap` was reported as having no story | it is not: the configuration and each story file's `wrap` are read, and a value handed to a wrapper still counts as a component |
 
 **v1.10.** The shell side named `shell`, which is where it runs, before a component package makes `ui` mean something else.
 

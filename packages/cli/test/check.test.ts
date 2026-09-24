@@ -255,6 +255,55 @@ describe('le composant sans story', () => {
   })
 })
 
+// Un composant que le projet déclare comme cadre, par le `wrap` de la
+// configuration ou d'une story, n'attend pas de story. Ce qui le suit dans une
+// paire est une valeur donnée au cadre, pas un cadre.
+describe('les enveloppes déclarées', () => {
+  // `loadProject` exécute la configuration, qui importe un cadre écrit en JSX.
+  // Sans ce `react/jsx-runtime`, le cas ne passe que là où pnpm a hissé React
+  // dans `node_modules/.pnpm/node_modules`, et échoue en CI. Mesuré.
+  const composants = {
+    'node_modules/react/package.json': '{ "name": "react" }',
+    'node_modules/react/jsx-runtime.js': 'exports.jsx = exports.jsxs = () => null',
+    'tsconfig.json': ALIAS,
+    'src/Carte.tsx': 'export const Carte = () => <p />',
+    'src/Cadre.tsx':
+      'export const Cadre = ({ children }) => <div>{children}</div>\nexport const Ton = ({ children }) => <div>{children}</div>\nexport const Icone = () => <i />\nexport const Bouton = () => <button />',
+  }
+
+  test('se tait sur les cadres de la configuration et des stories, pas sur le reste', async () => {
+    const root = projectWith({
+      ...composants,
+      'crypte.config.ts':
+        "import { Cadre } from './src/Cadre'\nexport default { stories: 'stories', adapter: { name: 'react' }, wrap: Cadre }\n",
+      'stories/Carte.ts':
+        "import { Carte } from '@/Carte'\nimport { Ton, Icone } from '../src/Cadre'\nexport default defineStories(Carte, { wrap: [[Ton, { icone: Icone }]] })",
+    })
+
+    expect(problemsOf(await loadProject(root))).toEqual([
+      { kind: 'unstoried', file: 'src/Cadre.tsx', name: 'Icone' },
+      { kind: 'unstoried', file: 'src/Cadre.tsx', name: 'Bouton' },
+    ])
+  })
+
+  test('ne laisse pas un cadre couvrir son homonyme d’un autre fichier', async () => {
+    const root = projectWith({
+      ...composants,
+      'src/autre/Ton.tsx': 'export const Ton = ({ children }) => <div>{children}</div>',
+      'crypte.config.ts': CONFIG,
+      'stories/Carte.ts':
+        "import { Carte } from '@/Carte'\nimport { Ton } from '@/autre/Ton'\nexport default defineStories(Carte, { wrap: Ton })",
+    })
+
+    expect(problemsOf(await loadProject(root)).map((one) => one.name)).toEqual([
+      'Cadre',
+      'Ton',
+      'Icone',
+      'Bouton',
+    ])
+  })
+})
+
 describe('la commande', () => {
   test('sort en 1 sur une story orpheline et la nomme', async () => {
     const lignes: string[] = []
