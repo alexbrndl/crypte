@@ -4,6 +4,11 @@ import "<racine>/packages/cli/test/fixture/src/styles/app.css"
 const __crypte_modules = {}
 const __crypte_broken = {}
 const __crypte_stale = new Map()
+const __crypte_loadErrors = new Map()
+if (import.meta.hot) {
+  import.meta.hot.on('vite:error', ({ err }) => { __crypte_loadErrors.set(__crypte_modulePath(err.id ?? err.loc?.file ?? ''), err) })
+  import.meta.hot.on('vite:beforeUpdate', ({ updates }) => { for (const one of updates) { __crypte_loadErrors.delete(one.path); __crypte_loadErrors.delete(one.acceptedPath) } })
+}
 
 await Promise.all([
   import("/stories/Gardee.tsx").then((module) => { __crypte_modules["/stories/Gardee.tsx"] = module }, (error) => { __crypte_broken["/stories/Gardee.tsx"] = error }),
@@ -25,6 +30,30 @@ const __crypte_byId = new Map(
     .map((entry) => [entry.id, entry]),
 )
 
+function __crypte_modulePath(id) {
+  return '/' + String(id).split('?')[0].replace("<racine>/packages/cli/test/fixture/", '')
+}
+
+// A failed fetch of a module, told by the error Vite reported for that very
+// module: the browser's message carries its URL. The fetch of a story file
+// fails for a module it imports, which the URL does not say, so a file is
+// named then only when a single module is failing. Otherwise the failure
+// stays as it is, rather than name a file that may be sound.
+function __crypte_named(failure) {
+  const prefix = 'Failed to fetch dynamically imported module:'
+  if (!(failure instanceof TypeError) || !failure.message.startsWith(prefix)) return failure
+  const url = failure.message.slice(prefix.length).trim()
+  const err = __crypte_loadErrors.get(new URL(url, location.href).pathname) ?? (__crypte_loadErrors.size === 1 ? [...__crypte_loadErrors.values()][0] : undefined)
+  if (!err) return failure
+  const root = "<racine>/packages/cli/test/fixture/"
+  const file = String(err.id ?? err.loc?.file ?? '').replace(root, '')
+  const at = err.loc ? `${file}:${err.loc.line}:${err.loc.column}` : file
+  const [first = '', ...frame] = String(err.message).split('\n')
+  const named = new Error(`${at}: ${first.replace(`${err.id}: `, '').replaceAll(root, '')}`)
+  named.stack = frame.join('\n').trim()
+  return named
+}
+
 function __crypte_render(id, overrides) {
   const entry = __crypte_byId.get(id)
   if (!entry) throw new Error(`unknown story: ${id}`)
@@ -34,11 +63,11 @@ function __crypte_render(id, overrides) {
   // Thrown here rather than swallowed: the channel turns it into an `error`
   // carrying this story's id, which is what names the file at fault.
   const __crypte_failure = __crypte_broken[__crypte_path]
-  if (__crypte_failure) throw __crypte_failure
+  if (__crypte_failure) throw __crypte_named(__crypte_failure)
 
   // A module that failed to reload leaves its old version in place, and this
   // frame cannot tell which stories use it: until it reloads, none renders.
-  for (const failed of __crypte_stale.values()) throw failed
+  for (const failed of __crypte_stale.values()) throw __crypte_named(failed)
 
   const module = __crypte_modules[__crypte_path]
   if (!module) throw new Error(`no module for ${entry.storyFile}`)
@@ -112,6 +141,11 @@ if (import.meta.hot) {
 
     __crypte_channel.again()
   })
+
+  // Vite reports a module it could not load on this event, which can arrive
+  // after the render that failed on it: rendering again lets the shell read
+  // the file at fault instead of the story file.
+  import.meta.hot.on('vite:error', () => __crypte_channel.again())
 
   // Running again builds a new channel and a new adapter. The old ones go
   // first: left behind, the old channel still answers the shell and the old

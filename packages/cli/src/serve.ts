@@ -240,6 +240,11 @@ function hot(files: string[]): string[] {
     `    ${OWN}channel.again()`,
     '  })',
     '',
+    '  // Vite reports a module it could not load on this event, which can arrive',
+    '  // after the render that failed on it: rendering again lets the shell read',
+    '  // the file at fault instead of the story file.',
+    `  import.meta.hot.on('vite:error', () => ${OWN}channel.again())`,
+    '',
     '  // Running again builds a new channel and a new adapter. The old ones go',
     '  // first: left behind, the old channel still answers the shell and the old',
     '  // root still holds the container, so each save leaked one of each.',
@@ -337,6 +342,23 @@ export function previewEntry(project: Project, files: string[] = []): string {
     `const ${OWN}broken = {}`,
     // Any other module that failed to reload, kept by path until it reloads.
     `const ${OWN}stale = new Map()`,
+    // What Vite could not transform or resolve, by module path, with its file
+    // and line. A component that does not load only rejects an import with
+    // `Failed to fetch dynamically imported module`, which named a sound story
+    // file; Vite says which module failed, on `vite:error`. Listened to before
+    // the loads, so a failure at start-up is caught too. An update clears the
+    // modules it names, its boundary and the module it accepted, and a module
+    // that still fails comes back on `vite:error`. A module that is not its own
+    // boundary, a plain `.ts` imported by a component, is named by neither, so
+    // its error can outlive its fix. The single-failure naming below then names
+    // nothing, or, if that stale error is alone and a fetch fails with no
+    // `vite:error` (Vite's 504 on an outdated optimised dependency), names the
+    // repaired file. Rare, dev only, and cleared by the next reload.
+    `const ${OWN}loadErrors = new Map()`,
+    'if (import.meta.hot) {',
+    `  import.meta.hot.on('vite:error', ({ err }) => { ${OWN}loadErrors.set(${OWN}modulePath(err.id ?? err.loc?.file ?? ''), err) })`,
+    `  import.meta.hot.on('vite:beforeUpdate', ({ updates }) => { for (const one of updates) { ${OWN}loadErrors.delete(one.path); ${OWN}loadErrors.delete(one.acceptedPath) } })`,
+    '}',
     ...(loads.length > 0 ? ['', `await Promise.all([`, ...loads, `])`] : []),
     `const ${OWN}manifest = await fetch(${JSON.stringify(MANIFEST_ROUTE)}).then((answer) => answer.json())`,
     '',
@@ -358,6 +380,30 @@ export function previewEntry(project: Project, files: string[] = []): string {
     '    .map((entry) => [entry.id, entry]),',
     ')',
     '',
+    `function ${OWN}modulePath(id) {`,
+    `  return '/' + String(id).split('?')[0].replace(${JSON.stringify(`${project.root}/`)}, '')`,
+    '}',
+    '',
+    '// A failed fetch of a module, told by the error Vite reported for that very',
+    "// module: the browser's message carries its URL. The fetch of a story file",
+    '// fails for a module it imports, which the URL does not say, so a file is',
+    '// named then only when a single module is failing. Otherwise the failure',
+    '// stays as it is, rather than name a file that may be sound.',
+    `function ${OWN}named(failure) {`,
+    "  const prefix = 'Failed to fetch dynamically imported module:'",
+    '  if (!(failure instanceof TypeError) || !failure.message.startsWith(prefix)) return failure',
+    '  const url = failure.message.slice(prefix.length).trim()',
+    `  const err = ${OWN}loadErrors.get(new URL(url, location.href).pathname) ?? (${OWN}loadErrors.size === 1 ? [...${OWN}loadErrors.values()][0] : undefined)`,
+    '  if (!err) return failure',
+    `  const root = ${JSON.stringify(`${project.root}/`)}`,
+    "  const file = String(err.id ?? err.loc?.file ?? '').replace(root, '')",
+    '  const at = err.loc ? `${file}:${err.loc.line}:${err.loc.column}` : file',
+    "  const [first = '', ...frame] = String(err.message).split('\\n')",
+    "  const named = new Error(`${at}: ${first.replace(`${err.id}: `, '').replaceAll(root, '')}`)",
+    "  named.stack = frame.join('\\n').trim()",
+    '  return named',
+    '}',
+    '',
     `function ${OWN}render(id, overrides) {`,
     `  const entry = ${OWN}byId.get(id)`,
     '  if (!entry) throw new Error(`unknown story: ${id}`)',
@@ -367,11 +413,11 @@ export function previewEntry(project: Project, files: string[] = []): string {
     '  // Thrown here rather than swallowed: the channel turns it into an `error`',
     "  // carrying this story's id, which is what names the file at fault.",
     `  const ${OWN}failure = ${OWN}broken[${OWN}path]`,
-    `  if (${OWN}failure) throw ${OWN}failure`,
+    `  if (${OWN}failure) throw ${OWN}named(${OWN}failure)`,
     '',
     '  // A module that failed to reload leaves its old version in place, and this',
     '  // frame cannot tell which stories use it: until it reloads, none renders.',
-    `  for (const failed of ${OWN}stale.values()) throw failed`,
+    `  for (const failed of ${OWN}stale.values()) throw ${OWN}named(failed)`,
     '',
     `  const module = ${OWN}modules[${OWN}path]`,
     '  if (!module) throw new Error(`no module for ${entry.storyFile}`)',
