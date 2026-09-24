@@ -94,3 +94,17 @@ export function literalOf(node: Node | null | undefined): { value: unknown } | u
       return undefined
   }
 }
+
+// The names a `wrap` places as wrappers, in the three shapes of section 2.5: a
+// name, an array of names, or `[name, props]` pairs. A name inside props is a
+// value handed to a wrapper, not one.
+export function wrapperNames(node: Node | null | undefined): string[] {
+  if (node?.type === 'Identifier') return [node['name'] as string]
+  if (node?.type !== 'ArrayExpression') return []
+
+  return (node['elements'] as (Node | null)[]).flatMap((entry) =>
+    entry?.type === 'ArrayExpression'
+      ? wrapperNames((entry['elements'] as (Node | null)[])[0])
+      : wrapperNames(entry),
+  )
+}

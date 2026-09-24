@@ -4,10 +4,11 @@
 import { readFileSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 import { parseSync } from 'vite'
-import { propertyOf, type Node } from './ast'
+import { propertyOf, wrapperNames, type Node } from './ast'
 import { ConfigError } from './errors'
 import { capture, isBareSpecifier } from './paths'
 import type { Project } from './project'
+import { componentRef } from './stories'
 
 // The imports and the expression the browser needs to build the adapter, as text.
 // Never guessed from `adapter.name`: that breaks the moment an adapter is wrapped.
@@ -68,6 +69,28 @@ export function configSources(project: Project): {
     adapter: fieldSource('adapter', source, parsed, project.root),
     wrap: fieldSource('wrap', source, parsed, project.root),
   }
+}
+
+// The imports the configuration's `wrap` places as wrappers. Nothing when the
+// file cannot be read: `crypte check` is not where a broken config is reported.
+export function configWrappers(project: Project): { file: string; export: string }[] {
+  let parsed: ReturnType<typeof parseSync>
+
+  try {
+    parsed = parseSync(
+      'crypte.config.ts',
+      readFileSync(join(project.root, 'crypte.config.ts'), 'utf8'),
+    )
+  } catch {
+    return []
+  }
+
+  const value = fieldExpression(parsed.program.body as unknown as Node[], 'wrap')
+
+  return wrapperNames(value).flatMap((name) => {
+    const found = componentRef(parsed.module, name)
+    return found ? [{ file: found.file, export: found.export }] : []
+  })
 }
 
 // One field of the exported object, as text, plus the imports it names. Rends
