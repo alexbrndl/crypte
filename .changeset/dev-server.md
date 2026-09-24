@@ -6,7 +6,7 @@
 
 `crypte dev` starts a server, and a story renders.
 
-The command reads the project, writes the manifest and its fingerprint, then serves two pages. The shell ships prebuilt inside the CLI and knows no framework: it reads the catalogue and talks over the channel. The preview is compiled by the project's own Vite, because it imports the adapter you installed and your story modules, so it belongs to your bundle and not to ours.
+The command reads the project, writes the manifest and its fingerprint, then serves two pages. The shell ships prebuilt inside the CLI and knows no framework: it reads the catalogue and talks over the channel. The preview is compiled in your project by the CLI's Vite, with the plugins you declare in `vite.plugins`, because it imports the adapter you installed and your story modules.
 
 `@crypte/react` gains `defineStories` and `story`, the two functions a story file calls, with the types that infer a component's props. A story file needs no type alias and no `satisfies`.
 

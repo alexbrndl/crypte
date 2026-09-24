@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.13, reference document. A project brief points here instead of restating these shapes.
+> Version 1.14, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -122,6 +122,8 @@ export default defineConfig({
 Two keys are required, and an error names the one that is missing.
 
 `vite.plugins` exists for the cases where a framework needs an extra transform, such as Nuxt auto-imports. The project declares it. Crypte never guesses it.
+
+**Those plugins run in the CLI's Vite, not in the project's.** The project's `vite.config` is never read, and Vite itself is the CLI's dependency. A plugin written for another major of Vite still loads, and may warn or break: section 8 carries that gap.
 
 **Path aliases are read on their own**, from `compilerOptions.paths`. Nothing is declared in `crypte.config.ts`.
 
@@ -865,10 +867,11 @@ This document is a contract. This section is the only place that says what exist
 | 5, the channel | built and exercised on both sides |
 | 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. `shell` and `preview` are named and declared opaque. **Provisional, and not one step closer to stable**: 6.5 asks for `controls` and `a11y`, and `tokens` is neither |
 
-**`dev`, `check` and `init` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled by the project's own Vite. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte init` writes the configuration of 1.5 into a project that already has its components, and has no section of its own because the file it writes is 1.5 itself.
+**`dev`, `check` and `init` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled in the project by the CLI's own Vite, with the plugins the project declares in `vite.plugins`. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte init` writes the configuration of 1.5 into a project that already has its components, and has no section of its own because the file it writes is 1.5 itself.
 
-Six known gaps between this document and the code:
+Seven known gaps between this document and the code:
 
+- **The preview is compiled by the CLI's Vite, and nothing checks the project's plugins against it.** A project on another major keeps its own Vite for its build, and its `vite.plugins` run in the CLI's anyway. Measured on a project on Vite 6: its React plugin warned about deprecated options and every story rendered. Resolving the project's own Vite instead would be a rework, not a fix.
 - A path alias cannot replace an installed package. `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because the resolver runs after Vite's own. TypeScript would return the replacement file.
 - **Inference reads what a file declares, never what a type it cannot resolve holds.** A type alias, an interface and a `cva(…)` call declared in the component file are followed. An imported type, a generic, a DOM part of an intersection, and an `extends` clause other than `VariantProps` of a local `cva` each leave only what the component file writes by hand, which for a DOM pass-through is the names in its destructuring pattern. Enumerating the rest needs the type checker, and inventing names is what 4.2 forbids.
 - **`ShellContribution` and `PreviewHooks` are declared opaque by the core**, though 6.2 specifies the second one in full. Neither has a caller: no shell panel comes from a plugin, and no preview runs a lifecycle hook. Typing a surface nobody calls would buy nothing and could not be taken back.
@@ -879,6 +882,13 @@ Six known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.14.** The Vite that compiles the preview is named, which the document had wrong.
+
+| Before | After |
+| --- | --- |
+| section 8 said the preview is compiled by the project's own Vite | it is compiled by the CLI's, with the plugins the project declares, and 1.5 says so |
+| nothing said what a plugin written for another major of Vite does | section 8 carries it as a gap |
 
 **v1.13.** The fingerprint follows the catalogue served, restarts included.
 
