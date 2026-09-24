@@ -38,10 +38,15 @@ function runs(node: unknown): boolean {
   const one = node as Node
   if (DEFERRED.has(one.type)) return false
   if (RUNS.has(one.type)) return true
-  // Une méthode ne s'exécute qu'appelée ; un bloc statique, à la définition.
-  if (one.type === 'MethodDefinition') return false
+  // Le corps d'une méthode et la valeur d'un champ d'instance attendent l'appel
+  // ou l'instance ; leur clé calculée et leurs décorateurs s'exécutent à la
+  // définition de la classe, comme un bloc statique.
   if (one.type === 'StaticBlock') return true
-  if (one.type === 'PropertyDefinition' && one['static'] !== true) return runs(one['decorators'])
+  if (
+    one.type === 'MethodDefinition' ||
+    (one.type === 'PropertyDefinition' && one['static'] !== true)
+  )
+    return runs(one['decorators']) || (one['computed'] === true && runs(one['key']))
 
   return Object.entries(one).some(([key, value]) => key !== 'typeAnnotation' && runs(value))
 }
@@ -52,6 +57,7 @@ function runs(node: unknown): boolean {
 const INERT = new Set([
   'TSTypeAliasDeclaration',
   'TSInterfaceDeclaration',
+  'TSDeclareFunction',
   'FunctionDeclaration',
   'ExportAllDeclaration',
 ])
@@ -62,7 +68,10 @@ function statementRuns(node: Node): boolean {
   if (node.type === 'ImportDeclaration') return (node['specifiers'] as unknown[]).length === 0
   if (node.type === 'ExportNamedDeclaration' || node.type === 'ExportDefaultDeclaration') {
     const inner = node['declaration'] as Node | null
-    return inner !== null && statementRuns(inner)
+    if (inner === null) return false
+    // `export default Badge` exporte une expression, qui ne se lit pas comme une
+    // instruction.
+    return inner.type.endsWith('Declaration') ? statementRuns(inner) : runs(inner)
   }
   if (node.type === 'VariableDeclaration') return runs(node['declarations'])
   if (node.type === 'ClassDeclaration') return runs(node)
@@ -70,7 +79,7 @@ function statementRuns(node: Node): boolean {
   if (node.type === 'TSModuleDeclaration') return node['declare'] !== true
   if (node.type === 'TSEnumDeclaration') return node['const'] !== true
 
-  return runs(node) || !node.type.endsWith('Declaration')
+  return true
 }
 
 function effectsOf(file: string, source: string): string[] {
@@ -119,8 +128,14 @@ describe('ce qu’un fichier du noyau exécute à l’import', () => {
     'enum E { A }',
     'while (true) {}',
     'ready',
+    'export class A { @log m() {} }',
+    'export class A { [key()]() {} }',
+    'export class A { [key()] = 1 }',
+    "import x = require('./y')",
   ])('signale %s', (source) => {
-    expect(effectsOf('x.ts', source)).not.toEqual([])
+    // L'instruction elle-même, pas seulement « quelque chose » : un fragment qui
+    // ne se lit pas serait signalé aussi.
+    expect(effectsOf('x.ts', source)).toEqual([source])
   })
 
   // Et ce qui n'exécute rien, sans quoi le garde passerait à l'identique sur
@@ -139,6 +154,9 @@ describe('ce qu’un fichier du noyau exécute à l’import', () => {
     "import { b } from './b'",
     "declare module './m' { interface P {} }",
     'const enum F { A }',
+    'export default Badge',
+    'declare function f(): void',
+    "export class A { ['a']() {} }",
   ])('ne signale pas %s', (source) => {
     expect(effectsOf('x.ts', source)).toEqual([])
   })
