@@ -29,9 +29,11 @@ import { pathToFileURL } from 'node:url'
 // entrée Vite, et c'est le fichier que `pnpm pack --dry-run` liste le premier.
 // Y changer un `<title>` ou le `src` du script partait sans note. `public/`
 // suivrait le même chemin le jour où il existe, d'où le dossier plutôt qu'une
-// liste. `apps/demo` n'y est pas, rien de lui n'étant publié.
+// liste. Sauf `test/`, que le build ne lit pas : renommer un test du shell
+// exigeait une note de version. `apps/demo` n'y est pas, rien de lui n'étant
+// publié.
 const PUBLISHED =
-  /^(packages\/[^/]+\/(src\/|(package\.json|tsconfig\.json|vite\.config\.ts)$)|apps\/shell\/|tsconfig\.base\.json$)/
+  /^(packages\/[^/]+\/(src\/|(package\.json|tsconfig\.json|vite\.config\.ts)$)|apps\/shell\/(?!test\/)|tsconfig\.base\.json$)/
 
 // `README.md` documente le dossier, `config.json` le configure : ni l'un ni
 // l'autre n'est une note.
