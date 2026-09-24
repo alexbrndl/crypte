@@ -259,7 +259,12 @@ describe('le composant sans story', () => {
 // configuration ou d'une story, n'attend pas de story. Ce qui le suit dans une
 // paire est une valeur donnée au cadre, pas un cadre.
 describe('les enveloppes déclarées', () => {
+  // `loadProject` exécute la configuration, qui importe un cadre écrit en JSX.
+  // Sans ce `react/jsx-runtime`, le cas ne passe que là où pnpm a hissé React
+  // dans `node_modules/.pnpm/node_modules`, et échoue en CI. Mesuré.
   const composants = {
+    'node_modules/react/package.json': '{ "name": "react" }',
+    'node_modules/react/jsx-runtime.js': 'exports.jsx = exports.jsxs = () => null',
     'tsconfig.json': ALIAS,
     'src/Carte.tsx': 'export const Carte = () => <p />',
     'src/Cadre.tsx':
