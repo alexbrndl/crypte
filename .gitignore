@@ -34,4 +34,3 @@ packages/cli/test/tmp-dev-*
 apps/tmp-demo-*
 test/.mutation-inflight.json
 vitest-report.json
-.lighthouseci/
