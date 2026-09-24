@@ -59,8 +59,8 @@ export function fingerprintOf(manifest: Manifest): Fingerprint {
 }
 
 // Everything the fingerprint does not show, folded into one value. The order the
-// producer wrote the fields in does not matter: `stable` sorts, and it is the
-// only place that does.
+// producer wrote the fields in does not matter: `stable` sorts object keys, and
+// `comparable` the attributes of `source`.
 function digestOf(entry: StoryEntry): string {
   const rest: Record<string, unknown> = {}
 
@@ -73,18 +73,14 @@ function digestOf(entry: StoryEntry): string {
   return createHash('sha256').update(stable(rest)).digest('hex').slice(0, 16)
 }
 
-// `source` with its attributes sorted by name. It keeps the author's order
+// `source` with its attributes sorted, as text: two never share a name, so the
+// order is the same as sorting by name. It keeps the author's order
 // because it is displayed, so reordering a block of props moved the digest
 // while the render stayed the same. The producer writes no spread, so the order
 // of attributes carries no meaning here.
 function comparable(source: string): string {
-  let parsed: ReturnType<typeof parseSync>
-
-  try {
-    parsed = parseSync('source.tsx', `(${source})`)
-  } catch {
-    return source
-  }
+  // `parseSync` reports a syntax error in `errors` rather than throwing.
+  const parsed = parseSync('source.tsx', `(${source})`)
 
   const statement = (parsed.program.body as unknown as Node[])[0]
   const element = (statement?.['expression'] as Node | undefined)?.['expression'] as
