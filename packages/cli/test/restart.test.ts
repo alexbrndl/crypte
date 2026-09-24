@@ -287,9 +287,9 @@ export default defineConfig({
     },
   )
 
-  // L'empreinte est un fichier versionné, donc elle ne s'écrit qu'au démarrage :
-  // la réécrire à chaque essai sur `stories` salirait l'arbre de travail pendant
-  // que l'auteur tape. Section 4 des contrats.
+  // L'empreinte est un fichier versionné : un redémarrage ne la réécrit pas, ce
+  // qui salirait l'arbre à chaque essai sur `stories`. Une story modifiée la
+  // réécrit, elle, pour que `crypte check` passe après une session ordinaire.
   test('n’écrit pas l’empreinte sur un redémarrage', { timeout: 120_000 }, async () => {
     const root = copie(fixture, 'tmp-hot-')
     const config = join(root, 'crypte.config.ts')
@@ -307,6 +307,16 @@ export default defineConfig({
       await expect.poll(compteSur(portDe(running)), { timeout: 30_000 }).toBe(3)
 
       expect(statSync(empreinte).mtimeMs).toBe(écrite)
+
+      // Une story réécrite à l'identique ne change pas le catalogue servi, mais
+      // l'empreinte sur disque est celle d'avant le redémarrage : la
+      // reconstruction la compare au fichier, pas à la mémoire, et l'aligne.
+      const story = join(root, 'stories', 'checkout', 'OrderSummary.jsx')
+      writeFileSync(story, readFileSync(story, 'utf8'))
+
+      await expect
+        .poll(() => JSON.parse(readFileSync(empreinte, 'utf8')).entries.length, { timeout: 30_000 })
+        .toBe(3)
     } finally {
       await running.close()
       rmSync(root, { recursive: true, force: true })

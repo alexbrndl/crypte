@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { readFileSync, watch, type FSWatcher } from 'node:fs'
 import { createServer, type ViteDevServer } from 'vite'
 import { reason } from './errors'
-import { fingerprintOf, writeFingerprint } from './fingerprint'
+import { FINGERPRINT, fingerprintOf, writeFingerprint } from './fingerprint'
 import { buildCatalogue, storiesOf, writeCatalogue, type Catalogue } from './manifest'
 import { loadProject, viteConfigOf, type Project } from './project'
 import { configPackages } from './config-source'
@@ -152,10 +152,11 @@ function watchStories(
   // fails the same way, and repeating it buries what follows.
   let failed: string | undefined
 
-  // The fingerprint last written, so a rebuild rewrites it only when the stories
-  // changed it. Kept up to date here because `crypte check` fails on a stale
-  // one: written at start-up only, a story edited mid-session left it behind.
-  let recorded = JSON.stringify(fingerprintOf(held.catalogue.manifest))
+  // The fingerprint on disk, read rather than derived from the catalogue held:
+  // a restart of the configuration does not write it, so the catalogue can be
+  // ahead of the file. A story change rewrites it when they differ, which is
+  // what keeps `crypte check` from failing after an ordinary session.
+  let recorded = recordedFingerprint(project.root)
 
   const rebuild = (): void => {
     if (stopped) return
@@ -344,6 +345,16 @@ function digest(project: Project): string {
       }
     })
     .join('\u0000')
+}
+
+// The committed fingerprint as `JSON.stringify` gives it, or nothing when it is
+// missing or unreadable, which any rebuild then replaces.
+function recordedFingerprint(root: string): string | undefined {
+  try {
+    return JSON.stringify(JSON.parse(readFileSync(join(root, FINGERPRINT), 'utf8')))
+  } catch {
+    return undefined
+  }
 }
 
 // The two artefacts, and what stopped them. Reported rather than thrown: the

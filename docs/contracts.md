@@ -861,7 +861,7 @@ This document is a contract. This section is the only place that says what exist
 | 1.5, path aliases | built |
 | 2 and 3, the types | built, and `defineStories` and `story` with them. Inference reads what a component file declares, and 3.2's merge completes it from the story file |
 | 4, the manifest | built, and written by `crypte dev` at start-up and on every restart of the configuration. A story file added or broken changes what is served without rewriting the file. Of the two natures of entry it can carry, only `story` is produced |
-| 4.6, the fingerprint | built, and written by `crypte dev` at start-up and whenever a story change alters it, so `crypte check` does not fail after an ordinary session. A restart of the configuration leaves it alone: the file is committed, and trying out a `stories` path should not dirty the tree |
+| 4.6, the fingerprint | built, and written by `crypte dev` at start-up and whenever a story change alters it, so `crypte check` does not fail after an ordinary session. A restart of the configuration leaves it alone, since the file is committed and trying out a `stories` path should not dirty the tree; the next story change compares it with the catalogue served and aligns it |
 | 5, the channel | built and exercised on both sides |
 | 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. `shell` and `preview` are named and declared opaque. **Provisional, and not one step closer to stable**: 6.5 asks for `controls` and `a11y`, and `tokens` is neither |
 
