@@ -198,6 +198,13 @@ jobs:
       # standard, où `::error::` les annote. Le code de sortie décide.
       - name: Report budgets
         run: node scripts/budgets.mjs >> "$GITHUB_STEP_SUMMARY"
+      # Le shell compilé que `pack` vient de produire, audité par Lighthouse en
+      # performance et en accessibilité ; les seuils vivent dans
+      # `lighthouserc.cjs`. `always()` : un budget dépassé ne doit pas cacher le
+      # verdict d'accessibilité. `vp dlx` et non `npx`, que `devEngines` refuse.
+      - name: Lighthouse
+        if: ${{ !cancelled() }}
+        run: vp dlx @lhci/cli@0.15.1 collect && vp dlx @lhci/cli@0.15.1 assert
 
   dependency-review:
     if: github.event_name == 'pull_request'
