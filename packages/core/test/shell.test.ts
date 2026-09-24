@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { PROTOCOL_VERSION, type PreviewMessage } from '../src/protocol/channel'
 import { createPreviewChannel } from '../src/preview/index'
-import { createShellChannel } from '../src/ui/index'
+import { createShellChannel } from '../src/shell/index'
 import { collect, windowAt } from './fake-window'
 
 const ORIGIN = 'https://crypte.test'

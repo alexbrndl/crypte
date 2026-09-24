@@ -31,7 +31,7 @@ vp run ready
 ## Layout
 
 ```
-packages/core     @crypte/core    the core, three entries: protocol, ui, preview
+packages/core     @crypte/core    the core, three entries: protocol, shell, preview
 packages/cli      @crypte/cli     the `crypte` binary
 packages/react    @crypte/react   the React adapter
 docs/                             the specification, in English

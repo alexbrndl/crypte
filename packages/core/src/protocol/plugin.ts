@@ -4,15 +4,15 @@ import type { ManifestEntry, StoryEntry } from './manifest'
 
 export interface CryptePlugin {
   name: string
-  ui?: UIContribution
+  shell?: ShellContribution
   preview?: PreviewHooks
   node?: NodeHooks
 }
 
 // Opaque like `Adapter`: named here, carried by the CLI, read by nobody yet.
-// `UIContribution` waits for the first plugin that draws a panel, DCJ-194;
+// `ShellContribution` waits for the first plugin that draws a panel, DCJ-194;
 // section 6.2 already specifies `PreviewHooks`, and no preview calls it.
-export type UIContribution = unknown
+export type ShellContribution = unknown
 export type PreviewHooks = unknown
 
 // The one capability a real use demands: contributing entries to the manifest.

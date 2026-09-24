@@ -23,7 +23,7 @@ Une application et une bibliothèque n'ont ni le même mode de construction ni l
 _Sinon :_ un paquet publié doit produire deux sorties incompatibles au même endroit, et l'utilisateur télécharge une application alors qu'il voulait une bibliothèque.
 
 **3. L'isolation des trois entrées de `core` est vérifiée par un test.**
-Importer `@crypte/core/protocol` ne doit rien charger de `ui` ni de `preview`. Cette étanchéité vient du graphe d'imports, pas de l'outil de construction, et elle tombe sans avertissement.
+Importer `@crypte/core/protocol` ne doit rien charger de `shell` ni de `preview`. Cette étanchéité vient du graphe d'imports, pas de l'outil de construction, et elle tombe sans avertissement.
 _Sinon :_ toute la promesse « deux paquets installés au lieu de cinq » s'effondre, et un consommateur qui ne voulait que des types charge tout le reste.
 
 **4. Aucun code publié n'importe `vite-plus`.**
@@ -76,7 +76,7 @@ fix: resolve aliases from jsconfig  plutôt que   correction du bug
 
 **Publication npm.** Jamais sans demande explicite. Un nom de paquet publié ne se reprend plus après 72 heures.
 
-**Placement d'un composant.** Par défaut dans `apps/shell`. On ne le promeut vers `core/ui` que lorsqu'un plugin réel en a besoin, jamais par anticipation : `core/ui` est une API publique qu'on ne peut plus retirer une fois publiée.
+**Placement d'un composant.** Par défaut dans `apps/shell`. On ne le promeut vers `core/shell` que lorsqu'un plugin réel en a besoin, jamais par anticipation : `core/shell` est une API publique qu'on ne peut plus retirer une fois publiée.
 
 **Périmètre.** Ne couvrir que ce qui est démontré par l'usage. Un mécanisme ajouté par précaution crée un usage qu'on ne peut plus reprendre.
 

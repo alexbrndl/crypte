@@ -17,4 +17,4 @@ A plugin can contribute entries to the manifest.
 
 Section 4.5 stops being free here: everything else the CLI writes is read from source text and serialisable by construction, so a contributed entry is the first input it checks rather than trusts. Anything JSON would not give back as it was is refused, named and located: a function, a `Date`, `NaN`, an infinity, an `undefined` value, a genuine cycle. Two references to one object are not a cycle, and are kept.
 
-`UIContribution` and `PreviewHooks` stay opaque. Neither has a caller yet.
+`ShellContribution` and `PreviewHooks` stay opaque. Neither has a caller yet.

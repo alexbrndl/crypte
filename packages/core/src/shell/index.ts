@@ -3,7 +3,7 @@
 import type { PreviewMessage, ShellMessage } from '../protocol/channel'
 
 // Marker read by test/isolation.test.ts
-export const UI_MARKER = '__crypte_ui__'
+export const SHELL_MARKER = '__crypte_shell__'
 
 export interface ShellChannel {
   send(message: ShellMessage): void
