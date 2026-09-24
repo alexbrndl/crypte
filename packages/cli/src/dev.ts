@@ -152,11 +152,6 @@ function watchStories(
   // fails the same way, and repeating it buries what follows.
   let failed: string | undefined
 
-  // The fingerprint on disk, read rather than derived from the catalogue held:
-  // a write that failed leaves the file behind, and the next story change then
-  // retries. Kept current because `crypte check` fails on a stale one.
-  let recorded = recordedFingerprint(project.root)
-
   const rebuild = (): void => {
     if (stopped) return
 
@@ -186,11 +181,13 @@ function watchStories(
     const same = shape(next) === shape(held.catalogue)
     held.catalogue = next
 
+    // Against the file, read now: a restart writes it after this watcher
+    // started, and a write that failed leaves it behind. Kept current because
+    // `crypte check` fails on a stale one.
     const fingerprint = fingerprintOf(next.manifest)
-    if (JSON.stringify(fingerprint) !== recorded) {
+    if (JSON.stringify(fingerprint) !== recordedFingerprint(project.root)) {
       try {
         writeFingerprint(project.root, fingerprint)
-        recorded = JSON.stringify(fingerprint)
       } catch (error) {
         log(`the fingerprint could not be written: ${reason(error)}`)
       }
@@ -487,7 +484,7 @@ export async function dev(input: string, log = console.log): Promise<Running> {
     // Written after the swap: a restart that fails earlier must not leave a
     // manifest describing a catalogue no server serves.
     const failed = write(next.project.root, next.held.catalogue)
-    if (failed) log(`the manifest could not be written: ${failed}`)
+    if (failed) log(`neither manifest nor fingerprint could be written: ${failed}`)
 
     // A save that landed while the configuration bundled is still pending: picked
     // up here rather than dropped, and announced by the restart it triggers.
