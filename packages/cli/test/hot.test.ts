@@ -280,6 +280,16 @@ describe('the catalog while the server runs', () => {
   // L'empreinte suit les stories pendant la session : `crypte check` échoue sur
   // une empreinte en retard, et une story ajoutée sans redémarrer la laissait
   // telle qu'au démarrage.
+  // Le manifeste sur disque aussi : il n'est pas commité, et un outil qui le lit
+  // voyait l'état du démarrage pendant toute la session.
+  test('rewrites the manifest on disk when a story changes', async ({ projet }) => {
+    writeFileSync(join(projet.root, 'stories', 'Tardive.js'), story('Badge'))
+
+    await expect
+      .poll(() => readFileSync(join(projet.root, '.crypte', 'manifest.json'), 'utf8'))
+      .toContain('tardive--default')
+  })
+
   test('rewrites the fingerprint when a story changes', async ({ projet }) => {
     writeFileSync(join(projet.root, 'stories', 'Tardive.js'), story('Badge'))
 

@@ -172,6 +172,15 @@ function watchStories(
     // Against the file, read now: a restart writes it after this watcher
     // started, and a write that failed leaves it behind. Kept current because
     // `crypte check` fails on a stale one.
+    // The manifest on disk follows the catalogue served, or a tool reading it saw
+    // the start-up state for the rest of the session. It is not committed, so
+    // writing it at every rebuild dirties nothing.
+    try {
+      writeCatalogue(project.root, next.manifest)
+    } catch (error) {
+      log(`the manifest could not be written: ${reason(error)}`)
+    }
+
     const fingerprint = fingerprintOf(next.manifest)
     if (JSON.stringify(fingerprint) !== recordedFingerprint(project.root)) {
       try {
