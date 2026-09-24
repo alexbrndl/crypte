@@ -62,7 +62,7 @@ export async function startDev(
 
   // Nothing on a restart: `dev` writes after the swap, so a restart that does not
   // complete leaves the file describing what is actually served.
-  const written = before ? undefined : write(project.root, held.catalogue, true)
+  const written = before ? undefined : write(project.root, held.catalogue)
 
   const config = viteConfigOf(project)
 
@@ -152,12 +152,6 @@ function watchStories(
   // fails the same way, and repeating it buries what follows.
   let failed: string | undefined
 
-  // The fingerprint on disk, read rather than derived from the catalogue held:
-  // a restart of the configuration does not write it, so the catalogue can be
-  // ahead of the file. A story change rewrites it when they differ, which is
-  // what keeps `crypte check` from failing after an ordinary session.
-  let recorded = recordedFingerprint(project.root)
-
   const rebuild = (): void => {
     if (stopped) return
 
@@ -187,11 +181,13 @@ function watchStories(
     const same = shape(next) === shape(held.catalogue)
     held.catalogue = next
 
+    // Against the file, read now: a restart writes it after this watcher
+    // started, and a write that failed leaves it behind. Kept current because
+    // `crypte check` fails on a stale one.
     const fingerprint = fingerprintOf(next.manifest)
-    if (JSON.stringify(fingerprint) !== recorded) {
+    if (JSON.stringify(fingerprint) !== recordedFingerprint(project.root)) {
       try {
         writeFingerprint(project.root, fingerprint)
-        recorded = JSON.stringify(fingerprint)
       } catch (error) {
         log(`the fingerprint could not be written: ${reason(error)}`)
       }
@@ -360,16 +356,16 @@ function recordedFingerprint(root: string): string | undefined {
 // The two artefacts, and what stopped them. Reported rather than thrown: the
 // shell reads the catalogue from memory, so a build that cannot write still
 // serves everything.
-function write(root: string, catalogue: Catalogue, fingerprint: boolean): string | undefined {
+function write(root: string, catalogue: Catalogue): string | undefined {
   try {
     // Written on a restart too, or the manifest on disk and the catalogue served
     // drift apart for the rest of the session.
     writeCatalogue(root, catalogue.manifest)
 
-    // Not on a restart of the configuration: rewriting the committed file on
-    // each valid edit would dirty the working tree while the author tries out a
-    // `stories` path. A story edit rewrites it in `rebuild` instead.
-    if (fingerprint) writeFingerprint(root, fingerprintOf(catalogue.manifest))
+    // On a restart too: the fingerprint follows the catalogue served, or keeping
+    // a new `stories` path left it behind and `crypte check` failed while
+    // `crypte dev` ran. Trying a path and reverting rewrites the same bytes.
+    writeFingerprint(root, fingerprintOf(catalogue.manifest))
 
     return undefined
   } catch (error) {
@@ -487,8 +483,8 @@ export async function dev(input: string, log = console.log): Promise<Running> {
 
     // Written after the swap: a restart that fails earlier must not leave a
     // manifest describing a catalogue no server serves.
-    const failed = write(next.project.root, next.held.catalogue, false)
-    if (failed) log(`the manifest could not be written: ${failed}`)
+    const failed = write(next.project.root, next.held.catalogue)
+    if (failed) log(`neither manifest nor fingerprint could be written: ${failed}`)
 
     // A save that landed while the configuration bundled is still pending: picked
     // up here rather than dropped, and announced by the restart it triggers.

@@ -1,12 +1,4 @@
-import {
-  cpSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -287,41 +279,37 @@ export default defineConfig({
     },
   )
 
-  // L'empreinte est un fichier versionné : un redémarrage ne la réécrit pas, ce
-  // qui salirait l'arbre à chaque essai sur `stories`. Une story modifiée la
-  // réécrit, elle, pour que `crypte check` passe après une session ordinaire.
-  test('n’écrit pas l’empreinte sur un redémarrage', { timeout: 120_000 }, async () => {
-    const root = copie(fixture, 'tmp-hot-')
-    const config = join(root, 'crypte.config.ts')
-    const avant = readFileSync(config, 'utf8')
+  // L'empreinte suit le catalogue servi, redémarrage compris : garder un nouveau
+  // chemin `stories` la laissait en retard, et `crypte check` échouait pendant
+  // que `crypte dev` tournait. Revenir en arrière rend les mêmes octets, donc un
+  // essai ne laisse rien dans l'arbre.
+  test(
+    'réécrit l’empreinte sur un redémarrage, et la rend intacte au retour',
+    { timeout: 120_000 },
+    async () => {
+      const root = copie(fixture, 'tmp-hot-')
+      const config = join(root, 'crypte.config.ts')
+      const avant = readFileSync(config, 'utf8')
 
-    const running = await dev(root, () => {})
-    const empreinte = join(root, '.crypte', 'fingerprint.json')
-    const écrite = statSync(empreinte).mtimeMs
+      const running = await dev(root, () => {})
+      const empreinte = join(root, '.crypte', 'fingerprint.json')
+      const initiale = readFileSync(empreinte, 'utf8')
+      const entrées = () => JSON.parse(readFileSync(empreinte, 'utf8')).entries.length
 
-    try {
-      const réduit = avant.replace("stories: 'stories'", "stories: 'stories/checkout'")
-      expect(réduit).not.toBe(avant)
-      writeFileSync(config, réduit)
+      try {
+        const réduit = avant.replace("stories: 'stories'", "stories: 'stories/checkout'")
+        expect(réduit).not.toBe(avant)
+        writeFileSync(config, réduit)
+        await expect.poll(entrées, { timeout: 30_000 }).toBe(3)
 
-      await expect.poll(compteSur(portDe(running)), { timeout: 30_000 }).toBe(3)
-
-      expect(statSync(empreinte).mtimeMs).toBe(écrite)
-
-      // Une story réécrite à l'identique ne change pas le catalogue servi, mais
-      // l'empreinte sur disque est celle d'avant le redémarrage : la
-      // reconstruction la compare au fichier, pas à la mémoire, et l'aligne.
-      const story = join(root, 'stories', 'checkout', 'OrderSummary.jsx')
-      writeFileSync(story, readFileSync(story, 'utf8'))
-
-      await expect
-        .poll(() => JSON.parse(readFileSync(empreinte, 'utf8')).entries.length, { timeout: 30_000 })
-        .toBe(3)
-    } finally {
-      await running.close()
-      rmSync(root, { recursive: true, force: true })
-    }
-  })
+        writeFileSync(config, avant)
+        await expect.poll(() => readFileSync(empreinte, 'utf8'), { timeout: 30_000 }).toBe(initiale)
+      } finally {
+        await running.close()
+        rmSync(root, { recursive: true, force: true })
+      }
+    },
+  )
 
   // Le manifeste sur disque est un artefact que le shell peut lire, donc il suit
   // le catalogue : laissé derrière, il divergeait du manifeste servi pour toute
