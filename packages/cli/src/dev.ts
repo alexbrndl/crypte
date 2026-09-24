@@ -6,7 +6,7 @@ import { readFileSync, watch, type FSWatcher } from 'node:fs'
 import { createServer, type ViteDevServer } from 'vite'
 import { reason } from './errors'
 import { FINGERPRINT, fingerprintOf, writeFingerprint } from './fingerprint'
-import { buildCatalogue, storiesOf, writeCatalogue, type Catalogue } from './manifest'
+import { buildCatalogue, OUTPUT, storiesOf, writeCatalogue, type Catalogue } from './manifest'
 import { loadProject, viteConfigOf, type Project } from './project'
 import { configPackages } from './config-source'
 import { servePlugin, PREVIEW_ENTRY_ID, PREVIEW_PAGE } from './serve'
@@ -169,20 +169,23 @@ function watchStories(
     const same = shape(next) === shape(held.catalogue)
     held.catalogue = next
 
+    // The manifest on disk follows the catalogue served, or a tool reading it saw
+    // the start-up state for the rest of the session. Only when it changed: with
+    // `stories: '.'` the watcher sees `.crypte/`, and an unconditional write
+    // rebuilt, then wrote, every 20 ms for the whole session.
+    if (JSON.stringify(next.manifest) !== onDisk(join(project.root, OUTPUT))) {
+      try {
+        writeCatalogue(project.root, next.manifest)
+      } catch (error) {
+        log(`the manifest could not be written: ${reason(error)}`)
+      }
+    }
+
     // Against the file, read now: a restart writes it after this watcher
     // started, and a write that failed leaves it behind. Kept current because
     // `crypte check` fails on a stale one.
-    // The manifest on disk follows the catalogue served, or a tool reading it saw
-    // the start-up state for the rest of the session. It is not committed, so
-    // writing it at every rebuild dirties nothing.
-    try {
-      writeCatalogue(project.root, next.manifest)
-    } catch (error) {
-      log(`the manifest could not be written: ${reason(error)}`)
-    }
-
     const fingerprint = fingerprintOf(next.manifest)
-    if (JSON.stringify(fingerprint) !== recordedFingerprint(project.root)) {
+    if (JSON.stringify(fingerprint) !== onDisk(join(project.root, FINGERPRINT))) {
       try {
         writeFingerprint(project.root, fingerprint)
       } catch (error) {
@@ -299,11 +302,11 @@ function digest(project: Project): string {
     .join('\u0000')
 }
 
-// The committed fingerprint as `JSON.stringify` gives it, or nothing when it is
+// A file of `.crypte/` as `JSON.stringify` gives it, or nothing when it is
 // missing or unreadable, which any rebuild then replaces.
-function recordedFingerprint(root: string): string | undefined {
+function onDisk(file: string): string | undefined {
   try {
-    return JSON.stringify(JSON.parse(readFileSync(join(root, FINGERPRINT), 'utf8')))
+    return JSON.stringify(JSON.parse(readFileSync(file, 'utf8')))
   } catch {
     return undefined
   }
