@@ -46,7 +46,15 @@ function runs(node: unknown): boolean {
     one.type === 'MethodDefinition' ||
     (one.type === 'PropertyDefinition' && one['static'] !== true)
   )
-    return runs(one['decorators']) || (one['computed'] === true && runs(one['key']))
+    return (
+      runs(one['decorators']) ||
+      (one['computed'] === true && runs(one['key'])) ||
+      // Les décorateurs de ses paramètres aussi, mais pas leurs valeurs par
+      // défaut, qui attendent l'appel.
+      (((one['value'] as Node | undefined)?.['params'] as Node[] | undefined) ?? []).some((param) =>
+        runs(param['decorators']),
+      )
+    )
 
   return Object.entries(one).some(([key, value]) => key !== 'typeAnnotation' && runs(value))
 }
@@ -132,6 +140,8 @@ describe('ce qu’un fichier du noyau exécute à l’import', () => {
     'export class A { [key()]() {} }',
     'export class A { [key()] = 1 }',
     "import x = require('./y')",
+    'export class A { m(@log x) {} }',
+    'export class A { constructor(@inj private y) {} }',
   ])('signale %s', (source) => {
     // L'instruction elle-même, pas seulement « quelque chose » : un fragment qui
     // ne se lit pas serait signalé aussi.
@@ -157,6 +167,7 @@ describe('ce qu’un fichier du noyau exécute à l’import', () => {
     'export default Badge',
     'declare function f(): void',
     "export class A { ['a']() {} }",
+    'export class A { m(x = make()) {} }',
   ])('ne signale pas %s', (source) => {
     expect(effectsOf('x.ts', source)).toEqual([])
   })
