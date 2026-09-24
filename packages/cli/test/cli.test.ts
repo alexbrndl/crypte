@@ -1,14 +1,12 @@
 import { describe, expect, test } from 'vitest'
 import { PROTOCOL_VERSION } from '@crypte/core/protocol'
-import { exitCode, run } from '../src/cli'
+import { exitCode, help, run } from '../src/cli'
 import type { Running } from '../src/dev'
 import { ConfigError } from '../src/errors'
 
 // Ce que la commande fait de ses arguments. Rien ne l'éprouvait : la couverture
 // donnait 0 % sur l'entrée du CLI, donc l'aide, la version et le code de sortie
 // d'une erreur de configuration reposaient sur la lecture seule.
-
-const AIDE = `crypte — protocol v${PROTOCOL_VERSION}, commands: dev, check, init`
 
 const dit = () => {
   const lignes: string[] = []
@@ -18,22 +16,22 @@ const dit = () => {
 
 // Les trois commandes montent un serveur, lisent un projet ou écrivent un
 // fichier : ici on n'éprouve que ce que l'entrée leur passe, donc des doublures
-// qui retiennent leur racine.
+// qui retiennent quelle commande a reçu quelle racine.
 const faux = () => {
-  const racines: string[] = []
+  const appels: [string, string][] = []
 
   return {
-    racines,
+    appels,
     dev: async (input: string) => {
-      racines.push(input)
+      appels.push(['dev', input])
       return undefined as unknown as Running
     },
     check: async (input: string) => {
-      racines.push(input)
+      appels.push(['check', input])
       return 0
     },
     init: (input: string) => {
-      racines.push(input)
+      appels.push(['init', input])
     },
   }
 }
@@ -49,12 +47,59 @@ describe('the crypte command', () => {
 
   // Le numéro de protocole est dans l'aide : un utilisateur qui écrit un plugin
   // le lit là, et le voir dériver de la constante est tout l'intérêt.
-  test('prints the help and the protocol version without a command', async () => {
+  test.for([
+    [],
+    ['--help'],
+    ['-h'],
+    ['init', '--help'],
+    ['dev', '-h'],
+    ['dev', '.', '--help'],
+  ] as const)('prints the help on %j', async (argv) => {
     const sortie = dit()
+    const doublure = faux()
 
-    await run([], sortie.log)
+    expect(await run(argv, sortie.log, doublure)).toBe(0)
+    expect(sortie.lignes).toEqual(help())
+    expect(doublure.appels).toEqual([])
+  })
 
-    expect(sortie.lignes).toEqual([AIDE])
+  // L'aide nomme les trois commandes et la version du protocole : c'est ce
+  // qu'on vient y chercher.
+  test('names the three commands and the protocol version in the help', () => {
+    const texte = help().join('\n')
+
+    expect(texte).toContain(`protocol v${PROTOCOL_VERSION}`)
+    for (const commande of ['dev [root]', 'check [root]', 'init [root]']) {
+      expect(texte).toContain(commande)
+    }
+  })
+
+  // Sur la sortie d'erreur, comme une erreur de configuration : un script qui
+  // redirige la sortie standard ne doit pas l'avaler.
+  test('fails on an unknown command and names it on stderr', async () => {
+    const sortie = dit()
+    const erreur = dit()
+
+    expect(await run(['serve'], sortie.log, {}, erreur.log)).toBe(1)
+    expect(sortie.lignes).toEqual([])
+    expect(erreur.lignes).toEqual(['crypte: unknown command serve, see crypte --help'])
+  })
+
+  // À toute position, pas seulement juste après la commande.
+  test.for([
+    [['dev', '--port'], 'crypte dev: unknown option --port'],
+    [['dev', '.', '--port', '3000'], 'crypte dev: unknown option --port'],
+    [['dev', 'a', 'b'], 'crypte dev: unexpected argument b'],
+    [['--version', 'foo'], 'crypte --version: unexpected argument foo'],
+    [['serve', '--port'], 'crypte: unknown command serve, see crypte --help'],
+    [['serve', 'a', 'b'], 'crypte: unknown command serve, see crypte --help'],
+  ] as const)('refuses %j instead of running the command', async ([argv, ligne]) => {
+    const erreur = dit()
+    const doublure = faux()
+
+    expect(await run(argv, dit().log, doublure, erreur.log)).toBe(1)
+    expect(erreur.lignes).toEqual([ligne])
+    expect(doublure.appels).toEqual([])
   })
 
   test.for(['dev', 'check', 'init'] as const)('passes the given root to %s', async (commande) => {
@@ -62,7 +107,7 @@ describe('the crypte command', () => {
 
     await run([commande, '/un/projet'], dit().log, doublure)
 
-    expect(doublure.racines).toEqual(['/un/projet'])
+    expect(doublure.appels).toEqual([[commande, '/un/projet']])
   })
 
   // Sans racine, le dossier courant : c'est ce qu'une commande nue doit faire,
@@ -74,7 +119,7 @@ describe('the crypte command', () => {
 
       await run([commande], dit().log, doublure)
 
-      expect(doublure.racines).toEqual([process.cwd()])
+      expect(doublure.appels).toEqual([[commande, process.cwd()]])
     },
   )
 
