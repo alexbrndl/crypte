@@ -1,4 +1,12 @@
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { createServer } from 'node:net'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -296,6 +304,38 @@ export default defineConfig({
 
         writeFileSync(config, avant)
         await expect.poll(() => readFileSync(empreinte, 'utf8'), { timeout: 30_000 }).toBe(initiale)
+      } finally {
+        await running.close()
+        rmSync(root, { recursive: true, force: true })
+      }
+    },
+  )
+
+  // Avec `stories: '.'`, le surveillant voit `.crypte/` : une écriture sans
+  // comparaison relançait une reconstruction, qui réécrivait, sans fin.
+  test(
+    'stops rewriting the manifest when stories cover .crypte',
+    { timeout: 120_000 },
+    async () => {
+      const root = copie(fixture, 'tmp-hot-')
+      const config = join(root, 'crypte.config.ts')
+      const avant = readFileSync(config, 'utf8')
+      const large = avant.replace("stories: 'stories'", "stories: '.'")
+      expect(large).not.toBe(avant)
+      writeFileSync(config, large)
+
+      const running = await dev(root, () => {})
+      const manifeste = join(root, '.crypte', 'manifest.json')
+      const story = join(root, 'stories', 'checkout', 'OrderSummary.jsx')
+
+      try {
+        writeFileSync(story, readFileSync(story, 'utf8'))
+        await new Promise((done) => setTimeout(done, 1_000))
+
+        const une = statSync(manifeste).mtimeMs
+        await new Promise((done) => setTimeout(done, 500))
+
+        expect(statSync(manifeste).mtimeMs).toBe(une)
       } finally {
         await running.close()
         rmSync(root, { recursive: true, force: true })
