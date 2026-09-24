@@ -8,7 +8,7 @@
       "props": [
         "label"
       ],
-      "rest": "be9c563a4da36fae"
+      "rest": "f815254d92cded95"
     },
     {
       "id": "badge--avertissement",
@@ -18,7 +18,7 @@
         "label",
         "tone"
       ],
-      "rest": "54a31b4de671cf72"
+      "rest": "8a22686d1542b7b1"
     },
     {
       "id": "badge--libelle-long",
@@ -27,7 +27,7 @@
       "props": [
         "label"
       ],
-      "rest": "1d6cbd698ead7ed9"
+      "rest": "166b38bf8d3408fd"
     },
     {
       "id": "boom--echoue-au-rendu",
@@ -36,7 +36,7 @@
       "props": [
         "reason"
       ],
-      "rest": "a5a405de3b24ccb5"
+      "rest": "8537d3da4f948005"
     },
     {
       "id": "tag--nue",
@@ -45,7 +45,7 @@
       "props": [
         "children"
       ],
-      "rest": "b48419a11ca58ca2"
+      "rest": "d4d679b86fa0686a"
     },
     {
       "id": "tag--avec-une-classe",
@@ -55,7 +55,7 @@
         "children",
         "className"
       ],
-      "rest": "1cad6e3d48f37415"
+      "rest": "e81320254c46d536"
     }
   ]
 }

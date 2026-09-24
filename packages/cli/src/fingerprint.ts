@@ -8,6 +8,8 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Manifest, StoryEntry } from '@crypte/core/protocol'
+import { parseSync } from 'vite'
+import type { Node } from './ast'
 import { storiesOf } from './manifest'
 
 // Beside the manifest, and committed where the manifest is not.
@@ -57,8 +59,8 @@ export function fingerprintOf(manifest: Manifest): Fingerprint {
 }
 
 // Everything the fingerprint does not show, folded into one value. The order the
-// producer wrote the fields in does not matter: `stable` sorts, and it is the
-// only place that does.
+// producer wrote the fields in does not matter: `stable` sorts object keys, and
+// `comparable` the attributes of `source`.
 function digestOf(entry: StoryEntry): string {
   const rest: Record<string, unknown> = {}
 
@@ -66,7 +68,34 @@ function digestOf(entry: StoryEntry): string {
     if (!SHOWN.has(key)) rest[key] = entry[key as keyof StoryEntry]
   }
 
+  rest['source'] = comparable(entry.source)
+
   return createHash('sha256').update(stable(rest)).digest('hex').slice(0, 16)
+}
+
+// `source` with its attributes sorted as text, which makes it independent of
+// the order the author wrote them in. `source` itself keeps that order
+// because it is displayed, so reordering a block of props moved the digest
+// while the render stayed the same. The producer writes no spread, so the order
+// of attributes carries no meaning here.
+function comparable(source: string): string {
+  // `parseSync` reports a syntax error in `errors` rather than throwing.
+  const parsed = parseSync('source.tsx', `(${source})`)
+
+  const statement = (parsed.program.body as unknown as Node[])[0]
+  const element = (statement?.['expression'] as Node | undefined)?.['expression'] as
+    | Node
+    | undefined
+  const opening = element?.['openingElement'] as Node | undefined
+  if (parsed.errors.length > 0 || !opening) return source
+
+  const text = `(${source})`
+  const attributes = (opening['attributes'] as Node[]).map((one) => text.slice(one.start, one.end))
+  const name = opening['name'] as Node
+
+  return (
+    [text.slice(name.start, name.end), ...attributes.sort()].join(' ') + text.slice(opening.end, -1)
+  )
 }
 
 // A JSON form whose object keys are sorted at every depth. `JSON.stringify`

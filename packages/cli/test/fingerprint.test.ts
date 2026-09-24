@@ -79,6 +79,29 @@ describe('l’empreinte réduite', () => {
     }
   })
 
+  // Réordonner les props d'une story change `source`, qui garde l'ordre de
+  // l'auteur puisqu'elle s'affiche, et pas le rendu. Le condensé compare les
+  // attributs triés, sans perdre ni une valeur changée ni les enfants.
+  it('ne bouge pas quand seuls les attributs de source changent d’ordre', () => {
+    const ordre = (source: string) => fingerprintOf(one({ source }))
+
+    expect(
+      same(ordre('<Badge tone="calm" label="x" />'), ordre('<Badge label="x" tone="calm" />')),
+    ).toBe(true)
+    expect(
+      same(
+        ordre('<Badge on={() => 1} label="x">Texte</Badge>'),
+        ordre('<Badge label="x" on={() => 1}>Texte</Badge>'),
+      ),
+    ).toBe(true)
+    expect(
+      same(ordre('<Badge tone="calm" label="x" />'), ordre('<Badge label="y" tone="calm" />')),
+    ).toBe(false)
+    expect(same(ordre('<Badge label="x">Un</Badge>'), ordre('<Badge label="x">Deux</Badge>'))).toBe(
+      false,
+    )
+  })
+
   // Les clés du premier niveau arrivent déjà triées par `digestOf`, donc c'est
   // sur un objet imbriqué que le tri de `stable` se mesure. Sans ce cas, retirer
   // ce tri ne faisait rougir personne.
