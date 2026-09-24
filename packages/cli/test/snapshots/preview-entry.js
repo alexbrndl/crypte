@@ -4,6 +4,8 @@ import "<racine>/packages/cli/test/fixture/src/styles/app.css"
 const __crypte_modules = {}
 const __crypte_broken = {}
 const __crypte_stale = new Map()
+let __crypte_loadError
+if (import.meta.hot) import.meta.hot.on('vite:error', ({ err }) => { __crypte_loadError = err })
 
 await Promise.all([
   import("/stories/Gardee.tsx").then((module) => { __crypte_modules["/stories/Gardee.tsx"] = module }, (error) => { __crypte_broken["/stories/Gardee.tsx"] = error }),
@@ -25,6 +27,20 @@ const __crypte_byId = new Map(
     .map((entry) => [entry.id, entry]),
 )
 
+// A failed fetch of a module, told by the error Vite reported for it: the
+// file from the project root, its line, and the code frame as the stack.
+function __crypte_named(failure) {
+  const err = __crypte_loadError
+  if (!err || !(failure instanceof TypeError) || !failure.message.startsWith('Failed to fetch dynamically imported module')) return failure
+  const root = "<racine>/packages/cli/test/fixture/"
+  const file = String(err.id ?? err.loc?.file ?? '').replace(root, '')
+  const at = err.loc ? `${file}:${err.loc.line}:${err.loc.column}` : file
+  const [first = '', ...frame] = String(err.message).split('\n')
+  const named = new Error(`${at}: ${first.replace(`${err.id}: `, '').replaceAll(root, '')}`)
+  named.stack = frame.join('\n').trim()
+  return named
+}
+
 function __crypte_render(id, overrides) {
   const entry = __crypte_byId.get(id)
   if (!entry) throw new Error(`unknown story: ${id}`)
@@ -34,11 +50,11 @@ function __crypte_render(id, overrides) {
   // Thrown here rather than swallowed: the channel turns it into an `error`
   // carrying this story's id, which is what names the file at fault.
   const __crypte_failure = __crypte_broken[__crypte_path]
-  if (__crypte_failure) throw __crypte_failure
+  if (__crypte_failure) throw __crypte_named(__crypte_failure)
 
   // A module that failed to reload leaves its old version in place, and this
   // frame cannot tell which stories use it: until it reloads, none renders.
-  for (const failed of __crypte_stale.values()) throw failed
+  for (const failed of __crypte_stale.values()) throw __crypte_named(failed)
 
   const module = __crypte_modules[__crypte_path]
   if (!module) throw new Error(`no module for ${entry.storyFile}`)
@@ -112,6 +128,11 @@ if (import.meta.hot) {
 
     __crypte_channel.again()
   })
+
+  // Vite reports a module it could not load on this event, which can arrive
+  // after the render that failed on it: rendering again lets the shell read
+  // the file at fault instead of the story file.
+  import.meta.hot.on('vite:error', () => __crypte_channel.again())
 
   // Running again builds a new channel and a new adapter. The old ones go
   // first: left behind, the old channel still answers the shell and the old
