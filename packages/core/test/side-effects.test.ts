@@ -171,4 +171,12 @@ describe('ce qu’un fichier du noyau exécute à l’import', () => {
   ])('ne signale pas %s', (source) => {
     expect(effectsOf('x.ts', source)).toEqual([])
   })
+
+  // La limite du garde, constatée plutôt que découverte : oxc lit le décorateur
+  // d'un paramètre rest sans erreur et ne le met nulle part dans l'arbre, donc
+  // rien ici ne peut le voir. Le jour où ce cas rougit, oxc le garde, et il
+  // rejoint la table « signale ».
+  it('ne voit pas un décorateur de paramètre rest, que le parseur jette', () => {
+    expect(effectsOf('x.ts', 'export class A { m(@log ...r) {} }')).toEqual([])
+  })
 })
