@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.14, reference document. A project brief points here instead of restating these shapes.
+> Version 1.15, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -628,7 +628,7 @@ The CLI writes two files side by side in `.crypte/`.
 
 **The manifest is the truth.** It is regenerated from the story files on every build, so when the two disagree it is the fingerprint that is out of date, never the other way round.
 
-The fingerprint is not a smaller manifest and nothing reads it to render. It exists so that Git holds the history of a catalogue: per **story** entry, the identifier, the component as `file#export`, the status, the sorted prop names, and one digest folding everything else. That is enough to say what changed between two versions, and small enough to commit on every build. Measured on 500 stories: the full manifest is 706 KB raw and 83 KB gzipped, the fingerprint 131 KB and 9 KB, which is 268 bytes per story.
+The fingerprint is not a smaller manifest and nothing reads it to render. It exists so that Git holds the history of a catalogue: per **story** entry, the identifier, the component as `file#export`, the status, the sorted prop names, and one digest folding everything else. The digest reads `source` with its attributes sorted, so reordering props in a story file, which changes nothing rendered, leaves the fingerprint alone. That is enough to say what changed between two versions, and small enough to commit on every build. Measured on 500 stories: the full manifest is 706 KB raw and 83 KB gzipped, the fingerprint 131 KB and 9 KB, which is 268 bytes per story.
 
 **Story entries only, and that is a boundary rather than an oversight.** Every field above is a story's: a component reference, a status, prop names. A `tokens` family changing therefore leaves the committed fingerprint untouched, so this file answers "what changed in the component catalogue", not "what changed in the manifest". Whether a token set deserves its own committed history is a separate question, and the first producer is what will settle it.
 
@@ -882,6 +882,12 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.15.** Reordering props no longer moves the fingerprint, which was its one measured noise.
+
+| Before | After |
+| --- | --- |
+| reordering a block of props changed `source`, hence the digest | the digest compares `source` with its attributes sorted, and `source` itself keeps the author's order |
 
 **v1.14.** The Vite that compiles the preview is named, which the document had wrong.
 

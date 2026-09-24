@@ -8,6 +8,8 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Manifest, StoryEntry } from '@crypte/core/protocol'
+import { parseSync } from 'vite'
+import type { Node } from './ast'
 import { storiesOf } from './manifest'
 
 // Beside the manifest, and committed where the manifest is not.
@@ -66,7 +68,38 @@ function digestOf(entry: StoryEntry): string {
     if (!SHOWN.has(key)) rest[key] = entry[key as keyof StoryEntry]
   }
 
+  rest['source'] = comparable(entry.source)
+
   return createHash('sha256').update(stable(rest)).digest('hex').slice(0, 16)
+}
+
+// `source` with its attributes sorted by name. It keeps the author's order
+// because it is displayed, so reordering a block of props moved the digest
+// while the render stayed the same. The producer writes no spread, so the order
+// of attributes carries no meaning here.
+function comparable(source: string): string {
+  let parsed: ReturnType<typeof parseSync>
+
+  try {
+    parsed = parseSync('source.tsx', `(${source})`)
+  } catch {
+    return source
+  }
+
+  const statement = (parsed.program.body as unknown as Node[])[0]
+  const element = (statement?.['expression'] as Node | undefined)?.['expression'] as
+    | Node
+    | undefined
+  const opening = element?.['openingElement'] as Node | undefined
+  if (parsed.errors.length > 0 || !opening) return source
+
+  const text = `(${source})`
+  const attributes = (opening['attributes'] as Node[]).map((one) => text.slice(one.start, one.end))
+  const name = opening['name'] as Node
+
+  return (
+    [text.slice(name.start, name.end), ...attributes.sort()].join(' ') + text.slice(opening.end, -1)
+  )
 }
 
 // A JSON form whose object keys are sorted at every depth. `JSON.stringify`
