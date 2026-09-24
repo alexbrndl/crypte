@@ -37,13 +37,14 @@ test('le workflow de version ne publie pas', () => {
 // code qui comptait, chez l'utilisateur et pas ici.
 //
 // Le noyau le déclare parce qu'il n'expose que des types, des fonctions pures et
-// deux fabriques de canal. Les trois autres ne le déclarent pas : l'adaptateur
-// touche le DOM, le CLI est un binaire, `tokens` est une fabrique de plugin.
+// deux fabriques de canal. Les autres ne le déclarent pas : l'adaptateur touche
+// le DOM, le CLI est un binaire, `tokens` est une fabrique de plugin, et `ui`
+// livre une feuille de style qu'un bundler retirerait.
 //
 // Ce cas fixe **quel paquet déclare**, et rien de plus. Que la déclaration soit
 // méritée n'est vérifié par rien, et le bloc en bas dit pourquoi.
 test('seul le noyau déclare sideEffects: false', () => {
-  const déclarent = ['core', 'cli', 'react', 'tokens'].filter(
+  const déclarent = ['core', 'cli', 'react', 'tokens', 'ui'].filter(
     (nom) => JSON.parse(lire('packages', nom, 'package.json')).sideEffects === false,
   )
 
@@ -65,6 +66,27 @@ test('aucun code publié n’importe vite-plus', () => {
 
   expect(sources, 'aucune source lue').not.toEqual([])
   expect(sources.filter((f) => lire(f).includes('vite-plus'))).toEqual([])
+})
+
+// `@crypte/ui` est une feuille du graphe : un paquet qui l'importerait ferait
+// charger des composants Vue à qui ne voulait que des types, la panne que la
+// troisième contrainte de `CLAUDE.md` existe pour empêcher.
+test('aucun paquet ni le CLI ne dépend de @crypte/ui', () => {
+  const paquets = ['core', 'cli', 'react', 'tokens']
+  const déclarent = paquets.filter((nom) => {
+    const manifeste = JSON.parse(lire('packages', nom, 'package.json'))
+    return Object.keys({ ...manifeste.dependencies, ...manifeste.peerDependencies }).includes(
+      '@crypte/ui',
+    )
+  })
+
+  const sources = execFileSync('git', ['ls-files', 'packages'], { cwd: root, encoding: 'utf8' })
+    .split('\n')
+    .filter((f) => f.includes('/src/') && !f.startsWith('packages/ui/'))
+
+  expect(sources, 'aucune source lue').not.toEqual([])
+  expect(déclarent).toEqual([])
+  expect(sources.filter((f) => lire(f).includes('@crypte/ui'))).toEqual([])
 })
 
 // **Ce que ce fichier ne garde pas, et pourquoi.** La justesse de

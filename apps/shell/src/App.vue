@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Manifest, SkippedFile, StoryEntry } from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/shell'
+import { Callout } from '@crypte/ui'
 import { computed, onMounted, ref, useTemplateRef } from 'vue'
 import { landing, unreadable, type Shown } from './recover'
 
@@ -161,23 +162,23 @@ onMounted(() => {
     <div>
       <!-- Au-dessus de la preview et jamais bloquant : une story écartée est
            absente de l'arbre, donc rien d'autre ne la nomme. -->
-      <section v-if="setAside.length > 0" class="set-aside" role="status">
+      <Callout v-if="setAside.length > 0" tone="warning" class="set-aside" role="status">
         <h2>Ce que Crypte n'a pas pu lire</h2>
         <ul>
           <li v-for="one of setAside" :key="one.file">
             <code>{{ one.file }}</code> : {{ one.title }}. {{ one.reason }}
           </li>
         </ul>
-      </section>
+      </Callout>
 
       <!-- L'erreur couvre la preview plutôt que de l'accompagner : ce qui reste
            affiché dessous appartient à la story d'avant, et le laisser voir
            ferait croire que celle-ci a rendu. -->
-      <div v-if="failure" class="failure" role="alert">
+      <Callout v-if="failure" tone="danger" class="failure" role="alert">
         <h2>{{ failure.id }} n'a pas pu être rendue</h2>
         <p>{{ failure.message }}</p>
         <pre v-if="failure.stack">{{ failure.stack }}</pre>
-      </div>
+      </Callout>
       <iframe v-show="!failure" ref="frame" src="/preview.html" title="preview"></iframe>
 
       <!-- Sous la preview, pas dessus : la story rend, et l'avertissement ne dit
@@ -219,19 +220,13 @@ iframe {
 }
 
 .failure {
-  border: 1px solid #fca5a5;
-  background: #fef2f2;
-  padding: 12px 16px;
+  --callout-padding: 12px 16px;
   min-height: 70vh;
-  box-sizing: border-box;
 }
 
 .set-aside {
-  border: 1px solid #fcd34d;
-  background: #fffbeb;
-  padding: 8px 12px;
+  --callout-font-size: 13px;
   margin-bottom: 12px;
-  font-size: 13px;
 }
 
 .set-aside h2 {

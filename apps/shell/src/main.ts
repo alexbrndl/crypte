@@ -1,3 +1,4 @@
+import '@crypte/ui/style.css'
 import { createApp } from 'vue'
 import App from './App.vue'
 
