@@ -16,22 +16,22 @@ const dit = () => {
 
 // Les trois commandes montent un serveur, lisent un projet ou écrivent un
 // fichier : ici on n'éprouve que ce que l'entrée leur passe, donc des doublures
-// qui retiennent leur racine.
+// qui retiennent quelle commande a reçu quelle racine.
 const faux = () => {
-  const racines: string[] = []
+  const appels: [string, string][] = []
 
   return {
-    racines,
+    appels,
     dev: async (input: string) => {
-      racines.push(input)
+      appels.push(['dev', input])
       return undefined as unknown as Running
     },
     check: async (input: string) => {
-      racines.push(input)
+      appels.push(['check', input])
       return 0
     },
     init: (input: string) => {
-      racines.push(input)
+      appels.push(['init', input])
     },
   }
 }
@@ -60,7 +60,7 @@ describe('the crypte command', () => {
 
     expect(await run(argv, sortie.log, doublure)).toBe(0)
     expect(sortie.lignes).toEqual(help())
-    expect(doublure.racines).toEqual([])
+    expect(doublure.appels).toEqual([])
   })
 
   // L'aide nomme les trois commandes et la version du protocole : c'est ce
@@ -99,7 +99,7 @@ describe('the crypte command', () => {
 
     expect(await run(argv, dit().log, doublure, erreur.log)).toBe(1)
     expect(erreur.lignes).toEqual([ligne])
-    expect(doublure.racines).toEqual([])
+    expect(doublure.appels).toEqual([])
   })
 
   test.for(['dev', 'check', 'init'] as const)('passes the given root to %s', async (commande) => {
@@ -107,7 +107,7 @@ describe('the crypte command', () => {
 
     await run([commande, '/un/projet'], dit().log, doublure)
 
-    expect(doublure.racines).toEqual(['/un/projet'])
+    expect(doublure.appels).toEqual([[commande, '/un/projet']])
   })
 
   // Sans racine, le dossier courant : c'est ce qu'une commande nue doit faire,
@@ -119,7 +119,7 @@ describe('the crypte command', () => {
 
       await run([commande], dit().log, doublure)
 
-      expect(doublure.racines).toEqual([process.cwd()])
+      expect(doublure.appels).toEqual([[commande, process.cwd()]])
     },
   )
 
