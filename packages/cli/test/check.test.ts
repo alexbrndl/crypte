@@ -376,7 +376,50 @@ describe('command', () => {
     )
 
     expect(await check(root, (line) => lignes.push(line))).toBe(1)
-    expect(lignes).toEqual(['carte--default: its component is gone, ../src/Carte'])
+    expect(lignes).toEqual(['carte--default: its component is gone, src/Carte'])
+  })
+
+  // Un fichier de story qui n'a rien donné est nommé, en avertissement : ce peut
+  // être une forme correcte que le lecteur ne suit pas. Son composant n'est pas
+  // accusé, et tant qu'il n'est pas lu, les composants sans story ne sont pas
+  // listés. Un fichier lu en partie n'en est pas un : ses entrées nomment son
+  // composant.
+  test('names an unreadable story file instead of blaming its component', async () => {
+    const lignes: string[] = []
+    const root = await recorded(
+      projectWith({
+        'crypte.config.ts': CONFIG,
+        'src/Carte.tsx': 'export const Carte = () => <p />',
+        'src/Bouton.tsx': 'export const Bouton = () => <button />',
+        'stories/Bouton.ts':
+          "import { Bouton } from '../src/Bouton'\nexport default defineStories(Bouton)",
+        'stories/Carte.ts':
+          "import { Carte } from '../src/Carte'\nexport default defineStories(Carte, {",
+      }),
+    )
+
+    expect(await check(root, (line) => lignes.push(line))).toBe(0)
+    expect(lignes).toHaveLength(2)
+    expect(lignes[0]).toMatch(/^stories\/Carte\.ts: this story file cannot be read, \S/)
+    expect(lignes[1]).toBe(
+      'components with no story are not listed while a story file cannot be read',
+    )
+  })
+
+  test('does not count a partly read story file as unreadable', async () => {
+    const lignes: string[] = []
+    const root = await recorded(
+      projectWith({
+        'crypte.config.ts': CONFIG,
+        'src/Carte.tsx': 'export const Carte = () => <p />',
+        'src/Autre.tsx': 'export const Autre = () => <p />',
+        'stories/Carte.ts':
+          "import { Carte } from '../src/Carte'\nconst noms = ['b']\nexport default defineStories(Carte, { stories: { a: {}, [noms[0]]: {} } })",
+      }),
+    )
+
+    expect(await check(root, (line) => lignes.push(line))).toBe(0)
+    expect(lignes).toEqual(['src/Autre.tsx: Autre has no story'])
   })
 
   // L'avertissement ne fait jamais échouer la commande : 1.2 le dit, et un
