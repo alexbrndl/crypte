@@ -77,6 +77,13 @@ function __crypte_render(id, overrides) {
   // story rendered nothing. Measured in a browser.
   const { component, definition } = module.default
 
+  // A manifest newer than the module, a story just renamed: merged anyway,
+  // the base props rendered under the new name, reported as rendered. A file
+  // without a `stories` block has the one implicit story of section 2.2.
+  if (definition.stories ? !Object.hasOwn(definition.stories, entry.name) : entry.name !== "Default") {
+    throw new Error(`${entry.storyFile} has no story named ${JSON.stringify(entry.name)} in the version this frame loaded`)
+  }
+
   const props = __crypte_propsOf(definition, entry.name, overrides)
 
   // The wrappers last: the adapter nests them, outermost first, and the

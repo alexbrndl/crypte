@@ -8,6 +8,7 @@ import { transformWithOxc, type Plugin, type ViteDevServer } from 'vite'
 import { ConfigError } from './errors'
 import { storyFilesOf, type Catalogue } from './manifest'
 import { cssEntryOf, type Project } from './project'
+import { ONLY_STORY } from './stories'
 import { configSources, required } from './config-source'
 
 // Walks up to `package.json` rather than resolving from this file, which sits in
@@ -426,6 +427,13 @@ export function previewEntry(project: Project, files: string[] = []): string {
     '  // on its own: mounting `module.default` handed React an object, and the',
     '  // story rendered nothing. Measured in a browser.',
     '  const { component, definition } = module.default',
+    '',
+    '  // A manifest newer than the module, a story just renamed: merged anyway,',
+    '  // the base props rendered under the new name, reported as rendered. A file',
+    '  // without a `stories` block has the one implicit story of section 2.2.',
+    `  if (definition.stories ? !Object.hasOwn(definition.stories, entry.name) : entry.name !== ${JSON.stringify(ONLY_STORY)}) {`,
+    '    throw new Error(`${entry.storyFile} has no story named ${JSON.stringify(entry.name)} in the version this frame loaded`)',
+    '  }',
     '',
     `  const props = ${OWN}propsOf(definition, entry.name, overrides)`,
     '',

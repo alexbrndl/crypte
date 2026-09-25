@@ -106,8 +106,12 @@ async function refresh() {
   shown = next.shown
   if (next.status) status.value = next.status
 
+  // L'erreur part avec la story : un fichier supprimé fait d'abord échouer son
+  // rechargement à chaud, et l'alerte restait par-dessus « la story affichée a
+  // disparu ».
   if (next.id === null) {
     current.value = null
+    failure.value = null
     return
   }
 

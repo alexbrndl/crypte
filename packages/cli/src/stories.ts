@@ -15,7 +15,7 @@ import { keyOf, literalOf, propertyOf, wrapperNames, type Node } from './ast'
 export const STORY_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx']
 
 // The name a story gets when the file declares none: section 2.2 of contracts.
-const ONLY_STORY = 'Default'
+export const ONLY_STORY = 'Default'
 
 // What one story file produced, and why it produced no more. Never fatal: a
 // file gives entries and a reason at once rather than losing the catalogue.
