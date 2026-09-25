@@ -23,7 +23,32 @@ export interface Surfaces {
 export function surfacesOf(project: Project): Surfaces {
   const found: Surfaces = { shell: [], preview: [], refused: [] }
 
-  for (const plugin of project.config.plugins ?? []) {
+  // The names of the plugins before, whatever their surfaces. The shell keeps a
+  // panel's open state under its plugin's name, and the plugin messages of
+  // DCJ-322 carry it: two plugins sharing one would share both.
+  const taken = new Set<string>()
+
+  for (const [at, plugin] of (project.config.plugins ?? []).entries()) {
+    const name: unknown = plugin?.name
+    const browser = plugin?.shell !== undefined || plugin?.preview !== undefined
+
+    if (typeof name !== 'string' || name === '') {
+      if (browser) {
+        found.refused.push({
+          plugin: `plugins[${at}]`,
+          reason: 'a plugin with a browser surface needs a `name`',
+        })
+      }
+      continue
+    }
+
+    if (browser && taken.has(name)) {
+      found.refused.push({ plugin: name, reason: '`name` is already taken by an earlier plugin' })
+      continue
+    }
+
+    taken.add(name)
+
     for (const side of ['shell', 'preview'] as const) {
       const pointer: unknown = plugin?.[side]
       if (pointer === undefined) continue
@@ -31,15 +56,15 @@ export function surfacesOf(project: Project): Surfaces {
       const file = fileOf(pointer)
       if (file === undefined) {
         found.refused.push({
-          plugin: plugin.name,
+          plugin: name,
           reason: `\`${side}\` must be the file URL of a module, \`new URL('./${side}.mjs', import.meta.url).href\``,
         })
       } else if (!isFile(file)) {
         found.refused.push({
-          plugin: plugin.name,
+          plugin: name,
           reason: `\`${side}\` points at ${file}, which is not a file`,
         })
-      } else found[side].push({ plugin: plugin.name, file })
+      } else found[side].push({ plugin: name, file })
     }
   }
 

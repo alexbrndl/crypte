@@ -742,7 +742,7 @@ describe('a config that carries TypeScript syntax', () => {
 // `hello` de la démonstration pose un bouton dans le shell et une marque dans
 // l'iframe.
 describe('a plugin in the browser', () => {
-  const panneau = (page: Page) => page.locator('[data-plugin="hello"] button')
+  const panneau = (page: Page) => page.locator('[data-plugin="hello"] .body button')
   const cadre = (page: Page) => page.frameLocator('iframe[title="preview"]')
 
   test('shows its shell module and runs its preview module', async ({ ecran }) => {
@@ -805,5 +805,57 @@ describe('a plugin in the browser', () => {
     expect([...new Set(dites)]).toEqual([
       'console: crypte: the preview module of hello could not load Error: cette preview lève à l’import',
     ])
+  })
+})
+
+// L'hôte des panneaux, sur les deux plugins de la démonstration : `hello`, qui a
+// toujours quelque chose à dire, et `status`, qui n'a rien à dire sur les
+// stories sans statut : celles de `Tag`.
+describe('the panel host', () => {
+  const cadre = (page: Page, nom: string) => page.locator(`[data-plugin="${nom}"]`)
+
+  test('shows the panels in configuration order', async ({ ecran }) => {
+    await expect
+      .poll(() =>
+        ecran.page
+          .locator('[data-plugin]')
+          .evaluateAll((tous) => tous.map((un) => un.getAttribute('data-plugin'))),
+      )
+      .toEqual(['hello', 'status'])
+  })
+
+  test('folds a panel with nothing to say, story by story', async ({ ecran }) => {
+    const statut = cadre(ecran.page, 'status')
+    const raison = () =>
+      statut
+        .locator('.inapplicable')
+        .textContent({ timeout: 1_000 })
+        .catch(() => null)
+
+    // La story d'arrivée, un `Badge`, déclare `stable`.
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    await expect.poll(() => statut.locator('.body').textContent()).toBe('statut : stable')
+
+    await ecran.page.getByRole('button', { name: 'Nue', exact: true }).click()
+    await expect.poll(raison).toBe('aucun statut déclaré')
+    expect(await statut.locator('.body').isVisible()).toBe(false)
+
+    await ecran.page.getByRole('button', { name: 'Par défaut', exact: true }).click()
+    await expect.poll(() => statut.locator('.body').isVisible()).toBe(true)
+    expect(await raison()).toBeNull()
+    expect(await statut.locator('.body').textContent()).toBe('statut : stable')
+  })
+
+  test('keeps a panel closed across a reload', async ({ ecran }) => {
+    const titre = () => cadre(ecran.page, 'hello').locator('.head button')
+
+    await titre().click()
+    await expect.poll(() => titre().getAttribute('aria-expanded')).toBe('false')
+
+    await ecran.page.reload()
+
+    await expect.poll(() => cadre(ecran.page, 'hello').count()).toBe(1)
+    expect(await titre().getAttribute('aria-expanded')).toBe('false')
+    expect(await cadre(ecran.page, 'hello').locator('.body').isVisible()).toBe(false)
   })
 })

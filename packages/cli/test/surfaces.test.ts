@@ -133,6 +133,70 @@ describe('what a surface is refused', () => {
     })
   })
 
+  // Le shell retient l'ouverture d'un panneau sous le nom de son plugin : deux
+  // plugins d'un même nom la partageraient. Le premier garde sa place.
+  it('refuses the browser surfaces of a plugin whose name is already taken', () => {
+    expect(
+      avec(
+        { name: 'a', node: { entries: () => [] } },
+        { name: 'b', shell: url('shell.mjs') },
+        { name: 'a', shell: url('shell.mjs') },
+        { name: 'b', preview: url('preview.mjs') },
+        // Sans surface navigateur, rien à refuser ici.
+        { name: 'b', node: { entries: () => [] } },
+      ),
+    ).toEqual({
+      shell: [{ plugin: 'b', file: join(dossier, 'shell.mjs') }],
+      preview: [],
+      refused: [
+        { plugin: 'a', reason: '`name` is already taken by an earlier plugin' },
+        { plugin: 'b', reason: '`name` is already taken by an earlier plugin' },
+      ],
+    })
+  })
+
+  // La place dans la configuration décide, pas l'état des surfaces : un premier
+  // plugin au pointeur cassé garde son nom, et son homonyme n'apparaît pas à sa
+  // place sans que personne l'ait choisi.
+  it('keeps the name of a first plugin whose surface is refused', () => {
+    expect(
+      avec({ name: 'a', shell: url('absent.mjs') }, { name: 'a', shell: url('shell.mjs') }),
+    ).toEqual({
+      shell: [],
+      preview: [],
+      refused: [
+        {
+          plugin: 'a',
+          reason: `\`shell\` points at ${join(dossier, 'absent.mjs')}, which is not a file`,
+        },
+        { plugin: 'a', reason: '`name` is already taken by an earlier plugin' },
+      ],
+    })
+  })
+
+  it('refuses the browser surfaces of a plugin without a name, by its place', () => {
+    const sansNom = { shell: url('shell.mjs') } as unknown as CryptePlugin
+
+    expect(
+      avec(sansNom, { name: '', preview: url('preview.mjs') }, {
+        node: { entries: () => [] },
+      } as unknown as CryptePlugin),
+    ).toEqual({
+      shell: [],
+      preview: [],
+      refused: [
+        {
+          plugin: 'plugins[0]',
+          reason: 'a plugin with a browser surface needs a `name`',
+        },
+        {
+          plugin: 'plugins[1]',
+          reason: 'a plugin with a browser surface needs a `name`',
+        },
+      ],
+    })
+  })
+
   // Le seul chemin par lequel un refus atteint le terminal : `crypte dev`
   // imprime `skippedPlugins`, et rien d'autre.
   it('reports a refusal with the refused contributions', () => {

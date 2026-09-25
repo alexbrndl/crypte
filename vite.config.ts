@@ -159,8 +159,7 @@ export default defineConfig({
             '**/screen.test.ts',
             '**/restart.test.ts',
             '**/adapter.test.tsx',
-            '**/app.test.ts',
-            'apps/shell/test/panels.test.ts',
+            'apps/shell/test/**',
             'packages/ui/test/**',
           ],
         },
@@ -173,11 +172,7 @@ export default defineConfig({
         test: {
           ...partagé,
           name: 'shell',
-          include: [
-            'apps/shell/test/app.test.ts',
-            'apps/shell/test/panels.test.ts',
-            'packages/ui/test/**/*.test.ts',
-          ],
+          include: ['apps/shell/test/**/*.test.ts', 'packages/ui/test/**/*.test.ts'],
           environment: 'jsdom',
         },
       },

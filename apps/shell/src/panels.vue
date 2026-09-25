@@ -1,10 +1,15 @@
 <script setup lang="ts">
+import type { StoryEntry } from '@crypte/core/protocol'
 import { Callout } from '@crypte/ui'
 import { onMounted, shallowRef, type Component } from 'vue'
+import PanelFrame from './panel-frame.vue'
 
 // Ce que les plugins apportent au shell, section 6.1 des contrats : chaque module
-// est importé tel que le CLI le sert, et son export par défaut est monté ici.
-// Une zone nue : l'hôte de panneaux, avec son ordre et ses états, est DCJ-323.
+// est importé tel que le CLI le sert, et son export par défaut est monté dans
+// un cadre, dans l'ordre de `plugins`. Le nom d'un plugin est unique : le CLI
+// refuse les surfaces d'un second plugin du même nom.
+
+defineProps<{ entry: StoryEntry | null }>()
 
 const PLUGINS = '/@crypte/plugins.json'
 
@@ -54,9 +59,13 @@ onMounted(async () => {
       <code>{{ one.name }}</code> n'a pas pu se charger : {{ one.message }}
     </p>
   </Callout>
-  <section v-for="one of panels" :key="one.name" :data-plugin="one.name">
-    <component :is="one.panel" />
-  </section>
+  <PanelFrame
+    v-for="one of panels"
+    :key="one.name"
+    :name="one.name"
+    :panel="one.panel"
+    :entry="entry"
+  />
 </template>
 
 <style scoped>
