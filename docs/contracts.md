@@ -756,7 +756,7 @@ The shell module exports a `ShellContribution` by default, the preview module a 
 
 **A preview module goes through the project's Vite**, like a story file, so it imports what it needs. **A shell module is served as is, never compiled**, since the shell is prebuilt. Its one bare import is `vue`, which the shell provides through an import map, so every panel runs on the shell's own Vue. A plugin declares `vue` as a peer dependency and keeps it out of its bundle: a panel running on a second copy never redraws its own state, and nothing warns.
 
-**A surface that points nowhere is refused, with its reason**, the way 6.3 refuses a contribution: a pointer that is not a `file:` URL, or one that leads to no file. A module that throws on import costs nothing else. The shell names it and shows the other panels; the preview renders its stories and names the module in the frame's console.
+**A surface that points nowhere is refused, with its reason**, the way 6.3 refuses a contribution: a pointer that is not a `file:` URL, or one that leads to no file. A module that throws on import costs nothing else. The shell names it, or a shell module whose default export is not a component, and shows the other panels; the preview renders its stories and names the module in the frame's console.
 
 `NodeHooks` is specified in 6.3. `ShellContribution` is not: it is written with the panel host, tracked in DCJ-323, and until then the core declares it opaque, the way it declares an adapter opaque.
 

@@ -99,6 +99,20 @@ describe('what a surface is refused', () => {
     ])
   })
 
+  // Chaque surface pour soi : celle qui ne mène nulle part ne coûte pas l'autre.
+  it('keeps the surface that points at a file when the other does not', () => {
+    expect(avec({ name: 'p', shell: url('shell.mjs'), preview: url('absent.mjs') })).toEqual({
+      shell: [{ plugin: 'p', file: join(dossier, 'shell.mjs') }],
+      preview: [],
+      refused: [
+        {
+          plugin: 'p',
+          reason: `\`preview\` points at ${join(dossier, 'absent.mjs')}, which is not a file`,
+        },
+      ],
+    })
+  })
+
   // Le seul chemin par lequel un refus atteint le terminal : `crypte dev`
   // imprime `skippedPlugins`, et rien d'autre.
   it('reports a refusal with the refused contributions', () => {

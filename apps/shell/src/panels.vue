@@ -25,7 +25,7 @@ onMounted(async () => {
   // Chacun pour soi : un module qui ne charge pas ne coûte pas les autres, et son
   // nom s'affiche plutôt que son panneau manque sans rien dire.
   const loaded = await Promise.allSettled(
-    listed.map((one) => import(/* @vite-ignore */ one.shell) as Promise<{ default?: Component }>),
+    listed.map((one) => import(/* @vite-ignore */ one.shell) as Promise<{ default?: unknown }>),
   )
 
   const found: typeof panels.value = []
@@ -33,10 +33,14 @@ onMounted(async () => {
 
   loaded.forEach((result, at) => {
     const name = listed[at]!.name
+    const panel = result.status === 'fulfilled' ? result.value.default : undefined
+
+    // Un objet ou une fonction, ce que Vue monte. Autre chose, `42` par exemple,
+    // ne rendait rien et ne disait rien. Mesuré.
     if (result.status === 'rejected') failed.push({ name, message: said(result.reason) })
-    else if (result.value.default === undefined)
-      failed.push({ name, message: "le module n'a pas d'export par défaut" })
-    else found.push({ name, panel: result.value.default })
+    else if ((typeof panel !== 'object' || panel === null) && typeof panel !== 'function')
+      failed.push({ name, message: "le module n'exporte pas de composant par défaut" })
+    else found.push({ name, panel: panel as Component })
   })
 
   panels.value = found
