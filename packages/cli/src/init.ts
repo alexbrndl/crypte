@@ -83,7 +83,8 @@ export function configFor(plan: Plan): string {
 
 // What the command says it did, and what is left to the reader. No example
 // story is written: it would have to name a component, and picking one is the
-// guess section 1.2 refuses everywhere else.
+// guess section 1.2 refuses everywhere else. For the same reason the example
+// gives both import forms: copied with the wrong one, it fails at render.
 export function linesOf(plan: Plan): string[] {
   const said = [
     `wrote ${CONFIG_FILE}`,
@@ -109,6 +110,8 @@ export function linesOf(plan: Plan): string[] {
     `  // ${plan.stories}/Badge.ts`,
     `  import { defineStories } from '${plan.adapter.package}'`,
     `  import { Badge } from '../src/components/Badge'`,
+    `  // or, for a component exported by default:`,
+    `  // import Badge from '../src/components/Badge'`,
     ``,
     `  export default defineStories(Badge)`,
   ]

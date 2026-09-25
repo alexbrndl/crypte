@@ -100,6 +100,27 @@ describe('the written file', () => {
 })
 
 describe('what the command prints', () => {
+  // Les deux formes d'import : copié avec la mauvaise, l'exemple échoue au rendu
+  // sur « does not provide an export named ». DCJ-316.
+  test('gives an example story for a named and a default export', () => {
+    const root = projectWith({ 'package.json': paquet({ react: '^19.0.0' }) }, ['stories'])
+    const lines = linesOf(planFor(root))
+
+    expect(
+      lines.slice(lines.findIndex((line) => line.startsWith('Write a first story'))).join('\n'),
+    ).toMatchInlineSnapshot(`
+        "Write a first story under \`stories\`, then run \`crypte dev\`:
+
+          // stories/Badge.ts
+          import { defineStories } from '@crypte/react'
+          import { Badge } from '../src/components/Badge'
+          // or, for a component exported by default:
+          // import Badge from '../src/components/Badge'
+
+          export default defineStories(Badge)"
+      `)
+  })
+
   test('gives the install command when the adapter is missing', () => {
     const root = projectWith({ 'package.json': paquet({ react: '^19.0.0' }) }, ['stories'])
 
