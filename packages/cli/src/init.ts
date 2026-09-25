@@ -2,7 +2,7 @@
 // project.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join, posix, resolve } from 'node:path'
 import { ConfigError } from './errors'
 
 const CONFIG_FILE = 'crypte.config.ts'
@@ -103,15 +103,18 @@ export function linesOf(plan: Plan): string[] {
     )
   }
 
+  // From the story root, which may sit under `src` itself.
+  const component = posix.relative(plan.stories, 'src/components/Badge')
+
   return [
     ...said,
     `Write a first story under \`${plan.stories}\`, then run \`crypte dev\`:`,
     ``,
     `  // ${plan.stories}/Badge.ts`,
     `  import { defineStories } from '${plan.adapter.package}'`,
-    `  import { Badge } from '../src/components/Badge'`,
+    `  import { Badge } from '${component}'`,
     `  // or, for a component exported by default:`,
-    `  // import Badge from '../src/components/Badge'`,
+    `  // import Badge from '${component}'`,
     ``,
     `  export default defineStories(Badge)`,
   ]

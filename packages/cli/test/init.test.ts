@@ -101,24 +101,43 @@ describe('the written file', () => {
 
 describe('what the command prints', () => {
   // Les deux formes d'import : copié avec la mauvaise, l'exemple échoue au rendu
-  // sur « does not provide an export named ». DCJ-316.
-  test('gives an example story for a named and a default export', () => {
-    const root = projectWith({ 'package.json': paquet({ react: '^19.0.0' }) }, ['stories'])
+  // sur « does not provide an export named ». Et le chemin part de la racine des
+  // stories, qui peut être sous `src`. DCJ-316.
+  function exemple(racine: string): string {
+    const root = projectWith({ 'package.json': paquet({ react: '^19.0.0' }) }, [racine])
     const lines = linesOf(planFor(root))
+    const start = lines.findIndex((line) => line.startsWith('Write a first story'))
 
-    expect(
-      lines.slice(lines.findIndex((line) => line.startsWith('Write a first story'))).join('\n'),
-    ).toMatchInlineSnapshot(`
-        "Write a first story under \`stories\`, then run \`crypte dev\`:
+    expect(start).toBeGreaterThan(-1)
+    return lines.slice(start).join('\n')
+  }
 
-          // stories/Badge.ts
-          import { defineStories } from '@crypte/react'
-          import { Badge } from '../src/components/Badge'
-          // or, for a component exported by default:
-          // import Badge from '../src/components/Badge'
+  test('gives an example story for both export forms', () => {
+    expect(exemple('stories')).toMatchInlineSnapshot(`
+      "Write a first story under \`stories\`, then run \`crypte dev\`:
 
-          export default defineStories(Badge)"
-      `)
+        // stories/Badge.ts
+        import { defineStories } from '@crypte/react'
+        import { Badge } from '../src/components/Badge'
+        // or, for a component exported by default:
+        // import Badge from '../src/components/Badge'
+
+        export default defineStories(Badge)"
+    `)
+  })
+
+  test('points the example at the components from a root under src', () => {
+    expect(exemple('src/stories')).toMatchInlineSnapshot(`
+      "Write a first story under \`src/stories\`, then run \`crypte dev\`:
+
+        // src/stories/Badge.ts
+        import { defineStories } from '@crypte/react'
+        import { Badge } from '../components/Badge'
+        // or, for a component exported by default:
+        // import Badge from '../components/Badge'
+
+        export default defineStories(Badge)"
+    `)
   })
 
   test('gives the install command when the adapter is missing', () => {
