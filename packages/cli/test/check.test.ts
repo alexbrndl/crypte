@@ -450,6 +450,22 @@ describe('command', () => {
     `)
   })
 
+  // Un `.vue` se résout, et lu comme du script il échouait dès sa première ligne.
+  test('does not call a Vue component file unreadable', async () => {
+    const lignes: string[] = []
+    const root = await recorded(
+      projectWith({
+        'crypte.config.ts': CONFIG,
+        'src/Carte.vue': '<template><p>Carte</p></template>\n',
+        'stories/Carte.ts':
+          "import Carte from '../src/Carte.vue'\nexport default defineStories(Carte)",
+      }),
+    )
+
+    expect(await check(root, (line) => lignes.push(line))).toBe(0)
+    expect(lignes).toEqual(['nothing to report'])
+  })
+
   test('does not count a partly read story file as unreadable', async () => {
     const lignes: string[] = []
     const root = await recorded(

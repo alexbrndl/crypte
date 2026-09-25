@@ -1,7 +1,7 @@
-// `crypte check`: the four problems section 1.2 names. See docs/contracts.md.
+// `crypte check`: the five problems section 1.2 names. See docs/contracts.md.
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { dirname, join, relative, resolve, sep } from 'node:path'
+import { dirname, extname, join, relative, resolve, sep } from 'node:path'
 import { parseSync } from 'vite'
 import type { Manifest } from '@crypte/core/protocol'
 import { configWrappers } from './config-source'
@@ -350,8 +350,12 @@ export function staleOf(project: Project, manifest: Manifest): Problem[] {
 // to none without a word, so the fingerprint moved and only "behind" was said;
 // and `crypte dev` writes the fingerprint in that state, when nothing is said at
 // all. A warning, like an unreadable story file: the preview names the file too.
+// Only what Oxc reads: a `.vue` file resolves, and parsed as script it failed
+// on its first line whatever it held.
 export function brokenOf(project: Project, manifest: Manifest): Problem[] {
-  const files = [...new Set(storiesOf(manifest).map((entry) => entry.component.file))]
+  const files = [...new Set(storiesOf(manifest).map((entry) => entry.component.file))].filter(
+    (file) => READ.includes(extname(file)),
+  )
 
   return files.flatMap((file) => {
     let source: string
@@ -384,8 +388,8 @@ const STALE: Record<string, string> = {
 }
 
 // What the user reads. Orphans and a stale fingerprint decide the exit code; a
-// component with no story and an unreadable story file are warnings and never
-// fail, which 1.2 states.
+// component with no story, an unreadable story file and an unreadable component
+// file are warnings and never fail, which 1.2 states.
 export function linesOf(problems: Problem[]): string[] {
   const said = problems.map((one) =>
     one.kind === 'orphan'
