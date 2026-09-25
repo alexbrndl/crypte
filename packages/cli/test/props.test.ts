@@ -323,6 +323,16 @@ export const Badge = forwardRef<HTMLInputElement, Props>((props, ref) => null)`
     expect(read(source)).toEqual(attendu)
   })
 
+  it.each([
+    ['an arrow', 'export default ({ a }: { a: string }) => null'],
+    [
+      'memo around a typed forwardRef',
+      'type Props = { a: string }\nexport default memo(forwardRef<HTMLInputElement, Props>((props, ref) => null))',
+    ],
+  ])('reads %s behind export default', (_, source) => {
+    expect(read(source, 'default')).toEqual(attendu)
+  })
+
   it('prefers the parameter type to the type argument', () => {
     const source = `type Props = { a: string }
 export const Badge = forwardRef<HTMLInputElement, { b: number }>((props: Props, ref) => null)`
