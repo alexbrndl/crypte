@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.17, reference document. A project brief points here instead of restating these shapes.
+> Version 1.18, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -403,6 +403,10 @@ One rule, no extra field, and no collapsible group in the shell.
 Some shapes cannot be resolved by reading syntax alone, and fall back to an explicit declaration.
 
 CVA is read when the file holds it: for `VariantProps<typeof badgeVariants>`, written on the parameter, behind a local alias or in an interface's `extends`, with `const badgeVariants = cva(base, { variants })` in the same file, each variant becomes an `enum` whose options are its keys, and `defaultVariants` gives its default unless the component's own pattern writes one. A `badgeVariants` imported from another file, a variant keyed `true`/`false` (a boolean to CVA), or a numeric or computed key stays `unknown`, and its options go in `details.options`.
+
+A component inside a wrapper is read through it: `memo(…)`, `forwardRef(…)` and `Object.assign(Root, { … })`, bare or on the React namespace, nested or around a name declared in the same file, including behind `export default`. `forwardRef<Ref, Props>` gives the props type when the parameter carries none. Any other call, `styled(…)` or a project's own `withTheme(…)`, gives no props: what it passes on cannot be read without running it.
+
+A generic component such as `Select<T>` keeps `unknown` for every prop typed by `T`: the type is only known at each call site. Reopened if a plugin needs those props typed, which would take a type checker.
 
 ---
 
@@ -884,6 +888,8 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.18.** Props inference reads a component through `memo`, `forwardRef` and `Object.assign`, and takes the props type of `forwardRef<Ref, Props>`. A generic component's type parameters are written down as a limit (3.5).
 
 **v1.17.** `crypte check` names a component file that does not parse, and a syntax error in a story or component file carries its line and column. A component that failed to parse only showed as a stale fingerprint, and not at all once `crypte dev` had recorded it.
 

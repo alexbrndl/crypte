@@ -269,12 +269,80 @@ export default Badge`
     expect(read(source, 'default')).toEqual({ a: { type: 'string', required: true } })
   })
 
-  // `export default memo(Badge)` est un appel, pas un nom : consigné, pas suivi.
-  it('does not follow a call', () => {
+  // `export default memo(Badge)` est un appel : suivi jusqu'au nom qu'il enveloppe.
+  it('follows a wrapper around the name', () => {
     const source = `const Badge = ({ a }: { a: string }) => null
 export default memo(Badge)`
 
+    expect(read(source, 'default')).toEqual({ a: { type: 'string', required: true } })
+  })
+
+  // Un appel qui n'est pas une enveloppe connue ne dit rien de ce qu'il rend.
+  it('does not follow any other call', () => {
+    const source = `const Badge = ({ a }: { a: string }) => null
+export default withTheme(Badge)`
+
     expect(read(source, 'default')).toEqual({})
+  })
+})
+
+// `memo`, `forwardRef` et `Object.assign` rendaient une table vide : seul le
+// premier paramètre d'une fonction déclarée était lu. DCJ-318.
+describe('a component inside a wrapper', () => {
+  const attendu = { a: { type: 'string', required: true } }
+
+  it.each([
+    ['memo', 'export const Badge = memo(({ a }: { a: string }) => null)'],
+    ['forwardRef', 'export const Badge = forwardRef(({ a }: { a: string }, ref) => null)'],
+    [
+      'memo around forwardRef',
+      'export const Badge = memo(forwardRef(({ a }: { a: string }, ref) => null))',
+    ],
+    [
+      'React.memo',
+      'export const Badge = React.memo(function Badge({ a }: { a: string }) { return null })',
+    ],
+    [
+      'a wrapped name',
+      'const Inner = ({ a }: { a: string }) => null\nexport const Badge = memo(Inner)',
+    ],
+    [
+      'Object.assign',
+      'const Root = ({ a }: { a: string }) => null\nconst List = () => null\nexport const Badge = Object.assign(Root, { List })',
+    ],
+  ])('reads %s', (_, source) => {
+    expect(read(source)).toEqual(attendu)
+  })
+
+  // Le type en générique quand le paramètre n'en porte pas, forme courante de
+  // `forwardRef`. Celui du paramètre gagne quand il y en a un.
+  it('reads the props type forwardRef takes as its second type argument', () => {
+    const source = `type Props = { a: string }
+export const Badge = forwardRef<HTMLInputElement, Props>((props, ref) => null)`
+
+    expect(read(source)).toEqual(attendu)
+  })
+
+  it('prefers the parameter type to the type argument', () => {
+    const source = `type Props = { a: string }
+export const Badge = forwardRef<HTMLInputElement, { b: number }>((props: Props, ref) => null)`
+
+    expect(read(source)).toEqual(attendu)
+  })
+
+  it.each([
+    ['another call', 'export const Badge = styled(({ a }: { a: string }) => null)'],
+    [
+      'assign on another object',
+      'const Root = ({ a }: { a: string }) => null\nexport const Badge = Lodash.assign(Root, {})',
+    ],
+    ['a wrapper with no argument', 'export const Badge = memo()'],
+    [
+      'names that follow each other',
+      'const A = memo(B)\nconst B = memo(A)\nexport const Badge = A',
+    ],
+  ])('reads nothing from %s', (_, source) => {
+    expect(read(source)).toEqual({})
   })
 })
 
