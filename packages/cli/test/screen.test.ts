@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url'
 import { chromium, type Browser, type Frame, type Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, test as base } from 'vitest'
 import type { ViteDevServer } from 'vite'
-import { startDev } from '../src/dev'
+import { startDev, type Started } from '../src/dev'
 import { storyFilesOf } from '../src/manifest'
 
 // Ce que l'utilisateur voit vraiment, dans un navigateur. Les autres cas
@@ -76,6 +76,8 @@ interface Ecran {
   root: string
   // Le serveur, pour les cas qui forcent un ordre entre son surveillant et le nôtre.
   server: ViteDevServer
+  // Le catalogue servi, pour les cas qui fabriquent un écart avec les modules.
+  held: Started['held']
   // L'état visible, avec ce que la page a dit : un `#root` vide seul ne dit pas
   // si la preview a échoué, si le shell affiche une erreur, ou si rien n'est
   // encore arrivé. Sans ça, un échec se lit « expected '' to contain … » et ne
@@ -129,6 +131,7 @@ const test = base.extend<{ ecran: Ecran }>({
         page,
         root,
         server: started.server,
+        held: started.held,
         navigations: () => navigations,
         plaintes: () => plaintes,
         vu: async () => {
@@ -286,53 +289,77 @@ describe('the screen', () => {
   })
 
   // L'autre moitié : un module qui n'a pas la story que le manifeste nomme dit
-  // qu'il ne peut pas la rendre. La découverte lit le texte, l'exécution retire
-  // la story, ce qui donne cet écart sans course à provoquer. Le bloc entier
-  // retiré est l'autre branche : sans bloc, seule la story implicite existe.
+  // qu'il ne peut pas la rendre. L'écart est fabriqué côté manifeste, une entrée
+  // ajoutée au catalogue servi, plutôt que par une course à provoquer. Le fichier
+  // sans bloc `stories` est l'autre branche : seule la story implicite y existe.
   test.for([
-    ['one story', "delete self.definition.stories?.['Retirée']"],
-    ['the whole block', 'delete self.definition.stories'],
+    ['a stories block', 'Tag.tsx', undefined],
+    [
+      'no stories block',
+      'Seule.tsx',
+      [
+        "import { defineStories } from '@crypte/react'",
+        "import { Tag } from '@/components/Tag'",
+        '',
+        "export default defineStories(Tag, { props: { children: 'Seule' } })",
+        '',
+      ].join('\n'),
+    ],
   ] as const)(
-    'says a story is missing from the loaded module when it removes %s',
-    async ([, retrait], { ecran }) => {
+    'says a story is missing from the loaded module of a file with %s',
+    async ([, fichier, contenu], { ecran }) => {
       await expect.poll(ecran.vu).toBe('Nouveau')
 
-      writeFileSync(
-        join(ecran.root, 'stories', 'Fantome.tsx'),
-        [
-          "import { defineStories } from '@crypte/react'",
-          "import { Tag } from '@/components/Tag'",
-          "import self from './Fantome'",
-          '',
-          'export default defineStories(Tag, {',
-          "  props: { children: 'Base' },",
-          "  stories: { Présente: {}, Retirée: { children: 'Propre' } },",
-          '})',
-          '',
-          retrait,
-          '',
-        ].join('\n'),
-      )
+      if (contenu) {
+        writeFileSync(join(ecran.root, 'stories', fichier), contenu)
+        await expect
+          .poll(() => ecran.page.getByRole('button', { name: 'Default', exact: true }).count())
+          .toBe(1)
+      }
 
-      const retiree = ecran.page.getByRole('button', { name: 'Retirée', exact: true })
-      await expect.poll(() => retiree.count()).toBe(1)
-      await retiree.click()
+      const entries = ecran.held.catalogue.manifest.entries
+      const modele = entries.find(
+        (entry) => entry.type === 'story' && entry.storyFile === `stories/${fichier}`,
+      )
+      if (modele?.type !== 'story') throw new Error(`aucune story dans ${fichier}`)
+      entries.push({ ...modele, id: 'absente--absente', name: 'Absente' })
+
+      // Relu au chargement seulement, par le shell comme par la preview.
+      await ecran.page.reload()
+      await ecran.page.getByRole('button', { name: 'Absente', exact: true }).click()
 
       const alerte = ecran.page.getByRole('alert')
       await expect
-        .poll(() => alerte.textContent())
-        .toContain('stories/Fantome.tsx has no story named "Retirée"')
+        .poll(() => alerte.textContent({ timeout: 1000 }).catch(() => ecran.vu()))
+        .toContain(`stories/${fichier} has no story named "Absente"`)
     },
   )
 
   // Un fichier supprimé fait d'abord échouer son rechargement à chaud, puis le
   // shell perd la story. L'alerte de cet échec restait affichée par-dessus.
+  // Notre rechargement est retenu jusqu'à ce que l'alerte soit là : passé
+  // avant, il n'en laissait aucune, et le cas passait sans rien éprouver.
   test('drops the error of a story whose file was deleted', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
     await ecran.page.getByRole('button', { name: 'Nue', exact: true }).click()
     await expect.poll(ecran.vu).toBe('Étiquette')
 
+    const hot = ecran.server.hot
+    const send = hot.send.bind(hot) as (...args: unknown[]) => void
+    const retenus: unknown[][] = []
+    hot.send = ((...args: unknown[]) => {
+      const payload = args[0] as { type?: string }
+      if (payload.type === 'full-reload') retenus.push(args)
+      else send(...args)
+    }) as typeof hot.send
+
     rmSync(join(ecran.root, 'stories', 'Tag.tsx'))
+
+    const alerte = ecran.page.getByRole('alert')
+    await expect.poll(() => alerte.count()).toBe(1)
+    await expect.poll(() => retenus.length).toBe(1)
+    hot.send = send as typeof hot.send
+    for (const args of retenus) send(...args)
 
     const etat = ecran.page.locator('main > div > p').last()
     await expect.poll(() => etat.textContent()).toBe('la story affichée a disparu')
