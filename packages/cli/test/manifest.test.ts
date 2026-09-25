@@ -203,6 +203,47 @@ describe('the catalogue', () => {
 
 // La règle de fusion de la section 3.2 : `details` **complète** l'inférence, par
 // prop et champ par champ. Elle était écrite sans qu'aucun cas ne la garde.
+// Ce que l'entrée dit quand l'inférence n'a rien lu du composant, section 4.2.
+// Tous les cas de lecture sont dans `props.test.ts` ; ici, ce que l'entrée en
+// porte, et le composant introuvable, qui ne passe pas par la lecture.
+describe('props that could not be read', () => {
+  const unreadOf = async (component: Record<string, string>, imported: string) => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      ...component,
+      'stories/Card.ts': `import { Card } from '${imported}'\nexport default defineStories(Card, {})\n`,
+    })
+    const [entry] = storiesOf(buildCatalogue(await loadProject(root)).manifest)
+
+    return entry ? { details: entry.details, propsUnread: entry.propsUnread } : undefined
+  }
+
+  it('carries the reason the reader gave', async () => {
+    expect(
+      await unreadOf(
+        { 'src/Card.tsx': 'export function Card(props) { return null }\n' },
+        '../src/Card',
+      ),
+    ).toEqual({ details: {}, propsUnread: 'its props parameter has no type' })
+  })
+
+  // Un composant d'un paquet garde le spécificateur écrit par la story, qui ne
+  // nomme aucun fichier du projet.
+  it('names a component whose file cannot be found', async () => {
+    expect(await unreadOf({}, '@acme/ui')).toEqual({
+      details: {},
+      propsUnread: 'its file could not be found',
+    })
+  })
+
+  // L'autre côté de la paire : un composant sans props, lu, n'en porte pas.
+  it('carries nothing for a component with no props', async () => {
+    expect(
+      await unreadOf({ 'src/Card.tsx': 'export function Card() { return null }\n' }, '../src/Card'),
+    ).toEqual({ details: {}, propsUnread: undefined })
+  })
+})
+
 describe('details, inference completed by the file', () => {
   const component = `export interface P {
   /** Lue du composant. */

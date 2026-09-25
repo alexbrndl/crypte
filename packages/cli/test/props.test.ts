@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { detailsOf } from '../src/props'
+import { propsOf } from '../src/props'
 
 // Ce qu'un fichier de composant déclare de ses props, et ce que la lecture
 // refuse de deviner. Section 3.2 de docs/contracts.md.
@@ -21,12 +21,106 @@ function read(source: string, exported = 'Badge', extension = 'tsx') {
   const file = join(root, `Badge.${extension}`)
   writeFileSync(file, source)
 
-  return detailsOf(file, exported)
+  return propsOf(file, exported).details
 }
+
+// Ce qui distingue un composant sans props d'un composant que la lecture n'a pas
+// suivi : les deux donnent un `details` vide, seul le second porte `unread`.
+// Section 4.2, `propsUnread`.
+describe('what reading says when it reads nothing', () => {
+  function readAll(source: string, exported = 'Badge') {
+    const root = mkdtempSync(join(tmpdir(), 'crypte-props-'))
+    roots.push(root)
+
+    const file = join(root, 'Badge.tsx')
+    writeFileSync(file, source)
+
+    return propsOf(file, exported)
+  }
+
+  it.for([
+    [
+      'a file that does not parse',
+      'export function Badge({ a }: { a: string } { return null }',
+      'Badge',
+      'its file does not parse',
+    ],
+    [
+      'a named export it cannot find',
+      'export class Badge {}',
+      'Badge',
+      '`Badge` is not declared in a form the reader follows',
+    ],
+    [
+      'a default export it cannot find',
+      'export default class {}',
+      'default',
+      'the default export is not declared in a form the reader follows',
+    ],
+    [
+      'a parameter with no type',
+      'export function Badge(props) { return props.a }',
+      'Badge',
+      'its props parameter has no type',
+    ],
+    [
+      'a type from another file',
+      "import type { P } from './p'\nexport function Badge(props: P) { return null }",
+      'Badge',
+      'its props type is not declared in its file',
+    ],
+    [
+      'an intersection of types from another file',
+      "import type { P, Q } from './p'\nexport function Badge(props: P & Q) { return null }",
+      'Badge',
+      'its props type is not declared in its file',
+    ],
+  ])('names %s', ([, source, exported, unread]) => {
+    expect(readAll(source!, exported)).toEqual({ details: {}, unread })
+  })
+
+  it('names a file it cannot find', () => {
+    expect(propsOf(join(tmpdir(), 'jamais-la.tsx'), 'Badge')).toEqual({
+      details: {},
+      unread: 'its file could not be found',
+    })
+  })
+
+  // Là, mais illisible : un dossier à la place du fichier.
+  it('names a file it cannot read', () => {
+    const root = mkdtempSync(join(tmpdir(), 'crypte-props-'))
+    roots.push(root)
+
+    expect(propsOf(root, 'Badge')).toEqual({ details: {}, unread: 'its file could not be read' })
+  })
+
+  // L'autre côté de la paire : lu, et rien à dire. Ou lu en partie : les noms
+  // sont là, leurs types non, et chaque prop le dit par `unknown`.
+  it.for([
+    ['a component with no parameter', 'export function Badge() { return null }'],
+    ['a type literal with no member', 'export function Badge(props: {}) { return null }'],
+    [
+      'a local interface with no member',
+      'interface P {}\nexport function Badge(props: P) { return null }',
+    ],
+    [
+      'a wrapped component with no parameter',
+      "import { memo } from 'react'\nexport const Badge = memo(() => null)",
+    ],
+  ])('says nothing of %s', ([, source]) => {
+    expect(readAll(source!)).toEqual({ details: {} })
+  })
+
+  it('says nothing when a destructuring names the props of a type from another file', () => {
+    expect(
+      readAll("import type { P } from './p'\nexport function Badge({ a }: P) { return a }"),
+    ).toEqual({ details: { a: { type: 'unknown', required: false } } })
+  })
+})
 
 describe('what reading does not return', () => {
   it('returns an empty object for a missing file', () => {
-    expect(detailsOf(join(tmpdir(), 'jamais-la.tsx'), 'Badge')).toEqual({})
+    expect(propsOf(join(tmpdir(), 'jamais-la.tsx'), 'Badge').details).toEqual({})
   })
 
   it('returns an empty object for an unreadable file', () => {

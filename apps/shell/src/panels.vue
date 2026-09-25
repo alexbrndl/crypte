@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { StoryEntry } from '@crypte/core/protocol'
+import type { Overrides, StoryEntry } from '@crypte/core/protocol'
 import { Callout } from '@crypte/ui'
 import { onMounted, shallowRef, type Component } from 'vue'
 import PanelFrame from './panel-frame.vue'
@@ -10,6 +10,7 @@ import PanelFrame from './panel-frame.vue'
 // refuse les surfaces d'un second plugin du même nom.
 
 defineProps<{ entry: StoryEntry | null }>()
+const emit = defineEmits<{ overrides: [values: Overrides] }>()
 
 const PLUGINS = '/@crypte/plugins.json'
 
@@ -65,6 +66,7 @@ onMounted(async () => {
     :name="one.name"
     :panel="one.panel"
     :entry="entry"
+    @overrides="(values: Overrides) => emit('overrides', values)"
   />
 </template>
 
