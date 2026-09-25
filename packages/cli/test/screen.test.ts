@@ -415,6 +415,54 @@ describe('the screen', () => {
     expect(await alerte.textContent()).not.toContain('Failed to fetch')
   })
 
+  // Une story qui importe un nom que son module n'exporte pas : le navigateur ne
+  // nomme que le module, avec le `?t=` de Vite, et la story qui ne se charge
+  // plus n'était pas dite. DCJ-317.
+  test('names the story that imports a name its module does not export', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+
+    const file = join(ecran.root, 'stories', 'Badge.tsx')
+    writeFileSync(
+      file,
+      readFileSync(file, 'utf8').replace(
+        "import { Badge } from '@/components/Badge'",
+        "import { Badge, Absent } from '@/components/Badge'\nconsole.log(Absent)",
+      ),
+    )
+
+    const alerte = ecran.page.getByRole('alert')
+    await expect
+      .poll(() =>
+        alerte
+          .locator('p')
+          .textContent({ timeout: 1000 })
+          .catch(() => ecran.vu()),
+      )
+      .toBe('stories/Badge.tsx cannot load: src/components/Badge.tsx does not export Absent')
+  })
+
+  // Le même import, depuis un composant qui se recharge : il reste à part tant
+  // qu'il ne se recharge pas, et c'est lui qu'il faut nommer.
+  test('names the component that imports a name its module does not export', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+
+    const file = join(ecran.root, 'src', 'components', 'Badge.tsx')
+    writeFileSync(
+      file,
+      `import { Absent } from './Tag'\nconsole.log(Absent)\n${readFileSync(file, 'utf8')}`,
+    )
+
+    const alerte = ecran.page.getByRole('alert')
+    await expect
+      .poll(() =>
+        alerte
+          .locator('p')
+          .textContent({ timeout: 1000 })
+          .catch(() => ecran.vu()),
+      )
+      .toBe('src/components/Badge.tsx cannot load: src/components/Tag.tsx does not export Absent')
+  })
+
   // Deux composants cassés : la story nomme le sien, pas le dernier cassé. Une
   // erreur gardée seule et pour toujours faisait accuser `Tag.tsx` pour l'échec
   // de `Badge.tsx`. Puis, une fois réparés, leurs erreurs sont oubliées : restées,

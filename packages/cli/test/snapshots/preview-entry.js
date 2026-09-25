@@ -39,7 +39,18 @@ function __crypte_modulePath(id) {
 // fails for a module it imports, which the URL does not say, so a file is
 // named then only when a single module is failing. Otherwise the failure
 // stays as it is, rather than name a file that may be sound.
-function __crypte_named(failure) {
+function __crypte_named(failure, loading) {
+  // An import of a name the module does not export, which the browser told by
+  // the module alone, with Vite's `?t=` on it: the file that failed to load,
+  // a story or a component reloading, was not named. The importer may be a
+  // module that file imports, so both are said rather than one blamed.
+  const missing = failure instanceof SyntaxError && /^The requested module '([^']+)' does not provide an export named '([^']+)'/.exec(failure.message)
+  if (missing && loading) {
+    const shown = (path) => path.split('?')[0].replace(/^\/@fs/, '').replace("<racine>/packages/cli/test/fixture/", '').replace(/^\//, '')
+    const named = new Error(`${shown(loading)} cannot load: ${shown(missing[1])} does not export ${missing[2]}`)
+    named.stack = failure.message
+    return named
+  }
   const prefix = 'Failed to fetch dynamically imported module:'
   if (!(failure instanceof TypeError) || !failure.message.startsWith(prefix)) return failure
   const url = failure.message.slice(prefix.length).trim()
@@ -63,11 +74,11 @@ function __crypte_render(id, overrides) {
   // Thrown here rather than swallowed: the channel turns it into an `error`
   // carrying this story's id, which is what names the file at fault.
   const __crypte_failure = __crypte_broken[__crypte_path]
-  if (__crypte_failure) throw __crypte_named(__crypte_failure)
+  if (__crypte_failure) throw __crypte_named(__crypte_failure, entry.storyFile)
 
   // A module that failed to reload leaves its old version in place, and this
   // frame cannot tell which stories use it: until it reloads, none renders.
-  for (const failed of __crypte_stale.values()) throw __crypte_named(failed)
+  for (const [path, failed] of __crypte_stale) throw __crypte_named(failed, path)
 
   const module = __crypte_modules[__crypte_path]
   if (!module) throw new Error(`no module for ${entry.storyFile}`)

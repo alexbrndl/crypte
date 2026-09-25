@@ -1,12 +1,29 @@
 // What an object literal gives up when its text is read rather than run.
 // One reader for the whole CLI: three copies of these rules had already drifted.
 
+import type { parseSync } from 'vite'
+
 export interface Node {
   type: string
   start: number
   end: number
   [key: string]: unknown
 }
+
+// A syntax error with where it starts. Oxc gives an offset into the text, in
+// UTF-16 units like the string itself, and the message alone named no line.
+export function syntaxError(source: string, error: ParseError | undefined): string {
+  if (!error) return 'the file could not be parsed'
+
+  const at = error.labels[0]?.start
+  if (at === undefined) return error.message
+
+  const lines = source.slice(0, at).split('\n')
+
+  return `${error.message} at line ${lines.length}, column ${(lines.at(-1) ?? '').length + 1}`
+}
+
+type ParseError = ReturnType<typeof parseSync>['errors'][number]
 
 // The name a non-computed key carries, quoted or bare.
 export function keyOf(key: Node): string {

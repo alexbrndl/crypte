@@ -342,7 +342,7 @@ describe('fingerprint', () => {
 
     expect(await check(root, (line) => lignes.push(line))).toBe(1)
     expect(lignes).toEqual([
-      '.crypte/fingerprint.json is behind the stories: run crypte dev and commit it',
+      '.crypte/fingerprint.json is behind the stories and their components: run crypte dev and commit it',
     ])
   })
 
@@ -400,10 +400,70 @@ describe('command', () => {
 
     expect(await check(root, (line) => lignes.push(line))).toBe(0)
     expect(lignes).toHaveLength(2)
-    expect(lignes[0]).toMatch(/^stories\/Carte\.ts: this story file cannot be read, \S/)
+    expect(lignes[0]).toMatchInlineSnapshot(
+      `"stories/Carte.ts: this story file cannot be read, Expected \`}\` but found \`EOF\` at line 2, column 38"`,
+    )
     expect(lignes[1]).toBe(
       'components with no story are not listed while a story file cannot be read',
     )
+  })
+
+  // Un composant qui ne se lit pas perd ses props sans un mot : l'empreinte
+  // bougeait et seul « behind » était dit. Et `crypte dev` réécrit l'empreinte
+  // dans cet état, où plus rien n'était dit du tout. DCJ-317.
+  async function composantCassé(enregistré: boolean): Promise<{ code: number; lignes: string[] }> {
+    const root = await recorded(
+      projectWith({
+        'crypte.config.ts': CONFIG,
+        'src/Carte.tsx': 'export const Carte = ({ titre }: { titre: string }) => <p>{titre}</p>',
+        'stories/Carte.ts':
+          "import { Carte } from '../src/Carte'\nexport default defineStories(Carte)",
+      }),
+    )
+    writeFileSync(join(root, 'src/Carte.tsx'), 'export const Carte = () => <p />\nconst = ;\n')
+    if (enregistré) await recorded(root)
+
+    const lignes: string[] = []
+    return { code: await check(root, (line) => lignes.push(line)), lignes }
+  }
+
+  test('names a component file that does not parse beside a stale fingerprint', async () => {
+    const { code, lignes } = await composantCassé(false)
+
+    expect(code).toBe(1)
+    expect(lignes).toMatchInlineSnapshot(`
+      [
+        "src/Carte.tsx: this component file cannot be read, Unexpected token at line 2, column 7",
+        ".crypte/fingerprint.json is behind the stories and their components: run crypte dev and commit it",
+      ]
+    `)
+  })
+
+  test('names a component file that does not parse once the fingerprint records it', async () => {
+    const { code, lignes } = await composantCassé(true)
+
+    expect(code).toBe(0)
+    expect(lignes).toMatchInlineSnapshot(`
+      [
+        "src/Carte.tsx: this component file cannot be read, Unexpected token at line 2, column 7",
+      ]
+    `)
+  })
+
+  // Un `.vue` se résout, et lu comme du script il échouait dès sa première ligne.
+  test('does not call a Vue component file unreadable', async () => {
+    const lignes: string[] = []
+    const root = await recorded(
+      projectWith({
+        'crypte.config.ts': CONFIG,
+        'src/Carte.vue': '<template><p>Carte</p></template>\n',
+        'stories/Carte.ts':
+          "import Carte from '../src/Carte.vue'\nexport default defineStories(Carte)",
+      }),
+    )
+
+    expect(await check(root, (line) => lignes.push(line))).toBe(0)
+    expect(lignes).toEqual(['nothing to report'])
   })
 
   test('does not count a partly read story file as unreadable', async () => {

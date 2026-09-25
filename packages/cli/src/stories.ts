@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs'
 import { relative, sep } from 'node:path'
 import { storyId, type StoryEntry } from '@crypte/core/protocol'
 import { parseSync } from 'vite'
-import { keyOf, literalOf, propertyOf, wrapperNames, type Node } from './ast'
+import { keyOf, literalOf, propertyOf, syntaxError, wrapperNames, type Node } from './ast'
 
 // The four extensions a project can write, JavaScript included: a project
 // without TypeScript writes its stories in `.js`.
@@ -38,7 +38,7 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
   if (parsed.errors.length > 0) {
     return {
       entries: [],
-      skipped: parsed.errors[0]?.message ?? 'the file could not be parsed',
+      skipped: syntaxError(source, parsed.errors[0]),
       meant: true,
     }
   }
