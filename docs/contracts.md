@@ -777,7 +777,7 @@ export default {
 
 **It is said story by story, never once.** The frame forgets it whenever it receives a new `entry`, another story or the same one read again after an edit, so a panel that does not say it again is open. A reason that is not a non-empty string is ignored.
 
-**Whether a panel is open is the shell's to remember**, under the plugin's name, never the plugin's. A panel that throws shows the error in its frame, and is mounted again at the next story.
+**Whether a panel is open is the shell's to remember**, under the plugin's name, never the plugin's. A panel that throws shows the error in its frame, and is mounted again at its next `entry`.
 
 `NodeHooks` is specified in 6.3. The core declares `ShellContribution` opaque, the way it declares an adapter opaque: it knows no Vue, and cannot name a component.
 
