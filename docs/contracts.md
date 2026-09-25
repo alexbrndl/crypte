@@ -761,6 +761,8 @@ The shell module exports a `ShellContribution` by default, the preview module a 
 **A `ShellContribution` is a Vue component, which the shell mounts in a frame**, one per plugin, in the order `plugins` declares them. It receives the story on display as its `entry` prop, a `StoryEntry` or `null`. A panel with nothing to say about that story emits `inapplicable` with its reason, and the frame folds to one line holding it: no empty panel, no greyed one.
 
 ```ts
+import { watchEffect } from 'vue'
+
 export default {
   props: ['entry'],
   emits: ['inapplicable'],
@@ -773,7 +775,7 @@ export default {
 }
 ```
 
-**It is said story by story, never once.** The frame forgets it whenever the story changes, so a panel that does not say it again is open. A reason that is not a non-empty string is ignored.
+**It is said story by story, never once.** The frame forgets it whenever it receives a new `entry`, another story or the same one read again after an edit, so a panel that does not say it again is open. A reason that is not a non-empty string is ignored.
 
 **Whether a panel is open is the shell's to remember**, under the plugin's name, never the plugin's. A panel that throws shows the error in its frame, and is mounted again at the next story.
 

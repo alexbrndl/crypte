@@ -82,6 +82,20 @@ describe('a panel with nothing to say', () => {
     expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'aucun statut déclaré', corps: false })
   })
 
+  // La même story relue après une édition : même identifiant, contenu neuf. Une
+  // raison devenue fausse survivait jusqu'au clic suivant. Revue de la PR #105.
+  test('forgets its reason when the same story is read again', async () => {
+    const wrapper = monte(statut, nue)
+    await wrapper.vm.$nextTick()
+    expect(état(wrapper).raison).toBe('aucun statut déclaré')
+
+    await wrapper.setProps({ entry: { ...nue, meta: { status: 'draft' } } })
+    expect(état(wrapper)).toEqual({ ouvert: 'true', raison: null, corps: true })
+
+    await wrapper.setProps({ entry: { ...nue } })
+    expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'aucun statut déclaré', corps: false })
+  })
+
   // Un panneau qui ne le dit qu'une fois, au montage, reste replié à tort si le
   // cadre ne l'oublie pas : c'est la déclaration « une fois » que la décision
   // refuse.

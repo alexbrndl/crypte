@@ -187,11 +187,11 @@ describe('what a surface is refused', () => {
       refused: [
         {
           plugin: 'plugins[0]',
-          reason: 'a plugin with a browser surface needs a `name`, which keys its panel',
+          reason: 'a plugin with a browser surface needs a `name`',
         },
         {
           plugin: 'plugins[1]',
-          reason: 'a plugin with a browser surface needs a `name`, which keys its panel',
+          reason: 'a plugin with a browser surface needs a `name`',
         },
       ],
     })

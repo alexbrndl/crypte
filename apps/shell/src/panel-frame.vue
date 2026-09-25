@@ -3,9 +3,9 @@ import type { StoryEntry } from '@crypte/core/protocol'
 import { Callout } from '@crypte/ui'
 import { computed, onErrorCaptured, ref, watch, type Component } from 'vue'
 
-// Le cadre d'un panneau de plugin, section 6.1 des contrats. Local au shell
-// tant qu'il est le seul à le dessiner : il passe dans `@crypte/ui` quand
-// `controls` et `a11y` le dessineront tous les deux.
+// Le cadre d'un panneau de plugin, section 6.1 des contrats. Local au shell,
+// son seul consommateur : les panneaux sont montés dedans, ils ne le dessinent
+// pas.
 
 const props = defineProps<{
   name: string
@@ -39,9 +39,11 @@ function toggle() {
 }
 
 // Sans objet, story par story, jamais déclaré une fois : le panneau le dit avec
-// sa raison, et le cadre l'oublie à chaque changement de story. Un panneau qui
-// ne le redit pas est donc ouvert. Rouvert si un panneau doit se rouvrir sans
-// changer de story, « relancer l'analyse » de `a11y` : un `null` alors.
+// sa raison, et le cadre l'oublie à chaque nouvelle entrée : une autre story, ou
+// la même relue après une édition, dont la raison peut être devenue fausse.
+// Un panneau qui ne le redit pas est donc ouvert. Rouvert si un panneau doit
+// se rouvrir sans nouvelle entrée, « relancer l'analyse » de `a11y` : un `null`
+// alors.
 const inapplicable = ref<string | null>(null)
 
 // Une raison ou rien : un cadre replié sans raison est le panneau vide que la
@@ -51,12 +53,12 @@ const declare = (reason: unknown) => {
 }
 
 // Ce qu'un panneau a levé, affiché à sa place : le reste du shell continue.
-// Oublié avec la story aussi, et le panneau remonté : il peut ne lever que sur
-// certaines stories.
+// Oublié avec l'entrée aussi, et le panneau remonté : il peut ne lever que sur
+// certaines stories, ou avant une édition.
 const failure = ref<string | null>(null)
 
 watch(
-  () => props.entry?.id,
+  () => props.entry,
   () => {
     inapplicable.value = null
     failure.value = null

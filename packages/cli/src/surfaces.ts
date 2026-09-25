@@ -36,7 +36,7 @@ export function surfacesOf(project: Project): Surfaces {
       if (browser) {
         found.refused.push({
           plugin: `plugins[${at}]`,
-          reason: 'a plugin with a browser surface needs a `name`, which keys its panel',
+          reason: 'a plugin with a browser surface needs a `name`',
         })
       }
       continue
