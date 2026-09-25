@@ -14,9 +14,9 @@ export interface CryptePlugin {
   node?: NodeHooks
 }
 
-// What those two modules export by default. Opaque like `Adapter`: the shell
-// mounts what it gets without checking its shape. `ShellContribution` waits for
-// the panel host, DCJ-323; section 6.2 already specifies `PreviewHooks`, and no
+// What those two modules export by default. Opaque like `Adapter`: a
+// `ShellContribution` is a Vue component, section 6.1, which the core cannot
+// name without Vue. Section 6.2 already specifies `PreviewHooks`, and no
 // preview calls it, DCJ-322.
 export type ShellContribution = unknown
 export type PreviewHooks = unknown

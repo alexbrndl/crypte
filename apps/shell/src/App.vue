@@ -51,11 +51,12 @@ const setAside = computed(() =>
   }),
 )
 
+// L'entrée affichée, que reçoivent les panneaux des plugins.
+const displayed = computed(() => entries.value.find((entry) => entry.id === current.value) ?? null)
+
 // La note de l'entrée affichée, quand sa fiche est partielle. Discrète et non
 // bloquante : la story rend, il manque des lignes à sa table de props.
-const partial = computed(
-  () => entries.value.find((entry) => entry.id === current.value)?.partial ?? null,
-)
+const partial = computed(() => displayed.value?.partial ?? null)
 
 // Groupées par dossier, dans l'ordre du manifeste : l'arbre vient du chemin, et
 // aucun titre n'est déclaré nulle part. Section 1.1 des contrats.
@@ -190,7 +191,7 @@ onMounted(() => {
            que ce qui manque à sa fiche. Le ton dit ce que l'outil ne sait pas
            lire, jamais que le fichier est mal écrit. -->
       <p v-if="partial && !failure" class="partial">Fiche partielle : {{ partial }}.</p>
-      <Panels />
+      <Panels :entry="displayed" />
       <p>{{ status }}</p>
     </div>
   </main>

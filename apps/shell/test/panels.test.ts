@@ -20,7 +20,7 @@ const monte = async (liste: unknown): Promise<VueWrapper> => {
     }),
   )
 
-  const wrapper = mount(Panels)
+  const wrapper = mount(Panels, { props: { entry: null } })
 
   // L'import d'un module prend plus d'un tour de microtâches : attendu jusqu'à
   // ce que la zone ait rendu un panneau ou un échec.
@@ -32,7 +32,9 @@ const monte = async (liste: unknown): Promise<VueWrapper> => {
 }
 
 const montés = (wrapper: VueWrapper) =>
-  wrapper.findAll('section').map((one) => `${one.attributes('data-plugin')}=${one.text()}`)
+  wrapper
+    .findAll('[data-plugin]')
+    .map((one) => `${one.attributes('data-plugin')}=${one.find('.body').text()}`)
 
 const échecs = (wrapper: VueWrapper) => wrapper.findAll('.failed p').map((one) => one.text())
 
