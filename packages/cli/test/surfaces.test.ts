@@ -155,6 +155,25 @@ describe('what a surface is refused', () => {
     })
   })
 
+  // La place dans la configuration décide, pas l'état des surfaces : un premier
+  // plugin au pointeur cassé garde son nom, et son homonyme n'apparaît pas à sa
+  // place sans que personne l'ait choisi.
+  it('keeps the name of a first plugin whose surface is refused', () => {
+    expect(
+      avec({ name: 'a', shell: url('absent.mjs') }, { name: 'a', shell: url('shell.mjs') }),
+    ).toEqual({
+      shell: [],
+      preview: [],
+      refused: [
+        {
+          plugin: 'a',
+          reason: `\`shell\` points at ${join(dossier, 'absent.mjs')}, which is not a file`,
+        },
+        { plugin: 'a', reason: '`name` is already taken by an earlier plugin' },
+      ],
+    })
+  })
+
   it('refuses the browser surfaces of a plugin without a name, by its place', () => {
     const sansNom = { shell: url('shell.mjs') } as unknown as CryptePlugin
 

@@ -156,6 +156,19 @@ describe('whether a panel is open', () => {
     await wrapper.find('.head button').trigger('click')
     expect(état(wrapper).ouvert).toBe('false')
   })
+
+  // Les deux états se croisent : fermé par l'utilisateur, puis sans objet, puis
+  // de nouveau quelque chose à dire. Le choix de l'utilisateur tient.
+  test('stays closed through a story with nothing to say', async () => {
+    const wrapper = monte(statut, brouillon)
+    await wrapper.find('.head button').trigger('click')
+
+    await wrapper.setProps({ entry: nue })
+    expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'aucun statut déclaré', corps: false })
+
+    await wrapper.setProps({ entry: brouillon })
+    expect(état(wrapper)).toEqual({ ouvert: 'false', raison: null, corps: false })
+  })
 })
 
 describe('a panel that throws', () => {
@@ -182,5 +195,21 @@ describe('a panel that throws', () => {
     await wrapper.setProps({ entry: brouillon })
     expect(wrapper.find('.panel-failed').exists()).toBe(false)
     expect(wrapper.find('.body').text()).toBe('rendu')
+  })
+
+  test('names what it throws when that is not an Error', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const chaine = defineComponent({
+      setup() {
+        // Ce qu'un panneau peut lever sans que ce soit une `Error`.
+        throw 'une chaîne'
+      },
+    })
+
+    const wrapper = monte(chaine, nue, 'chaine')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.panel-failed').text()).toBe('Ce panneau a levé : une chaîne')
   })
 })
