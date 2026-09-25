@@ -4,14 +4,20 @@ import type { ManifestEntry, StoryEntry } from './manifest'
 
 export interface CryptePlugin {
   name: string
-  shell?: ShellContribution
-  preview?: PreviewHooks
+  // The module each browser surface lives in, as a file URL the plugin works out
+  // itself: `new URL('./shell.mjs', import.meta.url).href`. A module and not the
+  // surface: this object is built in Node, and only files reach the browser.
+  // Reopened the day a plugin needs its own options in the browser: only the
+  // URL crosses today.
+  shell?: string
+  preview?: string
   node?: NodeHooks
 }
 
-// Opaque like `Adapter`: named here, carried by the CLI, read by nobody yet.
-// `ShellContribution` waits for the first plugin that draws a panel, DCJ-194;
-// section 6.2 already specifies `PreviewHooks`, and no preview calls it.
+// What those two modules export by default. Opaque like `Adapter`: the shell
+// mounts what it gets without checking its shape. `ShellContribution` waits for
+// the panel host, DCJ-323; section 6.2 already specifies `PreviewHooks`, and no
+// preview calls it, DCJ-322.
 export type ShellContribution = unknown
 export type PreviewHooks = unknown
 

@@ -73,7 +73,9 @@ const monte = async (
 
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () => {
+    vi.fn(async (url: string) => {
+      // Les panneaux de plugins lisent leur propre route : aucun plugin ici.
+      if (url === '/@crypte/plugins.json') return { json: async () => [] } as Response
       if (échoue) throw new Error('Unexpected end of JSON input')
 
       return { json: async () => manifest } as Response
@@ -352,7 +354,13 @@ describe('what the catalog left out', () => {
 
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => ({ json: async () => manifests.shift() ?? manifests[0] }) as Response),
+      vi.fn(
+        async (url: string) =>
+          ({
+            json: async () =>
+              url === '/@crypte/plugins.json' ? [] : (manifests.shift() ?? manifests[0]),
+          }) as Response,
+      ),
     )
 
     const wrapper = mount(App, { attachTo: document.body })

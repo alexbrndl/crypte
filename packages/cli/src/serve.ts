@@ -1,7 +1,7 @@
 // The two pages `crypte dev` serves, and where each comes from.
 
 import { existsSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sirv from 'sirv'
 import { transformWithOxc, type Plugin, type ViteDevServer } from 'vite'
@@ -10,6 +10,7 @@ import { storyFilesOf, type Catalogue } from './manifest'
 import { cssEntryOf, type Project } from './project'
 import { ONLY_STORY } from './stories'
 import { configSources, required } from './config-source'
+import { surfacesOf } from './surfaces'
 
 // Walks up to `package.json` rather than resolving from this file, which sits in
 // `src/` before the build and in `dist/` after it.
@@ -46,6 +47,19 @@ export const PREVIEW_ENTRY_ID = `${VIRTUAL}${PREVIEW_ENTRY}`
 export const MANIFEST_ROUTE = '/@crypte/manifest.json'
 
 export const PREVIEW_PAGE = '/preview.html'
+
+// The shell modules of the plugins, as the shell imports them: their name and
+// URL, in configuration order.
+export const PLUGINS_ROUTE = '/@crypte/plugins.json'
+
+// Each shell module's folder, served as is and never through Vite. Vite would
+// resolve `import 'vue'` to the project's copy, or to nothing in a React project,
+// and a panel running on a second Vue never redraws its own state, without a
+// warning. Measured. Served as is, the import resolves through the shell's import
+// map, to the shell's Vue. The folder and not the file: a built module imports
+// its chunks by relative path. Reopened if a shell module has to be compiled,
+// TypeScript or a `.vue` file, which a file served as is cannot be.
+export const PLUGIN_FILES = '/@crypte/plugins/'
 
 function shellAssets(): string {
   if (!existsSync(join(SHELL, 'index.html'))) {
@@ -115,6 +129,41 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
           return
         }
 
+        if (url === PLUGINS_ROUTE) {
+          const listed = surfacesOf(project).shell.map((one, at) => ({
+            name: one.plugin,
+            shell: `${PLUGIN_FILES}${at}/${basename(one.file)}`,
+          }))
+
+          response.setHeader('Content-Type', 'application/json')
+          response.end(JSON.stringify(listed))
+          return
+        }
+
+        if (url.startsWith(PLUGIN_FILES)) {
+          const [at = '', ...rest] = url.slice(PLUGIN_FILES.length).split('/')
+          const one = /^\d+$/.test(at) ? surfacesOf(project).shell[Number(at)] : undefined
+          const inside = `/${rest.join('/')}`
+
+          const missing = () => {
+            response.statusCode = 404
+            response.end()
+          }
+
+          // Nothing whose name starts with a dot: `sirv` serves those in `dev`
+          // mode, and a local plugin's folder can be the project itself, `.env`
+          // and `.git` included. Measured. Judged decoded, the way `sirv`
+          // decodes, since `%2eenv` is `.env`.
+          if (!one || hidden(inside)) {
+            missing()
+            return
+          }
+
+          request.url = inside
+          sirv(dirname(one.file), { dev: true })(request, response, missing)
+          return
+        }
+
         if (url !== PREVIEW_PAGE) {
           next()
           return
@@ -143,6 +192,16 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
         this.warn(one),
       )
     },
+  }
+}
+
+// A path with a segment that starts with a dot, `..` included, or one `decodeURI`
+// cannot read.
+function hidden(path: string): boolean {
+  try {
+    return /\/\./.test(decodeURI(path))
+  } catch {
+    return true
   }
 }
 
@@ -330,6 +389,15 @@ export function previewEntry(project: Project, files: string[] = []): string {
     return `  import(${path}).then((module) => { ${OWN}modules[${path}] = module }, (error) => { ${OWN}broken[${path}] = error }),`
   })
 
+  // Each plugin's preview module, by absolute path, one promise each for the
+  // same reason as the story files. A failure goes to the frame's console only:
+  // carrying it to the shell needs the plugin messages of DCJ-322.
+  const plugins = surfacesOf(project).preview.map(({ plugin, file }) => {
+    const said = JSON.stringify(`crypte: the preview module of ${plugin} could not load`)
+
+    return `  import(${JSON.stringify(file)}).catch((error) => console.error(${said}, error)),`
+  })
+
   return [
     `import { createPreviewChannel as ${OWN}channelOf, propsOfStory as ${OWN}propsOf, wrapsOf as ${OWN}wrapsOf } from '@crypte/core/preview'`,
     // `adapter` and `wrap` can come from the same `import`, and emitting it twice
@@ -360,6 +428,7 @@ export function previewEntry(project: Project, files: string[] = []): string {
     `  import.meta.hot.on('vite:error', ({ err }) => { ${OWN}loadErrors.set(${OWN}modulePath(err.id ?? err.loc?.file ?? ''), err) })`,
     `  import.meta.hot.on('vite:beforeUpdate', ({ updates }) => { for (const one of updates) { ${OWN}loadErrors.delete(one.path); ${OWN}loadErrors.delete(one.acceptedPath) } })`,
     '}',
+    ...(plugins.length > 0 ? ['', `await Promise.all([`, ...plugins, `])`] : []),
     ...(loads.length > 0 ? ['', `await Promise.all([`, ...loads, `])`] : []),
     `const ${OWN}manifest = await fetch(${JSON.stringify(MANIFEST_ROUTE)}).then((answer) => answer.json())`,
     '',

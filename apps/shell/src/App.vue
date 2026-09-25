@@ -3,6 +3,7 @@ import type { Manifest, SkippedFile, StoryEntry } from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/shell'
 import { Callout } from '@crypte/ui'
 import { computed, onMounted, ref, useTemplateRef } from 'vue'
+import Panels from './panels.vue'
 import { landing, unreadable, type Shown } from './recover'
 
 // Le shell ne connaît aucun framework : il est construit à l'avance et livré dans
@@ -189,6 +190,7 @@ onMounted(() => {
            que ce qui manque à sa fiche. Le ton dit ce que l'outil ne sait pas
            lire, jamais que le fichier est mal écrit. -->
       <p v-if="partial && !failure" class="partial">Fiche partielle : {{ partial }}.</p>
+      <Panels />
       <p>{{ status }}</p>
     </div>
   </main>

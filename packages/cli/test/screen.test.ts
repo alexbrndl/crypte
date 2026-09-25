@@ -737,3 +737,73 @@ describe('a config that carries TypeScript syntax', () => {
     }
   })
 })
+
+// Les deux surfaces navigateur d'un plugin, section 6.1 des contrats : le plugin
+// `hello` de la démonstration pose un bouton dans le shell et une marque dans
+// l'iframe.
+describe('a plugin in the browser', () => {
+  const panneau = (page: Page) => page.locator('[data-plugin="hello"] button')
+  const cadre = (page: Page) => page.frameLocator('iframe[title="preview"]')
+
+  test('shows its shell module and runs its preview module', async ({ ecran }) => {
+    await expect.poll(() => panneau(ecran.page).textContent()).toBe('hello, 0 clic(s)')
+    await expect
+      .poll(() => cadre(ecran.page).locator('html').getAttribute('data-hello'))
+      .toBe('loaded')
+  })
+
+  // Deux copies de Vue ne se voient pas : `inject` passe encore, et seul l'état
+  // propre du panneau cesse de redessiner, sans un avertissement. Mesuré. D'où
+  // le clic, puis le compte des copies par le registre que chacune tient sur
+  // `globalThis`.
+  test('runs the panel on the shell’s own Vue', async ({ ecran }) => {
+    await panneau(ecran.page).click()
+
+    await expect.poll(() => panneau(ecran.page).textContent()).toBe('hello, 1 clic(s)')
+    expect(
+      await ecran.page.evaluate(
+        () =>
+          (globalThis as { __VUE_INSTANCE_SETTERS__?: unknown[] }).__VUE_INSTANCE_SETTERS__?.length,
+      ),
+    ).toBe(1)
+  })
+
+  // Un plugin n'est pas le texte de l'auteur : son module qui lève ne coûte ni
+  // la preview ni le reste du shell, et il est nommé.
+  test('names a shell module that throws and keeps the rest', async ({ ecran }) => {
+    writeFileSync(
+      join(ecran.root, 'plugins', 'hello', 'shell.js'),
+      "throw new Error('ce panneau lève à l’import')\n",
+    )
+    await ecran.page.reload()
+
+    await expect
+      .poll(async () => (await ecran.page.locator('.failed').textContent())?.trim())
+      .toBe("hello n'a pas pu se charger : ce panneau lève à l’import")
+    await expect.poll(ecran.vu).toBe('Nouveau')
+  })
+
+  // Importé statiquement, ce module emportait l'entrée entière : aucun `ready`,
+  // et un cadre vide pour toutes les stories.
+  test('lets the frame render when a preview module throws', async ({ ecran }) => {
+    writeFileSync(
+      join(ecran.root, 'plugins', 'hello', 'preview.js'),
+      "throw new Error('cette preview lève à l’import')\n",
+    )
+    await ecran.page.reload()
+
+    await expect.poll(ecran.vu).toBe('Nouveau')
+
+    // La première ligne seule : la pile porte le port du serveur. Une fois ou
+    // deux, selon que la mise à jour à chaud qui suit l'écriture a tourné avant
+    // le rechargement ou non.
+    const dites = ecran
+      .plaintes()
+      .filter((one) => one.includes('preview module'))
+      .map((one) => one.split('\n')[0])
+
+    expect([...new Set(dites)]).toEqual([
+      'console: crypte: the preview module of hello could not load Error: cette preview lève à l’import',
+    ])
+  })
+})

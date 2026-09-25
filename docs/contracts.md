@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.18, reference document. A project brief points here instead of restating these shapes.
+> Version 1.19, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -728,8 +728,8 @@ A plugin is an object with a name and three optional surfaces.
 ```ts
 interface CryptePlugin {
   name: string
-  shell?: ShellContribution
-  preview?: PreviewHooks
+  shell?: string
+  preview?: string
   node?: NodeHooks
 }
 ```
@@ -738,9 +738,27 @@ interface CryptePlugin {
 | --- | --- | --- |
 | `shell` | shell | panel, toolbar button |
 | `preview` | iframe | lifecycle around a render |
-| `node` | CLI | build step, command |
+| `node` | CLI | entries for the manifest, 6.3 |
 
-`NodeHooks` is specified in 6.3. `ShellContribution` is not: it is written with the first plugin that draws a panel, tracked in DCJ-194, and until then the core declares it opaque, the way it declares an adapter opaque.
+**The object is built in Node, so a browser surface is a module, named by its file URL.** The plugin works the URL out itself, and the CLI serves the file to the page that runs it:
+
+```ts
+export default function controls(): CryptePlugin {
+  return {
+    name: 'controls',
+    shell: new URL('./shell.mjs', import.meta.url).href,
+    preview: new URL('./preview.mjs', import.meta.url).href,
+  }
+}
+```
+
+The shell module exports a `ShellContribution` by default, the preview module a `PreviewHooks`. The configuration itself never reaches the browser: running it there would carry the `node` surface along, and `node:fs` with it.
+
+**A preview module goes through the project's Vite**, like a story file, so it imports what it needs. **A shell module is served as is, never compiled**, since the shell is prebuilt. Its one bare import is `vue`, which the shell provides through an import map, so every panel runs on the shell's own Vue. That Vue carries its template compiler: a module written by hand may use `template` rather than `h()`. A plugin declares `vue` as a peer dependency and keeps it out of its bundle: a panel running on a second copy never redraws its own state, and nothing warns.
+
+**A surface that points nowhere is refused, with its reason**, the way 6.3 refuses a contribution: a pointer that is not a `file:` URL, or one that leads to no file. A module that throws on import costs nothing else. The shell names it, or a shell module whose default export is neither an object nor a function, and shows the other panels; the preview renders its stories and names the module in the frame's console.
+
+`NodeHooks` is specified in 6.3. `ShellContribution` is not: it is written with the panel host, tracked in DCJ-323, and until then the core declares it opaque, the way it declares an adapter opaque.
 
 **`PreviewHooks` is specified in 6.2 and the core declares it opaque too.** The shapes below are what it will be; no preview calls them yet, and nothing would be gained by typing a surface with no caller. Section 8 carries that gap.
 
@@ -871,7 +889,7 @@ This document is a contract. This section is the only place that says what exist
 | 4, the manifest | built, and written by `crypte dev` at start-up, on every restart of the configuration and on every rebuild, so the file follows what is served. Of the two natures of entry it can carry, only `story` is produced |
 | 4.6, the fingerprint | built, and written by `crypte dev` whenever the catalogue served changes it: at start-up, on a restart of the configuration, and on a story change. So `crypte check` does not fail after a session, and trying a `stories` path then reverting rewrites the same bytes |
 | 5, the channel | built and exercised on both sides |
-| 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. `shell` and `preview` are named and declared opaque. **Provisional, and not one step closer to stable**: 6.5 asks for `controls` and `a11y`, and `tokens` is neither |
+| 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. The `shell` and `preview` modules are loaded, the shell mounting what a shell module exports, and the demonstration's `hello` plugin uses both; what they export is declared opaque. **Provisional, and not one step closer to stable**: 6.5 asks for `controls` and `a11y`, and neither `tokens` nor `hello` is one |
 
 **`dev`, `check` and `init` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled in the project by the CLI's own Vite, with the plugins the project declares in `vite.plugins`. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte init` writes the configuration of 1.5 into a project that already has its components, and has no section of its own because the file it writes is 1.5 itself.
 
@@ -880,7 +898,7 @@ Seven known gaps between this document and the code:
 - **The preview is compiled by the CLI's Vite, and nothing checks the project's plugins against it.** A project on another major keeps its own Vite for its build, and its `vite.plugins` run in the CLI's anyway. Measured on a project on Vite 6: its React plugin warned about deprecated options and every story rendered. Resolving the project's own Vite instead would be a rework, not a fix.
 - A path alias cannot replace an installed package. `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because the resolver runs after Vite's own. TypeScript would return the replacement file.
 - **Inference reads what a file declares, never what a type it cannot resolve holds.** A type alias, an interface and a `cva(…)` call declared in the component file are followed. An imported type, a generic, a DOM part of an intersection, and an `extends` clause other than `VariantProps` of a local `cva` each leave only what the component file writes by hand, which for a DOM pass-through is the names in its destructuring pattern. Enumerating the rest needs the type checker, and inventing names is what 4.2 forbids.
-- **`ShellContribution` and `PreviewHooks` are declared opaque by the core**, though 6.2 specifies the second one in full. Neither has a caller: no shell panel comes from a plugin, and no preview runs a lifecycle hook. Typing a surface nobody calls would buy nothing and could not be taken back.
+- **`ShellContribution` and `PreviewHooks` are declared opaque by the core**, though 6.2 specifies the second one in full. The shell mounts what a shell module exports without checking its shape, and no preview runs a lifecycle hook. Typing a surface before its first real consumer would buy nothing and could not be taken back.
 - The serialisation of 4.5 is guaranteed on **contributed** entries and merely true of the others. A plugin's entry is checked and refused with what offends named; everything the CLI reads itself comes from source text and is serialisable by construction, so nothing exercises the guarantee there.
 - **A `tokens` entry is written and nothing displays one.** `@crypte/tokens` contributes families read from a project's CSS custom properties, and the demonstration carries four. No screen shows them: the shell keeps out of its tree what it cannot draw, so they travel in the manifest and stop there. The page that draws them belongs to the shell's own project.
 - `component.file` is resolved without Vite. The producer runs before any server exists, so it applies the project's `paths` and tries the usual extensions, with no plugin and no `exports` field. A component reached through a plugin keeps the identifier the story wrote. `crypte check` calls such an entry an orphan only when the project could have reached it itself, that is a relative path or an alias it declares; anything else it leaves alone.
@@ -888,6 +906,13 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.19.** A plugin's browser surfaces load, in the shell and in the frame (6.1).
+
+| Before | After |
+| --- | --- |
+| `shell` and `preview` held the surface itself, which nothing could carry from Node to the browser | they hold the file URL of a module, which the CLI serves |
+| the table gave `node` a build step and a command | it gives the manifest entries of 6.3, its one capability |
 
 **v1.18.** Props inference reads a component through `memo`, `forwardRef` and `Object.assign`, and takes the props type of `forwardRef<Ref, Props>`. A generic component's type parameters are written down as a limit (3.5).
 
