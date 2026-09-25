@@ -22,6 +22,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium, type Browser, type Frame, type Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, test as base } from 'vitest'
+import type { ViteDevServer } from 'vite'
 import { startDev } from '../src/dev'
 import { storyFilesOf } from '../src/manifest'
 
@@ -73,6 +74,8 @@ function copie(): string {
 interface Ecran {
   page: Page
   root: string
+  // Le serveur, pour les cas qui forcent un ordre entre son surveillant et le nôtre.
+  server: ViteDevServer
   // L'état visible, avec ce que la page a dit : un `#root` vide seul ne dit pas
   // si la preview a échoué, si le shell affiche une erreur, ou si rien n'est
   // encore arrivé. Sans ça, un échec se lit « expected '' to contain … » et ne
@@ -125,6 +128,7 @@ const test = base.extend<{ ecran: Ecran }>({
       await use({
         page,
         root,
+        server: started.server,
         navigations: () => navigations,
         plaintes: () => plaintes,
         vu: async () => {
@@ -238,6 +242,101 @@ describe('the screen', () => {
     writeFileSync(file, saine)
     await expect.poll(() => alerte.count()).toBe(0)
     await expect.poll(ecran.vu).toBe('Nouveau')
+  })
+
+  // Une story renommée recharge le cadre par notre surveillant, 20 ms après
+  // l'écriture, et Vite ne voit le fichier qu'avec le sien. Passé en second, il
+  // servait au cadre rechargé l'ancien module, où le nouveau nom n'existe pas :
+  // les props de base, sous « rendu ». Le retard force l'ordre, que la machine
+  // ne donne qu'une fois sur quinze. DCJ-315.
+  test('renders a renamed story with its own props before Vite sees the file', async ({
+    ecran,
+  }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    await ecran.page.getByRole('button', { name: 'Libellé long', exact: true }).click()
+    await expect.poll(ecran.vu).toBe('Vérification en cours')
+
+    const watcher = ecran.server.watcher
+    const emit = watcher.emit.bind(watcher)
+    watcher.emit = ((event: string, ...rest: unknown[]) => {
+      if (event !== 'change') return emit(event, ...rest)
+      setTimeout(() => emit(event, ...rest), 300)
+      return true
+    }) as typeof watcher.emit
+
+    const file = join(ecran.root, 'stories', 'Badge.tsx')
+    writeFileSync(file, readFileSync(file, 'utf8').replace("'Libellé long':", "'Très long':"))
+
+    // Échantillonné plutôt qu'attendu : le mauvais rendu durait jusqu'à ce que
+    // Vite voie le fichier, puis se corrigeait, et un `poll` sur l'état final
+    // passait par-dessus.
+    const etat = ecran.page.locator('main > div > p').last()
+    const vus = new Set<string>()
+    for (let i = 0; i < 20; i += 1) {
+      vus.add(`${(await etat.textContent())?.split(' en ')[0]} => ${await ecran.vu()}`)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+
+    // Sans erreur non plus : c'est ce que la garde du cas suivant rend à la
+    // place du mauvais rendu, et elle masquerait le retour de la course. Un
+    // cadre vide est celui qui se recharge, le statut d'avant encore affiché.
+    expect(
+      [...vus].filter((vu) => /^erreur de rendu|^badge--tres-long rendu => (?!<vide>)/.test(vu)),
+    ).toEqual(['badge--tres-long rendu => Vérification en cours'])
+  })
+
+  // L'autre moitié : un module qui n'a pas la story que le manifeste nomme dit
+  // qu'il ne peut pas la rendre. La découverte lit le texte, l'exécution retire
+  // la story, ce qui donne cet écart sans course à provoquer. Le bloc entier
+  // retiré est l'autre branche : sans bloc, seule la story implicite existe.
+  test.for([
+    ['one story', "delete self.definition.stories?.['Retirée']"],
+    ['the whole block', 'delete self.definition.stories'],
+  ] as const)(
+    'says a story is missing from the loaded module when it removes %s',
+    async ([, retrait], { ecran }) => {
+      await expect.poll(ecran.vu).toBe('Nouveau')
+
+      writeFileSync(
+        join(ecran.root, 'stories', 'Fantome.tsx'),
+        [
+          "import { defineStories } from '@crypte/react'",
+          "import { Tag } from '@/components/Tag'",
+          "import self from './Fantome'",
+          '',
+          'export default defineStories(Tag, {',
+          "  props: { children: 'Base' },",
+          "  stories: { Présente: {}, Retirée: { children: 'Propre' } },",
+          '})',
+          '',
+          retrait,
+          '',
+        ].join('\n'),
+      )
+
+      const retiree = ecran.page.getByRole('button', { name: 'Retirée', exact: true })
+      await expect.poll(() => retiree.count()).toBe(1)
+      await retiree.click()
+
+      const alerte = ecran.page.getByRole('alert')
+      await expect
+        .poll(() => alerte.textContent())
+        .toContain('stories/Fantome.tsx has no story named "Retirée"')
+    },
+  )
+
+  // Un fichier supprimé fait d'abord échouer son rechargement à chaud, puis le
+  // shell perd la story. L'alerte de cet échec restait affichée par-dessus.
+  test('drops the error of a story whose file was deleted', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    await ecran.page.getByRole('button', { name: 'Nue', exact: true }).click()
+    await expect.poll(ecran.vu).toBe('Étiquette')
+
+    rmSync(join(ecran.root, 'stories', 'Tag.tsx'))
+
+    const etat = ecran.page.locator('main > div > p').last()
+    await expect.poll(() => etat.textContent()).toBe('la story affichée a disparu')
+    await expect.poll(() => ecran.page.getByRole('alert').count()).toBe(0)
   })
 
   // Le même défaut un niveau plus bas : c'est le composant qui casse, et Fast

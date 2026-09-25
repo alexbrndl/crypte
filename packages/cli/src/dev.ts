@@ -6,7 +6,14 @@ import { readFileSync, watch, type FSWatcher } from 'node:fs'
 import { createServer, type ViteDevServer } from 'vite'
 import { reason } from './errors'
 import { FINGERPRINT, fingerprintOf, writeFingerprint } from './fingerprint'
-import { buildCatalogue, OUTPUT, storiesOf, writeCatalogue, type Catalogue } from './manifest'
+import {
+  buildCatalogue,
+  OUTPUT,
+  storiesOf,
+  storyFilesOf,
+  writeCatalogue,
+  type Catalogue,
+} from './manifest'
 import { loadProject, viteConfigOf, type Project } from './project'
 import { configPackages } from './config-source'
 import { servePlugin, PREVIEW_ENTRY_ID, PREVIEW_PAGE } from './serve'
@@ -204,6 +211,15 @@ function watchStories(
     // the entry, so nothing propagates to it.
     const module = server.moduleGraph.getModuleById(PREVIEW_ENTRY_ID)
     if (module) server.moduleGraph.invalidateModule(module)
+
+    // The story files too: Vite's watcher may not have seen the edit yet, and the
+    // reloaded frame was served the old module, a renamed story rendering the
+    // base props under its new name.
+    for (const file of storyFilesOf(next)) {
+      for (const story of server.moduleGraph.getModulesByFile(join(project.root, file)) ?? []) {
+        server.moduleGraph.invalidateModule(story)
+      }
+    }
 
     server.hot.send({ type: 'full-reload', path: PREVIEW_PAGE })
   }
