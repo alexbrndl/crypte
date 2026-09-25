@@ -85,6 +85,26 @@ describe('the form', () => {
     expect(submit.defaultPrevented).toBe(true)
   })
 
+  // Une option objet, écrite dans `details`, n'est pas proposée : un override
+  // est toujours une primitive, et `postMessage` refusait celle-ci. Revue de la
+  // PR #106.
+  test('offers only the primitive options of an enum', async () => {
+    const wrapper = monte(
+      entry('x--objets', {
+        size: { type: 'enum', required: false, options: [{ w: 1 }, 'md', null] },
+      }),
+    )
+
+    expect(wrapper.findAll('select option').map((one) => one.text())).toEqual([
+      '— valeur de la story',
+      'md',
+      'null',
+    ])
+
+    await wrapper.find('select').setValue('0')
+    expect(émis(wrapper).at(-1)).toEqual({ size: 'md' })
+  })
+
   // Un `enum` écrit sans ses valeurs : la liste ne propose que la story.
   test('offers only the story’s value for an enum with no options', () => {
     const wrapper = monte(entry('x--sans-options', { size: { type: 'enum', required: false } }))
@@ -198,11 +218,11 @@ describe('what it says when there is nothing to edit', () => {
   // Le cas de DCJ-319 : rien n'a été lu, ce qui n'est pas « rien à éditer ». Le
   // panneau reste ouvert et le dit, avec la raison et ce qu'on peut y faire.
   test('says why when the props could not be read, and stays open', () => {
-    const wrapper = monte(entry('x--opaque', {}, 'its props parameter has no type'))
+    const wrapper = monte(entry('x--opaque', {}, 'its props type is not one the reader follows'))
 
     expect(raisons(wrapper)).toEqual([])
     expect(wrapper.find('.unread').text()).toBe(
-      'Props non lues dans le fichier du composant : its props parameter has no type. Seules celles déclarées dans details de la story apparaissent ici.',
+      'Props non lues dans le fichier du composant : its props type is not one the reader follows. Seules celles déclarées dans details de la story apparaissent ici.',
     )
   })
 

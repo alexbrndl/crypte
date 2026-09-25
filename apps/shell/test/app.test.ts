@@ -258,14 +258,19 @@ describe('the values a panel edited', () => {
   // `ready` revient après une édition de fichier : la story reste affichée, et
   // ce qu'on vient de saisir aussi.
   test('keeps them when the preview says ready again on the same story', async ({ écran }) => {
+    const rendu = { type: 'render', id: 'badge--defaut', overrides: { label: 'Bonjour' } }
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
     édite(écran, { label: 'Bonjour' })
+    await expect.poll(() => écran.envoyés.at(-1)).toEqual(rendu)
+    const avant = écran.envoyés.length
 
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
 
-    await expect
-      .poll(() => écran.envoyés.at(-1))
-      .toEqual({ type: 'render', id: 'badge--defaut', overrides: { label: 'Bonjour' } })
+    // Le `render` de ce `ready`, et pas celui de l'édition, qui portait déjà les
+    // valeurs : lu sans ce compte, le cas passait avec des valeurs perdues.
+    // Revue de la PR #106.
+    await expect.poll(() => écran.envoyés.length).toBeGreaterThan(avant)
+    expect(écran.envoyés.at(-1)).toEqual(rendu)
   })
 })
 

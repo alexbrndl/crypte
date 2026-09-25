@@ -61,31 +61,51 @@ describe('what reading says when it reads nothing', () => {
       'a parameter with no type',
       'export function Badge(props) { return props.a }',
       'Badge',
-      'its props parameter has no type',
+      'its props type is not one the reader follows',
     ],
     [
       'a type from another file',
       "import type { P } from './p'\nexport function Badge(props: P) { return null }",
       'Badge',
-      'its props type is not declared in its file',
+      'its props type is not one the reader follows',
     ],
     [
       'an intersection of types from another file',
       "import type { P, Q } from './p'\nexport function Badge(props: P & Q) { return null }",
       'Badge',
-      'its props type is not declared in its file',
+      'its props type is not one the reader follows',
     ],
     [
       'a forwardRef typed from another file',
       "import { forwardRef } from 'react'\nimport type { P } from './p'\nexport const Badge = forwardRef<HTMLElement, P>((props, ref) => null)",
       'Badge',
-      'its props type is not declared in its file',
+      'its props type is not one the reader follows',
     ],
     [
       'a rest pattern alone',
       "import type { P } from './p'\nexport function Badge({ ...rest }: P) { return null }",
       'Badge',
-      'its props type is not declared in its file',
+      'its props type is not one the reader follows',
+    ],
+    // Revue de la PR #106 : lue comme « aucune prop », la même que l'intersection
+    // écrite en interface.
+    [
+      'an interface that only extends what it cannot follow',
+      "import type { Q } from './q'\ninterface P extends Q {}\nexport function Badge(props: P) { return null }",
+      'Badge',
+      'its props type is not one the reader follows',
+    ],
+    [
+      'a local generic',
+      "type P = { a: string; b: number }\nexport function Badge(props: Omit<P, 'b'>) { return null }",
+      'Badge',
+      'its props type is not one the reader follows',
+    ],
+    [
+      'a type carried by the variable',
+      "import type { FC } from 'react'\ntype P = { a: string }\nexport const Badge: FC<P> = (props) => null",
+      'Badge',
+      'its props type is not one the reader follows',
     ],
   ])('names %s', ([, source, exported, unread]) => {
     expect(readAll(source!, exported)).toEqual({ details: {}, unread })
@@ -121,6 +141,15 @@ describe('what reading says when it reads nothing', () => {
     ],
   ])('says nothing of %s', ([, source]) => {
     expect(readAll(source!)).toEqual({ details: {} })
+  })
+
+  // Un membre propre suffit : les props héritées manquent, mais la lecture a lu.
+  it('says nothing of an interface with a member of its own beside what it extends', () => {
+    expect(
+      readAll(
+        "import type { Q } from './q'\ninterface P extends Q { a: string }\nexport function Badge(props: P) { return null }",
+      ),
+    ).toEqual({ details: { a: { type: 'string', required: true } } })
   })
 
   it('says nothing when a destructuring names the props of a type from another file', () => {

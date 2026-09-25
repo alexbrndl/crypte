@@ -83,6 +83,11 @@ function choose(name: string, options: unknown[], event: Event) {
   else set(name, options[Number(at)])
 }
 
+// Primitives only, section 5.1: a story's `details` may list an object, which
+// would reach `postMessage` and be refused there. Measured.
+const choices = (details: ResolvedPropDetails) =>
+  (details.options ?? []).filter((one) => typeof one !== 'object' || one === null)
+
 const hint = (details: ResolvedPropDetails) =>
   details.default === undefined ? '' : String(details.default)
 </script>
@@ -135,11 +140,11 @@ const hint = (details: ResolvedPropDetails) =>
       />
       <select
         v-else
-        :value="name in values ? String((details.options ?? []).indexOf(values[name])) : ''"
-        @change="choose(name, details.options ?? [], $event)"
+        :value="name in values ? String(choices(details).indexOf(values[name])) : ''"
+        @change="choose(name, choices(details), $event)"
       >
         <option value="">— {{ hint(details) || 'valeur de la story' }}</option>
-        <option v-for="(option, at) of details.options ?? []" :key="at" :value="String(at)">
+        <option v-for="(option, at) of choices(details)" :key="at" :value="String(at)">
           {{ String(option) }}
         </option>
       </select>

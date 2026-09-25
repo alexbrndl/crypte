@@ -60,15 +60,11 @@ export function propsOf(file: string, exported: string): PropsRead {
   const pattern = destructured(parameter)
 
   // No type the reader can follow and no destructured name: nothing is known,
-  // which is not the same as a type that declares no member.
+  // which is not the same as a type that declares no member. One reason for
+  // every such type, since the reader cannot tell why: an imported type, a
+  // generic like `Omit<P, 'a'>`, or one on the variable, `const B: FC<P>`.
   if (members === undefined && pattern.length === 0) {
-    const typed = found.annotation ?? parameter['typeAnnotation']
-    return {
-      details: {},
-      unread: typed
-        ? 'its props type is not declared in its file'
-        : 'its props parameter has no type',
-    }
+    return { details: {}, unread: 'its props type is not one the reader follows' }
   }
 
   // Both halves: an unresolvable `extends` leaves a name like `className` only
@@ -271,10 +267,17 @@ function namedType(body: Node[], annotation: Node, seen: Set<string>): Member[] 
     if (declared !== name) continue
 
     if (declaration.type === 'TSInterfaceDeclaration') {
-      const inherited = (declaration['extends'] as Node[]).flatMap(
-        (one) => variants(body, one['expression'] as Node, one) ?? [],
-      )
-      return [...inherited, ...signatures(declaration['body'] as Node)]
+      const clauses = declaration['extends'] as Node[]
+      const inherited = clauses.map((one) => variants(body, one['expression'] as Node, one))
+      const own = signatures(declaration['body'] as Node)
+
+      // Nothing of its own and nothing it extends that resolves reads as
+      // unfollowed, like an intersection of imported types. `interface P {}`
+      // extends nothing, and has no props.
+      if (own.length === 0 && clauses.length > 0 && inherited.every((one) => one === undefined))
+        return undefined
+
+      return [...inherited.flatMap((one) => one ?? []), ...own]
     }
     if (declaration.type === 'TSTypeAliasDeclaration')
       return typeMembers(body, declaration['typeAnnotation'] as Node, new Set([...seen, name]))
