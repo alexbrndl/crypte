@@ -143,18 +143,23 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
         if (url.startsWith(PLUGIN_FILES)) {
           const [at = '', ...rest] = url.slice(PLUGIN_FILES.length).split('/')
           const one = /^\d+$/.test(at) ? surfacesOf(project).shell[Number(at)] : undefined
+          const inside = `/${rest.join('/')}`
 
           const missing = () => {
             response.statusCode = 404
             response.end()
           }
 
-          if (!one) {
+          // Nothing whose name starts with a dot: `sirv` serves those in `dev`
+          // mode, and a local plugin's folder can be the project itself, `.env`
+          // and `.git` included. Measured. Judged decoded, the way `sirv`
+          // decodes, since `%2eenv` is `.env`.
+          if (!one || hidden(inside)) {
             missing()
             return
           }
 
-          request.url = `/${rest.join('/')}`
+          request.url = inside
           sirv(dirname(one.file), { dev: true })(request, response, missing)
           return
         }
@@ -187,6 +192,16 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
         this.warn(one),
       )
     },
+  }
+}
+
+// A path with a segment that starts with a dot, `..` included, or one `decodeURI`
+// cannot read.
+function hidden(path: string): boolean {
+  try {
+    return /\/\./.test(decodeURI(path))
+  } catch {
+    return true
   }
 }
 

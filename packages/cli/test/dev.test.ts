@@ -71,6 +71,7 @@ describe('crypte dev', () => {
       writeFileSync(join(dossier, 'dist', 'shell.mjs'), "import './chunk.mjs'\n")
       writeFileSync(join(dossier, 'dist', 'chunk.mjs'), 'export {}\n')
       writeFileSync(join(dossier, 'secret.txt'), 'hors du dossier\n')
+      writeFileSync(join(dossier, 'dist', '.env'), 'SECRET=1\n')
 
       started.project.config.plugins = [
         { name: 'a', shell: pathToFileURL(join(dossier, 'dist', 'shell.mjs')).href },
@@ -103,6 +104,10 @@ describe('crypte dev', () => {
       ['an index no plugin holds', '/@crypte/plugins/1/shell.mjs'],
       ['a property of the list', '/@crypte/plugins/length/shell.mjs'],
       ['a file the folder does not hold', '/@crypte/plugins/0/absent.mjs'],
+      // Le dossier d'un plugin local peut être le projet : `.env` et `.git` avec.
+      ['a file whose name starts with a dot', '/@crypte/plugins/0/.env'],
+      ['the same file, its dot encoded', '/@crypte/plugins/0/%2eenv'],
+      ['a path `decodeURI` cannot read', '/@crypte/plugins/0/%E0%A4%A'],
     ])('answers 404 to %s', async ([, path]) => {
       expect(await get(path!)).toEqual({ status: 404, body: '' })
     })

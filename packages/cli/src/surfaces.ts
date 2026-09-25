@@ -34,7 +34,7 @@ export function surfacesOf(project: Project): Surfaces {
           plugin: plugin.name,
           reason: `\`${side}\` must be the file URL of a module, \`new URL('./${side}.mjs', import.meta.url).href\``,
         })
-      } else if (!statSync(file, { throwIfNoEntry: false })?.isFile()) {
+      } else if (!isFile(file)) {
         found.refused.push({
           plugin: plugin.name,
           reason: `\`${side}\` points at ${file}, which is not a file`,
@@ -47,11 +47,24 @@ export function surfacesOf(project: Project): Surfaces {
 }
 
 // A relative path, a plain path or an `https:` URL all throw here, and each
-// would resolve against something the plugin never chose.
+// would resolve against something the plugin never chose. A `URL` object too,
+// which `fileURLToPath` would take: the type asks for the string.
 function fileOf(pointer: unknown): string | undefined {
+  if (typeof pointer !== 'string') return undefined
+
   try {
-    return fileURLToPath(pointer as string)
+    return fileURLToPath(pointer)
   } catch {
     return undefined
+  }
+}
+
+// Any failure, not only a missing file: a name too long or a null byte throws,
+// and would stop the server the refusal exists to keep up. Measured.
+function isFile(file: string): boolean {
+  try {
+    return statSync(file).isFile()
+  } catch {
+    return false
   }
 }

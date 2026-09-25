@@ -74,8 +74,15 @@ describe('what a surface is refused', () => {
     ['a plain path', 'plain'],
     ['a URL other than file:', 'https://example.com/shell.mjs'],
     ['a value other than a string', 42],
+    ['a URL object, without its `href`', 'objet'],
   ] as const)('refuses %s', ([, pointer]) => {
-    const shell = pointer === 'plain' ? join(dossier, 'shell.mjs') : pointer
+    // Construits ici : la table est lue avant que `beforeAll` crée le dossier.
+    const shell =
+      pointer === 'plain'
+        ? join(dossier, 'shell.mjs')
+        : pointer === 'objet'
+          ? new URL(url('shell.mjs'))
+          : pointer
 
     expect(avec({ name: 'p', shell: shell as string })).toEqual({
       shell: [],
@@ -96,6 +103,19 @@ describe('what a surface is refused', () => {
         plugin: 'p',
         reason: `\`preview\` points at ${join(dossier, 'dossier.mjs')}, which is not a file`,
       },
+    ])
+  })
+
+  // `stat` lève sur ces deux-là au lieu de dire que rien n'est là, et la levée
+  // arrêtait `crypte dev` au démarrage.
+  it('refuses a file URL that the system cannot even look up', () => {
+    const long = join(dossier, `${'a'.repeat(300)}.mjs`)
+
+    expect(
+      avec({ name: 'p', shell: pathToFileURL(long).href, preview: 'file:///x%00.mjs' }).refused,
+    ).toEqual([
+      { plugin: 'p', reason: `\`shell\` points at ${long}, which is not a file` },
+      { plugin: 'p', reason: '`preview` points at /x\0.mjs, which is not a file' },
     ])
   })
 
