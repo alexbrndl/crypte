@@ -1,11 +1,18 @@
-import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { request } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it, test as base } from 'vitest'
 import { dev, startDev, type Started, type Running } from '../src/dev'
 import { loadProject } from '../src/project'
-import { MANIFEST_ROUTE, PREVIEW_ENTRY_ID, previewEntry, servePlugin } from '../src/serve'
+import {
+  MANIFEST_ROUTE,
+  PLUGINS_ROUTE,
+  PREVIEW_ENTRY_ID,
+  previewEntry,
+  servePlugin,
+} from '../src/serve'
 
 // Ce que `crypte dev` sert vraiment, mesuré sur un serveur qui écoute.
 
@@ -50,6 +57,72 @@ describe('crypte dev', () => {
 
     expect(status).toBe(200)
     expect(JSON.parse(body)).toEqual(started.held.catalogue.manifest)
+  })
+
+  // Les modules shell des plugins, section 6.1 : listés dans l'ordre de la
+  // configuration, servis depuis leur dossier et jamais au-delà. Les plugins
+  // sont injectés dans le projet que le serveur tient, lu à chaque requête.
+  describe('the plugin routes', () => {
+    let dossier: string
+
+    beforeAll(() => {
+      dossier = mkdtempSync(join(tmpdir(), 'crypte-plugin-'))
+      mkdirSync(join(dossier, 'dist'))
+      writeFileSync(join(dossier, 'dist', 'shell.mjs'), "import './chunk.mjs'\n")
+      writeFileSync(join(dossier, 'dist', 'chunk.mjs'), 'export {}\n')
+      writeFileSync(join(dossier, 'secret.txt'), 'hors du dossier\n')
+
+      started.project.config.plugins = [
+        { name: 'a', shell: pathToFileURL(join(dossier, 'dist', 'shell.mjs')).href },
+      ]
+    })
+
+    afterAll(() => {
+      delete started.project.config.plugins
+      rmSync(dossier, { recursive: true, force: true })
+    })
+
+    it('lists each shell module under its own URL', async () => {
+      const { status, body } = await get(PLUGINS_ROUTE)
+
+      expect(status).toBe(200)
+      expect(JSON.parse(body)).toEqual([{ name: 'a', shell: '/@crypte/plugins/0/shell.mjs' }])
+    })
+
+    it('serves the module and the chunks beside it', async () => {
+      const module = await fetch(`${origin}/@crypte/plugins/0/shell.mjs`)
+      const chunk = await get('/@crypte/plugins/0/chunk.mjs')
+
+      expect(module.status).toBe(200)
+      expect(module.headers.get('content-type')).toMatch(/^text\/javascript/)
+      expect(await module.text()).toBe("import './chunk.mjs'\n")
+      expect(chunk).toEqual({ status: 200, body: 'export {}\n' })
+    })
+
+    it.for([
+      ['an index no plugin holds', '/@crypte/plugins/1/shell.mjs'],
+      ['a property of the list', '/@crypte/plugins/length/shell.mjs'],
+      ['a file the folder does not hold', '/@crypte/plugins/0/absent.mjs'],
+    ])('answers 404 to %s', async ([, path]) => {
+      expect(await get(path!)).toEqual({ status: 404, body: '' })
+    })
+
+    // Par une requête brute : `fetch` normalise `..` avant d'envoyer, et le cas
+    // n'éprouvait alors que le routage.
+    it('never serves a file above the folder', async () => {
+      const answer = await new Promise<string>((resolve, reject) => {
+        const port = new URL(origin).port
+        request({ port, path: '/@crypte/plugins/0/../secret.txt' }, (response) => {
+          let body = ''
+          response.on('data', (chunk: Buffer) => (body += chunk))
+          response.on('end', () => resolve(`${response.statusCode} ${body}`))
+        })
+          .on('error', reject)
+          .end()
+      })
+
+      expect(answer).toBe('404 ')
+    })
   })
 
   // La compilation elle-même, que le cas ci-dessus ne tient pas : la fixture
@@ -111,6 +184,29 @@ describe('the preview entry', () => {
     ])
 
     expect(source).toContain(String.raw`import("/stories/L'\"Ecart.tsx")`)
+  })
+
+  // Une promesse par module, comme les stories : importé statiquement, un
+  // module qui lève emportait l'entrée entière. Le nom du plugin est une
+  // donnée, échappée comme un nom de fichier.
+  it('imports each plugin preview module on its own', () => {
+    const file = join(fixture, 'entry.jsx')
+    const project = {
+      root: fixture,
+      config: {
+        stories: 'stories',
+        plugins: [{ name: `l'"ecart`, preview: pathToFileURL(file).href }],
+      },
+    } as never
+
+    const lines = previewEntry(project, []).split('\n')
+    const start = lines.findIndex((one) => one.includes(file))
+
+    expect(sansRacine(lines.slice(start - 1, start + 2).join('\n'))).toMatchInlineSnapshot(`
+      "await Promise.all([
+        import("<racine>/packages/cli/test/fixture/entry.jsx").catch((error) => console.error("crypte: the preview module of l'\\"ecart could not load", error)),
+      ])"
+    `)
   })
 })
 

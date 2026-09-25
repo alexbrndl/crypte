@@ -15,6 +15,7 @@ import { ConfigError, reason } from './errors'
 import { best, isBareSpecifier, ordered, substituted } from './paths'
 import { detailsOf } from './props'
 import { entriesOf, posix, STORY_EXTENSIONS } from './stories'
+import { surfacesOf } from './surfaces'
 import type { Project } from './project'
 
 // The build writes here, and Git ignores it: the fingerprint beside it is what
@@ -35,9 +36,10 @@ export interface Catalogue {
   // and not of the catalogue, so it stays out of the manifest: it exists so that
   // a file which stops producing keeps saying so beyond one rebuild.
   wasStory: string[]
-  // What a plugin's `entries` hook did not get to contribute, and why. Its own
-  // field rather than `skipped`, whose `file` is contractually the path of a
-  // story file, section 4.1. The caller reports it.
+  // What a plugin's `entries` hook did not get to contribute, and the browser
+  // surfaces that point nowhere, with the reason. Its own field rather than
+  // `skipped`, whose `file` is contractually the path of a story file, section
+  // 4.1. The caller reports it.
   skippedPlugins: { plugin: string; reason: string }[]
 }
 
@@ -156,7 +158,7 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
     },
     skipped,
     wasStory: [...new Set([...gave, ...was])],
-    skippedPlugins: contributed.skipped,
+    skippedPlugins: [...contributed.skipped, ...surfacesOf(project).refused],
   }
 }
 
