@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.20, reference document. A project brief points here instead of restating these shapes.
+> Version 1.21, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -426,10 +426,11 @@ The manifest feeds the shell: navigation tree, search, props table, controls pan
 
   It holds only what is **certain to be a story**: a `defineStories` call no default export carries, a file that does not parse, and a file that produced stories and produces none any more. A file that gave no story without naming `defineStories` is a helper, a wrapper or a type file as far as anybody can tell, so the CLI names it in its own output and the manifest leaves it out. Reading intent from the shape of the default export was measured to have a counterexample per branch.
 - `partial` names one **entry** whose record is incomplete: the story is there and renders, but a spread or a computed key kept props out of its table. Its text quotes what the file wrote, since the missing names are precisely what cannot be read.
+- `propsUnread` says why inference read nothing of an entry's **component**: its file could not be found or read, does not parse, does not declare the component in a form the reader follows, or types its props parameter with nothing it can follow. Absent, an empty `details` means a component with no props, which is the one thing it cannot tell apart otherwise. A component whose props are named by a destructuring but typed elsewhere is not unread: each such prop says `unknown` on its own. What the story file writes in `details` still completes it (3.2).
 
-Both are optional, so a manifest written before them stays valid and the version does not move.
+All three are optional, so a manifest written before them stays valid and the version does not move.
 
-Neither is ever fatal. A file being written must not cost the catalogue, and half a story is worth more than an empty screen.
+None is ever fatal. A file being written must not cost the catalogue, and half a story is worth more than an empty screen.
 
 ### 4.2 Typed entries
 
@@ -460,6 +461,7 @@ interface StoryEntry {
   source: string
   meta?: StoryMeta
   partial?: string
+  propsUnread?: string
 }
 
 interface ComponentRef {
@@ -673,7 +675,7 @@ type ShellMessage =
 
 `render` mounts the entry that was asked for, with the shell's overrides applied on top of the story's props by 2.3's merge, shallow and prop by prop. A preview drops any message it does not know.
 
-**`update-overrides` and `set-globals` were here and are now in reserve**, section 7. Neither had a consumer, and `render` already carries overrides: what the first added was updating them *without remounting*, which is a question only a real `controls` can settle.
+**`update-overrides` and `set-globals` were here and are now in reserve**, section 7. Neither had a consumer, and `render` already carries overrides: what the first added was updating them *without remounting*. **`controls` settled it: nothing is remounted.** Measured in a browser, the node the React adapter rendered survives an edit, since the adapter renders again on the root it keeps.
 
 ### 5.3 Preview to shell
 
@@ -776,6 +778,10 @@ export default {
 ```
 
 **It is said story by story, never once.** The frame forgets it whenever it receives a new `entry`, another story or the same one read again after an edit, so a panel that does not say it again is open. A reason that is not a non-empty string is ignored.
+
+**A panel that edits the story emits `overrides`**, the values to render it with, primitives only (5.1). The shell sends them in `render`, keeps them while that story stays on display, a preview that says `ready` again included, and drops them when another story is shown. `@crypte/controls` is the panel that does.
+
+**Only the module is loaded.** A style sheet built beside it never reaches the page, so a panel styles itself inline.
 
 **Whether a panel is open is the shell's to remember**, under the plugin's name, never the plugin's. A panel that throws shows the error in its frame, and is mounted again at its next `entry`.
 
@@ -888,7 +894,7 @@ The field carrying both already exists, so neither is a manifest break. The reas
 
 **Held in reserve, to add when a real case asks for it:**
 
-- `update-overrides`, which would change a mounted entry's props without remounting it. `render` already carries overrides, so the capability is there and only preserving component state across an edit is missing. What merging, resetting and story-switching should do is exactly what a real `controls` settles, and 6.5 already refuses to freeze that contract before it exists. Tracked in DCJ-214.
+- `update-overrides`, which would change a mounted entry's props without remounting it. `render` already does, measured with `controls` (5.2). Reopened by an adapter that remounts on every `render`, or a component that loses its state across an edit.
 - `set-globals`, which would apply a theme or a locale to the preview. No consumer, and no shape a case has demonstrated.
 - A `render` escape hatch on a story, to make a controlled component truly interactive. Left out of v1 for lack of a demonstrated case, see 2.7. Adding it later breaks nothing; shipping it now would create a use we could not take back.
 - Documenting pass-through DOM attributes, see 3.4.
@@ -910,7 +916,7 @@ This document is a contract. This section is the only place that says what exist
 | 4, the manifest | built, and written by `crypte dev` at start-up, on every restart of the configuration and on every rebuild, so the file follows what is served. Of the two natures of entry it can carry, only `story` is produced |
 | 4.6, the fingerprint | built, and written by `crypte dev` whenever the catalogue served changes it: at start-up, on a restart of the configuration, and on a story change. So `crypte check` does not fail after a session, and trying a `stories` path then reverting rewrites the same bytes |
 | 5, the channel | built and exercised on both sides |
-| 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. The `shell` and `preview` modules are loaded, and the shell mounts each shell module in a frame that folds when the panel is `inapplicable` and remembers whether it is open. The demonstration's `hello` and `status` plugins use them. **Provisional, and not one step closer to stable**: 6.5 asks for `controls` and `a11y`, and none of `tokens`, `hello` or `status` is one |
+| 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. The `shell` and `preview` modules are loaded, and the shell mounts each shell module in a frame that folds when the panel is `inapplicable` and remembers whether it is open. `@crypte/controls` edits a story's props through `overrides`, and the demonstration's `hello` and `status` plugins use the rest. `controls` does not add `min`, `max`, `step` or `control` to `PluginPropDetails` yet (3.3), so writing them is still a compile error. **Provisional**: 6.5 asks for `controls` and `a11y`, and only the first exists |
 
 **`dev`, `check` and `init` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled in the project by the CLI's own Vite, with the plugins the project declares in `vite.plugins`. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte init` writes the configuration of 1.5 into a project that already has its components, and has no section of its own because the file it writes is 1.5 itself.
 
@@ -927,6 +933,14 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.21.** `controls` edits a story's props, and the manifest says when a component's props could not be read (4.1, 6.1).
+
+| Before | After |
+| --- | --- |
+| an empty `details` could mean no props or props nobody could read | `propsUnread` gives the reason for the second |
+| a panel could not change the story | it emits `overrides`, which the shell sends in `render` |
+| `update-overrides` waited for `controls` to settle whether an edit remounts | measured, it does not, and the reserve says what would reopen it |
 
 **v1.20.** The shell hosts the panels of the plugins (6.1).
 

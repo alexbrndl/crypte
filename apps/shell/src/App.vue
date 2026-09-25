@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { Manifest, SkippedFile, StoryEntry } from '@crypte/core/protocol'
+import type { Manifest, Overrides, SkippedFile, StoryEntry } from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/shell'
 import { Callout } from '@crypte/ui'
-import { computed, onMounted, ref, useTemplateRef } from 'vue'
+import { computed, onMounted, ref, shallowRef, useTemplateRef } from 'vue'
 import Panels from './panels.vue'
 import { landing, unreadable, type Shown } from './recover'
 
@@ -71,13 +71,28 @@ const groups = computed(() => {
   return [...byPath]
 })
 
+// Ce qu'un panneau a édité, par-dessus les props de la story affichée. Gardé
+// tant que la même story reste affichée, y compris quand la preview redit
+// `ready` après une édition de fichier : la story repart de ses props quand on
+// en change, jamais sous les valeurs qu'on vient de saisir.
+//
+// `shallowRef` et une copie : `postMessage` refuse un proxy réactif, et un
+// panneau peut émettre le sien.
+const overrides = shallowRef<Overrides>({})
+
 function show(id: string) {
+  if (id !== current.value) overrides.value = {}
   current.value = id
   shown = entries.value.find((entry) => entry.id === id) ?? shown
   failure.value = null
   // Rien ne part avant que la preview ait dit `ready` : un message envoyé à une
   // iframe qui n'écoute pas encore est perdu sans trace.
-  if (ready) channel?.send({ type: 'render', id, overrides: {} })
+  if (ready) channel?.send({ type: 'render', id, overrides: overrides.value })
+}
+
+function edit(values: Overrides) {
+  overrides.value = { ...values }
+  if (current.value !== null) show(current.value)
 }
 
 // Relu à chaque `ready`, et pas seulement au montage : ce message est aussi ce
@@ -191,7 +206,7 @@ onMounted(() => {
            que ce qui manque à sa fiche. Le ton dit ce que l'outil ne sait pas
            lire, jamais que le fichier est mal écrit. -->
       <p v-if="partial && !failure" class="partial">Fiche partielle : {{ partial }}.</p>
-      <Panels :entry="displayed" />
+      <Panels :entry="displayed" @overrides="edit" />
       <p>{{ status }}</p>
     </div>
   </main>

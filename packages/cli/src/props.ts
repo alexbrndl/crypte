@@ -13,31 +13,59 @@ interface Comment {
   end: number
 }
 
+// What reading a component gives: its props, and why none could be read when
+// that is the case. `unread` is what tells a component with no props from one
+// the reader could not follow, both of which give no details. Section 4.2.
+export interface PropsRead {
+  details: Record<string, ResolvedPropDetails>
+  unread?: string
+}
+
 // Nothing here is ever fatal. A file that does not parse, a component that is not
 // found, a type that says nothing: each gives fewer props, never an error, and
 // the story renders either way. Section 8 of docs/contracts.md.
-export function detailsOf(file: string, exported: string): Record<string, ResolvedPropDetails> {
+export function propsOf(file: string, exported: string): PropsRead {
   let source: string
   let parsed: ReturnType<typeof parseSync>
 
   try {
     source = readFileSync(file, 'utf8')
     parsed = parseSync(file, source)
-  } catch {
-    return {}
+  } catch (error) {
+    // Absent is the common case: a component from a package, or reached through
+    // a Vite plugin, keeps the specifier the story wrote, which names no file.
+    const absent = (error as { code?: string }).code === 'ENOENT'
+    return {
+      details: {},
+      unread: absent ? 'its file could not be found' : 'its file could not be read',
+    }
   }
 
-  if (parsed.errors.length > 0) return {}
+  if (parsed.errors.length > 0) return { details: {}, unread: 'its file does not parse' }
 
   const body = parsed.program.body as unknown as Node[]
   const comments = parsed.comments as unknown as Comment[]
   const found = componentOf(body, exported)
-  if (!found) return {}
+  if (!found) {
+    const named = exported === 'default' ? 'the default export' : `\`${exported}\``
+    return { details: {}, unread: `${named} is not declared in a form the reader follows` }
+  }
 
+  // A component that takes no parameter has no props, and that is a reading.
   const { parameter } = found
+  if (!parameter) return { details: {} }
+
   const members = membersOf(body, parameter, found.annotation)
   const defaults = defaultsOf(parameter)
   const pattern = destructured(parameter)
+
+  // No type the reader can follow and no destructured name: nothing is known,
+  // which is not the same as a type that declares no member. One reason for
+  // every such type, since the reader cannot tell why: an imported type, a
+  // generic like `Omit<P, 'a'>`, or one on the variable, `const B: FC<P>`.
+  if (members === undefined && pattern.length === 0) {
+    return { details: {}, unread: 'its props type is not one the reader follows' }
+  }
 
   // Both halves: an unresolvable `extends` leaves a name like `className` only
   // in the pattern, so the type's members alone would drop it.
@@ -66,7 +94,7 @@ export function detailsOf(file: string, exported: string): Record<string, Resolv
     }
   }
 
-  return details
+  return { details }
 }
 
 interface Member {
@@ -86,7 +114,7 @@ interface Member {
 // The first parameter of the exported component, whatever shape declares it,
 // and the props type a `forwardRef<Ref, Props>` gives when the parameter has none.
 interface Found {
-  parameter: Node
+  parameter?: Node
   annotation?: Node
 }
 
@@ -140,7 +168,7 @@ function fromExpression(body: Node[], expression: Node, seen: Set<string>): Foun
     expression.type === 'FunctionDeclaration'
   ) {
     const parameter = (expression['params'] as Node[])[0]
-    return parameter ? { parameter } : undefined
+    return parameter ? { parameter } : {}
   }
 
   if (expression.type === 'Identifier') return foundOf(body, expression['name'] as string, seen)
@@ -152,7 +180,7 @@ function fromExpression(body: Node[], expression: Node, seen: Set<string>): Foun
   if (!wrapper || !first) return undefined
 
   const found = fromExpression(body, first, seen)
-  if (!found || wrapper !== 'forwardRef' || found.annotation || found.parameter['typeAnnotation'])
+  if (!found || wrapper !== 'forwardRef' || found.annotation || found.parameter?.['typeAnnotation'])
     return found
 
   const props = (
@@ -199,8 +227,11 @@ function typeMembers(
 ): Member[] | undefined {
   if (annotation.type === 'TSTypeLiteral') return signatures(annotation)
 
+  // Nothing when no part resolves, so that an intersection of imported types
+  // reads as unfollowed rather than as a type with no member.
   if (annotation.type === 'TSIntersectionType') {
-    return (annotation['types'] as Node[]).flatMap((one) => typeMembers(body, one, seen) ?? [])
+    const parts = (annotation['types'] as Node[]).map((one) => typeMembers(body, one, seen))
+    return parts.every((one) => one === undefined) ? undefined : parts.flatMap((one) => one ?? [])
   }
 
   return (
@@ -236,10 +267,17 @@ function namedType(body: Node[], annotation: Node, seen: Set<string>): Member[] 
     if (declared !== name) continue
 
     if (declaration.type === 'TSInterfaceDeclaration') {
-      const inherited = (declaration['extends'] as Node[]).flatMap(
-        (one) => variants(body, one['expression'] as Node, one) ?? [],
-      )
-      return [...inherited, ...signatures(declaration['body'] as Node)]
+      const clauses = declaration['extends'] as Node[]
+      const inherited = clauses.map((one) => variants(body, one['expression'] as Node, one))
+      const own = signatures(declaration['body'] as Node)
+
+      // Nothing of its own and nothing it extends that resolves reads as
+      // unfollowed, like an intersection of imported types. `interface P {}`
+      // extends nothing, and has no props.
+      if (own.length === 0 && clauses.length > 0 && inherited.every((one) => one === undefined))
+        return undefined
+
+      return [...inherited.flatMap((one) => one ?? []), ...own]
     }
     if (declaration.type === 'TSTypeAliasDeclaration')
       return typeMembers(body, declaration['typeAnnotation'] as Node, new Set([...seen, name]))

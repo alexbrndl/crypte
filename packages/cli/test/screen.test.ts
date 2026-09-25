@@ -821,7 +821,7 @@ describe('the panel host', () => {
           .locator('[data-plugin]')
           .evaluateAll((tous) => tous.map((un) => un.getAttribute('data-plugin'))),
       )
-      .toEqual(['hello', 'status'])
+      .toEqual(['controls', 'hello', 'status'])
   })
 
   test('folds a panel with nothing to say, story by story', async ({ ecran }) => {
@@ -857,5 +857,78 @@ describe('the panel host', () => {
     await expect.poll(() => cadre(ecran.page, 'hello').count()).toBe(1)
     expect(await titre().getAttribute('aria-expanded')).toBe('false')
     expect(await cadre(ecran.page, 'hello').locator('.body').isVisible()).toBe(false)
+  })
+})
+
+// `@crypte/controls` sur la démonstration : un champ par prop, la story re-rendue
+// avec ce qui est saisi, et ce qu'il dit d'un composant qu'il n'a pas pu lire.
+describe('the controls panel', () => {
+  const panneau = (page: Page) => page.locator('[data-plugin="controls"]')
+  const cadre = (page: Page) => page.frameLocator('iframe[title="preview"]')
+
+  test('renders the story with what is typed, without remounting it', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+
+    await expect
+      .poll(() => panneau(ecran.page).locator('label span').allTextContents())
+      .toEqual(['label', 'tone'])
+
+    // Une marque sur le nœud rendu : un composant remonté la perdrait. C'est la
+    // mesure qui garde `update-overrides` en réserve (DCJ-214).
+    await cadre(ecran.page)
+      .locator('#root span')
+      .evaluate((un) => un.setAttribute('data-marque', 'gardée'))
+
+    await panneau(ecran.page).locator('input[type="text"]').fill('Bonjour')
+    await expect.poll(ecran.vu).toBe('Bonjour')
+
+    await panneau(ecran.page).locator('select').selectOption({ label: 'warning' })
+    await expect
+      .poll(() => cadre(ecran.page).locator('#root span').getAttribute('style'))
+      .toContain('--color-warning')
+
+    expect(await cadre(ecran.page).locator('#root span').getAttribute('data-marque')).toBe('gardée')
+  })
+
+  test('starts over from the story on another one', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    await panneau(ecran.page).locator('input[type="text"]').fill('Bonjour')
+    await expect.poll(ecran.vu).toBe('Bonjour')
+
+    await ecran.page.getByRole('button', { name: 'Libellé long', exact: true }).click()
+
+    await expect.poll(ecran.vu).not.toBe('Bonjour')
+    expect(await panneau(ecran.page).locator('input[type="text"]').inputValue()).toBe('')
+  })
+
+  // Le cas de DCJ-319, écrit dans la copie : un paramètre sans type, que la
+  // lecture ne suit pas. Le panneau le dit au lieu de rester vide.
+  test('says why a component’s props could not be read', async ({ ecran }) => {
+    writeFileSync(
+      join(ecran.root, 'src', 'components', 'Opaque.tsx'),
+      'export function Opaque(props) {\n  return <span>{props.text}</span>\n}\n',
+    )
+    writeFileSync(
+      join(ecran.root, 'stories', 'Opaque.tsx'),
+      [
+        "import { defineStories } from '@crypte/react'",
+        "import { Opaque } from '@/components/Opaque'",
+        '',
+        "export default defineStories(Opaque, { stories: { Opaque: { text: 'illisible' } } })",
+        '',
+      ].join('\n'),
+    )
+
+    const story = ecran.page.getByRole('button', { name: 'Opaque', exact: true })
+    await expect.poll(() => story.count()).toBe(1)
+    await story.click()
+
+    await expect
+      .poll(async () =>
+        (await panneau(ecran.page).locator('.unread').textContent())?.replace(/\s+/g, ' ').trim(),
+      )
+      .toBe(
+        'Props non lues dans le fichier du composant : its props type is not one the reader follows. Seules celles déclarées dans details de la story apparaissent ici.',
+      )
   })
 })
