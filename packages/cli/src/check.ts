@@ -9,11 +9,11 @@ import { FINGERPRINT, fingerprintOf } from './fingerprint'
 import { componentFile, storiesOf, buildCatalogue } from './manifest'
 import { best, isBareSpecifier, ordered } from './paths'
 import { loadProject, type Project } from './project'
-import type { Node } from './ast'
+import { syntaxError, type Node } from './ast'
 import { wrappersOf } from './stories'
 
 export interface Problem {
-  kind: 'orphan' | 'unstoried' | 'stale' | 'unreadable'
+  kind: 'orphan' | 'unstoried' | 'stale' | 'unreadable' | 'broken'
   // Project-relative for a component the producer resolved, and for an orphan
   // the story reached by a relative path. An orphan reached by an alias or a
   // package keeps what the story wrote, and a component outside the root its
@@ -346,6 +346,29 @@ export function staleOf(project: Project, manifest: Manifest): Problem[] {
     : [{ kind: 'stale', file: FINGERPRINT, name: 'behind' }]
 }
 
+// The component files the stories cite that do not parse. Their props fall back
+// to none without a word, so the fingerprint moved and only "behind" was said;
+// and `crypte dev` writes the fingerprint in that state, when nothing is said at
+// all. A warning, like an unreadable story file: the preview names the file too.
+export function brokenOf(project: Project, manifest: Manifest): Problem[] {
+  const files = [...new Set(storiesOf(manifest).map((entry) => entry.component.file))]
+
+  return files.flatMap((file) => {
+    let source: string
+    try {
+      source = readFileSync(join(project.root, file), 'utf8')
+    } catch {
+      return []
+    }
+
+    const { errors } = parseSync(file, source)
+
+    return errors.length > 0
+      ? [{ kind: 'broken' as const, file, name: syntaxError(source, errors[0]) }]
+      : []
+  })
+}
+
 // Project-relative, except outside the root where that is a chain of `..`.
 function named(root: string, file: string): string {
   const said = relative(root, file).split(sep).join('/')
@@ -357,7 +380,7 @@ function named(root: string, file: string): string {
 const STALE: Record<string, string> = {
   missing: 'missing',
   unreadable: 'unreadable',
-  behind: 'behind the stories',
+  behind: 'behind the stories and their components',
 }
 
 // What the user reads. Orphans and a stale fingerprint decide the exit code; a
@@ -371,7 +394,9 @@ export function linesOf(problems: Problem[]): string[] {
         ? `${one.file} is ${STALE[one.name] ?? one.name}: run crypte dev and commit it`
         : one.kind === 'unreadable'
           ? `${one.file}: this story file cannot be read, ${one.name}`
-          : `${one.file}: ${one.name} has no story`,
+          : one.kind === 'broken'
+            ? `${one.file}: this component file cannot be read, ${one.name}`
+            : `${one.file}: ${one.name} has no story`,
   )
 
   if (problems.some((one) => one.kind === 'unreadable')) {
@@ -387,7 +412,11 @@ export async function check(
 ): Promise<number> {
   const project = await loadProject(input)
   const { manifest } = buildCatalogue(project)
-  const problems = [...problemsOf(project, manifest), ...staleOf(project, manifest)]
+  const problems = [
+    ...problemsOf(project, manifest),
+    ...brokenOf(project, manifest),
+    ...staleOf(project, manifest),
+  ]
 
   for (const line of linesOf(problems)) log(line)
 
