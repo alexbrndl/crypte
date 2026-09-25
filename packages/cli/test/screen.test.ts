@@ -794,13 +794,15 @@ describe('a plugin in the browser', () => {
 
     await expect.poll(ecran.vu).toBe('Nouveau')
 
-    // La première ligne seule : la pile porte le port du serveur.
-    expect(
-      ecran
-        .plaintes()
-        .filter((one) => one.includes('preview module'))
-        .map((one) => one.split('\n')[0]),
-    ).toEqual([
+    // La première ligne seule : la pile porte le port du serveur. Une fois ou
+    // deux, selon que la mise à jour à chaud qui suit l'écriture a tourné avant
+    // le rechargement ou non.
+    const dites = ecran
+      .plaintes()
+      .filter((one) => one.includes('preview module'))
+      .map((one) => one.split('\n')[0])
+
+    expect([...new Set(dites)]).toEqual([
       'console: crypte: the preview module of hello could not load Error: cette preview lève à l’import',
     ])
   })

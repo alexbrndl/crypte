@@ -12,13 +12,16 @@ import { defineConfig, type Plugin } from 'vite'
 // seconde copie, `inject` passe encore mais l'état propre d'un panneau ne
 // redessine plus, sans avertissement. Mesuré dans Chromium. Rouvert quand un
 // plugin importe `@crypte/ui` : il rejoint alors l'import map, pour la même raison.
-const runtime = createRequire(import.meta.url).resolve('vue/dist/vue.runtime.esm-browser.prod.js')
+//
+// La version avec compilateur : un module écrit à la main avec `template` ne
+// rendait rien sans elle, et sans un mot. 21 Ko gzip de plus, servis en local.
+const browserVue = createRequire(import.meta.url).resolve('vue/dist/vue.esm-browser.prod.js')
 
 const shared: Plugin = {
   name: 'crypte:shared-vue',
   apply: 'build',
   generateBundle() {
-    this.emitFile({ type: 'asset', fileName: 'vendor/vue.js', source: readFileSync(runtime) })
+    this.emitFile({ type: 'asset', fileName: 'vendor/vue.js', source: readFileSync(browserVue) })
   },
 }
 
