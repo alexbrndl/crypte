@@ -31,10 +31,11 @@ export function detailsOf(file: string, exported: string): Record<string, Resolv
 
   const body = parsed.program.body as unknown as Node[]
   const comments = parsed.comments as unknown as Comment[]
-  const parameter = firstParameter(body, exported)
-  if (!parameter) return {}
+  const found = componentOf(body, exported)
+  if (!found) return {}
 
-  const members = membersOf(body, parameter)
+  const { parameter } = found
+  const members = membersOf(body, parameter, found.annotation)
   const defaults = defaultsOf(parameter)
   const pattern = destructured(parameter)
 
@@ -82,39 +83,46 @@ interface Member {
   preset?: unknown
 }
 
-// The first parameter of the exported component, whatever shape declares it.
-function firstParameter(body: Node[], exported: string): Node | undefined {
-  // `export default Badge` names a declaration further up rather than carrying
-  // one. Following the name once covers the common shape; `export default
-  // memo(Badge)` is a call and is not followed.
-  const named =
-    exported === 'default'
-      ? body
-          .filter((node) => node.type === 'ExportDefaultDeclaration')
-          .map((node) => (node['declaration'] as Node | null)?.['name'])
-          .find((one): one is string => typeof one === 'string')
-      : undefined
-
-  return parameterOf(body, named ?? exported)
+// The first parameter of the exported component, whatever shape declares it,
+// and the props type a `forwardRef<Ref, Props>` gives when the parameter has none.
+interface Found {
+  parameter: Node
+  annotation?: Node
 }
 
-function parameterOf(body: Node[], exported: string): Node | undefined {
+function componentOf(body: Node[], exported: string): Found | undefined {
+  // `export default Badge` names a declaration further up, and `export default
+  // memo(Badge)` wraps one: both are followed like any other expression.
+  if (exported === 'default') {
+    const declaration = body.find((node) => node.type === 'ExportDefaultDeclaration')?.[
+      'declaration'
+    ] as Node | undefined
+    const found = declaration && fromExpression(body, declaration, new Set())
+    if (found) return found
+  }
+
+  return foundOf(body, exported, new Set())
+}
+
+function foundOf(body: Node[], exported: string, seen: Set<string>): Found | undefined {
+  // `const A = memo(B)` and `const B = memo(A)` would follow each other forever.
+  if (seen.has(exported)) return undefined
+  seen.add(exported)
+
   for (const node of body) {
     const declaration = (node['declaration'] ?? node) as Node
 
     if (declaration.type === 'FunctionDeclaration') {
       const name = (declaration['id'] as Node | null)?.['name']
       if (name === exported || (exported === 'default' && node.type === 'ExportDefaultDeclaration'))
-        return (declaration['params'] as Node[])[0]
+        return fromExpression(body, declaration, seen)
     }
 
     if (declaration.type === 'VariableDeclaration') {
       for (const one of declaration['declarations'] as Node[]) {
         const name = (one['id'] as Node | null)?.['name']
         const init = one['init'] as Node | null
-        if (name !== exported || !init) continue
-        if (init.type === 'ArrowFunctionExpression' || init.type === 'FunctionExpression')
-          return (init['params'] as Node[])[0]
+        if (name === exported && init) return fromExpression(body, init, seen)
       }
     }
   }
@@ -122,13 +130,60 @@ function parameterOf(body: Node[], exported: string): Node | undefined {
   return undefined
 }
 
+// A function gives its first parameter; a name is followed in the same file; a
+// wrapper hands on to its first argument. Anything else, a factory, a class, a
+// call of another helper, gives nothing rather than a guess.
+function fromExpression(body: Node[], expression: Node, seen: Set<string>): Found | undefined {
+  if (
+    expression.type === 'ArrowFunctionExpression' ||
+    expression.type === 'FunctionExpression' ||
+    expression.type === 'FunctionDeclaration'
+  ) {
+    const parameter = (expression['params'] as Node[])[0]
+    return parameter ? { parameter } : undefined
+  }
+
+  if (expression.type === 'Identifier') return foundOf(body, expression['name'] as string, seen)
+
+  if (expression.type !== 'CallExpression') return undefined
+
+  const wrapper = wrapperOf(expression['callee'] as Node)
+  const first = (expression['arguments'] as Node[])[0]
+  if (!wrapper || !first) return undefined
+
+  const found = fromExpression(body, first, seen)
+  if (!found || wrapper !== 'forwardRef' || found.annotation || found.parameter['typeAnnotation'])
+    return found
+
+  const props = (
+    (expression['typeArguments'] as Node | null)?.['params'] as Node[] | undefined
+  )?.[1]
+  return props ? { ...found, annotation: props } : found
+}
+
+// `memo` and `forwardRef`, bare or on any namespace (`import * as R` gives
+// `R.memo`), and `Object.assign`,
+// whose first argument is the component the compound parts hang from.
+function wrapperOf(callee: Node): 'memo' | 'forwardRef' | 'assign' | undefined {
+  const name =
+    callee.type === 'Identifier'
+      ? callee['name']
+      : callee.type === 'MemberExpression'
+        ? (callee['property'] as Node)['name']
+        : undefined
+  if (name === 'memo' || name === 'forwardRef') return name
+
+  const object = callee.type === 'MemberExpression' ? (callee['object'] as Node)['name'] : undefined
+  return name === 'assign' && object === 'Object' ? 'assign' : undefined
+}
+
 // The members of the parameter's declared type, or nothing when no type says.
 // A named type is looked up in the same file only: following an import is a
 // resolver's job, and this runs before any server exists.
-function membersOf(body: Node[], parameter: Node): Member[] | undefined {
-  const annotation = (parameter['typeAnnotation'] as Node | null)?.['typeAnnotation'] as
-    | Node
-    | undefined
+function membersOf(body: Node[], parameter: Node, fallback?: Node): Member[] | undefined {
+  const annotation =
+    ((parameter['typeAnnotation'] as Node | null)?.['typeAnnotation'] as Node | undefined) ??
+    fallback
   if (!annotation) return undefined
 
   return typeMembers(body, annotation)
