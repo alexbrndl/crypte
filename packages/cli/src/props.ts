@@ -161,7 +161,8 @@ function fromExpression(body: Node[], expression: Node, seen: Set<string>): Foun
   return props ? { ...found, annotation: props } : found
 }
 
-// `memo` and `forwardRef`, bare or on the React namespace, and `Object.assign`,
+// `memo` and `forwardRef`, bare or on any namespace (`import * as R` gives
+// `R.memo`), and `Object.assign`,
 // whose first argument is the component the compound parts hang from.
 function wrapperOf(callee: Node): 'memo' | 'forwardRef' | 'assign' | undefined {
   const name =
