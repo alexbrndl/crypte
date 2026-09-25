@@ -242,6 +242,19 @@ describe('the values a panel edited', () => {
       .toEqual({ type: 'render', id: 'badge--alerte', overrides: {} })
   })
 
+  // Sans story affichée, rien ne part : il n'y a rien à rendre.
+  test('sends nothing while no story is on display', async () => {
+    const écran = await monte([])
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    const avant = écran.envoyés.length
+
+    édite(écran, { label: 'Bonjour' })
+    await vide(écran.wrapper)
+
+    expect(écran.envoyés).toHaveLength(avant)
+    écran.wrapper.unmount()
+  })
+
   // `ready` revient après une édition de fichier : la story reste affichée, et
   // ce qu'on vient de saisir aussi.
   test('keeps them when the preview says ready again on the same story', async ({ écran }) => {

@@ -73,6 +73,28 @@ describe('the fields', () => {
   })
 })
 
+describe('the form', () => {
+  // Sans ce refus, Entrée dans un champ envoie le formulaire, et le navigateur
+  // recharge le shell entier.
+  test('never submits', () => {
+    const wrapper = monte(toutes)
+    const submit = new Event('submit', { cancelable: true })
+
+    wrapper.find('form').element.dispatchEvent(submit)
+
+    expect(submit.defaultPrevented).toBe(true)
+  })
+
+  // Un `enum` écrit sans ses valeurs : la liste ne propose que la story.
+  test('offers only the story’s value for an enum with no options', () => {
+    const wrapper = monte(entry('x--sans-options', { size: { type: 'enum', required: false } }))
+
+    expect(wrapper.findAll('select option').map((one) => one.text())).toEqual([
+      '— valeur de la story',
+    ])
+  })
+})
+
 describe('what an edit emits', () => {
   test('emits every value edited so far, typed as its field', async () => {
     const wrapper = monte(toutes)
@@ -120,12 +142,29 @@ describe('what an edit emits', () => {
   test('starts over on another story, and emits nothing for it', async () => {
     const wrapper = monte(toutes)
     await wrapper.find('input[type="text"]').setValue('Bonjour')
+    await wrapper.find('input[type="checkbox"]').setValue(true)
+    await wrapper.find('select').setValue('1')
     const avant = émis(wrapper).length
 
     await wrapper.setProps({ entry: { ...toutes, id: 'x--autre' } })
 
     expect((wrapper.find('input[type="text"]').element as HTMLInputElement).value).toBe('')
+    expect((wrapper.find('input[type="checkbox"]').element as HTMLInputElement).indeterminate).toBe(
+      true,
+    )
+    expect((wrapper.find('select').element as HTMLSelectElement).value).toBe('')
     expect(émis(wrapper)).toHaveLength(avant)
+  })
+
+  // Décochée, la case vaut `false`, pas la valeur de la story : elle n'est
+  // plus indéterminée.
+  test('emits false for an unchecked box', async () => {
+    const wrapper = monte(toutes)
+
+    await wrapper.find('input[type="checkbox"]').setValue(true)
+    await wrapper.find('input[type="checkbox"]').setValue(false)
+
+    expect(émis(wrapper).at(-1)).toEqual({ on: false })
   })
 
   // La même story relue garde ce qui a été saisi, comme le shell garde les

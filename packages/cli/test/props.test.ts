@@ -75,6 +75,18 @@ describe('what reading says when it reads nothing', () => {
       'Badge',
       'its props type is not declared in its file',
     ],
+    [
+      'a forwardRef typed from another file',
+      "import { forwardRef } from 'react'\nimport type { P } from './p'\nexport const Badge = forwardRef<HTMLElement, P>((props, ref) => null)",
+      'Badge',
+      'its props type is not declared in its file',
+    ],
+    [
+      'a rest pattern alone',
+      "import type { P } from './p'\nexport function Badge({ ...rest }: P) { return null }",
+      'Badge',
+      'its props type is not declared in its file',
+    ],
   ])('names %s', ([, source, exported, unread]) => {
     expect(readAll(source!, exported)).toEqual({ details: {}, unread })
   })
