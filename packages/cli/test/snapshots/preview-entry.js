@@ -46,8 +46,8 @@ function __crypte_named(failure, loading) {
   // module that file imports, so both are said rather than one blamed.
   const missing = failure instanceof SyntaxError && /^The requested module '([^']+)' does not provide an export named '([^']+)'/.exec(failure.message)
   if (missing && loading) {
-    const module = missing[1].split('?')[0].replace(/^\/@fs/, '').replace("<racine>/packages/cli/test/fixture/", '').replace(/^\//, '')
-    const named = new Error(`${loading} cannot load: ${module} does not export ${missing[2]}`)
+    const shown = (path) => path.split('?')[0].replace(/^\/@fs/, '').replace("<racine>/packages/cli/test/fixture/", '').replace(/^\//, '')
+    const named = new Error(`${shown(loading)} cannot load: ${shown(missing[1])} does not export ${missing[2]}`)
     named.stack = failure.message
     return named
   }
@@ -78,7 +78,7 @@ function __crypte_render(id, overrides) {
 
   // A module that failed to reload leaves its old version in place, and this
   // frame cannot tell which stories use it: until it reloads, none renders.
-  for (const [path, failed] of __crypte_stale) throw __crypte_named(failed, path.slice(1))
+  for (const [path, failed] of __crypte_stale) throw __crypte_named(failed, path)
 
   const module = __crypte_modules[__crypte_path]
   if (!module) throw new Error(`no module for ${entry.storyFile}`)
