@@ -72,6 +72,7 @@ describe('crypte dev', () => {
       writeFileSync(join(dossier, 'dist', 'chunk.mjs'), 'export {}\n')
       writeFileSync(join(dossier, 'secret.txt'), 'hors du dossier\n')
       writeFileSync(join(dossier, 'dist', '.env'), 'SECRET=1\n')
+      writeFileSync(join(dossier, 'dist', '.x%E0'), 'SECRET=2\n')
 
       started.project.config.plugins = [
         { name: 'a', shell: pathToFileURL(join(dossier, 'dist', 'shell.mjs')).href },
@@ -107,7 +108,9 @@ describe('crypte dev', () => {
       // Le dossier d'un plugin local peut être le projet : `.env` et `.git` avec.
       ['a file whose name starts with a dot', '/@crypte/plugins/0/.env'],
       ['the same file, its dot encoded', '/@crypte/plugins/0/%2eenv'],
-      ['a path `decodeURI` cannot read', '/@crypte/plugins/0/%E0%A4%A'],
+      // `decodeURI` lève ici, et `sirv` sert alors le chemin tel quel : sans le
+      // refus, ce fichier caché partait.
+      ['a hidden file whose name `decodeURI` cannot read', '/@crypte/plugins/0/.x%E0'],
     ])('answers 404 to %s', async ([, path]) => {
       expect(await get(path!)).toEqual({ status: 404, body: '' })
     })
