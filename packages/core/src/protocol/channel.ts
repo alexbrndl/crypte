@@ -1,6 +1,10 @@
 // The messages the shell and the preview exchange. Nothing else crosses the
 // boundary.
 
+// `render` carries the overrides too, and a second `render` of the same entry
+// does not remount it: the React adapter renders again on the root it keeps,
+// measured with `controls`. That is why `update-overrides` stays in reserve,
+// section 7. Reopened by an adapter that remounts on every `render`.
 export type ShellMessage =
   | { type: 'render'; id: string; overrides: Overrides }
   | MessagesOf<PluginShellMessages>

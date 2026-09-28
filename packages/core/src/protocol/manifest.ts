@@ -52,6 +52,9 @@ export interface StoryEntry {
   // computed key kept props out. Its text quotes what the file wrote, the
   // missing names being what cannot be read. Section 4.1 of docs/contracts.md.
   partial?: string
+  // Set when inference read nothing of the component's props, with the reason.
+  // Absent, an empty `details` means a component with no props. Section 4.2.
+  propsUnread?: string
 }
 
 export interface ComponentRef {

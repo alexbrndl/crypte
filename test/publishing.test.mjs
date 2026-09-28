@@ -38,13 +38,14 @@ test('the version workflow does not publish', () => {
 //
 // Le noyau le déclare parce qu'il n'expose que des types, des fonctions pures et
 // deux fabriques de canal. Les autres ne le déclarent pas : l'adaptateur touche
-// le DOM, le CLI est un binaire, `tokens` est une fabrique de plugin, et `ui`
+// le DOM, le CLI est un binaire, `tokens` et `controls` sont des fabriques de
+// plugin, et `ui`
 // livre une feuille de style qu'un bundler retirerait.
 //
 // Ce cas fixe **quel paquet déclare**. Que la déclaration soit méritée, c'est
 // `packages/core/test/side-effects.test.ts` qui le vérifie.
 test('only core declares sideEffects: false', () => {
-  const déclarent = ['core', 'cli', 'react', 'tokens', 'ui'].filter(
+  const déclarent = ['core', 'cli', 'react', 'tokens', 'controls', 'ui'].filter(
     (nom) => JSON.parse(lire('packages', nom, 'package.json')).sideEffects === false,
   )
 

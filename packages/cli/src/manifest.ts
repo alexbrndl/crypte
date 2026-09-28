@@ -13,7 +13,7 @@ import {
 } from '@crypte/core/protocol'
 import { ConfigError, reason } from './errors'
 import { best, isBareSpecifier, ordered, substituted } from './paths'
-import { detailsOf } from './props'
+import { propsOf, type PropsRead } from './props'
 import { entriesOf, posix, STORY_EXTENSIONS } from './stories'
 import { surfacesOf } from './surfaces'
 import type { Project } from './project'
@@ -99,16 +99,18 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
       : undefined
 
     // Once per file too, and for the same reason: every entry of a file names the
-    // same component, so reading its props once is enough. Only when the
-    // component was resolved: an identifier nobody could resolve is not a path.
-    const inferred =
+    // same component, so reading its props once is enough. `resolved` is only
+    // missing for a file with no entry: an identifier nobody could resolve comes
+    // back as written, and reading it says the file could not be found.
+    const inferred: PropsRead =
       resolved === undefined
-        ? {}
-        : detailsOf(join(project.root, resolved), read.entries[0]!.component.export)
+        ? { details: {} }
+        : propsOf(join(project.root, resolved), read.entries[0]!.component.export)
 
     for (const entry of read.entries) {
       if (resolved !== undefined) entry.component = { ...entry.component, file: resolved }
-      entry.details = completed(inferred, read.details)
+      entry.details = completed(inferred.details, read.details)
+      if (inferred.unread !== undefined) entry.propsUnread = inferred.unread
       entries.push(entry)
     }
   }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { StoryEntry } from '@crypte/core/protocol'
+import type { Overrides, StoryEntry } from '@crypte/core/protocol'
 import { Callout } from '@crypte/ui'
 import { computed, onErrorCaptured, ref, watch, type Component } from 'vue'
 
@@ -12,6 +12,10 @@ const props = defineProps<{
   panel: Component
   entry: StoryEntry | null
 }>()
+
+// Les valeurs qu'un panneau a éditées, remontées telles quelles au shell, qui
+// les envoie dans `render`.
+const emit = defineEmits<{ overrides: [values: Overrides] }>()
 
 // Ouvert par défaut, retenu par le shell sous le nom du plugin, jamais par le
 // plugin. `localStorage` peut lever, en navigation privée par exemple : le
@@ -90,7 +94,12 @@ const shown = computed(() => open.value && inapplicable.value === null && failur
       Ce panneau a levé : {{ failure }}
     </Callout>
     <div v-else v-show="shown" class="body">
-      <component :is="panel" :entry="entry" @inapplicable="declare" />
+      <component
+        :is="panel"
+        :entry="entry"
+        @inapplicable="declare"
+        @overrides="(values: Overrides) => emit('overrides', values)"
+      />
     </div>
   </section>
 </template>

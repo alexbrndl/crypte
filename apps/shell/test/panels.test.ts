@@ -52,6 +52,13 @@ describe('the plugin panels', () => {
     expect(montés(wrapper)).toEqual(['b=deux', 'a=un'])
     expect(échecs(wrapper)).toEqual([])
   })
+
+  // Ce qu'un panneau édite remonte, par son cadre, jusqu'au shell.
+  test('passes on what a panel edited', async () => {
+    const wrapper = await monte([{ name: 'e', shell: module('editeur.ts') }])
+
+    expect(wrapper.emitted('overrides')).toEqual([[{ label: 'édité' }]])
+  })
 })
 
 describe('what a panel is refused', () => {

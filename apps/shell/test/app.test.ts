@@ -9,6 +9,7 @@ import type {
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, test as base, vi } from 'vitest'
 import App from '../src/App.vue'
+import Panels from '../src/panels.vue'
 
 // Le composant du shell, monté dans un DOM. Il était le plus gros fichier que
 // rien n'exécutait hors navigateur : 184 lignes, et la couverture ne pouvait même
@@ -210,6 +211,66 @@ describe('the selection', () => {
     await expect
       .poll(() => écran.envoyés.at(-1))
       .toEqual({ type: 'render', id: 'badge--defaut', overrides: {} })
+  })
+})
+
+// Ce qu'un panneau a édité, par-dessus les props de la story : envoyé dans
+// `render`, lâché quand on change de story, gardé quand la preview redit `ready`
+// sur la même.
+describe('the values a panel edited', () => {
+  const édite = (écran: Ecran, values: Record<string, unknown>) =>
+    écran.wrapper.findComponent(Panels).vm.$emit('overrides', values)
+
+  test('renders the story with them', async ({ écran }) => {
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+
+    édite(écran, { label: 'Bonjour' })
+
+    await expect
+      .poll(() => écran.envoyés.at(-1))
+      .toEqual({ type: 'render', id: 'badge--defaut', overrides: { label: 'Bonjour' } })
+  })
+
+  test('drops them when another story is shown', async ({ écran }) => {
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    édite(écran, { label: 'Bonjour' })
+
+    await écran.wrapper.findAll('button')[1]?.trigger('click')
+
+    await expect
+      .poll(() => écran.envoyés.at(-1))
+      .toEqual({ type: 'render', id: 'badge--alerte', overrides: {} })
+  })
+
+  // Sans story affichée, rien ne part : il n'y a rien à rendre.
+  test('sends nothing while no story is on display', async () => {
+    const écran = await monte([])
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    const avant = écran.envoyés.length
+
+    édite(écran, { label: 'Bonjour' })
+    await vide(écran.wrapper)
+
+    expect(écran.envoyés).toHaveLength(avant)
+    écran.wrapper.unmount()
+  })
+
+  // `ready` revient après une édition de fichier : la story reste affichée, et
+  // ce qu'on vient de saisir aussi.
+  test('keeps them when the preview says ready again on the same story', async ({ écran }) => {
+    const rendu = { type: 'render', id: 'badge--defaut', overrides: { label: 'Bonjour' } }
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    édite(écran, { label: 'Bonjour' })
+    await expect.poll(() => écran.envoyés.at(-1)).toEqual(rendu)
+    const avant = écran.envoyés.length
+
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+
+    // Le `render` de ce `ready`, et pas celui de l'édition, qui portait déjà les
+    // valeurs : lu sans ce compte, le cas passait avec des valeurs perdues.
+    // Revue de la PR #106.
+    await expect.poll(() => écran.envoyés.length).toBeGreaterThan(avant)
+    expect(écran.envoyés.at(-1)).toEqual(rendu)
   })
 })
 
