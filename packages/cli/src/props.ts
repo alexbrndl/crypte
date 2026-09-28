@@ -61,10 +61,11 @@ export function propsOf(file: string, exported: string): PropsRead {
 
   // No type the reader can follow and no destructured name: nothing is known,
   // which is not the same as a type that declares no member. One reason for
-  // every such type, since the reader cannot tell why: an imported type, a
-  // generic like `Omit<P, 'a'>`, or one on the variable, `const B: FC<P>`.
+  // every such case, since the reader cannot tell why: an imported type, a
+  // generic like `Omit<P, 'a'>`, one on the variable, `const B: FC<P>`, or none
+  // at all, `(props)` in a `.jsx` file.
   if (members === undefined && pattern.length === 0) {
-    return { details: {}, unread: 'its props type is not one the reader follows' }
+    return { details: {}, unread: 'nothing the reader follows types its props' }
   }
 
   // Both halves: an unresolvable `extends` leaves a name like `className` only

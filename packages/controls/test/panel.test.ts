@@ -218,11 +218,11 @@ describe('what it says when there is nothing to edit', () => {
   // Le cas de DCJ-319 : rien n'a été lu, ce qui n'est pas « rien à éditer ». Le
   // panneau reste ouvert et le dit, avec la raison et ce qu'on peut y faire.
   test('says why when the props could not be read, and stays open', () => {
-    const wrapper = monte(entry('x--opaque', {}, 'its props type is not one the reader follows'))
+    const wrapper = monte(entry('x--opaque', {}, 'nothing the reader follows types its props'))
 
     expect(raisons(wrapper)).toEqual([])
     expect(wrapper.find('.unread').text()).toBe(
-      'Props non lues dans le fichier du composant : its props type is not one the reader follows. Seules celles déclarées dans details de la story apparaissent ici.',
+      'Props non lues dans le fichier du composant : nothing the reader follows types its props. Seules celles déclarées dans details de la story apparaissent ici.',
     )
   })
 

@@ -222,7 +222,7 @@ describe('props that could not be read', () => {
         { 'src/Card.tsx': 'export function Card(props) { return null }\n' },
         '../src/Card',
       ),
-    ).toEqual({ details: {}, propsUnread: 'its props type is not one the reader follows' })
+    ).toEqual({ details: {}, propsUnread: 'nothing the reader follows types its props' })
   })
 
   // Un composant d'un paquet garde le spécificateur écrit par la story, qui ne

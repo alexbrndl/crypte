@@ -61,31 +61,31 @@ describe('what reading says when it reads nothing', () => {
       'a parameter with no type',
       'export function Badge(props) { return props.a }',
       'Badge',
-      'its props type is not one the reader follows',
+      'nothing the reader follows types its props',
     ],
     [
       'a type from another file',
       "import type { P } from './p'\nexport function Badge(props: P) { return null }",
       'Badge',
-      'its props type is not one the reader follows',
+      'nothing the reader follows types its props',
     ],
     [
       'an intersection of types from another file',
       "import type { P, Q } from './p'\nexport function Badge(props: P & Q) { return null }",
       'Badge',
-      'its props type is not one the reader follows',
+      'nothing the reader follows types its props',
     ],
     [
       'a forwardRef typed from another file',
       "import { forwardRef } from 'react'\nimport type { P } from './p'\nexport const Badge = forwardRef<HTMLElement, P>((props, ref) => null)",
       'Badge',
-      'its props type is not one the reader follows',
+      'nothing the reader follows types its props',
     ],
     [
       'a rest pattern alone',
       "import type { P } from './p'\nexport function Badge({ ...rest }: P) { return null }",
       'Badge',
-      'its props type is not one the reader follows',
+      'nothing the reader follows types its props',
     ],
     // Revue de la PR #106 : lue comme « aucune prop », la même que l'intersection
     // écrite en interface.
@@ -93,19 +93,19 @@ describe('what reading says when it reads nothing', () => {
       'an interface that only extends what it cannot follow',
       "import type { Q } from './q'\ninterface P extends Q {}\nexport function Badge(props: P) { return null }",
       'Badge',
-      'its props type is not one the reader follows',
+      'nothing the reader follows types its props',
     ],
     [
       'a local generic',
       "type P = { a: string; b: number }\nexport function Badge(props: Omit<P, 'b'>) { return null }",
       'Badge',
-      'its props type is not one the reader follows',
+      'nothing the reader follows types its props',
     ],
     [
       'a type carried by the variable',
       "import type { FC } from 'react'\ntype P = { a: string }\nexport const Badge: FC<P> = (props) => null",
       'Badge',
-      'its props type is not one the reader follows',
+      'nothing the reader follows types its props',
     ],
   ])('names %s', ([, source, exported, unread]) => {
     expect(readAll(source!, exported)).toEqual({ details: {}, unread })

@@ -928,7 +928,7 @@ describe('the controls panel', () => {
         (await panneau(ecran.page).locator('.unread').textContent())?.replace(/\s+/g, ' ').trim(),
       )
       .toBe(
-        'Props non lues dans le fichier du composant : its props type is not one the reader follows. Seules celles déclarées dans details de la story apparaissent ici.',
+        'Props non lues dans le fichier du composant : nothing the reader follows types its props. Seules celles déclarées dans details de la story apparaissent ici.',
       )
   })
 })
