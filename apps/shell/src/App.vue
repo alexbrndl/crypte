@@ -113,8 +113,14 @@ const received = shallowRef<Record<string, PanelMessage>>({})
 const pluginErrors = shallowRef<{ plugin: string; message: string }[]>([])
 
 // Ce qu'un panneau envoie à sa partie preview, déjà vérifié par son cadre.
+// Rien ne part avant `ready`, comme `render` : une iframe qui n'écoute pas encore
+// perdrait le message. Dit dans la console plutôt que perdu sans trace.
 function sendToPreview(message: PanelMessage) {
-  if (ready) channel?.send(message as unknown as ShellMessage)
+  if (!ready) {
+    console.error(`crypte: \`${message.type}\` was sent before the preview was ready, and dropped`)
+    return
+  }
+  channel?.send(message as unknown as ShellMessage)
 }
 
 // Relu à chaque `ready`, et pas seulement au montage : ce message est aussi ce
@@ -178,7 +184,14 @@ onMounted(() => {
         failure.value = { id: message.id, message: message.message, stack: message.stack }
         status.value = 'erreur de rendu'
       }
-      if (message.type === 'plugin-error') {
+      // Une fois chacune : un hook qui lève lève à chaque rendu, et chaque
+      // valeur saisie dans `controls` en ajoutait une ligne identique.
+      if (
+        message.type === 'plugin-error' &&
+        !pluginErrors.value.some(
+          (one) => one.plugin === message.plugin && one.message === message.message,
+        )
+      ) {
         pluginErrors.value = [
           ...pluginErrors.value,
           { plugin: message.plugin, message: message.message },

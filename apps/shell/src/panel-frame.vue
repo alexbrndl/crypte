@@ -31,7 +31,20 @@ function send(message: unknown) {
     )
     return
   }
-  emit('send', message as PanelMessage)
+
+  // Par un aller-retour JSON, la forme que la section 5.4 promet : un panneau Vue
+  // envoie volontiers son état, dont les proxys font lever `postMessage` sans
+  // nommer personne. Mesuré. Ce qui n'y survit pas est refusé, et dit.
+  let copy: PanelMessage
+  try {
+    copy = JSON.parse(JSON.stringify(message)) as PanelMessage
+  } catch (error) {
+    console.error(
+      `crypte: ${props.name}: its panel sent \`${type}\`, which does not survive JSON: ${error instanceof Error ? error.message : String(error)}`,
+    )
+    return
+  }
+  emit('send', copy)
 }
 
 // Ouvert par défaut, retenu par le shell sous le nom du plugin, jamais par le

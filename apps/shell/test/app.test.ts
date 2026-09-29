@@ -256,10 +256,31 @@ describe('what a plugin says between its halves', () => {
     expect([panneaux(écran).props('received'), panneaux(écran).props('errors')]).toEqual([{}, []])
   })
 
+  // Une fois chacune : un hook qui lève à chaque rendu empilait des lignes
+  // identiques. Revue de la PR #107.
+  test('shows each failure once, however often the preview repeats it', async ({ écran }) => {
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+
+    await écran.répond({ type: 'plugin-error', plugin: 'a', message: 'boum' })
+    await écran.répond({ type: 'plugin-error', plugin: 'a', message: 'boum' })
+    await écran.répond({ type: 'plugin-error', plugin: 'a', message: 'autre' })
+
+    expect(panneaux(écran).props('errors')).toEqual([
+      { plugin: 'a', message: 'boum' },
+      { plugin: 'a', message: 'autre' },
+    ])
+  })
+
+  // Avant `ready`, le message est perdu comme un `render` le serait, mais dit.
   test('sends what a panel sends, once the preview is ready', async ({ écran }) => {
+    const erreur = vi.spyOn(console, 'error').mockImplementation(() => {})
     panneaux(écran).vm.$emit('send', { type: 'a:run' })
     await vide(écran.wrapper)
     expect(écran.envoyés).toEqual([])
+    expect(erreur).toHaveBeenCalledWith(
+      'crypte: `a:run` was sent before the preview was ready, and dropped',
+    )
+    erreur.mockRestore()
 
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
     panneaux(écran).vm.$emit('send', { type: 'a:run' })

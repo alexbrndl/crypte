@@ -688,7 +688,7 @@ type PreviewMessage =
   | MessagesOf<PluginPreviewMessages>
 ```
 
-`ready` says the preview is up. `rendered` reports a finished render and how long it took. `error` reports a render that threw, and the shell shows it without falling over. `plugin-error` names a plugin whose preview module could not load, exported no hooks the preview calls, or had a hook throw; the stories render all the same, and the shell shows it beside the plugins' panels.
+`ready` says the preview is up. `rendered` reports a finished render and how long it took. `error` reports a render that threw, and the shell shows it without falling over. `plugin-error` names a plugin whose preview module could not load or exported anything but its hooks, had a hook throw or reject, or sent a message under another name (6.2); the stories render all the same, and the shell shows each once, beside the plugins' panels. The time `rendered` carries is the render's alone: the plugins' hooks run once it is out.
 
 ### 5.4 Rules
 
@@ -781,7 +781,7 @@ export default {
 
 **It is said story by story, never once.** The frame forgets it whenever it receives a new `entry`, another story or the same one read again after an edit, so a panel that does not say it again is open. A reason that is not a non-empty string is ignored.
 
-**A panel talks to its own preview module.** It emits `send` with a message, and receives, as its `received` prop, the last message its preview module sent. Both carry a `type` that starts with the plugin's name (5.4): the frame drops a message a panel sends under another name, and says so in the console.
+**A panel talks to its own preview module.** It emits `send` with a message, and receives, as its `received` prop, the last message its preview module sent. Both carry a `type` that starts with the plugin's name (5.4): the frame drops a message a panel sends under another name, and says so in the console. What crosses is a JSON copy, so a panel may send its reactive state; a message JSON cannot carry is dropped the same way, and so is one sent before the preview is ready, like a `render` would be.
 
 **A panel that edits the story emits `overrides`**, the values to render it with, primitives only (5.1). The shell sends them in `render`, keeps them while that story stays on display, a preview that says `ready` again included, and drops them when another story is shown. `@crypte/controls` is the panel that does.
 
@@ -824,7 +824,7 @@ export default {
 }
 ```
 
-**Two hooks, because one consumer demands them.** `afterMount` runs after every render that went through, with the story it drew. `onMessage` receives what the plugin's panel sent, against the story last drawn. Both are properties holding functions, like `NodeHooks`: the context comes as an argument. Either may be async, as an analysis is. `beforeMount`, `onPropsChange` and `beforeUnmount` wait in section 7 for the plugin that needs them.
+**Two hooks, because one consumer demands them.** `afterMount` runs after every render that went through, with the story it drew, once `rendered` is sent. `onMessage` receives what the plugin's panel sent, against the story last drawn. Both are properties holding functions, like `NodeHooks`: the context comes as an argument. Either may be async, as an analysis is. `beforeMount`, `onPropsChange` and `beforeUnmount` wait in section 7 for the plugin that needs them.
 
 **A preview module exports its hooks and nothing else.** Anything other than an object of those two keys, each a function, is refused as a `plugin-error` (5.3), and so is a hook that throws or rejects, or a message sent under another name: a hook exported and never called would otherwise fail in silence.
 

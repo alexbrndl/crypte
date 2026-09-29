@@ -104,13 +104,12 @@ function __crypte_render(id, overrides) {
   // global one of section 2.5 comes from the configuration text.
   __crypte_adapter.mount(__crypte_container, component, props, __crypte_wrapsOf(__crypte_wrap, definition))
 
-  // After the mount and only after it: a render that threw has no story to
-  // show a plugin, and a hook that throws never reaches the channel as this
-  // story's error, since the host catches it.
-  __crypte_host.mounted({ id, props, options: entry.options, root: __crypte_container })
+  // The story drawn, which the channel hands to the plugins' hooks once
+  // `rendered` is out: a render that threw has none to hand.
+  return { id, props, options: entry.options, root: __crypte_container }
 }
 
-const __crypte_channel = __crypte_channelOf({ render: __crypte_render, message: (message) => __crypte_host.received(message) })
+const __crypte_channel = __crypte_channelOf({ render: __crypte_render, rendered: (story) => __crypte_host.mounted(story), message: (message) => __crypte_host.received(message) })
 
 // After the channel, since it sends through it: what failed to load is said
 // once `ready` is out, so the shell has cleared what the frame before said.

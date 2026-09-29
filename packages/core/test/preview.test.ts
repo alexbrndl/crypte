@@ -267,6 +267,55 @@ describe('the wrappers of a story', () => {
   })
 })
 
+// Ce qui suit un rendu réussi : les hooks des plugins, une fois `rendered` parti,
+// pour que leur temps ne compte pas dans celui que le shell affiche. Revue de la
+// PR #107 : un `afterMount` de 40 ms donnait un rendu de 40 ms.
+describe('after a render', () => {
+  it('hands what render returned to rendered, once rendered is out', () => {
+    const ordre: unknown[] = []
+    createPreviewChannel({
+      render: () => 'dessinée',
+      rendered: (drawn) => ordre.push(['rendered', drawn, recus.length]),
+    })
+    recus.length = 0
+
+    envoie(RENDER)
+
+    expect(ordre).toEqual([['rendered', 'dessinée', 1]])
+  })
+
+  it('leaves the plugins’ time out of the render’s', () => {
+    const horloge = vi.spyOn(performance, 'now')
+    horloge.mockReturnValueOnce(0).mockReturnValueOnce(5)
+    createPreviewChannel({
+      render: () => {},
+      rendered: () => {
+        horloge.mockReturnValue(100)
+      },
+    })
+    recus.length = 0
+
+    envoie(RENDER)
+
+    expect(recus).toEqual([{ type: 'rendered', id: 'badge--par-defaut', durationMs: 5 }])
+    horloge.mockRestore()
+  })
+
+  it('calls nothing after a render that threw', () => {
+    const appels: unknown[] = []
+    createPreviewChannel({
+      render: () => {
+        throw new Error('cassée')
+      },
+      rendered: (drawn) => appels.push(drawn),
+    })
+
+    envoie(RENDER)
+
+    expect(appels).toEqual([])
+  })
+})
+
 // Les messages de plugin, reconnus au deux-points de leur `type`, section 5.4 :
 // passés au gestionnaire, jamais pris pour un `render`.
 describe('plugin messages on the channel', () => {

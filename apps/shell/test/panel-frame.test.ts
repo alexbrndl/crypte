@@ -1,7 +1,7 @@
 import type { StoryEntry, StoryMeta } from '@crypte/core/protocol'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { defineComponent, h, watchEffect, type Component } from 'vue'
+import { defineComponent, h, isProxy, ref, watchEffect, type Component } from 'vue'
 import PanelFrame from '../src/panel-frame.vue'
 
 // Le cadre d'un panneau de plugin : sans objet story par story, ouverture
@@ -270,6 +270,51 @@ describe('the messages of a panel', () => {
     expect(wrapper.emitted('send')).toBeUndefined()
     expect(erreur).toHaveBeenCalledWith(
       'crypte: status: its panel sent `autre:run`, whose type does not start with `status:`',
+    )
+  })
+})
+
+// Un panneau Vue envoie volontiers son état : ses proxys faisaient lever
+// `postMessage` dans le shell, sans nom de plugin. Revue de la PR #107.
+describe('what a panel sends, as JSON', () => {
+  const envoie = (message: () => unknown) =>
+    defineComponent({
+      emits: ['send'],
+      setup(_, { emit }) {
+        return () => h('button', { onClick: () => emit('send', message()) })
+      },
+    })
+
+  test('passes on a plain copy of a message that holds a panel’s state', async () => {
+    const règles = ref(['color-contrast'])
+    const wrapper = monte(
+      envoie(() => ({ type: 'status:run', rules: règles.value })),
+      brouillon,
+    )
+
+    await wrapper.find('.body button').trigger('click')
+
+    const [[copie]] = wrapper.emitted('send') as [[{ rules: unknown }]]
+    expect(copie).toEqual({ type: 'status:run', rules: ['color-contrast'] })
+    expect(isProxy(copie.rules)).toBe(false)
+  })
+
+  test('drops a message that does not survive JSON, and says so', async () => {
+    const erreur = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const cyclique: Record<string, unknown> = { type: 'status:run' }
+    cyclique['self'] = cyclique
+    const wrapper = monte(
+      envoie(() => cyclique),
+      brouillon,
+    )
+
+    await wrapper.find('.body button').trigger('click')
+
+    expect(wrapper.emitted('send')).toBeUndefined()
+    expect(erreur).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^crypte: status: its panel sent `status:run`, which does not survive JSON: /,
+      ),
     )
   })
 })

@@ -7,7 +7,11 @@ import type { PreviewContext, PreviewHooks } from '../protocol/plugin'
 export const PREVIEW_MARKER = '__crypte_preview__'
 
 export interface PreviewHandlers {
-  render(id: string, overrides: Record<string, unknown>): void
+  // What it returns is handed to `rendered`.
+  render(id: string, overrides: Record<string, unknown>): unknown
+  // After a render that went through, once `rendered` is out: what runs here,
+  // the plugins' `afterMount`, is not part of the time the shell shows.
+  rendered?(drawn: unknown): void
   // A plugin message, told by the colon its `type` carries, section 5.4.
   message?(message: { type: string }): void
 }
@@ -34,8 +38,9 @@ export function createPreviewChannel(handlers: PreviewHandlers): PreviewChannel 
 
   const draw = ({ id, overrides }: { id: string; overrides: Record<string, unknown> }) => {
     const startedAt = performance.now()
+    let drawn: unknown
     try {
-      handlers.render(id, overrides)
+      drawn = handlers.render(id, overrides)
       reply({ type: 'rendered', id, durationMs: performance.now() - startedAt })
     } catch (error) {
       reply({
@@ -44,7 +49,9 @@ export function createPreviewChannel(handlers: PreviewHandlers): PreviewChannel 
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       })
+      return
     }
+    handlers.rendered?.(drawn)
   }
 
   const listener = (event: MessageEvent) => {
