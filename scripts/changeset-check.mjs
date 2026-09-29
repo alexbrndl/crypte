@@ -15,7 +15,7 @@ import { pathToFileURL } from 'node:url'
 
 // Ce qu'un utilisateur reçoit : le code d'un paquet, son manifeste, et ce qui
 // décide du contenu de `dist/`, seul dossier publié. La base des `tsconfig` en
-// fait partie : les trois paquets ne font que l'étendre, et elle change leurs
+// fait partie : paquets et plugins ne font que l'étendre, et elle change leurs
 // `.d.ts`. Chacun compte en entier : demander une note de trop coûte un
 // fichier, en manquer une publie une version fausse.
 //
@@ -33,7 +33,7 @@ import { pathToFileURL } from 'node:url'
 // exigeait une note de version. `apps/demo` n'y est pas, rien de lui n'étant
 // publié.
 const PUBLISHED =
-  /^(packages\/[^/]+\/(src\/|(package\.json|tsconfig\.json|vite\.config\.ts)$)|apps\/shell\/(?!test\/)|tsconfig\.base\.json$)/
+  /^((packages|plugins)\/[^/]+\/(src\/|(package\.json|tsconfig(\.build)?\.json|vite\.config\.ts)$)|apps\/shell\/(?!test\/)|tsconfig\.base\.json$)/
 
 // `README.md` documente le dossier, `config.json` le configure : ni l'un ni
 // l'autre n'est une note.

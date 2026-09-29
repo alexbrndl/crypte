@@ -45,11 +45,16 @@ test('the version workflow does not publish', () => {
 // Ce cas fixe **quel paquet déclare**. Que la déclaration soit méritée, c'est
 // `packages/core/test/side-effects.test.ts` qui le vérifie.
 test('only core declares sideEffects: false', () => {
-  const déclarent = ['core', 'cli', 'react', 'tokens', 'controls', 'ui'].filter(
-    (nom) => JSON.parse(lire('packages', nom, 'package.json')).sideEffects === false,
-  )
+  const déclarent = [
+    'packages/core',
+    'packages/cli',
+    'packages/react',
+    'plugins/tokens',
+    'plugins/controls',
+    'packages/ui',
+  ].filter((dossier) => JSON.parse(lire(dossier, 'package.json')).sideEffects === false)
 
-  expect(déclarent).toEqual(['core'])
+  expect(déclarent).toEqual(['packages/core'])
 })
 
 // La quatrième contrainte de `CLAUDE.md`, et la seule des quatre que rien ne
@@ -58,7 +63,7 @@ test('only core declares sideEffects: false', () => {
 test('no published code imports vite-plus', () => {
   // `packages/*/src` ne rend rien : le `*` d'un pathspec git ne traverse pas le
   // séparateur. Le filtre fait le travail que le motif ne fait pas.
-  const sources = execFileSync('git', ['ls-files', 'packages', 'apps/shell'], {
+  const sources = execFileSync('git', ['ls-files', 'packages', 'plugins', 'apps/shell'], {
     cwd: root,
     encoding: 'utf8',
   })
@@ -73,15 +78,18 @@ test('no published code imports vite-plus', () => {
 // charger des composants Vue à qui ne voulait que des types, la panne que la
 // troisième contrainte de `CLAUDE.md` existe pour empêcher.
 test('no package, CLI included, depends on @crypte/ui', () => {
-  const paquets = ['core', 'cli', 'react', 'tokens']
-  const déclarent = paquets.filter((nom) => {
-    const manifeste = JSON.parse(lire('packages', nom, 'package.json'))
+  const paquets = ['packages/core', 'packages/cli', 'packages/react', 'plugins/tokens']
+  const déclarent = paquets.filter((dossier) => {
+    const manifeste = JSON.parse(lire(dossier, 'package.json'))
     return Object.keys({ ...manifeste.dependencies, ...manifeste.peerDependencies }).includes(
       '@crypte/ui',
     )
   })
 
-  const sources = execFileSync('git', ['ls-files', 'packages'], { cwd: root, encoding: 'utf8' })
+  const sources = execFileSync('git', ['ls-files', 'packages', 'plugins'], {
+    cwd: root,
+    encoding: 'utf8',
+  })
     .split('\n')
     .filter((f) => f.includes('/src/') && !f.startsWith('packages/ui/'))
 
