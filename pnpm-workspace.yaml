@@ -1,5 +1,6 @@
 packages:
   - packages/*
+  - plugins/*
   - apps/*
   # Les copies de projet qu'écrivent les cas de rechargement. Sans cette
   # exclusion, un `pnpm install` lancé pendant qu'une copie existe l'inscrit dans

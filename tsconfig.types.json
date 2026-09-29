@@ -6,6 +6,6 @@
     "lib": ["ES2023", "DOM"],
     "types": []
   },
-  "include": ["**/*.test-d.ts", "packages/*/src/**/*.ts"],
+  "include": ["**/*.test-d.ts", "packages/*/src/**/*.ts", "plugins/*/src/**/*.ts"],
   "exclude": ["**/node_modules/**", "**/dist/**"]
 }

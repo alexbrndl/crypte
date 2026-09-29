@@ -31,7 +31,7 @@ Le critère est mécanique, pour ne pas être rejugé à chaque revue :
 | ----------------------------------------------------------------------------------------------- | -------------- |
 | de la prose, de la configuration ou des workflows                                               | petit modèle   |
 | ce qui exige la procédure malgré son extension : `docs/contracts.md`, `CLAUDE.md`, `.claude/**` | modèle courant |
-| au moins un fichier sous `packages/*/src/**` ou `apps/**`                                       | modèle courant |
+| au moins un fichier sous `packages/*/src/**`, `plugins/*/src/**` ou `apps/**`                   | modèle courant |
 
 Le code garde donc toujours le modèle courant : le petit modèle ne s'applique jamais là où le raisonnement est le plus exigeant. En cas de doute sur la nature du diff, prends le modèle courant.
 

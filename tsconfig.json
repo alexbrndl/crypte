@@ -12,7 +12,7 @@
       "path": "./packages/react"
     },
     {
-      "path": "./packages/tokens"
+      "path": "./plugins/tokens"
     }
   ]
 }

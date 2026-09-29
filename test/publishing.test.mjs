@@ -13,6 +13,43 @@ const lire = (...parts) => readFileSync(join(root, ...parts), 'utf8')
 
 const VERSION = lire('.github', 'workflows', 'version.yml')
 
+// Les paquets publiés, lus du dépôt plutôt que listés : un plugin qui naît dans
+// `plugins/` entre dans chaque garde sans que personne l'y ajoute. Listés à la
+// main, un dossier oublié laissait les gardes verts sans rien lire de lui.
+const FICHIERS = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' }).split('\n')
+const PUBLIÉS = FICHIERS.filter((f) => /^[^/]+\/[^/]+\/package\.json$/.test(f))
+  .map(dirname)
+  .filter((dossier) => !JSON.parse(lire(dossier, 'package.json')).private)
+
+// `git ls-files 'packages/*/src'` ne rendrait rien : le `*` d'un pathspec git ne
+// traverse pas le séparateur, d'où le filtre. Chaque dossier doit rendre une
+// source : un paquet dont le code vit hors de `src/` échapperait aux gardes.
+const sourcesOf = (dossiers) => {
+  const sources = FICHIERS.filter(
+    (f) => f.includes('/src/') && dossiers.some((dossier) => f.startsWith(`${dossier}/`)),
+  )
+  for (const dossier of dossiers) {
+    expect(
+      sources.some((f) => f.startsWith(`${dossier}/`)),
+      `aucune source lue sous ${dossier}`,
+    ).toBe(true)
+  }
+  return sources
+}
+
+test('reads the published packages from the repository', () => {
+  expect(PUBLIÉS).toEqual(
+    expect.arrayContaining([
+      'packages/core',
+      'packages/cli',
+      'packages/react',
+      'packages/ui',
+      'plugins/tokens',
+      'plugins/controls',
+    ]),
+  )
+})
+
 // `changesets/action` publie sur npm dès qu'on lui donne `publish`. Sans cette
 // entrée elle se limite à tenir la pull request de version à jour.
 //
@@ -39,53 +76,47 @@ test('the version workflow does not publish', () => {
 // Le noyau le déclare parce qu'il n'expose que des types, des fonctions pures et
 // deux fabriques de canal. Les autres ne le déclarent pas : l'adaptateur touche
 // le DOM, le CLI est un binaire, `tokens` et `controls` sont des fabriques de
-// plugin, et `ui`
-// livre une feuille de style qu'un bundler retirerait.
+// plugin, et `ui` livre une feuille de style qu'un bundler retirerait.
 //
 // Ce cas fixe **quel paquet déclare**. Que la déclaration soit méritée, c'est
 // `packages/core/test/side-effects.test.ts` qui le vérifie.
 test('only core declares sideEffects: false', () => {
-  const déclarent = ['core', 'cli', 'react', 'tokens', 'controls', 'ui'].filter(
-    (nom) => JSON.parse(lire('packages', nom, 'package.json')).sideEffects === false,
+  const déclarent = PUBLIÉS.filter(
+    (dossier) => JSON.parse(lire(dossier, 'package.json')).sideEffects === false,
   )
 
-  expect(déclarent).toEqual(['core'])
+  expect(déclarent).toEqual(['packages/core'])
 })
 
 // La quatrième contrainte de `CLAUDE.md`, et la seule des quatre que rien ne
 // tenait. Son échec est muet ici, où `vite-plus` est installé, et bruyant chez
 // l'utilisateur, qui ne l'a pas.
 test('no published code imports vite-plus', () => {
-  // `packages/*/src` ne rend rien : le `*` d'un pathspec git ne traverse pas le
-  // séparateur. Le filtre fait le travail que le motif ne fait pas.
-  const sources = execFileSync('git', ['ls-files', 'packages', 'apps/shell'], {
-    cwd: root,
-    encoding: 'utf8',
-  })
-    .split('\n')
-    .filter((f) => f.includes('/src/'))
+  // `apps/shell` est privé, mais `@crypte/cli` embarque son build.
+  const sources = sourcesOf([...PUBLIÉS, 'apps/shell'])
 
-  expect(sources, 'aucune source lue').not.toEqual([])
   expect(sources.filter((f) => lire(f).includes('vite-plus'))).toEqual([])
 })
 
-// `@crypte/ui` est une feuille du graphe : un paquet qui l'importerait ferait
-// charger des composants Vue à qui ne voulait que des types, la panne que la
-// troisième contrainte de `CLAUDE.md` existe pour empêcher.
-test('no package, CLI included, depends on @crypte/ui', () => {
-  const paquets = ['core', 'cli', 'react', 'tokens']
-  const déclarent = paquets.filter((nom) => {
-    const manifeste = JSON.parse(lire('packages', nom, 'package.json'))
+// `@crypte/ui` est une feuille du graphe : une bibliothèque qui l'importerait
+// ferait charger des composants Vue à qui ne voulait que des types, la panne
+// que la troisième contrainte de `CLAUDE.md` existe pour empêcher.
+//
+// Les bibliothèques de `packages/` seulement : un plugin est l'un des
+// consommateurs que `CLAUDE.md` prévoit pour `@crypte/ui`.
+test('no library, CLI included, depends on @crypte/ui', () => {
+  const paquets = PUBLIÉS.filter(
+    (dossier) => dossier.startsWith('packages/') && dossier !== 'packages/ui',
+  )
+  const déclarent = paquets.filter((dossier) => {
+    const manifeste = JSON.parse(lire(dossier, 'package.json'))
     return Object.keys({ ...manifeste.dependencies, ...manifeste.peerDependencies }).includes(
       '@crypte/ui',
     )
   })
 
-  const sources = execFileSync('git', ['ls-files', 'packages'], { cwd: root, encoding: 'utf8' })
-    .split('\n')
-    .filter((f) => f.includes('/src/') && !f.startsWith('packages/ui/'))
+  const sources = sourcesOf(paquets)
 
-  expect(sources, 'aucune source lue').not.toEqual([])
   expect(déclarent).toEqual([])
   expect(sources.filter((f) => lire(f).includes('@crypte/ui'))).toEqual([])
 })

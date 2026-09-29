@@ -275,13 +275,13 @@ importers:
     dependencies:
       '@crypte/controls':
         specifier: workspace:*
-        version: link:../../packages/controls
+        version: link:../../plugins/controls
       '@crypte/react':
         specifier: workspace:*
         version: link:../../packages/react
       '@crypte/tokens':
         specifier: workspace:*
-        version: link:../../packages/tokens
+        version: link:../../plugins/tokens
       react:
         specifier: ^19.0.0
         version: 19.2.8
@@ -370,28 +370,6 @@ importers:
         specifier: 'catalog:'
         version: 4.1.10(@types/node@24.13.3)(@vitest/browser-preview@4.1.10)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.13.3))
 
-  packages/controls:
-    dependencies:
-      '@crypte/core':
-        specifier: workspace:*
-        version: link:../core
-    devDependencies:
-      '@vitejs/plugin-vue':
-        specifier: ^6.0.1
-        version: 6.0.8(vite@8.2.1(@types/node@24.13.3))(vue@3.5.41(typescript@6.0.3))
-      typescript:
-        specifier: 'catalog:'
-        version: 6.0.3
-      vite:
-        specifier: 'catalog:'
-        version: 8.2.1(@types/node@24.13.3)
-      vue:
-        specifier: ^3.5.0
-        version: 3.5.41(typescript@6.0.3)
-      vue-tsc:
-        specifier: ^3.3.9
-        version: 3.3.9(typescript@6.0.3)
-
   packages/core:
     devDependencies:
       '@types/node':
@@ -432,22 +410,6 @@ importers:
         specifier: 'catalog:'
         version: 4.1.10(@types/node@24.13.3)(@vitest/browser-preview@4.1.10)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.13.3))
 
-  packages/tokens:
-    dependencies:
-      '@crypte/core':
-        specifier: workspace:*
-        version: link:../core
-    devDependencies:
-      '@types/node':
-        specifier: 'catalog:'
-        version: 24.13.3
-      typescript:
-        specifier: 'catalog:'
-        version: 6.0.3
-      vitest:
-        specifier: 'catalog:'
-        version: 4.1.10(@types/node@24.13.3)(@vitest/browser-preview@4.1.10)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.13.3))
-
   packages/ui:
     devDependencies:
       '@vitejs/plugin-vue':
@@ -465,6 +427,44 @@ importers:
       vue-tsc:
         specifier: ^3.3.9
         version: 3.3.9(typescript@6.0.3)
+
+  plugins/controls:
+    dependencies:
+      '@crypte/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      '@vitejs/plugin-vue':
+        specifier: ^6.0.1
+        version: 6.0.8(vite@8.2.1(@types/node@24.13.3))(vue@3.5.41(typescript@6.0.3))
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.2.1(@types/node@24.13.3)
+      vue:
+        specifier: ^3.5.0
+        version: 3.5.41(typescript@6.0.3)
+      vue-tsc:
+        specifier: ^3.3.9
+        version: 3.3.9(typescript@6.0.3)
+
+  plugins/tokens:
+    dependencies:
+      '@crypte/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.10(@types/node@24.13.3)(@vitest/browser-preview@4.1.10)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.13.3))
 
 packages:
 

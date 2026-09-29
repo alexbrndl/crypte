@@ -80,7 +80,7 @@ export default defineConfig({
     // faire passer un lot ne garde plus rien. Ils montent quand un lot les
     // dépasse.
     coverage: {
-      include: ['packages/*/src/**', 'apps/shell/src/**'],
+      include: ['packages/*/src/**', 'plugins/*/src/**', 'apps/shell/src/**'],
 
       // `text` pour la console, `json-summary` pour le commentaire de pull
       // request. Ni `html` ni `clover`, que personne ne lit ici.
@@ -160,7 +160,7 @@ export default defineConfig({
             '**/restart.test.ts',
             '**/adapter.test.tsx',
             'apps/shell/test/**',
-            'packages/controls/test/**',
+            'plugins/controls/test/**',
             'packages/ui/test/**',
           ],
         },
@@ -175,7 +175,7 @@ export default defineConfig({
           name: 'shell',
           include: [
             'apps/shell/test/**/*.test.ts',
-            'packages/controls/test/**/*.test.ts',
+            'plugins/controls/test/**/*.test.ts',
             'packages/ui/test/**/*.test.ts',
           ],
           environment: 'jsdom',
