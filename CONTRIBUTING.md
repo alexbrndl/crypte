@@ -31,11 +31,13 @@ vp run ready
 ## Layout
 
 ```
-packages/core     @crypte/core    the core, three entries: protocol, shell, preview
-packages/cli      @crypte/cli     the `crypte` binary
-packages/react    @crypte/react   the React adapter
-packages/ui       @crypte/ui      the components the shell, plugins and the site share
-docs/                             the specification, in English
+packages/core     @crypte/core      the core, three entries: protocol, shell, preview
+packages/cli      @crypte/cli       the `crypte` binary
+packages/react    @crypte/react     the React adapter
+packages/ui       @crypte/ui        the components the shell, plugins and the site share
+plugins/tokens    @crypte/tokens    the plugin that reads a project's CSS custom properties
+plugins/controls  @crypte/controls  the plugin whose panel edits a story's props live
+docs/                               the specification, in English
 ```
 
 `docs/contracts.md` is the reference for the story format, the manifest, the protocol and the plugin contract. What a mechanism is for, and what breaks without it, is a comment beside it.

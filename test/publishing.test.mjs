@@ -13,6 +13,30 @@ const lire = (...parts) => readFileSync(join(root, ...parts), 'utf8')
 
 const VERSION = lire('.github', 'workflows', 'version.yml')
 
+// Les paquets publiés, lus du dépôt plutôt que listés : un plugin qui naît dans
+// `plugins/` entre dans chaque garde sans que personne l'y ajoute. Listés à la
+// main, un dossier oublié laissait les gardes verts sans rien lire de lui.
+const FICHIERS = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' }).split('\n')
+const PUBLIÉS = FICHIERS.filter((f) => /^[^/]+\/[^/]+\/package\.json$/.test(f))
+  .map(dirname)
+  .filter((dossier) => !JSON.parse(lire(dossier, 'package.json')).private)
+
+// `git ls-files 'packages/*/src'` ne rendrait rien : le `*` d'un pathspec git ne
+// traverse pas le séparateur, d'où le filtre. Chaque dossier doit rendre une
+// source : un paquet dont le code vit hors de `src/` échapperait aux gardes.
+const sourcesOf = (dossiers) => {
+  const sources = FICHIERS.filter(
+    (f) => f.includes('/src/') && dossiers.some((dossier) => f.startsWith(`${dossier}/`)),
+  )
+  for (const dossier of dossiers) {
+    expect(
+      sources.some((f) => f.startsWith(`${dossier}/`)),
+      `aucune source lue sous ${dossier}`,
+    ).toBe(true)
+  }
+  return sources
+}
+
 // `changesets/action` publie sur npm dès qu'on lui donne `publish`. Sans cette
 // entrée elle se limite à tenir la pull request de version à jour.
 //
@@ -44,15 +68,23 @@ test('the version workflow does not publish', () => {
 //
 // Ce cas fixe **quel paquet déclare**. Que la déclaration soit méritée, c'est
 // `packages/core/test/side-effects.test.ts` qui le vérifie.
+test('reads the published packages from the repository', () => {
+  expect(PUBLIÉS).toEqual(
+    expect.arrayContaining([
+      'packages/core',
+      'packages/cli',
+      'packages/react',
+      'packages/ui',
+      'plugins/tokens',
+      'plugins/controls',
+    ]),
+  )
+})
+
 test('only core declares sideEffects: false', () => {
-  const déclarent = [
-    'packages/core',
-    'packages/cli',
-    'packages/react',
-    'plugins/tokens',
-    'plugins/controls',
-    'packages/ui',
-  ].filter((dossier) => JSON.parse(lire(dossier, 'package.json')).sideEffects === false)
+  const déclarent = PUBLIÉS.filter(
+    (dossier) => JSON.parse(lire(dossier, 'package.json')).sideEffects === false,
+  )
 
   expect(déclarent).toEqual(['packages/core'])
 })
@@ -61,16 +93,9 @@ test('only core declares sideEffects: false', () => {
 // tenait. Son échec est muet ici, où `vite-plus` est installé, et bruyant chez
 // l'utilisateur, qui ne l'a pas.
 test('no published code imports vite-plus', () => {
-  // `packages/*/src` ne rend rien : le `*` d'un pathspec git ne traverse pas le
-  // séparateur. Le filtre fait le travail que le motif ne fait pas.
-  const sources = execFileSync('git', ['ls-files', 'packages', 'plugins', 'apps/shell'], {
-    cwd: root,
-    encoding: 'utf8',
-  })
-    .split('\n')
-    .filter((f) => f.includes('/src/'))
+  // `apps/shell` est privé, mais `@crypte/cli` embarque son build.
+  const sources = sourcesOf([...PUBLIÉS, 'apps/shell'])
 
-  expect(sources, 'aucune source lue').not.toEqual([])
   expect(sources.filter((f) => lire(f).includes('vite-plus'))).toEqual([])
 })
 
@@ -78,7 +103,7 @@ test('no published code imports vite-plus', () => {
 // charger des composants Vue à qui ne voulait que des types, la panne que la
 // troisième contrainte de `CLAUDE.md` existe pour empêcher.
 test('no package, CLI included, depends on @crypte/ui', () => {
-  const paquets = ['packages/core', 'packages/cli', 'packages/react', 'plugins/tokens']
+  const paquets = PUBLIÉS.filter((dossier) => dossier !== 'packages/ui')
   const déclarent = paquets.filter((dossier) => {
     const manifeste = JSON.parse(lire(dossier, 'package.json'))
     return Object.keys({ ...manifeste.dependencies, ...manifeste.peerDependencies }).includes(
@@ -86,14 +111,8 @@ test('no package, CLI included, depends on @crypte/ui', () => {
     )
   })
 
-  const sources = execFileSync('git', ['ls-files', 'packages', 'plugins'], {
-    cwd: root,
-    encoding: 'utf8',
-  })
-    .split('\n')
-    .filter((f) => f.includes('/src/') && !f.startsWith('packages/ui/'))
+  const sources = sourcesOf(paquets)
 
-  expect(sources, 'aucune source lue').not.toEqual([])
   expect(déclarent).toEqual([])
   expect(sources.filter((f) => lire(f).includes('@crypte/ui'))).toEqual([])
 })
