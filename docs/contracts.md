@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.21, reference document. A project brief points here instead of restating these shapes.
+> Version 1.22, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -684,16 +684,18 @@ type PreviewMessage =
   | { type: 'ready'; protocolVersion: number }
   | { type: 'rendered'; id: string; durationMs: number }
   | { type: 'error'; id: string; message: string; stack?: string }
+  | { type: 'plugin-error'; plugin: string; message: string }
   | MessagesOf<PluginPreviewMessages>
 ```
 
-`ready` says the preview is up. `rendered` reports a finished render and how long it took. `error` reports a render that threw, and the shell shows it without falling over.
+`ready` says the preview is up. `rendered` reports a finished render and how long it took. `error` reports a render that threw, and the shell shows it without falling over. `plugin-error` names a plugin whose preview module could not load, exported no hooks the preview calls, or had a hook throw; the stories render all the same, and the shell shows it beside the plugins' panels.
 
 ### 5.4 Rules
 
 - Every payload must survive a JSON round trip. No function, no class instance, no DOM node. `postMessage` enforces this by cloning: a function throws at send time.
 - Both sides send to an exact origin, never `'*'`, and both drop a message that comes from another origin or another window.
 - A render error comes back as `error` and must never take the shell down.
+- **A plugin message's `type` starts with the plugin's name and a colon**, `a11y:run`, and a core message never carries one. That prefix is the whole routing: the preview hands the message to that plugin's `onMessage` (6.2), the shell to that plugin's panel (6.1). The names come from the project's configuration, never from a list in the core.
 - A plugin declares its messages from its own package, the same way it declares options and prop details:
 
 ```ts
@@ -779,6 +781,8 @@ export default {
 
 **It is said story by story, never once.** The frame forgets it whenever it receives a new `entry`, another story or the same one read again after an edit, so a panel that does not say it again is open. A reason that is not a non-empty string is ignored.
 
+**A panel talks to its own preview module.** It emits `send` with a message, and receives, as its `received` prop, the last message its preview module sent. Both carry a `type` that starts with the plugin's name (5.4): the frame drops a message a panel sends under another name, and says so in the console.
+
 **A panel that edits the story emits `overrides`**, the values to render it with, primitives only (5.1). The shell sends them in `render`, keeps them while that story stays on display, a preview that says `ready` again included, and drops them when another story is shown. `@crypte/controls` is the panel that does.
 
 **Only the module is loaded.** A style sheet built beside it never reaches the page, so a panel styles itself inline.
@@ -795,10 +799,8 @@ export default {
 
 ```ts
 interface PreviewHooks {
-  beforeMount?(ctx: PreviewContext): void
-  afterMount?(ctx: PreviewContext): void
-  onPropsChange?(ctx: PreviewContext): void
-  beforeUnmount?(ctx: PreviewContext): void
+  afterMount?: (ctx: PreviewContext) => void
+  onMessage?: (ctx: PreviewContext, message: { type: string; [key: string]: unknown }) => void
 }
 
 interface PreviewContext {
@@ -806,9 +808,22 @@ interface PreviewContext {
   props: Record<string, unknown>
   options: Record<string, unknown>
   root: HTMLElement
-  send(payload: unknown): void
+  send: (message: { type: string; [key: string]: unknown }) => void
 }
 ```
+
+```ts
+export default {
+  afterMount: (ctx) => ctx.send({ type: 'a11y:results', id: ctx.id, violations: analyse(ctx.root) }),
+  onMessage: (ctx, message) => {
+    if (message.type === 'a11y:run') ctx.send({ type: 'a11y:results', id: ctx.id, violations: analyse(ctx.root) })
+  },
+}
+```
+
+**Two hooks, because one consumer demands them.** `afterMount` runs after every render that went through, with the story it drew. `onMessage` receives what the plugin's panel sent, against the story last drawn. Both are properties holding functions, like `NodeHooks`: the context comes as an argument. `beforeMount`, `onPropsChange` and `beforeUnmount` wait in section 7 for the plugin that needs them.
+
+**A preview module exports its hooks and nothing else.** Anything other than an object of those two keys, each a function, is refused as a `plugin-error` (5.3), and so is a hook that throws or a message sent under another name: a hook exported and never called would otherwise fail in silence.
 
 Without this rule every plugin would be rewritten for every framework, which would cancel the whole point of the architecture.
 
@@ -857,7 +872,7 @@ const CONTRIBUTABLE = ['tokens'] as const
 
 ### 6.4 `ctx.props` can be changed before mount
 
-Inside `beforeMount`, a plugin may change `ctx.props`. That is the only moment props are mutable; everywhere else the context is read-only.
+**In reserve with `beforeMount`, section 7**: what follows is the shape it will have when `actions` brings it. Inside `beforeMount`, a plugin may change `ctx.props`. That is the only moment props are mutable; everywhere else the context is read-only.
 
 This exists for one demonstrated case: a function prop the story author did not declare. `PricingCard` expects `onSelect`, the story omits it, the component gets `undefined` and breaks on the first click. The `actions` plugin fills those props with logging functions inside `beforeMount`, using `details` to know which ones are functions.
 
@@ -896,6 +911,7 @@ The field carrying both already exists, so neither is a manifest break. The reas
 
 - `update-overrides`, which would change a mounted entry's props without remounting it. `render` already does, measured with `controls` (5.2). Reopened by an adapter that remounts on every `render`, or a component that loses its state across an edit.
 - `set-globals`, which would apply a theme or a locale to the preview. No consumer, and no shape a case has demonstrated.
+- The preview hooks `beforeMount`, `onPropsChange` and `beforeUnmount` of 6.2. `beforeMount` returns with `actions`, which fills undeclared function props (6.4); the other two have no consumer.
 - A `render` escape hatch on a story, to make a controlled component truly interactive. Left out of v1 for lack of a demonstrated case, see 2.7. Adding it later breaks nothing; shipping it now would create a use we could not take back.
 - Documenting pass-through DOM attributes, see 3.4.
 - Path aliases inside style sheets, see 1.5.
@@ -916,7 +932,7 @@ This document is a contract. This section is the only place that says what exist
 | 4, the manifest | built, and written by `crypte dev` at start-up, on every restart of the configuration and on every rebuild, so the file follows what is served. Of the two natures of entry it can carry, only `story` is produced |
 | 4.6, the fingerprint | built, and written by `crypte dev` whenever the catalogue served changes it: at start-up, on a restart of the configuration, and on a story change. So `crypte check` does not fail after a session, and trying a `stories` path then reverting rewrites the same bytes |
 | 5, the channel | built and exercised on both sides |
-| 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. The `shell` and `preview` modules are loaded, and the shell mounts each shell module in a frame that folds when the panel is `inapplicable` and remembers whether it is open. `@crypte/controls` edits a story's props through `overrides`, and the demonstration's `hello` and `status` plugins use the rest. `controls` does not add `min`, `max`, `step` or `control` to `PluginPropDetails` yet (3.3), so writing them is still a compile error. **Provisional**: 6.5 asks for `controls` and `a11y`, and only the first exists |
+| 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. The `shell` and `preview` modules are loaded, and the shell mounts each shell module in a frame that folds when the panel is `inapplicable` and remembers whether it is open. A preview module's `afterMount` and `onMessage` are called, plugin messages cross the channel both ways, and a preview module that fails is named in the shell. `@crypte/controls` edits a story's props through `overrides`, and the demonstration's `hello` and `status` plugins use the rest. `controls` does not add `min`, `max`, `step` or `control` to `PluginPropDetails` yet (3.3), so writing them is still a compile error. **Provisional**: 6.5 asks for `controls` and `a11y`, and only the first exists |
 
 **`dev`, `check` and `init` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled in the project by the CLI's own Vite, with the plugins the project declares in `vite.plugins`. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte init` writes the configuration of 1.5 into a project that already has its components, and has no section of its own because the file it writes is 1.5 itself.
 
@@ -925,7 +941,7 @@ Seven known gaps between this document and the code:
 - **The preview is compiled by the CLI's Vite, and nothing checks the project's plugins against it.** A project on another major keeps its own Vite for its build, and its `vite.plugins` run in the CLI's anyway. Measured on a project on Vite 6: its React plugin warned about deprecated options and every story rendered. Resolving the project's own Vite instead would be a rework, not a fix.
 - A path alias cannot replace an installed package. `"vue": ["shims/vue.js"]` has no effect while `vue` is installed, because the resolver runs after Vite's own. TypeScript would return the replacement file.
 - **Inference reads what a file declares, never what a type it cannot resolve holds.** A type alias, an interface and a `cva(…)` call declared in the component file are followed. An imported type, a generic, a DOM part of an intersection, and an `extends` clause other than `VariantProps` of a local `cva` each leave only what the component file writes by hand, which for a DOM pass-through is the names in its destructuring pattern. Enumerating the rest needs the type checker, and inventing names is what 4.2 forbids.
-- **`ShellContribution` and `PreviewHooks` are declared opaque by the core**, though 6.2 specifies the second one in full. The shell mounts a shell module's export as a component without checking more than that it is an object or a function, and no preview runs a lifecycle hook. Typing a surface before its first real consumer would buy nothing and could not be taken back.
+- **`ShellContribution` is declared opaque by the core**, which knows no Vue and cannot name a component. The shell mounts a shell module's export without checking more than that it is an object or a function.
 - The serialisation of 4.5 is guaranteed on **contributed** entries and merely true of the others. A plugin's entry is checked and refused with what offends named; everything the CLI reads itself comes from source text and is serialisable by construction, so nothing exercises the guarantee there.
 - **A `tokens` entry is written and nothing displays one.** `@crypte/tokens` contributes families read from a project's CSS custom properties, and the demonstration carries four. No screen shows them: the shell keeps out of its tree what it cannot draw, so they travel in the manifest and stop there. The page that draws them belongs to the shell's own project.
 - `component.file` is resolved without Vite. The producer runs before any server exists, so it applies the project's `paths` and tries the usual extensions, with no plugin and no `exports` field. A component reached through a plugin keeps the identifier the story wrote. `crypte check` calls such an entry an orphan only when the project could have reached it itself, that is a relative path or an alias it declares; anything else it leaves alone.
@@ -933,6 +949,14 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.22.** A preview module's hooks are called, and plugin messages cross the channel (5.3, 5.4, 6.2).
+
+| Before | After |
+| --- | --- |
+| 6.2 specified four hooks and no preview called any | `afterMount` and `onMessage` are called; the other three wait in section 7 |
+| `PreviewContext` could send and not receive | `onMessage` receives what the plugin's panel sent |
+| a preview module that failed was said in the frame's console only | `plugin-error` names it in the shell |
 
 **v1.21.** `controls` edits a story's props, and the manifest says when a component's props could not be read (4.1, 6.1).
 

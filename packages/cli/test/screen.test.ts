@@ -742,14 +742,15 @@ describe('a config that carries TypeScript syntax', () => {
 // `hello` de la démonstration pose un bouton dans le shell et une marque dans
 // l'iframe.
 describe('a plugin in the browser', () => {
-  const panneau = (page: Page) => page.locator('[data-plugin="hello"] .body button')
+  const panneau = (page: Page) =>
+    page.locator('[data-plugin="hello"] .body').getByRole('button', { name: /clic/ })
   const cadre = (page: Page) => page.frameLocator('iframe[title="preview"]')
 
   test('shows its shell module and runs its preview module', async ({ ecran }) => {
     await expect.poll(() => panneau(ecran.page).textContent()).toBe('hello, 0 clic(s)')
     await expect
-      .poll(() => cadre(ecran.page).locator('html').getAttribute('data-hello'))
-      .toBe('loaded')
+      .poll(() => cadre(ecran.page).locator('html').getAttribute('data-hello-renders'))
+      .toBe('1')
   })
 
   // Deux copies de Vue ne se voient pas : `inject` passe encore, et seul l'état
@@ -794,17 +795,65 @@ describe('a plugin in the browser', () => {
 
     await expect.poll(ecran.vu).toBe('Nouveau')
 
-    // La première ligne seule : la pile porte le port du serveur. Une fois ou
-    // deux, selon que la mise à jour à chaud qui suit l'écriture a tourné avant
-    // le rechargement ou non.
-    const dites = ecran
-      .plaintes()
-      .filter((one) => one.includes('preview module'))
-      .map((one) => one.split('\n')[0])
+    // Dans le shell, et plus seulement dans la console du cadre : le message
+    // `plugin-error` de la section 5.3.
+    await expect
+      .poll(async () =>
+        (await ecran.page.locator('.failed').textContent())?.replace(/\s+/g, ' ').trim(),
+      )
+      .toBe(
+        'hello dans la preview : its preview module could not load: cette preview lève à l’import',
+      )
+  })
+})
 
-    expect([...new Set(dites)]).toEqual([
-      'console: crypte: the preview module of hello could not load Error: cette preview lève à l’import',
-    ])
+// Les hooks de la section 6.2 et les messages de plugin de la section 5.4, sur
+// `hello` : une marque comptée après chaque rendu, et un « ping » que sa partie
+// preview renvoie en `hello:pong`.
+describe('the preview hooks and plugin messages', () => {
+  const rendus = (page: Page) =>
+    page.frameLocator('iframe[title="preview"]').locator('html').getAttribute('data-hello-renders')
+
+  test('calls afterMount after every render', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    await expect.poll(() => rendus(ecran.page)).not.toBeNull()
+    const avant = Number(await rendus(ecran.page))
+
+    await ecran.page.getByRole('button', { name: 'Nue', exact: true }).click()
+
+    await expect.poll(ecran.vu).toBe('Étiquette')
+    await expect.poll(() => rendus(ecran.page)).toBe(String(avant + 1))
+  })
+
+  test('carries a plugin message from the panel to the preview and back', async ({ ecran }) => {
+    const panneau = ecran.page.locator('[data-plugin="hello"] .body')
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    await expect.poll(() => panneau.locator('output').textContent()).toBe('hello:rendered')
+
+    await panneau.getByRole('button', { name: 'ping', exact: true }).click()
+
+    await expect.poll(() => panneau.locator('output').textContent()).toBe('hello:pong')
+  })
+
+  // Un hook de la réserve, exporté et jamais appelé : c'est ainsi que
+  // `beforeRender` avait été ignoré sans un mot. Refusé, et dit dans le shell.
+  test('says in the shell a preview module that exports a hook the preview never calls', async ({
+    ecran,
+  }) => {
+    writeFileSync(
+      join(ecran.root, 'plugins', 'hello', 'preview.js'),
+      'export default { beforeMount: () => {} }\n',
+    )
+    await ecran.page.reload()
+
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    await expect
+      .poll(async () =>
+        (await ecran.page.locator('.failed').textContent())?.replace(/\s+/g, ' ').trim(),
+      )
+      .toBe(
+        'hello dans la preview : `beforeMount` is not a hook the preview calls, which are afterMount and onMessage',
+      )
   })
 })
 

@@ -217,6 +217,57 @@ describe('the selection', () => {
 // Ce qu'un panneau a édité, par-dessus les props de la story : envoyé dans
 // `render`, lâché quand on change de story, gardé quand la preview redit `ready`
 // sur la même.
+// Les messages de plugin, section 5.4, et ce que la preview dit d'un plugin qui a
+// échoué, section 5.3 : rangés sous le nom du plugin, et oubliés quand une
+// preview rechargée redit `ready`.
+describe('what a plugin says between its halves', () => {
+  const panneaux = (écran: Ecran) => écran.wrapper.findComponent(Panels)
+
+  test('hands each panel the last message of its preview module', async ({ écran }) => {
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+
+    await écran.répond({ type: 'a:resultats', n: 1 } as unknown as PreviewMessage)
+    await écran.répond({ type: 'a:resultats', n: 2 } as unknown as PreviewMessage)
+    await écran.répond({ type: 'b:pong' } as unknown as PreviewMessage)
+
+    expect(panneaux(écran).props('received')).toEqual({
+      a: { type: 'a:resultats', n: 2 },
+      b: { type: 'b:pong' },
+    })
+  })
+
+  test('shows what the preview says of a plugin that failed', async ({ écran }) => {
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+
+    await écran.répond({ type: 'plugin-error', plugin: 'a', message: 'boum' })
+
+    expect(panneaux(écran).props('errors')).toEqual([{ plugin: 'a', message: 'boum' }])
+  })
+
+  // Une preview rechargée redit ce qui échoue encore : le garder doublerait
+  // chaque ligne, et une erreur réparée survivrait à sa cause.
+  test('forgets both when the preview says ready again', async ({ écran }) => {
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    await écran.répond({ type: 'a:resultats' } as unknown as PreviewMessage)
+    await écran.répond({ type: 'plugin-error', plugin: 'a', message: 'boum' })
+
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+
+    expect([panneaux(écran).props('received'), panneaux(écran).props('errors')]).toEqual([{}, []])
+  })
+
+  test('sends what a panel sends, once the preview is ready', async ({ écran }) => {
+    panneaux(écran).vm.$emit('send', { type: 'a:run' })
+    await vide(écran.wrapper)
+    expect(écran.envoyés).toEqual([])
+
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    panneaux(écran).vm.$emit('send', { type: 'a:run' })
+
+    await expect.poll(() => écran.envoyés.at(-1)).toEqual({ type: 'a:run' })
+  })
+})
+
 describe('the values a panel edited', () => {
   const édite = (écran: Ecran, values: Record<string, unknown>) =>
     écran.wrapper.findComponent(Panels).vm.$emit('overrides', values)

@@ -227,3 +227,49 @@ describe('a panel that throws', () => {
     expect(wrapper.find('.panel-failed').text()).toBe('Ce panneau a levé : une chaîne')
   })
 })
+
+// Ce qu'un panneau échange avec sa partie preview, section 5.4 : le dernier
+// message reçu en prop, et ce qu'il envoie, sous son propre nom seulement.
+describe('the messages of a panel', () => {
+  const bavard = defineComponent({
+    props: { received: { type: Object, default: null } },
+    emits: ['send'],
+    setup(props, { emit }) {
+      return () =>
+        h('div', [
+          h('output', (props.received as { type?: string } | null)?.type ?? ''),
+          h('button', { class: 'bon', onClick: () => emit('send', { type: 'status:run' }) }),
+          h('button', { class: 'autre', onClick: () => emit('send', { type: 'autre:run' }) }),
+        ])
+    },
+  })
+
+  test('hands the panel the last message its preview module sent', async () => {
+    const wrapper = monte(bavard, brouillon)
+
+    await wrapper.setProps({ received: { type: 'status:pong' } })
+
+    expect(wrapper.find('output').text()).toBe('status:pong')
+  })
+
+  test('passes on a message sent under the plugin’s name', async () => {
+    const wrapper = monte(bavard, brouillon)
+
+    await wrapper.find('.bon').trigger('click')
+
+    expect(wrapper.emitted('send')).toEqual([[{ type: 'status:run' }]])
+  })
+
+  // Sous un autre nom, il atteindrait un autre plugin : refusé, et dit.
+  test('drops a message sent under another name, and says so', async () => {
+    const erreur = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const wrapper = monte(bavard, brouillon)
+
+    await wrapper.find('.autre').trigger('click')
+
+    expect(wrapper.emitted('send')).toBeUndefined()
+    expect(erreur).toHaveBeenCalledWith(
+      'crypte: status: its panel sent `autre:run`, whose type does not start with `status:`',
+    )
+  })
+})

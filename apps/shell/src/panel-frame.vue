@@ -7,15 +7,32 @@ import { computed, onErrorCaptured, ref, watch, type Component } from 'vue'
 // son seul consommateur : les panneaux sont montés dedans, ils ne le dessinent
 // pas.
 
+type PanelMessage = { type: string; [key: string]: unknown }
+
 const props = defineProps<{
   name: string
   panel: Component
   entry: StoryEntry | null
+  // Le dernier message que la partie preview de ce plugin a envoyé.
+  received?: PanelMessage
 }>()
 
-// Les valeurs qu'un panneau a éditées, remontées telles quelles au shell, qui
-// les envoie dans `render`.
-const emit = defineEmits<{ overrides: [values: Overrides] }>()
+// Ce qu'un panneau a édité, que le shell envoie dans `render`, et ce qu'il
+// envoie à sa partie preview.
+const emit = defineEmits<{ overrides: [values: Overrides]; send: [message: PanelMessage] }>()
+
+// Ce qu'un panneau envoie à sa partie preview, sous son propre nom, section 5.4.
+// Un autre préfixe atteindrait un autre plugin, ou personne : refusé, et dit.
+function send(message: unknown) {
+  const type: unknown = (message as { type?: unknown } | null)?.type
+  if (typeof type !== 'string' || !type.startsWith(`${props.name}:`)) {
+    console.error(
+      `crypte: ${props.name}: its panel sent \`${String(type)}\`, whose type does not start with \`${props.name}:\``,
+    )
+    return
+  }
+  emit('send', message as PanelMessage)
+}
 
 // Ouvert par défaut, retenu par le shell sous le nom du plugin, jamais par le
 // plugin. `localStorage` peut lever, en navigation privée par exemple : le
@@ -97,8 +114,10 @@ const shown = computed(() => open.value && inapplicable.value === null && failur
       <component
         :is="panel"
         :entry="entry"
+        :received="received"
         @inapplicable="declare"
         @overrides="(values: Overrides) => emit('overrides', values)"
+        @send="send"
       />
     </div>
   </section>

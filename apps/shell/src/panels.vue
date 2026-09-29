@@ -9,8 +9,17 @@ import PanelFrame from './panel-frame.vue'
 // un cadre, dans l'ordre de `plugins`. Le nom d'un plugin est unique : le CLI
 // refuse les surfaces d'un second plugin du même nom.
 
-defineProps<{ entry: StoryEntry | null }>()
-const emit = defineEmits<{ overrides: [values: Overrides] }>()
+type PanelMessage = { type: string; [key: string]: unknown }
+
+defineProps<{
+  entry: StoryEntry | null
+  // Le dernier message de la partie preview de chaque plugin, sous son nom.
+  received: Record<string, PanelMessage>
+  // Ce que la preview a dit d'un plugin qui a échoué chez elle.
+  errors: { plugin: string; message: string }[]
+}>()
+
+const emit = defineEmits<{ overrides: [values: Overrides]; send: [message: PanelMessage] }>()
 
 const PLUGINS = '/@crypte/plugins.json'
 
@@ -55,9 +64,17 @@ onMounted(async () => {
 </script>
 
 <template>
-  <Callout v-if="failures.length > 0" tone="danger" class="failed" role="alert">
+  <Callout
+    v-if="failures.length > 0 || errors.length > 0"
+    tone="danger"
+    class="failed"
+    role="alert"
+  >
     <p v-for="one of failures" :key="one.name">
       <code>{{ one.name }}</code> n'a pas pu se charger : {{ one.message }}
+    </p>
+    <p v-for="(one, at) of errors" :key="`preview-${at}`">
+      <code>{{ one.plugin }}</code> dans la preview : {{ one.message }}
     </p>
   </Callout>
   <PanelFrame
@@ -66,7 +83,9 @@ onMounted(async () => {
     :name="one.name"
     :panel="one.panel"
     :entry="entry"
+    :received="received[one.name]"
     @overrides="(values: Overrides) => emit('overrides', values)"
+    @send="(message: PanelMessage) => emit('send', message)"
   />
 </template>
 

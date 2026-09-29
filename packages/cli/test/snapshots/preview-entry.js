@@ -1,4 +1,4 @@
-import { createPreviewChannel as __crypte_channelOf, propsOfStory as __crypte_propsOf, wrapsOf as __crypte_wrapsOf } from '@crypte/core/preview'
+import { createPreviewChannel as __crypte_channelOf, createPluginHost as __crypte_hostOf, propsOfStory as __crypte_propsOf, wrapsOf as __crypte_wrapsOf } from '@crypte/core/preview'
 import "<racine>/packages/cli/test/fixture/src/styles/app.css"
 
 const __crypte_modules = {}
@@ -9,6 +9,9 @@ if (import.meta.hot) {
   import.meta.hot.on('vite:error', ({ err }) => { __crypte_loadErrors.set(__crypte_modulePath(err.id ?? err.loc?.file ?? ''), err) })
   import.meta.hot.on('vite:beforeUpdate', ({ updates }) => { for (const one of updates) { __crypte_loadErrors.delete(one.path); __crypte_loadErrors.delete(one.acceptedPath) } })
 }
+
+const __crypte_loaded = await Promise.all([
+])
 
 await Promise.all([
   import("/stories/Gardee.tsx").then((module) => { __crypte_modules["/stories/Gardee.tsx"] = module }, (error) => { __crypte_broken["/stories/Gardee.tsx"] = error }),
@@ -100,9 +103,18 @@ function __crypte_render(id, overrides) {
   // The wrappers last: the adapter nests them, outermost first, and the
   // global one of section 2.5 comes from the configuration text.
   __crypte_adapter.mount(__crypte_container, component, props, __crypte_wrapsOf(__crypte_wrap, definition))
+
+  // After the mount and only after it: a render that threw has no story to
+  // show a plugin, and a hook that throws never reaches the channel as this
+  // story's error, since the host catches it.
+  __crypte_host.mounted({ id, props, options: entry.options, root: __crypte_container })
 }
 
-const __crypte_channel = __crypte_channelOf({ render: __crypte_render })
+const __crypte_channel = __crypte_channelOf({ render: __crypte_render, message: (message) => __crypte_host.received(message) })
+
+// After the channel, since it sends through it: what failed to load is said
+// once `ready` is out, so the shell has cleared what the frame before said.
+const __crypte_host = __crypte_hostOf(__crypte_loaded, __crypte_channel.send)
 
 if (import.meta.hot) {
   const __crypte_paths = new Set(["/stories/Gardee.tsx"])
