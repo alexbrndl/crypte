@@ -3,7 +3,7 @@
 // real file system, macOS neighbours cover a dead watcher, and no API exposes
 // the 20 ms window a stop has to close.
 
-import { watch as nodeWatch } from 'node:fs'
+import { watch as nodeWatch, readFileSync } from 'node:fs'
 
 // Runs `run` once, `ms` after the last call. Once stopped, nothing: a timer
 // armed just before the close rebuilt after it.
@@ -48,11 +48,23 @@ export function componentWatchers(
   const start = (file: string): void => {
     if (stopped) return
 
+    // A `change` that leaves the content as last read rebuilds nothing: macOS
+    // delivers the echo of a file's creation a few hundred milliseconds after its
+    // watcher opened, and each echo rebuilt the catalogue. Content, not `mtime`:
+    // at one-second resolution, two quick saves of one size look alike. An edit
+    // between the catalogue's read and this one is missed, as on Linux.
+    let seen = contentOf(file)
+
     try {
       open.set(
         file,
         watch(file, (type) => {
           if (type === 'rename') reopen(file)
+          else {
+            const now = contentOf(file)
+            if (now !== undefined && now === seen) return
+            seen = now
+          }
           changed()
         }),
       )
@@ -87,5 +99,15 @@ export function componentWatchers(
       open.clear()
     },
     watched: () => [...open.keys()].sort(),
+  }
+}
+
+// Unreadable counts as changed: without a content to compare, the rebuild is
+// the safe side.
+function contentOf(file: string): string | undefined {
+  try {
+    return readFileSync(file, 'utf8')
+  } catch {
+    return undefined
   }
 }
