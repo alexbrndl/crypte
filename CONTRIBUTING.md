@@ -37,6 +37,8 @@ packages/react    @crypte/react     the React adapter
 packages/ui       @crypte/ui        the components the shell, plugins and the site share
 plugins/tokens    @crypte/tokens    the plugin that reads a project's CSS custom properties
 plugins/controls  @crypte/controls  the plugin whose panel edits a story's props live
+apps/shell        @crypte/shell     the shell, built into `@crypte/cli`, never published alone
+apps/demo         @crypte/demo      a React project that runs the shell, never published
 docs/                               the specification, in English
 ```
 

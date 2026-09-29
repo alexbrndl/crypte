@@ -37,6 +37,19 @@ const sourcesOf = (dossiers) => {
   return sources
 }
 
+test('reads the published packages from the repository', () => {
+  expect(PUBLIÉS).toEqual(
+    expect.arrayContaining([
+      'packages/core',
+      'packages/cli',
+      'packages/react',
+      'packages/ui',
+      'plugins/tokens',
+      'plugins/controls',
+    ]),
+  )
+})
+
 // `changesets/action` publie sur npm dès qu'on lui donne `publish`. Sans cette
 // entrée elle se limite à tenir la pull request de version à jour.
 //
@@ -68,19 +81,6 @@ test('the version workflow does not publish', () => {
 //
 // Ce cas fixe **quel paquet déclare**. Que la déclaration soit méritée, c'est
 // `packages/core/test/side-effects.test.ts` qui le vérifie.
-test('reads the published packages from the repository', () => {
-  expect(PUBLIÉS).toEqual(
-    expect.arrayContaining([
-      'packages/core',
-      'packages/cli',
-      'packages/react',
-      'packages/ui',
-      'plugins/tokens',
-      'plugins/controls',
-    ]),
-  )
-})
-
 test('only core declares sideEffects: false', () => {
   const déclarent = PUBLIÉS.filter(
     (dossier) => JSON.parse(lire(dossier, 'package.json')).sideEffects === false,
@@ -102,8 +102,13 @@ test('no published code imports vite-plus', () => {
 // `@crypte/ui` est une feuille du graphe : un paquet qui l'importerait ferait
 // charger des composants Vue à qui ne voulait que des types, la panne que la
 // troisième contrainte de `CLAUDE.md` existe pour empêcher.
+//
+// Les bibliothèques de `packages/` seulement : un plugin est l'un des
+// consommateurs que `CLAUDE.md` prévoit pour `@crypte/ui`.
 test('no package, CLI included, depends on @crypte/ui', () => {
-  const paquets = PUBLIÉS.filter((dossier) => dossier !== 'packages/ui')
+  const paquets = PUBLIÉS.filter(
+    (dossier) => dossier.startsWith('packages/') && dossier !== 'packages/ui',
+  )
   const déclarent = paquets.filter((dossier) => {
     const manifeste = JSON.parse(lire(dossier, 'package.json'))
     return Object.keys({ ...manifeste.dependencies, ...manifeste.peerDependencies }).includes(
