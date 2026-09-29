@@ -288,14 +288,30 @@ describe('what a panel sends, as JSON', () => {
   test('passes on a plain copy of a message that holds a panel’s state', async () => {
     const règles = ref(['color-contrast'])
     const wrapper = monte(
-      envoie(() => ({ type: 'status:run', rules: règles.value })),
+      // Chaque forme que JSON rend telle quelle, l'état réactif compris : retirer
+      // l'une d'elles de `faithful` jetait le message. Revue de la PR #107.
+      envoie(() => ({
+        type: 'status:run',
+        rules: règles.value,
+        nothing: null,
+        on: false,
+        depth: 2,
+        options: { strict: true },
+      })),
       brouillon,
     )
 
     await wrapper.find('.body button').trigger('click')
 
     const [[copie]] = wrapper.emitted('send') as [[{ rules: unknown }]]
-    expect(copie).toEqual({ type: 'status:run', rules: ['color-contrast'] })
+    expect(copie).toEqual({
+      type: 'status:run',
+      rules: ['color-contrast'],
+      nothing: null,
+      on: false,
+      depth: 2,
+      options: { strict: true },
+    })
     expect(isProxy(copie.rules)).toBe(false)
   })
 
