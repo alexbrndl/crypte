@@ -1,10 +1,14 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { componentWatchers, debounced, type Watch } from '../src/watch'
 
-// Les deux garanties du suivi que le vrai système de fichiers ne sait pas
-// éprouver sur macOS : un surveillant voisin y capte l'écriture d'un surveillant
-// mort, et aucune API n'expose la fenêtre de 20 ms qu'un arrêt doit fermer. Un
-// faux `watch` et de faux minuteurs rendent les deux déterministes.
+// Ce que le vrai système de fichiers ne sait pas éprouver sur macOS : un
+// surveillant voisin y capte l'écriture d'un surveillant mort, aucune API
+// n'expose la fenêtre de 20 ms qu'un arrêt doit fermer, et un `change` sans
+// écriture arrive quand il veut. Un faux `watch` et de faux minuteurs rendent les
+// trois déterministes.
 
 afterEach(() => {
   vi.useRealTimers()
@@ -107,6 +111,92 @@ describe('component watchers', () => {
     expect(faux.vivants('Badge.jsx')[0]).toBe(gardé)
     expect(faux.vivants('Card.jsx')).toEqual([])
     expect(surveillants.watched()).toEqual(['Badge.jsx', 'Tag.jsx'])
+  })
+
+  // Un `change` que macOS livre sans que rien n'ait écrit, sur les fichiers neufs
+  // d'une copie de travail et jamais sous `/private/tmp` : 35 pour 48 démarrages
+  // mesurés, et chacun reconstruisait le catalogue sous le cas qui venait d'y
+  // injecter une entrée. DCJ-325.
+  describe('on a change', () => {
+    let dossier: string
+    let fichier: string
+
+    beforeEach(() => {
+      dossier = mkdtempSync(join(tmpdir(), 'crypte-watch-'))
+      fichier = join(dossier, 'Badge.jsx')
+      writeFileSync(fichier, 'a')
+    })
+
+    afterEach(() => {
+      rmSync(dossier, { recursive: true, force: true })
+    })
+
+    const surveille = () => {
+      const faux = fauxWatch()
+      const changed = vi.fn()
+      componentWatchers(changed, () => {}, faux.watch).sync([fichier])
+      const dernier = () => faux.vivants(fichier)[0]!
+      return { changed, dernier }
+    }
+
+    it('rebuilds nothing while the content stays as read', () => {
+      const { changed, dernier } = surveille()
+
+      dernier().listener('change')
+      writeFileSync(fichier, 'b')
+      dernier().listener('change')
+      dernier().listener('change')
+
+      expect(changed).toHaveBeenCalledTimes(1)
+    })
+
+    // Même taille, à dessein : ce que `mtime` à la seconde ne distinguerait pas.
+    it('rebuilds on each content, back to an earlier one included', () => {
+      const { changed, dernier } = surveille()
+
+      for (const contenu of ['b', 'a', 'b']) {
+        writeFileSync(fichier, contenu)
+        dernier().listener('change')
+      }
+
+      expect(changed).toHaveBeenCalledTimes(3)
+    })
+
+    // Une sauvegarde atomique reconstruit toujours, et le surveillant rouvert
+    // compare à ce qu'elle a écrit : son écho ne reconstruit pas une deuxième fois.
+    it('compares with what a save renamed over wrote', () => {
+      const { changed, dernier } = surveille()
+
+      writeFileSync(fichier, 'b')
+      dernier().listener('rename')
+      dernier().listener('change')
+
+      expect(changed).toHaveBeenCalledTimes(1)
+    })
+
+    // `fs.watch` suit l'inode : une sauvegarde atomique du même contenu, le `:w`
+    // de vim, laissait sinon un surveillant mort, et le composant muet jusqu'à
+    // l'arrêt du serveur. Revue de la PR #109.
+    it('reopens on a rename that leaves the content as read', () => {
+      const { changed, dernier } = surveille()
+      const premier = dernier()
+
+      premier.listener('rename')
+
+      expect(premier.fermé).toBe(true)
+      expect(dernier()).not.toBe(premier)
+      expect(changed).toHaveBeenCalledTimes(1)
+    })
+
+    it('rebuilds on every change of a file it cannot read', () => {
+      const { changed, dernier } = surveille()
+
+      rmSync(fichier)
+      dernier().listener('change')
+      dernier().listener('change')
+
+      expect(changed).toHaveBeenCalledTimes(2)
+    })
   })
 
   it('reports which file could not be watched, and goes on', () => {
