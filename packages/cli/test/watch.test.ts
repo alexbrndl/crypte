@@ -6,9 +6,9 @@ import { componentWatchers, debounced, type Watch } from '../src/watch'
 
 // Ce que le vrai système de fichiers ne sait pas éprouver sur macOS : un
 // surveillant voisin y capte l'écriture d'un surveillant mort, aucune API
-// n'expose la fenêtre de 20 ms qu'un arrêt doit fermer, et l'écho d'une création
-// arrive quand il veut. Un faux `watch` et de faux minuteurs rendent les trois
-// déterministes.
+// n'expose la fenêtre de 20 ms qu'un arrêt doit fermer, et un `change` sans
+// écriture arrive quand il veut. Un faux `watch` et de faux minuteurs rendent les
+// trois déterministes.
 
 afterEach(() => {
   vi.useRealTimers()
@@ -113,9 +113,10 @@ describe('component watchers', () => {
     expect(surveillants.watched()).toEqual(['Badge.jsx', 'Tag.jsx'])
   })
 
-  // L'écho de la création d'une copie, que macOS livre après l'ouverture du
-  // surveillant : 35 échos pour 48 démarrages mesurés, et chacun reconstruisait le
-  // catalogue sous le cas qui venait d'y injecter une entrée. DCJ-325.
+  // Un `change` que macOS livre sans que rien n'ait écrit, sur les fichiers neufs
+  // d'une copie de travail et jamais sous `/private/tmp` : 35 pour 48 démarrages
+  // mesurés, et chacun reconstruisait le catalogue sous le cas qui venait d'y
+  // injecter une entrée. DCJ-325.
   describe('on a change', () => {
     let dossier: string
     let fichier: string
@@ -170,6 +171,20 @@ describe('component watchers', () => {
       dernier().listener('rename')
       dernier().listener('change')
 
+      expect(changed).toHaveBeenCalledTimes(1)
+    })
+
+    // `fs.watch` suit l'inode : une sauvegarde atomique du même contenu, le `:w`
+    // de vim, laissait sinon un surveillant mort, et le composant muet jusqu'à
+    // l'arrêt du serveur. Revue de la PR #109.
+    it('reopens on a rename that leaves the content as read', () => {
+      const { changed, dernier } = surveille()
+      const premier = dernier()
+
+      premier.listener('rename')
+
+      expect(premier.fermé).toBe(true)
+      expect(dernier()).not.toBe(premier)
       expect(changed).toHaveBeenCalledTimes(1)
     })
 

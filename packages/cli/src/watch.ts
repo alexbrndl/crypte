@@ -49,10 +49,11 @@ export function componentWatchers(
     if (stopped) return
 
     // A `change` that leaves the content as last read rebuilds nothing: macOS
-    // delivers the echo of a file's creation a few hundred milliseconds after its
-    // watcher opened, and each echo rebuilt the catalogue. Content, not `mtime`:
-    // at one-second resolution, two quick saves of one size look alike. An edit
-    // between the catalogue's read and this one is missed, as on Linux.
+    // reports one on files nothing wrote to, measured on new files in a working
+    // copy and never under `/private/tmp`, and each rebuilt the catalogue.
+    // Content, not `mtime`: at one-second resolution, two quick saves of one size
+    // look alike. An edit between the catalogue's read and this one is missed,
+    // as on Linux.
     let seen = contentOf(file)
 
     try {
