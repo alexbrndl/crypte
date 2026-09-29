@@ -76,8 +76,7 @@ test('the version workflow does not publish', () => {
 // Le noyau le déclare parce qu'il n'expose que des types, des fonctions pures et
 // deux fabriques de canal. Les autres ne le déclarent pas : l'adaptateur touche
 // le DOM, le CLI est un binaire, `tokens` et `controls` sont des fabriques de
-// plugin, et `ui`
-// livre une feuille de style qu'un bundler retirerait.
+// plugin, et `ui` livre une feuille de style qu'un bundler retirerait.
 //
 // Ce cas fixe **quel paquet déclare**. Que la déclaration soit méritée, c'est
 // `packages/core/test/side-effects.test.ts` qui le vérifie.
@@ -99,13 +98,13 @@ test('no published code imports vite-plus', () => {
   expect(sources.filter((f) => lire(f).includes('vite-plus'))).toEqual([])
 })
 
-// `@crypte/ui` est une feuille du graphe : un paquet qui l'importerait ferait
-// charger des composants Vue à qui ne voulait que des types, la panne que la
-// troisième contrainte de `CLAUDE.md` existe pour empêcher.
+// `@crypte/ui` est une feuille du graphe : une bibliothèque qui l'importerait
+// ferait charger des composants Vue à qui ne voulait que des types, la panne
+// que la troisième contrainte de `CLAUDE.md` existe pour empêcher.
 //
 // Les bibliothèques de `packages/` seulement : un plugin est l'un des
 // consommateurs que `CLAUDE.md` prévoit pour `@crypte/ui`.
-test('no package, CLI included, depends on @crypte/ui', () => {
+test('no library, CLI included, depends on @crypte/ui', () => {
   const paquets = PUBLIÉS.filter(
     (dossier) => dossier.startsWith('packages/') && dossier !== 'packages/ui',
   )
