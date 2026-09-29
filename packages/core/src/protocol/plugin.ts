@@ -22,10 +22,14 @@ export type ShellContribution = unknown
 // What the preview module exports by default, section 6.2. Two hooks because
 // `a11y` is the one consumer: analysing a story once it is mounted, and again
 // when its panel asks. The rest of 6.2 waits in section 7 for the plugin that
-// needs it. Properties holding functions, like `NodeHooks`.
+// needs it. Properties holding functions, like `NodeHooks`, and possibly
+// async, as an analysis is.
 export interface PreviewHooks {
-  afterMount?: (ctx: PreviewContext) => void
-  onMessage?: (ctx: PreviewContext, message: { type: string; [key: string]: unknown }) => void
+  afterMount?: (ctx: PreviewContext) => void | Promise<void>
+  onMessage?: (
+    ctx: PreviewContext,
+    message: { type: string; [key: string]: unknown },
+  ) => void | Promise<void>
 }
 
 // The story on display, once rendered. The iframe's DOM and never a

@@ -174,6 +174,21 @@ describe('what a surface is refused', () => {
     })
   })
 
+  // Le préfixe d'un message s'arrête au premier deux-points : `a:b:run` irait à
+  // un plugin nommé `a`. Mesuré, le message n'atteignait personne.
+  it('refuses the browser surfaces of a plugin whose name holds a colon', () => {
+    expect(avec({ name: 'mon:plugin', preview: url('preview.mjs') })).toEqual({
+      shell: [],
+      preview: [],
+      refused: [
+        {
+          plugin: 'mon:plugin',
+          reason: '`name` holds a colon, which ends the prefix of its messages',
+        },
+      ],
+    })
+  })
+
   it('refuses the browser surfaces of a plugin without a name, by its place', () => {
     const sansNom = { shell: url('shell.mjs') } as unknown as CryptePlugin
 

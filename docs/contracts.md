@@ -760,7 +760,7 @@ The shell module exports a `ShellContribution` by default, the preview module a 
 
 **A preview module goes through the project's Vite**, like a story file, so it imports what it needs. **A shell module is served as is, never compiled**, since the shell is prebuilt. Its one bare import is `vue`, which the shell provides through an import map, so every panel runs on the shell's own Vue. That Vue carries its template compiler: a module written by hand may use `template` rather than `h()`. A plugin declares `vue` as a peer dependency and keeps it out of its bundle: a panel running on a second copy never redraws its own state, and nothing warns.
 
-**A surface that points nowhere is refused, with its reason**, the way 6.3 refuses a contribution: a pointer that is not a `file:` URL, or one that leads to no file. So are the browser surfaces of a plugin with no `name`, or with a name an earlier plugin already has: the shell keys a panel by its plugin's name. A module that throws on import costs nothing else. The shell names it, or a shell module whose default export is neither an object nor a function, and shows the other panels; the preview renders its stories and names the module in the frame's console.
+**A surface that points nowhere is refused, with its reason**, the way 6.3 refuses a contribution: a pointer that is not a `file:` URL, or one that leads to no file. So are the browser surfaces of a plugin with no `name`, with a name an earlier plugin already has, or with a name that holds a colon, which ends the prefix of its messages (5.4): the shell keys a panel by its plugin's name. A module that throws on import costs nothing else. The shell names it, or a shell module whose default export is neither an object nor a function, and shows the other panels; the preview renders its stories and names the module in the frame's console.
 
 **A `ShellContribution` is a Vue component, which the shell mounts in a frame**, one per plugin, in the order `plugins` declares them. It receives the story on display as its `entry` prop, a `StoryEntry` or `null`. A panel with nothing to say about that story emits `inapplicable` with its reason, and the frame folds to one line holding it: no empty panel, no greyed one.
 
@@ -799,8 +799,11 @@ export default {
 
 ```ts
 interface PreviewHooks {
-  afterMount?: (ctx: PreviewContext) => void
-  onMessage?: (ctx: PreviewContext, message: { type: string; [key: string]: unknown }) => void
+  afterMount?: (ctx: PreviewContext) => void | Promise<void>
+  onMessage?: (
+    ctx: PreviewContext,
+    message: { type: string; [key: string]: unknown },
+  ) => void | Promise<void>
 }
 
 interface PreviewContext {
@@ -821,9 +824,9 @@ export default {
 }
 ```
 
-**Two hooks, because one consumer demands them.** `afterMount` runs after every render that went through, with the story it drew. `onMessage` receives what the plugin's panel sent, against the story last drawn. Both are properties holding functions, like `NodeHooks`: the context comes as an argument. `beforeMount`, `onPropsChange` and `beforeUnmount` wait in section 7 for the plugin that needs them.
+**Two hooks, because one consumer demands them.** `afterMount` runs after every render that went through, with the story it drew. `onMessage` receives what the plugin's panel sent, against the story last drawn. Both are properties holding functions, like `NodeHooks`: the context comes as an argument. Either may be async, as an analysis is. `beforeMount`, `onPropsChange` and `beforeUnmount` wait in section 7 for the plugin that needs them.
 
-**A preview module exports its hooks and nothing else.** Anything other than an object of those two keys, each a function, is refused as a `plugin-error` (5.3), and so is a hook that throws or a message sent under another name: a hook exported and never called would otherwise fail in silence.
+**A preview module exports its hooks and nothing else.** Anything other than an object of those two keys, each a function, is refused as a `plugin-error` (5.3), and so is a hook that throws or rejects, or a message sent under another name: a hook exported and never called would otherwise fail in silence.
 
 Without this rule every plugin would be rewritten for every framework, which would cancel the whole point of the architecture.
 

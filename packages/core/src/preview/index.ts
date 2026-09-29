@@ -110,7 +110,15 @@ export function createPluginHost(
       continue
     }
 
-    const hooks = hooksOf(one.module)
+    // Read inside a `try`: a getter on the export can throw, and the host
+    // throwing here would take the whole entry down with it.
+    let hooks: PreviewHooks | string
+    try {
+      hooks = hooksOf(one.module)
+    } catch (error) {
+      hooks = `its preview module could not be read: ${text(error)}`
+    }
+
     if (typeof hooks === 'string') said(one.name, hooks)
     else plugins.push({ name: one.name, hooks })
   }
@@ -132,11 +140,17 @@ export function createPluginHost(
     },
   })
 
-  const call = (name: string, hook: string, run: () => void) => {
+  // A hook may be async, as an analysis is: a rejection is refused like a
+  // throw, instead of ending as a rejection nobody handles.
+  const call = (name: string, hook: string, run: () => unknown) => {
+    const refuse = (error: unknown) => said(name, `\`${hook}\` threw: ${text(error)}`)
+
     try {
-      run()
+      const result = run()
+      if (typeof (result as { then?: unknown } | null)?.then === 'function')
+        (result as Promise<unknown>).then(undefined, refuse)
     } catch (error) {
-      said(name, `\`${hook}\` threw: ${text(error)}`)
+      refuse(error)
     }
   }
 

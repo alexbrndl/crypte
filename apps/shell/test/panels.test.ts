@@ -53,6 +53,14 @@ describe('the plugin panels', () => {
     expect(échecs(wrapper)).toEqual([])
   })
 
+  // Ce qu'un panneau envoie à sa partie preview remonte, par son cadre qui en
+  // vérifie le préfixe, jusqu'au shell.
+  test('passes on what a panel sends to its preview module', async () => {
+    const wrapper = await monte([{ name: 'e', shell: module('bavard.ts') }])
+
+    expect(wrapper.emitted('send')).toEqual([[{ type: 'e:run' }]])
+  })
+
   // Ce qu'un panneau édite remonte, par son cadre, jusqu'au shell.
   test('passes on what a panel edited', async () => {
     const wrapper = await monte([{ name: 'e', shell: module('editeur.ts') }])

@@ -369,6 +369,20 @@ describe('the plugin host', () => {
       expect(envoyés).toEqual([refus('a', message)])
     })
 
+    // Un accesseur qui lève pendant la lecture : sans garde, l'hôte levait à sa
+    // création et emportait toute l'entrée. Mesuré.
+    it('refuses a module whose hooks throw as they are read', () => {
+      const piégé = {
+        get afterMount() {
+          throw new Error('accesseur')
+        },
+      }
+
+      hôte({ name: 'a', module: { default: piégé } }).mounted(story)
+
+      expect(envoyés).toEqual([refus('a', 'its preview module could not be read: accesseur')])
+    })
+
     it('accepts a module that exports an empty object of hooks', () => {
       hôte({ name: 'a', module: { default: {} } }).mounted(story)
 
@@ -422,6 +436,53 @@ describe('the plugin host', () => {
     })
   })
 
+  // L'analyse d'`a11y` est asynchrone : un rejet finissait en promesse que
+  // personne ne traite, et rien n'atteignait le shell. Mesuré.
+  it('refuses an async hook that rejects', async () => {
+    hôte({
+      name: 'a',
+      module: {
+        default: {
+          afterMount: async () => {
+            throw new Error('plus tard')
+          },
+        },
+      },
+    }).mounted(story)
+
+    await vi.waitFor(() => expect(envoyés).toEqual([refus('a', '`afterMount` threw: plus tard')]))
+  })
+
+  // Par le vrai canal : `postMessage` clone, et refuse une fonction. Le refus
+  // lève dans le hook, qui est refusé à son tour, au lieu de lever dans l'entrée.
+  it('refuses a hook whose message cannot cross the channel', () => {
+    const canal = createPreviewChannel({ render: () => {} })
+    recus.length = 0
+    const host = createPluginHost(
+      [
+        {
+          name: 'a',
+          module: {
+            default: {
+              afterMount: (ctx: PreviewContext) => ctx.send({ type: 'a:x', f: () => {} }),
+            },
+          },
+        },
+      ],
+      canal.send,
+    )
+
+    host.mounted(story)
+
+    expect(recus).toEqual([
+      {
+        type: 'plugin-error',
+        plugin: 'a',
+        message: expect.stringMatching(/^`afterMount` threw: .*could not be cloned/),
+      },
+    ])
+  })
+
   describe('what a hook sends', () => {
     const qui = (message: unknown) => ({
       name: 'a',
@@ -468,7 +529,8 @@ describe('the plugin host', () => {
           },
         },
       })
-      const host = hôte(écoute('a'), écoute('ab'))
+      // `ab` en tête : router vers le premier qui écoute passerait sinon.
+      const host = hôte(écoute('ab'), écoute('a'))
 
       host.mounted(story)
       host.mounted({ ...story, id: 'badge--dernier' })
