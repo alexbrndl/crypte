@@ -284,13 +284,18 @@ describe('after a render', () => {
     expect(ordre).toEqual([['rendered', 'dessinée', 1]])
   })
 
+  // Une horloge que le rendu avance à 5 et les hooks à 100 : appelés avant
+  // l'envoi, les hooks donnaient 100. Revue de la PR #107, la version d'avant
+  // passait dans les deux ordres.
   it('leaves the plugins’ time out of the render’s', () => {
-    const horloge = vi.spyOn(performance, 'now')
-    horloge.mockReturnValueOnce(0).mockReturnValueOnce(5)
+    let maintenant = 0
+    const horloge = vi.spyOn(performance, 'now').mockImplementation(() => maintenant)
     createPreviewChannel({
-      render: () => {},
+      render: () => {
+        maintenant = 5
+      },
       rendered: () => {
-        horloge.mockReturnValue(100)
+        maintenant = 100
       },
     })
     recus.length = 0

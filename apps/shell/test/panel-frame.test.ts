@@ -299,6 +299,31 @@ describe('what a panel sends, as JSON', () => {
     expect(isProxy(copie.rules)).toBe(false)
   })
 
+  // Ce que JSON perdrait sans lever : retiré en silence, le champ manquerait à
+  // l'arrivée sans que rien le dise. Revue de la PR #107.
+  test.for([
+    ['a function', () => ({ type: 'status:run', f: () => {} }), '`f` is a function'],
+    ['undefined', () => ({ type: 'status:run', u: undefined }), '`u` is undefined'],
+    ['a Map', () => ({ type: 'status:run', m: new Map() }), '`m` is a Map'],
+    ['a Date', () => ({ type: 'status:run', d: new Date(0) }), '`d` is a Date'],
+    ['NaN', () => ({ type: 'status:run', n: Number.NaN }), '`n` is NaN'],
+    [
+      'a value inside an array',
+      () => ({ type: 'status:run', l: [1, () => {}] }),
+      '`1` is a function',
+    ],
+  ] as const)('drops a message holding %s, and names it', async ([, message, raison]) => {
+    const erreur = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const wrapper = monte(envoie(message), brouillon)
+
+    await wrapper.find('.body button').trigger('click')
+
+    expect(wrapper.emitted('send')).toBeUndefined()
+    expect(erreur).toHaveBeenCalledWith(
+      `crypte: status: its panel sent \`status:run\`, which does not survive JSON: ${raison}`,
+    )
+  })
+
   test('drops a message that does not survive JSON, and says so', async () => {
     const erreur = vi.spyOn(console, 'error').mockImplementation(() => {})
     const cyclique: Record<string, unknown> = { type: 'status:run' }
