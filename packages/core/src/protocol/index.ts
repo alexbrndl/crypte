@@ -37,6 +37,7 @@ export type {
   CryptePlugin,
   ShellContribution,
   PreviewHooks,
+  PreviewContext,
   NodeHooks,
   NodeContext,
   ContributedEntry,

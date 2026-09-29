@@ -42,6 +42,16 @@ export function surfacesOf(project: Project): Surfaces {
       continue
     }
 
+    // The name prefixes the plugin's messages up to the first colon, section 5.4:
+    // with one of its own, `a:b:run` would go to a plugin named `a`.
+    if (browser && name.includes(':')) {
+      found.refused.push({
+        plugin: name,
+        reason: '`name` holds a colon, which ends the prefix of its messages',
+      })
+      continue
+    }
+
     if (browser && taken.has(name)) {
       found.refused.push({ plugin: name, reason: '`name` is already taken by an earlier plugin' })
       continue

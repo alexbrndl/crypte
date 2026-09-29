@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import type { Manifest, Overrides, SkippedFile, StoryEntry } from '@crypte/core/protocol'
+import type {
+  Manifest,
+  Overrides,
+  ShellMessage,
+  SkippedFile,
+  StoryEntry,
+} from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/shell'
 import { Callout } from '@crypte/ui'
 import { computed, onMounted, ref, shallowRef, useTemplateRef } from 'vue'
@@ -95,6 +101,28 @@ function edit(values: Overrides) {
   if (current.value !== null) show(current.value)
 }
 
+// Un message entre les deux moitiés d'un plugin : un `type` préfixé, le reste
+// est à lui.
+type PanelMessage = { type: string; [key: string]: unknown }
+
+// Ce que la partie preview de chaque plugin a envoyé en dernier, rangé sous son
+// nom, le préfixe du `type`, section 5.4. Et ce que la preview a dit d'un
+// plugin qui a échoué. Les deux repartent de rien à chaque `ready` : une preview
+// rechargée redit ce qui échoue encore.
+const received = shallowRef<Record<string, PanelMessage>>({})
+const pluginErrors = shallowRef<{ plugin: string; message: string }[]>([])
+
+// Ce qu'un panneau envoie à sa partie preview, déjà vérifié par son cadre.
+// Rien ne part avant `ready`, comme `render` : une iframe qui n'écoute pas encore
+// perdrait le message. Dit dans la console plutôt que perdu sans trace.
+function sendToPreview(message: PanelMessage) {
+  if (!ready) {
+    console.error(`crypte: \`${message.type}\` was sent before the preview was ready, and dropped`)
+    return
+  }
+  channel?.send(message as unknown as ShellMessage)
+}
+
 // Relu à chaque `ready`, et pas seulement au montage : ce message est aussi ce
 // que dit une preview rechargée parce que le catalogue a changé. Aucun message
 // de plus n'a donc été ajouté au protocole.
@@ -140,6 +168,8 @@ onMounted(() => {
     channel = createShellChannel(frame.value)
     channel.onMessage((message) => {
       if (message.type === 'ready') {
+        received.value = {}
+        pluginErrors.value = []
         ready = true
         status.value = `preview prête, protocole v${message.protocolVersion}`
         void refresh()
@@ -153,6 +183,24 @@ onMounted(() => {
       if (message.type === 'error' && message.id === current.value) {
         failure.value = { id: message.id, message: message.message, stack: message.stack }
         status.value = 'erreur de rendu'
+      }
+      // Une fois chacune : un hook qui lève lève à chaque rendu, et chaque
+      // valeur saisie dans `controls` en ajoutait une ligne identique.
+      if (
+        message.type === 'plugin-error' &&
+        !pluginErrors.value.some(
+          (one) => one.plugin === message.plugin && one.message === message.message,
+        )
+      ) {
+        pluginErrors.value = [
+          ...pluginErrors.value,
+          { plugin: message.plugin, message: message.message },
+        ]
+      }
+      const type: unknown = message.type
+      if (typeof type === 'string' && type.includes(':')) {
+        const plugin = type.slice(0, type.indexOf(':'))
+        received.value = { ...received.value, [plugin]: message as unknown as PanelMessage }
       }
     })
   }
@@ -206,7 +254,13 @@ onMounted(() => {
            que ce qui manque à sa fiche. Le ton dit ce que l'outil ne sait pas
            lire, jamais que le fichier est mal écrit. -->
       <p v-if="partial && !failure" class="partial">Fiche partielle : {{ partial }}.</p>
-      <Panels :entry="displayed" @overrides="edit" />
+      <Panels
+        :entry="displayed"
+        :received="received"
+        :errors="pluginErrors"
+        @overrides="edit"
+        @send="sendToPreview"
+      />
       <p>{{ status }}</p>
     </div>
   </main>

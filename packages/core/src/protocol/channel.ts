@@ -13,6 +13,9 @@ export type PreviewMessage =
   | { type: 'ready'; protocolVersion: number }
   | { type: 'rendered'; id: string; durationMs: number }
   | { type: 'error'; id: string; message: string; stack?: string }
+  // A plugin's preview module that could not load, or a hook that threw: the
+  // stories still render, and the shell names the plugin.
+  | { type: 'plugin-error'; plugin: string; message: string }
   | MessagesOf<PluginPreviewMessages>
 
 // Keeps only what has the shape of a message, with `type` as a literal.

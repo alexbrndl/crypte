@@ -7,15 +7,73 @@ import { computed, onErrorCaptured, ref, watch, type Component } from 'vue'
 // son seul consommateur : les panneaux sont montés dedans, ils ne le dessinent
 // pas.
 
+type PanelMessage = { type: string; [key: string]: unknown }
+
 const props = defineProps<{
   name: string
   panel: Component
   entry: StoryEntry | null
+  // Le dernier message que la partie preview de ce plugin a envoyé.
+  received?: PanelMessage
 }>()
 
-// Les valeurs qu'un panneau a éditées, remontées telles quelles au shell, qui
-// les envoie dans `render`.
-const emit = defineEmits<{ overrides: [values: Overrides] }>()
+// Ce qu'un panneau a édité, que le shell envoie dans `render`, et ce qu'il
+// envoie à sa partie preview.
+const emit = defineEmits<{ overrides: [values: Overrides]; send: [message: PanelMessage] }>()
+
+// Ce qu'un panneau envoie à sa partie preview, sous son propre nom, section 5.4.
+// Un autre préfixe atteindrait un autre plugin, ou personne : refusé, et dit.
+function send(message: unknown) {
+  const type: unknown = (message as { type?: unknown } | null)?.type
+  if (typeof type !== 'string' || !type.startsWith(`${props.name}:`)) {
+    console.error(
+      `crypte: ${props.name}: its panel sent \`${String(type)}\`, whose type does not start with \`${props.name}:\``,
+    )
+    return
+  }
+
+  // Par un aller-retour JSON, la forme que la section 5.4 promet : un panneau Vue
+  // envoie volontiers son état, dont les proxys font lever `postMessage` sans
+  // nommer personne. Mesuré. `faithful` refuse ce que JSON perdrait sans lever,
+  // une fonction ou une `Map` : retiré en silence, le champ manquerait à
+  // l'arrivée sans que rien le dise.
+  let copy: PanelMessage
+  try {
+    copy = JSON.parse(JSON.stringify(message, faithful)) as PanelMessage
+  } catch (error) {
+    console.error(
+      `crypte: ${props.name}: its panel sent \`${type}\`, which does not survive JSON: ${error instanceof Error ? error.message : String(error)}`,
+    )
+    return
+  }
+  emit('send', copy)
+}
+
+// Ce que JSON rend tel quel : `null`, un booléen, un nombre fini, une chaîne,
+// un tableau ou un objet simple. Lu sur la valeur d'origine, `this[key]`, avant
+// qu'un `toJSON` ne change une `Date` en chaîne.
+function faithful(this: Record<string, unknown>, key: string, value: unknown): unknown {
+  const raw = this[key]
+  const plain =
+    raw === null ||
+    typeof raw === 'string' ||
+    typeof raw === 'boolean' ||
+    (typeof raw === 'number' && Number.isFinite(raw)) ||
+    Array.isArray(raw) ||
+    (typeof raw === 'object' && Object.getPrototypeOf(raw) === Object.prototype)
+
+  if (!plain) {
+    const what =
+      typeof raw === 'object'
+        ? `a ${(raw as object).constructor?.name ?? 'object'}`
+        : typeof raw === 'number' || raw === undefined
+          ? String(raw)
+          : `a ${typeof raw}`
+    throw new Error(`\`${key}\` is ${what}`)
+  }
+
+  return value
+}
 
 // Ouvert par défaut, retenu par le shell sous le nom du plugin, jamais par le
 // plugin. `localStorage` peut lever, en navigation privée par exemple : le
@@ -97,8 +155,10 @@ const shown = computed(() => open.value && inapplicable.value === null && failur
       <component
         :is="panel"
         :entry="entry"
+        :received="received"
         @inapplicable="declare"
         @overrides="(values: Overrides) => emit('overrides', values)"
+        @send="send"
       />
     </div>
   </section>

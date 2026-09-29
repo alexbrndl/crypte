@@ -390,16 +390,16 @@ export function previewEntry(project: Project, files: string[] = []): string {
   })
 
   // Each plugin's preview module, by absolute path, one promise each for the
-  // same reason as the story files. A failure goes to the frame's console only:
-  // carrying it to the shell needs the plugin messages of DCJ-322.
+  // same reason as the story files, and kept with its plugin's name: the host
+  // in the core reads them, calls their hooks, and reports what fails.
   const plugins = surfacesOf(project).preview.map(({ plugin, file }) => {
-    const said = JSON.stringify(`crypte: the preview module of ${plugin} could not load`)
+    const name = JSON.stringify(plugin)
 
-    return `  import(${JSON.stringify(file)}).catch((error) => console.error(${said}, error)),`
+    return `  import(${JSON.stringify(file)}).then((module) => ({ name: ${name}, module }), (error) => ({ name: ${name}, error })),`
   })
 
   return [
-    `import { createPreviewChannel as ${OWN}channelOf, propsOfStory as ${OWN}propsOf, wrapsOf as ${OWN}wrapsOf } from '@crypte/core/preview'`,
+    `import { createPreviewChannel as ${OWN}channelOf, createPluginHost as ${OWN}hostOf, propsOfStory as ${OWN}propsOf, wrapsOf as ${OWN}wrapsOf } from '@crypte/core/preview'`,
     // `adapter` and `wrap` can come from the same `import`, and emitting it twice
     // is a `SyntaxError: Identifier … has already been declared`.
     ...new Set([...adapter.imports, ...(wrap?.imports ?? [])]),
@@ -428,7 +428,10 @@ export function previewEntry(project: Project, files: string[] = []): string {
     `  import.meta.hot.on('vite:error', ({ err }) => { ${OWN}loadErrors.set(${OWN}modulePath(err.id ?? err.loc?.file ?? ''), err) })`,
     `  import.meta.hot.on('vite:beforeUpdate', ({ updates }) => { for (const one of updates) { ${OWN}loadErrors.delete(one.path); ${OWN}loadErrors.delete(one.acceptedPath) } })`,
     '}',
-    ...(plugins.length > 0 ? ['', `await Promise.all([`, ...plugins, `])`] : []),
+    '',
+    `const ${OWN}loaded = await Promise.all([`,
+    ...plugins,
+    `])`,
     ...(loads.length > 0 ? ['', `await Promise.all([`, ...loads, `])`] : []),
     `const ${OWN}manifest = await fetch(${JSON.stringify(MANIFEST_ROUTE)}).then((answer) => answer.json())`,
     '',
@@ -520,9 +523,17 @@ export function previewEntry(project: Project, files: string[] = []): string {
     '  // The wrappers last: the adapter nests them, outermost first, and the',
     '  // global one of section 2.5 comes from the configuration text.',
     `  ${OWN}adapter.mount(${OWN}container, component, props, ${OWN}wrapsOf(${OWN}wrap, definition))`,
+    '',
+    "  // The story drawn, which the channel hands to the plugins' hooks once",
+    '  // `rendered` is out: a render that threw has none to hand.',
+    `  return { id, props, options: entry.options, root: ${OWN}container }`,
     '}',
     '',
-    `const ${OWN}channel = ${OWN}channelOf({ render: ${OWN}render })`,
+    `const ${OWN}channel = ${OWN}channelOf({ render: ${OWN}render, rendered: (story) => ${OWN}host.mounted(story), message: (message) => ${OWN}host.received(message) })`,
+    '',
+    '// After the channel, since it sends through it: what failed to load is said',
+    '// once `ready` is out, so the shell has cleared what the frame before said.',
+    `const ${OWN}host = ${OWN}hostOf(${OWN}loaded, ${OWN}channel.send)`,
     '',
     ...hot(files),
   ].join('\n')

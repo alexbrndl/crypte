@@ -20,7 +20,7 @@ const monte = async (liste: unknown): Promise<VueWrapper> => {
     }),
   )
 
-  const wrapper = mount(Panels, { props: { entry: null } })
+  const wrapper = mount(Panels, { props: { entry: null, received: {}, errors: [] } })
 
   // L'import d'un module prend plus d'un tour de microtâches : attendu jusqu'à
   // ce que la zone ait rendu un panneau ou un échec.
@@ -53,6 +53,14 @@ describe('the plugin panels', () => {
     expect(échecs(wrapper)).toEqual([])
   })
 
+  // Ce qu'un panneau envoie à sa partie preview remonte, par son cadre qui en
+  // vérifie le préfixe, jusqu'au shell.
+  test('passes on what a panel sends to its preview module', async () => {
+    const wrapper = await monte([{ name: 'e', shell: module('bavard.ts') }])
+
+    expect(wrapper.emitted('send')).toEqual([[{ type: 'e:run' }]])
+  })
+
   // Ce qu'un panneau édite remonte, par son cadre, jusqu'au shell.
   test('passes on what a panel edited', async () => {
     const wrapper = await monte([{ name: 'e', shell: module('editeur.ts') }])
@@ -76,6 +84,20 @@ describe('what a panel is refused', () => {
       "chaine n'a pas pu se charger : une chaîne, pas une erreur",
       "nombre n'a pas pu se charger : le module n'exporte pas de composant par défaut",
     ])
+  })
+
+  // Ce que la preview a dit d'un plugin, section 5.3, à côté de ce qui n'a pas
+  // chargé dans le shell.
+  test('names a plugin the preview says failed', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ json: async () => [] }) as Response),
+    )
+    const wrapper = mount(Panels, {
+      props: { entry: null, received: {}, errors: [{ plugin: 'a11y', message: 'boum' }] },
+    })
+
+    expect(échecs(wrapper)).toEqual(['a11y dans la preview : boum'])
   })
 
   test('names the list when it cannot be read', async () => {

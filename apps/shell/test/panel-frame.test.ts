@@ -1,7 +1,7 @@
 import type { StoryEntry, StoryMeta } from '@crypte/core/protocol'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { defineComponent, h, watchEffect, type Component } from 'vue'
+import { defineComponent, h, isProxy, ref, watchEffect, type Component } from 'vue'
 import PanelFrame from '../src/panel-frame.vue'
 
 // Le cadre d'un panneau de plugin : sans objet story par story, ouverture
@@ -225,5 +225,137 @@ describe('a panel that throws', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.find('.panel-failed').text()).toBe('Ce panneau a levé : une chaîne')
+  })
+})
+
+// Ce qu'un panneau échange avec sa partie preview, section 5.4 : le dernier
+// message reçu en prop, et ce qu'il envoie, sous son propre nom seulement.
+describe('the messages of a panel', () => {
+  const bavard = defineComponent({
+    props: { received: { type: Object, default: null } },
+    emits: ['send'],
+    setup(props, { emit }) {
+      return () =>
+        h('div', [
+          h('output', (props.received as { type?: string } | null)?.type ?? ''),
+          h('button', { class: 'bon', onClick: () => emit('send', { type: 'status:run' }) }),
+          h('button', { class: 'autre', onClick: () => emit('send', { type: 'autre:run' }) }),
+        ])
+    },
+  })
+
+  test('hands the panel the last message its preview module sent', async () => {
+    const wrapper = monte(bavard, brouillon)
+
+    await wrapper.setProps({ received: { type: 'status:pong' } })
+
+    expect(wrapper.find('output').text()).toBe('status:pong')
+  })
+
+  test('passes on a message sent under the plugin’s name', async () => {
+    const wrapper = monte(bavard, brouillon)
+
+    await wrapper.find('.bon').trigger('click')
+
+    expect(wrapper.emitted('send')).toEqual([[{ type: 'status:run' }]])
+  })
+
+  // Sous un autre nom, il atteindrait un autre plugin : refusé, et dit.
+  test('drops a message sent under another name, and says so', async () => {
+    const erreur = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const wrapper = monte(bavard, brouillon)
+
+    await wrapper.find('.autre').trigger('click')
+
+    expect(wrapper.emitted('send')).toBeUndefined()
+    expect(erreur).toHaveBeenCalledWith(
+      'crypte: status: its panel sent `autre:run`, whose type does not start with `status:`',
+    )
+  })
+})
+
+// Un panneau Vue envoie volontiers son état : ses proxys faisaient lever
+// `postMessage` dans le shell, sans nom de plugin. Revue de la PR #107.
+describe('what a panel sends, as JSON', () => {
+  const envoie = (message: () => unknown) =>
+    defineComponent({
+      emits: ['send'],
+      setup(_, { emit }) {
+        return () => h('button', { onClick: () => emit('send', message()) })
+      },
+    })
+
+  test('passes on a plain copy of a message that holds a panel’s state', async () => {
+    const règles = ref(['color-contrast'])
+    const wrapper = monte(
+      // Chaque forme que JSON rend telle quelle, l'état réactif compris : retirer
+      // l'une d'elles de `faithful` jetait le message. Revue de la PR #107.
+      envoie(() => ({
+        type: 'status:run',
+        rules: règles.value,
+        nothing: null,
+        on: false,
+        depth: 2,
+        options: { strict: true },
+      })),
+      brouillon,
+    )
+
+    await wrapper.find('.body button').trigger('click')
+
+    const [[copie]] = wrapper.emitted('send') as [[{ rules: unknown }]]
+    expect(copie).toEqual({
+      type: 'status:run',
+      rules: ['color-contrast'],
+      nothing: null,
+      on: false,
+      depth: 2,
+      options: { strict: true },
+    })
+    expect(isProxy(copie.rules)).toBe(false)
+  })
+
+  // Ce que JSON perdrait sans lever : retiré en silence, le champ manquerait à
+  // l'arrivée sans que rien le dise. Revue de la PR #107.
+  test.for([
+    ['a function', () => ({ type: 'status:run', f: () => {} }), '`f` is a function'],
+    ['undefined', () => ({ type: 'status:run', u: undefined }), '`u` is undefined'],
+    ['a Map', () => ({ type: 'status:run', m: new Map() }), '`m` is a Map'],
+    ['a Date', () => ({ type: 'status:run', d: new Date(0) }), '`d` is a Date'],
+    ['NaN', () => ({ type: 'status:run', n: Number.NaN }), '`n` is NaN'],
+    [
+      'a value inside an array',
+      () => ({ type: 'status:run', l: [1, () => {}] }),
+      '`1` is a function',
+    ],
+  ] as const)('drops a message holding %s, and names it', async ([, message, raison]) => {
+    const erreur = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const wrapper = monte(envoie(message), brouillon)
+
+    await wrapper.find('.body button').trigger('click')
+
+    expect(wrapper.emitted('send')).toBeUndefined()
+    expect(erreur).toHaveBeenCalledWith(
+      `crypte: status: its panel sent \`status:run\`, which does not survive JSON: ${raison}`,
+    )
+  })
+
+  test('drops a message that does not survive JSON, and says so', async () => {
+    const erreur = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const cyclique: Record<string, unknown> = { type: 'status:run' }
+    cyclique['self'] = cyclique
+    const wrapper = monte(
+      envoie(() => cyclique),
+      brouillon,
+    )
+
+    await wrapper.find('.body button').trigger('click')
+
+    expect(wrapper.emitted('send')).toBeUndefined()
+    expect(erreur).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^crypte: status: its panel sent `status:run`, which does not survive JSON: /,
+      ),
+    )
   })
 })

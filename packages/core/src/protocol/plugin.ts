@@ -14,12 +14,34 @@ export interface CryptePlugin {
   node?: NodeHooks
 }
 
-// What those two modules export by default. Opaque like `Adapter`: a
+// What the shell module exports by default. Opaque like `Adapter`: a
 // `ShellContribution` is a Vue component, section 6.1, which the core cannot
-// name without Vue. Section 6.2 already specifies `PreviewHooks`, and no
-// preview calls it, DCJ-322.
+// name without Vue.
 export type ShellContribution = unknown
-export type PreviewHooks = unknown
+
+// What the preview module exports by default, section 6.2. Two hooks because
+// `a11y` is the one consumer: analysing a story once it is mounted, and again
+// when its panel asks. The rest of 6.2 waits in section 7 for the plugin that
+// needs it. Properties holding functions, like `NodeHooks`, and possibly
+// async, as an analysis is.
+export interface PreviewHooks {
+  afterMount?: (ctx: PreviewContext) => void | Promise<void>
+  onMessage?: (
+    ctx: PreviewContext,
+    message: { type: string; [key: string]: unknown },
+  ) => void | Promise<void>
+}
+
+// The story on display, once rendered. The iframe's DOM and never a
+// framework's tree, section 6.2. `send` reaches the plugin's panel, with a
+// `type` that starts with the plugin's name, section 5.4.
+export interface PreviewContext {
+  id: string
+  props: Record<string, unknown>
+  options: Record<string, unknown>
+  root: HTMLElement
+  send: (message: { type: string; [key: string]: unknown }) => void
+}
 
 // The one capability a real use demands: contributing entries to the manifest.
 // A property holding a function, not a method: the context comes in as an

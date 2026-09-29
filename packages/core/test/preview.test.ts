@@ -1,5 +1,13 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createPreviewChannel, propsOfStory, wrapsOf } from '../src/preview/index'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { PreviewMessage } from '../src/protocol/channel'
+import type { PreviewContext } from '../src/protocol/plugin'
+import {
+  createPluginHost,
+  createPreviewChannel,
+  propsOfStory,
+  wrapsOf,
+  type LoadedPlugin,
+} from '../src/preview/index'
 import { collect, windowAt } from './fake-window'
 
 const ORIGIN = 'https://crypte.test'
@@ -256,5 +264,370 @@ describe('the wrappers of a story', () => {
 
   it('treats a pair without props as a bare wrapper', () => {
     expect(wrapsOf(undefined, { wrap: [[Theme]] })).toEqual([{ component: Theme, props: {} }])
+  })
+})
+
+// Ce qui suit un rendu réussi : les hooks des plugins, une fois `rendered` parti,
+// pour que leur temps ne compte pas dans celui que le shell affiche. Revue de la
+// PR #107 : un `afterMount` de 40 ms donnait un rendu de 40 ms.
+describe('after a render', () => {
+  it('hands what render returned to rendered, once rendered is out', () => {
+    const ordre: unknown[] = []
+    createPreviewChannel({
+      render: () => 'dessinée',
+      rendered: (drawn) => ordre.push(['rendered', drawn, recus.length]),
+    })
+    recus.length = 0
+
+    envoie(RENDER)
+
+    expect(ordre).toEqual([['rendered', 'dessinée', 1]])
+  })
+
+  // Une horloge que le rendu avance à 5 et les hooks à 100 : appelés avant
+  // l'envoi, les hooks donnaient 100. Revue de la PR #107, la version d'avant
+  // passait dans les deux ordres.
+  it('leaves the plugins’ time out of the render’s', () => {
+    let maintenant = 0
+    const horloge = vi.spyOn(performance, 'now').mockImplementation(() => maintenant)
+    createPreviewChannel({
+      render: () => {
+        maintenant = 5
+      },
+      rendered: () => {
+        maintenant = 100
+      },
+    })
+    recus.length = 0
+
+    envoie(RENDER)
+
+    expect(recus).toEqual([{ type: 'rendered', id: 'badge--par-defaut', durationMs: 5 }])
+    horloge.mockRestore()
+  })
+
+  it('calls nothing after a render that threw', () => {
+    const appels: unknown[] = []
+    createPreviewChannel({
+      render: () => {
+        throw new Error('cassée')
+      },
+      rendered: (drawn) => appels.push(drawn),
+    })
+
+    envoie(RENDER)
+
+    expect(appels).toEqual([])
+  })
+})
+
+// Les messages de plugin, reconnus au deux-points de leur `type`, section 5.4 :
+// passés au gestionnaire, jamais pris pour un `render`.
+describe('plugin messages on the channel', () => {
+  it('hands a message whose type carries a colon to the message handler', () => {
+    const messages: unknown[] = []
+    createPreviewChannel({ render: () => {}, message: (message) => messages.push(message) })
+
+    envoie({ type: 'a11y:run', depth: 2 })
+    envoie({ type: 'sans-deux-points' })
+
+    expect(messages).toEqual([{ type: 'a11y:run', depth: 2 }])
+  })
+
+  it('drops a plugin message when nothing handles them', () => {
+    const rendus: unknown[] = []
+    createPreviewChannel({ render: (id) => rendus.push(id) })
+    recus.length = 0
+
+    envoie({ type: 'a11y:run' })
+
+    expect([rendus, recus]).toEqual([[], []])
+  })
+
+  it('sends to the shell', () => {
+    const canal = createPreviewChannel({ render: () => {} })
+    recus.length = 0
+
+    canal.send({ type: 'plugin-error', plugin: 'a', message: 'x' })
+
+    expect(recus).toEqual([{ type: 'plugin-error', plugin: 'a', message: 'x' }])
+  })
+})
+
+// L'hôte des hooks de la section 6.2 : ce qu'il appelle, ce qu'il route, et ce
+// qu'il refuse, chaque refus envoyé au shell en `plugin-error`.
+describe('the plugin host', () => {
+  const story = { id: 'badge--defaut', props: { label: 'x' }, options: {}, root: {} as HTMLElement }
+
+  let envoyés: PreviewMessage[] = []
+  const send = (message: PreviewMessage) => envoyés.push(message)
+  const refus = (plugin: string, message: string) => ({ type: 'plugin-error', plugin, message })
+
+  beforeEach(() => {
+    envoyés = []
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  const hôte = (...loaded: LoadedPlugin[]) => createPluginHost(loaded, send)
+
+  describe('what it refuses', () => {
+    it.for([
+      [
+        'a module that did not load',
+        { name: 'a', error: new Error('boum') },
+        'its preview module could not load: boum',
+      ],
+      [
+        'a module that threw something other than an Error',
+        { name: 'a', error: 'boum' },
+        'its preview module could not load: boum',
+      ],
+      [
+        'a module with no default export',
+        { name: 'a', module: {} },
+        'its preview module exports no object of hooks by default',
+      ],
+      [
+        'a default export that is not an object',
+        { name: 'a', module: { default: 42 } },
+        'its preview module exports no object of hooks by default',
+      ],
+      [
+        'a null default export',
+        { name: 'a', module: { default: null } },
+        'its preview module exports no object of hooks by default',
+      ],
+      [
+        'an array',
+        { name: 'a', module: { default: [] } },
+        'its preview module exports no object of hooks by default',
+      ],
+      // Un hook de la réserve, exporté et jamais appelé, échouerait en silence.
+      [
+        'a hook the preview does not call',
+        { name: 'a', module: { default: { beforeMount: () => {} } } },
+        '`beforeMount` is not a hook the preview calls, which are afterMount and onMessage',
+      ],
+      [
+        'a hook that is not a function',
+        { name: 'a', module: { default: { afterMount: 1 } } },
+        '`afterMount` is not a function',
+      ],
+    ] as const)('refuses %s', ([, loaded, message]) => {
+      hôte(loaded as LoadedPlugin).mounted(story)
+
+      expect(envoyés).toEqual([refus('a', message)])
+    })
+
+    // Un accesseur qui lève pendant la lecture : sans garde, l'hôte levait à sa
+    // création et emportait toute l'entrée. Mesuré.
+    it('refuses a module whose hooks throw as they are read', () => {
+      const piégé = {
+        get afterMount() {
+          throw new Error('accesseur')
+        },
+      }
+
+      hôte({ name: 'a', module: { default: piégé } }).mounted(story)
+
+      expect(envoyés).toEqual([refus('a', 'its preview module could not be read: accesseur')])
+    })
+
+    it('accepts a module that exports an empty object of hooks', () => {
+      hôte({ name: 'a', module: { default: {} } }).mounted(story)
+
+      expect(envoyés).toEqual([])
+    })
+  })
+
+  describe('afterMount', () => {
+    it('runs after each render, with the story drawn, for every plugin in order', () => {
+      const vus: string[] = []
+      const hooks = (name: string) => ({
+        default: {
+          afterMount: (ctx: PreviewContext) =>
+            vus.push(`${name}:${ctx.id}:${String(ctx.props.label)}`),
+        },
+      })
+      const host = hôte({ name: 'a', module: hooks('a') }, { name: 'b', module: hooks('b') })
+
+      host.mounted(story)
+      host.mounted({ ...story, id: 'badge--autre' })
+
+      expect(vus).toEqual([
+        'a:badge--defaut:x',
+        'b:badge--defaut:x',
+        'a:badge--autre:x',
+        'b:badge--autre:x',
+      ])
+    })
+
+    // Un plugin n'est pas le texte de l'auteur : son hook qui lève ne coûte ni
+    // la story ni les autres plugins.
+    it('refuses a hook that throws, and runs the others', () => {
+      const vus: string[] = []
+      const host = hôte(
+        {
+          name: 'a',
+          module: {
+            default: {
+              afterMount: () => {
+                throw new Error('boum')
+              },
+            },
+          },
+        },
+        { name: 'b', module: { default: { afterMount: () => vus.push('b') } } },
+      )
+
+      host.mounted(story)
+
+      expect([envoyés, vus]).toEqual([[refus('a', '`afterMount` threw: boum')], ['b']])
+    })
+  })
+
+  // L'analyse d'`a11y` est asynchrone : un rejet finissait en promesse que
+  // personne ne traite, et rien n'atteignait le shell. Mesuré.
+  it('refuses an async hook that rejects', async () => {
+    hôte({
+      name: 'a',
+      module: {
+        default: {
+          afterMount: async () => {
+            throw new Error('plus tard')
+          },
+        },
+      },
+    }).mounted(story)
+
+    await vi.waitFor(() => expect(envoyés).toEqual([refus('a', '`afterMount` threw: plus tard')]))
+  })
+
+  // Par le vrai canal : `postMessage` clone, et refuse une fonction. Le refus
+  // lève dans le hook, qui est refusé à son tour, au lieu de lever dans l'entrée.
+  it('refuses a hook whose message cannot cross the channel', () => {
+    const canal = createPreviewChannel({ render: () => {} })
+    recus.length = 0
+    const host = createPluginHost(
+      [
+        {
+          name: 'a',
+          module: {
+            default: {
+              afterMount: (ctx: PreviewContext) => ctx.send({ type: 'a:x', f: () => {} }),
+            },
+          },
+        },
+      ],
+      canal.send,
+    )
+
+    host.mounted(story)
+
+    expect(recus).toEqual([
+      {
+        type: 'plugin-error',
+        plugin: 'a',
+        message: expect.stringMatching(/^`afterMount` threw: .*could not be cloned/),
+      },
+    ])
+  })
+
+  describe('what a hook sends', () => {
+    const qui = (message: unknown) => ({
+      name: 'a',
+      module: {
+        default: { afterMount: (ctx: PreviewContext) => ctx.send(message as { type: string }) },
+      },
+    })
+
+    it('goes to the shell under its plugin’s name', () => {
+      hôte(qui({ type: 'a:resultats', n: 2 })).mounted(story)
+
+      expect(envoyés).toEqual([{ type: 'a:resultats', n: 2 }])
+    })
+
+    // Sous un autre préfixe, il atteindrait un autre panneau, ou aucun.
+    it.for([
+      [
+        'another plugin’s name',
+        { type: 'b:resultats' },
+        'it sent `b:resultats`, whose type does not start with `a:`',
+      ],
+      [
+        'no prefix',
+        { type: 'resultats' },
+        'it sent `resultats`, whose type does not start with `a:`',
+      ],
+      ['no type', {}, 'it sent `undefined`, whose type does not start with `a:`'],
+    ] as const)('is refused under %s', ([, message, raison]) => {
+      hôte(qui(message)).mounted(story)
+
+      expect(envoyés).toEqual([refus('a', raison)])
+    })
+  })
+
+  describe('onMessage', () => {
+    it('receives a message for its plugin alone, against the story last drawn', () => {
+      const vus: string[] = []
+      const écoute = (name: string) => ({
+        name,
+        module: {
+          default: {
+            onMessage: (ctx: PreviewContext, message: { type: string }) =>
+              vus.push(`${name}:${message.type}:${ctx.id}`),
+          },
+        },
+      })
+      // `ab` en tête : router vers le premier qui écoute passerait sinon.
+      const host = hôte(écoute('ab'), écoute('a'))
+
+      host.mounted(story)
+      host.mounted({ ...story, id: 'badge--dernier' })
+      host.received({ type: 'a:run' })
+
+      expect(vus).toEqual(['a:a:run:badge--dernier'])
+    })
+
+    it('refuses a hook that throws', () => {
+      const host = hôte({
+        name: 'a',
+        module: {
+          default: {
+            onMessage: () => {
+              throw new Error('boum')
+            },
+          },
+        },
+      })
+
+      host.mounted(story)
+      host.received({ type: 'a:run' })
+
+      expect(envoyés).toEqual([refus('a', '`onMessage` threw: boum')])
+    })
+
+    // Dans la console seulement : rien n'a échoué chez un plugin, le message
+    // n'avait simplement personne à qui aller.
+    it.for([
+      ['before any story rendered', true, 'crypte: `a:run` arrived before any story rendered'],
+      ['for a plugin with no onMessage', false, 'crypte: no preview hook receives `a:run`'],
+    ] as const)('says a message that arrives %s, and calls nothing', ([, sansRendu, dit]) => {
+      const vus: string[] = []
+      const host = hôte({
+        name: 'a',
+        module: { default: sansRendu ? { onMessage: () => vus.push('appelé') } : {} },
+      })
+
+      if (!sansRendu) host.mounted(story)
+      host.received({ type: 'a:run' })
+
+      expect([vus, envoyés]).toEqual([[], []])
+      expect(console.error).toHaveBeenCalledWith(dit)
+    })
   })
 })
