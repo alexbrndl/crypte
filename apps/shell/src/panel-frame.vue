@@ -103,15 +103,16 @@ function toggle() {
 // Sans objet, story par story, jamais déclaré une fois : le panneau le dit avec
 // sa raison, et le cadre l'oublie à chaque nouvelle entrée : une autre story, ou
 // la même relue après une édition, dont la raison peut être devenue fausse.
-// Un panneau qui ne le redit pas est donc ouvert. Rouvert si un panneau doit
-// se rouvrir sans nouvelle entrée, « relancer l'analyse » de `a11y` : un `null`
-// alors.
+// Un panneau qui ne le redit pas est donc ouvert.
 const inapplicable = ref<string | null>(null)
 
-// Une raison ou rien : un cadre replié sans raison est le panneau vide que la
-// décision refuse.
+// Une raison replie, `null` rouvre sans attendre la story suivante : l'analyse
+// de `a11y` peut trouver une violation sur la story où elle n'en trouvait pas.
+// Toute autre valeur est ignorée : un cadre replié sans raison est le panneau
+// vide que la décision refuse.
 const declare = (reason: unknown) => {
-  if (typeof reason === 'string' && reason !== '') inapplicable.value = reason
+  if (reason === null) inapplicable.value = null
+  else if (typeof reason === 'string' && reason !== '') inapplicable.value = reason
 }
 
 // Ce qu'un panneau a levé, affiché à sa place : le reste du shell continue.
