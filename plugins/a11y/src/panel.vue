@@ -50,6 +50,11 @@ watchEffect(() => {
 
   const found = results.value
   if (found && found.violations.length === 0) {
+    // Nothing read, not nothing wrong: a render that threw leaves the root
+    // empty, and "Relancer l'analyse" analyses it all the same.
+    if (found.passes === 0)
+      return emit('inapplicable', 'aucune règle automatique ne s’applique à ce rendu')
+
     const rules = found.passes === 1 ? 'règle automatique passée' : 'règles automatiques passées'
     return emit('inapplicable', `${found.passes} ${rules}, aucune violation`)
   }
@@ -68,7 +73,7 @@ const count = (violations: Violation[]) =>
 
 <template>
   <p v-if="!results || running" role="status" style="margin: 0; font-size: 13px">
-    Analyse en cours…
+    En attente d’une analyse…
   </p>
   <div v-else style="display: grid; gap: 12px">
     <section v-for="group in groupsOf(results)" :key="group.impact">

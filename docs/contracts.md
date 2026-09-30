@@ -888,7 +888,7 @@ The contract counts as stable only once **two plugins with opposite needs** have
 - `controls`, which writes into the story.
 - `a11y`, which only reads it.
 
-Until both exist, this section changes without procedure. After that, any change is a break.
+Until both exist and the section is frozen, it changes without procedure. After that, any change is a break.
 
 ---
 

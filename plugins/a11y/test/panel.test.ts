@@ -72,7 +72,7 @@ describe('what the panel shows', () => {
   it('shows nothing of the analysis of another story', () => {
     const wrapper = monte(entry('x--b'), resultats('x--a', []))
 
-    expect(wrapper.find('[role="status"]').text()).toBe('Analyse en cours…')
+    expect(wrapper.find('[role="status"]').text()).toBe('En attente d’une analyse…')
     expect(wrapper.find('section').exists()).toBe(false)
     expect(derniere(wrapper)).toBeNull()
   })
@@ -80,7 +80,7 @@ describe('what the panel shows', () => {
   it('waits for an analysis before any has come', () => {
     const wrapper = monte(entry('x--a'))
 
-    expect(wrapper.find('[role="status"]').text()).toBe('Analyse en cours…')
+    expect(wrapper.find('[role="status"]').text()).toBe('En attente d’une analyse…')
     expect(derniere(wrapper)).toBeNull()
   })
 })
@@ -92,6 +92,14 @@ describe('when the panel folds', () => {
     )
     expect(derniere(monte(entry('x--a'), resultats('x--a', [], 1)))).toBe(
       '1 règle automatique passée, aucune violation',
+    )
+  })
+
+  // Une story qui lève laisse la racine vide, et « relancer » l'analyse quand
+  // même : rien n'a été lu, ce n'est pas « aucune violation ». Revue de la PR #110.
+  it('folds without claiming anything when no rule applied', () => {
+    expect(derniere(monte(entry('x--a'), resultats('x--a', [], 0)))).toBe(
+      'aucune règle automatique ne s’applique à ce rendu',
     )
   })
 
@@ -118,7 +126,7 @@ describe('running the analysis again', () => {
     await wrapper.find('button').trigger('click')
 
     expect(wrapper.emitted('send')).toEqual([[{ type: 'a11y:run' }]])
-    expect(wrapper.find('[role="status"]').text()).toBe('Analyse en cours…')
+    expect(wrapper.find('[role="status"]').text()).toBe('En attente d’une analyse…')
 
     // Le même résultat qu'avant, reçu de nouveau : l'attente s'arrête quand même.
     await wrapper.setProps({ received: resultats('x--a', [violation('image-alt', 'critical')]) })
