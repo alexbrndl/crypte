@@ -7,7 +7,16 @@
     }
   ],
   "commit": false,
-  "fixed": [["@crypte/cli", "@crypte/core", "@crypte/react", "@crypte/tokens", "@crypte/controls"]],
+  "fixed": [
+    [
+      "@crypte/cli",
+      "@crypte/core",
+      "@crypte/react",
+      "@crypte/tokens",
+      "@crypte/controls",
+      "@crypte/a11y"
+    ]
+  ],
   "linked": [],
   "access": "public",
   "baseBranch": "main",

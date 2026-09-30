@@ -273,6 +273,9 @@ importers:
 
   apps/demo:
     dependencies:
+      '@crypte/a11y':
+        specifier: workspace:*
+        version: link:../../plugins/a11y
       '@crypte/controls':
         specifier: workspace:*
         version: link:../../plugins/controls
@@ -411,6 +414,31 @@ importers:
         version: 4.1.10(@types/node@24.13.3)(@vitest/browser-preview@4.1.10)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.13.3))
 
   packages/ui:
+    devDependencies:
+      '@vitejs/plugin-vue':
+        specifier: ^6.0.1
+        version: 6.0.8(vite@8.2.1(@types/node@24.13.3))(vue@3.5.41(typescript@6.0.3))
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.2.1(@types/node@24.13.3)
+      vue:
+        specifier: ^3.5.0
+        version: 3.5.41(typescript@6.0.3)
+      vue-tsc:
+        specifier: ^3.3.9
+        version: 3.3.9(typescript@6.0.3)
+
+  plugins/a11y:
+    dependencies:
+      '@crypte/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      axe-core:
+        specifier: ^4.13.0
+        version: 4.13.0
     devDependencies:
       '@vitejs/plugin-vue':
         specifier: ^6.0.1
@@ -1700,6 +1728,10 @@ packages:
 
   ast-v8-to-istanbul@1.0.5:
     resolution: {integrity: sha512-UPAgKJFSEGMWSDr3LX4tqnAb4f7KGT8O40Tyx8wbYmmZ/yn58lNCm8h3svs3eXgiGd5AXxz8NDOvXWvicq+rJA==}
+
+  axe-core@4.13.0:
+    resolution: {integrity: sha512-UzGt8zg7Ny8djbYMhxl2zuEevVa7r2gJjYY5Lwr1xM7+XU2nd6CkIWFTVcCIbAP63vSz71NaVyyuSk9lHKcy0A==}
+    engines: {node: '>=4'}
 
   babel-plugin-react-compiler@1.0.0:
     resolution: {integrity: sha512-Ixm8tFfoKKIPYdCCKYTsqv+Fd4IJ0DQqMyEimo+pxUOMUR9cVPlwTrFt9Avu+3cb6Zp3mAzl+t1MrG2fxxKsxw==}
@@ -3814,6 +3846,8 @@ snapshots:
       '@jridgewell/trace-mapping': 0.3.31
       estree-walker: 3.0.3
       js-tokens: 10.0.0
+
+  axe-core@4.13.0: {}
 
   babel-plugin-react-compiler@1.0.0:
     dependencies:

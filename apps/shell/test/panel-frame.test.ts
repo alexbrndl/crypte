@@ -116,6 +116,36 @@ describe('a panel with nothing to say', () => {
     expect(état(wrapper)).toEqual({ ouvert: 'true', raison: null, corps: true })
   })
 
+  // Le cas de `a11y` : une story propre replie le panneau, puis une édition des
+  // props y fait apparaître une violation, sans nouvelle entrée.
+  test('unfolds on the same story when the panel says `null`', async () => {
+    const analyse = defineComponent({
+      props: { received: { type: Object, default: null } },
+      emits: ['inapplicable'],
+      setup(props, { emit }) {
+        watchEffect(() => emit('inapplicable', props.received?.propre ? 'propre' : null))
+        return () => h('p', 'violations')
+      },
+    })
+
+    const wrapper = mount(PanelFrame, {
+      props: {
+        name: 'a11y',
+        panel: analyse,
+        entry: nue,
+        received: { type: 'a11y:r', propre: true },
+      },
+    })
+    await wrapper.vm.$nextTick()
+    expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'propre', corps: false })
+
+    await wrapper.setProps({ received: { type: 'a11y:r', propre: false } })
+    expect(état(wrapper)).toEqual({ ouvert: 'true', raison: null, corps: true })
+
+    await wrapper.setProps({ received: { type: 'a11y:r', propre: true } })
+    expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'propre', corps: false })
+  })
+
   // Replié sans raison, ce serait le panneau vide que la décision refuse.
   test.for([
     ['an empty reason', ''],

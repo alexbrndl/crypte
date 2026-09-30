@@ -870,7 +870,7 @@ describe('the panel host', () => {
           .locator('[data-plugin]')
           .evaluateAll((tous) => tous.map((un) => un.getAttribute('data-plugin'))),
       )
-      .toEqual(['controls', 'hello', 'status'])
+      .toEqual(['controls', 'a11y', 'hello', 'status'])
   })
 
   test('folds a panel with nothing to say, story by story', async ({ ecran }) => {
@@ -979,5 +979,55 @@ describe('the controls panel', () => {
       .toBe(
         'Props non lues dans le fichier du composant : nothing the reader follows types its props. Seules celles déclarées dans details de la story apparaissent ici.',
       )
+  })
+})
+
+// `@crypte/a11y` sur la démonstration : la story « Rôle inconnu » de `Tag` porte
+// une violation connue, les autres n'en ont pas.
+describe('the a11y panel', () => {
+  const panneau = (page: Page) => page.locator('[data-plugin="a11y"]')
+  const raison = (page: Page) =>
+    panneau(page)
+      .locator('.inapplicable')
+      .textContent({ timeout: 1_000 })
+      .catch(() => null)
+  const cadre = (page: Page) => page.frameLocator('iframe[title="preview"]')
+
+  test('shows a violation with its rule and the selector at fault', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    await ecran.page.getByRole('button', { name: 'Rôle inconnu', exact: true }).click()
+
+    const corps = panneau(ecran.page).locator('.body')
+    await expect
+      .poll(() => corps.locator('section > p').allTextContents())
+      .toEqual(['Critique · 1 violation'])
+    expect(await corps.locator('section code').allTextContents()).toEqual(['aria-roles', 'span'])
+  })
+
+  test('folds on a story with no violation, with the rules that passed', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+
+    await expect
+      .poll(() => raison(ecran.page))
+      .toMatch(/^\d+ règles automatiques passées, aucune violation$/)
+    expect(await panneau(ecran.page).locator('.body').isVisible()).toBe(false)
+  })
+
+  // La violation retirée à la main dans l'iframe : seule une nouvelle analyse
+  // peut la voir partie, et la page n'est pas rechargée pour autant.
+  test('runs the analysis again without reloading', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    await ecran.page.getByRole('button', { name: 'Rôle inconnu', exact: true }).click()
+    const corps = panneau(ecran.page).locator('.body')
+    await expect.poll(() => corps.locator('section').count()).toBe(1)
+    const navigations = ecran.navigations()
+
+    await cadre(ecran.page)
+      .locator('#root [role="etiquette"]')
+      .evaluate((un) => un.removeAttribute('role'))
+    await corps.getByRole('button', { name: "Relancer l'analyse", exact: true }).click()
+
+    await expect.poll(() => raison(ecran.page)).toMatch(/aucune violation$/)
+    expect(ecran.navigations()).toBe(navigations)
   })
 })

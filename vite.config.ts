@@ -161,11 +161,12 @@ export default defineConfig({
             '**/adapter.test.tsx',
             'apps/shell/test/**',
             'plugins/controls/test/**',
+            'plugins/a11y/test/**',
             'packages/ui/test/**',
           ],
         },
       },
-      // Les composants du shell, de `@crypte/controls` et de `@crypte/ui`, montés dans un DOM. La configuration du shell
+      // Les composants du shell, des plugins à panneau et de `@crypte/ui`, montés dans un DOM. La configuration du shell
       // plutôt que la racine, parce qu'elle porte le plugin Vue : sans lui, le
       // `.vue` n'est pas transformé, donc ni exécuté ni mesurable.
       {
@@ -176,6 +177,7 @@ export default defineConfig({
           include: [
             'apps/shell/test/**/*.test.ts',
             'plugins/controls/test/**/*.test.ts',
+            'plugins/a11y/test/**/*.test.ts',
             'packages/ui/test/**/*.test.ts',
           ],
           environment: 'jsdom',

@@ -56,6 +56,16 @@
         "className"
       ],
       "rest": "e81320254c46d536"
+    },
+    {
+      "id": "tag--role-inconnu",
+      "component": "src/components/Tag.tsx#Tag",
+      "status": "none",
+      "props": [
+        "children",
+        "role"
+      ],
+      "rest": "083db53c3d032419"
     }
   ]
 }
