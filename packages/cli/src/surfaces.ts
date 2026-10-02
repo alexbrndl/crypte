@@ -19,6 +19,9 @@ export interface Surfaces {
   refused: { plugin: string; reason: string }[]
 }
 
+// What a plugin object may hold, section 6.1.
+const KEYS = ['name', 'shell', 'preview', 'node']
+
 // In the order `plugins` declares them, which is the order the shell shows.
 export function surfacesOf(project: Project): Surfaces {
   const found: Surfaces = { shell: [], preview: [], refused: [] }
@@ -31,6 +34,18 @@ export function surfacesOf(project: Project): Surfaces {
   for (const [at, plugin] of (project.config.plugins ?? []).entries()) {
     const name: unknown = plugin?.name
     const browser = plugin?.shell !== undefined || plugin?.preview !== undefined
+
+    // A plugin arrives compiled, so nothing checks its type any more: a `toolbar`
+    // or the old `ui` would be ignored without a word, the way an unknown
+    // preview hook is refused rather than never called.
+    const label = typeof name === 'string' && name !== '' ? name : `plugins[${at}]`
+    for (const key of typeof plugin === 'object' && plugin !== null ? Object.keys(plugin) : []) {
+      if (KEYS.includes(key)) continue
+      found.refused.push({
+        plugin: label,
+        reason: `\`${key}\` is not a key of a plugin, which are name, shell, preview and node`,
+      })
+    }
 
     if (typeof name !== 'string' || name === '') {
       if (browser) {

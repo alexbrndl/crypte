@@ -11,12 +11,14 @@ import Panels from '../src/panels.vue'
 const module = (nom: string) =>
   decodeURIComponent(new URL(`./panels/${nom}`, import.meta.url).pathname)
 
-const monte = async (liste: unknown): Promise<VueWrapper> => {
+// Ce que `/@crypte/plugins.json` rend : les modules à monter, et ce que le CLI
+// a écarté des plugins.
+const monte = async (liste: unknown, refused: unknown[] = []): Promise<VueWrapper> => {
   vi.stubGlobal(
     'fetch',
     vi.fn(async () => {
       if (liste instanceof Error) throw liste
-      return { json: async () => liste } as Response
+      return { json: async () => ({ panels: liste, refused }) } as Response
     }),
   )
 
@@ -91,13 +93,33 @@ describe('what a panel is refused', () => {
   test('names a plugin the preview says failed', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => ({ json: async () => [] }) as Response),
+      vi.fn(async () => ({ json: async () => ({ panels: [], refused: [] }) }) as Response),
     )
     const wrapper = mount(Panels, {
       props: { entry: null, received: {}, errors: [{ plugin: 'a11y', message: 'boum' }] },
     })
 
     expect(échecs(wrapper)).toEqual(['a11y dans la preview : boum'])
+  })
+
+  // Le terminal était le seul endroit où un refus se disait. DCJ-194.
+  test('names what the CLI refused of a plugin, with its reason', async () => {
+    const wrapper = await monte(
+      [{ name: 'a', shell: module('un.ts') }],
+      [
+        {
+          plugin: 'b',
+          reason: '`toolbar` is not a key of a plugin, which are name, shell, preview and node',
+        },
+        { plugin: 'plugins[2]', reason: 'a plugin with a browser surface needs a `name`' },
+      ],
+    )
+
+    expect(montés(wrapper)).toEqual(['a=un'])
+    expect(échecs(wrapper)).toEqual([
+      'b écarté : `toolbar` is not a key of a plugin, which are name, shell, preview and node',
+      'plugins[2] écarté : a plugin with a browser surface needs a `name`',
+    ])
   })
 
   test('names the list when it cannot be read', async () => {

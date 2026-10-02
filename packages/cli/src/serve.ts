@@ -130,13 +130,15 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
         }
 
         if (url === PLUGINS_ROUTE) {
-          const listed = surfacesOf(project).shell.map((one, at) => ({
+          const panels = surfacesOf(project).shell.map((one, at) => ({
             name: one.plugin,
             shell: `${PLUGIN_FILES}${at}/${basename(one.file)}`,
           }))
 
+          // What was refused of each plugin, so the shell names it beside the
+          // panels: the terminal was the only place a refusal was said.
           response.setHeader('Content-Type', 'application/json')
-          response.end(JSON.stringify(listed))
+          response.end(JSON.stringify({ panels, refused: current().skippedPlugins }))
           return
         }
 

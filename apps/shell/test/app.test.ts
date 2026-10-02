@@ -76,7 +76,8 @@ const monte = async (
     'fetch',
     vi.fn(async (url: string) => {
       // Les panneaux de plugins lisent leur propre route : aucun plugin ici.
-      if (url === '/@crypte/plugins.json') return { json: async () => [] } as Response
+      if (url === '/@crypte/plugins.json')
+        return { json: async () => ({ panels: [], refused: [] }) } as Response
       if (échoue) throw new Error('Unexpected end of JSON input')
 
       return { json: async () => manifest } as Response
@@ -491,7 +492,9 @@ describe('what the catalog left out', () => {
         async (url: string) =>
           ({
             json: async () =>
-              url === '/@crypte/plugins.json' ? [] : (manifests.shift() ?? manifests[0]),
+              url === '/@crypte/plugins.json'
+                ? { panels: [], refused: [] }
+                : (manifests.shift() ?? manifests[0]),
           }) as Response,
       ),
     )

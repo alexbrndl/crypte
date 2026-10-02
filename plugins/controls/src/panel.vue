@@ -1,13 +1,10 @@
 <script setup lang="ts">
-import type { Overrides, ResolvedPropDetails, StoryEntry } from '@crypte/core/protocol'
+import type { Overrides, PanelEvents, PanelProps, ResolvedPropDetails } from '@crypte/core/protocol'
 import { computed, ref, watch, watchEffect } from 'vue'
 
-const props = defineProps<{ entry: StoryEntry | null }>()
+const props = defineProps<Pick<PanelProps, 'entry'>>()
 
-const emit = defineEmits<{
-  inapplicable: [reason: string]
-  overrides: [values: Overrides]
-}>()
+const emit = defineEmits<Pick<PanelEvents, 'inapplicable' | 'overrides'>>()
 
 // The kinds a field can edit. An override is always a primitive, section 5.1,
 // so a function, a node, an object or an array has no field.

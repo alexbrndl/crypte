@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.24, reference document. A project brief points here instead of restating these shapes.
+> Version 1.25, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -723,7 +723,7 @@ type PluginMessage<T extends { type: LiteralOnly<T['type']> }> = T
 
 ## 6. Plugin contract
 
-> **Provisional.** This section is the only one that is not frozen. See 6.5.
+> **Frozen since v1.25.** Any change to this section is a break. See 6.5.
 
 ### 6.1 Shape
 
@@ -760,7 +760,7 @@ The shell module exports a `ShellContribution` by default, the preview module a 
 
 **A preview module goes through the project's Vite**, like a story file, so it imports what it needs. Once the plugin is installed, Vite pre-bundles nothing it imports: a CommonJS dependency has no default export there. `@crypte/a11y` imports axe-core's script for its side effect, which sets `window.axe`. **A shell module is served as is, never compiled**, since the shell is prebuilt. Its one bare import is `vue`, which the shell provides through an import map, so every panel runs on the shell's own Vue. That Vue carries its template compiler: a module written by hand may use `template` rather than `h()`. A plugin declares `vue` as a peer dependency and keeps it out of its bundle: a panel running on a second copy never redraws its own state, and nothing warns.
 
-**A surface that points nowhere is refused, with its reason**, the way 6.3 refuses a contribution: a pointer that is not a `file:` URL, or one that leads to no file. So are the browser surfaces of a plugin with no `name`, with a name an earlier plugin already has, or with a name that holds a colon, which ends the prefix of its messages (5.4): the shell keys a panel by its plugin's name. A module that throws on import costs nothing else. The shell names it, or a shell module whose default export is neither an object nor a function, and shows the other panels; the preview renders its stories and names the module in the frame's console.
+**A surface that points nowhere is refused, with its reason**, the way 6.3 refuses a contribution: a pointer that is not a `file:` URL, or one that leads to no file. So are the browser surfaces of a plugin with no `name`, with a name an earlier plugin already has, or with a name that holds a colon, which ends the prefix of its messages (5.4): the shell keys a panel by its plugin's name. So is a key other than `name`, `shell`, `preview` and `node`, `toolbar` or the old `ui`: a plugin is installed compiled, and nothing else would say the key is ignored. Each refusal is said in the terminal, and in the shell beside the panels. A module that throws on import costs nothing else. The shell names it, or a shell module whose default export is neither an object nor a function, and shows the other panels; the preview renders its stories and names the module in the frame's console.
 
 **A `ShellContribution` is a Vue component, which the shell mounts in a frame**, one per plugin, in the order `plugins` declares them. It receives the story on display as its `entry` prop, a `StoryEntry` or `null`. A panel with nothing to say about that story emits `inapplicable` with its reason, and the frame folds to one line holding it, rather than showing an empty panel or a greyed one. A click still opens it for that story, the reason kept above, and the panel shows what it renders, which may be nothing: what it offers once folded stays within reach, `a11y` analysing again what changed in the iframe without a render, a menu opened by hand. The last click on a story holds whatever the panel says after it, and is forgotten at the next one; only a click on a panel that is not folded is remembered.
 
@@ -789,7 +789,22 @@ export default {
 
 **Whether a panel is open is the shell's to remember**, under the plugin's name, never the plugin's. A panel that throws shows the error in its frame, and is mounted again at its next `entry`.
 
-`NodeHooks` is specified in 6.3. The core declares `ShellContribution` opaque, the way it declares an adapter opaque: it knows no Vue, and cannot name a component.
+`NodeHooks` is specified in 6.3. The core declares `ShellContribution` opaque, the way it declares an adapter opaque: it knows no Vue, and cannot name a component. **It does type what a panel receives and emits**, without Vue, and `controls` and `a11y` declare their props and events with these, so a panel that strays from them does not compile:
+
+```ts
+interface PanelProps {
+  entry: StoryEntry | null
+  received: { type: string; [key: string]: unknown } | null
+}
+
+interface PanelEvents {
+  inapplicable: [reason: string | null]
+  overrides: [values: Overrides]
+  send: [message: { type: string; [key: string]: unknown }]
+}
+```
+
+A panel declares the part it uses: `defineProps<Pick<PanelProps, 'entry'>>()`, `defineEmits<Pick<PanelEvents, 'inapplicable' | 'overrides'>>()`.
 
 **`PreviewHooks` is specified in 6.2, and the core types it**: a hook receives the iframe DOM, never a framework, so the core can name everything it gets.
 
@@ -881,14 +896,14 @@ This exists for one demonstrated case: a function prop the story author did not 
 
 The core knows nothing about this. With the `actions` plugin absent, the author declares the function themselves.
 
-### 6.5 How this contract becomes stable
+### 6.5 How this contract became stable
 
-The contract counts as stable only once **two plugins with opposite needs** have used it:
+The contract was frozen once **two plugins with opposite needs** had used it, and it carries what they asked for rather than what was guessed:
 
 - `controls`, which writes into the story.
 - `a11y`, which only reads it.
 
-Until both exist and the section is frozen, it changes without procedure. After that, any change is a break.
+Until then it changed without procedure. Since v1.25, any change to this section is a break.
 
 ---
 
@@ -905,7 +920,7 @@ Left out on purpose. Some belong to a project brief, others wait for a demonstra
 
 **Out of reserve since 21 August 2026, and now planned:**
 
-- The `tokens` entry. The type belongs to the protocol, the reading belongs to `@crypte/tokens`: the line is producing data against displaying it, the same one prop extraction already follows. It is also the first plugin that writes to the manifest, so it is what exercises `NodeHooks` before that contract is frozen. Tracked in DCJ-232 and DCJ-233.
+- The `tokens` entry. The type belongs to the protocol, the reading belongs to `@crypte/tokens`: the line is producing data against displaying it, the same one prop extraction already follows. It is also the first plugin that writes to the manifest, so it is what exercised `NodeHooks` before that contract was frozen. Tracked in DCJ-232 and DCJ-233.
 - The `page` entry, **in two stages**. Stage one is markdown files in the repository, discovered the way stories are and rendered next to components, with no server at all. Stage two is the same files edited by designers and returned as a pull request, which needs `crypte serve`. Confusing the two is what made `page` look expensive and far away. Tracked in DCJ-250, DCJ-251 and DCJ-257.
 
 The field carrying both already exists, so neither is a manifest break. The reason they left reserve is not internal: the documentation tools this project is measured against all ship a token manager, and all sell guidelines as the thing neither Figma nor a component workshop exposes.
@@ -935,7 +950,7 @@ This document is a contract. This section is the only place that says what exist
 | 4, the manifest | built, and written by `crypte dev` at start-up, on every restart of the configuration and on every rebuild, so the file follows what is served. Of the two natures of entry it can carry, only `story` is produced |
 | 4.6, the fingerprint | built, and written by `crypte dev` whenever the catalogue served changes it: at start-up, on a restart of the configuration, and on a story change. So `crypte check` does not fail after a session, and trying a `stories` path then reverting rewrites the same bytes |
 | 5, the channel | built and exercised on both sides |
-| 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. The `shell` and `preview` modules are loaded, and the shell mounts each shell module in a frame that folds when the panel is `inapplicable` and remembers whether it is open. A preview module's `afterMount` and `onMessage` are called, plugin messages cross the channel both ways, and a preview module that fails is named in the shell. `@crypte/controls` edits a story's props through `overrides`, `@crypte/a11y` analyses each render with axe-core and unfolds its panel with `null` when a violation appears, and the demonstration's `hello` and `status` plugins use the rest. `controls` does not add `min`, `max`, `step` or `control` to `PluginPropDetails` yet (3.3), so writing them is still a compile error. **Provisional**: the two plugins 6.5 asks for both exist, and the section is not frozen yet |
+| 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. The `shell` and `preview` modules are loaded, and the shell mounts each shell module in a frame that folds when the panel is `inapplicable` and remembers whether it is open. A preview module's `afterMount` and `onMessage` are called, plugin messages cross the channel both ways, and a preview module that fails is named in the shell. `@crypte/controls` edits a story's props through `overrides`, `@crypte/a11y` analyses each render with axe-core and unfolds its panel with `null` when a violation appears, and the demonstration's `hello` and `status` plugins use the rest. `controls` does not add `min`, `max`, `step` or `control` to `PluginPropDetails` yet (3.3), so writing them is still a compile error. A panel's props and events are typed by `PanelProps` and `PanelEvents`, and a key a plugin does not have is refused. **Frozen** since v1.25 (6.5) |
 
 **`dev`, `check` and `init` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled in the project by the CLI's own Vite, with the plugins the project declares in `vite.plugins`. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte init` writes the configuration of 1.5 into a project that already has its components, and has no section of its own because the file it writes is 1.5 itself.
 
@@ -952,6 +967,15 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.25.** Section 6 is frozen: `controls` and `a11y`, the two plugins 6.5 waited for, both use it (6.1, 6.5).
+
+| Before | After |
+| --- | --- |
+| section 6 was provisional | any change to it is a break |
+| what a panel receives and emits was described in prose | `PanelProps` and `PanelEvents` type it, and both plugins declare with them |
+| a key a plugin does not have was ignored | it is refused with its reason |
+| a refusal was said in the terminal only | the shell names it beside the panels |
 
 **v1.24.** A folded panel opens on a click (6.1).
 

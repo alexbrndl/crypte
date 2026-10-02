@@ -212,6 +212,41 @@ describe('what a surface is refused', () => {
     })
   })
 
+  // Un plugin arrive compilé : une clé que le contrat ne connaît pas, une surface
+  // à venir ou l'ancien `ui`, était ignorée sans un mot. Le reste du plugin
+  // compte toujours. DCJ-194.
+  it('refuses each key a plugin does not have, and keeps the rest', () => {
+    expect(
+      avec(
+        {
+          name: 'p',
+          shell: url('shell.mjs'),
+          toolbar: './x.mjs',
+          ui: './y.mjs',
+        } as unknown as CryptePlugin,
+        { toolbar: './x.mjs' } as unknown as CryptePlugin,
+        null as unknown as CryptePlugin,
+      ),
+    ).toEqual({
+      shell: [{ plugin: 'p', file: join(dossier, 'shell.mjs') }],
+      preview: [],
+      refused: [
+        {
+          plugin: 'p',
+          reason: '`toolbar` is not a key of a plugin, which are name, shell, preview and node',
+        },
+        {
+          plugin: 'p',
+          reason: '`ui` is not a key of a plugin, which are name, shell, preview and node',
+        },
+        {
+          plugin: 'plugins[1]',
+          reason: '`toolbar` is not a key of a plugin, which are name, shell, preview and node',
+        },
+      ],
+    })
+  })
+
   // Le seul chemin par lequel un refus atteint le terminal : `crypte dev`
   // imprime `skippedPlugins`, et rien d'autre.
   it('reports a refusal with the refused contributions', () => {

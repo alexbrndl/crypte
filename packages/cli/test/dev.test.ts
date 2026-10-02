@@ -3,8 +3,10 @@ import { request } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import type { CryptePlugin } from '@crypte/core/protocol'
 import { afterAll, beforeAll, describe, expect, it, test as base } from 'vitest'
 import { dev, startDev, type Started, type Running } from '../src/dev'
+import { buildCatalogue } from '../src/manifest'
 import { loadProject } from '../src/project'
 import {
   MANIFEST_ROUTE,
@@ -76,19 +78,32 @@ describe('crypte dev', () => {
 
       started.project.config.plugins = [
         { name: 'a', shell: pathToFileURL(join(dossier, 'dist', 'shell.mjs')).href },
+        { name: 'b', toolbar: './toolbar.mjs' } as unknown as CryptePlugin,
       ]
+      // Le catalogue porte les refus, et il a été lu au démarrage : un changement
+      // de configuration relance le serveur, d'où la relecture ici.
+      started.held.catalogue = buildCatalogue(started.project, started.held.catalogue)
     })
 
     afterAll(() => {
       delete started.project.config.plugins
+      started.held.catalogue = buildCatalogue(started.project, started.held.catalogue)
       rmSync(dossier, { recursive: true, force: true })
     })
 
-    it('lists each shell module under its own URL', async () => {
+    it('lists each shell module under its own URL, and what was refused', async () => {
       const { status, body } = await get(PLUGINS_ROUTE)
 
       expect(status).toBe(200)
-      expect(JSON.parse(body)).toEqual([{ name: 'a', shell: '/@crypte/plugins/0/shell.mjs' }])
+      expect(JSON.parse(body)).toEqual({
+        panels: [{ name: 'a', shell: '/@crypte/plugins/0/shell.mjs' }],
+        refused: [
+          {
+            plugin: 'b',
+            reason: '`toolbar` is not a key of a plugin, which are name, shell, preview and node',
+          },
+        ],
+      })
     })
 
     it('serves the module and the chunks beside it', async () => {
