@@ -160,7 +160,7 @@ const shown = computed(() => failure.value === null && expanded.value)
 <template>
   <section class="panel" :data-plugin="name">
     <div class="head">
-      <button type="button" :aria-expanded="shown" @click="toggle">
+      <button type="button" :aria-expanded="expanded" @click="toggle">
         {{ name }}
       </button>
       <span v-if="inapplicable !== null" class="inapplicable">{{ inapplicable }}</span>

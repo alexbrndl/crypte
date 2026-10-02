@@ -326,9 +326,11 @@ describe('a panel that throws', () => {
 
     await wrapper.find('.head button').trigger('click')
     expect(localStorage.getItem('crypte:panel:fragile')).toBe('closed')
+    expect(état(wrapper).ouvert).toBe('false')
 
     await wrapper.find('.head button').trigger('click')
     expect(localStorage.getItem('crypte:panel:fragile')).toBeNull()
+    expect(état(wrapper).ouvert).toBe('true')
   })
 
   test('names what it throws when that is not an Error', async () => {
