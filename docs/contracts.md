@@ -977,7 +977,7 @@ Seven known gaps between this document and the code:
 
 | Before | After |
 | --- | --- |
-| a project's own plugin could not type its panel or its hooks: the types lived in the core, which a project does not import | `@crypte/cli` re-exports them, and 1.4 says what such a plugin cannot declare |
+| a project's own plugin could not type its panel or its hooks: the types lived in the core, which a project does not import | `@crypte/cli` re-exports them, and 1.4 says what such a plugin does not declare |
 | an unknown message was said to be a compile error, which it never was in `ctx.send`, `send` or `received` | the declarations type the core's channel, and the text says so |
 | nothing said a factory's options cannot reach its browser modules | only the module's URL crosses, and 6.1 says so |
 
