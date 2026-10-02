@@ -153,8 +153,6 @@ onErrorCaptured((error) => {
 // Ce que le clic bascule, sans l'erreur : sur un panneau qui a levé, chaque
 // clic aurait « ouvert », et effacé ce que l'utilisateur avait fermé.
 const expanded = computed(() => choice.value ?? (inapplicable.value === null && open.value))
-
-const shown = computed(() => failure.value === null && expanded.value)
 </script>
 
 <template>
@@ -168,7 +166,7 @@ const shown = computed(() => failure.value === null && expanded.value)
     <Callout v-if="failure !== null" tone="danger" class="panel-failed" role="alert">
       Ce panneau a levé : {{ failure }}
     </Callout>
-    <div v-else v-show="shown" class="body">
+    <div v-else v-show="expanded" class="body">
       <component
         :is="panel"
         :entry="entry"
