@@ -49,8 +49,8 @@ const normativeBlocks = normative.match(BLOCKS) ?? []
 
 // Le corps entre l'accolade ouvrante à `from` et celle qui la ferme. Compter
 // les accolades et non s'arrêter à la première fermante : les interfaces de la
-// section 6 portent un objet en ligne, et un champ ajouté après lui passait
-// inaperçu des deux côtés. Audit à froid du projet 1.3.
+// section 6 portent un objet en ligne, et un champ du code écrit après lui
+// passait inaperçu. Audit à froid du projet 1.3.
 function braced(text: string, from: number): string {
   let depth = 0
   for (let at = from; at < text.length; at += 1) {
