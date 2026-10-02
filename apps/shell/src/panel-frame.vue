@@ -90,19 +90,24 @@ const read = () => {
 
 const open = ref(read())
 
-// Un panneau replié s'ouvre quand même au clic, sa raison gardée en tête : ce
-// qu'il offre une fois replié reste joignable, la relance de `a11y` après un
-// menu ouvert dans l'iframe, sans rendu. Pour la story affichée seulement, et
-// sans rien retenir : la décision du panneau reprend à la suivante.
-const unfolded = ref(false)
+// Le dernier clic sur la story affichée, qui l'emporte sur tout le reste : un
+// panneau replié s'ouvre quand même, sa raison gardée en tête, pour que ce qu'il
+// offre reste joignable, la relance de `a11y` après un menu ouvert dans
+// l'iframe sans rendu. Et le panneau qui change d'avis sur la même story ne
+// rouvre ni ne referme ce que l'utilisateur a choisi. Oublié à la story
+// suivante. Rouvert si un panneau replié ne doit plus pouvoir s'ouvrir, ce
+// qu'aucun ne demande.
+const choice = ref<boolean | null>(null)
 
 function toggle() {
-  if (inapplicable.value !== null) {
-    unfolded.value = !unfolded.value
-    return
-  }
+  const next = !shown.value
+  choice.value = next
 
-  open.value = !open.value
+  // Retenu sur un panneau qui a quelque chose à dire seulement : ouvrir un
+  // panneau replié ne dit rien du suivant.
+  if (inapplicable.value !== null) return
+
+  open.value = next
   try {
     if (open.value) localStorage.removeItem(KEY)
     else localStorage.setItem(KEY, 'closed')
@@ -135,7 +140,7 @@ watch(
   () => props.entry,
   () => {
     inapplicable.value = null
-    unfolded.value = false
+    choice.value = null
     failure.value = null
   },
 )
@@ -146,7 +151,7 @@ onErrorCaptured((error) => {
 })
 
 const shown = computed(
-  () => failure.value === null && (inapplicable.value === null ? open.value : unfolded.value),
+  () => failure.value === null && (choice.value ?? (inapplicable.value === null && open.value)),
 )
 </script>
 

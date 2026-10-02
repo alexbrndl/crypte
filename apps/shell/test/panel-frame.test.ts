@@ -212,6 +212,9 @@ describe('whether a panel is open', () => {
 
     await wrapper.find('.head button').trigger('click')
     expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'aucun statut déclaré', corps: false })
+
+    // Refermer un panneau replié ne dit rien des stories suivantes.
+    expect(localStorage.getItem('crypte:panel:status')).toBeNull()
   })
 
   // Pour la story affichée seulement, et rien n'est retenu : la décision du
@@ -227,6 +230,51 @@ describe('whether a panel is open', () => {
 
     await wrapper.setProps({ entry: brouillon })
     expect(état(wrapper)).toEqual({ ouvert: 'true', raison: null, corps: true })
+  })
+
+  // Le panneau change d'avis sur la même story, comme `a11y` après une relance
+  // ou une édition des props : le clic de l'utilisateur tient. Revue de la PR #112.
+  describe('when the panel changes its mind on the same story', () => {
+    const analyse = defineComponent({
+      props: { received: { type: Object, default: null } },
+      emits: ['inapplicable'],
+      setup(props, { emit }) {
+        watchEffect(() => emit('inapplicable', props.received?.propre ? 'propre' : null))
+        return () => h('p', 'violations')
+      },
+    })
+    const recu = (propre: boolean) => ({ type: 'a11y:r', propre })
+    const monteAnalyse = (propre: boolean) =>
+      mount(PanelFrame, {
+        props: { name: 'a11y', panel: analyse, entry: nue, received: recu(propre) },
+      })
+
+    test('keeps open a folded panel the user opened, when it unfolds', async () => {
+      localStorage.setItem('crypte:panel:a11y', 'closed')
+      const wrapper = monteAnalyse(true)
+      await wrapper.vm.$nextTick()
+      await wrapper.find('.head button').trigger('click')
+
+      await wrapper.setProps({ received: recu(false) })
+
+      expect(état(wrapper)).toEqual({ ouvert: 'true', raison: null, corps: true })
+    })
+
+    // Ouvert replié, une violation arrive, l'utilisateur referme, la story
+    // redevient propre : le panneau ne se rouvre pas seul.
+    test('keeps closed a panel the user closed, when it folds again', async () => {
+      const wrapper = monteAnalyse(true)
+      await wrapper.vm.$nextTick()
+      await wrapper.find('.head button').trigger('click')
+      await wrapper.setProps({ received: recu(false) })
+      await wrapper.find('.head button').trigger('click')
+
+      await wrapper.setProps({ received: recu(true) })
+      expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'propre', corps: false })
+
+      await wrapper.setProps({ received: recu(false) })
+      expect(état(wrapper)).toEqual({ ouvert: 'false', raison: null, corps: false })
+    })
   })
 
   // Les deux états se croisent : fermé par l'utilisateur, puis sans objet, puis
