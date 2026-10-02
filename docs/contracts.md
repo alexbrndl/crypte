@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.28, reference document. A project brief points here instead of restating these shapes.
+> Version 1.29, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -89,6 +89,8 @@ npm i -D @crypte/cli @crypte/react
 | `@crypte/ui` | the components the shell, plugins and the site draw in common; Vue as its only peer, and nothing in the core or the CLI imports it | no, unless building on Crypte's look |
 
 The package name and the command name are independent: `@crypte/cli` declares a binary called `crypte`, and the user types `crypte dev`.
+
+**A plugin written in the project imports its types from `@crypte/cli`**: `CryptePlugin`, `PanelProps`, `PanelEvents`, `PreviewHooks` and `PreviewContext`, the core's own. The project does not depend on the core, so it does not import it.
 
 **`defineStories` and `story` come from the adapter, not from a neutral package.** The adapter knows the framework, so prop types are inferred more precisely. A Vue project imports them from its own adapter, and nothing else changes.
 
@@ -711,7 +713,7 @@ declare module '@crypte/core/protocol' {
 }
 ```
 
-While no plugin has declared anything, the union does not grow, and writing an unknown message is a compile error.
+While no plugin has declared anything, the union does not grow, and sending an unknown message through the core's channel, `@crypte/core/shell` and `/preview`, is a compile error. **A plugin's own calls are not typed by its declarations**: `ctx.send` (6.2), a panel's `send` and its `received` (6.1) carry `{ type: string }`, and the prefix is checked when the message is sent. Reopened if a plugin needs its messages checked at compile time: typing `ctx.send` by the declarations narrows what a plugin gives, a break under 6.5.
 
 ```ts
 type PluginMessage<T extends { type: LiteralOnly<T['type']> }> = T
@@ -756,7 +758,7 @@ export default function controls(): CryptePlugin {
 }
 ```
 
-The shell module exports a `ShellContribution` by default, the preview module a `PreviewHooks`. The configuration itself never reaches the browser: running it there would carry the `node` surface along, and `node:fs` with it.
+The shell module exports a `ShellContribution` by default, the preview module a `PreviewHooks`. The configuration itself never reaches the browser: running it there would carry the `node` surface along, and `node:fs` with it. **A factory's options stay in Node too**: only the module's URL crosses, read as a file, so a query or a hash written on it is lost, and a browser surface cannot be configured by its factory.
 
 **A preview module goes through the project's Vite**, like a story file, so it imports what it needs. Once the plugin is installed, Vite pre-bundles nothing it imports: a CommonJS dependency has no default export there. `@crypte/a11y` imports axe-core's script for its side effect, which sets `window.axe`. **A shell module is served as is, never compiled**, since the shell is prebuilt. Its one bare import is `vue`, which the shell provides through an import map, so every panel runs on the shell's own Vue. That Vue carries its template compiler: a module written by hand may use `template` rather than `h()`. A plugin declares `vue` as a peer dependency and keeps it out of its bundle: a panel running on a second copy never redraws its own state, and nothing warns.
 
@@ -953,7 +955,7 @@ This document is a contract. This section is the only place that says what exist
 | 4, the manifest | built, and written by `crypte dev` at start-up, on every restart of the configuration and on every rebuild, so the file follows what is served. Of the two natures of entry it can carry, only `story` is produced |
 | 4.6, the fingerprint | built, and written by `crypte dev` whenever the catalogue served changes it: at start-up, on a restart of the configuration, and on a story change. So `crypte check` does not fail after a session, and trying a `stories` path then reverting rewrites the same bytes |
 | 5, the channel | built and exercised on both sides |
-| 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. The `shell` and `preview` modules are loaded, and the shell mounts each shell module in a frame that folds when the panel is `inapplicable` and remembers whether it is open. A preview module's `afterMount` and `onMessage` are called, plugin messages cross the channel both ways, and a preview module that fails is named in the shell. `@crypte/controls` edits a story's props through `overrides`, `@crypte/a11y` analyses each render with axe-core and unfolds its panel with `null` when a violation appears, and the demonstration's `hello` and `status` plugins use the rest. `controls` does not add `min`, `max`, `step` or `control` to `PluginPropDetails` yet (3.3), so writing them is still a compile error. A panel's props and events are typed by `PanelProps` and `PanelEvents`, and a key a plugin does not have is refused. **Frozen** since v1.25 (6.5) |
+| 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. The `shell` and `preview` modules are loaded, and the shell mounts each shell module in a frame that folds when the panel is `inapplicable` and remembers whether it is open. A preview module's `afterMount` and `onMessage` are called, plugin messages cross the channel both ways, and a preview module that fails is named in the shell. `@crypte/controls` edits a story's props through `overrides`, `@crypte/a11y` analyses each render with axe-core and unfolds its panel with `null` when a violation appears, and the demonstration's `hello` and `status` plugins use the rest. `controls` does not add `min`, `max`, `step` or `control` to `PluginPropDetails` yet (3.3), so writing them is still a compile error. A panel's props and events are typed by `PanelProps` and `PanelEvents`, and a key a plugin does not have is refused. A project's own plugin imports them from `@crypte/cli`. **Frozen** since v1.25 (6.5) |
 
 **`dev`, `check` and `init` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled in the project by the CLI's own Vite, with the plugins the project declares in `vite.plugins`. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte init` writes the configuration of 1.5 into a project that already has its components, and has no section of its own because the file it writes is 1.5 itself.
 
@@ -970,6 +972,14 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.29.** Writing a plugin from this document alone (1.4, 5.4, 6.1), from the audit of the frozen contract.
+
+| Before | After |
+| --- | --- |
+| a project's own plugin could not type its panel or its hooks: the types lived in the core, which a project does not import | `@crypte/cli` re-exports them |
+| an unknown message was said to be a compile error, which it never was in `ctx.send`, `send` or `received` | the declarations type the core's channel, and the text says so |
+| nothing said a factory's options cannot reach its browser modules | only the module's URL crosses, and 6.1 says so |
 
 **v1.28.** What panels edit (6.1), from the audit of the frozen contract.
 
