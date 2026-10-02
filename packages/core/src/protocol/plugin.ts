@@ -1,5 +1,6 @@
-// The plugin contract. Provisional: see section 6 of docs/contracts.md.
+// The plugin contract, section 6 of docs/contracts.md. Frozen: 6.5 says what breaks it.
 
+import type { Overrides } from './channel'
 import type { ManifestEntry, StoryEntry } from './manifest'
 
 export interface CryptePlugin {
@@ -18,6 +19,21 @@ export interface CryptePlugin {
 // `ShellContribution` is a Vue component, section 6.1, which the core cannot
 // name without Vue.
 export type ShellContribution = unknown
+
+// What the shell passes a panel, section 6.1. A panel declares the props it
+// reads, a part of these: `defineProps<Pick<PanelProps, 'entry'>>()`.
+export interface PanelProps {
+  entry: StoryEntry | null
+  received: { type: string; [key: string]: unknown } | null
+}
+
+// What a panel may emit, section 6.1, in the form `defineEmits` takes. A panel
+// declares the events it emits, a part of these.
+export interface PanelEvents {
+  inapplicable: [reason: string | null]
+  overrides: [values: Overrides]
+  send: [message: { type: string; [key: string]: unknown }]
+}
 
 // What the preview module exports by default, section 6.2. Two hooks because
 // `a11y` is the one consumer: analysing a story once it is mounted, and again

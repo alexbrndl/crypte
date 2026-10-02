@@ -36,6 +36,8 @@ export { normalizeSegment, storyId } from './id'
 export type {
   CryptePlugin,
   ShellContribution,
+  PanelProps,
+  PanelEvents,
   PreviewHooks,
   PreviewContext,
   NodeHooks,

@@ -25,11 +25,17 @@ const PLUGINS = '/@crypte/plugins.json'
 
 const panels = shallowRef<{ name: string; panel: Component }[]>([])
 const failures = shallowRef<{ name: string; message: string }[]>([])
+// Ce que le CLI a écarté d'un plugin, avec sa raison : une surface qui ne mène
+// nulle part, une clé inconnue, une contribution refusée.
+const refused = shallowRef<{ plugin: string; reason: string }[]>([])
 
 const said = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
 onMounted(async () => {
-  let listed: { name: string; shell: string }[]
+  let listed: {
+    panels: { name: string; shell: string }[]
+    refused: { plugin: string; reason: string }[]
+  }
   try {
     listed = (await fetch(PLUGINS).then((answer) => answer.json())) as typeof listed
   } catch (error) {
@@ -37,17 +43,21 @@ onMounted(async () => {
     return
   }
 
+  refused.value = listed.refused
+
   // Chacun pour soi : un module qui ne charge pas ne coûte pas les autres, et son
   // nom s'affiche plutôt que son panneau manque sans rien dire.
   const loaded = await Promise.allSettled(
-    listed.map((one) => import(/* @vite-ignore */ one.shell) as Promise<{ default?: unknown }>),
+    listed.panels.map(
+      (one) => import(/* @vite-ignore */ one.shell) as Promise<{ default?: unknown }>,
+    ),
   )
 
   const found: typeof panels.value = []
   const failed: typeof failures.value = []
 
   loaded.forEach((result, at) => {
-    const name = listed[at]!.name
+    const name = listed.panels[at]!.name
     const panel = result.status === 'fulfilled' ? result.value.default : undefined
 
     // Un objet ou une fonction, ce que Vue monte. Autre chose, `42` par exemple,
@@ -65,13 +75,16 @@ onMounted(async () => {
 
 <template>
   <Callout
-    v-if="failures.length > 0 || errors.length > 0"
+    v-if="failures.length > 0 || refused.length > 0 || errors.length > 0"
     tone="danger"
     class="failed"
     role="alert"
   >
     <p v-for="one of failures" :key="one.name">
       <code>{{ one.name }}</code> n'a pas pu se charger : {{ one.message }}
+    </p>
+    <p v-for="(one, at) of refused" :key="`refused-${at}`">
+      Refusé chez <code>{{ one.plugin }}</code> : {{ one.reason }}
     </p>
     <p v-for="(one, at) of errors" :key="`preview-${at}`">
       <code>{{ one.plugin }}</code> dans la preview : {{ one.message }}
@@ -83,7 +96,7 @@ onMounted(async () => {
     :name="one.name"
     :panel="one.panel"
     :entry="entry"
-    :received="received[one.name]"
+    :received="received[one.name] ?? null"
     @overrides="(values: Overrides) => emit('overrides', values)"
     @send="(message: PanelMessage) => emit('send', message)"
   />

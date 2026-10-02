@@ -40,7 +40,7 @@ const statut = defineComponent({
 })
 
 const monte = (panel: Component, story: StoryEntry | null, name = 'status') =>
-  mount(PanelFrame, { props: { name, panel, entry: story } })
+  mount(PanelFrame, { props: { name, panel, entry: story, received: null } })
 
 // Le style lu tel quel : `isVisible()` rendait l'inverse du DOM sur un montage
 // qui n'est pas attaché au document. Mesuré.

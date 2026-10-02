@@ -14,7 +14,8 @@ const props = defineProps<{
   panel: Component
   entry: StoryEntry | null
   // Le dernier message que la partie preview de ce plugin a envoyé.
-  received?: PanelMessage
+  // `null` tant que sa partie preview n'a rien dit, comme `PanelProps` le promet.
+  received: PanelMessage | null
 }>()
 
 // Ce qu'un panneau a édité, que le shell envoie dans `render`, et ce qu'il

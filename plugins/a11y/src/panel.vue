@@ -1,17 +1,11 @@
 <script setup lang="ts">
-import type { StoryEntry } from '@crypte/core/protocol'
+import type { PanelEvents, PanelProps } from '@crypte/core/protocol'
 import { computed, ref, watch, watchEffect } from 'vue'
 import type { Impact, Results, Violation } from './results'
 
-const props = defineProps<{
-  entry: StoryEntry | null
-  received: { type: string; [key: string]: unknown } | null
-}>()
+const props = defineProps<PanelProps>()
 
-const emit = defineEmits<{
-  inapplicable: [reason: string | null]
-  send: [message: { type: string }]
-}>()
+const emit = defineEmits<Pick<PanelEvents, 'inapplicable' | 'send'>>()
 
 const IMPACTS: [Impact, string][] = [
   ['critical', 'Critique'],
