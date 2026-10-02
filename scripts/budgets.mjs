@@ -45,7 +45,7 @@ export const MESURES = {
 // un traitement qui n'a rien traité et ne bougerait plus quoi qu'on ajoute.
 //
 // Sur le runner, il varie de 786 à 1432 ms d'un run à l'autre : 65 runs du 25
-// septembre au 2 octobre 2026, médiane 1197 ms avant `a11y` et 1254 ms après.
+// septembre au 2 octobre 2026, médiane 1200 ms avant `a11y` et 1254 ms après.
 // Deux runs ne disent donc rien d'une régression : un 819 isolé face à un 1303
 // a fait croire à 480 ms de perte (DCJ-328). Comparer des médianes sur une
 // dizaine de runs, ou mesurer en local. Dans cette fenêtre, seule une vraie
