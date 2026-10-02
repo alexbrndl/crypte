@@ -64,15 +64,17 @@ export const PLUGIN_FILES = '/@crypte/plugins/'
 // A shell module's folder is named by its plugin, never by its place in the
 // list: the browser keeps one module per URL for the page's life, and the shell
 // reads the list again after an edit of the configuration. By place, removing a
-// plugin mounted the next one's panel in another's frame. Measured. Dots are
-// escaped too, so a name made of them is never read as `..`.
+// plugin mounted the next one's panel in another's frame. Measured. The `@` in
+// front keeps a name like `..` from being a dot segment: escaping the dots does
+// not, a URL parser reads `%2E%2E` as `..`. Measured.
 function segmentOf(name: string): string {
-  return encodeURIComponent(name).replaceAll('.', '%2E')
+  return `@${encodeURIComponent(name)}`
 }
 
 function nameOf(segment: string): string | undefined {
+  if (!segment.startsWith('@')) return undefined
   try {
-    return decodeURIComponent(segment)
+    return decodeURIComponent(segment.slice(1))
   } catch {
     return undefined
   }

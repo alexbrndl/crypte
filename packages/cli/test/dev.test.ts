@@ -97,7 +97,7 @@ describe('crypte dev', () => {
 
       expect(status).toBe(200)
       expect(JSON.parse(body)).toEqual({
-        panels: [{ name: 'a', shell: '/@crypte/plugins/a/shell.mjs' }],
+        panels: [{ name: 'a', shell: '/@crypte/plugins/@a/shell.mjs' }],
         refused: [
           { plugin: 'n', reason: 'the hook returned no array of entries' },
           {
@@ -156,19 +156,31 @@ describe('crypte dev', () => {
         const un = await lister()
 
         expect(deux).toEqual([
-          { name: 'premier', shell: '/@crypte/plugins/premier/shell.mjs' },
-          { name: '@scope/p.x', shell: '/@crypte/plugins/%40scope%2Fp%2Ex/shell.mjs' },
+          { name: 'premier', shell: '/@crypte/plugins/@premier/shell.mjs' },
+          { name: '@scope/p.x', shell: '/@crypte/plugins/@%40scope%2Fp.x/shell.mjs' },
         ])
         expect(un).toEqual([deux[1]])
-        expect((await get('/@crypte/plugins/%40scope%2Fp%2Ex/shell.mjs')).status).toBe(200)
+        expect((await get('/@crypte/plugins/@%40scope%2Fp.x/shell.mjs')).status).toBe(200)
+
+        // Un nom fait de points n'est pas un segment point : le navigateur lit
+        // `%2E%2E` comme `..` et demandait le dossier d'au-dessus. Revue de la
+        // PR #117.
+        started.project.config.plugins = [
+          { name: '..', shell },
+          { name: '.', shell },
+        ]
+        for (const { shell: adresse } of await lister()) {
+          expect(new URL(adresse, origin).pathname).toBe(adresse)
+          expect((await get(adresse)).status).toBe(200)
+        }
       } finally {
         started.project.config.plugins = avant
       }
     })
 
     it('serves the module and the chunks beside it', async () => {
-      const module = await fetch(`${origin}/@crypte/plugins/a/shell.mjs`)
-      const chunk = await get('/@crypte/plugins/a/chunk.mjs')
+      const module = await fetch(`${origin}/@crypte/plugins/@a/shell.mjs`)
+      const chunk = await get('/@crypte/plugins/@a/chunk.mjs')
 
       expect(module.status).toBe(200)
       expect(module.headers.get('content-type')).toMatch(/^text\/javascript/)
@@ -177,17 +189,18 @@ describe('crypte dev', () => {
     })
 
     it.for([
-      ['a name no plugin holds', '/@crypte/plugins/z/shell.mjs'],
+      ['a name no plugin holds', '/@crypte/plugins/@z/shell.mjs'],
+      ['a name without its `@`', '/@crypte/plugins/a/shell.mjs'],
       ['a place in the list, as the URL used to be', '/@crypte/plugins/0/shell.mjs'],
       ['a property of the list', '/@crypte/plugins/length/shell.mjs'],
-      ['a name that does not decode', '/@crypte/plugins/%E0/shell.mjs'],
-      ['a file the folder does not hold', '/@crypte/plugins/a/absent.mjs'],
+      ['a name that does not decode', '/@crypte/plugins/@%E0/shell.mjs'],
+      ['a file the folder does not hold', '/@crypte/plugins/@a/absent.mjs'],
       // Le dossier d'un plugin local peut être le projet : `.env` et `.git` avec.
-      ['a file whose name starts with a dot', '/@crypte/plugins/a/.env'],
-      ['the same file, its dot encoded', '/@crypte/plugins/a/%2eenv'],
+      ['a file whose name starts with a dot', '/@crypte/plugins/@a/.env'],
+      ['the same file, its dot encoded', '/@crypte/plugins/@a/%2eenv'],
       // `decodeURI` lève ici, et `sirv` sert alors le chemin tel quel : sans le
       // refus, ce fichier caché partait.
-      ['a hidden file whose name `decodeURI` cannot read', '/@crypte/plugins/a/.x%E0'],
+      ['a hidden file whose name `decodeURI` cannot read', '/@crypte/plugins/@a/.x%E0'],
     ])('answers 404 to %s', async ([, path]) => {
       expect(await get(path!)).toEqual({ status: 404, body: '' })
     })
@@ -197,7 +210,7 @@ describe('crypte dev', () => {
     it('never serves a file above the folder', async () => {
       const answer = await new Promise<string>((resolve, reject) => {
         const port = new URL(origin).port
-        request({ port, path: '/@crypte/plugins/a/../secret.txt' }, (response) => {
+        request({ port, path: '/@crypte/plugins/@a/../secret.txt' }, (response) => {
           let body = ''
           response.on('data', (chunk: Buffer) => (body += chunk))
           response.on('end', () => resolve(`${response.statusCode} ${body}`))
