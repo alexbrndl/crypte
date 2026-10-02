@@ -10,8 +10,8 @@ if (import.meta.hot) {
   import.meta.hot.on('vite:beforeUpdate', ({ updates }) => { for (const one of updates) { __crypte_loadErrors.delete(one.path); __crypte_loadErrors.delete(one.acceptedPath) } })
 }
 
-const __crypte_loaded = await Promise.all([
-])
+const __crypte_loaded = [
+]
 
 await Promise.all([
   import("/stories/Gardee.tsx").then((module) => { __crypte_modules["/stories/Gardee.tsx"] = module }, (error) => { __crypte_broken["/stories/Gardee.tsx"] = error }),
