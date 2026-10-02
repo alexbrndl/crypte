@@ -84,7 +84,7 @@ onMounted(async () => {
       <code>{{ one.name }}</code> n'a pas pu se charger : {{ one.message }}
     </p>
     <p v-for="(one, at) of refused" :key="`refused-${at}`">
-      <code>{{ one.plugin }}</code> écarté : {{ one.reason }}
+      Refusé chez <code>{{ one.plugin }}</code> : {{ one.reason }}
     </p>
     <p v-for="(one, at) of errors" :key="`preview-${at}`">
       <code>{{ one.plugin }}</code> dans la preview : {{ one.message }}
@@ -96,7 +96,7 @@ onMounted(async () => {
     :name="one.name"
     :panel="one.panel"
     :entry="entry"
-    :received="received[one.name]"
+    :received="received[one.name] ?? null"
     @overrides="(values: Overrides) => emit('overrides', values)"
     @send="(message: PanelMessage) => emit('send', message)"
   />

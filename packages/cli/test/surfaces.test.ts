@@ -247,6 +247,16 @@ describe('what a surface is refused', () => {
     })
   })
 
+  // Une clé qu'un objet hérite, que `in` aurait prise pour une clé de plugin.
+  it('refuses a key every object inherits', () => {
+    expect(avec({ name: 'p', toString: 'x' } as unknown as CryptePlugin).refused).toEqual([
+      {
+        plugin: 'p',
+        reason: '`toString` is not a key of a plugin, which are name, shell, preview and node',
+      },
+    ])
+  })
+
   // Le seul chemin par lequel un refus atteint le terminal : `crypte dev`
   // imprime `skippedPlugins`, et rien d'autre.
   it('reports a refusal with the refused contributions', () => {

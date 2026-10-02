@@ -41,6 +41,11 @@ export interface Catalogue {
   // `skipped`, whose `file` is contractually the path of a story file, section
   // 4.1. The caller reports it.
   skippedPlugins: { plugin: string; reason: string }[]
+  // The refused contributions alone. The plugin route reads the surfaces at
+  // each request and says their refusals beside them: taken from
+  // `skippedPlugins`, as they stood at the last build, a panel was listed and
+  // refused at once. Measured.
+  skippedContributions: { plugin: string; reason: string }[]
 }
 
 // The story entries of a manifest, for the three readers in this package that
@@ -161,6 +166,7 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
     skipped,
     wasStory: [...new Set([...gave, ...was])],
     skippedPlugins: [...contributed.skipped, ...surfacesOf(project).refused],
+    skippedContributions: contributed.skipped,
   }
 }
 

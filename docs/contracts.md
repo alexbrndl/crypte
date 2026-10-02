@@ -723,7 +723,7 @@ type PluginMessage<T extends { type: LiteralOnly<T['type']> }> = T
 
 ## 6. Plugin contract
 
-> **Frozen since v1.25.** Any change to this section is a break. See 6.5.
+> **Frozen since v1.25.** Removing or narrowing anything in this section is a break; an optional key, hook or event added to it is not. See 6.5.
 
 ### 6.1 Shape
 
@@ -740,7 +740,7 @@ interface CryptePlugin {
 
 | Surface | Runs in | Role |
 | --- | --- | --- |
-| `shell` | shell | panel, toolbar button |
+| `shell` | shell | panel |
 | `preview` | iframe | lifecycle around a render |
 | `node` | CLI | entries for the manifest, 6.3 |
 
@@ -903,7 +903,7 @@ The contract was frozen once **two plugins with opposite needs** had used it, an
 - `controls`, which writes into the story.
 - `a11y`, which only reads it.
 
-Until then it changed without procedure. Since v1.25, any change to this section is a break.
+Until then it changed without procedure. Since v1.25, removing or narrowing anything in this section is a break. Adding is not, as long as what is added is optional: the hooks section 7 holds in reserve come back that way.
 
 ---
 
@@ -972,7 +972,7 @@ Seven known gaps between this document and the code:
 
 | Before | After |
 | --- | --- |
-| section 6 was provisional | any change to it is a break |
+| section 6 was provisional | removing or narrowing anything in it is a break |
 | what a panel receives and emits was described in prose | `PanelProps` and `PanelEvents` type it, and both plugins declare with them |
 | a key a plugin does not have was ignored | it is refused with its reason |
 | a refusal was said in the terminal only | the shell names it beside the panels |

@@ -55,6 +55,15 @@ describe('the plugin panels', () => {
     expect(échecs(wrapper)).toEqual([])
   })
 
+  // `PanelProps` promet `null` tant que la partie preview n'a rien dit : le
+  // shell passait `undefined`, et un panneau qui suivait le type levait au
+  // montage. Revue de la PR #113.
+  test('hands a panel null until its preview module has said something', async () => {
+    const wrapper = await monte([{ name: 'a', shell: module('attente.ts') }])
+
+    expect(montés(wrapper)).toEqual(['a=null'])
+  })
+
   // Ce qu'un panneau envoie à sa partie preview remonte, par son cadre qui en
   // vérifie le préfixe, jusqu'au shell.
   test('passes on what a panel sends to its preview module', async () => {
@@ -117,8 +126,8 @@ describe('what a panel is refused', () => {
 
     expect(montés(wrapper)).toEqual(['a=un'])
     expect(échecs(wrapper)).toEqual([
-      'b écarté : `toolbar` is not a key of a plugin, which are name, shell, preview and node',
-      'plugins[2] écarté : a plugin with a browser surface needs a `name`',
+      'Refusé chez b : `toolbar` is not a key of a plugin, which are name, shell, preview and node',
+      'Refusé chez plugins[2] : a plugin with a browser surface needs a `name`',
     ])
   })
 

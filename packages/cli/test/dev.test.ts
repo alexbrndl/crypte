@@ -79,6 +79,7 @@ describe('crypte dev', () => {
       started.project.config.plugins = [
         { name: 'a', shell: pathToFileURL(join(dossier, 'dist', 'shell.mjs')).href },
         { name: 'b', toolbar: './toolbar.mjs' } as unknown as CryptePlugin,
+        { name: 'n', node: { entries: () => 42 } } as unknown as CryptePlugin,
       ]
       // Le catalogue porte les refus, et il a été lu au démarrage : un changement
       // de configuration relance le serveur, d'où la relecture ici.
@@ -98,12 +99,36 @@ describe('crypte dev', () => {
       expect(JSON.parse(body)).toEqual({
         panels: [{ name: 'a', shell: '/@crypte/plugins/0/shell.mjs' }],
         refused: [
+          { plugin: 'n', reason: 'the hook returned no array of entries' },
           {
             plugin: 'b',
             reason: '`toolbar` is not a key of a plugin, which are name, shell, preview and node',
           },
         ],
       })
+    })
+
+    // Les surfaces et leurs refus d'une même lecture : le catalogue date de sa
+    // dernière construction, et un module sorti depuis de `vp run -r pack` était
+    // listé et refusé à la fois. Revue de la PR #113.
+    it('reads the surfaces and their refusals at once', async () => {
+      const tard = join(dossier, 'dist', 'tard.mjs')
+      const avant = started.project.config.plugins ?? []
+      started.project.config.plugins = [...avant, { name: 'c', shell: pathToFileURL(tard).href }]
+      started.held.catalogue = buildCatalogue(started.project, started.held.catalogue)
+      writeFileSync(tard, 'export default {}\n')
+
+      try {
+        const { body } = await get(PLUGINS_ROUTE)
+        const lu = JSON.parse(body) as { panels: { name: string }[]; refused: { plugin: string }[] }
+
+        expect(lu.panels.map((one) => one.name)).toEqual(['a', 'c'])
+        expect(lu.refused.map((one) => one.plugin)).toEqual(['n', 'b'])
+      } finally {
+        started.project.config.plugins = avant
+        started.held.catalogue = buildCatalogue(started.project, started.held.catalogue)
+        rmSync(tard)
+      }
     })
 
     it('serves the module and the chunks beside it', async () => {

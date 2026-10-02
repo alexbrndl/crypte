@@ -4,6 +4,7 @@
 
 import { statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import type { CryptePlugin } from '@crypte/core/protocol'
 import type { Project } from './project'
 
 export interface Surface {
@@ -19,8 +20,16 @@ export interface Surfaces {
   refused: { plugin: string; reason: string }[]
 }
 
-// What a plugin object may hold, section 6.1.
-const KEYS = ['name', 'shell', 'preview', 'node']
+// What a plugin object may hold, section 6.1. A record over `keyof CryptePlugin`,
+// so a key added to the type and forgotten here, or the reverse, does not compile.
+const KEYS: Record<keyof CryptePlugin, true> = {
+  name: true,
+  shell: true,
+  preview: true,
+  node: true,
+}
+const LISTED = Object.keys(KEYS)
+const KNOWN = `${LISTED.slice(0, -1).join(', ')} and ${LISTED.at(-1)}`
 
 // In the order `plugins` declares them, which is the order the shell shows.
 export function surfacesOf(project: Project): Surfaces {
@@ -40,10 +49,11 @@ export function surfacesOf(project: Project): Surfaces {
     // preview hook is refused rather than never called.
     const label = typeof name === 'string' && name !== '' ? name : `plugins[${at}]`
     for (const key of typeof plugin === 'object' && plugin !== null ? Object.keys(plugin) : []) {
-      if (KEYS.includes(key)) continue
+      // `hasOwn` and not `in`, which takes `toString` for a key.
+      if (Object.hasOwn(KEYS, key)) continue
       found.refused.push({
         plugin: label,
-        reason: `\`${key}\` is not a key of a plugin, which are name, shell, preview and node`,
+        reason: `\`${key}\` is not a key of a plugin, which are ${KNOWN}`,
       })
     }
 
