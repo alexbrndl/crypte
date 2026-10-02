@@ -397,6 +397,60 @@ describe('the messages of a panel', () => {
   })
 })
 
+// Des primitives seulement, section 5.1 : une fonction partait jusqu'à
+// `postMessage`, et la preview restait vide au rechargement suivant. Audit à
+// froid du projet 1.3.
+describe('what a panel edits', () => {
+  const édite = (values: unknown) =>
+    defineComponent({
+      emits: ['overrides'],
+      setup(_, { emit }) {
+        return () => h('button', { onClick: () => emit('overrides', values) }, 'éditer')
+      },
+    })
+
+  test('passes on a plain copy of primitive values', async () => {
+    const valeurs = { label: 'Bonjour', count: 2, on: false, nothing: null }
+    const wrapper = monte(édite(valeurs), nue)
+
+    await wrapper.find('.body button').trigger('click')
+
+    const [[copie]] = wrapper.emitted('overrides') as [[unknown]]
+    expect(copie).toEqual(valeurs)
+    expect(copie).not.toBe(valeurs)
+  })
+
+  test.for([
+    ['a function', { label: () => 'fn' }, '`label` with a function'],
+    ['a number JSON loses', { count: Number.NaN }, '`count` with NaN'],
+    ['an undefined value', { label: undefined }, '`label` with undefined'],
+    ['an object', { style: { color: 'red' } }, '`style` with an Object'],
+    ['an array', { items: ['a'] }, '`items` with an array'],
+  ] as const)('refuses and names %s', async ([, values, said]) => {
+    const erreur = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const wrapper = monte(édite(values), nue)
+
+    await wrapper.find('.body button').trigger('click')
+
+    expect(wrapper.emitted('overrides')).toBeUndefined()
+    expect(erreur).toHaveBeenCalledWith(
+      `crypte: status: its panel edited ${said}, and the edit is dropped`,
+    )
+  })
+
+  test('refuses values that are not an object of them', async () => {
+    const erreur = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const wrapper = monte(édite(['Bonjour']), nue)
+
+    await wrapper.find('.body button').trigger('click')
+
+    expect(wrapper.emitted('overrides')).toBeUndefined()
+    expect(erreur).toHaveBeenCalledWith(
+      'crypte: status: its panel edited the story with an array, not an object of values, and the edit is dropped',
+    )
+  })
+})
+
 // Ce que le shell sait de la story affichée et que le panneau ne peut pas voir :
 // qu'elle n'a pas pu être rendue. Audit à froid du projet 1.3.
 describe('the render of the story on display', () => {

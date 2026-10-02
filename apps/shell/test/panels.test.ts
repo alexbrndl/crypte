@@ -251,3 +251,85 @@ describe('the list read again', () => {
     expect(échecs(wrapper)).toEqual([])
   })
 })
+
+// Deux panneaux qui éditent : remplacer à chaque émission effaçait l'édition de
+// l'autre. Fusionnées dans l'ordre de `plugins`, le dernier gagnant. Audit à
+// froid du projet 1.3.
+describe('what several panels edit', () => {
+  test('merges the values of every panel, the later one winning a prop both edit', async () => {
+    const wrapper = await monte([
+      { name: 'editeur', shell: module('editeur.ts') },
+      { name: 'ton', shell: module('ton.ts') },
+    ])
+
+    expect(wrapper.emitted('overrides')?.at(-1)).toEqual([{ label: 'du ton', tone: 'warning' }])
+  })
+
+  test('keeps the configuration order whatever panel edits last', async () => {
+    const wrapper = await monte([
+      { name: 'ton', shell: module('ton.ts') },
+      { name: 'editeur', shell: module('editeur.ts') },
+    ])
+
+    expect(wrapper.emitted('overrides')?.at(-1)).toEqual([{ tone: 'warning', label: 'édité' }])
+  })
+
+  // Le second panneau édite avant le premier : l'ordre est celui de `plugins`,
+  // pas celui des émissions.
+  test('merges in configuration order, not in the order panels edit', async () => {
+    const wrapper = await monte([
+      { name: 'a', shell: module('un.ts') },
+      { name: 'b', shell: module('deux.ts') },
+    ])
+    const frames = wrapper.findAllComponents({ name: 'PanelFrame' })
+
+    frames[1]?.vm.$emit('overrides', { label: 'de b' })
+    frames[0]?.vm.$emit('overrides', { label: 'de a' })
+
+    expect(wrapper.emitted('overrides')?.at(-1)).toEqual([{ label: 'de b' }])
+  })
+
+  // La même story relue, un objet neuf au même `id` après une édition de fichier,
+  // puis la liste relue au `ready` suivant : chaque panneau garde ses valeurs,
+  // comme le shell garde les siennes. Revue de la PR #118.
+  test('keeps what each panel edited when the same story is read again', async () => {
+    const wrapper = await monte([
+      { name: 'editeur', shell: module('editeur.ts') },
+      { name: 'ton', shell: module('ton.ts') },
+    ])
+    await wrapper.setProps({ entry: { id: 'x--meme' } as never })
+    const frames = wrapper.findAllComponents({ name: 'PanelFrame' })
+    frames[0]?.vm.$emit('overrides', { label: 'gardé' })
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        json: async () => ({
+          panels: [
+            { name: 'editeur', shell: module('editeur.ts') },
+            { name: 'ton', shell: module('ton.ts') },
+          ],
+          refused: [],
+        }),
+      })),
+    )
+    await wrapper.setProps({ entry: { id: 'x--meme' } as never, revision: 1 })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    frames[1]?.vm.$emit('overrides', { tone: 'calm' })
+
+    expect(wrapper.emitted('overrides')?.at(-1)).toEqual([{ label: 'gardé', tone: 'calm' }])
+  })
+
+  test('forgets what each panel edited when the story changes', async () => {
+    const wrapper = await monte([
+      { name: 'editeur', shell: module('editeur.ts') },
+      { name: 'ton', shell: module('ton.ts') },
+    ])
+    const frames = wrapper.findAllComponents({ name: 'PanelFrame' })
+    await wrapper.setProps({ entry: { id: 'x--autre' } as never })
+
+    frames[1]?.vm.$emit('overrides', { tone: 'calm' })
+
+    expect(wrapper.emitted('overrides')?.at(-1)).toEqual([{ tone: 'calm' }])
+  })
+})

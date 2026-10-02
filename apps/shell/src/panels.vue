@@ -37,6 +37,22 @@ const refused = shallowRef<{ plugin: string; reason: string }[]>([])
 
 const said = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
+// Ce que chaque panneau a édité, sous le nom de son plugin : le rendu les fusionne
+// dans l'ordre de `plugins`, le dernier gagnant sur une prop éditée par deux.
+// Remplacer à chaque émission effaçait l'édition de l'autre panneau. Mesuré.
+// Oublié avec la story, comme le shell oublie les valeurs.
+const edited = new Map<string, Overrides>()
+
+function edit(name: string, values: Overrides) {
+  edited.set(name, values)
+  emit('overrides', Object.assign({}, ...panels.value.map((one) => edited.get(one.name) ?? {})))
+}
+
+watch(
+  () => props.entry?.id,
+  () => edited.clear(),
+)
+
 // La dernière lecture lancée : une plus ancienne qui finirait après elle
 // rendrait une liste périmée.
 let reading = 0
@@ -116,7 +132,7 @@ watch(() => props.revision, load)
     :entry="entry"
     :received="Object.hasOwn(received, one.name) ? (received[one.name] ?? null) : null"
     :failed="failed"
-    @overrides="(values: Overrides) => emit('overrides', values)"
+    @overrides="(values: Overrides) => edit(one.name, values)"
     @send="(message: PanelMessage) => emit('send', message)"
   />
 </template>
