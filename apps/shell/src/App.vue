@@ -257,6 +257,7 @@ onMounted(() => {
       <Panels
         :entry="displayed"
         :received="received"
+        :failed="failure?.message ?? null"
         :errors="pluginErrors"
         @overrides="edit"
         @send="sendToPreview"

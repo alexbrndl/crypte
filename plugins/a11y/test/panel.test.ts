@@ -36,8 +36,11 @@ const resultats = (id: string, violations: Violation[], passes = 12): Results =>
   violations,
 })
 
-const monte = (story: StoryEntry | null, received: Results | null = null) =>
-  mount(Panel, { props: { entry: story, received } })
+const monte = (
+  story: StoryEntry | null,
+  received: Results | null = null,
+  failed: string | null = null,
+) => mount(Panel, { props: { entry: story, received, failed } })
 
 const derniere = (wrapper: ReturnType<typeof monte>) => wrapper.emitted('inapplicable')?.at(-1)?.[0]
 
@@ -101,6 +104,26 @@ describe('when the panel folds', () => {
     expect(derniere(monte(entry('x--a'), resultats('x--a', [], 0)))).toBe(
       'aucune règle automatique ne s’applique à ce rendu',
     )
+  })
+
+  // Pas de rendu, donc pas d'analyse : l'attente ne finissait jamais. Audit à
+  // froid du projet 1.3.
+  it('folds on a story that could not be rendered', () => {
+    expect(derniere(monte(entry('x--a'), null, 'Boom'))).toBe('la story n’a pas pu être rendue')
+    expect(derniere(monte(entry('x--a'), null, ''))).toBe('la story n’a pas pu être rendue')
+  })
+
+  // `failed` est facultatif : un shell qui ne le passe pas ne replie pas tout.
+  // Revue de la PR #116.
+  it('folds on nothing when the shell says nothing of the render', () => {
+    const wrapper = mount(Panel, {
+      props: {
+        entry: entry('x--a'),
+        received: resultats('x--a', [violation('image-alt', 'critical')]),
+      },
+    })
+
+    expect(derniere(wrapper)).toBeNull()
   })
 
   it('folds with no story on display', () => {

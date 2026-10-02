@@ -100,8 +100,12 @@ export interface PluginHost {
 // Where the plugins' hooks are called. Nothing a plugin does costs a story: a
 // module that does not load, one that exports no hooks, a hook that throws,
 // each is refused, said in the console, and sent to the shell as `plugin-error`.
+//
+// A module may still be loading: the entry hands it over unsettled, since a
+// module that never finished kept every story back, measured. It attaches when
+// it arrives, at its place in the configuration.
 export function createPluginHost(
-  loaded: LoadedPlugin[],
+  loaded: (LoadedPlugin | Promise<LoadedPlugin>)[],
   send: (message: PreviewMessage) => void,
 ): PluginHost {
   const said = (plugin: string, message: string) => {
@@ -109,26 +113,8 @@ export function createPluginHost(
     send({ type: 'plugin-error', plugin, message })
   }
 
-  const plugins: { name: string; hooks: PreviewHooks }[] = []
-
-  for (const one of loaded) {
-    if ('error' in one) {
-      said(one.name, `its preview module could not load: ${text(one.error)}`)
-      continue
-    }
-
-    // Read inside a `try`: a getter on the export can throw, and the host
-    // throwing here would take the whole entry down with it.
-    let hooks: PreviewHooks | string
-    try {
-      hooks = hooksOf(one.module)
-    } catch (error) {
-      hooks = `its preview module could not be read: ${text(error)}`
-    }
-
-    if (typeof hooks === 'string') said(one.name, hooks)
-    else plugins.push({ name: one.name, hooks })
-  }
+  // By place in `plugins`, holes for what is still loading or was refused.
+  const plugins: ({ name: string; hooks: PreviewHooks } | undefined)[] = []
 
   // The story last drawn, which a message is answered against.
   let last: Omit<PreviewContext, 'send'> | undefined
@@ -161,19 +147,61 @@ export function createPluginHost(
     }
   }
 
+  const accept = (at: number, one: LoadedPlugin) => {
+    if ('error' in one)
+      return said(one.name, `its preview module could not load: ${text(one.error)}`)
+
+    // Read inside a `try`: a getter on the export can throw, and the host
+    // throwing here would take the whole entry down with it.
+    let hooks: PreviewHooks | string
+    try {
+      hooks = hooksOf(one.module)
+    } catch (error) {
+      hooks = `its preview module could not be read: ${text(error)}`
+    }
+
+    if (typeof hooks === 'string') return said(one.name, hooks)
+    plugins[at] = { name: one.name, hooks }
+
+    // Arrived after a render: the story last drawn is not drawn again for it.
+    const { afterMount } = hooks
+    const story = last
+    if (afterMount && story)
+      call(one.name, 'afterMount', () => afterMount(contextOf(one.name, story)))
+  }
+
+  // How many modules have not arrived: a message for one of them is dropped,
+  // and the console says why rather than that no hook receives it.
+  let loading = 0
+
+  loaded.forEach((one, at) => {
+    if (!(one instanceof Promise)) return accept(at, one)
+    loading += 1
+    void one.then((settled) => {
+      loading -= 1
+      accept(at, settled)
+    })
+  })
+
   return {
     mounted(story) {
       last = story
-      for (const { name, hooks } of plugins) {
-        const { afterMount } = hooks
-        if (afterMount) call(name, 'afterMount', () => afterMount(contextOf(name, story)))
+      for (const one of plugins) {
+        const afterMount = one?.hooks.afterMount
+        if (one && afterMount)
+          call(one.name, 'afterMount', () => afterMount(contextOf(one.name, story)))
       }
     },
     received(message) {
       const name = message.type.slice(0, message.type.indexOf(':'))
-      const onMessage = plugins.find((one) => one.name === name)?.hooks.onMessage
+      const onMessage = plugins.find((one) => one?.name === name)?.hooks.onMessage
 
-      if (!onMessage) return console.error(`crypte: no preview hook receives \`${message.type}\``)
+      if (!onMessage)
+        return console.error(
+          loading > 0
+            ? `crypte: \`${message.type}\` arrived while a preview module was still loading, and is dropped`
+            : `crypte: no preview hook receives \`${message.type}\``,
+        )
       if (!last)
         return console.error(`crypte: \`${message.type}\` arrived before any story rendered`)
 
@@ -188,6 +216,13 @@ export function createPluginHost(
 // left undefined, which the type allows for an optional hook.
 function hooksOf(module: unknown): PreviewHooks | string {
   const hooks: unknown = (module as { default?: unknown } | null)?.default
+
+  // Anything exported by name, a hook the preview calls or one of section 7's
+  // reserve: never read, so never called, without a word.
+  for (const key of typeof module === 'object' && module !== null ? Object.keys(module) : []) {
+    if (key !== 'default')
+      return `\`${key}\` is exported by name, and the preview reads only the default export`
+  }
 
   if (typeof hooks !== 'object' || hooks === null || Array.isArray(hooks))
     return 'its preview module exports no object of hooks by default'

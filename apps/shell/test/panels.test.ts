@@ -22,7 +22,7 @@ const monte = async (liste: unknown, refused: unknown[] = []): Promise<VueWrappe
     }),
   )
 
-  const wrapper = mount(Panels, { props: { entry: null, received: {}, errors: [] } })
+  const wrapper = mount(Panels, { props: { entry: null, received: {}, errors: [], failed: null } })
 
   // L'import d'un module prend plus d'un tour de microtâches : attendu jusqu'à
   // ce que la zone ait rendu un panneau ou un échec.
@@ -109,7 +109,12 @@ describe('what a panel is refused', () => {
       vi.fn(async () => ({ json: async () => ({ panels: [], refused: [] }) }) as Response),
     )
     const wrapper = mount(Panels, {
-      props: { entry: null, received: {}, errors: [{ plugin: 'a11y', message: 'boum' }] },
+      props: {
+        entry: null,
+        received: {},
+        errors: [{ plugin: 'a11y', message: 'boum' }],
+        failed: null,
+      },
     })
 
     expect(échecs(wrapper)).toEqual(['a11y dans la preview : boum'])
@@ -128,7 +133,9 @@ describe('what a panel is refused', () => {
       ],
     )
 
-    expect(montés(wrapper)).toEqual(['a=un'])
+    // Les refus s'affichent avant que les modules finissent de charger : sans
+    // cette attente, le cas lisait les panneaux trop tôt sous couverture.
+    await vi.waitFor(() => expect(montés(wrapper)).toEqual(['a=un']))
     expect(échecs(wrapper)).toEqual([
       'Refusé chez b : `toolbar` is not a key of a plugin, which are name, shell, preview and node',
       'Refusé chez plugins[2] : a plugin with a browser surface needs a `name`',

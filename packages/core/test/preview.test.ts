@@ -372,7 +372,8 @@ describe('the plugin host', () => {
     vi.restoreAllMocks()
   })
 
-  const hôte = (...loaded: LoadedPlugin[]) => createPluginHost(loaded, send)
+  const hôte = (...loaded: (LoadedPlugin | Promise<LoadedPlugin>)[]) =>
+    createPluginHost(loaded, send)
 
   describe('what it refuses', () => {
     it.for([
@@ -417,6 +418,25 @@ describe('the plugin host', () => {
         { name: 'a', module: { default: { afterMount: 1 } } },
         '`afterMount` is not a function',
       ],
+      // Exporté par nom, il n'était jamais lu, donc jamais appelé, sans un mot.
+      // Audit à froid du projet 1.3.
+      [
+        'a hook exported by name beside the default export',
+        { name: 'a', module: { default: {}, afterMount: () => {} } },
+        '`afterMount` is exported by name, and the preview reads only the default export',
+      ],
+      // Un hook de la réserve, le premier qu'un auteur écrira (6.4). Revue de la
+      // PR #116.
+      [
+        'a reserve hook exported by name',
+        { name: 'a', module: { default: {}, beforeMount: () => {} } },
+        '`beforeMount` is exported by name, and the preview reads only the default export',
+      ],
+      [
+        'a hook exported by name with no default export',
+        { name: 'a', module: { onMessage: () => {} } },
+        '`onMessage` is exported by name, and the preview reads only the default export',
+      ],
     ] as const)('refuses %s', ([, loaded, message]) => {
       hôte(loaded as LoadedPlugin).mounted(story)
 
@@ -454,6 +474,100 @@ describe('the plugin host', () => {
       hôte({ name: 'a', module: { default: {} } }).mounted(story)
 
       expect(envoyés).toEqual([])
+    })
+  })
+
+  // La preview n'attend plus les modules de plugin : un module qui ne finissait
+  // jamais de charger retenait toutes les stories. Audit à froid du projet 1.3.
+  describe('a module still loading', () => {
+    const tenu = () => {
+      let rendre: (one: LoadedPlugin) => void = () => {}
+      const promesse = new Promise<LoadedPlugin>((ok) => (rendre = ok))
+      return { promesse, rendre }
+    }
+
+    it('catches up on the story on display when it arrives after a render', async () => {
+      const vus: string[] = []
+      const { promesse, rendre } = tenu()
+      const host = hôte(promesse)
+
+      host.mounted(story)
+      expect(vus).toEqual([])
+
+      rendre({
+        name: 'a',
+        module: { default: { afterMount: (ctx: PreviewContext) => void vus.push(ctx.id) } },
+      })
+      await promesse
+
+      expect(vus).toEqual(['badge--defaut'])
+    })
+
+    it('lets the others run while one never finishes loading', () => {
+      const vus: string[] = []
+      const host = hôte(new Promise<LoadedPlugin>(() => {}), {
+        name: 'b',
+        module: { default: { afterMount: () => void vus.push('b') } },
+      })
+
+      host.mounted(story)
+
+      expect(vus).toEqual(['b'])
+      expect(envoyés).toEqual([])
+    })
+
+    it('runs at its place in the configuration once it has arrived', async () => {
+      const vus: string[] = []
+      const { promesse, rendre } = tenu()
+      const host = hôte(promesse, {
+        name: 'b',
+        module: { default: { afterMount: () => void vus.push('b') } },
+      })
+
+      rendre({ name: 'a', module: { default: { afterMount: () => void vus.push('a') } } })
+      await promesse
+      host.mounted(story)
+
+      expect(vus).toEqual(['a', 'b'])
+    })
+
+    // La fenêtre n'existait pas quand `ready` partait après tous les modules :
+    // le message est perdu, et la console le disait sans hook. Revue de la PR #116.
+    it('says a message arrived while a module was still loading', () => {
+      const erreur = vi.mocked(console.error)
+      const host = hôte(new Promise<LoadedPlugin>(() => {}))
+
+      host.mounted(story)
+      host.received({ type: 'a:run' })
+
+      expect(erreur.mock.calls.at(-1)).toEqual([
+        'crypte: `a:run` arrived while a preview module was still loading, and is dropped',
+      ])
+    })
+
+    // L'autre moitié : arrivé sans `onMessage`, le module ne charge plus, et la
+    // console redit qu'aucun hook ne reçoit le message. Revue de la PR #116.
+    it('says no hook receives a message once the module has arrived without one', async () => {
+      const erreur = vi.mocked(console.error)
+      const { promesse, rendre } = tenu()
+      const host = hôte(promesse)
+
+      rendre({ name: 'a', module: { default: {} } })
+      await promesse
+      host.mounted(story)
+      host.received({ type: 'a:run' })
+
+      expect(erreur.mock.calls.at(-1)).toEqual(['crypte: no preview hook receives `a:run`'])
+    })
+
+    it('refuses a module that arrives broken, like one already loaded', async () => {
+      const { promesse, rendre } = tenu()
+      hôte(promesse)
+
+      rendre({ name: 'a', error: new Error('boum') })
+      await promesse
+
+      expect(envoyés).toEqual([refus('a', 'its preview module could not load: boum')])
     })
   })
 

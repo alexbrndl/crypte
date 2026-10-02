@@ -16,6 +16,7 @@ const props = defineProps<{
   // Le dernier message que la partie preview de ce plugin a envoyé.
   // `null` tant que sa partie preview n'a rien dit, comme `PanelProps` le promet.
   received: PanelMessage | null
+  failed: string | null
 }>()
 
 // Ce qu'un panneau a édité, que le shell envoie dans `render`, et ce qu'il
@@ -172,6 +173,7 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
         :is="panel"
         :entry="entry"
         :received="received"
+        :failed="failed"
         @inapplicable="declare"
         @overrides="(values: Overrides) => emit('overrides', values)"
         @send="send"

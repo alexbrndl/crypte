@@ -25,6 +25,9 @@ export type ShellContribution = unknown
 export interface PanelProps {
   entry: StoryEntry | null
   received: { type: string; [key: string]: unknown } | null
+  // Why the story on display could not be rendered, or `null`. A panel waiting
+  // for that render, `a11y`'s analysis, otherwise waited for ever.
+  failed?: string | null
 }
 
 // What a panel may emit, section 6.1, in the form `defineEmits` takes. A panel

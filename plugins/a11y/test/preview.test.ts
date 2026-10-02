@@ -17,12 +17,6 @@ const contexte = (html: string, id = 'x--defaut') => {
   return { ctx, envoyes }
 }
 
-// Pour les espions : le même axe que celui que les hooks chargent.
-const axe = async () => {
-  await import('axe-core/axe.min.js')
-  return window.axe
-}
-
 afterEach(() => {
   document.body.replaceChildren()
   vi.restoreAllMocks()
@@ -65,7 +59,7 @@ describe('an analysis', () => {
   // Le type d'axe permet une violation sans gravité : elle reste montrée, au
   // plus bas plutôt que perdue.
   it('files a violation without impact as minor', async () => {
-    vi.spyOn(await axe(), 'run').mockResolvedValueOnce({
+    vi.spyOn(window.axe, 'run').mockResolvedValueOnce({
       passes: [],
       violations: [
         { id: 'regle', impact: null, help: 'aide', helpUrl: 'u', nodes: [{ target: ['div'] }] },
@@ -131,7 +125,7 @@ describe('two analyses at once', () => {
 
   // Rejetée, pour que le shell nomme l'échec, et sans bloquer la suivante.
   it('rejects a failed analysis and goes on with the next', async () => {
-    vi.spyOn(await axe(), 'run').mockRejectedValueOnce(new Error('axe a cassé'))
+    vi.spyOn(window.axe, 'run').mockRejectedValueOnce(new Error('axe a cassé'))
     const casse = contexte('<p>un</p>')
     const suivante = contexte('<p>deux</p>')
 
