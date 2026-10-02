@@ -1,6 +1,12 @@
 // What a project writes in `crypte.config.ts`. See section 1.5 of docs/contracts.md.
 
-import type { CryptePlugin } from '@crypte/core/protocol'
+import type {
+  CryptePlugin,
+  PanelEvents,
+  PanelProps,
+  PreviewContext,
+  PreviewHooks,
+} from '@crypte/core/protocol'
 import type { PluginOption } from 'vite'
 
 export interface CrypteConfig {
@@ -31,4 +37,6 @@ export type GlobalWrap = unknown
 
 // Re-exported rather than redeclared: the plugin contract spans the three
 // surfaces, so it lives in the protocol and not in one consumer's config.
-export type { CryptePlugin }
+// Here because a project installs this package and not the core, which it
+// cannot import: a plugin of its own types its panel and hooks from here.
+export type { CryptePlugin, PanelProps, PanelEvents, PreviewHooks, PreviewContext }
