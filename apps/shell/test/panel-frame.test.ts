@@ -201,6 +201,34 @@ describe('whether a panel is open', () => {
     expect(état(wrapper).ouvert).toBe('false')
   })
 
+  // Replié, il s'ouvre quand même : la relance de `a11y` vit dans son corps, et
+  // un menu ouvert dans l'iframe ne déclenche aucun rendu. DCJ-327.
+  test('opens a folded panel on a click, its reason kept', async () => {
+    const wrapper = monte(statut, nue)
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('.head button').trigger('click')
+    expect(état(wrapper)).toEqual({ ouvert: 'true', raison: 'aucun statut déclaré', corps: true })
+
+    await wrapper.find('.head button').trigger('click')
+    expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'aucun statut déclaré', corps: false })
+  })
+
+  // Pour la story affichée seulement, et rien n'est retenu : la décision du
+  // panneau reprend à la suivante, et le choix de l'utilisateur ne bouge pas.
+  test('folds again at the next story, and remembers nothing of it', async () => {
+    const wrapper = monte(statut, nue)
+    await wrapper.vm.$nextTick()
+    await wrapper.find('.head button').trigger('click')
+
+    await wrapper.setProps({ entry: autre })
+    expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'aucun statut déclaré', corps: false })
+    expect(localStorage.getItem('crypte:panel:status')).toBeNull()
+
+    await wrapper.setProps({ entry: brouillon })
+    expect(état(wrapper)).toEqual({ ouvert: 'true', raison: null, corps: true })
+  })
+
   // Les deux états se croisent : fermé par l'utilisateur, puis sans objet, puis
   // de nouveau quelque chose à dire. Le choix de l'utilisateur tient.
   test('stays closed through a story with nothing to say', async () => {

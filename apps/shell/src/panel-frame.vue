@@ -90,7 +90,18 @@ const read = () => {
 
 const open = ref(read())
 
+// Un panneau replié s'ouvre quand même au clic, sa raison gardée en tête : ce
+// qu'il offre une fois replié reste joignable, la relance de `a11y` après un
+// menu ouvert dans l'iframe, sans rendu. Pour la story affichée seulement, et
+// sans rien retenir : la décision du panneau reprend à la suivante.
+const unfolded = ref(false)
+
 function toggle() {
+  if (inapplicable.value !== null) {
+    unfolded.value = !unfolded.value
+    return
+  }
+
   open.value = !open.value
   try {
     if (open.value) localStorage.removeItem(KEY)
@@ -124,6 +135,7 @@ watch(
   () => props.entry,
   () => {
     inapplicable.value = null
+    unfolded.value = false
     failure.value = null
   },
 )
@@ -133,18 +145,15 @@ onErrorCaptured((error) => {
   return false
 })
 
-const shown = computed(() => open.value && inapplicable.value === null && failure.value === null)
+const shown = computed(
+  () => failure.value === null && (inapplicable.value === null ? open.value : unfolded.value),
+)
 </script>
 
 <template>
   <section class="panel" :data-plugin="name">
     <div class="head">
-      <button
-        type="button"
-        :aria-expanded="shown"
-        :disabled="inapplicable !== null"
-        @click="toggle"
-      >
+      <button type="button" :aria-expanded="shown" @click="toggle">
         {{ name }}
       </button>
       <span v-if="inapplicable !== null" class="inapplicable">{{ inapplicable }}</span>
@@ -183,11 +192,6 @@ const shown = computed(() => open.value && inapplicable.value === null && failur
   padding: 0;
   font-weight: 600;
   cursor: pointer;
-}
-
-.head button:disabled {
-  cursor: default;
-  color: inherit;
 }
 
 .inapplicable {

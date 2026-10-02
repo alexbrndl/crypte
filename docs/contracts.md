@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.23, reference document. A project brief points here instead of restating these shapes.
+> Version 1.24, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -762,7 +762,7 @@ The shell module exports a `ShellContribution` by default, the preview module a 
 
 **A surface that points nowhere is refused, with its reason**, the way 6.3 refuses a contribution: a pointer that is not a `file:` URL, or one that leads to no file. So are the browser surfaces of a plugin with no `name`, with a name an earlier plugin already has, or with a name that holds a colon, which ends the prefix of its messages (5.4): the shell keys a panel by its plugin's name. A module that throws on import costs nothing else. The shell names it, or a shell module whose default export is neither an object nor a function, and shows the other panels; the preview renders its stories and names the module in the frame's console.
 
-**A `ShellContribution` is a Vue component, which the shell mounts in a frame**, one per plugin, in the order `plugins` declares them. It receives the story on display as its `entry` prop, a `StoryEntry` or `null`. A panel with nothing to say about that story emits `inapplicable` with its reason, and the frame folds to one line holding it: no empty panel, no greyed one.
+**A `ShellContribution` is a Vue component, which the shell mounts in a frame**, one per plugin, in the order `plugins` declares them. It receives the story on display as its `entry` prop, a `StoryEntry` or `null`. A panel with nothing to say about that story emits `inapplicable` with its reason, and the frame folds to one line holding it: no empty panel, no greyed one. A click still opens it for that story, the reason kept above, so what a panel offers once folded stays within reach: `a11y` analyses again what changed in the iframe without a render, a menu opened by hand.
 
 ```ts
 import { watchEffect } from 'vue'
@@ -952,6 +952,12 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.24.** A folded panel opens on a click (6.1).
+
+| Before | After |
+| --- | --- |
+| a panel folded by `inapplicable` could not be opened | a click opens it for the story on display, its reason kept above |
 
 **v1.23.** `@crypte/a11y`, the second plugin 6.5 waits for, and what it asked of the contract (6.1, 6.2).
 
