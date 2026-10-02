@@ -251,3 +251,54 @@ describe('the list read again', () => {
     expect(échecs(wrapper)).toEqual([])
   })
 })
+
+// Deux panneaux qui éditent : remplacer à chaque émission effaçait l'édition de
+// l'autre. Fusionnées dans l'ordre de `plugins`, le dernier gagnant. Audit à
+// froid du projet 1.3.
+describe('what several panels edit', () => {
+  test('merges the values of every panel, the later one winning a prop both edit', async () => {
+    const wrapper = await monte([
+      { name: 'editeur', shell: module('editeur.ts') },
+      { name: 'ton', shell: module('ton.ts') },
+    ])
+
+    expect(wrapper.emitted('overrides')?.at(-1)).toEqual([{ label: 'du ton', tone: 'warning' }])
+  })
+
+  test('keeps the configuration order whatever panel edits last', async () => {
+    const wrapper = await monte([
+      { name: 'ton', shell: module('ton.ts') },
+      { name: 'editeur', shell: module('editeur.ts') },
+    ])
+
+    expect(wrapper.emitted('overrides')?.at(-1)).toEqual([{ tone: 'warning', label: 'édité' }])
+  })
+
+  // Le second panneau édite avant le premier : l'ordre est celui de `plugins`,
+  // pas celui des émissions.
+  test('merges in configuration order, not in the order panels edit', async () => {
+    const wrapper = await monte([
+      { name: 'a', shell: module('un.ts') },
+      { name: 'b', shell: module('deux.ts') },
+    ])
+    const frames = wrapper.findAllComponents({ name: 'PanelFrame' })
+
+    frames[1]?.vm.$emit('overrides', { label: 'de b' })
+    frames[0]?.vm.$emit('overrides', { label: 'de a' })
+
+    expect(wrapper.emitted('overrides')?.at(-1)).toEqual([{ label: 'de b' }])
+  })
+
+  test('forgets what each panel edited when the story changes', async () => {
+    const wrapper = await monte([
+      { name: 'editeur', shell: module('editeur.ts') },
+      { name: 'ton', shell: module('ton.ts') },
+    ])
+    const frames = wrapper.findAllComponents({ name: 'PanelFrame' })
+    await wrapper.setProps({ entry: { id: 'x--autre' } as never })
+
+    frames[1]?.vm.$emit('overrides', { tone: 'calm' })
+
+    expect(wrapper.emitted('overrides')?.at(-1)).toEqual([{ tone: 'calm' }])
+  })
+})

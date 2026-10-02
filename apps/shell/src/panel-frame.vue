@@ -51,6 +51,41 @@ function send(message: unknown) {
   emit('send', copy)
 }
 
+// Ce qu'un panneau édite, des primitives seulement, section 5.1 : une fonction
+// partait jusqu'à `postMessage`, qui levait sans nommer personne, et la preview
+// restait vide au rechargement suivant. Mesuré. Refusée ici avec le plugin et
+// la prop, et l'édition entière laissée de côté.
+function edit(values: unknown) {
+  const plain =
+    typeof values === 'object' &&
+    values !== null &&
+    Object.getPrototypeOf(values) === Object.prototype
+
+  if (!plain) {
+    console.error(
+      `crypte: ${props.name}: its panel edited the story with ${described(values)}, not an object of values, and the edit is dropped`,
+    )
+    return
+  }
+
+  for (const [key, value] of Object.entries(values)) {
+    const primitive =
+      value === null ||
+      typeof value === 'string' ||
+      typeof value === 'boolean' ||
+      (typeof value === 'number' && Number.isFinite(value))
+
+    if (!primitive) {
+      console.error(
+        `crypte: ${props.name}: its panel edited \`${key}\` with ${described(value)}, and the edit is dropped`,
+      )
+      return
+    }
+  }
+
+  emit('overrides', { ...(values as Overrides) })
+}
+
 // Ce que JSON rend tel quel : `null`, un booléen, un nombre fini, une chaîne,
 // un tableau ou un objet simple. Lu sur la valeur d'origine, `this[key]`, avant
 // qu'un `toJSON` ne change une `Date` en chaîne.
@@ -64,17 +99,21 @@ function faithful(this: Record<string, unknown>, key: string, value: unknown): u
     Array.isArray(raw) ||
     (typeof raw === 'object' && Object.getPrototypeOf(raw) === Object.prototype)
 
-  if (!plain) {
-    const what =
-      typeof raw === 'object'
-        ? `a ${(raw as object).constructor?.name ?? 'object'}`
-        : typeof raw === 'number' || raw === undefined
-          ? String(raw)
-          : `a ${typeof raw}`
-    throw new Error(`\`${key}\` is ${what}`)
-  }
+  if (!plain) throw new Error(`\`${key}\` is ${described(raw)}`)
 
   return value
+}
+
+// Une valeur refusée, dite telle qu'un auteur la reconnaît : `a Map`, `a
+// function`, `NaN`.
+function described(raw: unknown): string {
+  if (Array.isArray(raw)) return 'an array'
+  if (typeof raw === 'object' && raw !== null) {
+    const name = raw.constructor?.name ?? 'object'
+    return `${/^[AEIOU]/i.test(name) ? 'an' : 'a'} ${name}`
+  }
+  if (typeof raw === 'number' || raw === undefined || raw === null) return String(raw)
+  return `a ${typeof raw}`
 }
 
 // Ouvert par défaut, retenu par le shell sous le nom du plugin, jamais par le
@@ -175,7 +214,7 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
         :received="received"
         :failed="failed"
         @inapplicable="declare"
-        @overrides="(values: Overrides) => emit('overrides', values)"
+        @overrides="edit"
         @send="send"
       />
     </div>
