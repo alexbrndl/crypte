@@ -437,6 +437,19 @@ describe('the plugin host', () => {
       expect(envoyés).toEqual([refus('a', 'its preview module could not be read: accesseur')])
     })
 
+    // Le type `PreviewHooks` permet un hook laissé `undefined` : l'hôte refusait
+    // alors tout le module, `afterMount` compris. Audit à froid du projet 1.3.
+    it('accepts a hook left undefined, and calls the others', () => {
+      const vus: string[] = []
+      hôte({
+        name: 'a',
+        module: { default: { afterMount: () => void vus.push('a'), onMessage: undefined } },
+      }).mounted(story)
+
+      expect(envoyés).toEqual([])
+      expect(vus).toEqual(['a'])
+    })
+
     it('accepts a module that exports an empty object of hooks', () => {
       hôte({ name: 'a', module: { default: {} } }).mounted(story)
 
