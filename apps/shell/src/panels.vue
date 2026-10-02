@@ -96,7 +96,7 @@ onMounted(async () => {
     :name="one.name"
     :panel="one.panel"
     :entry="entry"
-    :received="received[one.name] ?? null"
+    :received="Object.hasOwn(received, one.name) ? (received[one.name] ?? null) : null"
     @overrides="(values: Overrides) => emit('overrides', values)"
     @send="(message: PanelMessage) => emit('send', message)"
   />

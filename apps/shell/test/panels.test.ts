@@ -59,9 +59,13 @@ describe('the plugin panels', () => {
   // shell passait `undefined`, et un panneau qui suivait le type levait au
   // montage. Revue de la PR #113.
   test('hands a panel null until its preview module has said something', async () => {
-    const wrapper = await monte([{ name: 'a', shell: module('attente.ts') }])
+    const wrapper = await monte([
+      { name: 'a', shell: module('attente.ts') },
+      // Un nom qu'un objet hérite : `received[name]` rendait une fonction.
+      { name: 'constructor', shell: module('attente.ts') },
+    ])
 
-    expect(montés(wrapper)).toEqual(['a=null'])
+    expect(montés(wrapper)).toEqual(['a=null', 'constructor=null'])
   })
 
   // Ce qu'un panneau envoie à sa partie preview remonte, par son cadre qui en

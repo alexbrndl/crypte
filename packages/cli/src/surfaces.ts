@@ -41,6 +41,18 @@ export function surfacesOf(project: Project): Surfaces {
   const taken = new Set<string>()
 
   for (const [at, plugin] of (project.config.plugins ?? []).entries()) {
+    // `plugins: [controls]`, the factory itself: it compiles, since a function
+    // has a `name`, and has nothing else to read, so it did nothing without a
+    // word. Measured.
+    if (typeof plugin === 'function') {
+      const factory = (plugin as { name: string }).name || 'the factory'
+      found.refused.push({
+        plugin: `plugins[${at}]`,
+        reason: `a function, not a plugin: call it, \`${factory}()\``,
+      })
+      continue
+    }
+
     const name: unknown = plugin?.name
     const browser = plugin?.shell !== undefined || plugin?.preview !== undefined
 

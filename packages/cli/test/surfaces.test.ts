@@ -247,6 +247,25 @@ describe('what a surface is refused', () => {
     })
   })
 
+  // `plugins: [controls]`, la fabrique elle-même : elle compile, une fonction a
+  // un `name`, et ne faisait rien sans un mot. Audit à froid du projet 1.3.
+  it('refuses a factory passed without being called', () => {
+    function controls(): CryptePlugin {
+      return { name: 'controls', shell: url('shell.mjs') }
+    }
+
+    expect(
+      avec(controls as unknown as CryptePlugin, (() => ({})) as unknown as CryptePlugin),
+    ).toEqual({
+      shell: [],
+      preview: [],
+      refused: [
+        { plugin: 'plugins[0]', reason: 'a function, not a plugin: call it, `controls()`' },
+        { plugin: 'plugins[1]', reason: 'a function, not a plugin: call it, `the factory()`' },
+      ],
+    })
+  })
+
   // Une clé qu'un objet hérite, que `in` aurait prise pour une clé de plugin.
   it('refuses a key every object inherits', () => {
     expect(avec({ name: 'p', toString: 'x' } as unknown as CryptePlugin).refused).toEqual([

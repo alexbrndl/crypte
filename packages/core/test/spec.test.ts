@@ -47,11 +47,24 @@ const NOT_OURS = new Set(['ControlSpec', 'PropsOf', 'StoryModule'])
 const BLOCKS = /```[\s\S]*?```/g
 const normativeBlocks = normative.match(BLOCKS) ?? []
 
+// Le corps entre l'accolade ouvrante à `from` et celle qui la ferme. Compter
+// les accolades et non s'arrêter à la première fermante : les interfaces de la
+// section 6 portent un objet en ligne, et un champ ajouté après lui passait
+// inaperçu des deux côtés. Audit à froid du projet 1.3.
+function braced(text: string, from: number): string {
+  let depth = 0
+  for (let at = from; at < text.length; at += 1) {
+    if (text[at] === '{') depth += 1
+    else if (text[at] === '}' && (depth -= 1) === 0) return text.slice(from + 1, at)
+  }
+  return text.slice(from + 1)
+}
+
 // Le corps d'une interface dans un bloc de documentation, ou rien si le bloc ne
-// la déclare pas. `[^}]*` s'arrête à la première accolade fermante : un champ
-// écrit après un objet inline serait annoncé absent, ce qui se voit.
+// la déclare pas.
 function bodyOf(block: string, name: string): string | undefined {
-  return block.match(new RegExp(`interface\\s+${name}\\b[^{]*\\{([^}]*)\\}`))?.[1]
+  const found = new RegExp(`interface\\s+${name}\\b[^{]*\\{`).exec(block)
+  return found ? braced(block, found.index + found[0].length - 1) : undefined
 }
 
 // Une interface exportée et ses champs, `send(ctx): void` compris.
@@ -60,9 +73,11 @@ function declaredInterfaces(): { name: string; fields: string[] }[] {
     .filter((file) => file.endsWith('.ts') && file !== 'index.ts')
     .flatMap((file) => {
       const source = readFileSync(join(protocol, file), 'utf8')
-      return [...source.matchAll(/^export interface (\w+)[^{]*\{([^}]*)\}/gm)].map((match) => ({
+      return [...source.matchAll(/^export interface (\w+)[^{]*\{/gm)].map((match) => ({
         name: match[1] as string,
-        fields: [...(match[2] ?? '').matchAll(/^\s{2}(\w+)\??[:(]/gm)].map((f) => f[1] as string),
+        fields: [
+          ...braced(source, match.index + match[0].length - 1).matchAll(/^\s{2}(\w+)\??[:(]/gm),
+        ].map((f) => f[1] as string),
       }))
     })
 }

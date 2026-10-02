@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.25, reference document. A project brief points here instead of restating these shapes.
+> Version 1.26, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -760,7 +760,7 @@ The shell module exports a `ShellContribution` by default, the preview module a 
 
 **A preview module goes through the project's Vite**, like a story file, so it imports what it needs. Once the plugin is installed, Vite pre-bundles nothing it imports: a CommonJS dependency has no default export there. `@crypte/a11y` imports axe-core's script for its side effect, which sets `window.axe`. **A shell module is served as is, never compiled**, since the shell is prebuilt. Its one bare import is `vue`, which the shell provides through an import map, so every panel runs on the shell's own Vue. That Vue carries its template compiler: a module written by hand may use `template` rather than `h()`. A plugin declares `vue` as a peer dependency and keeps it out of its bundle: a panel running on a second copy never redraws its own state, and nothing warns.
 
-**A surface that points nowhere is refused, with its reason**, the way 6.3 refuses a contribution: a pointer that is not a `file:` URL, or one that leads to no file. So are the browser surfaces of a plugin with no `name`, with a name an earlier plugin already has, or with a name that holds a colon, which ends the prefix of its messages (5.4): the shell keys a panel by its plugin's name. So is a key other than `name`, `shell`, `preview` and `node`, `toolbar` or the old `ui`: a plugin is installed compiled, and nothing else would say the key is ignored. Each refusal is said in the terminal, and in the shell beside the panels. A module that throws on import costs nothing else. The shell names it, or a shell module whose default export is neither an object nor a function, and shows the other panels; the preview renders its stories and names the module in the frame's console.
+**A surface that points nowhere is refused, with its reason**, the way 6.3 refuses a contribution: a pointer that is not a `file:` URL, or one that leads to no file. So are the browser surfaces of a plugin with no `name`, with a name an earlier plugin already has, or with a name that holds a colon, which ends the prefix of its messages (5.4): the shell keys a panel by its plugin's name. So is a key other than `name`, `shell`, `preview` and `node`, `toolbar` or the old `ui`: a plugin is installed compiled, and nothing else would say the key is ignored. So is a function, the factory written `plugins: [controls]` rather than called: it compiles, since a function has a `name`. Each refusal is said in the terminal, and in the shell beside the panels. A module that throws on import costs nothing else. The shell names it, or a shell module whose default export is neither an object nor a function, and shows the other panels; the preview renders its stories and names the module in the frame's console.
 
 **A `ShellContribution` is a Vue component, which the shell mounts in a frame**, one per plugin, in the order `plugins` declares them. It receives the story on display as its `entry` prop, a `StoryEntry` or `null`. A panel with nothing to say about that story emits `inapplicable` with its reason, and the frame folds to one line holding it, rather than showing an empty panel or a greyed one. A click still opens it for that story, the reason kept above, and the panel shows what it renders, which may be nothing: what it offers once folded stays within reach, `a11y` analysing again what changed in the iframe without a render, a menu opened by hand. The last click on a story holds whatever the panel says after it, and is forgotten at the next one; only a click on a panel that is not folded is remembered.
 
@@ -841,7 +841,7 @@ export default {
 
 **Two hooks, because one consumer demands them**, and `@crypte/a11y` is that consumer. `afterMount` runs after every render that went through, with the story it drew, once `rendered` is sent. `onMessage` receives what the plugin's panel sent, against the story last drawn. Both are properties holding functions, like `NodeHooks`: the context comes as an argument. Either may be async, as an analysis is. `beforeMount`, `onPropsChange` and `beforeUnmount` wait in section 7 for the plugin that needs them.
 
-**A preview module exports its hooks and nothing else.** Anything other than an object of those two keys, each a function, is refused as a `plugin-error` (5.3), and so is a hook that throws or rejects, or a message sent under another name: a hook exported and never called would otherwise fail in silence.
+**A preview module exports its hooks and nothing else.** Anything other than an object of those two keys, each a function or left `undefined` as the type allows, is refused as a `plugin-error` (5.3), and so is a hook that throws or rejects, or a message sent under another name: a hook exported and never called would otherwise fail in silence.
 
 Without this rule every plugin would be rewritten for every framework, which would cancel the whole point of the architecture.
 
@@ -967,6 +967,13 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.26.** Two corrections from the audit of the frozen contract (6.1, 6.2), neither a break.
+
+| Before | After |
+| --- | --- |
+| a factory passed uncalled, `plugins: [controls]`, did nothing without a word | it is refused with its reason |
+| a hook left `undefined` had its whole module refused | it counts as absent |
 
 **v1.25.** Section 6 is frozen: `controls` and `a11y`, the two plugins 6.5 waited for, both use it (6.1, 6.5).
 

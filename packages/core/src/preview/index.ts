@@ -184,7 +184,8 @@ export function createPluginHost(
 }
 
 // A module's hooks, or why they cannot be used: its default export must be an
-// object whose keys are hooks the preview calls, each holding a function.
+// object whose keys are hooks the preview calls, each holding a function or
+// left undefined, which the type allows for an optional hook.
 function hooksOf(module: unknown): PreviewHooks | string {
   const hooks: unknown = (module as { default?: unknown } | null)?.default
 
@@ -194,7 +195,7 @@ function hooksOf(module: unknown): PreviewHooks | string {
   for (const [key, value] of Object.entries(hooks)) {
     if (!HOOKS.includes(key))
       return `\`${key}\` is not a hook the preview calls, which are ${HOOKS.join(' and ')}`
-    if (typeof value !== 'function') return `\`${key}\` is not a function`
+    if (value !== undefined && typeof value !== 'function') return `\`${key}\` is not a function`
   }
 
   return hooks as PreviewHooks
