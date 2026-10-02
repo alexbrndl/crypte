@@ -317,6 +317,20 @@ describe('a panel that throws', () => {
     expect(wrapper.find('.body').text()).toBe('rendu')
   })
 
+  // L'erreur ne compte pas dans ce que le clic bascule : fermé par
+  // l'utilisateur pendant qu'il lève, le panneau le reste. Revue de la PR #112.
+  test('still follows the click while it shows its error', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const wrapper = monte(fragile, nue, 'fragile')
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('.head button').trigger('click')
+    expect(localStorage.getItem('crypte:panel:fragile')).toBe('closed')
+
+    await wrapper.find('.head button').trigger('click')
+    expect(localStorage.getItem('crypte:panel:fragile')).toBeNull()
+  })
+
   test('names what it throws when that is not an Error', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
 

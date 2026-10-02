@@ -100,7 +100,7 @@ const open = ref(read())
 const choice = ref<boolean | null>(null)
 
 function toggle() {
-  const next = !shown.value
+  const next = !expanded.value
   choice.value = next
 
   // Retenu sur un panneau qui a quelque chose à dire seulement : ouvrir un
@@ -150,9 +150,11 @@ onErrorCaptured((error) => {
   return false
 })
 
-const shown = computed(
-  () => failure.value === null && (choice.value ?? (inapplicable.value === null && open.value)),
-)
+// Ce que le clic bascule, sans l'erreur : sur un panneau qui a levé, chaque
+// clic aurait « ouvert », et effacé ce que l'utilisateur avait fermé.
+const expanded = computed(() => choice.value ?? (inapplicable.value === null && open.value))
+
+const shown = computed(() => failure.value === null && expanded.value)
 </script>
 
 <template>
