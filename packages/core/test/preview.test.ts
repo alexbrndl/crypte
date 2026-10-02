@@ -545,6 +545,21 @@ describe('the plugin host', () => {
       ])
     })
 
+    // L'autre moitié : arrivé sans `onMessage`, le module ne charge plus, et la
+    // console redit qu'aucun hook ne reçoit le message. Revue de la PR #116.
+    it('says no hook receives a message once the module has arrived without one', async () => {
+      const erreur = vi.mocked(console.error)
+      const { promesse, rendre } = tenu()
+      const host = hôte(promesse)
+
+      rendre({ name: 'a', module: { default: {} } })
+      await promesse
+      host.mounted(story)
+      host.received({ type: 'a:run' })
+
+      expect(erreur.mock.calls.at(-1)).toEqual(['crypte: no preview hook receives `a:run`'])
+    })
+
     it('refuses a module that arrives broken, like one already loaded', async () => {
       const { promesse, rendre } = tenu()
       hôte(promesse)
