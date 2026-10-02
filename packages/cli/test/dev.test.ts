@@ -169,7 +169,12 @@ describe('crypte dev', () => {
           { name: '..', shell },
           { name: '.', shell },
         ]
-        for (const { shell: adresse } of await lister()) {
+        const points = await lister()
+        expect(points.map((one) => one.shell)).toEqual([
+          '/@crypte/plugins/@../shell.mjs',
+          '/@crypte/plugins/@./shell.mjs',
+        ])
+        for (const { shell: adresse } of points) {
           expect(new URL(adresse, origin).pathname).toBe(adresse)
           expect((await get(adresse)).status).toBe(200)
         }
@@ -191,8 +196,10 @@ describe('crypte dev', () => {
     it.for([
       ['a name no plugin holds', '/@crypte/plugins/@z/shell.mjs'],
       ['a name without its `@`', '/@crypte/plugins/a/shell.mjs'],
-      ['a place in the list, as the URL used to be', '/@crypte/plugins/0/shell.mjs'],
-      ['a property of the list', '/@crypte/plugins/length/shell.mjs'],
+      // Derrière le `@`, pour atteindre la recherche par nom : sans lui, le garde
+      // du préfixe les refusait avant. Revue de la PR #117.
+      ['a place in the list, as the URL used to be', '/@crypte/plugins/@0/shell.mjs'],
+      ['a property of the list', '/@crypte/plugins/@length/shell.mjs'],
       ['a name that does not decode', '/@crypte/plugins/@%E0/shell.mjs'],
       ['a file the folder does not hold', '/@crypte/plugins/@a/absent.mjs'],
       // Le dossier d'un plugin local peut être le projet : `.env` et `.git` avec.
