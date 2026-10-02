@@ -90,7 +90,7 @@ npm i -D @crypte/cli @crypte/react
 
 The package name and the command name are independent: `@crypte/cli` declares a binary called `crypte`, and the user types `crypte dev`.
 
-**A plugin written in the project imports its types from `@crypte/cli`**: `CryptePlugin`, `PanelProps`, `PanelEvents`, `PreviewHooks` and `PreviewContext`, the core's own. The project does not depend on the core, so it does not import it.
+**A plugin written in the project imports its types from `@crypte/cli`**: `CryptePlugin`, `PanelProps`, `PanelEvents`, `PreviewHooks` and `PreviewContext`, the core's own. The project does not depend on the core, so it neither imports nor augments it: a plugin written there declares no story options (2.4), prop details (3.3) or messages (5.4).
 
 **`defineStories` and `story` come from the adapter, not from a neutral package.** The adapter knows the framework, so prop types are inferred more precisely. A Vue project imports them from its own adapter, and nothing else changes.
 
@@ -758,7 +758,7 @@ export default function controls(): CryptePlugin {
 }
 ```
 
-The shell module exports a `ShellContribution` by default, the preview module a `PreviewHooks`. The configuration itself never reaches the browser: running it there would carry the `node` surface along, and `node:fs` with it. **A factory's options stay in Node too**: only the module's URL crosses, read as a file, so a query or a hash written on it is lost, and a browser surface cannot be configured by its factory.
+The shell module exports a `ShellContribution` by default, the preview module a `PreviewHooks`. The configuration itself never reaches the browser: running it there would carry the `node` surface along, and `node:fs` with it. **A factory's options stay in Node too**: only the module's URL crosses, read as a file, so a query or a hash written on it is lost. A factory chooses which module it points at, and passes it nothing.
 
 **A preview module goes through the project's Vite**, like a story file, so it imports what it needs. Once the plugin is installed, Vite pre-bundles nothing it imports: a CommonJS dependency has no default export there. `@crypte/a11y` imports axe-core's script for its side effect, which sets `window.axe`. **A shell module is served as is, never compiled**, since the shell is prebuilt. Its one bare import is `vue`, which the shell provides through an import map, so every panel runs on the shell's own Vue. That Vue carries its template compiler: a module written by hand may use `template` rather than `h()`. A plugin declares `vue` as a peer dependency and keeps it out of its bundle: a panel running on a second copy never redraws its own state, and nothing warns.
 
@@ -977,7 +977,7 @@ Seven known gaps between this document and the code:
 
 | Before | After |
 | --- | --- |
-| a project's own plugin could not type its panel or its hooks: the types lived in the core, which a project does not import | `@crypte/cli` re-exports them |
+| a project's own plugin could not type its panel or its hooks: the types lived in the core, which a project does not import | `@crypte/cli` re-exports them, and 1.4 says what such a plugin cannot declare |
 | an unknown message was said to be a compile error, which it never was in `ctx.send`, `send` or `received` | the declarations type the core's channel, and the text says so |
 | nothing said a factory's options cannot reach its browser modules | only the module's URL crosses, and 6.1 says so |
 
