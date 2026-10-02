@@ -43,6 +43,14 @@ export const MESURES = {
 // Le démarrage à froid se mesure jusqu'à la première story rendue, pas jusqu'au
 // serveur à l'écoute : Vite compile à la demande, donc ce chronomètre-là mesure
 // un traitement qui n'a rien traité et ne bougerait plus quoi qu'on ajoute.
+//
+// Sur le runner, il varie de 810 à 1430 ms d'un run à l'autre pour le même
+// code : 49 runs mesurés en septembre 2026, médiane 1204 ms avant `a11y` et
+// 1248 ms après. Deux runs ne disent donc rien d'une régression : un 819 isolé
+// face à un 1303 a fait croire à 480 ms de perte (DCJ-328). Comparer des
+// médianes sur une dizaine de runs, ou mesurer en local, où l'écart se voit.
+// Rouvert si le budget rougit sans changement de code : la marge de 70 ms
+// laissée par le pire run ne tiendrait plus.
 function mo(n) {
   return `${(n / 1e6).toFixed(1)} Mo`
 }
