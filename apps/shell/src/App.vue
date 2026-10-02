@@ -168,17 +168,6 @@ async function refresh() {
 
 onMounted(() => {
   if (frame.value) {
-    // La preview qui quitte sa page n'écoute plus : un message envoyé pendant son
-    // rechargement était perdu sans trace, `ready` restant vrai. Chaque page
-    // chargée dans le cadre est suivie, la première comprise.
-    const iframe = frame.value
-    const followUnload = () =>
-      iframe.contentWindow?.addEventListener('pagehide', () => {
-        ready = false
-      })
-    iframe.addEventListener('load', followUnload)
-    followUnload()
-
     channel = createShellChannel(frame.value)
     channel.onMessage((message) => {
       if (message.type === 'ready') {
@@ -186,6 +175,16 @@ onMounted(() => {
         pluginErrors.value = []
         ready = true
         revision.value += 1
+        // La page qui vient de dire `ready` n'écoute plus une fois quittée : un
+        // message envoyé pendant son rechargement était perdu sans trace, `ready`
+        // restant vrai. Suivie à chaque `ready`, donc chaque page chargée.
+        frame.value?.contentWindow?.addEventListener(
+          'pagehide',
+          () => {
+            ready = false
+          },
+          { once: true },
+        )
         status.value = `preview prête, protocole v${message.protocolVersion}`
         void refresh()
       }

@@ -205,7 +205,7 @@ describe('the list read again', () => {
               ok({
                 json: async () => ({
                   panels: [{ name: 'vieux', shell: module('un.ts') }],
-                  refused: [],
+                  refused: [{ plugin: 'vieux', reason: 'périmé' }],
                 }),
               })),
         ),
@@ -225,5 +225,29 @@ describe('the list read again', () => {
     await new Promise((resolve) => setTimeout(resolve, 50))
 
     expect(montés(wrapper)).toEqual(['neuf=deux'])
+    // Ses refus non plus : posés avant le contrôle, ils passaient. Revue de la
+    // PR #117.
+    expect(échecs(wrapper)).toEqual([])
+  })
+
+  test('keeps the latest reading when an older one fails after it', async () => {
+    let échoue: (reason: unknown) => void = () => {}
+    const fetch = vi.fn()
+    fetch.mockImplementationOnce(() => new Promise((_, non) => (échoue = non)))
+    fetch.mockImplementationOnce(async () => ({
+      json: async () => ({ panels: [{ name: 'neuf', shell: module('deux.ts') }], refused: [] }),
+    }))
+    vi.stubGlobal('fetch', fetch)
+
+    const wrapper = mount(Panels, {
+      props: { entry: null, received: {}, errors: [], failed: null, revision: 0 },
+    })
+    await wrapper.setProps({ revision: 1 })
+    await vi.waitFor(() => expect(montés(wrapper)).toEqual(['neuf=deux']))
+
+    échoue(new Error('réseau coupé'))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(échecs(wrapper)).toEqual([])
   })
 })
