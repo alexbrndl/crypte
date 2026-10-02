@@ -289,6 +289,37 @@ describe('what several panels edit', () => {
     expect(wrapper.emitted('overrides')?.at(-1)).toEqual([{ label: 'de b' }])
   })
 
+  // La même story relue, un objet neuf au même `id` après une édition de fichier,
+  // puis la liste relue au `ready` suivant : chaque panneau garde ses valeurs,
+  // comme le shell garde les siennes. Revue de la PR #118.
+  test('keeps what each panel edited when the same story is read again', async () => {
+    const wrapper = await monte([
+      { name: 'editeur', shell: module('editeur.ts') },
+      { name: 'ton', shell: module('ton.ts') },
+    ])
+    await wrapper.setProps({ entry: { id: 'x--meme' } as never })
+    const frames = wrapper.findAllComponents({ name: 'PanelFrame' })
+    frames[0]?.vm.$emit('overrides', { label: 'gardé' })
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        json: async () => ({
+          panels: [
+            { name: 'editeur', shell: module('editeur.ts') },
+            { name: 'ton', shell: module('ton.ts') },
+          ],
+          refused: [],
+        }),
+      })),
+    )
+    await wrapper.setProps({ entry: { id: 'x--meme' } as never, revision: 1 })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    frames[1]?.vm.$emit('overrides', { tone: 'calm' })
+
+    expect(wrapper.emitted('overrides')?.at(-1)).toEqual([{ label: 'gardé', tone: 'calm' }])
+  })
+
   test('forgets what each panel edited when the story changes', async () => {
     const wrapper = await monte([
       { name: 'editeur', shell: module('editeur.ts') },
