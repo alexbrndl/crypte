@@ -1,4 +1,4 @@
-// The plugin contract, section 6 of docs/contracts.md. Frozen: any change is a break.
+// The plugin contract, section 6 of docs/contracts.md. Frozen: 6.5 says what breaks it.
 
 import type { Overrides } from './channel'
 import type { ManifestEntry, StoryEntry } from './manifest'
