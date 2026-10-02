@@ -201,6 +201,82 @@ describe('whether a panel is open', () => {
     expect(état(wrapper).ouvert).toBe('false')
   })
 
+  // Replié, il s'ouvre quand même : la relance de `a11y` vit dans son corps, et
+  // un menu ouvert dans l'iframe ne déclenche aucun rendu. DCJ-327.
+  test('opens a folded panel on a click, its reason kept', async () => {
+    const wrapper = monte(statut, nue)
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('.head button').trigger('click')
+    expect(état(wrapper)).toEqual({ ouvert: 'true', raison: 'aucun statut déclaré', corps: true })
+
+    await wrapper.find('.head button').trigger('click')
+    expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'aucun statut déclaré', corps: false })
+
+    // Refermer un panneau replié ne dit rien des stories suivantes.
+    expect(localStorage.getItem('crypte:panel:status')).toBeNull()
+  })
+
+  // Pour la story affichée seulement, et rien n'est retenu : la décision du
+  // panneau reprend à la suivante, et le choix de l'utilisateur ne bouge pas.
+  test('folds again at the next story, and remembers nothing of it', async () => {
+    const wrapper = monte(statut, nue)
+    await wrapper.vm.$nextTick()
+    await wrapper.find('.head button').trigger('click')
+
+    await wrapper.setProps({ entry: autre })
+    expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'aucun statut déclaré', corps: false })
+    expect(localStorage.getItem('crypte:panel:status')).toBeNull()
+
+    await wrapper.setProps({ entry: brouillon })
+    expect(état(wrapper)).toEqual({ ouvert: 'true', raison: null, corps: true })
+  })
+
+  // Le panneau change d'avis sur la même story, comme `a11y` après une relance
+  // ou une édition des props : le clic de l'utilisateur tient. Revue de la PR #112.
+  describe('when the panel changes its mind on the same story', () => {
+    const analyse = defineComponent({
+      props: { received: { type: Object, default: null } },
+      emits: ['inapplicable'],
+      setup(props, { emit }) {
+        watchEffect(() => emit('inapplicable', props.received?.propre ? 'propre' : null))
+        return () => h('p', 'violations')
+      },
+    })
+    const recu = (propre: boolean) => ({ type: 'a11y:r', propre })
+    const monteAnalyse = (propre: boolean) =>
+      mount(PanelFrame, {
+        props: { name: 'a11y', panel: analyse, entry: nue, received: recu(propre) },
+      })
+
+    test('keeps open a folded panel the user opened, when it unfolds', async () => {
+      localStorage.setItem('crypte:panel:a11y', 'closed')
+      const wrapper = monteAnalyse(true)
+      await wrapper.vm.$nextTick()
+      await wrapper.find('.head button').trigger('click')
+
+      await wrapper.setProps({ received: recu(false) })
+
+      expect(état(wrapper)).toEqual({ ouvert: 'true', raison: null, corps: true })
+    })
+
+    // Ouvert replié, une violation arrive, l'utilisateur referme, la story
+    // redevient propre : le panneau ne se rouvre pas seul.
+    test('keeps closed a panel the user closed, when it folds again', async () => {
+      const wrapper = monteAnalyse(true)
+      await wrapper.vm.$nextTick()
+      await wrapper.find('.head button').trigger('click')
+      await wrapper.setProps({ received: recu(false) })
+      await wrapper.find('.head button').trigger('click')
+
+      await wrapper.setProps({ received: recu(true) })
+      expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'propre', corps: false })
+
+      await wrapper.setProps({ received: recu(false) })
+      expect(état(wrapper)).toEqual({ ouvert: 'false', raison: null, corps: false })
+    })
+  })
+
   // Les deux états se croisent : fermé par l'utilisateur, puis sans objet, puis
   // de nouveau quelque chose à dire. Le choix de l'utilisateur tient.
   test('stays closed through a story with nothing to say', async () => {
@@ -239,6 +315,22 @@ describe('a panel that throws', () => {
     await wrapper.setProps({ entry: brouillon })
     expect(wrapper.find('.panel-failed').exists()).toBe(false)
     expect(wrapper.find('.body').text()).toBe('rendu')
+  })
+
+  // L'erreur ne compte pas dans ce que le clic bascule : fermé par
+  // l'utilisateur pendant qu'il lève, le panneau le reste. Revue de la PR #112.
+  test('still follows the click while it shows its error', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const wrapper = monte(fragile, nue, 'fragile')
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('.head button').trigger('click')
+    expect(localStorage.getItem('crypte:panel:fragile')).toBe('closed')
+    expect(état(wrapper).ouvert).toBe('false')
+
+    await wrapper.find('.head button').trigger('click')
+    expect(localStorage.getItem('crypte:panel:fragile')).toBeNull()
+    expect(état(wrapper).ouvert).toBe('true')
   })
 
   test('names what it throws when that is not an Error', async () => {

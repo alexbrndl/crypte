@@ -1030,4 +1030,28 @@ describe('the a11y panel', () => {
     await expect.poll(() => raison(ecran.page)).toMatch(/aucune violation$/)
     expect(ecran.navigations()).toBe(navigations)
   })
+
+  // Replié sur une story propre, le panneau s'ouvre quand même : ce qu'on fait
+  // dans l'iframe sans rendu, un menu ouvert, ne s'analyse que par la relance.
+  // DCJ-327.
+  test('runs the analysis again from a folded panel', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    await expect.poll(() => raison(ecran.page)).toMatch(/aucune violation$/)
+    const navigations = ecran.navigations()
+
+    await panneau(ecran.page).locator('.head button').click()
+    const corps = panneau(ecran.page).locator('.body')
+    await expect.poll(() => corps.isVisible()).toBe(true)
+
+    await cadre(ecran.page)
+      .locator('#root span')
+      .evaluate((un) => un.setAttribute('role', 'etiquette'))
+    await corps.getByRole('button', { name: "Relancer l'analyse", exact: true }).click()
+
+    await expect
+      .poll(() => corps.locator('section code').allTextContents())
+      .toEqual(['aria-roles', 'span'])
+    expect(await raison(ecran.page)).toBeNull()
+    expect(ecran.navigations()).toBe(navigations)
+  })
 })

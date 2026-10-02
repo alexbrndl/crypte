@@ -90,8 +90,24 @@ const read = () => {
 
 const open = ref(read())
 
+// Le dernier clic sur la story affichée, qui l'emporte sur tout le reste : un
+// panneau replié s'ouvre quand même, sa raison gardée en tête, pour que ce qu'il
+// offre reste joignable, la relance de `a11y` après un menu ouvert dans
+// l'iframe sans rendu. Et le panneau qui change d'avis sur la même story ne
+// rouvre ni ne referme ce que l'utilisateur a choisi. Oublié à la story
+// suivante. Rouvert si un panneau replié ne doit plus pouvoir s'ouvrir, ce
+// qu'aucun ne demande.
+const choice = ref<boolean | null>(null)
+
 function toggle() {
-  open.value = !open.value
+  const next = !expanded.value
+  choice.value = next
+
+  // Retenu sur un panneau qui a quelque chose à dire seulement : ouvrir un
+  // panneau replié ne dit rien du suivant.
+  if (inapplicable.value !== null) return
+
+  open.value = next
   try {
     if (open.value) localStorage.removeItem(KEY)
     else localStorage.setItem(KEY, 'closed')
@@ -124,6 +140,7 @@ watch(
   () => props.entry,
   () => {
     inapplicable.value = null
+    choice.value = null
     failure.value = null
   },
 )
@@ -133,18 +150,15 @@ onErrorCaptured((error) => {
   return false
 })
 
-const shown = computed(() => open.value && inapplicable.value === null && failure.value === null)
+// Ce que le clic bascule, sans l'erreur : sur un panneau qui a levé, chaque
+// clic aurait « ouvert », et effacé ce que l'utilisateur avait fermé.
+const expanded = computed(() => choice.value ?? (inapplicable.value === null && open.value))
 </script>
 
 <template>
   <section class="panel" :data-plugin="name">
     <div class="head">
-      <button
-        type="button"
-        :aria-expanded="shown"
-        :disabled="inapplicable !== null"
-        @click="toggle"
-      >
+      <button type="button" :aria-expanded="expanded" @click="toggle">
         {{ name }}
       </button>
       <span v-if="inapplicable !== null" class="inapplicable">{{ inapplicable }}</span>
@@ -152,7 +166,7 @@ const shown = computed(() => open.value && inapplicable.value === null && failur
     <Callout v-if="failure !== null" tone="danger" class="panel-failed" role="alert">
       Ce panneau a levé : {{ failure }}
     </Callout>
-    <div v-else v-show="shown" class="body">
+    <div v-else v-show="expanded" class="body">
       <component
         :is="panel"
         :entry="entry"
@@ -183,11 +197,6 @@ const shown = computed(() => open.value && inapplicable.value === null && failur
   padding: 0;
   font-weight: 600;
   cursor: pointer;
-}
-
-.head button:disabled {
-  cursor: default;
-  color: inherit;
 }
 
 .inapplicable {
