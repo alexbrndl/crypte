@@ -49,6 +49,7 @@ test('a panel sends a message with a type, and edits with values', () => {
 
 test('a panel receives the story on display and the last message, or nothing', () => {
   expectTypeOf<PanelProps['entry']>().toEqualTypeOf<StoryEntry | null>()
+  expectTypeOf<PanelProps['failed']>().toEqualTypeOf<string | null | undefined>()
   expectTypeOf<PanelProps['received']>().toEqualTypeOf<{
     type: string
     [key: string]: unknown

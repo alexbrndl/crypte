@@ -113,6 +113,19 @@ describe('when the panel folds', () => {
     expect(derniere(monte(entry('x--a'), null, ''))).toBe('la story n’a pas pu être rendue')
   })
 
+  // `failed` est facultatif : un shell qui ne le passe pas ne replie pas tout.
+  // Revue de la PR #116.
+  it('folds on nothing when the shell says nothing of the render', () => {
+    const wrapper = mount(Panel, {
+      props: {
+        entry: entry('x--a'),
+        received: resultats('x--a', [violation('image-alt', 'critical')]),
+      },
+    })
+
+    expect(derniere(wrapper)).toBeNull()
+  })
+
   it('folds with no story on display', () => {
     expect(derniere(monte(null))).toBe('aucune story affichée')
   })

@@ -42,7 +42,8 @@ watch([() => props.received, () => props.entry], () => {
 watchEffect(() => {
   if (!props.entry) return emit('inapplicable', 'aucune story affichée')
   // No render, so no analysis will come: waiting would be for ever.
-  if (props.failed !== null) return emit('inapplicable', 'la story n’a pas pu être rendue')
+  if (typeof props.failed === 'string')
+    return emit('inapplicable', 'la story n’a pas pu être rendue')
 
   const found = results.value
   if (found && found.violations.length === 0) {

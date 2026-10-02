@@ -133,7 +133,9 @@ describe('what a panel is refused', () => {
       ],
     )
 
-    expect(montés(wrapper)).toEqual(['a=un'])
+    // Les refus s'affichent avant que les modules finissent de charger : sans
+    // cette attente, le cas lisait les panneaux trop tôt sous couverture.
+    await vi.waitFor(() => expect(montés(wrapper)).toEqual(['a=un']))
     expect(échecs(wrapper)).toEqual([
       'Refusé chez b : `toolbar` is not a key of a plugin, which are name, shell, preview and node',
       'Refusé chez plugins[2] : a plugin with a browser surface needs a `name`',

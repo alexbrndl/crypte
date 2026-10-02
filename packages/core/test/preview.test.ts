@@ -423,12 +423,19 @@ describe('the plugin host', () => {
       [
         'a hook exported by name beside the default export',
         { name: 'a', module: { default: {}, afterMount: () => {} } },
-        '`afterMount` is exported by name, and the preview reads its hooks from the default export',
+        '`afterMount` is exported by name, and the preview reads only the default export',
+      ],
+      // Un hook de la réserve, le premier qu'un auteur écrira (6.4). Revue de la
+      // PR #116.
+      [
+        'a reserve hook exported by name',
+        { name: 'a', module: { default: {}, beforeMount: () => {} } },
+        '`beforeMount` is exported by name, and the preview reads only the default export',
       ],
       [
         'a hook exported by name with no default export',
         { name: 'a', module: { onMessage: () => {} } },
-        '`onMessage` is exported by name, and the preview reads its hooks from the default export',
+        '`onMessage` is exported by name, and the preview reads only the default export',
       ],
     ] as const)('refuses %s', ([, loaded, message]) => {
       hôte(loaded as LoadedPlugin).mounted(story)
@@ -522,6 +529,20 @@ describe('the plugin host', () => {
       host.mounted(story)
 
       expect(vus).toEqual(['a', 'b'])
+    })
+
+    // La fenêtre n'existait pas quand `ready` partait après tous les modules :
+    // le message est perdu, et la console le disait sans hook. Revue de la PR #116.
+    it('says a message arrived while a module was still loading', () => {
+      const erreur = vi.mocked(console.error)
+      const host = hôte(new Promise<LoadedPlugin>(() => {}))
+
+      host.mounted(story)
+      host.received({ type: 'a:run' })
+
+      expect(erreur.mock.calls.at(-1)).toEqual([
+        'crypte: `a:run` arrived while a preview module was still loading, and is dropped',
+      ])
     })
 
     it('refuses a module that arrives broken, like one already loaded', async () => {

@@ -397,8 +397,6 @@ describe('the messages of a panel', () => {
   })
 })
 
-// Un panneau Vue envoie volontiers son état : ses proxys faisaient lever
-// `postMessage` dans le shell, sans nom de plugin. Revue de la PR #107.
 // Ce que le shell sait de la story affichée et que le panneau ne peut pas voir :
 // qu'elle n'a pas pu être rendue. Audit à froid du projet 1.3.
 describe('the render of the story on display', () => {
@@ -418,6 +416,8 @@ describe('the render of the story on display', () => {
   })
 })
 
+// Un panneau Vue envoie volontiers son état : ses proxys faisaient lever
+// `postMessage` dans le shell, sans nom de plugin. Revue de la PR #107.
 describe('what a panel sends, as JSON', () => {
   const envoie = (message: () => unknown) =>
     defineComponent({

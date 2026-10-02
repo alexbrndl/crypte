@@ -163,16 +163,24 @@ export function createPluginHost(
     if (typeof hooks === 'string') return said(one.name, hooks)
     plugins[at] = { name: one.name, hooks }
 
-    // Arrived after a render: the story on display is not drawn again for it.
+    // Arrived after a render: the story last drawn is not drawn again for it.
     const { afterMount } = hooks
     const story = last
     if (afterMount && story)
       call(one.name, 'afterMount', () => afterMount(contextOf(one.name, story)))
   }
 
+  // How many modules have not arrived: a message for one of them is dropped,
+  // and the console says why rather than that no hook receives it.
+  let loading = 0
+
   loaded.forEach((one, at) => {
-    if (one instanceof Promise) void one.then((settled) => accept(at, settled))
-    else accept(at, one)
+    if (!(one instanceof Promise)) return accept(at, one)
+    loading += 1
+    void one.then((settled) => {
+      loading -= 1
+      accept(at, settled)
+    })
   })
 
   return {
@@ -188,7 +196,12 @@ export function createPluginHost(
       const name = message.type.slice(0, message.type.indexOf(':'))
       const onMessage = plugins.find((one) => one?.name === name)?.hooks.onMessage
 
-      if (!onMessage) return console.error(`crypte: no preview hook receives \`${message.type}\``)
+      if (!onMessage)
+        return console.error(
+          loading > 0
+            ? `crypte: \`${message.type}\` arrived while a preview module was still loading, and is dropped`
+            : `crypte: no preview hook receives \`${message.type}\``,
+        )
       if (!last)
         return console.error(`crypte: \`${message.type}\` arrived before any story rendered`)
 
@@ -204,13 +217,11 @@ export function createPluginHost(
 function hooksOf(module: unknown): PreviewHooks | string {
   const hooks: unknown = (module as { default?: unknown } | null)?.default
 
-  // Exported by name beside the default, or instead of it: never read, so never
-  // called, without a word.
-  for (const key of HOOKS) {
-    const named = (module as Record<string, unknown> | null)?.[key]
-    const inDefault = (hooks as Record<string, unknown> | null | undefined)?.[key]
-    if (named !== undefined && inDefault === undefined)
-      return `\`${key}\` is exported by name, and the preview reads its hooks from the default export`
+  // Anything exported by name, a hook the preview calls or one of section 7's
+  // reserve: never read, so never called, without a word.
+  for (const key of typeof module === 'object' && module !== null ? Object.keys(module) : []) {
+    if (key !== 'default')
+      return `\`${key}\` is exported by name, and the preview reads only the default export`
   }
 
   if (typeof hooks !== 'object' || hooks === null || Array.isArray(hooks))
