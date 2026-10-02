@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Overrides, StoryEntry } from '@crypte/core/protocol'
 import { Callout } from '@crypte/ui'
-import { onMounted, shallowRef, type Component } from 'vue'
+import { onMounted, shallowRef, watch, type Component } from 'vue'
 import PanelFrame from './panel-frame.vue'
 
 // Ce que les plugins apportent au shell, section 6.1 des contrats : chaque module
@@ -11,7 +11,7 @@ import PanelFrame from './panel-frame.vue'
 
 type PanelMessage = { type: string; [key: string]: unknown }
 
-defineProps<{
+const props = defineProps<{
   entry: StoryEntry | null
   // Le dernier message de la partie preview de chaque plugin, sous son nom.
   received: Record<string, PanelMessage>
@@ -19,6 +19,10 @@ defineProps<{
   errors: { plugin: string; message: string }[]
   // Pourquoi la story affichée n'a pas pu être rendue, ou `null`.
   failed: string | null
+  // Change à chaque `ready` de la preview : la liste est alors relue, puisqu'une
+  // édition de la configuration relance le serveur et recharge la preview. Lue
+  // au montage seulement, un plugin retiré gardait son panneau. Mesuré.
+  revision: number
 }>()
 
 const emit = defineEmits<{ overrides: [values: Overrides]; send: [message: PanelMessage] }>()
@@ -33,7 +37,13 @@ const refused = shallowRef<{ plugin: string; reason: string }[]>([])
 
 const said = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
-onMounted(async () => {
+// La dernière lecture lancée : une plus ancienne qui finirait après elle
+// rendrait une liste périmée.
+let reading = 0
+
+async function load() {
+  const run = (reading += 1)
+
   let listed: {
     panels: { name: string; shell: string }[]
     refused: { plugin: string; reason: string }[]
@@ -41,11 +51,9 @@ onMounted(async () => {
   try {
     listed = (await fetch(PLUGINS).then((answer) => answer.json())) as typeof listed
   } catch (error) {
-    failures.value = [{ name: 'la liste des plugins', message: said(error) }]
+    if (run === reading) failures.value = [{ name: 'la liste des plugins', message: said(error) }]
     return
   }
-
-  refused.value = listed.refused
 
   // Chacun pour soi : un module qui ne charge pas ne coûte pas les autres, et son
   // nom s'affiche plutôt que son panneau manque sans rien dire.
@@ -55,6 +63,10 @@ onMounted(async () => {
     ),
   )
 
+  if (run !== reading) return
+
+  // Un module déjà importé revient tel quel, même composant : son panneau garde
+  // son état. Seul un panneau qui a changé est monté de nouveau.
   const found: typeof panels.value = []
   const failed: typeof failures.value = []
 
@@ -70,9 +82,13 @@ onMounted(async () => {
     else found.push({ name, panel: panel as Component })
   })
 
+  refused.value = listed.refused
   panels.value = found
   failures.value = failed
-})
+}
+
+onMounted(load)
+watch(() => props.revision, load)
 </script>
 
 <template>

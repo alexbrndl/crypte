@@ -237,6 +237,33 @@ describe('what a plugin says between its halves', () => {
     })
   })
 
+  // Chaque `ready` fait relire la liste des plugins aux panneaux : c'est ce que
+  // dit une preview rechargée après une édition de la configuration.
+  test('asks the panels to read their list again at each ready', async ({ écran }) => {
+    expect(panneaux(écran).props('revision')).toBe(0)
+
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+
+    expect(panneaux(écran).props('revision')).toBe(2)
+  })
+
+  // La preview qui quitte sa page n'écoute plus : le message était perdu sans
+  // trace, `ready` restant vrai. Audit à froid du projet 1.3.
+  test('drops and names a message sent while the preview reloads', async ({ écran }) => {
+    const erreur = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    const frame = écran.wrapper.find('iframe').element as HTMLIFrameElement
+
+    frame.contentWindow?.dispatchEvent(new Event('pagehide'))
+    panneaux(écran).vm.$emit('send', { type: 'hello:ping' })
+
+    expect(erreur).toHaveBeenCalledWith(
+      'crypte: `hello:ping` was sent before the preview was ready, and dropped',
+    )
+    expect(écran.envoyés.map((one) => one.type)).not.toContain('hello:ping')
+  })
+
   test('shows what the preview says of a plugin that failed', async ({ écran }) => {
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
 
