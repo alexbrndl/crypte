@@ -40,7 +40,7 @@ const statut = defineComponent({
 })
 
 const monte = (panel: Component, story: StoryEntry | null, name = 'status') =>
-  mount(PanelFrame, { props: { name, panel, entry: story, received: null } })
+  mount(PanelFrame, { props: { name, panel, entry: story, received: null, failed: null } })
 
 // Le style lu tel quel : `isVisible()` rendait l'inverse du DOM sur un montage
 // qui n'est pas attaché au document. Mesuré.
@@ -134,6 +134,7 @@ describe('a panel with nothing to say', () => {
         panel: analyse,
         entry: nue,
         received: { type: 'a11y:r', propre: true },
+        failed: null,
       },
     })
     await wrapper.vm.$nextTick()
@@ -246,7 +247,7 @@ describe('whether a panel is open', () => {
     const recu = (propre: boolean) => ({ type: 'a11y:r', propre })
     const monteAnalyse = (propre: boolean) =>
       mount(PanelFrame, {
-        props: { name: 'a11y', panel: analyse, entry: nue, received: recu(propre) },
+        props: { name: 'a11y', panel: analyse, entry: nue, received: recu(propre), failed: null },
       })
 
     test('keeps open a folded panel the user opened, when it unfolds', async () => {
@@ -398,6 +399,25 @@ describe('the messages of a panel', () => {
 
 // Un panneau Vue envoie volontiers son état : ses proxys faisaient lever
 // `postMessage` dans le shell, sans nom de plugin. Revue de la PR #107.
+// Ce que le shell sait de la story affichée et que le panneau ne peut pas voir :
+// qu'elle n'a pas pu être rendue. Audit à froid du projet 1.3.
+describe('the render of the story on display', () => {
+  const lecteur = defineComponent({
+    props: { failed: { type: String, default: undefined } },
+    setup(props) {
+      return () => h('p', String(props.failed))
+    },
+  })
+
+  test('hands the panel why the story could not be rendered, or null', async () => {
+    const wrapper = monte(lecteur, nue)
+    expect(wrapper.find('.body').text()).toBe('null')
+
+    await wrapper.setProps({ failed: 'Boom' })
+    expect(wrapper.find('.body').text()).toBe('Boom')
+  })
+})
+
 describe('what a panel sends, as JSON', () => {
   const envoie = (message: () => unknown) =>
     defineComponent({

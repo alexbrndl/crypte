@@ -433,9 +433,11 @@ export function previewEntry(project: Project, files: string[] = []): string {
     `  import.meta.hot.on('vite:beforeUpdate', ({ updates }) => { for (const one of updates) { ${OWN}loadErrors.delete(one.path); ${OWN}loadErrors.delete(one.acceptedPath) } })`,
     '}',
     '',
-    `const ${OWN}loaded = await Promise.all([`,
+    // Not awaited: a plugin module that never finished loading kept every story
+    // back, measured. The host attaches each one when it arrives.
+    `const ${OWN}loaded = [`,
     ...plugins,
-    `])`,
+    `]`,
     ...(loads.length > 0 ? ['', `await Promise.all([`, ...loads, `])`] : []),
     `const ${OWN}manifest = await fetch(${JSON.stringify(MANIFEST_ROUTE)}).then((answer) => answer.json())`,
     '',

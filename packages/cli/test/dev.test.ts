@@ -251,9 +251,9 @@ describe('the preview entry', () => {
     const start = lines.findIndex((one) => one.includes(file))
 
     expect(sansRacine(lines.slice(start - 1, start + 2).join('\n'))).toMatchInlineSnapshot(`
-      "const __crypte_loaded = await Promise.all([
+      "const __crypte_loaded = [
         import("<racine>/packages/cli/test/fixture/entry.jsx").then((module) => ({ name: "l'\\"ecart", module }), (error) => ({ name: "l'\\"ecart", error })),
-      ])"
+      ]"
     `)
   })
 })

@@ -17,6 +17,8 @@ defineProps<{
   received: Record<string, PanelMessage>
   // Ce que la preview a dit d'un plugin qui a échoué chez elle.
   errors: { plugin: string; message: string }[]
+  // Pourquoi la story affichée n'a pas pu être rendue, ou `null`.
+  failed: string | null
 }>()
 
 const emit = defineEmits<{ overrides: [values: Overrides]; send: [message: PanelMessage] }>()
@@ -97,6 +99,7 @@ onMounted(async () => {
     :panel="one.panel"
     :entry="entry"
     :received="Object.hasOwn(received, one.name) ? (received[one.name] ?? null) : null"
+    :failed="failed"
     @overrides="(values: Overrides) => emit('overrides', values)"
     @send="(message: PanelMessage) => emit('send', message)"
   />

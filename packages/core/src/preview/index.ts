@@ -100,8 +100,12 @@ export interface PluginHost {
 // Where the plugins' hooks are called. Nothing a plugin does costs a story: a
 // module that does not load, one that exports no hooks, a hook that throws,
 // each is refused, said in the console, and sent to the shell as `plugin-error`.
+//
+// A module may still be loading: the entry hands it over unsettled, since a
+// module that never finished kept every story back, measured. It attaches when
+// it arrives, at its place in the configuration.
 export function createPluginHost(
-  loaded: LoadedPlugin[],
+  loaded: (LoadedPlugin | Promise<LoadedPlugin>)[],
   send: (message: PreviewMessage) => void,
 ): PluginHost {
   const said = (plugin: string, message: string) => {
@@ -109,26 +113,8 @@ export function createPluginHost(
     send({ type: 'plugin-error', plugin, message })
   }
 
-  const plugins: { name: string; hooks: PreviewHooks }[] = []
-
-  for (const one of loaded) {
-    if ('error' in one) {
-      said(one.name, `its preview module could not load: ${text(one.error)}`)
-      continue
-    }
-
-    // Read inside a `try`: a getter on the export can throw, and the host
-    // throwing here would take the whole entry down with it.
-    let hooks: PreviewHooks | string
-    try {
-      hooks = hooksOf(one.module)
-    } catch (error) {
-      hooks = `its preview module could not be read: ${text(error)}`
-    }
-
-    if (typeof hooks === 'string') said(one.name, hooks)
-    else plugins.push({ name: one.name, hooks })
-  }
+  // By place in `plugins`, holes for what is still loading or was refused.
+  const plugins: ({ name: string; hooks: PreviewHooks } | undefined)[] = []
 
   // The story last drawn, which a message is answered against.
   let last: Omit<PreviewContext, 'send'> | undefined
@@ -161,17 +147,46 @@ export function createPluginHost(
     }
   }
 
+  const accept = (at: number, one: LoadedPlugin) => {
+    if ('error' in one)
+      return said(one.name, `its preview module could not load: ${text(one.error)}`)
+
+    // Read inside a `try`: a getter on the export can throw, and the host
+    // throwing here would take the whole entry down with it.
+    let hooks: PreviewHooks | string
+    try {
+      hooks = hooksOf(one.module)
+    } catch (error) {
+      hooks = `its preview module could not be read: ${text(error)}`
+    }
+
+    if (typeof hooks === 'string') return said(one.name, hooks)
+    plugins[at] = { name: one.name, hooks }
+
+    // Arrived after a render: the story on display is not drawn again for it.
+    const { afterMount } = hooks
+    const story = last
+    if (afterMount && story)
+      call(one.name, 'afterMount', () => afterMount(contextOf(one.name, story)))
+  }
+
+  loaded.forEach((one, at) => {
+    if (one instanceof Promise) void one.then((settled) => accept(at, settled))
+    else accept(at, one)
+  })
+
   return {
     mounted(story) {
       last = story
-      for (const { name, hooks } of plugins) {
-        const { afterMount } = hooks
-        if (afterMount) call(name, 'afterMount', () => afterMount(contextOf(name, story)))
+      for (const one of plugins) {
+        const afterMount = one?.hooks.afterMount
+        if (one && afterMount)
+          call(one.name, 'afterMount', () => afterMount(contextOf(one.name, story)))
       }
     },
     received(message) {
       const name = message.type.slice(0, message.type.indexOf(':'))
-      const onMessage = plugins.find((one) => one.name === name)?.hooks.onMessage
+      const onMessage = plugins.find((one) => one?.name === name)?.hooks.onMessage
 
       if (!onMessage) return console.error(`crypte: no preview hook receives \`${message.type}\``)
       if (!last)
@@ -188,6 +203,15 @@ export function createPluginHost(
 // left undefined, which the type allows for an optional hook.
 function hooksOf(module: unknown): PreviewHooks | string {
   const hooks: unknown = (module as { default?: unknown } | null)?.default
+
+  // Exported by name beside the default, or instead of it: never read, so never
+  // called, without a word.
+  for (const key of HOOKS) {
+    const named = (module as Record<string, unknown> | null)?.[key]
+    const inDefault = (hooks as Record<string, unknown> | null | undefined)?.[key]
+    if (named !== undefined && inDefault === undefined)
+      return `\`${key}\` is exported by name, and the preview reads its hooks from the default export`
+  }
 
   if (typeof hooks !== 'object' || hooks === null || Array.isArray(hooks))
     return 'its preview module exports no object of hooks by default'

@@ -835,6 +835,18 @@ describe('the preview hooks and plugin messages', () => {
     await expect.poll(() => panneau.locator('output').textContent()).toBe('hello:pong')
   })
 
+  // Un module qui ne finit jamais de charger : la preview l'attendait avant la
+  // première story, et restait vide sans un mot. Audit à froid du projet 1.3.
+  test('renders the stories while a preview module never finishes loading', async ({ ecran }) => {
+    writeFileSync(
+      join(ecran.root, 'plugins', 'hello', 'preview.js'),
+      'await new Promise(() => {})\nexport default {}\n',
+    )
+    await ecran.page.reload()
+
+    await expect.poll(ecran.vu).toBe('Nouveau')
+  })
+
   // Un hook de la réserve, exporté et jamais appelé : c'est ainsi que
   // `beforeRender` avait été ignoré sans un mot. Refusé, et dit dans le shell.
   test('says in the shell a preview module that exports a hook the preview never calls', async ({
@@ -1029,6 +1041,15 @@ describe('the a11y panel', () => {
 
     await expect.poll(() => raison(ecran.page)).toMatch(/aucune violation$/)
     expect(ecran.navigations()).toBe(navigations)
+  })
+
+  // Une story qui lève ne sera jamais analysée : le panneau attendait sans fin.
+  // Audit à froid du projet 1.3.
+  test('folds on a story that could not be rendered', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    await ecran.page.getByRole('button', { name: 'Échoue au rendu', exact: true }).click()
+
+    await expect.poll(() => raison(ecran.page)).toBe('la story n’a pas pu être rendue')
   })
 
   // Replié sur une story propre, le panneau s'ouvre quand même : ce qu'on fait

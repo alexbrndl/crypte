@@ -388,6 +388,19 @@ describe('what the preview answers', () => {
     expect(écran.wrapper.find('iframe').attributes('style')).toContain('display: none')
   })
 
+  // Les panneaux le reçoivent aussi : `a11y` attendait sinon une analyse qui ne
+  // viendrait pas. Audit à froid du projet 1.3.
+  test('hands the panels the render error of the story on display', async ({ écran }) => {
+    const panneaux = écran.wrapper.findComponent(Panels)
+    expect(panneaux.props('failed')).toBeNull()
+
+    await écran.répond({ type: 'error', id: 'badge--defaut', message: 'boum' } as PreviewMessage)
+    expect(panneaux.props('failed')).toBe('boum')
+
+    await écran.répond({ type: 'rendered', id: 'badge--defaut', durationMs: 1 } as PreviewMessage)
+    expect(panneaux.props('failed')).toBeNull()
+  })
+
   test('removes the error when the story changes', async ({ écran }) => {
     await écran.répond({ type: 'error', id: 'badge--defaut', message: 'boum' } as PreviewMessage)
     await écran.wrapper.findAll('button')[1]?.trigger('click')
