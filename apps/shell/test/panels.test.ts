@@ -22,7 +22,9 @@ const monte = async (liste: unknown, refused: unknown[] = []): Promise<VueWrappe
     }),
   )
 
-  const wrapper = mount(Panels, { props: { entry: null, received: {}, errors: [], failed: null } })
+  const wrapper = mount(Panels, {
+    props: { entry: null, received: {}, errors: [], failed: null, revision: 0 },
+  })
 
   // L'import d'un module prend plus d'un tour de microtâches : attendu jusqu'à
   // ce que la zone ait rendu un panneau ou un échec.
@@ -114,6 +116,7 @@ describe('what a panel is refused', () => {
         received: {},
         errors: [{ plugin: 'a11y', message: 'boum' }],
         failed: null,
+        revision: 0,
       },
     })
 
@@ -149,5 +152,102 @@ describe('what a panel is refused', () => {
     expect(échecs(wrapper)).toEqual([
       "la liste des plugins n'a pas pu se charger : Unexpected end of JSON input",
     ])
+  })
+})
+
+// Une édition de la configuration relance le serveur et recharge la preview, qui
+// redit `ready` : la liste est relue à ce moment. Lue au montage seulement, un
+// plugin retiré gardait son panneau. Audit à froid du projet 1.3.
+describe('the list read again', () => {
+  const listes = (...réponses: unknown[]) => {
+    const fetch = vi.fn()
+    for (const one of réponses)
+      fetch.mockImplementationOnce(async () => ({ json: async () => one }))
+    vi.stubGlobal('fetch', fetch)
+  }
+
+  test('follows the new configuration, and keeps a panel that did not change', async () => {
+    listes(
+      {
+        panels: [
+          { name: 'garde', shell: module('compte.ts') },
+          { name: 'part', shell: module('un.ts') },
+        ],
+        refused: [],
+      },
+      {
+        panels: [{ name: 'garde', shell: module('compte.ts') }],
+        refused: [{ plugin: 'neuf', reason: 'a plugin with a browser surface needs a `name`' }],
+      },
+    )
+    const wrapper = mount(Panels, {
+      props: { entry: null, received: {}, errors: [], failed: null, revision: 0 },
+    })
+    await vi.waitFor(() => expect(montés(wrapper)).toEqual(['garde=1', 'part=un']))
+
+    await wrapper.setProps({ revision: 1 })
+
+    await vi.waitFor(() => expect(montés(wrapper)).toEqual(['garde=1']))
+    expect(échecs(wrapper)).toEqual([
+      'Refusé chez neuf : a plugin with a browser surface needs a `name`',
+    ])
+  })
+
+  // Deux lectures qui se croisent : celle du montage et celle du premier `ready`.
+  test('keeps the latest reading when an older one finishes after it', async () => {
+    let tardive: (value: unknown) => void = () => {}
+    const fetch = vi.fn()
+    fetch.mockImplementationOnce(
+      () =>
+        new Promise(
+          (ok) =>
+            (tardive = () =>
+              ok({
+                json: async () => ({
+                  panels: [{ name: 'vieux', shell: module('un.ts') }],
+                  refused: [{ plugin: 'vieux', reason: 'périmé' }],
+                }),
+              })),
+        ),
+    )
+    fetch.mockImplementationOnce(async () => ({
+      json: async () => ({ panels: [{ name: 'neuf', shell: module('deux.ts') }], refused: [] }),
+    }))
+    vi.stubGlobal('fetch', fetch)
+
+    const wrapper = mount(Panels, {
+      props: { entry: null, received: {}, errors: [], failed: null, revision: 0 },
+    })
+    await wrapper.setProps({ revision: 1 })
+    await vi.waitFor(() => expect(montés(wrapper)).toEqual(['neuf=deux']))
+
+    tardive(undefined)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(montés(wrapper)).toEqual(['neuf=deux'])
+    // Ses refus non plus : posés avant le contrôle, ils passaient. Revue de la
+    // PR #117.
+    expect(échecs(wrapper)).toEqual([])
+  })
+
+  test('keeps the latest reading when an older one fails after it', async () => {
+    let échoue: (reason: unknown) => void = () => {}
+    const fetch = vi.fn()
+    fetch.mockImplementationOnce(() => new Promise((_, non) => (échoue = non)))
+    fetch.mockImplementationOnce(async () => ({
+      json: async () => ({ panels: [{ name: 'neuf', shell: module('deux.ts') }], refused: [] }),
+    }))
+    vi.stubGlobal('fetch', fetch)
+
+    const wrapper = mount(Panels, {
+      props: { entry: null, received: {}, errors: [], failed: null, revision: 0 },
+    })
+    await wrapper.setProps({ revision: 1 })
+    await vi.waitFor(() => expect(montés(wrapper)).toEqual(['neuf=deux']))
+
+    échoue(new Error('réseau coupé'))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(échecs(wrapper)).toEqual([])
   })
 })

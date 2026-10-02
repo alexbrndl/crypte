@@ -61,6 +61,25 @@ export const PLUGINS_ROUTE = '/@crypte/plugins.json'
 // TypeScript or a `.vue` file, which a file served as is cannot be.
 export const PLUGIN_FILES = '/@crypte/plugins/'
 
+// A shell module's folder is named by its plugin, never by its place in the
+// list: the browser keeps one module per URL for the page's life, and the shell
+// reads the list again after an edit of the configuration. By place, removing a
+// plugin mounted the next one's panel in another's frame. Measured. The `@` in
+// front keeps a name like `..` from being a dot segment: escaping the dots does
+// not, a URL parser reads `%2E%2E` as `..`. Measured.
+function segmentOf(name: string): string {
+  return `@${encodeURIComponent(name)}`
+}
+
+function nameOf(segment: string): string | undefined {
+  if (!segment.startsWith('@')) return undefined
+  try {
+    return decodeURIComponent(segment.slice(1))
+  } catch {
+    return undefined
+  }
+}
+
 function shellAssets(): string {
   if (!existsSync(join(SHELL, 'index.html'))) {
     throw new ConfigError(
@@ -131,9 +150,9 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
 
         if (url === PLUGINS_ROUTE) {
           const surfaces = surfacesOf(project)
-          const panels = surfaces.shell.map((one, at) => ({
+          const panels = surfaces.shell.map((one) => ({
             name: one.plugin,
-            shell: `${PLUGIN_FILES}${at}/${basename(one.file)}`,
+            shell: `${PLUGIN_FILES}${segmentOf(one.plugin)}/${basename(one.file)}`,
           }))
 
           // What was refused of each plugin, so the shell names it beside the
@@ -145,8 +164,9 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
         }
 
         if (url.startsWith(PLUGIN_FILES)) {
-          const [at = '', ...rest] = url.slice(PLUGIN_FILES.length).split('/')
-          const one = /^\d+$/.test(at) ? surfacesOf(project).shell[Number(at)] : undefined
+          const [segment = '', ...rest] = url.slice(PLUGIN_FILES.length).split('/')
+          const name = nameOf(segment)
+          const one = surfacesOf(project).shell.find((surface) => surface.plugin === name)
           const inside = `/${rest.join('/')}`
 
           const missing = () => {

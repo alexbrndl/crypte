@@ -36,6 +36,9 @@ const failure = ref<{ id: string; message: string; stack?: string } | null>(null
 let channel: ReturnType<typeof createShellChannel> | null = null
 let ready = false
 
+// Compte les `ready` : les panneaux relisent la liste des plugins à chacun.
+const revision = ref(0)
+
 // Compté sur les entrées, pas lu d'un champ : un compte porté par le manifeste
 // pourrait contredire `entry.storyFile`. Le message suit le compte, « ignoré »
 // étant faux d'un fichier qui a rendu trois stories sur quatre.
@@ -171,6 +174,17 @@ onMounted(() => {
         received.value = {}
         pluginErrors.value = []
         ready = true
+        revision.value += 1
+        // La page qui vient de dire `ready` n'écoute plus une fois quittée : un
+        // message envoyé pendant son rechargement était perdu sans trace, `ready`
+        // restant vrai. Suivie à chaque `ready`, donc chaque page chargée.
+        frame.value?.contentWindow?.addEventListener(
+          'pagehide',
+          () => {
+            ready = false
+          },
+          { once: true },
+        )
         status.value = `preview prête, protocole v${message.protocolVersion}`
         void refresh()
       }
@@ -258,6 +272,7 @@ onMounted(() => {
         :entry="displayed"
         :received="received"
         :failed="failure?.message ?? null"
+        :revision="revision"
         :errors="pluginErrors"
         @overrides="edit"
         @send="sendToPreview"
