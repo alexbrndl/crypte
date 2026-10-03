@@ -40,12 +40,15 @@ const said = (error: unknown) => (error instanceof Error ? error.message : Strin
 // Ce que chaque panneau a édité, sous le nom de son plugin : le rendu les fusionne
 // dans l'ordre de `plugins`, le dernier gagnant sur une prop éditée par deux.
 // Remplacer à chaque émission effaçait l'édition de l'autre panneau. Mesuré.
-// Oublié avec la story, comme le shell oublie les valeurs.
+// Oublié avec la story, comme le shell oublie les valeurs, et avec le panneau.
 const edited = new Map<string, Overrides>()
+
+const merge = () =>
+  emit('overrides', Object.assign({}, ...panels.value.map((one) => edited.get(one.name) ?? {})))
 
 function edit(name: string, values: Overrides) {
   edited.set(name, values)
-  emit('overrides', Object.assign({}, ...panels.value.map((one) => edited.get(one.name) ?? {})))
+  merge()
 }
 
 watch(
@@ -101,6 +104,15 @@ async function load() {
   refused.value = listed.refused
   panels.value = found
   failures.value = failed
+
+  // Un panneau qui n'est plus affiché emporte ses valeurs : gardées, elles
+  // restaient dans le rendu sans panneau pour les montrer, et revenaient quand on
+  // remettait le plugin. Audit à froid du projet 1.3.
+  let dropped = false
+  for (const name of edited.keys()) {
+    if (!found.some((one) => one.name === name)) dropped = edited.delete(name)
+  }
+  if (dropped) merge()
 }
 
 onMounted(load)

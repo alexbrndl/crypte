@@ -170,8 +170,8 @@ export function createPluginHost(
       call(one.name, 'afterMount', () => afterMount(contextOf(one.name, story)))
   }
 
-  // How many modules have not arrived: a message for one of them is dropped,
-  // and the console says why rather than that no hook receives it.
+  // How many modules have not arrived: a message no hook receives may be for
+  // one of them, and the console says so. Which one is unknown until it arrives.
   let loading = 0
 
   loaded.forEach((one, at) => {
@@ -199,7 +199,7 @@ export function createPluginHost(
       if (!onMessage)
         return console.error(
           loading > 0
-            ? `crypte: \`${message.type}\` arrived while a preview module was still loading, and is dropped`
+            ? `crypte: no preview hook receives \`${message.type}\` while a preview module is still loading, and it is dropped`
             : `crypte: no preview hook receives \`${message.type}\``,
         )
       if (!last)

@@ -533,7 +533,7 @@ describe('the plugin host', () => {
 
     // La fenêtre n'existait pas quand `ready` partait après tous les modules :
     // le message est perdu, et la console le disait sans hook. Revue de la PR #116.
-    it('says a message arrived while a module was still loading', () => {
+    it('says no hook receives a message while a module is still loading', () => {
       const erreur = vi.mocked(console.error)
       const host = hôte(new Promise<LoadedPlugin>(() => {}))
 
@@ -541,7 +541,7 @@ describe('the plugin host', () => {
       host.received({ type: 'a:run' })
 
       expect(erreur.mock.calls.at(-1)).toEqual([
-        'crypte: `a:run` arrived while a preview module was still loading, and is dropped',
+        'crypte: no preview hook receives `a:run` while a preview module is still loading, and it is dropped',
       ])
     })
 
