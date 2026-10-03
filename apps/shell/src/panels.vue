@@ -109,9 +109,10 @@ async function load() {
   // restaient dans le rendu sans panneau pour les montrer, et revenaient quand on
   // le remettait. Audit à froid du projet 1.3.
   //
-  // Un plugin encore listé dont le module change garde les siennes, qu'il charge
-  // ou qu'il échoue : rien ne l'a mesuré, et l'URL d'un module ne change qu'avec
-  // son fichier. Rouvert si un plugin change de module sous le même nom.
+  // Un plugin encore listé dont le module change garde les siennes : tant qu'il
+  // échoue, la fusion suivante les écarte, et elles reviennent quand il charge de
+  // nouveau. Laissé de côté par DCJ-334 : l'URL d'un module ne change qu'avec le
+  // nom de son fichier. Rouvert si un usage renomme le module d'un plugin.
   let dropped = false
   for (const name of edited.keys()) {
     if (!listed.panels.some((one) => one.name === name)) dropped = edited.delete(name)
