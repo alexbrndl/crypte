@@ -837,14 +837,28 @@ describe('the preview hooks and plugin messages', () => {
 
   // Un module qui ne finit jamais de charger : la preview l'attendait avant la
   // première story, et restait vide sans un mot. Audit à froid du projet 1.3.
+  // Le rechargement servait parfois l'ancien module, et le cas passait sans avoir
+  // chargé celui qui ne finit jamais : 3 fois sur 9 avec la régression remise.
+  // Attendu servi, puis affirmé absent : l'ancien pose sa marque. Audit à froid
+  // du projet 1.3.
   test('renders the stories while a preview module never finishes loading', async ({ ecran }) => {
     writeFileSync(
       join(ecran.root, 'plugins', 'hello', 'preview.js'),
       'await new Promise(() => {})\nexport default {}\n',
     )
+    const servi = new URL('/plugins/hello/preview.js', ecran.page.url()).href
+    await expect
+      .poll(async () => (await ecran.page.request.get(servi)).text())
+      .toContain('new Promise')
     await ecran.page.reload()
 
     await expect.poll(ecran.vu).toBe('Nouveau')
+    expect(
+      await ecran.page
+        .frameLocator('iframe[title="preview"]')
+        .locator('html')
+        .getAttribute('data-hello-renders'),
+    ).toBeNull()
   })
 
   // Un hook de la réserve, exporté et jamais appelé : c'est ainsi que

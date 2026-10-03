@@ -332,4 +332,59 @@ describe('what several panels edit', () => {
 
     expect(wrapper.emitted('overrides')?.at(-1)).toEqual([{ tone: 'calm' }])
   })
+  // Un plugin retiré de la configuration, la liste relue au `ready` suivant :
+  // ses valeurs restaient dans le rendu, puis revenaient quand on le remettait.
+  // Audit à froid du projet 1.3.
+  describe('a panel removed from the configuration', () => {
+    const a = { name: 'a', shell: module('un.ts') }
+    const b = { name: 'b', shell: module('deux.ts') }
+
+    const relue = async (wrapper: VueWrapper, liste: unknown[], revision: number) => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => ({ json: async () => ({ panels: liste, refused: [] }) })),
+      )
+      await wrapper.setProps({ revision })
+      await vi.waitFor(() => expect(wrapper.findAll('[data-plugin]')).toHaveLength(liste.length))
+    }
+
+    test('takes its values out of the render', async () => {
+      const wrapper = await monte([a, b])
+      await wrapper.setProps({ entry: { id: 'x--y' } as never })
+      wrapper
+        .findAllComponents({ name: 'PanelFrame' })[1]
+        ?.vm.$emit('overrides', { tone: 'warning' })
+
+      await relue(wrapper, [a], 1)
+
+      await vi.waitFor(() => expect(wrapper.emitted('overrides')?.at(-1)).toEqual([{}]))
+    })
+
+    test('brings none of them back when the plugin returns', async () => {
+      const wrapper = await monte([a, b])
+      await wrapper.setProps({ entry: { id: 'x--y' } as never })
+      wrapper
+        .findAllComponents({ name: 'PanelFrame' })[1]
+        ?.vm.$emit('overrides', { tone: 'warning' })
+
+      await relue(wrapper, [a], 1)
+      await relue(wrapper, [a, b], 2)
+      wrapper.findAllComponents({ name: 'PanelFrame' })[0]?.vm.$emit('overrides', { label: 'x' })
+
+      expect(wrapper.emitted('overrides')?.at(-1)).toEqual([{ label: 'x' }])
+    })
+
+    test('emits nothing when every panel stays', async () => {
+      const wrapper = await monte([a, b])
+      await wrapper.setProps({ entry: { id: 'x--y' } as never })
+      wrapper
+        .findAllComponents({ name: 'PanelFrame' })[1]
+        ?.vm.$emit('overrides', { tone: 'warning' })
+
+      await relue(wrapper, [a, b], 1)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(wrapper.emitted('overrides')).toHaveLength(1)
+    })
+  })
 })
