@@ -90,7 +90,7 @@ npm i -D @crypte/cli @crypte/react
 
 The package name and the command name are independent: `@crypte/cli` declares a binary called `crypte`, and the user types `crypte dev`.
 
-**A plugin written in the project imports its types from `@crypte/cli`**: `CryptePlugin`, `PanelProps`, `PanelEvents`, `PreviewHooks` and `PreviewContext`, the core's own. The project does not depend on the core, so it neither imports nor augments it: a plugin written there declares no story options (2.4), prop details (3.3) or messages (5.4).
+**A plugin written in the project imports its types from `@crypte/cli`**: `CryptePlugin`, `PanelProps`, `PanelEvents`, `PreviewHooks` and `PreviewContext`, the core's own. The project does not depend on the core, so it neither imports nor augments it: a plugin written there declares no story options (2.4), prop details (3.3) or messages (5.4). Nothing opens it until a project's plugin needs one of them.
 
 **`defineStories` and `story` come from the adapter, not from a neutral package.** The adapter knows the framework, so prop types are inferred more precisely. A Vue project imports them from its own adapter, and nothing else changes.
 
