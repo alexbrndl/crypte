@@ -13,6 +13,11 @@ const partagé = {
   sequence: { shuffle: { tests: true, files: false } },
 }
 
+// Les worktrees d'agents, sous `.claude/worktrees/`, sont des copies du dépôt :
+// chaque motif `**/` y ramassait leurs tests, qui échouaient faute de leur
+// configuration et arrêtaient la chaîne de commit. Mesuré pendant DCJ-334.
+const ignorés = ['**/node_modules/**', '**/.claude/**']
+
 export default defineConfig({
   run: {
     cache: true,
@@ -138,14 +143,14 @@ export default defineConfig({
           // `node_modules` exclu comme dans le projet d'unité : un paquet
           // installé porte ses propres `*.test-d.ts`, et vitest en prenait un.
           include: ['**/*.test-d.ts'],
-          exclude: ['**/node_modules/**'],
+          exclude: ignorés,
           // `tsconfig` nommément : sans lui, vitest prend le plus proche, qui
           // n'inclut pas ces fichiers, et annonce « no errors » en n'ayant rien
           // compilé. Mesuré, une assertion volontairement fausse passait.
           typecheck: {
             enabled: true,
             include: ['**/*.test-d.ts'],
-            exclude: ['**/node_modules/**'],
+            exclude: ignorés,
             tsconfig: './tsconfig.types.json',
           },
         },
@@ -155,7 +160,7 @@ export default defineConfig({
         test: {
           name: 'unité',
           exclude: [
-            '**/node_modules/**',
+            ...ignorés,
             '**/screen.test.ts',
             '**/restart.test.ts',
             '**/adapter.test.tsx',
@@ -191,6 +196,7 @@ export default defineConfig({
         test: {
           name: 'adaptateur',
           include: ['**/adapter.test.tsx'],
+          exclude: ignorés,
           environment: 'jsdom',
         },
       },
@@ -199,6 +205,7 @@ export default defineConfig({
         test: {
           name: 'écran',
           include: ['**/screen.test.ts', '**/restart.test.ts'],
+          exclude: ignorés,
           sequence: { groupOrder: 1 },
           // Un fichier à la fois : ils sont deux, et « seuls sur la machine »
           // est ce que `groupOrder` achète. Deux Chromium et deux serveurs en
