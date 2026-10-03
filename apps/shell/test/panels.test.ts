@@ -374,6 +374,29 @@ describe('what several panels edit', () => {
       expect(wrapper.emitted('overrides')?.at(-1)).toEqual([{ label: 'x' }])
     })
 
+    // Plus affiché, comme s'il était retiré : remonté neuf quand il charge de
+    // nouveau, il ne montrerait plus ces valeurs.
+    test('takes them out too when its module no longer loads', async () => {
+      const wrapper = await monte([a, b])
+      await wrapper.setProps({ entry: { id: 'x--y' } as never })
+      wrapper
+        .findAllComponents({ name: 'PanelFrame' })[1]
+        ?.vm.$emit('overrides', { tone: 'warning' })
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => ({
+          json: async () => ({
+            panels: [a, { name: 'b', shell: module('absent.ts') }],
+            refused: [],
+          }),
+        })),
+      )
+      await wrapper.setProps({ revision: 1 })
+
+      await vi.waitFor(() => expect(wrapper.emitted('overrides')?.at(-1)).toEqual([{}]))
+    })
+
     test('emits nothing when every panel stays', async () => {
       const wrapper = await monte([a, b])
       await wrapper.setProps({ entry: { id: 'x--y' } as never })
