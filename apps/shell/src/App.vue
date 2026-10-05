@@ -5,6 +5,7 @@ import type {
   ShellMessage,
   SkippedFile,
   StoryEntry,
+  TokensEntry,
 } from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/shell'
 import { Callout } from '@crypte/ui'
@@ -13,6 +14,7 @@ import Panels from './panels.vue'
 import { landing, unreadable, type Shown } from './recover'
 import ComponentPage from './component-page.vue'
 import StoryTree from './story-tree.vue'
+import TokensPage from './tokens-page.vue'
 import { componentIdOf } from './tree'
 import { placeSearch, readPlace, sameTab } from './url'
 
@@ -23,6 +25,8 @@ const MANIFEST = '/@crypte/manifest.json'
 
 const frame = useTemplateRef<HTMLIFrameElement>('frame')
 const entries = ref<StoryEntry[]>([])
+// Les familles de tokens, que l'arbre range avec les stories et qu'une page dessine.
+const families = ref<TokensEntry[]>([])
 const skipped = ref<SkippedFile[]>([])
 const current = ref<string | null>(null)
 const status = ref('loading the catalogue')
@@ -85,6 +89,15 @@ const componentStories = computed(() =>
   component.value === null ? [] : ofComponent(component.value, entries.value),
 )
 
+// La famille de tokens ouverte, par son identifiant, ou `null`. Comme une page
+// composant, elle laisse la preview et les panneaux chargés dessous.
+const family = ref<string | null>(null)
+const shownFamily = computed(() => families.value.find((one) => one.id === family.value) ?? null)
+
+// Ce que l'arbre range, dans l'ordre du manifeste : les familles y suivent les
+// stories, les contributions des plugins passant après elles (§6.3).
+const listed = computed(() => [...entries.value, ...families.value])
+
 // Ce qu'un panneau a édité, par-dessus les props de la story affichée. Gardé
 // tant que la même story reste affichée, y compris quand la preview redit
 // `ready` après une édition de fichier : la story repart de ses props quand on
@@ -117,9 +130,11 @@ function select(id: string) {
   if (ready) channel?.send({ type: 'render', id, overrides: overrides.value })
 }
 
+// Une story ou une famille de tokens : `?id=` les nomme toutes les deux (§4.3).
 function show(id: string, trace: Trace = 'replace') {
   component.value = null
-  select(id)
+  family.value = families.value.some((one) => one.id === id) ? id : null
+  if (family.value === null) select(id)
   write(placeSearch({ mode: 'entry', id }), trace)
 }
 
@@ -128,6 +143,7 @@ function show(id: string, trace: Trace = 'replace') {
 // fichier et son rang.
 function open(id: string, trace: Trace = 'push') {
   component.value = id
+  family.value = null
   const stories = ofComponent(id, entries.value)
   if (stories[0] && !stories.some((entry) => entry.id === current.value)) select(stories[0].id)
   write(placeSearch({ mode: 'component', id }), trace)
@@ -187,6 +203,7 @@ async function refresh() {
   const stories = manifest.entries.filter((entry): entry is StoryEntry => entry.type === 'story')
 
   entries.value = stories
+  families.value = manifest.entries.filter((entry): entry is TokensEntry => entry.type === 'tokens')
   skipped.value = manifest.skipped ?? []
   status.value = counted(stories.length)
 
@@ -197,6 +214,7 @@ async function refresh() {
   if (arrival.mode === 'entry') {
     const id = arrival.id
     shown = stories.find((entry) => entry.id === id) ?? shown
+    if (families.value.some((one) => one.id === id)) family.value = id
   }
   if (arrival.mode === 'component') {
     const [first] = ofComponent(arrival.id, stories)
@@ -207,6 +225,11 @@ async function refresh() {
   const next = landing(shown, before, stories)
   shown = next.shown
   if (next.status) status.value = next.status
+
+  // Une famille qui a disparu laisse sa page ouverte et le dit, comme une story
+  // perdue : revenue, elle se redessine.
+  if (family.value !== null && shownFamily.value === null)
+    status.value = 'the tokens on display are gone'
 
   // L'erreur part avec la story : un fichier supprimé fait d'abord échouer son
   // rechargement à chaud, et l'alerte restait par-dessus « la story affichée a
@@ -238,14 +261,15 @@ async function refresh() {
     const id = next.id
     const followed = componentIdOf(stories.find((entry) => entry.id === id)?.path ?? [])
     if (followed !== component.value) open(followed, 'replace')
-  } else show(next.id)
+  } else if (family.value !== null) select(next.id)
+  else show(next.id)
 }
 
 // Précédent et suivant du navigateur : l'adresse a changé sans le shell, qui la
 // suit sans ajouter d'étape.
 function travel() {
   const place = readPlace(window.location.search)
-  if (place.mode === 'entry' && entries.value.some((entry) => entry.id === place.id))
+  if (place.mode === 'entry' && listed.value.some((entry) => entry.id === place.id))
     show(place.id, 'none')
   if (place.mode === 'component' && ofComponent(place.id, entries.value).length > 0)
     open(place.id, 'none')
@@ -317,8 +341,8 @@ onMounted(() => {
     <nav>
       <h1>Crypte</h1>
       <StoryTree
-        :entries="entries"
-        :current="current"
+        :entries="listed"
+        :current="family ?? current"
         :component="component"
         @show="(id) => show(id, 'push')"
         @open="(id) => open(id)"
@@ -338,6 +362,8 @@ onMounted(() => {
         </ul>
       </Callout>
 
+      <TokensPage v-if="shownFamily" :family="shownFamily" />
+
       <ComponentPage
         v-if="component !== null"
         :stories="componentStories"
@@ -345,8 +371,8 @@ onMounted(() => {
       />
 
       <!-- Masqué et non retiré : la preview et les panneaux gardent leur état
-           pendant qu'une page composant est ouverte. -->
-      <div v-show="component === null">
+           pendant qu'une page composant ou une famille est ouverte. -->
+      <div v-show="component === null && family === null">
         <nav v-if="displayed" class="trail" aria-label="Breadcrumb">
           <span v-for="(segment, at) of displayed.path.slice(0, -1)" :key="at"
             >{{ segment }} /

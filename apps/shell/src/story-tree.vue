@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { StoryEntry } from '@crypte/core/protocol'
+import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { ToggleGroupItem, ToggleGroupRoot, TreeItem, TreeRoot } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
 import {
@@ -13,10 +13,10 @@ import {
   type Status,
 } from './tree'
 
-// `component` : la page composant ouverte, par son identifiant ; sinon la story
-// `current` est celle qu'on regarde.
+// `component` : la page composant ouverte, par son identifiant ; sinon l'entrée
+// `current`, story ou famille de tokens, est celle qu'on regarde.
 const props = defineProps<{
-  entries: StoryEntry[]
+  entries: (StoryEntry | TokensEntry)[]
   current: string | null
   component: string | null
 }>()
@@ -28,7 +28,9 @@ const statuses = ref<Status[]>([])
 // Le filtre n'apparaît que si un composant déclare un statut : sinon il
 // n'aurait rien à filtrer, et choisir un statut viderait l'arbre.
 const declared = computed(() =>
-  STATUSES.filter((status) => props.entries.some((entry) => entry.meta?.status === status)),
+  STATUSES.filter((status) =>
+    props.entries.some((entry) => entry.type === 'story' && entry.meta?.status === status),
+  ),
 )
 
 // Un statut choisi que plus aucun composant ne déclare ne filtre plus : son bouton
@@ -96,7 +98,7 @@ watch(
     const entry =
       component === null
         ? props.entries.find((one) => one.id === id)
-        : props.entries.find((one) => componentIdOf(one.path) === component)
+        : props.entries.find((one) => one.type === 'story' && componentIdOf(one.path) === component)
     if (!entry) return
     const above = component === null ? keysAbove(entry) : keysAbove(entry).slice(0, -1)
     if (folded.value.some((key) => above.includes(key)))
@@ -108,7 +110,7 @@ watch(
 const find = (nodes: readonly Node[], key: string): Node | undefined => {
   for (const node of nodes) {
     if (node.key === key) return node
-    const inside = node.kind === 'story' ? undefined : find(node.children, key)
+    const inside = 'children' in node ? find(node.children, key) : undefined
     if (inside) return inside
   }
   return undefined
@@ -119,9 +121,10 @@ const selected = computed(() => {
   return props.current === null ? undefined : find(shown.value, props.current)
 })
 
-// Une story et un composant se choisissent, un dossier se plie seulement.
+// Une story, une famille et un composant se choisissent, un dossier se plie
+// seulement.
 function pick(node: Node | undefined) {
-  if (node?.kind === 'story') emit('show', node.entry.id)
+  if (node?.kind === 'story' || node?.kind === 'tokens') emit('show', node.entry.id)
   if (node?.kind === 'component') emit('open', node.id)
 }
 
@@ -132,7 +135,7 @@ const notFolding = (node: Node, event: CustomEvent<{ originalEvent: Event }>) =>
     event.preventDefault()
 }
 
-const childrenOf = (node: Node) => (node.kind === 'story' ? undefined : node.children)
+const childrenOf = (node: Node) => ('children' in node ? node.children : undefined)
 </script>
 
 <template>

@@ -1,4 +1,4 @@
-import type { StoryEntry, StoryMeta } from '@crypte/core/protocol'
+import type { StoryEntry, StoryMeta, TokensEntry } from '@crypte/core/protocol'
 import { describe, expect, test } from 'vitest'
 import { branchKeys, filtered, keysAbove, treeOf, type Node } from '../src/tree'
 
@@ -24,7 +24,7 @@ const entry = (
 // La forme seule : la nature, le nom, et les enfants.
 const shape = (nodes: readonly Node[]): unknown[] =>
   nodes.map((node) =>
-    node.kind === 'story' ? node.name : { [`${node.kind} ${node.name}`]: shape(node.children) },
+    'children' in node ? { [`${node.kind} ${node.name}`]: shape(node.children) } : node.name,
   )
 
 const avecReference = entry(
@@ -158,5 +158,33 @@ describe('the status filter', () => {
     expect(shape(filtered(tree, 'checkout', ['stable']))).toEqual([
       { 'folder checkout': [{ 'component OrderSummary': ['With reference', 'Without'] }] },
     ])
+  })
+})
+
+describe('a tokens family in the tree', () => {
+  const famille = (id: string, name: string, path: string[]): TokensEntry => ({
+    type: 'tokens',
+    id,
+    path,
+    name,
+    tokens: { primary: { type: 'color', themes: { default: { value: '#000' } } } },
+  })
+  const couleur = famille('tokens--color', 'color', ['Tokens'])
+
+  test('sits under folders made of its whole path, after the stories', () => {
+    expect(shape(treeOf([libelle, couleur, famille('a/b--c', 'c', ['A', 'B'])]))).toEqual([
+      { 'component Badge': ['Libellé long'] },
+      { 'folder Tokens': ['color'] },
+      { 'folder A': [{ 'folder B': ['c'] }] },
+    ])
+    expect(keysAbove(couleur)).toEqual(['folder:tokens'])
+  })
+
+  test('is found by its name or its folder, and hidden by a status filter', () => {
+    const tree = treeOf([libelle, couleur])
+
+    expect(shape(filtered(tree, 'colo', []))).toEqual([{ 'folder Tokens': ['color'] }])
+    expect(shape(filtered(tree, 'tokens', []))).toEqual([{ 'folder Tokens': ['color'] }])
+    expect(filtered(treeOf([couleur]), '', ['stable'])).toEqual([])
   })
 })

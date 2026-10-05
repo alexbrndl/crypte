@@ -1149,3 +1149,22 @@ describe('the component page', () => {
     expect(new URL(ecran.page.url()).search).toBe('?id=badge--libelle-long')
   })
 })
+
+// Les familles que `@crypte/tokens` lit dans la démonstration : le critère de DCJ-338.
+describe('the tokens page', () => {
+  test('lists the four families, and opens one from its address', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    const familles = ecran.page.locator('nav [role="treeitem"].tokens .name')
+    await expect
+      .poll(() => familles.allTextContents())
+      .toEqual(['color', 'radius', 'size', 'space'])
+
+    const origin = new URL(ecran.page.url()).origin
+    await ecran.page.goto(`${origin}/?id=tokens--color`)
+
+    const page = ecran.page.locator('.tokens-page')
+    await expect.poll(() => page.locator('h2').textContent()).toBe('color')
+    expect(await page.locator('thead th').allTextContents()).toEqual(['Token', 'default', 'dark'])
+    expect(await page.locator('tbody tr').count()).toBe(4)
+  })
+})
