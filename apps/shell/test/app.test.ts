@@ -2155,6 +2155,12 @@ describe('leaving full screen without Escape', () => {
 
     expect(wrapper.find('main').classes()).not.toContain('full')
     expect(wrapper.find('main > nav').isVisible()).toBe(true)
+
+    // Quitté, pas masqué : la story suivante ne le rallume pas.
+    await wrapper.find('[role="treeitem"].story').trigger('click')
+    await vide(wrapper)
+    expect(window.location.search).toBe('?id=bouton--defaut')
+    expect(wrapper.find('main').classes()).not.toContain('full')
     wrapper.unmount()
   })
 })

@@ -9,7 +9,7 @@ import type {
 } from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/shell'
 import { Callout } from '@crypte/ui'
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import Panels from './panels.vue'
 import { landing, unreadable, type Shown } from './recover'
 import { CHANGES, type Changes } from './changes'
@@ -191,8 +191,13 @@ const full = ref(false)
 const storyMode = computed(
   () => component.value === null && family.value === null && !changesOpen.value,
 )
-// Une story affichée aussi : sans elle, la barre et son bouton de sortie partent.
-const fullScreen = computed(() => full.value && storyMode.value && displayed.value !== null)
+const fullScreen = computed(() => full.value && storyMode.value)
+
+// Quitté, pas seulement masqué, quand la story affichée disparaît : la barre part
+// avec son bouton de sortie, et le plein écran revenait au clic suivant.
+watch(displayed, (now) => {
+  if (now === null) full.value = false
+})
 
 type Trace = 'push' | 'replace' | 'none'
 
