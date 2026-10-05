@@ -2113,6 +2113,18 @@ describe('leaving full screen without Escape', () => {
     expect(écran.wrapper.find('main > nav').isVisible()).toBe(true)
   })
 
+  // Sans story affichée, aucune barre ne permettrait d'en sortir.
+  test('is never entered with no story on display', async () => {
+    const écran = await monte([])
+
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', bubbles: true }))
+    await vide(écran.wrapper)
+
+    expect(écran.wrapper.find('main').classes()).not.toContain('full')
+    expect(écran.wrapper.find('main > nav').isVisible()).toBe(true)
+    écran.wrapper.unmount()
+  })
+
   // Le fichier de la story affichée supprimé : la barre et son bouton de sortie partent.
   test('is left when the story on display goes', async () => {
     const manifests: Manifest[] = [

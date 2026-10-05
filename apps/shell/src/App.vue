@@ -307,7 +307,9 @@ function shortcut(event: KeyboardEvent) {
     return
   }
   if (!storyMode.value) return
-  if (event.key === 'f' && plain) full.value = !full.value
+  // Comme le bouton, qui n'existe qu'avec une story : sans elle, aucune barre ne
+  // permettrait d'en sortir.
+  if (event.key === 'f' && plain && displayed.value !== null) full.value = !full.value
   if (event.key === '[') step(-1)
   if (event.key === ']') step(1)
 }
