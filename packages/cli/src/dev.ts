@@ -50,6 +50,9 @@ export interface Started {
 
 interface Held {
   catalogue: Catalogue
+  // Why the last reread of the configuration failed, the server keeping this one.
+  // A restart that succeeds starts from a new `Held`, so it clears itself.
+  config?: string
 }
 
 // Assembled from the pieces the earlier lots left: `loadProject` for the
@@ -79,7 +82,14 @@ export async function startDev(
   const server = await createServer({
     ...config,
     optimizeDeps: { ...config.optimizeDeps, include: configPackages(project) },
-    plugins: [...config.plugins, servePlugin(project, () => held.catalogue)],
+    plugins: [
+      ...config.plugins,
+      servePlugin(
+        project,
+        () => held.catalogue,
+        () => held.config,
+      ),
+    ],
   })
 
   // Returned rather than left to the server's `close`: Vite resolves that close
@@ -407,6 +417,8 @@ export async function dev(input: string, log = console.log): Promise<Running> {
         `the configuration could not be read, keeping the server that runs: ${reason(error)}. ` +
           'Save crypte.config.ts again to retry.',
       )
+      // Said in the shell too, which shows the configuration still served.
+      ;(running.started ?? started).held.config = reason(error)
       seen = now
       return
     }

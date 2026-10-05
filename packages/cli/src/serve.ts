@@ -58,6 +58,11 @@ export const PLUGINS_ROUTE = '/@crypte/plugins.json'
 // Read from Git at each request: a commit made while the server runs moves it.
 export const CHANGES_ROUTE = '/@crypte/changes.json'
 
+// What the shell says of the project itself: the story root it declares, where an
+// empty catalogue was looked for, and why the last reread of the configuration
+// failed while the server keeps the previous one.
+export const PROJECT_ROUTE = '/@crypte/project.json'
+
 // Each shell module's folder, served as is and never through Vite. Vite would
 // resolve `import 'vue'` to the project's copy, or to nothing in a React project,
 // and a panel running on a second Vue never redraws its own state, without a
@@ -105,7 +110,11 @@ function shellAssets(): string {
 //
 // The catalogue is read at each request, never captured: a story added while
 // the server runs must reach the shell without a restart.
-export function servePlugin(project: Project, current: () => Catalogue): Plugin {
+export function servePlugin(
+  project: Project,
+  current: () => Catalogue,
+  unreadConfig: () => string | undefined = () => undefined,
+): Plugin {
   const shell = shellAssets()
 
   // Held for `compiled`: without the resolved config, oxc reads a different
@@ -151,6 +160,14 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
         if (url === MANIFEST_ROUTE) {
           response.setHeader('Content-Type', 'application/json')
           response.end(JSON.stringify(current().manifest))
+          return
+        }
+
+        if (url === PROJECT_ROUTE) {
+          response.setHeader('Content-Type', 'application/json')
+          response.end(
+            JSON.stringify({ stories: project.config.stories, config: unreadConfig() ?? null }),
+          )
           return
         }
 
