@@ -13,6 +13,12 @@ const emit = defineEmits<{ show: [id: string] }>()
 const first = computed(() => props.stories[0])
 const meta = computed(() => first.value?.meta ?? {})
 
+// Un lien seulement en http ou https : `javascript:` s'exécuterait au clic, et
+// `meta` vient d'un dépôt qu'un build statique publie. Le reste s'affiche en texte.
+const figma = computed(() =>
+  /^https?:\/\//i.test(meta.value.figma ?? '') ? meta.value.figma : null,
+)
+
 // Un lien, pour qu'un clic du milieu ouvre la story dans un autre onglet.
 function follow(event: MouseEvent, id: string) {
   if (!sameTab(event)) return
@@ -38,7 +44,8 @@ function follow(event: MouseEvent, id: string) {
       <template v-if="meta.figma">
         <dt>Figma</dt>
         <dd>
-          <a :href="meta.figma" target="_blank" rel="noreferrer">{{ meta.figma }}</a>
+          <a v-if="figma" :href="figma" target="_blank" rel="noreferrer">{{ figma }}</a>
+          <code v-else>{{ meta.figma }}</code>
         </dd>
       </template>
       <dt>Component</dt>

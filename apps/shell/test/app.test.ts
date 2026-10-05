@@ -926,6 +926,20 @@ describe('the component page', () => {
     écran.wrapper.unmount()
   })
 
+  // Le libellé mène quelque part, il ne plie jamais, même sur la page déjà ouverte.
+  test('does not fold its component when its label is clicked again', async () => {
+    const écran = await monte(catalogue)
+
+    await libellé(écran, 'Badge').trigger('click')
+    await vide(écran.wrapper)
+    await libellé(écran, 'Badge').trigger('click')
+    await vide(écran.wrapper)
+
+    expect(écran.noms()).toEqual(['Par défaut', 'Alerte', 'Par défaut'])
+    expect(page(écran).find('h2').text()).toBe('Badge')
+    écran.wrapper.unmount()
+  })
+
   test('shows what its stories file declares, and the props each story sets', async () => {
     window.history.replaceState(null, '', '/?component=badge')
     const écran = await monte(catalogue)
@@ -970,6 +984,27 @@ describe('the component page', () => {
     ).toEqual(['Component', 'Stories'])
     expect(page(écran).find('.description').exists()).toBe(false)
     expect(page(écran).find('tbody td .none').text()).toBe('none')
+    écran.wrapper.unmount()
+  })
+
+  test('links Figma only over http or https', async () => {
+    const piégé = { ...badgeD, meta: { figma: 'javascript:alert(1)' } }
+    window.history.replaceState(null, '', '/?component=badge')
+    const écran = await monte([piégé])
+
+    expect(page(écran).find('dd a').exists()).toBe(false)
+    expect(page(écran).find('dd code').text()).toBe('javascript:alert(1)')
+    écran.wrapper.unmount()
+  })
+
+  test('unfolds the folders above the component its address names', async () => {
+    localStorage.setItem('crypte:tree:folded', JSON.stringify(['folder:checkout']))
+    const profond = entry('checkout/ordersummary--x', 'X', ['checkout', 'OrderSummary'], 's.tsx')
+    window.history.replaceState(null, '', '/?component=checkout/ordersummary')
+    const écran = await monte([profond, bouton])
+
+    expect(écran.branches()).toEqual(['checkout', 'OrderSummary', 'Bouton'])
+    expect(libellé(écran, 'OrderSummary').attributes('aria-selected')).toBe('true')
     écran.wrapper.unmount()
   })
 
