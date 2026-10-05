@@ -114,7 +114,9 @@ async function readChanges() {
   try {
     read = (await fetch(CHANGES).then((answer) => answer.json())) as Changes
   } catch (error) {
-    read = { reason: unreadable(error) }
+    read = {
+      reason: `its route could not be read: ${error instanceof Error ? error.message : String(error)}`,
+    }
   }
   // Le dernier relu gagne : deux `ready` rapprochés ne se répondent pas dans l'ordre.
   if (run === reading) changes.value = read
@@ -194,7 +196,10 @@ function open(id: string, trace: Trace = 'push') {
   write(placeSearch({ mode: 'component', id }), trace)
 }
 
+// Relus à l'ouverture et au retour sur la fenêtre : un commit ne touche aucun
+// fichier que Vite surveille, donc aucun `ready` ne les aurait relus.
 function openChanges(trace: Trace = 'push') {
+  void readChanges()
   changesOpen.value = true
   component.value = null
   family.value = null
@@ -322,10 +327,14 @@ function travel() {
   if (place.mode === 'changes') openChanges('none')
 }
 
-onBeforeUnmount(() => window.removeEventListener('popstate', travel))
+onBeforeUnmount(() => {
+  window.removeEventListener('popstate', travel)
+  window.removeEventListener('focus', readChanges)
+})
 
 onMounted(() => {
   window.addEventListener('popstate', travel)
+  window.addEventListener('focus', readChanges)
 
   if (frame.value) {
     channel = createShellChannel(frame.value)

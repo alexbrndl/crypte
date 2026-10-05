@@ -78,6 +78,9 @@ export function committedFingerprint(root: string): Fingerprint | string {
       cwd: root,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
+      // Le tampon par défaut, 1 Mio, tuait git vers 3 900 stories (268 octets
+      // chacune, §4.6), sans rien sur sa sortie d'erreur. Mesuré.
+      maxBuffer: Infinity,
       // Git translates its messages, and the reasons below read them.
       env: { ...process.env, LC_ALL: 'C', LANGUAGE: 'C' },
     })
@@ -102,7 +105,8 @@ function gitReason(error: unknown): string {
   if (/invalid object name|unknown revision|bad revision/.test(said))
     return 'the repository has no commit yet'
   if (/not in 'HEAD'|does not exist in 'HEAD'/.test(said)) return `${FILE} has never been committed`
-  return `Git could not read the committed ${FILE}: ${said.trim().split('\n')[0] ?? ''}`
+  const first = said.trim().split('\n')[0] || (error as Error).message
+  return `Git could not read the committed ${FILE}: ${first}`
 }
 
 // A file someone may have edited, truncated or written with another version:

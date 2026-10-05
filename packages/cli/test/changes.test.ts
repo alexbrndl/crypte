@@ -197,6 +197,31 @@ describe('the committed fingerprint', () => {
     expect(committedFingerprint(root)).toBe(raison)
   })
 
+  // 9 000 stories, 1,8 Mio mesurés : au-delà du tampon par défaut de
+  // `execFileSync`, 1 Mio.
+  test('reads a committed fingerprint larger than one megabyte', () => {
+    const root = dossier()
+    const grande = empreinte(
+      ...Array.from({ length: 9000 }, (_, at) =>
+        entrée(`composant/${at}--story-${at}`, ['label', 'tone'], 'stable', 'x'.repeat(16)),
+      ),
+    )
+    commis(root, JSON.stringify(grande, null, 2))
+
+    const lue = committedFingerprint(root)
+    expect(typeof lue === 'string' ? lue : lue.entries.length).toBe(9000)
+  })
+
+  // Ce que Git dit d'un cas qu'aucune raison ne nomme : sa première ligne.
+  test('passes on what Git says of a failure no reason names', () => {
+    const root = dossier()
+    writeFileSync(join(root, '.git'), 'pas un dépôt')
+
+    expect(committedFingerprint(root)).toMatch(
+      /^Git could not read the committed \.crypte\/fingerprint\.json: fatal: invalid gitfile format/,
+    )
+  })
+
   test('gives the changes, or the reason there are none to read', () => {
     const root = dossier()
     commis(root, JSON.stringify(empreinte(entrée('a--x', []))))

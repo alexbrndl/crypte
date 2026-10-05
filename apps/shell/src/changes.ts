@@ -1,6 +1,7 @@
 // Ce que sert `/@crypte/changes.json` : la forme de `packages/cli/src/changes.ts`,
-// que le shell ne peut pas importer, le CLI étant celui qui l'embarque. Le cas
-// navigateur du mode changements lit les deux moitiés ensemble.
+// que le shell ne peut pas importer, le CLI étant celui qui l'embarque. Les deux
+// copies sont tenues ensemble : `dev.test.ts` fige la forme servie sur une liste
+// non vide, `app.test.ts` dessine cette même forme.
 
 export type Change =
   | { kind: 'appeared'; id: string }

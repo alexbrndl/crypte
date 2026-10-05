@@ -683,16 +683,19 @@ describe('the address', () => {
     expect(écran.story(1).attributes('aria-selected')).toBe('true')
   })
 
-  test('stops following the address once unmounted', async () => {
+  test('stops following the address and the focus once unmounted', async () => {
     const ajoute = vi.spyOn(window, 'addEventListener')
     const retire = vi.spyOn(window, 'removeEventListener')
     const écran = await monte([badge])
     const suivi = ajoute.mock.calls.find(([type]) => type === 'popstate')?.[1]
+    const focus = ajoute.mock.calls.find(([type]) => type === 'focus')?.[1]
 
     écran.wrapper.unmount()
 
     expect(suivi).toBeTypeOf('function')
     expect(retire).toHaveBeenCalledWith('popstate', suivi)
+    expect(focus).toBeTypeOf('function')
+    expect(retire).toHaveBeenCalledWith('focus', focus)
     ajoute.mockRestore()
     retire.mockRestore()
   })
@@ -1735,7 +1738,7 @@ describe('the changes mode', () => {
     await ouvre(écran)
 
     expect(page(écran).find('.note').text()).toBe(
-      'The changes cannot be read: the catalogue could not be read: Unexpected token.',
+      'The changes cannot be read: its route could not be read: Unexpected token.',
     )
     écran.wrapper.unmount()
   })
@@ -1772,6 +1775,24 @@ describe('the changes mode', () => {
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
 
     expect(entrée(écran).find('.counter').text()).toBe('4')
+    écran.wrapper.unmount()
+  })
+
+  // Un commit ne touche aucun fichier que Vite surveille : aucun `ready` ne suit.
+  test('reads the changes again when the window regains focus, and when the mode opens', async () => {
+    const réponses: unknown[] = [{ changes: [] }, lus, { changes: [] }]
+    const écran = await monte([badge, alerte, bouton], false, undefined, () =>
+      réponses.length > 1 ? réponses.shift() : réponses[0],
+    )
+    expect(entrée(écran).find('.counter').text()).toBe('0')
+
+    window.dispatchEvent(new Event('focus'))
+    await vide(écran.wrapper)
+    expect(entrée(écran).find('.counter').text()).toBe('4')
+
+    await ouvre(écran)
+    expect(entrée(écran).find('.counter').text()).toBe('0')
+    expect(page(écran).find('.note').text()).toBe('Nothing changed in the catalogue.')
     écran.wrapper.unmount()
   })
 
