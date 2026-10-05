@@ -191,7 +191,8 @@ const full = ref(false)
 const storyMode = computed(
   () => component.value === null && family.value === null && !changesOpen.value,
 )
-const fullScreen = computed(() => full.value && storyMode.value)
+// Une story affichée aussi : sans elle, la barre et son bouton de sortie partent.
+const fullScreen = computed(() => full.value && storyMode.value && displayed.value !== null)
 
 type Trace = 'push' | 'replace' | 'none'
 
@@ -220,6 +221,7 @@ function show(id: string, trace: Trace = 'replace') {
   changesOpen.value = false
   component.value = null
   family.value = families.value.some((one) => one.id === id) ? id : null
+  if (family.value !== null) full.value = false
   if (family.value === null) select(id)
   write(placeSearch({ mode: 'entry', id }), trace)
 }
@@ -229,6 +231,7 @@ function show(id: string, trace: Trace = 'replace') {
 // fichier et son rang.
 function open(id: string, trace: Trace = 'push') {
   if (trace === 'push') stale.value = null
+  full.value = false
   changesOpen.value = false
   component.value = id
   family.value = null
@@ -241,6 +244,7 @@ function open(id: string, trace: Trace = 'push') {
 // fichier que Vite surveille, donc aucun `ready` ne les aurait relus.
 function openChanges(trace: Trace = 'push') {
   if (trace === 'push') stale.value = null
+  full.value = false
   void readChanges()
   changesOpen.value = true
   component.value = null
@@ -276,24 +280,29 @@ async function copyLink() {
 
 const tree = useTemplateRef<{ focusSearch: () => void }>('tree')
 
-// Inactifs pendant une saisie et avec une touche de modification, qui sont ceux du
-// navigateur. Une frappe dans la preview n'arrive pas jusqu'ici : l'iframe la garde.
+// Inactifs pendant une saisie, et sous ⌘ ou Ctrl, qui sont ceux du navigateur. `[`
+// et `]` se décident sur le caractère : l'AZERTY et le QWERTZ les tapent avec ⌥
+// sous macOS, avec AltGr, qui arrive comme Ctrl et Alt, sous Windows. Une frappe
+// dans la preview n'arrive pas jusqu'ici : l'iframe la garde.
 function shortcut(event: KeyboardEvent) {
-  if (event.metaKey || event.ctrlKey || event.altKey) return
   if (event.key === 'Escape') {
     full.value = false
     return
   }
+  if (event.metaKey) return
+  if (event.ctrlKey && !event.getModifierState('AltGraph')) return
   const target = event.target
   if (target instanceof Element && target.closest('input, textarea, select, [contenteditable]'))
     return
-  if (event.key === '/') {
+  // Alt+F ouvre le menu Fichier sous Windows : `f` et `/` se tapent sans modification.
+  const plain = !event.altKey && !event.ctrlKey
+  if (event.key === '/' && plain) {
     event.preventDefault()
     tree.value?.focusSearch()
     return
   }
   if (!storyMode.value) return
-  if (event.key === 'f') full.value = !full.value
+  if (event.key === 'f' && plain) full.value = !full.value
   if (event.key === '[') step(-1)
   if (event.key === ']') step(1)
 }
@@ -525,15 +534,23 @@ onMounted(() => {
         </p>
       </Callout>
 
-      <Callout v-if="stale" tone="warning" class="stale" role="status">
+      <Callout v-if="stale && entries.length > 0" tone="warning" class="stale" role="status">
         <code>{{ stale }}</code> is not in the catalogue any more: it was probably renamed. Showing
         the first story instead.
       </Callout>
 
-      <Callout v-if="read && listed.length === 0" tone="warning" class="empty" role="status">
-        <h2>
-          No story found in <code>{{ project?.stories ?? 'stories' }}/</code>
+      <!-- Pas quand un fichier a été écarté : l'encadré d'en dessous le nomme, et
+           le dossier n'est alors pas en cause. -->
+      <Callout
+        v-if="read && listed.length === 0 && skipped.length === 0"
+        tone="warning"
+        class="empty"
+        role="status"
+      >
+        <h2 v-if="project">
+          No story found in <code>{{ project.stories }}/</code>
         </h2>
+        <h2 v-else>No story found</h2>
         <p>
           Check that <code>stories</code> in <code>crypte.config.ts</code> names the folder of your
           story files, and that each one exports <code>defineStories(…)</code> by default.

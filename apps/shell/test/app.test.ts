@@ -2055,3 +2055,135 @@ describe('the shortcuts', () => {
     expect(window.location.search).toBe('?component=badge')
   })
 })
+
+// Les raccourcis selon le clavier, et le plein écran qu'on quitte sans Échap.
+describe('the shortcuts on other keyboards', () => {
+  const frappe = async (écran: Ecran, key: string, options: KeyboardEventInit = {}) => {
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...options }))
+    await vide(écran.wrapper)
+  }
+
+  // AZERTY et QWERTZ sous macOS : ⌥⇧( donne `[`, ⌥⇧) donne `]`.
+  test('steps on [ and ] typed with Option', async ({ écran }) => {
+    await frappe(écran, ']', { altKey: true, shiftKey: true })
+    expect(window.location.search).toBe('?id=badge--alerte')
+    await frappe(écran, '[', { altKey: true, shiftKey: true })
+    expect(window.location.search).toBe('?id=badge--defaut')
+  })
+
+  // Sous Windows, AltGr arrive comme Ctrl et Alt.
+  test('steps on ] typed with AltGr, and not under Ctrl alone', async ({ écran }) => {
+    await frappe(écran, ']', { ctrlKey: true })
+    expect(window.location.search).toBe('?id=badge--defaut')
+
+    await frappe(écran, ']', {
+      ctrlKey: true,
+      altKey: true,
+      modifierAltGraph: true,
+    } as KeyboardEventInit)
+    expect(window.location.search).toBe('?id=badge--alerte')
+  })
+
+  // Alt+F ouvre le menu Fichier sous Windows.
+  test('leaves f under Alt to the browser', async ({ écran }) => {
+    await frappe(écran, 'f', { altKey: true })
+
+    expect(écran.wrapper.find('main').classes()).not.toContain('full')
+  })
+})
+
+describe('leaving full screen without Escape', () => {
+  test('is left when a page opens, and does not come back with the next story', async ({
+    écran,
+  }) => {
+    const plein = () => écran.wrapper.find('main').classes().includes('full')
+    await écran.wrapper
+      .findAll('.toolbar button')
+      .find((one) => one.text() === 'Full screen')!
+      .trigger('click')
+    expect(plein()).toBe(true)
+
+    await écran.wrapper.find('nav.trail a').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('.component-page').exists()).toBe(true)
+
+    await écran.story(1).trigger('click')
+    await vide(écran.wrapper)
+    expect(plein()).toBe(false)
+    expect(écran.wrapper.find('main > nav').isVisible()).toBe(true)
+  })
+
+  // Le fichier de la story affichée supprimé : la barre et son bouton de sortie partent.
+  test('is left when the story on display goes', async () => {
+    const manifests: Manifest[] = [
+      { version: 1, entries: [badge, bouton] },
+      { version: 1, entries: [bouton] },
+    ]
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async (url: string) =>
+          ({
+            json: async () =>
+              url === '/@crypte/plugins.json'
+                ? { panels: [], refused: [] }
+                : url === '/@crypte/changes.json'
+                  ? { changes: [] }
+                  : url === '/@crypte/project.json'
+                    ? { stories: 'stories', config: null }
+                    : manifests.length > 1
+                      ? manifests.shift()
+                      : manifests[0],
+          }) as Response,
+      ),
+    )
+    const wrapper = mount(App, { attachTo: document.body })
+    await vide(wrapper)
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', bubbles: true }))
+    await vide(wrapper)
+    expect(wrapper.find('main').classes()).toContain('full')
+
+    const frame = wrapper.find('iframe').element as HTMLIFrameElement
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'ready', protocolVersion: 1 },
+        origin: window.location.origin,
+        source: frame.contentWindow,
+      }),
+    )
+    await vide(wrapper)
+
+    expect(wrapper.find('main').classes()).not.toContain('full')
+    expect(wrapper.find('main > nav').isVisible()).toBe(true)
+    wrapper.unmount()
+  })
+})
+
+describe('the empty catalogue beside its neighbours', () => {
+  test('stays silent when a stories file was set aside, which the notice below names', async () => {
+    const écran = await monte([], false, [{ file: 'stories/Cassee.tsx', reason: 'does not parse' }])
+
+    expect(écran.wrapper.find('.empty').exists()).toBe(false)
+    expect(écran.écartés()).toHaveLength(1)
+    écran.wrapper.unmount()
+  })
+
+  test('names no folder it does not know', async () => {
+    const écran = await monte([], false, undefined, undefined, () => {
+      throw new Error('Unexpected token')
+    })
+
+    expect(écran.wrapper.find('.empty h2').text()).toBe('No story found')
+    écran.wrapper.unmount()
+  })
+
+  // « Showing the first story instead » sur un catalogue qui n'en a aucune.
+  test('says nothing of a stale address when there is no story to show instead', async () => {
+    window.history.replaceState(null, '', '/?id=disparue')
+    const écran = await monte([])
+
+    expect(écran.wrapper.find('.stale').exists()).toBe(false)
+    expect(écran.wrapper.find('.empty').exists()).toBe(true)
+    écran.wrapper.unmount()
+  })
+})
