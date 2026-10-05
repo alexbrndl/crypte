@@ -1164,6 +1164,46 @@ describe('the component page', () => {
     écran.wrapper.unmount()
   })
 
+  // Rien n'interdit deux fichiers de stories au même titre.
+  test('stays on a component another stories file still carries', async () => {
+    window.history.replaceState(null, '', '/?component=badge')
+    const ailleurs = entry('badge--autre', 'Autre', ['Badge'], 'stories/Badge.more.tsx')
+    const manifests: Manifest[] = [
+      { version: 1, entries: [badge, alerte, ailleurs] },
+      { version: 1, entries: [ailleurs] },
+    ]
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async (url: string) =>
+          ({
+            json: async () =>
+              url === '/@crypte/plugins.json'
+                ? { panels: [], refused: [] }
+                : manifests.length > 1
+                  ? manifests.shift()
+                  : manifests[0],
+          }) as Response,
+      ),
+    )
+    const wrapper = mount(App, { attachTo: document.body })
+    await vide(wrapper)
+    const frame = wrapper.find('iframe').element as HTMLIFrameElement
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'ready', protocolVersion: 1 },
+        origin: window.location.origin,
+        source: frame.contentWindow,
+      }),
+    )
+    await vide(wrapper)
+
+    expect(wrapper.find('.component-page h2').text()).toBe('Badge')
+    expect(wrapper.findAll('.component-page tbody tr')).toHaveLength(1)
+    expect(wrapper.findAll('p').at(-1)?.text()).toBe('1 story')
+    wrapper.unmount()
+  })
+
   // Le titre change, le fichier reste : la story retrouvée par son fichier et son
   // rang emmène la page vers le composant renommé.
   test('follows its component when the component is renamed', async () => {

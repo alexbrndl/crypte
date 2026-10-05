@@ -94,6 +94,8 @@ const componentStories = computed(() =>
 // panneau peut émettre le sien.
 const overrides = shallowRef<Overrides>({})
 
+const counted = (n: number) => (n === 1 ? '1 story' : `${n} stories`)
+
 type Trace = 'push' | 'replace' | 'none'
 
 // L'adresse suit ce qui est affiché, pour qu'un lien collé ailleurs rouvre la
@@ -186,7 +188,7 @@ async function refresh() {
 
   entries.value = stories
   skipped.value = manifest.skipped ?? []
-  status.value = `${stories.length} stories`
+  status.value = counted(stories.length)
 
   // Lue au premier catalogue, puis oubliée : ensuite, c'est ce qui est affiché
   // qui fait l'adresse. Sous une page composant, la preview charge sa première
@@ -210,6 +212,14 @@ async function refresh() {
   // rechargement à chaud, et l'alerte restait par-dessus « la story affichée a
   // disparu ».
   if (next.id === null) {
+    // Deux fichiers de stories peuvent porter le même titre : celui de la story
+    // chargée sous la page parti, l'autre porte encore le composant.
+    const [rest] = component.value === null ? [] : ofComponent(component.value, stories)
+    if (rest) {
+      status.value = counted(stories.length)
+      select(rest.id)
+      return
+    }
     current.value = null
     failure.value = null
     // Une page composant dont le fichier a disparu reste ouverte et le dit, comme
