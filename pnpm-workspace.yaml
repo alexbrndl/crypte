@@ -18,6 +18,7 @@ catalog:
   babel-plugin-react-compiler: ^1.0.0
   jsdom: ^30.0.1
   playwright: ^1.62.1
+  reka-ui: ^2.10.5
   tsconfck: ^3.1.6
   # Version exacte et pas une plage : l'API de génération de types n'est pas
   # stable, et une version corrective en changerait le comportement chez les
@@ -28,3 +29,9 @@ catalog:
   typescript: 6.0.3
   vite: ^8.2.1
   vitest: ^4.1.10
+
+# vue-demi, que tire @floating-ui/vue sous reka-ui : son script ne fait que
+# basculer vers Vue 2, et la version publiée vise déjà Vue 3. Sans cette ligne,
+# pnpm 11 sort en erreur à chaque installation, CI comprise.
+allowBuilds:
+  vue-demi: false

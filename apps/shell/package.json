@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@crypte/core": "workspace:*",
-    "@crypte/ui": "workspace:*"
+    "@crypte/ui": "workspace:*",
+    "reka-ui": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

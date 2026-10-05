@@ -551,7 +551,7 @@ export default defineStories(Badge, { props: { label: 'Seule' } })
 
     const page = await browser.newPage()
 
-    const arbre = () => page.locator('nav button').allTextContents()
+    const arbre = () => page.locator('nav [role="treeitem"].story .name').allTextContents()
     const rendu = () =>
       page
         .frameLocator('iframe[title="preview"]')
@@ -584,7 +584,7 @@ export default defineStories(Badge, { props: { label: 'Seule' } })
         .toBe('the story on display is gone')
 
       // Et l'outil marche : la story qui reste rend au clic.
-      await page.getByRole('button', { name: 'Default', exact: true }).click()
+      await page.getByRole('treeitem', { name: 'Default', exact: true }).click()
       await expect.poll(rendu, { timeout: 60_000 }).toBe('Seule')
     } finally {
       await page.close()
