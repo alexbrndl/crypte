@@ -73,6 +73,8 @@ const monte = async (
   entries: ManifestEntry[],
   échoue = false,
   skipped?: { file: string; reason: string }[],
+  // Ce que répond la route des changements, ou ce qu'elle lève.
+  changements: () => unknown = () => ({ changes: [] }),
 ): Promise<Ecran> => {
   const manifest: Manifest = { version: 1, entries, ...(skipped ? { skipped } : {}) } as never
 
@@ -82,6 +84,8 @@ const monte = async (
       // Les panneaux de plugins lisent leur propre route : aucun plugin ici.
       if (url === '/@crypte/plugins.json')
         return { json: async () => ({ panels: [], refused: [] }) } as Response
+      // Le mode changements lit sa propre route : rien n'a changé ici.
+      if (url === '/@crypte/changes.json') return { json: async () => changements() } as Response
       if (échoue) throw new Error('Unexpected end of JSON input')
 
       return { json: async () => manifest } as Response
@@ -559,7 +563,9 @@ describe('what the catalog left out', () => {
             json: async () =>
               url === '/@crypte/plugins.json'
                 ? { panels: [], refused: [] }
-                : (manifests.shift() ?? manifests[0]),
+                : url === '/@crypte/changes.json'
+                  ? { changes: [] }
+                  : (manifests.shift() ?? manifests[0]),
           }) as Response,
       ),
     )
@@ -677,16 +683,19 @@ describe('the address', () => {
     expect(écran.story(1).attributes('aria-selected')).toBe('true')
   })
 
-  test('stops following the address once unmounted', async () => {
+  test('stops following the address and the focus once unmounted', async () => {
     const ajoute = vi.spyOn(window, 'addEventListener')
     const retire = vi.spyOn(window, 'removeEventListener')
     const écran = await monte([badge])
     const suivi = ajoute.mock.calls.find(([type]) => type === 'popstate')?.[1]
+    const focus = ajoute.mock.calls.find(([type]) => type === 'focus')?.[1]
 
     écran.wrapper.unmount()
 
     expect(suivi).toBeTypeOf('function')
     expect(retire).toHaveBeenCalledWith('popstate', suivi)
+    expect(focus).toBeTypeOf('function')
+    expect(retire).toHaveBeenCalledWith('focus', focus)
     ajoute.mockRestore()
     retire.mockRestore()
   })
@@ -1195,9 +1204,11 @@ describe('the component page', () => {
             json: async () =>
               url === '/@crypte/plugins.json'
                 ? { panels: [], refused: [] }
-                : manifests.length > 1
-                  ? manifests.shift()
-                  : manifests[0],
+                : url === '/@crypte/changes.json'
+                  ? { changes: [] }
+                  : manifests.length > 1
+                    ? manifests.shift()
+                    : manifests[0],
           }) as Response,
       ),
     )
@@ -1246,9 +1257,11 @@ describe('the component page', () => {
             json: async () =>
               url === '/@crypte/plugins.json'
                 ? { panels: [], refused: [] }
-                : manifests.length > 1
-                  ? manifests.shift()
-                  : manifests[0],
+                : url === '/@crypte/changes.json'
+                  ? { changes: [] }
+                  : manifests.length > 1
+                    ? manifests.shift()
+                    : manifests[0],
           }) as Response,
       ),
     )
@@ -1310,9 +1323,11 @@ describe('the component page', () => {
             json: async () =>
               url === '/@crypte/plugins.json'
                 ? { panels: [], refused: [] }
-                : manifests.length > 1
-                  ? manifests.shift()
-                  : manifests[0],
+                : url === '/@crypte/changes.json'
+                  ? { changes: [] }
+                  : manifests.length > 1
+                    ? manifests.shift()
+                    : manifests[0],
           }) as Response,
       ),
     )
@@ -1512,9 +1527,11 @@ describe('the tokens page', () => {
             json: async () =>
               url === '/@crypte/plugins.json'
                 ? { panels: [], refused: [] }
-                : manifests.length > 1
-                  ? manifests.shift()
-                  : manifests[0],
+                : url === '/@crypte/changes.json'
+                  ? { changes: [] }
+                  : manifests.length > 1
+                    ? manifests.shift()
+                    : manifests[0],
           }) as Response,
       ),
     )
@@ -1579,9 +1596,11 @@ describe('the status line under a page', () => {
             json: async () =>
               url === '/@crypte/plugins.json'
                 ? { panels: [], refused: [] }
-                : manifests.length > 1
-                  ? manifests.shift()
-                  : manifests[0],
+                : url === '/@crypte/changes.json'
+                  ? { changes: [] }
+                  : manifests.length > 1
+                    ? manifests.shift()
+                    : manifests[0],
           }) as Response,
       ),
     )
@@ -1600,5 +1619,198 @@ describe('the status line under a page', () => {
     expect(wrapper.find('.tokens-page h2').text()).toBe('Brand')
     expect(wrapper.findAll('p').at(-1)?.text()).toBe('1 story')
     wrapper.unmount()
+  })
+})
+
+// Ce qui a changé depuis le dernier commit, lu par le CLI dans Git.
+describe('the changes mode', () => {
+  const lus = {
+    changes: [
+      { kind: 'appeared', id: 'badge--alerte' },
+      {
+        kind: 'changed',
+        id: 'bouton--defaut',
+        props: { before: ['label'], after: ['tone'] },
+        status: { before: 'draft', after: 'stable' },
+      },
+      { kind: 'disappeared', id: 'badge--ancienne' },
+      { kind: 'disappeared', id: 'parti--defaut' },
+    ],
+  }
+  const entrée = (écran: Ecran) => écran.wrapper.find('nav .changes-entry')
+  const page = (écran: Ecran) => écran.wrapper.find('.changes-page')
+  const ouvre = async (écran: Ecran) => {
+    await entrée(écran).trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+  }
+
+  test('opens from the foot of the navigation, which counts the changes', async () => {
+    const écran = await monte([badge, alerte, bouton], false, undefined, () => lus)
+    const avant = window.history.length
+
+    expect(entrée(écran).find('.counter').text()).toBe('4')
+    await ouvre(écran)
+
+    expect(page(écran).find('h2').text()).toBe('Changes since the last commit')
+    expect(window.location.search).toBe('?changes')
+    expect(window.history.length).toBe(avant + 1)
+    expect(entrée(écran).attributes('aria-current')).toBe('page')
+    expect(écran.wrapper.find('iframe').isVisible()).toBe(false)
+    expect(écran.wrapper.find('[role="treeitem"][aria-selected="true"]').exists()).toBe(false)
+    écran.wrapper.unmount()
+  })
+
+  test('groups what appeared, changed and disappeared, each row leading somewhere', async () => {
+    const écran = await monte([badge, alerte, bouton], false, undefined, () => lus)
+    await ouvre(écran)
+
+    expect(
+      page(écran)
+        .findAll('h3')
+        .map((one) => one.text()),
+    ).toEqual(['Appeared · 1', 'Changed · 1', 'Disappeared · 2'])
+    const lignes = page(écran)
+      .findAll('li')
+      .map((one) => [
+        one.find('a, code').text(),
+        ...one.findAll('.added, .removed, .status').map((part) => part.text()),
+      ])
+    expect(lignes).toEqual([
+      ['Badge / Alerte'],
+      ['Bouton / Par défaut', '+tone', '−label', 'draft → stable'],
+      ['badge--ancienne'],
+      ['parti--defaut'],
+    ])
+
+    expect(
+      page(écran)
+        .findAll('li a')
+        .map((one) => one.attributes('href')),
+    ).toEqual(['?id=badge--alerte', '?id=bouton--defaut', '?component=badge'])
+    écran.wrapper.unmount()
+  })
+
+  test('shows a story from its row, and the component of a story that disappeared', async () => {
+    const écran = await monte([badge, alerte, bouton], false, undefined, () => lus)
+    await ouvre(écran)
+
+    await page(écran).findAll('li a')[0]!.trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(page(écran).exists()).toBe(false)
+    expect(window.location.search).toBe('?id=badge--alerte')
+
+    await ouvre(écran)
+    await page(écran).findAll('li a')[2]!.trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('.component-page h2').text()).toBe('Badge')
+    expect(window.location.search).toBe('?component=badge')
+    écran.wrapper.unmount()
+  })
+
+  test('says when nothing changed, and counts zero', async () => {
+    const écran = await monte([badge], false, undefined, () => ({ changes: [] }))
+    await ouvre(écran)
+
+    expect(entrée(écran).find('.counter').text()).toBe('0')
+    expect(page(écran).find('.note').text()).toBe('Nothing changed in the catalogue.')
+    écran.wrapper.unmount()
+  })
+
+  // Le mode reste accessible et dit pourquoi, sinon rien ne distingue « aucun
+  // changement » d'une fonction cassée.
+  test('says why the changes cannot be read, and counts nothing', async () => {
+    const écran = await monte([badge], false, undefined, () => ({
+      reason: 'the project is not in a Git repository',
+    }))
+    await ouvre(écran)
+
+    expect(entrée(écran).find('.counter').exists()).toBe(false)
+    expect(page(écran).find('.note').text()).toBe(
+      'The changes cannot be read: the project is not in a Git repository.',
+    )
+    écran.wrapper.unmount()
+  })
+
+  test('says why when its route cannot be read', async () => {
+    const écran = await monte([badge], false, undefined, () => {
+      throw new Error('Unexpected token')
+    })
+    await ouvre(écran)
+
+    expect(page(écran).find('.note').text()).toBe(
+      'The changes cannot be read: its route could not be read: Unexpected token.',
+    )
+    écran.wrapper.unmount()
+  })
+
+  test('opens from its address, with the first story loaded underneath', async () => {
+    window.history.replaceState(null, '', '/?changes')
+    const écran = await monte([badge, alerte], false, undefined, () => lus)
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+
+    expect(page(écran).exists()).toBe(true)
+    expect(window.location.search).toBe('?changes')
+    expect(écran.statut()).toBe('2 stories')
+    await expect
+      .poll(() => écran.envoyés.at(-1))
+      .toEqual({ type: 'render', id: 'badge--defaut', overrides: {} })
+    écran.wrapper.unmount()
+  })
+
+  test('follows back and forward to the changes', async ({ écran }) => {
+    window.history.replaceState(null, '', '/?changes')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    await vide(écran.wrapper)
+
+    expect(page(écran).exists()).toBe(true)
+  })
+
+  test('reads the changes again with the catalogue', async () => {
+    const réponses = [{ changes: [] }, lus]
+    const écran = await monte([badge, alerte, bouton], false, undefined, () =>
+      réponses.length > 1 ? réponses.shift() : réponses[0],
+    )
+    expect(entrée(écran).find('.counter').text()).toBe('0')
+
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+
+    expect(entrée(écran).find('.counter').text()).toBe('4')
+    écran.wrapper.unmount()
+  })
+
+  // Un commit ne touche aucun fichier que Vite surveille : aucun `ready` ne suit.
+  test('reads the changes again when the window regains focus, and when the mode opens', async () => {
+    const réponses: unknown[] = [{ changes: [] }, lus, { changes: [] }]
+    const écran = await monte([badge, alerte, bouton], false, undefined, () =>
+      réponses.length > 1 ? réponses.shift() : réponses[0],
+    )
+    expect(entrée(écran).find('.counter').text()).toBe('0')
+
+    window.dispatchEvent(new Event('focus'))
+    await vide(écran.wrapper)
+    expect(entrée(écran).find('.counter').text()).toBe('4')
+
+    await ouvre(écran)
+    expect(entrée(écran).find('.counter').text()).toBe('0')
+    expect(page(écran).find('.note').text()).toBe('Nothing changed in the catalogue.')
+    écran.wrapper.unmount()
+  })
+
+  // Deux `ready` rapprochés : la réponse la plus lente ne remplace pas la dernière.
+  test('keeps the changes read last when two answers cross', async () => {
+    let lente!: (value: unknown) => void
+    const réponses: (() => unknown)[] = [
+      () => new Promise((resolve) => (lente = resolve)),
+      () => ({ changes: [] }),
+    ]
+    const écran = await monte([badge], false, undefined, () => (réponses.shift() ?? (() => ({})))())
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    expect(entrée(écran).find('.counter').text()).toBe('0')
+
+    lente(lus)
+    await vide(écran.wrapper)
+
+    expect(entrée(écran).find('.counter').text()).toBe('0')
+    écran.wrapper.unmount()
   })
 })

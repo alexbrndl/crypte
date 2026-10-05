@@ -12,6 +12,8 @@ import { Callout } from '@crypte/ui'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef } from 'vue'
 import Panels from './panels.vue'
 import { landing, unreadable, type Shown } from './recover'
+import { CHANGES, type Changes } from './changes'
+import ChangesPage from './changes-page.vue'
 import ComponentPage from './component-page.vue'
 import StoryTree from './story-tree.vue'
 import TokensPage from './tokens-page.vue'
@@ -100,12 +102,38 @@ const shownFamily = computed(() => families.value.find((one) => one.id === famil
 // stories, les contributions des plugins passant après elles (§6.3).
 const listed = computed(() => [...entries.value, ...families.value])
 
+// Le mode changements : ouvert ou non, et ce que le CLI en dit, relu avec le
+// catalogue. Comme une page, il laisse la preview chargée dessous.
+const changesOpen = ref(false)
+const changes = ref<Changes | null>(null)
+let reading = 0
+
+async function readChanges() {
+  const run = (reading += 1)
+  let read: Changes
+  try {
+    read = (await fetch(CHANGES).then((answer) => answer.json())) as Changes
+  } catch (error) {
+    read = {
+      reason: `its route could not be read: ${error instanceof Error ? error.message : String(error)}`,
+    }
+  }
+  // Le dernier relu gagne : deux `ready` rapprochés ne se répondent pas dans l'ordre.
+  if (run === reading) changes.value = read
+}
+
+// Le compteur du pied de la navigation : rien quand les changements ne se lisent pas.
+const counter = computed(() =>
+  changes.value !== null && 'changes' in changes.value ? changes.value.changes.length : null,
+)
+
 // La ligne d'état parle de ce qui est affiché. Sous une page, la story chargée
 // dessous rend comme ailleurs, mais ni sa durée de rendu ni sa perte n'y ont leur
 // place. Une page dont l'entrée a disparu reste ouverte et le dit, comme une
 // story perdue : l'entrée revenue, la page revient avec elle.
 const line = computed(() => {
   if (unread.value !== null) return unread.value
+  if (changesOpen.value) return counted(entries.value.length)
   if (family.value !== null)
     return shownFamily.value ? counted(entries.value.length) : 'the tokens on display are gone'
   if (component.value !== null)
@@ -149,6 +177,7 @@ function select(id: string) {
 
 // Une story ou une famille de tokens : `?id=` les nomme toutes les deux (§4.3).
 function show(id: string, trace: Trace = 'replace') {
+  changesOpen.value = false
   component.value = null
   family.value = families.value.some((one) => one.id === id) ? id : null
   if (family.value === null) select(id)
@@ -159,11 +188,22 @@ function show(id: string, trace: Trace = 'replace') {
 // pas déjà une : c'est elle qui retrouve le composant après un renommage, par son
 // fichier et son rang.
 function open(id: string, trace: Trace = 'push') {
+  changesOpen.value = false
   component.value = id
   family.value = null
   const stories = ofComponent(id, entries.value)
   if (stories[0] && !stories.some((entry) => entry.id === current.value)) select(stories[0].id)
   write(placeSearch({ mode: 'component', id }), trace)
+}
+
+// Relus à l'ouverture et au retour sur la fenêtre : un commit ne touche aucun
+// fichier que Vite surveille, donc aucun `ready` ne les aurait relus.
+function openChanges(trace: Trace = 'push') {
+  void readChanges()
+  changesOpen.value = true
+  component.value = null
+  family.value = null
+  write(placeSearch({ mode: 'changes' }), trace)
 }
 
 function follow(event: MouseEvent, go: () => void) {
@@ -220,6 +260,7 @@ async function refresh() {
   const stories = manifest.entries.filter((entry): entry is StoryEntry => entry.type === 'story')
 
   unread.value = null
+  void readChanges()
   entries.value = stories
   families.value = manifest.entries.filter((entry): entry is TokensEntry => entry.type === 'tokens')
   skipped.value = manifest.skipped ?? []
@@ -238,6 +279,7 @@ async function refresh() {
     const [first] = ofComponent(arrival.id, stories)
     if (first) [opening, shown] = [arrival.id, first]
   }
+  if (arrival.mode === 'changes') changesOpen.value = true
   arrival = { mode: 'home' }
 
   const next = landing(shown, before, stories)
@@ -270,7 +312,7 @@ async function refresh() {
     const id = next.id
     const followed = componentIdOf(stories.find((entry) => entry.id === id)?.path ?? [])
     if (followed !== component.value) open(followed, 'replace')
-  } else if (family.value !== null) select(next.id)
+  } else if (family.value !== null || changesOpen.value) select(next.id)
   else show(next.id)
 }
 
@@ -282,12 +324,17 @@ function travel() {
     show(place.id, 'none')
   if (place.mode === 'component' && ofComponent(place.id, entries.value).length > 0)
     open(place.id, 'none')
+  if (place.mode === 'changes') openChanges('none')
 }
 
-onBeforeUnmount(() => window.removeEventListener('popstate', travel))
+onBeforeUnmount(() => {
+  window.removeEventListener('popstate', travel)
+  window.removeEventListener('focus', readChanges)
+})
 
 onMounted(() => {
   window.addEventListener('popstate', travel)
+  window.addEventListener('focus', readChanges)
 
   if (frame.value) {
     channel = createShellChannel(frame.value)
@@ -351,11 +398,22 @@ onMounted(() => {
       <h1>Crypte</h1>
       <StoryTree
         :entries="listed"
-        :current="family ?? current"
+        :current="changesOpen ? null : (family ?? current)"
         :component="component"
         @show="(id) => show(id, 'push')"
         @open="(id) => open(id)"
       />
+      <!-- Une destination, pas une action : sa place est dans la navigation, au pied,
+           et non parmi les boutons qui agissent sur l'entrée affichée. -->
+      <a
+        class="changes-entry"
+        :href="placeSearch({ mode: 'changes' })"
+        :aria-current="changesOpen ? 'page' : undefined"
+        @click="follow($event, () => openChanges())"
+      >
+        Changes
+        <span v-if="counter !== null" class="counter">{{ counter }}</span>
+      </a>
     </nav>
 
     <div>
@@ -373,6 +431,14 @@ onMounted(() => {
 
       <TokensPage v-if="shownFamily" :family="shownFamily" />
 
+      <ChangesPage
+        v-if="changesOpen"
+        :changes="changes"
+        :stories="entries"
+        @show="(id) => show(id, 'push')"
+        @open="(id) => open(id)"
+      />
+
       <ComponentPage
         v-if="component !== null"
         :stories="componentStories"
@@ -381,7 +447,7 @@ onMounted(() => {
 
       <!-- Masqué et non retiré : la preview et les panneaux gardent leur état
            pendant qu'une page composant ou une famille est ouverte. -->
-      <div v-show="component === null && family === null">
+      <div v-show="component === null && family === null && !changesOpen">
         <nav v-if="displayed" class="trail" aria-label="Breadcrumb">
           <span v-for="(segment, at) of displayed.path.slice(0, -1)" :key="at"
             >{{ segment }} /
@@ -434,6 +500,24 @@ main {
 .trail {
   margin-bottom: 8px;
   font-size: 13px;
+}
+
+.changes-entry {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding: 8px 8px 0;
+  border-top: 1px solid #e5e7eb;
+  color: inherit;
+  text-decoration: none;
+}
+
+.changes-entry[aria-current='page'] {
+  font-weight: 600;
+}
+
+.counter {
+  color: #6b7280;
 }
 
 iframe {

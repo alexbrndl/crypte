@@ -5,7 +5,9 @@ import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sirv from 'sirv'
 import { transformWithOxc, type Plugin, type ViteDevServer } from 'vite'
+import { changesSince } from './changes'
 import { ConfigError } from './errors'
+import { fingerprintOf } from './fingerprint'
 import { storyFilesOf, type Catalogue } from './manifest'
 import { cssEntryOf, type Project } from './project'
 import { ONLY_STORY } from './stories'
@@ -51,6 +53,10 @@ export const PREVIEW_PAGE = '/preview.html'
 // The shell modules of the plugins, as the shell imports them: their name and
 // URL, in configuration order.
 export const PLUGINS_ROUTE = '/@crypte/plugins.json'
+
+// What changed in the catalogue since the last commit, or why it cannot be said.
+// Read from Git at each request: a commit made while the server runs moves it.
+export const CHANGES_ROUTE = '/@crypte/changes.json'
 
 // Each shell module's folder, served as is and never through Vite. Vite would
 // resolve `import 'vue'` to the project's copy, or to nothing in a React project,
@@ -145,6 +151,14 @@ export function servePlugin(project: Project, current: () => Catalogue): Plugin 
         if (url === MANIFEST_ROUTE) {
           response.setHeader('Content-Type', 'application/json')
           response.end(JSON.stringify(current().manifest))
+          return
+        }
+
+        if (url === CHANGES_ROUTE) {
+          response.setHeader('Content-Type', 'application/json')
+          response.end(
+            JSON.stringify(changesSince(project.root, fingerprintOf(current().manifest))),
+          )
           return
         }
 

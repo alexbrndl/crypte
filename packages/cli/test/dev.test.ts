@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { request } from 'node:http'
 import { tmpdir } from 'node:os'
@@ -9,6 +10,7 @@ import { dev, startDev, type Started, type Running } from '../src/dev'
 import { buildCatalogue } from '../src/manifest'
 import { loadProject } from '../src/project'
 import {
+  CHANGES_ROUTE,
   MANIFEST_ROUTE,
   PLUGINS_ROUTE,
   PREVIEW_ENTRY_ID,
@@ -59,6 +61,15 @@ describe('crypte dev', () => {
 
     expect(status).toBe(200)
     expect(JSON.parse(body)).toEqual(started.held.catalogue.manifest)
+  })
+
+  // La fixture est suivie par ce dépôt et son empreinte est commise : rien n'a
+  // changé, et Git a été lu depuis un sous-dossier du dépôt.
+  it('serves what changed since the last commit, read from Git', async () => {
+    const { status, body } = await get(CHANGES_ROUTE)
+
+    expect(status).toBe(200)
+    expect(JSON.parse(body)).toEqual({ changes: [] })
   })
 
   // Les modules shell des plugins, section 6.1 : listés dans l'ordre de la
@@ -371,4 +382,47 @@ describe('what the command says on startup', () => {
       lignes.some((une) => une.includes('neither manifest nor fingerprint could be written')),
     ).toBe(true)
   })
+})
+
+// La forme que la route des changements sert sur une liste non vide : celle que le
+// shell dessine (`apps/shell/src/changes.ts`, écrite à la main dans `app.test.ts`).
+// Une copie de la fixture dans son propre dépôt, où l'empreinte commise précède
+// une story éditée.
+describe('the changes route on a committed project', () => {
+  it('serves what moved in a stories file since the commit', async () => {
+    const root = mkdtempSync(join(fixture, '..', 'tmp-dev-'))
+    let started: Started | undefined
+    try {
+      cpSync(fixture, root, { recursive: true })
+      const git = (...args: string[]) =>
+        execFileSync(
+          'git',
+          ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', ...args],
+          { cwd: root, stdio: 'ignore' },
+        )
+      git('init', '-q')
+      git('add', '.crypte/fingerprint.json')
+      git('commit', '-qm', 'empreinte')
+      writeFileSync(
+        join(root, 'stories', 'Badge.js'),
+        "import { Badge } from '@/components/Badge'\n\nexport default defineStories(Badge, { stories: { Default: { label: 'Neuf' }, Neuve: {} } })\n",
+      )
+
+      started = await startDev(root)
+      await started.server.listen()
+      const address = started.server.httpServer?.address()
+      if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
+      const answer = await fetch(`http://localhost:${address.port}${CHANGES_ROUTE}`)
+
+      expect(await answer.json()).toEqual({
+        changes: [
+          { kind: 'changed', id: 'badge--default', props: { before: [], after: ['label'] } },
+          { kind: 'appeared', id: 'badge--neuve' },
+        ],
+      })
+    } finally {
+      await started?.server.close()
+      rmSync(root, { recursive: true, force: true })
+    }
+  }, 30_000)
 })

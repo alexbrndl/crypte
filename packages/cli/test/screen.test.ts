@@ -1168,3 +1168,21 @@ describe('the tokens page', () => {
     expect(await page.locator('tbody tr').count()).toBe(4)
   })
 })
+
+// Le mode changements dans le vrai navigateur. La copie de la démonstration n'est
+// suivie par aucun commit : le mode le dit au lieu de disparaître.
+describe('the changes mode', () => {
+  test('says why it cannot read the changes of a project Git does not follow', async ({
+    ecran,
+  }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+
+    await ecran.page.locator('nav .changes-entry').click()
+
+    await expect
+      .poll(async () => (await ecran.page.locator('.changes-page .note').textContent())?.trim())
+      .toBe('The changes cannot be read: .crypte/fingerprint.json has never been committed.')
+    expect(new URL(ecran.page.url()).search).toBe('?changes')
+    expect(await ecran.page.locator('nav .changes-entry .counter').count()).toBe(0)
+  })
+})
