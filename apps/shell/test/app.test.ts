@@ -832,7 +832,8 @@ describe('a filter on what changes underneath', () => {
   const filtre = (wrapper: VueWrapper) => wrapper.find('[aria-label="Filter by status"]')
 
   // Éditer `meta.status` dans un fichier de stories atteint l'arbre en direct.
-  test('lets go of a status no component declares any more', async () => {
+  // Comme un repli : le choix reste, et revient avec le composant qui le porte.
+  test('stops filtering by a status no component declares, and filters again when one does', async () => {
     const wrapper = mount(StoryTree, {
       props: { entries: [avec(badge, 'stable'), avec(bouton, 'draft')], current: null },
     })
@@ -847,6 +848,15 @@ describe('a filter on what changes underneath', () => {
         .findAll('button')
         .map((one) => one.attributes('data-state')),
     ).toEqual(['off'])
+
+    await wrapper.setProps({ entries: [avec(badge, 'stable'), avec(bouton, 'draft')] })
+
+    expect(noms(wrapper)).toEqual(['Bouton'])
+    expect(
+      filtre(wrapper)
+        .findAll('button')
+        .map((one) => one.attributes('data-state')),
+    ).toEqual(['on', 'off'])
     wrapper.unmount()
   })
 

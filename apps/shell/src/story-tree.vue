@@ -10,21 +10,19 @@ const emit = defineEmits<{ show: [id: string] }>()
 const query = ref('')
 const statuses = ref<Status[]>([])
 
-const tree = computed(() => treeOf(props.entries))
-const shown = computed(() => filtered(tree.value, query.value, statuses.value))
-
 // Le filtre n'apparaît que si un composant déclare un statut : sinon il
 // n'aurait rien à filtrer, et choisir un statut viderait l'arbre.
 const declared = computed(() =>
   STATUSES.filter((status) => props.entries.some((entry) => entry.meta?.status === status)),
 )
 
-// Un statut choisi que plus aucun composant ne déclare sort du choix : son bouton
-// disparaît avec lui, et l'arbre resterait vide sans rien pour en sortir.
-watch(declared, (now) => {
-  if (statuses.value.some((status) => !now.includes(status)))
-    statuses.value = statuses.value.filter((status) => now.includes(status))
-})
+// Un statut choisi que plus aucun composant ne déclare ne filtre plus : son bouton
+// disparaît avec lui, et l'arbre resterait vide sans rien pour en sortir. Il reste
+// choisi, comme un repli reste replié, et revient avec le composant qui le porte.
+const chosen = computed(() => statuses.value.filter((status) => declared.value.includes(status)))
+
+const tree = computed(() => treeOf(props.entries))
+const shown = computed(() => filtered(tree.value, query.value, chosen.value))
 
 // Ce qui est replié, et pas ce qui est ouvert : un composant écrit depuis la
 // dernière visite arrive ouvert, comme tout l'arbre la première fois. Retenu par
