@@ -1,8 +1,15 @@
 // L'arbre de navigation, tiré du manifeste : un dossier par segment du chemin
-// sauf le dernier, le composant pour le dernier, ses stories dessous. Aucun titre
-// n'est déclaré nulle part, section 1.1 des contrats.
+// sauf le dernier, le composant pour le dernier, ses stories dessous. Une famille
+// de tokens n'a pas de composant : tout son chemin est fait de dossiers. Aucun
+// titre n'est déclaré nulle part, section 1.1 des contrats.
 
-import { normalizeSegment, storyId, type StoryEntry, type StoryMeta } from '@crypte/core/protocol'
+import {
+  normalizeSegment,
+  storyId,
+  type StoryEntry,
+  type StoryMeta,
+  type TokensEntry,
+} from '@crypte/core/protocol'
 
 export type Status = NonNullable<StoryMeta['status']>
 
@@ -20,6 +27,7 @@ export type Node =
       children: Node[]
     }
   | { kind: 'story'; key: string; name: string; entry: StoryEntry }
+  | { kind: 'tokens'; key: string; name: string; entry: TokensEntry }
 
 // Préfixées par leur nature : un dossier et un composant peuvent porter le même
 // chemin, et une story garde son identifiant, qui est déjà unique.
@@ -31,7 +39,7 @@ export const componentIdOf = (path: readonly string[]) => storyId(path, '')
 
 // Dans l'ordre du manifeste. Le statut est celui du composant : `meta` se déclare
 // par fichier de stories, donc toutes ses stories portent le même.
-export function treeOf(entries: readonly StoryEntry[]): Node[] {
+export function treeOf(entries: readonly (StoryEntry | TokensEntry)[]): Node[] {
   const roots: Node[] = []
   const branches = new Map<string, Extract<Node, { children: Node[] }>>()
 
@@ -40,7 +48,7 @@ export function treeOf(entries: readonly StoryEntry[]): Node[] {
 
     entry.path.forEach((segment, at) => {
       const path = entry.path.slice(0, at + 1)
-      const last = at === entry.path.length - 1
+      const last = entry.type === 'story' && at === entry.path.length - 1
       const key = last ? componentKey(path) : folderKey(path)
 
       let branch = branches.get(key)
@@ -51,7 +59,7 @@ export function treeOf(entries: readonly StoryEntry[]): Node[] {
               key,
               id: componentIdOf(path),
               name: segment,
-              status: entry.meta?.status,
+              status: entry.type === 'story' ? entry.meta?.status : undefined,
               children: [],
             }
           : { kind: 'folder', key, name: segment, children: [] }
@@ -61,7 +69,11 @@ export function treeOf(entries: readonly StoryEntry[]): Node[] {
       siblings = branch.children
     })
 
-    siblings.push({ kind: 'story', key: entry.id, name: entry.name, entry })
+    siblings.push(
+      entry.type === 'story'
+        ? { kind: 'story', key: entry.id, name: entry.name, entry }
+        : { kind: 'tokens', key: entry.id, name: entry.name, entry },
+    )
   }
 
   return roots
@@ -71,10 +83,10 @@ export function treeOf(entries: readonly StoryEntry[]): Node[] {
 // trouve `Libellé long`, et `order summary` trouve `OrderSummary`.
 const fold = (text: string) => normalizeSegment(text).replaceAll('-', '')
 
-// Une story reste si son nom contient la recherche, ou si un composant ou un
-// dossier au-dessus d'elle la contient. Le filtre de statut écarte les
-// composants hors des statuts choisis, et ceux qui n'en déclarent aucun. Une
-// branche sans rien dessous disparaît.
+// Une story ou une famille reste si son nom contient la recherche, ou si une
+// branche au-dessus d'elle la contient. Le filtre de statut écarte les composants
+// hors des statuts choisis, ceux qui n'en déclarent aucun, et les familles de
+// tokens, qui n'en ont pas. Une branche sans rien dessous disparaît.
 export function filtered(
   nodes: readonly Node[],
   query: string,
@@ -83,7 +95,9 @@ export function filtered(
   const wanted = fold(query)
 
   const keep = (node: Node, above: boolean): Node | null => {
-    if (node.kind === 'story') return above || fold(node.name).includes(wanted) ? node : null
+    if (node.kind === 'tokens' && statuses.length > 0) return null
+    if (node.kind === 'story' || node.kind === 'tokens')
+      return above || fold(node.name).includes(wanted) ? node : null
     if (node.kind === 'component' && statuses.length > 0) {
       if (!node.status || !statuses.includes(node.status)) return null
     }
@@ -98,14 +112,16 @@ export function filtered(
 
 export function branchKeys(nodes: readonly Node[]): string[] {
   return nodes.flatMap((node) =>
-    node.kind === 'story' ? [] : [node.key, ...branchKeys(node.children)],
+    'children' in node ? [node.key, ...branchKeys(node.children)] : [],
   )
 }
 
-// Les branches qui contiennent une story, du dossier racine au composant.
-export function keysAbove(entry: StoryEntry): string[] {
+// Les branches qui contiennent une story ou une famille, depuis la racine.
+export function keysAbove(entry: StoryEntry | TokensEntry): string[] {
   return entry.path.map((_, at) => {
     const path = entry.path.slice(0, at + 1)
-    return at === entry.path.length - 1 ? componentKey(path) : folderKey(path)
+    return entry.type === 'story' && at === entry.path.length - 1
+      ? componentKey(path)
+      : folderKey(path)
   })
 }

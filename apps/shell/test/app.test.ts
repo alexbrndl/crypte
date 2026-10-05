@@ -115,7 +115,8 @@ const monte = async (
     écartés: () => wrapper.findAll('.set-aside li').map((one) => one.text()),
     partielle: () => wrapper.find('.partial').exists() && wrapper.find('.partial').text(),
     noms: () => wrapper.findAll('[role="treeitem"].story .name').map((one) => one.text()),
-    branches: () => wrapper.findAll('[role="treeitem"]:not(.story) .name').map((one) => one.text()),
+    branches: () =>
+      wrapper.findAll('[role="treeitem"]:not(.story):not(.tokens) .name').map((one) => one.text()),
     story: (at) => wrapper.findAll('[role="treeitem"].story')[at]!,
   }
 }
@@ -148,13 +149,27 @@ describe('the shell tree', () => {
     expect(écran.noms()).toEqual(['Par défaut', 'Alerte', 'Par défaut'])
   })
 
-  // Mesuré : retirer le filtre de `refresh` laissait les 675 cas au vert, aucun
-  // n'envoyant autre chose que des stories dans le manifeste.
-  test('does not show an entry it cannot handle', async () => {
+  // Une famille n'a pas de composant : tout son chemin est fait de dossiers.
+  test('puts a tokens family under its folders, apart from the stories', async () => {
     const écran = await monte([badge, jetons])
 
     expect(écran.noms()).toEqual(['Par défaut'])
+    expect(écran.branches()).toEqual(['Badge', 'Color'])
+    expect(
+      écran.wrapper.findAll('[role="treeitem"].tokens .name').map((one) => one.text()),
+    ).toEqual(['Brand'])
+    écran.wrapper.unmount()
+  })
+
+  // Mesuré : retirer le filtre de `refresh` laissait les 675 cas au vert, aucun
+  // n'envoyant autre chose que des stories dans le manifeste. `page` est réservé
+  // (§4.2) : ce que le shell ne sait pas dessiner, il l'ignore.
+  test('does not show a nature it cannot draw', async () => {
+    const page = { type: 'page', id: 'guide', path: ['Guides'], name: 'Guide' }
+    const écran = await monte([badge, page as never])
+
     expect(écran.branches()).toEqual(['Badge'])
+    expect(écran.wrapper.findAll('[role="treeitem"]')).toHaveLength(2)
     écran.wrapper.unmount()
   })
 
@@ -1375,6 +1390,215 @@ describe('the tree around a component', () => {
     expect(stories(wrapper)).toEqual([])
     expect(wrapper.emitted('open')).toBeUndefined()
     expect(wrapper.emitted('show')).toBeUndefined()
+    wrapper.unmount()
+  })
+})
+
+// La page d'une famille de tokens : chaque token dans chaque thème déclaré.
+describe('the tokens page', () => {
+  const famille: TokensEntry = {
+    type: 'tokens',
+    id: 'color--brand',
+    path: ['Color'],
+    name: 'Brand',
+    tokens: {
+      primary: {
+        type: 'color',
+        description: 'Filled buttons only.',
+        themes: {
+          light: { value: '#4fe0a0' },
+          dark: { value: '#1f5fd6', alias: ['color-blue', 'color-cobalt'] },
+        },
+      },
+      // Écrit sous le seul sélecteur sombre : rien pour le thème clair (§4.2).
+      night: { type: 'dimension', themes: { dark: { value: '4px' } } },
+    },
+  }
+  const page = (écran: Ecran) => écran.wrapper.find('.tokens-page')
+  const feuille = (écran: Ecran) => écran.wrapper.find('[role="treeitem"].tokens')
+
+  test('opens from the tree, without rendering anything in the preview', async () => {
+    const écran = await monte([badge, famille])
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    await expect
+      .poll(() => écran.envoyés.at(-1))
+      .toEqual({ type: 'render', id: 'badge--defaut', overrides: {} })
+    const avant = écran.envoyés.length
+
+    await feuille(écran).trigger('click')
+    await vide(écran.wrapper)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    expect(page(écran).find('h2').text()).toBe('Brand')
+    expect(window.location.search).toBe('?id=color--brand')
+    expect(feuille(écran).attributes('aria-selected')).toBe('true')
+    expect(écran.wrapper.find('iframe').isVisible()).toBe(false)
+    expect(écran.envoyés.length).toBe(avant)
+    écran.wrapper.unmount()
+  })
+
+  test('shows each token in each theme, its alias chain, and a theme it lacks', async () => {
+    window.history.replaceState(null, '', '/?id=color--brand')
+    const écran = await monte([badge, famille])
+
+    expect(
+      page(écran)
+        .findAll('thead th')
+        .map((one) => one.text()),
+    ).toEqual(['Token', 'light', 'dark'])
+    const lignes = page(écran)
+      .findAll('tbody tr')
+      .map((row) => [
+        row.find('th code').text(),
+        row.find('th .kind').text(),
+        row.find('th .description').exists() ? row.find('th .description').text() : null,
+        ...row.findAll('td').map((cell) => cell.text()),
+      ])
+    expect(lignes).toEqual([
+      [
+        'primary',
+        'color',
+        'Filled buttons only.',
+        '#4fe0a0',
+        '#1f5fd6 via color-blue → color-cobalt',
+      ],
+      ['night', 'dimension', null, 'not declared', '4px'],
+    ])
+    écran.wrapper.unmount()
+  })
+
+  // `background-color` et pas `background` : une valeur en `url(…)` n'y charge rien.
+  test('draws a swatch for a color, and none for another kind', async () => {
+    window.history.replaceState(null, '', '/?id=color--brand')
+    const écran = await monte([famille])
+    const pastilles = page(écran).findAll('.swatch')
+
+    expect(pastilles).toHaveLength(2)
+    expect((pastilles[0]!.element as HTMLElement).style.backgroundColor).toBe('rgb(79, 224, 160)')
+    expect((pastilles[0]!.element as HTMLElement).style.backgroundImage).toBe('')
+    écran.wrapper.unmount()
+  })
+
+  test('follows back and forward between a story and a family', async () => {
+    const écran = await monte([badge, famille])
+    await feuille(écran).trigger('click')
+    await vide(écran.wrapper)
+
+    window.history.replaceState(null, '', '/?id=badge--defaut')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    await vide(écran.wrapper)
+    expect(page(écran).exists()).toBe(false)
+    expect(écran.wrapper.find('iframe').isVisible()).toBe(true)
+
+    window.history.replaceState(null, '', '/?id=color--brand')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    await vide(écran.wrapper)
+    expect(page(écran).find('h2').text()).toBe('Brand')
+    écran.wrapper.unmount()
+  })
+
+  test('says when its family leaves the catalogue, and comes back with it', async () => {
+    window.history.replaceState(null, '', '/?id=color--brand')
+    const manifests: Manifest[] = [
+      { version: 1, entries: [badge, famille] },
+      { version: 1, entries: [badge] },
+      { version: 1, entries: [badge, famille] },
+    ]
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async (url: string) =>
+          ({
+            json: async () =>
+              url === '/@crypte/plugins.json'
+                ? { panels: [], refused: [] }
+                : manifests.length > 1
+                  ? manifests.shift()
+                  : manifests[0],
+          }) as Response,
+      ),
+    )
+    const wrapper = mount(App, { attachTo: document.body })
+    await vide(wrapper)
+    const frame = wrapper.find('iframe').element as HTMLIFrameElement
+    const ready = async () => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { type: 'ready', protocolVersion: 1 },
+          origin: window.location.origin,
+          source: frame.contentWindow,
+        }),
+      )
+      await vide(wrapper)
+    }
+
+    await ready()
+    expect(wrapper.find('.tokens-page').exists()).toBe(false)
+    expect(wrapper.findAll('p').at(-1)?.text()).toBe('the tokens on display are gone')
+    expect(window.location.search).toBe('?id=color--brand')
+
+    await ready()
+    expect(wrapper.find('.tokens-page h2').text()).toBe('Brand')
+    wrapper.unmount()
+  })
+})
+
+// La ligne d'état parle de ce qui est affiché, pas de la story chargée dessous.
+describe('the status line under a page', () => {
+  const famille: TokensEntry = { ...jetons }
+
+  test('ignores the render of the story underneath a family or a component', async () => {
+    window.history.replaceState(null, '', '/?id=color--brand')
+    const écran = await monte([badge, alerte, famille])
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    await écran.répond({ type: 'rendered', id: 'badge--defaut', durationMs: 1.2 } as PreviewMessage)
+
+    expect(écran.statut()).toBe('2 stories')
+
+    window.history.replaceState(null, '', '/?component=badge')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    await vide(écran.wrapper)
+    await écran.répond({ type: 'rendered', id: 'badge--defaut', durationMs: 1.2 } as PreviewMessage)
+
+    expect(écran.statut()).toBe('2 stories')
+    écran.wrapper.unmount()
+  })
+
+  // La story dessous perd son fichier : la famille, elle, n'a rien perdu.
+  test('does not say a story is gone under a family that is still there', async () => {
+    window.history.replaceState(null, '', '/?id=color--brand')
+    const manifests: Manifest[] = [
+      { version: 1, entries: [badge, bouton, famille] },
+      { version: 1, entries: [bouton, famille] },
+    ]
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async (url: string) =>
+          ({
+            json: async () =>
+              url === '/@crypte/plugins.json'
+                ? { panels: [], refused: [] }
+                : manifests.length > 1
+                  ? manifests.shift()
+                  : manifests[0],
+          }) as Response,
+      ),
+    )
+    const wrapper = mount(App, { attachTo: document.body })
+    await vide(wrapper)
+    const frame = wrapper.find('iframe').element as HTMLIFrameElement
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'ready', protocolVersion: 1 },
+        origin: window.location.origin,
+        source: frame.contentWindow,
+      }),
+    )
+    await vide(wrapper)
+
+    expect(wrapper.find('.tokens-page h2').text()).toBe('Brand')
+    expect(wrapper.findAll('p').at(-1)?.text()).toBe('1 story')
     wrapper.unmount()
   })
 })
