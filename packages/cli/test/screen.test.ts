@@ -1186,3 +1186,19 @@ describe('the changes mode', () => {
     expect(await ecran.page.locator('nav .changes-entry .counter').count()).toBe(0)
   })
 })
+
+// Les raccourcis dans le vrai navigateur, sur la page et non dans la preview.
+describe('the shortcuts', () => {
+  test('steps to the next story, and shows the preview alone until Escape', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+
+    expect(new URL(ecran.page.url()).search).toBe('?id=badge--par-defaut')
+    await ecran.page.locator('main').press(']')
+    await expect.poll(() => new URL(ecran.page.url()).search).toBe('?id=badge--avertissement')
+
+    await ecran.page.locator('main').press('f')
+    await expect.poll(() => ecran.page.locator('main > nav').isVisible()).toBe(false)
+    await ecran.page.locator('main').press('Escape')
+    await expect.poll(() => ecran.page.locator('main > nav').isVisible()).toBe(true)
+  })
+})

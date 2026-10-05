@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 import { chromium, type Browser } from 'playwright'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 import { dev, type Running } from '../src/dev'
-import { MANIFEST_ROUTE } from '../src/serve'
+import { MANIFEST_ROUTE, PROJECT_ROUTE } from '../src/serve'
 
 // Éditer `crypte.config.ts` remet les deux pages en marche sans commande.
 // `server.restart()` de Vite ne suffit pas : notre configuration est lue par
@@ -138,6 +138,13 @@ export default defineConfig({
       // état ordinaire de la frappe.
       expect(await compte()).toBe(4)
 
+      // Et dit au shell, qui montre la configuration encore servie.
+      const projet = async () =>
+        (await fetch(`http://localhost:${address.port}${PROJECT_ROUTE}`).then((answer) =>
+          answer.json(),
+        )) as { stories: string; config: string | null }
+      expect((await projet()).config).toMatch(/^crypte\.config\.ts could not be/)
+
       // Le même échec ne se dit qu'une fois : pendant une conversion, chaque
       // sauvegarde échoue de la même façon et la répétition enterre la ligne
       // qui suit. Un contenu différent, donc un échec différent, se dit.
@@ -158,6 +165,7 @@ export default defineConfig({
       expect(réparé).not.toBe(avant)
       writeFileSync(config, réparé)
       await expect.poll(compte, { timeout: 30_000 }).toBe(3)
+      expect(await projet()).toEqual({ stories: 'stories/checkout', config: null })
     } finally {
       await running.close()
       rmSync(root, { recursive: true, force: true })

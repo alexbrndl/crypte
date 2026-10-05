@@ -75,6 +75,8 @@ const monte = async (
   skipped?: { file: string; reason: string }[],
   // Ce que répond la route des changements, ou ce qu'elle lève.
   changements: () => unknown = () => ({ changes: [] }),
+  // Ce que dit la route du projet.
+  projet: () => unknown = () => ({ stories: 'stories', config: null }),
 ): Promise<Ecran> => {
   const manifest: Manifest = { version: 1, entries, ...(skipped ? { skipped } : {}) } as never
 
@@ -86,6 +88,7 @@ const monte = async (
         return { json: async () => ({ panels: [], refused: [] }) } as Response
       // Le mode changements lit sa propre route : rien n'a changé ici.
       if (url === '/@crypte/changes.json') return { json: async () => changements() } as Response
+      if (url === '/@crypte/project.json') return { json: async () => projet() } as Response
       if (échoue) throw new Error('Unexpected end of JSON input')
 
       return { json: async () => manifest } as Response
@@ -565,7 +568,9 @@ describe('what the catalog left out', () => {
                 ? { panels: [], refused: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
-                  : (manifests.shift() ?? manifests[0]),
+                  : url === '/@crypte/project.json'
+                    ? { stories: 'stories', config: null }
+                    : (manifests.shift() ?? manifests[0]),
           }) as Response,
       ),
     )
@@ -1206,9 +1211,11 @@ describe('the component page', () => {
                 ? { panels: [], refused: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
-                  : manifests.length > 1
-                    ? manifests.shift()
-                    : manifests[0],
+                  : url === '/@crypte/project.json'
+                    ? { stories: 'stories', config: null }
+                    : manifests.length > 1
+                      ? manifests.shift()
+                      : manifests[0],
           }) as Response,
       ),
     )
@@ -1259,9 +1266,11 @@ describe('the component page', () => {
                 ? { panels: [], refused: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
-                  : manifests.length > 1
-                    ? manifests.shift()
-                    : manifests[0],
+                  : url === '/@crypte/project.json'
+                    ? { stories: 'stories', config: null }
+                    : manifests.length > 1
+                      ? manifests.shift()
+                      : manifests[0],
           }) as Response,
       ),
     )
@@ -1325,9 +1334,11 @@ describe('the component page', () => {
                 ? { panels: [], refused: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
-                  : manifests.length > 1
-                    ? manifests.shift()
-                    : manifests[0],
+                  : url === '/@crypte/project.json'
+                    ? { stories: 'stories', config: null }
+                    : manifests.length > 1
+                      ? manifests.shift()
+                      : manifests[0],
           }) as Response,
       ),
     )
@@ -1529,9 +1540,11 @@ describe('the tokens page', () => {
                 ? { panels: [], refused: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
-                  : manifests.length > 1
-                    ? manifests.shift()
-                    : manifests[0],
+                  : url === '/@crypte/project.json'
+                    ? { stories: 'stories', config: null }
+                    : manifests.length > 1
+                      ? manifests.shift()
+                      : manifests[0],
           }) as Response,
       ),
     )
@@ -1598,9 +1611,11 @@ describe('the status line under a page', () => {
                 ? { panels: [], refused: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
-                  : manifests.length > 1
-                    ? manifests.shift()
-                    : manifests[0],
+                  : url === '/@crypte/project.json'
+                    ? { stories: 'stories', config: null }
+                    : manifests.length > 1
+                      ? manifests.shift()
+                      : manifests[0],
           }) as Response,
       ),
     )
@@ -1811,6 +1826,382 @@ describe('the changes mode', () => {
     await vide(écran.wrapper)
 
     expect(entrée(écran).find('.counter').text()).toBe('0')
+    écran.wrapper.unmount()
+  })
+})
+
+// Ce que le serveur dit du projet : une configuration qu'il n'a pas pu relire.
+describe('a configuration the server could not read', () => {
+  const raison = 'crypte.config.ts could not be loaded: Unexpected end of input'
+
+  test('is said above every page, with what to do next', async () => {
+    const écran = await monte([badge], false, undefined, undefined, () => ({
+      stories: 'stories',
+      config: raison,
+    }))
+    const encadré = écran.wrapper.find('.config')
+
+    expect(encadré.attributes('role')).toBe('alert')
+    expect(encadré.find('h2').text()).toBe('crypte.config.ts could not be read')
+    expect(encadré.find('p').text().replace(/\s+/g, ' ')).toBe(
+      `Crypte keeps serving the configuration it read before. Fix the file and save it again: ${raison}`,
+    )
+    écran.wrapper.unmount()
+  })
+
+  test('is read again when the window regains focus', async () => {
+    const réponses: unknown[] = [
+      { stories: 'stories', config: null },
+      { stories: 'stories', config: raison },
+    ]
+    const écran = await monte([badge], false, undefined, undefined, () =>
+      réponses.length > 1 ? réponses.shift() : réponses[0],
+    )
+    expect(écran.wrapper.find('.config').exists()).toBe(false)
+
+    window.dispatchEvent(new Event('focus'))
+    await vide(écran.wrapper)
+
+    expect(écran.wrapper.find('.config').exists()).toBe(true)
+    écran.wrapper.unmount()
+  })
+
+  test('says nothing when its route cannot be read', async () => {
+    const écran = await monte([badge], false, undefined, undefined, () => {
+      throw new Error('Unexpected token')
+    })
+
+    expect(écran.wrapper.find('.config').exists()).toBe(false)
+    écran.wrapper.unmount()
+  })
+})
+
+describe('an empty catalogue', () => {
+  test('says where Crypte looked, and what to check', async () => {
+    const écran = await monte([], false, undefined, undefined, () => ({
+      stories: 'src/stories',
+      config: null,
+    }))
+    const encadré = écran.wrapper.find('.empty')
+
+    expect(encadré.find('h2').text()).toBe('No story found in src/stories/')
+    expect(encadré.find('p').text().replace(/\s+/g, ' ')).toBe(
+      'Check that stories in crypte.config.ts names the folder of your story files, and that each one exports defineStories(…) by default.',
+    )
+    écran.wrapper.unmount()
+  })
+
+  test('says nothing before the catalogue is read, nor with only tokens', async () => {
+    const illisible = await monte([badge], true)
+    expect(illisible.wrapper.find('.empty').exists()).toBe(false)
+    illisible.wrapper.unmount()
+
+    const jetonsSeuls = await monte([jetons])
+    expect(jetonsSeuls.wrapper.find('.empty').exists()).toBe(false)
+    jetonsSeuls.wrapper.unmount()
+  })
+})
+
+describe('an address the catalogue no longer holds', () => {
+  test('says so, shows the first story, and lets go at the next click', async () => {
+    window.history.replaceState(null, '', '/?id=badge--renommee')
+    const écran = await monte([badge, alerte])
+
+    expect(écran.wrapper.find('.stale').text().replace(/\s+/g, ' ')).toBe(
+      'badge--renommee is not in the catalogue any more: it was probably renamed. Showing the first story instead.',
+    )
+    expect(écran.story(0).attributes('aria-selected')).toBe('true')
+
+    await écran.story(1).trigger('click')
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('.stale').exists()).toBe(false)
+    écran.wrapper.unmount()
+  })
+
+  test('says so for a component page too', async () => {
+    window.history.replaceState(null, '', '/?component=disparu')
+    const écran = await monte([badge])
+
+    expect(écran.wrapper.find('.stale code').text()).toBe('disparu')
+    écran.wrapper.unmount()
+  })
+
+  test('says nothing of an address it holds, story or family', async () => {
+    window.history.replaceState(null, '', '/?id=color--brand')
+    const famille = await monte([badge, jetons])
+    expect(famille.wrapper.find('.stale').exists()).toBe(false)
+    famille.wrapper.unmount()
+
+    window.history.replaceState(null, '', '/?id=badge--defaut')
+    const story = await monte([badge])
+    expect(story.wrapper.find('.stale').exists()).toBe(false)
+    story.wrapper.unmount()
+  })
+})
+
+describe('the toolbar of a story', () => {
+  const bouton = (écran: Ecran, texte: string) =>
+    écran.wrapper.findAll('.toolbar button').find((one) => one.text() === texte)!
+
+  test('copies the address of the story on display', async ({ écran }) => {
+    const écrit = vi.fn(async () => {})
+    vi.stubGlobal('navigator', { clipboard: { writeText: écrit } })
+
+    await bouton(écran, 'Copy link').trigger('click')
+    await vide(écran.wrapper)
+
+    expect(écrit).toHaveBeenCalledWith(window.location.href)
+    expect(écran.wrapper.find('.toolbar .copy').text()).toBe('Copied')
+  })
+
+  test('says when the address could not be copied', async ({ écran }) => {
+    vi.stubGlobal('navigator', {
+      clipboard: { writeText: vi.fn(async () => Promise.reject(new Error('denied'))) },
+    })
+
+    await bouton(écran, 'Copy link').trigger('click')
+    await vide(écran.wrapper)
+
+    expect(écran.wrapper.find('.toolbar .copy').text()).toBe('Copy failed')
+  })
+
+  // Parmi les sœurs du même composant, sans boucler ni passer au composant suivant.
+  test('steps through the stories of the component, and stops at its ends', async ({ écran }) => {
+    expect(bouton(écran, 'Previous').attributes('disabled')).toBeDefined()
+
+    await bouton(écran, 'Next').trigger('click')
+    await vide(écran.wrapper)
+    expect(écran.story(1).attributes('aria-selected')).toBe('true')
+    expect(window.location.search).toBe('?id=badge--alerte')
+    expect(bouton(écran, 'Next').attributes('disabled')).toBeDefined()
+
+    await bouton(écran, 'Previous').trigger('click')
+    await vide(écran.wrapper)
+    expect(écran.story(0).attributes('aria-selected')).toBe('true')
+  })
+
+  test('shows the preview alone in full screen, without navigation or panels', async ({
+    écran,
+  }) => {
+    await bouton(écran, 'Full screen').trigger('click')
+
+    expect(écran.wrapper.find('main').classes()).toContain('full')
+    expect(écran.wrapper.find('main > nav').isVisible()).toBe(false)
+    expect(écran.wrapper.findComponent(Panels).isVisible()).toBe(false)
+
+    await bouton(écran, 'Leave full screen').trigger('click')
+    expect(écran.wrapper.find('main > nav').isVisible()).toBe(true)
+  })
+
+  test('names its shortcuts on its buttons', async ({ écran }) => {
+    expect(
+      écran.wrapper
+        .findAll('.toolbar [aria-keyshortcuts]')
+        .map((one) => one.attributes('aria-keyshortcuts')),
+    ).toEqual(['[', ']', 'f'])
+    expect(écran.wrapper.find('input[type="search"]').attributes('aria-keyshortcuts')).toBe('/')
+  })
+})
+
+describe('the shortcuts', () => {
+  const frappe = async (
+    écran: Ecran,
+    key: string,
+    options: KeyboardEventInit = {},
+    sur: Element = document.body,
+  ) => {
+    sur.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...options }))
+    await vide(écran.wrapper)
+  }
+
+  test('focuses the search on /', async ({ écran }) => {
+    await frappe(écran, '/')
+
+    expect(document.activeElement).toBe(écran.wrapper.find('input[type="search"]').element)
+  })
+
+  test('steps with [ and ], and toggles full screen with f, Escape leaving it', async ({
+    écran,
+  }) => {
+    await frappe(écran, ']')
+    expect(window.location.search).toBe('?id=badge--alerte')
+    await frappe(écran, '[')
+    expect(window.location.search).toBe('?id=badge--defaut')
+
+    await frappe(écran, 'f')
+    expect(écran.wrapper.find('main').classes()).toContain('full')
+    await frappe(écran, 'Escape')
+    expect(écran.wrapper.find('main').classes()).not.toContain('full')
+  })
+
+  test('stays out of the way while typing, and of the browser own shortcuts', async ({ écran }) => {
+    await frappe(écran, 'f', {}, écran.wrapper.find('input[type="search"]').element)
+    await frappe(écran, 'f', { ctrlKey: true })
+    await frappe(écran, ']', { metaKey: true })
+
+    expect(écran.wrapper.find('main').classes()).not.toContain('full')
+    expect(window.location.search).toBe('?id=badge--defaut')
+  })
+
+  test('acts on a story only, never on a page', async ({ écran }) => {
+    window.history.replaceState(null, '', '/?component=badge')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    await vide(écran.wrapper)
+
+    await frappe(écran, 'f')
+    await frappe(écran, ']')
+
+    expect(écran.wrapper.find('main').classes()).not.toContain('full')
+    expect(window.location.search).toBe('?component=badge')
+  })
+})
+
+// Les raccourcis selon le clavier, et le plein écran qu'on quitte sans Échap.
+describe('the shortcuts on other keyboards', () => {
+  const frappe = async (écran: Ecran, key: string, options: KeyboardEventInit = {}) => {
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...options }))
+    await vide(écran.wrapper)
+  }
+
+  // AZERTY et QWERTZ sous macOS : ⌥⇧( donne `[`, ⌥⇧) donne `]`.
+  test('steps on [ and ] typed with Option', async ({ écran }) => {
+    await frappe(écran, ']', { altKey: true, shiftKey: true })
+    expect(window.location.search).toBe('?id=badge--alerte')
+    await frappe(écran, '[', { altKey: true, shiftKey: true })
+    expect(window.location.search).toBe('?id=badge--defaut')
+  })
+
+  // Sous Windows, AltGr arrive comme Ctrl et Alt.
+  test('steps on ] typed with AltGr, and not under Ctrl alone', async ({ écran }) => {
+    await frappe(écran, ']', { ctrlKey: true })
+    expect(window.location.search).toBe('?id=badge--defaut')
+
+    await frappe(écran, ']', {
+      ctrlKey: true,
+      altKey: true,
+      modifierAltGraph: true,
+    } as KeyboardEventInit)
+    expect(window.location.search).toBe('?id=badge--alerte')
+  })
+
+  // Alt+F ouvre le menu Fichier sous Windows.
+  test('leaves f under Alt to the browser', async ({ écran }) => {
+    await frappe(écran, 'f', { altKey: true })
+
+    expect(écran.wrapper.find('main').classes()).not.toContain('full')
+  })
+})
+
+describe('leaving full screen without Escape', () => {
+  test('is left when a page opens, and does not come back with the next story', async ({
+    écran,
+  }) => {
+    const plein = () => écran.wrapper.find('main').classes().includes('full')
+    await écran.wrapper
+      .findAll('.toolbar button')
+      .find((one) => one.text() === 'Full screen')!
+      .trigger('click')
+    expect(plein()).toBe(true)
+
+    await écran.wrapper.find('nav.trail a').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('.component-page').exists()).toBe(true)
+
+    await écran.story(1).trigger('click')
+    await vide(écran.wrapper)
+    expect(plein()).toBe(false)
+    expect(écran.wrapper.find('main > nav').isVisible()).toBe(true)
+  })
+
+  // Sans story affichée, aucune barre ne permettrait d'en sortir.
+  test('is never entered with no story on display', async () => {
+    const écran = await monte([])
+
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', bubbles: true }))
+    await vide(écran.wrapper)
+
+    expect(écran.wrapper.find('main').classes()).not.toContain('full')
+    expect(écran.wrapper.find('main > nav').isVisible()).toBe(true)
+    écran.wrapper.unmount()
+  })
+
+  // Le fichier de la story affichée supprimé : la barre et son bouton de sortie partent.
+  test('is left when the story on display goes', async () => {
+    const manifests: Manifest[] = [
+      { version: 1, entries: [badge, bouton] },
+      { version: 1, entries: [bouton] },
+    ]
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async (url: string) =>
+          ({
+            json: async () =>
+              url === '/@crypte/plugins.json'
+                ? { panels: [], refused: [] }
+                : url === '/@crypte/changes.json'
+                  ? { changes: [] }
+                  : url === '/@crypte/project.json'
+                    ? { stories: 'stories', config: null }
+                    : manifests.length > 1
+                      ? manifests.shift()
+                      : manifests[0],
+          }) as Response,
+      ),
+    )
+    const wrapper = mount(App, { attachTo: document.body })
+    await vide(wrapper)
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', bubbles: true }))
+    await vide(wrapper)
+    expect(wrapper.find('main').classes()).toContain('full')
+
+    const frame = wrapper.find('iframe').element as HTMLIFrameElement
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'ready', protocolVersion: 1 },
+        origin: window.location.origin,
+        source: frame.contentWindow,
+      }),
+    )
+    await vide(wrapper)
+
+    expect(wrapper.find('main').classes()).not.toContain('full')
+    expect(wrapper.find('main > nav').isVisible()).toBe(true)
+
+    // Quitté, pas masqué : la story suivante ne le rallume pas.
+    await wrapper.find('[role="treeitem"].story').trigger('click')
+    await vide(wrapper)
+    expect(window.location.search).toBe('?id=bouton--defaut')
+    expect(wrapper.find('main').classes()).not.toContain('full')
+    wrapper.unmount()
+  })
+})
+
+describe('the empty catalogue beside its neighbours', () => {
+  test('stays silent when a stories file was set aside, which the notice below names', async () => {
+    const écran = await monte([], false, [{ file: 'stories/Cassee.tsx', reason: 'does not parse' }])
+
+    expect(écran.wrapper.find('.empty').exists()).toBe(false)
+    expect(écran.écartés()).toHaveLength(1)
+    écran.wrapper.unmount()
+  })
+
+  test('names no folder it does not know', async () => {
+    const écran = await monte([], false, undefined, undefined, () => {
+      throw new Error('Unexpected token')
+    })
+
+    expect(écran.wrapper.find('.empty h2').text()).toBe('No story found')
+    écran.wrapper.unmount()
+  })
+
+  // « Showing the first story instead » sur un catalogue qui n'en a aucune.
+  test('says nothing of a stale address when there is no story to show instead', async () => {
+    window.history.replaceState(null, '', '/?id=disparue')
+    const écran = await monte([])
+
+    expect(écran.wrapper.find('.stale').exists()).toBe(false)
+    expect(écran.wrapper.find('.empty').exists()).toBe(true)
     écran.wrapper.unmount()
   })
 })

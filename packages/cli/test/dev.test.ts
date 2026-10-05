@@ -13,6 +13,7 @@ import {
   CHANGES_ROUTE,
   MANIFEST_ROUTE,
   PLUGINS_ROUTE,
+  PROJECT_ROUTE,
   PREVIEW_ENTRY_ID,
   previewEntry,
   servePlugin,
@@ -61,6 +62,13 @@ describe('crypte dev', () => {
 
     expect(status).toBe(200)
     expect(JSON.parse(body)).toEqual(started.held.catalogue.manifest)
+  })
+
+  it('serves the story root the project declares, and no configuration failure', async () => {
+    const { status, body } = await get(PROJECT_ROUTE)
+
+    expect(status).toBe(200)
+    expect(JSON.parse(body)).toEqual({ stories: 'stories', config: null })
   })
 
   // La fixture est suivie par ce dépôt et son empreinte est commise : rien n'a

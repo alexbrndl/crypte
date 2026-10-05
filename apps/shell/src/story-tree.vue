@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { ToggleGroupItem, ToggleGroupRoot, TreeItem, TreeRoot } from 'reka-ui'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
 import {
   STATUSES,
   branchKeys,
@@ -136,11 +136,23 @@ const notFolding = (node: Node, event: CustomEvent<{ originalEvent: Event }>) =>
 }
 
 const childrenOf = (node: Node) => ('children' in node ? node.children : undefined)
+
+// Pour le raccourci `/`, que le shell écoute.
+const search = useTemplateRef<HTMLInputElement>('search')
+defineExpose({ focusSearch: () => search.value?.focus() })
 </script>
 
 <template>
   <div class="tree">
-    <input v-model="query" type="search" class="search" aria-label="Search" placeholder="Search" />
+    <input
+      ref="search"
+      v-model="query"
+      type="search"
+      class="search"
+      aria-label="Search"
+      aria-keyshortcuts="/"
+      placeholder="Search (/)"
+    />
     <ToggleGroupRoot
       v-if="declared.length > 0"
       v-model="statuses"

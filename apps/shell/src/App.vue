@@ -9,7 +9,7 @@ import type {
 } from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/shell'
 import { Callout } from '@crypte/ui'
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import Panels from './panels.vue'
 import { landing, unreadable, type Shown } from './recover'
 import { CHANGES, type Changes } from './changes'
@@ -154,6 +154,51 @@ const overrides = shallowRef<Overrides>({})
 
 const counted = (n: number) => (n === 1 ? '1 story' : `${n} stories`)
 
+// Ce que le CLI dit du projet : la racine de stories qu'il déclare, et pourquoi
+// la dernière relecture de la configuration a échoué, le serveur gardant la
+// précédente. Relu comme les changements.
+const PROJECT = '/@crypte/project.json'
+const project = ref<{ stories: string; config: string | null } | null>(null)
+let asking = 0
+
+async function readProject() {
+  const run = (asking += 1)
+  let read: typeof project.value = null
+  try {
+    read = (await fetch(PROJECT).then((answer) => answer.json())) as typeof project.value
+  } catch {
+    // Rien à dire du projet plutôt qu'un encadré faux.
+  }
+  if (run === asking) project.value = read
+}
+
+// Relu au retour sur la fenêtre : une sauvegarde de la configuration ou un commit
+// ne produisent pas toujours de `ready`.
+function reread() {
+  void readChanges()
+  void readProject()
+}
+
+// Le catalogue lu au moins une fois, pour ne pas dire « aucune story » avant.
+const read = ref(false)
+
+// L'adresse d'arrivée, quand elle nomme ce que le catalogue ne porte plus. Dite
+// jusqu'à la prochaine navigation.
+const stale = ref<string | null>(null)
+
+// Le plein écran : la preview seule, sans navigation ni panneaux.
+const full = ref(false)
+const storyMode = computed(
+  () => component.value === null && family.value === null && !changesOpen.value,
+)
+const fullScreen = computed(() => full.value && storyMode.value)
+
+// Quitté, pas seulement masqué, quand la story affichée disparaît : la barre part
+// avec son bouton de sortie, et le plein écran revenait au clic suivant.
+watch(displayed, (now) => {
+  if (now === null) full.value = false
+})
+
 type Trace = 'push' | 'replace' | 'none'
 
 // L'adresse suit ce qui est affiché, pour qu'un lien collé ailleurs rouvre la
@@ -177,9 +222,11 @@ function select(id: string) {
 
 // Une story ou une famille de tokens : `?id=` les nomme toutes les deux (§4.3).
 function show(id: string, trace: Trace = 'replace') {
+  if (trace === 'push') stale.value = null
   changesOpen.value = false
   component.value = null
   family.value = families.value.some((one) => one.id === id) ? id : null
+  if (family.value !== null) full.value = false
   if (family.value === null) select(id)
   write(placeSearch({ mode: 'entry', id }), trace)
 }
@@ -188,6 +235,8 @@ function show(id: string, trace: Trace = 'replace') {
 // pas déjà une : c'est elle qui retrouve le composant après un renommage, par son
 // fichier et son rang.
 function open(id: string, trace: Trace = 'push') {
+  if (trace === 'push') stale.value = null
+  full.value = false
   changesOpen.value = false
   component.value = id
   family.value = null
@@ -199,11 +248,70 @@ function open(id: string, trace: Trace = 'push') {
 // Relus à l'ouverture et au retour sur la fenêtre : un commit ne touche aucun
 // fichier que Vite surveille, donc aucun `ready` ne les aurait relus.
 function openChanges(trace: Trace = 'push') {
+  if (trace === 'push') stale.value = null
+  full.value = false
   void readChanges()
   changesOpen.value = true
   component.value = null
   family.value = null
   write(placeSearch({ mode: 'changes' }), trace)
+}
+
+// Les stories sœurs de la story affichée, celles du même composant.
+const siblings = computed(() =>
+  displayed.value === null ? [] : ofComponent(componentIdOf(displayed.value.path), entries.value),
+)
+const at = computed(() => siblings.value.findIndex((entry) => entry.id === current.value))
+
+// Sans boucler : la dernière n'a pas de suivante.
+function step(delta: number) {
+  const target = siblings.value[at.value + delta]
+  if (target) show(target.id, 'push')
+}
+
+const copied = ref<'yes' | 'failed' | null>(null)
+let clearing: ReturnType<typeof setTimeout> | undefined
+
+async function copyLink() {
+  try {
+    await navigator.clipboard.writeText(window.location.href)
+    copied.value = 'yes'
+  } catch {
+    copied.value = 'failed'
+  }
+  clearTimeout(clearing)
+  clearing = setTimeout(() => (copied.value = null), 1500)
+}
+
+const tree = useTemplateRef<{ focusSearch: () => void }>('tree')
+
+// Inactifs pendant une saisie, et sous ⌘ ou Ctrl, qui sont ceux du navigateur. `[`
+// et `]` se décident sur le caractère : l'AZERTY et le QWERTZ les tapent avec ⌥
+// sous macOS, avec AltGr, qui arrive comme Ctrl et Alt, sous Windows. Une frappe
+// dans la preview n'arrive pas jusqu'ici : l'iframe la garde.
+function shortcut(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    full.value = false
+    return
+  }
+  if (event.metaKey) return
+  if (event.ctrlKey && !event.getModifierState('AltGraph')) return
+  const target = event.target
+  if (target instanceof Element && target.closest('input, textarea, select, [contenteditable]'))
+    return
+  // Alt+F ouvre le menu Fichier sous Windows : `f` et `/` se tapent sans modification.
+  const plain = !event.altKey && !event.ctrlKey
+  if (event.key === '/' && plain) {
+    event.preventDefault()
+    tree.value?.focusSearch()
+    return
+  }
+  if (!storyMode.value) return
+  // Comme le bouton, qui n'existe qu'avec une story : sans elle, aucune barre ne
+  // permettrait d'en sortir.
+  if (event.key === 'f' && plain && displayed.value !== null) full.value = !full.value
+  if (event.key === '[') step(-1)
+  if (event.key === ']') step(1)
 }
 
 function follow(event: MouseEvent, go: () => void) {
@@ -260,7 +368,8 @@ async function refresh() {
   const stories = manifest.entries.filter((entry): entry is StoryEntry => entry.type === 'story')
 
   unread.value = null
-  void readChanges()
+  read.value = true
+  reread()
   entries.value = stories
   families.value = manifest.entries.filter((entry): entry is TokensEntry => entry.type === 'tokens')
   skipped.value = manifest.skipped ?? []
@@ -280,6 +389,8 @@ async function refresh() {
     if (first) [opening, shown] = [arrival.id, first]
   }
   if (arrival.mode === 'changes') changesOpen.value = true
+  if (arrival.mode === 'entry' && !shown && family.value === null) stale.value = arrival.id
+  if (arrival.mode === 'component' && opening === null) stale.value = arrival.id
   arrival = { mode: 'home' }
 
   const next = landing(shown, before, stories)
@@ -329,12 +440,14 @@ function travel() {
 
 onBeforeUnmount(() => {
   window.removeEventListener('popstate', travel)
-  window.removeEventListener('focus', readChanges)
+  window.removeEventListener('focus', reread)
+  window.removeEventListener('keydown', shortcut)
 })
 
 onMounted(() => {
   window.addEventListener('popstate', travel)
-  window.addEventListener('focus', readChanges)
+  window.addEventListener('focus', reread)
+  window.addEventListener('keydown', shortcut)
 
   if (frame.value) {
     channel = createShellChannel(frame.value)
@@ -393,10 +506,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <main>
-    <nav>
+  <main :class="{ full: fullScreen }">
+    <nav v-show="!fullScreen">
       <h1>Crypte</h1>
       <StoryTree
+        ref="tree"
         :entries="listed"
         :current="changesOpen ? null : (family ?? current)"
         :component="component"
@@ -417,6 +531,39 @@ onMounted(() => {
     </nav>
 
     <div>
+      <!-- Dit sur toutes les pages : ce qui est servi n'est plus ce que le fichier
+           déclare, et rien d'autre ne le montrerait. -->
+      <Callout v-if="project?.config" tone="warning" class="config" role="alert">
+        <h2><code>crypte.config.ts</code> could not be read</h2>
+        <p>
+          Crypte keeps serving the configuration it read before. Fix the file and save it again:
+          {{ project.config }}
+        </p>
+      </Callout>
+
+      <Callout v-if="stale && entries.length > 0" tone="warning" class="stale" role="status">
+        <code>{{ stale }}</code> is not in the catalogue any more: it was probably renamed. Showing
+        the first story instead.
+      </Callout>
+
+      <!-- Pas quand un fichier a été écarté : l'encadré d'en dessous le nomme, et
+           le dossier n'est alors pas en cause. -->
+      <Callout
+        v-if="read && listed.length === 0 && skipped.length === 0"
+        tone="warning"
+        class="empty"
+        role="status"
+      >
+        <h2 v-if="project">
+          No story found in <code>{{ project.stories }}/</code>
+        </h2>
+        <h2 v-else>No story found</h2>
+        <p>
+          Check that <code>stories</code> in <code>crypte.config.ts</code> names the folder of your
+          story files, and that each one exports <code>defineStories(…)</code> by default.
+        </p>
+      </Callout>
+
       <!-- Au-dessus de la preview et jamais bloquant : une story écartée est
            absente de l'arbre, donc rien d'autre ne la nomme. -->
       <Callout v-if="setAside.length > 0" tone="warning" class="set-aside" role="status">
@@ -448,17 +595,51 @@ onMounted(() => {
       <!-- Masqué et non retiré : la preview et les panneaux gardent leur état
            pendant qu'une page composant ou une famille est ouverte. -->
       <div v-show="component === null && family === null && !changesOpen">
-        <nav v-if="displayed" class="trail" aria-label="Breadcrumb">
-          <span v-for="(segment, at) of displayed.path.slice(0, -1)" :key="at"
-            >{{ segment }} /
-          </span>
-          <a
-            :href="placeSearch({ mode: 'component', id: componentIdOf(displayed.path) })"
-            @click="follow($event, () => open(componentIdOf(displayed!.path)))"
-            >{{ displayed.path.at(-1) }}</a
-          >
-          / <span aria-current="page">{{ displayed.name }}</span>
-        </nav>
+        <div v-if="displayed" class="toolbar">
+          <nav class="trail" aria-label="Breadcrumb">
+            <span v-for="(segment, at) of displayed.path.slice(0, -1)" :key="at"
+              >{{ segment }} /
+            </span>
+            <a
+              :href="placeSearch({ mode: 'component', id: componentIdOf(displayed.path) })"
+              @click="follow($event, () => open(componentIdOf(displayed!.path)))"
+              >{{ displayed.path.at(-1) }}</a
+            >
+            / <span aria-current="page">{{ displayed.name }}</span>
+          </nav>
+          <div class="actions">
+            <button type="button" class="copy" @click="copyLink">
+              {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
+            </button>
+            <button
+              type="button"
+              title="Previous story ([)"
+              aria-keyshortcuts="["
+              :disabled="at <= 0"
+              @click="step(-1)"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              title="Next story (])"
+              aria-keyshortcuts="]"
+              :disabled="at >= siblings.length - 1"
+              @click="step(1)"
+            >
+              Next
+            </button>
+            <button
+              type="button"
+              title="Full screen (F, Escape to leave)"
+              aria-keyshortcuts="f"
+              :aria-pressed="full"
+              @click="full = !full"
+            >
+              {{ full ? 'Leave full screen' : 'Full screen' }}
+            </button>
+          </div>
+        </div>
 
         <!-- L'erreur couvre la preview plutôt que de l'accompagner : ce qui reste
            affiché dessous appartient à la story d'avant, et le laisser voir
@@ -474,15 +655,19 @@ onMounted(() => {
            que ce qui manque à sa fiche. Le ton dit ce que l'outil ne sait pas
            lire, jamais que le fichier est mal écrit. -->
         <p v-if="partial && !failure" class="partial">Incomplete props table: {{ partial }}.</p>
-        <Panels
-          :entry="displayed"
-          :received="received"
-          :failed="failure?.message ?? null"
-          :revision="revision"
-          :errors="pluginErrors"
-          @overrides="edit"
-          @send="sendToPreview"
-        />
+        <!-- Un élément autour : la racine de Panels est un fragment, où v-show ne
+             s'applique pas, et les panneaux restaient visibles en plein écran. -->
+        <div v-show="!fullScreen">
+          <Panels
+            :entry="displayed"
+            :received="received"
+            :failed="failure?.message ?? null"
+            :revision="revision"
+            :errors="pluginErrors"
+            @overrides="edit"
+            @send="sendToPreview"
+          />
+        </div>
       </div>
       <p>{{ line }}</p>
     </div>
@@ -497,8 +682,35 @@ main {
   font-family: system-ui, sans-serif;
 }
 
-.trail {
+main.full {
+  grid-template-columns: 1fr;
+}
+
+main.full iframe {
+  height: 85vh;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
   margin-bottom: 8px;
+}
+
+.actions {
+  display: flex;
+  gap: 4px;
+}
+
+.config,
+.stale,
+.empty {
+  --callout-font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.trail {
   font-size: 13px;
 }
 
