@@ -222,6 +222,18 @@ describe('the committed fingerprint', () => {
     )
   })
 
+  // Un git tué ne dit rien sur sa sortie d'erreur : la raison nomme alors l'échec
+  // lui-même plutôt que de s'arrêter sur ses deux-points.
+  test('names the failure when Git says nothing', () => {
+    const faux = dossier()
+    writeFileSync(join(faux, 'git'), '#!/bin/sh\nexit 1\n', { mode: 0o755 })
+    vi.stubEnv('PATH', faux)
+
+    expect(committedFingerprint(dossier())).toMatch(
+      /^Git could not read the committed \.crypte\/fingerprint\.json: Command failed: git show/,
+    )
+  })
+
   test('gives the changes, or the reason there are none to read', () => {
     const root = dossier()
     commis(root, JSON.stringify(empreinte(entrée('a--x', []))))
