@@ -694,7 +694,7 @@ describe('folding the tree', () => {
       .find((one) => one.find('.name').text() === nom)!
 
   test('folds a component, and remembers it at the next visit', async ({ écran }) => {
-    await branche(écran, 'Bouton').trigger('click')
+    await branche(écran, 'Bouton').find('.chevron').trigger('click')
     await vide(écran.wrapper)
 
     expect(écran.noms()).toEqual(['Par défaut', 'Alerte'])
@@ -764,13 +764,13 @@ describe('the search', () => {
   // Une recherche ouvre tout ce qu'elle trouve, et ce qu'on y replie ne survit
   // pas à la recherche.
   test('opens what it finds, and forgets what was folded while searching', async ({ écran }) => {
-    await branche(écran, 'Bouton').trigger('click')
+    await branche(écran, 'Bouton').find('.chevron').trigger('click')
     await vide(écran.wrapper)
 
     await cherche(écran, 'par')
     expect(écran.noms()).toEqual(['Par défaut', 'Par défaut'])
 
-    await branche(écran, 'Badge').trigger('click')
+    await branche(écran, 'Badge').find('.chevron').trigger('click')
     await vide(écran.wrapper)
     expect(écran.noms()).toEqual(['Par défaut'])
 
@@ -835,7 +835,11 @@ describe('a filter on what changes underneath', () => {
   // Comme un repli : le choix reste, et revient avec le composant qui le porte.
   test('stops filtering by a status no component declares, and filters again when one does', async () => {
     const wrapper = mount(StoryTree, {
-      props: { entries: [avec(badge, 'stable'), avec(bouton, 'draft')], current: null },
+      props: {
+        entries: [avec(badge, 'stable'), avec(bouton, 'draft')],
+        current: null,
+        component: null,
+      },
     })
     await filtre(wrapper).findAll('button')[0]!.trigger('click')
     expect(noms(wrapper)).toEqual(['Bouton'])
@@ -872,14 +876,302 @@ describe('a filter on what changes underneath', () => {
         .find((one) => one.find('.name').text() === nom)!
     const draft = () => filtre(écran.wrapper).findAll('button')[0]!
 
-    await branche('Badge').trigger('click')
+    await branche('Badge').find('.chevron').trigger('click')
     await draft().trigger('click')
-    await branche('Bouton').trigger('click')
+    await branche('Bouton').find('.chevron').trigger('click')
     await draft().trigger('click')
     await vide(écran.wrapper)
 
     expect(écran.branches()).toEqual(['Badge', 'Bouton'])
     expect(écran.noms()).toEqual([])
     écran.wrapper.unmount()
+  })
+})
+
+// La page d'un composant : ce que son fichier de stories déclare, et ses stories.
+describe('the component page', () => {
+  const déclaré = (one: StoryEntry, props: string[]): StoryEntry => ({
+    ...one,
+    props,
+    component: { name: 'Badge', file: 'src/components/Badge.tsx', export: 'Badge' },
+    meta: {
+      status: 'stable',
+      owner: 'design',
+      figma: 'https://figma.com/file/x',
+      description: 'A short label.',
+    },
+  })
+  const badgeD = déclaré(badge, ['label'])
+  const alerteD = déclaré(alerte, ['label', 'tone'])
+  const catalogue = [badgeD, alerteD, bouton]
+
+  const libellé = (écran: Ecran, nom: string) =>
+    écran.wrapper
+      .findAll('[role="treeitem"]:not(.story)')
+      .find((one) => one.find('.name').text() === nom)!
+  const page = (écran: Ecran) => écran.wrapper.find('.component-page')
+
+  test('opens from the label of its component, which stays open', async () => {
+    const écran = await monte(catalogue)
+    const avant = window.history.length
+
+    await libellé(écran, 'Badge').trigger('click')
+    await vide(écran.wrapper)
+
+    expect(page(écran).find('h2').text()).toBe('Badge')
+    expect(window.location.search).toBe('?component=badge')
+    expect(window.history.length).toBe(avant + 1)
+    expect(libellé(écran, 'Badge').attributes('aria-selected')).toBe('true')
+    expect(écran.noms()).toEqual(['Par défaut', 'Alerte', 'Par défaut'])
+    écran.wrapper.unmount()
+  })
+
+  test('shows what its stories file declares, and the props each story sets', async () => {
+    window.history.replaceState(null, '', '/?component=badge')
+    const écran = await monte(catalogue)
+
+    expect(page(écran).find('.description').text()).toBe('A short label.')
+    expect(
+      page(écran)
+        .findAll('dt')
+        .map((one) => one.text()),
+    ).toEqual(['Status', 'Owner', 'Figma', 'Component', 'Stories'])
+    expect(
+      page(écran)
+        .findAll('dd')
+        .map((one) => one.text()),
+    ).toEqual([
+      'stable',
+      'design',
+      'https://figma.com/file/x',
+      'src/components/Badge.tsx',
+      'stories/Badge.tsx',
+    ])
+    expect(
+      page(écran)
+        .findAll('tbody tr')
+        .map((row) => row.findAll('td').map((cell) => cell.text())),
+    ).toEqual([
+      ['Par défaut', 'label'],
+      ['Alerte', 'labeltone'],
+    ])
+    expect(page(écran).find('tbody a').attributes('href')).toBe('?id=badge--defaut')
+    écran.wrapper.unmount()
+  })
+
+  test('shows only what a component declares, and says when a story sets no prop', async () => {
+    window.history.replaceState(null, '', '/?component=bouton')
+    const écran = await monte(catalogue)
+
+    expect(
+      page(écran)
+        .findAll('dt')
+        .map((one) => one.text()),
+    ).toEqual(['Component', 'Stories'])
+    expect(page(écran).find('.description').exists()).toBe(false)
+    expect(page(écran).find('tbody td .none').text()).toBe('none')
+    écran.wrapper.unmount()
+  })
+
+  test('hides the preview and the panels while it is open', async () => {
+    window.history.replaceState(null, '', '/?component=badge')
+    const écran = await monte(catalogue)
+
+    expect(écran.wrapper.find('iframe').isVisible()).toBe(false)
+    expect(écran.wrapper.findComponent(Panels).isVisible()).toBe(false)
+    écran.wrapper.unmount()
+  })
+
+  test('shows a story from its list', async () => {
+    window.history.replaceState(null, '', '/?component=badge')
+    const écran = await monte(catalogue)
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+
+    await page(écran).findAll('tbody a')[1]!.trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+
+    expect(page(écran).exists()).toBe(false)
+    expect(écran.wrapper.find('iframe').isVisible()).toBe(true)
+    expect(window.location.search).toBe('?id=badge--alerte')
+    await expect
+      .poll(() => écran.envoyés.at(-1))
+      .toEqual({ type: 'render', id: 'badge--alerte', overrides: {} })
+    écran.wrapper.unmount()
+  })
+
+  // Un clic du milieu ou avec une touche ouvre le lien ailleurs : le shell le laisse.
+  test('leaves a modified click to the browser', async () => {
+    window.history.replaceState(null, '', '/?component=badge')
+    const écran = await monte(catalogue)
+
+    await page(écran).findAll('tbody a')[1]!.trigger('click', { button: 0, metaKey: true })
+    await vide(écran.wrapper)
+
+    expect(page(écran).exists()).toBe(true)
+    expect(window.location.search).toBe('?component=badge')
+    écran.wrapper.unmount()
+  })
+
+  test('opens from the breadcrumb of a story', async () => {
+    window.history.replaceState(null, '', '/?id=badge--alerte')
+    const écran = await monte(catalogue)
+    const fil = écran.wrapper.find('nav.trail')
+
+    expect(fil.text().replace(/\s+/g, ' ')).toBe('Badge / Alerte')
+    expect(fil.find('[aria-current="page"]').text()).toBe('Alerte')
+
+    await fil.find('a').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+
+    expect(page(écran).find('h2').text()).toBe('Badge')
+    expect(window.location.search).toBe('?component=badge')
+    écran.wrapper.unmount()
+  })
+
+  test('names the folders above the component in the breadcrumb', async () => {
+    const profond = entry('checkout/ordersummary--x', 'X', ['checkout', 'OrderSummary'], 's.tsx')
+    const écran = await monte([profond])
+
+    expect(écran.wrapper.find('nav.trail').text().replace(/\s+/g, ' ')).toBe(
+      'checkout / OrderSummary / X',
+    )
+    expect(écran.wrapper.find('nav.trail a').attributes('href')).toBe(
+      '?component=checkout/ordersummary',
+    )
+    écran.wrapper.unmount()
+  })
+
+  test('falls back on the first story when its address names no component', async () => {
+    window.history.replaceState(null, '', '/?component=disparu')
+    const écran = await monte(catalogue)
+
+    expect(page(écran).exists()).toBe(false)
+    expect(window.location.search).toBe('?id=badge--defaut')
+    écran.wrapper.unmount()
+  })
+
+  // Sous la page, la preview charge la première story du composant.
+  test('renders the first story of the component underneath, and stays open on ready', async () => {
+    window.history.replaceState(null, '', '/?component=badge')
+    const écran = await monte(catalogue)
+
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+
+    expect(page(écran).exists()).toBe(true)
+    expect(window.location.search).toBe('?component=badge')
+    await expect
+      .poll(() => écran.envoyés.at(-1))
+      .toEqual({ type: 'render', id: 'badge--defaut', overrides: {} })
+    écran.wrapper.unmount()
+  })
+
+  test('follows back and forward between a story and a component page', async () => {
+    const écran = await monte(catalogue)
+    await libellé(écran, 'Badge').trigger('click')
+    await vide(écran.wrapper)
+
+    window.history.replaceState(null, '', '/?id=bouton--defaut')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    await vide(écran.wrapper)
+    expect(page(écran).exists()).toBe(false)
+    expect(écran.story(2).attributes('aria-selected')).toBe('true')
+
+    window.history.replaceState(null, '', '/?component=badge')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    await vide(écran.wrapper)
+    expect(page(écran).find('h2').text()).toBe('Badge')
+
+    window.history.replaceState(null, '', '/?component=disparu')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    await vide(écran.wrapper)
+    expect(page(écran).find('h2').text()).toBe('Badge')
+    écran.wrapper.unmount()
+  })
+
+  // Un fichier de stories supprimé : la page n'a plus rien à montrer. L'adresse
+  // reste, comme celle d'une story perdue : le fichier revenu, elle rouvre la page.
+  test('closes when its component leaves the catalogue, and keeps its address', async () => {
+    window.history.replaceState(null, '', '/?component=badge')
+    const manifests: Manifest[] = [
+      { version: 1, entries: catalogue },
+      { version: 1, entries: [bouton] },
+    ]
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async (url: string) =>
+          ({
+            json: async () =>
+              url === '/@crypte/plugins.json'
+                ? { panels: [], refused: [] }
+                : manifests.length > 1
+                  ? manifests.shift()
+                  : manifests[0],
+          }) as Response,
+      ),
+    )
+    const wrapper = mount(App, { attachTo: document.body })
+    await vide(wrapper)
+    expect(wrapper.find('.component-page').exists()).toBe(true)
+
+    const frame = wrapper.find('iframe').element as HTMLIFrameElement
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'ready', protocolVersion: 1 },
+        origin: window.location.origin,
+        source: frame.contentWindow,
+      }),
+    )
+    await vide(wrapper)
+
+    expect(wrapper.find('.component-page').exists()).toBe(false)
+    expect(wrapper.findAll('p').at(-1)?.text()).toBe('the story on display is gone')
+    expect(window.location.search).toBe('?component=badge')
+    wrapper.unmount()
+  })
+})
+
+describe('the tree around a component', () => {
+  const nœud = (wrapper: VueWrapper, nom: string) =>
+    wrapper
+      .findAll('[role="treeitem"]:not(.story)')
+      .find((one) => one.find('.name').text() === nom)!
+  const stories = (wrapper: VueWrapper) =>
+    wrapper.findAll('[role="treeitem"].story .name').map((one) => one.text())
+  const arbre = (entries: StoryEntry[]) =>
+    mount(StoryTree, { props: { entries, current: null, component: null } })
+
+  test('folds a component from its chevron, without opening it', async () => {
+    const wrapper = arbre([badge, alerte, bouton])
+
+    await nœud(wrapper, 'Badge').find('.chevron').trigger('click')
+
+    expect(stories(wrapper)).toEqual(['Par défaut'])
+    expect(wrapper.emitted('open')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  test('opens a component on Enter, and folds it with the arrows', async () => {
+    const wrapper = arbre([badge, alerte, bouton])
+
+    await nœud(wrapper, 'Badge').trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('open')).toEqual([['badge']])
+
+    await nœud(wrapper, 'Badge').trigger('keydown', { key: 'ArrowLeft' })
+    expect(stories(wrapper)).toEqual(['Par défaut'])
+    wrapper.unmount()
+  })
+
+  // Un dossier n'a pas de page : son libellé le plie.
+  test('folds a folder from its label, and opens nothing', async () => {
+    const dedans = entry('checkout/cart--empty', 'Empty', ['checkout', 'Cart'], 'c.tsx')
+    const wrapper = arbre([dedans])
+
+    await nœud(wrapper, 'checkout').trigger('click')
+
+    expect(stories(wrapper)).toEqual([])
+    expect(wrapper.emitted('open')).toBeUndefined()
+    expect(wrapper.emitted('show')).toBeUndefined()
+    wrapper.unmount()
   })
 })

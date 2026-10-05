@@ -2,10 +2,25 @@
 import type { StoryEntry } from '@crypte/core/protocol'
 import { ToggleGroupItem, ToggleGroupRoot, TreeItem, TreeRoot } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
-import { STATUSES, branchKeys, filtered, keysAbove, treeOf, type Node, type Status } from './tree'
+import {
+  STATUSES,
+  branchKeys,
+  componentIdOf,
+  filtered,
+  keysAbove,
+  treeOf,
+  type Node,
+  type Status,
+} from './tree'
 
-const props = defineProps<{ entries: StoryEntry[]; current: string | null }>()
-const emit = defineEmits<{ show: [id: string] }>()
+// `component` : la page composant ouverte, par son identifiant ; sinon la story
+// `current` est celle qu'on regarde.
+const props = defineProps<{
+  entries: StoryEntry[]
+  current: string | null
+  component: string | null
+}>()
+const emit = defineEmits<{ show: [id: string]; open: [component: string] }>()
 
 const query = ref('')
 const statuses = ref<Status[]>([])
@@ -72,14 +87,17 @@ function unfold(next: string[]) {
   else keep([...folded.value.filter((key) => !visible.includes(key)), ...closed])
 }
 
-// La story affichée reste atteignable : y arriver par son adresse rouvre ce qui
-// la contient.
+// Ce qu'on regarde reste atteignable : y arriver par son adresse rouvre ce qui le
+// contient, les dossiers au-dessus d'un composant, et le composant d'une story.
 watch(
-  () => props.current,
-  (id) => {
-    const entry = props.entries.find((one) => one.id === id)
+  () => [props.current, props.component] as const,
+  ([id, component]) => {
+    const entry =
+      component === null
+        ? props.entries.find((one) => one.id === id)
+        : props.entries.find((one) => componentIdOf(one.path) === component)
     if (!entry) return
-    const above = keysAbove(entry)
+    const above = component === null ? keysAbove(entry) : keysAbove(entry).slice(0, -1)
     if (folded.value.some((key) => above.includes(key)))
       keep(folded.value.filter((key) => !above.includes(key)))
   },
@@ -95,14 +113,22 @@ const find = (nodes: readonly Node[], key: string): Node | undefined => {
   return undefined
 }
 
-const selected = computed(() =>
-  props.current === null ? undefined : find(shown.value, props.current),
-)
+const selected = computed(() => {
+  if (props.component !== null) return find(shown.value, `component:${props.component}`)
+  return props.current === null ? undefined : find(shown.value, props.current)
+})
 
-// Seule une story se choisit : un dossier ou un composant se plie, la page
-// composant viendra avec DCJ-212.
+// Une story et un composant se choisissent, un dossier se plie seulement.
 function pick(node: Node | undefined) {
   if (node?.kind === 'story') emit('show', node.entry.id)
+  if (node?.kind === 'component') emit('open', node.id)
+}
+
+// Le clic sur le libellé d'un composant ouvre sa page sans le plier : le chevron
+// plie, le libellé mène quelque part. Au clavier, les flèches plient toujours.
+const notFolding = (node: Node, event: CustomEvent<{ originalEvent: Event }>) => {
+  if (node.kind === 'component' && event.detail.originalEvent.type === 'click')
+    event.preventDefault()
 }
 
 const childrenOf = (node: Node) => (node.kind === 'story' ? undefined : node.children)
@@ -138,15 +164,20 @@ const childrenOf = (node: Node) => (node.kind === 'story' ? undefined : node.chi
       <TreeItem
         v-for="item of flattenItems"
         :key="item._id"
-        v-slot="{ isExpanded }"
+        v-slot="{ isExpanded, handleToggle }"
         v-bind="item.bind"
         :class="item.value.kind"
         :style="{ paddingLeft: `${(item.level - 1) * 12 + 8}px` }"
-        @select="(event) => item.value.kind !== 'story' && event.preventDefault()"
+        @select="(event) => item.value.kind === 'folder' && event.preventDefault()"
+        @toggle="(event) => notFolding(item.value, event)"
       >
-        <span v-if="item.hasChildren" class="chevron" aria-hidden="true">{{
-          isExpanded ? '▾' : '▸'
-        }}</span>
+        <span
+          v-if="item.hasChildren"
+          class="chevron"
+          aria-hidden="true"
+          @click.stop="handleToggle()"
+          >{{ isExpanded ? '▾' : '▸' }}</span
+        >
         <span class="name">{{ item.value.name }}</span>
         <span v-if="item.value.kind === 'component' && item.value.status" class="status">
           {{ item.value.status }}

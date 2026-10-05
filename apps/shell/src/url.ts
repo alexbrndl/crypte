@@ -38,3 +38,8 @@ export function placeSearch(place: Place): string {
 // La barre oblique reste lisible : une requête l'admet telle quelle, et
 // `checkout%2Fordersummary` dans un lien collé ne se lit plus.
 const encoded = (id: string) => encodeURIComponent(id).replaceAll('%2F', '/')
+
+// Un clic simple sur un lien du shell navigue sans recharger ; un clic du milieu
+// ou avec une touche de modification laisse le navigateur l'ouvrir ailleurs.
+export const sameTab = (event: MouseEvent) =>
+  event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey

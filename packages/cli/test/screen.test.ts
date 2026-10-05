@@ -1127,3 +1127,25 @@ describe('the address', () => {
     await expect.poll(ecran.vu).toBe('Nouveau')
   })
 })
+
+// La page composant dans le vrai navigateur : le critère de DCJ-212.
+describe('the component page', () => {
+  test('opens from its address, and shows a story from its list', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    const origin = new URL(ecran.page.url()).origin
+
+    await ecran.page.goto(`${origin}/?component=badge`)
+
+    const page = ecran.page.locator('.component-page')
+    await expect.poll(() => page.locator('h2').textContent()).toBe('Badge')
+    expect(await page.locator('dd').first().textContent()).toBe('stable')
+    expect(await page.locator('tbody tr td:first-child').allTextContents()).toEqual(
+      expect.arrayContaining([expect.stringContaining('Libellé long')]),
+    )
+
+    await page.getByRole('link', { name: 'Libellé long', exact: true }).click()
+
+    await expect.poll(ecran.vu).toBe('Vérification en cours')
+    expect(new URL(ecran.page.url()).search).toBe('?id=badge--libelle-long')
+  })
+})

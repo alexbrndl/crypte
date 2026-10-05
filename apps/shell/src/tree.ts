@@ -10,13 +10,24 @@ export const STATUSES: readonly Status[] = ['draft', 'stable', 'deprecated']
 
 export type Node =
   | { kind: 'folder'; key: string; name: string; children: Node[] }
-  | { kind: 'component'; key: string; name: string; status?: Status; children: Node[] }
+  | {
+      kind: 'component'
+      key: string
+      // Celui de l'adresse `?component=` : `storyId(path, '')`.
+      id: string
+      name: string
+      status?: Status
+      children: Node[]
+    }
   | { kind: 'story'; key: string; name: string; entry: StoryEntry }
 
 // Préfixées par leur nature : un dossier et un composant peuvent porter le même
 // chemin, et une story garde son identifiant, qui est déjà unique.
 const folderKey = (path: readonly string[]) => `folder:${storyId(path, '')}`
-const componentKey = (path: readonly string[]) => `component:${storyId(path, '')}`
+const componentKey = (path: readonly string[]) => `component:${componentIdOf(path)}`
+
+// Le préfixe que partagent toutes les stories du composant.
+export const componentIdOf = (path: readonly string[]) => storyId(path, '')
 
 // Dans l'ordre du manifeste. Le statut est celui du composant : `meta` se déclare
 // par fichier de stories, donc toutes ses stories portent le même.
@@ -35,7 +46,14 @@ export function treeOf(entries: readonly StoryEntry[]): Node[] {
       let branch = branches.get(key)
       if (!branch) {
         branch = last
-          ? { kind: 'component', key, name: segment, status: entry.meta?.status, children: [] }
+          ? {
+              kind: 'component',
+              key,
+              id: componentIdOf(path),
+              name: segment,
+              status: entry.meta?.status,
+              children: [],
+            }
           : { kind: 'folder', key, name: segment, children: [] }
         branches.set(key, branch)
         siblings.push(branch)
