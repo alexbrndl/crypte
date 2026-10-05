@@ -1189,6 +1189,10 @@ describe('the component page', () => {
     const wrapper = mount(App, { attachTo: document.body })
     await vide(wrapper)
     const frame = wrapper.find('iframe').element as HTMLIFrameElement
+    const envoyés: ShellMessage[] = []
+    frame.contentWindow?.addEventListener('message', (event) =>
+      envoyés.push(event.data as ShellMessage),
+    )
     window.dispatchEvent(
       new MessageEvent('message', {
         data: { type: 'ready', protocolVersion: 1 },
@@ -1201,6 +1205,9 @@ describe('the component page', () => {
     expect(wrapper.find('.component-page h2').text()).toBe('Badge')
     expect(wrapper.findAll('.component-page tbody tr')).toHaveLength(1)
     expect(wrapper.findAll('p').at(-1)?.text()).toBe('1 story')
+    await expect
+      .poll(() => envoyés.at(-1))
+      .toEqual({ type: 'render', id: 'badge--autre', overrides: {} })
     wrapper.unmount()
   })
 
