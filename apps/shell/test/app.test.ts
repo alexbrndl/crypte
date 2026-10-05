@@ -6,7 +6,7 @@ import type {
   StoryEntry,
   TokensEntry,
 } from '@crypte/core/protocol'
-import { mount, type VueWrapper } from '@vue/test-utils'
+import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, test as base, vi } from 'vitest'
 import App from '../src/App.vue'
 import Panels from '../src/panels.vue'
@@ -52,7 +52,10 @@ interface Ecran {
   // vérifie.
   répond: (message: PreviewMessage) => Promise<void>
   statut: () => string
+  // Les noms des stories de l'arbre, puis ceux des dossiers et des composants.
   noms: () => string[]
+  branches: () => string[]
+  story: (at: number) => DOMWrapper<Element>
   écartés: () => string[]
   partielle: () => string | false
 }
@@ -110,7 +113,9 @@ const monte = async (
     statut: () => wrapper.findAll('p').at(-1)?.text() ?? '',
     écartés: () => wrapper.findAll('.set-aside li').map((one) => one.text()),
     partielle: () => wrapper.find('.partial').exists() && wrapper.find('.partial').text(),
-    noms: () => wrapper.findAll('button').map((one) => one.text()),
+    noms: () => wrapper.findAll('[role="treeitem"].story .name').map((one) => one.text()),
+    branches: () => wrapper.findAll('[role="treeitem"]:not(.story) .name').map((one) => one.text()),
+    story: (at) => wrapper.findAll('[role="treeitem"].story')[at]!,
   }
 }
 
@@ -128,13 +133,17 @@ const test = base.extend<{ écran: Ecran }>({
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  // L'adresse et le stockage survivent au démontage : sans ça, la story cliquée
+  // par un cas devenait la première affichée du suivant.
+  window.history.replaceState(null, '', '/')
+  localStorage.clear()
 })
 
 describe('the shell tree', () => {
   // L'arbre vient du chemin du manifeste, et aucun titre n'est déclaré nulle
   // part : c'est la section 1.1 des contrats.
   test('groups stories by path, in manifest order', async ({ écran }) => {
-    expect(écran.wrapper.findAll('h2').map((one) => one.text())).toEqual(['Badge', 'Bouton'])
+    expect(écran.branches()).toEqual(['Badge', 'Bouton'])
     expect(écran.noms()).toEqual(['Par défaut', 'Alerte', 'Par défaut'])
   })
 
@@ -144,7 +153,7 @@ describe('the shell tree', () => {
     const écran = await monte([badge, jetons])
 
     expect(écran.noms()).toEqual(['Par défaut'])
-    expect(écran.wrapper.findAll('h2').map((one) => one.text())).toEqual(['Badge'])
+    expect(écran.branches()).toEqual(['Badge'])
     écran.wrapper.unmount()
   })
 
@@ -176,15 +185,15 @@ describe('the shell tree', () => {
 
 describe('the selection', () => {
   test('marks the displayed story', async ({ écran }) => {
-    await écran.wrapper.findAll('button')[1]?.trigger('click')
+    await écran.story(1).trigger('click')
 
-    expect(écran.wrapper.findAll('button')[1]?.attributes('aria-current')).toBe('true')
+    expect(écran.story(1).attributes('aria-selected')).toBe('true')
   })
 
   // Rien ne part avant que la preview ait dit `ready` : un message envoyé à une
   // iframe qui n'écoute pas encore est perdu sans trace.
   test('sends nothing before the preview is ready', async ({ écran }) => {
-    await écran.wrapper.findAll('button')[1]?.trigger('click')
+    await écran.story(1).trigger('click')
     await vide(écran.wrapper)
 
     expect(écran.envoyés).toEqual([])
@@ -192,7 +201,7 @@ describe('the selection', () => {
 
   test('sends the render of the clicked story once the preview is ready', async ({ écran }) => {
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
-    await écran.wrapper.findAll('button')[1]?.trigger('click')
+    await écran.story(1).trigger('click')
 
     await expect
       .poll(() => écran.envoyés.at(-1))
@@ -335,7 +344,7 @@ describe('the values a panel edited', () => {
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
     édite(écran, { label: 'Bonjour' })
 
-    await écran.wrapper.findAll('button')[1]?.trigger('click')
+    await écran.story(1).trigger('click')
 
     await expect
       .poll(() => écran.envoyés.at(-1))
@@ -430,7 +439,7 @@ describe('what the preview answers', () => {
 
   test('removes the error when the story changes', async ({ écran }) => {
     await écran.répond({ type: 'error', id: 'badge--defaut', message: 'boum' } as PreviewMessage)
-    await écran.wrapper.findAll('button')[1]?.trigger('click')
+    await écran.story(1).trigger('click')
 
     expect(écran.wrapper.find('[role="alert"]').exists()).toBe(false)
   })
@@ -468,7 +477,7 @@ describe('what the catalog left out', () => {
       'Incomplete props table: `...base` brings props this reader cannot follow.',
     )
 
-    await écran.wrapper.findAll('button')[1]?.trigger('click')
+    await écran.story(1).trigger('click')
     await écran.wrapper.vm.$nextTick()
 
     expect(écran.partielle()).toBe(false)
@@ -499,7 +508,7 @@ describe('what the catalog left out', () => {
     const partielle = { ...alerte, partial: '`...base` brings props this reader cannot follow' }
     const écran = await monte([badge, partielle as never])
 
-    await écran.wrapper.findAll('button')[1]?.trigger('click')
+    await écran.story(1).trigger('click')
     await écran.wrapper.vm.$nextTick()
 
     await écran.répond({
@@ -558,5 +567,207 @@ describe('what the catalog left out', () => {
 
     expect(wrapper.findAll('.set-aside li')).toHaveLength(0)
     wrapper.unmount()
+  })
+})
+
+// L'adresse nomme la story affichée : c'est ce qu'on colle dans une pull request.
+describe('the address', () => {
+  test('writes the story it shows, as a step of the history', async ({ écran }) => {
+    const avant = window.history.length
+
+    await écran.story(1).trigger('click')
+
+    expect(window.location.search).toBe('?id=badge--alerte')
+    expect(window.history.length).toBe(avant + 1)
+  })
+
+  // Arriver sur la première story n'est pas un pas : précédent ramènerait à une
+  // adresse qui ne nomme rien.
+  test('names the first story without adding a step', async () => {
+    const avant = window.history.length
+    const écran = await monte([badge, alerte])
+
+    expect(window.location.search).toBe('?id=badge--defaut')
+    expect(window.history.length).toBe(avant)
+    écran.wrapper.unmount()
+  })
+
+  test('opens the story its address names', async () => {
+    window.history.replaceState(null, '', '/?id=badge--alerte')
+    const écran = await monte([badge, alerte, bouton])
+
+    expect(écran.story(1).attributes('aria-selected')).toBe('true')
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    await expect
+      .poll(() => écran.envoyés.at(-1))
+      .toEqual({ type: 'render', id: 'badge--alerte', overrides: {} })
+    écran.wrapper.unmount()
+  })
+
+  test('falls back on the first story when its address names none', async () => {
+    window.history.replaceState(null, '', '/?id=disparue')
+    const écran = await monte([badge, alerte])
+
+    expect(écran.story(0).attributes('aria-selected')).toBe('true')
+    expect(window.location.search).toBe('?id=badge--defaut')
+    écran.wrapper.unmount()
+  })
+
+  test('follows the back and forward buttons, without adding a step', async ({ écran }) => {
+    await écran.story(2).trigger('click')
+    const avant = window.history.length
+
+    window.history.replaceState(null, '', '/?id=badge--alerte')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    await vide(écran.wrapper)
+
+    expect(écran.story(1).attributes('aria-selected')).toBe('true')
+    expect(window.history.length).toBe(avant)
+  })
+
+  test('stops following the address once unmounted', async () => {
+    const ajoute = vi.spyOn(window, 'addEventListener')
+    const retire = vi.spyOn(window, 'removeEventListener')
+    const écran = await monte([badge])
+    const suivi = ajoute.mock.calls.find(([type]) => type === 'popstate')?.[1]
+
+    écran.wrapper.unmount()
+
+    expect(suivi).toBeTypeOf('function')
+    expect(retire).toHaveBeenCalledWith('popstate', suivi)
+    ajoute.mockRestore()
+    retire.mockRestore()
+  })
+})
+
+describe('folding the tree', () => {
+  const branche = (écran: Ecran, nom: string) =>
+    écran.wrapper
+      .findAll('[role="treeitem"]:not(.story)')
+      .find((one) => one.find('.name').text() === nom)!
+
+  test('folds a component, and remembers it at the next visit', async ({ écran }) => {
+    await branche(écran, 'Bouton').trigger('click')
+    await vide(écran.wrapper)
+
+    expect(écran.noms()).toEqual(['Par défaut', 'Alerte'])
+
+    écran.wrapper.unmount()
+    const ensuite = await monte([badge, alerte, bouton])
+
+    expect(ensuite.noms()).toEqual(['Par défaut', 'Alerte'])
+    expect(ensuite.branches()).toEqual(['Badge', 'Bouton'])
+    ensuite.wrapper.unmount()
+  })
+
+  // Ce qui est retenu est ce qui est replié : un composant arrivé depuis s'ouvre.
+  test('opens a component it has never seen', async () => {
+    localStorage.setItem('crypte:tree:folded', JSON.stringify(['component:bouton']))
+    const nouveau = entry('nouveau--defaut', 'Neuf', ['Nouveau'], 'stories/Nouveau.tsx')
+    const écran = await monte([badge, bouton, nouveau])
+
+    expect(écran.noms()).toEqual(['Par défaut', 'Neuf'])
+    écran.wrapper.unmount()
+  })
+
+  test('unfolds what holds the story its address names', async () => {
+    localStorage.setItem('crypte:tree:folded', JSON.stringify(['component:badge']))
+    window.history.replaceState(null, '', '/?id=badge--alerte')
+    const écran = await monte([badge, alerte, bouton])
+
+    expect(écran.noms()).toEqual(['Par défaut', 'Alerte', 'Par défaut'])
+    expect(écran.story(1).attributes('aria-selected')).toBe('true')
+    écran.wrapper.unmount()
+  })
+
+  test.each(['{"component:badge": true}', 'component:badge'])(
+    'reads a stored value that is not a list, %j, as nothing folded',
+    async (stored) => {
+      localStorage.setItem('crypte:tree:folded', stored)
+      const écran = await monte([badge, bouton])
+
+      expect(écran.noms()).toEqual(['Par défaut', 'Par défaut'])
+      écran.wrapper.unmount()
+    },
+  )
+})
+
+describe('the search', () => {
+  const cherche = async (écran: Ecran, texte: string) => {
+    await écran.wrapper.find('input[type="search"]').setValue(texte)
+    await vide(écran.wrapper)
+  }
+
+  test('keeps the stories whose name, or whose component name, holds it', async ({ écran }) => {
+    await cherche(écran, 'bout')
+    expect(écran.branches()).toEqual(['Bouton'])
+    expect(écran.noms()).toEqual(['Par défaut'])
+
+    await cherche(écran, 'alerte')
+    expect(écran.noms()).toEqual(['Alerte'])
+  })
+
+  test('says when nothing matches', async ({ écran }) => {
+    await cherche(écran, 'nulle part')
+
+    expect(écran.noms()).toEqual([])
+    expect(écran.wrapper.find('nav').text()).toContain('nothing matches')
+  })
+
+  // Une recherche ouvre tout ce qu'elle trouve, et ce qu'on y replie ne survit
+  // pas à la recherche.
+  test('opens what it finds, and forgets what was folded while searching', async ({ écran }) => {
+    await branche(écran, 'Bouton').trigger('click')
+    await vide(écran.wrapper)
+
+    await cherche(écran, 'par')
+    expect(écran.noms()).toEqual(['Par défaut', 'Par défaut'])
+
+    await branche(écran, 'Badge').trigger('click')
+    await vide(écran.wrapper)
+    expect(écran.noms()).toEqual(['Par défaut'])
+
+    await cherche(écran, '')
+    expect(écran.noms()).toEqual(['Par défaut', 'Alerte'])
+  })
+
+  const branche = (écran: Ecran, nom: string) =>
+    écran.wrapper
+      .findAll('[role="treeitem"]:not(.story)')
+      .find((one) => one.find('.name').text() === nom)!
+})
+
+describe('the status', () => {
+  const avec = (one: StoryEntry, status: NonNullable<StoryEntry['meta']>['status']) => ({
+    ...one,
+    meta: { status },
+  })
+
+  test('shows the status beside its component, never beside a story', async () => {
+    const écran = await monte([avec(badge, 'stable'), avec(alerte, 'stable'), bouton])
+
+    expect(écran.wrapper.findAll('.status').map((one) => one.text())).toEqual(['stable'])
+    écran.wrapper.unmount()
+  })
+
+  test('offers no filter when no component declares a status', async ({ écran }) => {
+    expect(écran.wrapper.find('[aria-label="Filter by status"]').exists()).toBe(false)
+  })
+
+  test('keeps the components of the chosen status', async () => {
+    const écran = await monte([
+      avec(badge, 'stable'),
+      avec(alerte, 'stable'),
+      avec(bouton, 'draft'),
+    ])
+    const filtre = écran.wrapper.find('[aria-label="Filter by status"]')
+
+    expect(filtre.findAll('button').map((one) => one.text())).toEqual(['draft', 'stable'])
+
+    await filtre.findAll('button')[0]!.trigger('click')
+    await vide(écran.wrapper)
+
+    expect(écran.branches()).toEqual(['Bouton'])
+    écran.wrapper.unmount()
   })
 })

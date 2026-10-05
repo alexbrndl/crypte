@@ -209,7 +209,7 @@ describe('the screen', () => {
     // Le fichier ajouté change l'arbre, donc le cadre se recharge. `exact`, sinon
     // « Une » attrape « Avec une classe » par sous-chaîne : mesuré, le cas
     // cliquait une story saine et vérifiait donc l'inverse de ce qu'il annonce.
-    const cassee = ecran.page.getByRole('button', { name: 'Une', exact: true })
+    const cassee = ecran.page.getByRole('treeitem', { name: 'Une', exact: true })
     await expect.poll(() => cassee.count()).toBe(1)
 
     await cassee.click()
@@ -220,7 +220,7 @@ describe('the screen', () => {
 
     // La moitié qui compte : les autres rendent toujours. Avant, aucune ne
     // rendait, l'entrée n'ayant jamais fini de charger.
-    await ecran.page.getByRole('button', { name: 'Nue', exact: true }).click()
+    await ecran.page.getByRole('treeitem', { name: 'Nue', exact: true }).click()
     await expect.poll(ecran.vu).toBe('Étiquette')
   })
 
@@ -256,7 +256,7 @@ describe('the screen', () => {
     ecran,
   }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
-    await ecran.page.getByRole('button', { name: 'Libellé long', exact: true }).click()
+    await ecran.page.getByRole('treeitem', { name: 'Libellé long', exact: true }).click()
     await expect.poll(ecran.vu).toBe('Vérification en cours')
 
     const watcher = ecran.server.watcher
@@ -313,7 +313,7 @@ describe('the screen', () => {
       if (contenu) {
         writeFileSync(join(ecran.root, 'stories', fichier), contenu)
         await expect
-          .poll(() => ecran.page.getByRole('button', { name: 'Default', exact: true }).count())
+          .poll(() => ecran.page.getByRole('treeitem', { name: 'Default', exact: true }).count())
           .toBe(1)
       }
 
@@ -326,7 +326,7 @@ describe('the screen', () => {
 
       // Relu au chargement seulement, par le shell comme par la preview.
       await ecran.page.reload()
-      await ecran.page.getByRole('button', { name: 'Absente', exact: true }).click()
+      await ecran.page.getByRole('treeitem', { name: 'Absente', exact: true }).click()
 
       const alerte = ecran.page.getByRole('alert')
       await expect
@@ -341,7 +341,7 @@ describe('the screen', () => {
   // avant, il n'en laissait aucune, et le cas passait sans rien éprouver.
   test('drops the error of a story whose file was deleted', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
-    await ecran.page.getByRole('button', { name: 'Nue', exact: true }).click()
+    await ecran.page.getByRole('treeitem', { name: 'Nue', exact: true }).click()
     await expect.poll(ecran.vu).toBe('Étiquette')
 
     const hot = ecran.server.hot
@@ -507,7 +507,7 @@ describe('the screen', () => {
         '',
       ].join('\n'),
     )
-    const rompue = ecran.page.getByRole('button', { name: 'Rompue', exact: true })
+    const rompue = ecran.page.getByRole('treeitem', { name: 'Rompue', exact: true })
     await expect.poll(() => rompue.count()).toBe(1)
     await rompue.click()
     await expect.poll(() => alerte.textContent()).toMatch(/src\/components\/Rompu\.tsx:\d+:\d+/)
@@ -533,7 +533,7 @@ describe('the screen', () => {
       ].join('\n'),
     )
 
-    const rompue = ecran.page.getByRole('button', { name: 'Rompue', exact: true })
+    const rompue = ecran.page.getByRole('treeitem', { name: 'Rompue', exact: true })
     await expect.poll(() => rompue.count()).toBe(1)
     await rompue.click()
 
@@ -547,7 +547,7 @@ describe('the screen', () => {
   test('refreshes the displayed story when its component changes', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
 
-    await ecran.page.getByRole('button', { name: 'Libellé long' }).click()
+    await ecran.page.getByRole('treeitem', { name: 'Libellé long' }).click()
     await expect.poll(ecran.vu).toBe('Vérification en cours')
 
     const file = join(ecran.root, 'src', 'components', 'Badge.tsx')
@@ -561,7 +561,7 @@ describe('the screen', () => {
     // ramène à la première story fait perdre sa place à chaque frappe.
     await expect
       .poll(() =>
-        ecran.page.getByRole('button', { name: 'Libellé long' }).getAttribute('aria-current'),
+        ecran.page.getByRole('treeitem', { name: 'Libellé long' }).getAttribute('aria-selected'),
       )
       .toBe('true')
 
@@ -646,7 +646,7 @@ export default defineStories(Badge, {
 
       // Rien n'empêche de travailler : la story lue du même fichier est là et
       // rend, ce qui est la moitié qu'un message ne doit pas coûter.
-      await page.getByRole('button', { name: 'Lue', exact: true }).click()
+      await page.getByRole('treeitem', { name: 'Lue', exact: true }).click()
       await expect
         .poll(() => page.frameLocator('iframe[title="preview"]').locator('#root').textContent(), {
           timeout: 30_000,
@@ -654,7 +654,7 @@ export default defineStories(Badge, {
         .toBe('Lue')
 
       // La note discrète, sur la story dont la fiche est partielle.
-      await page.getByRole('button', { name: 'Un', exact: true }).click()
+      await page.getByRole('treeitem', { name: 'Un', exact: true }).click()
       await expect
         .poll(() => page.locator('.partial').textContent(), { timeout: 30_000 })
         .toContain('`...base`')
@@ -819,7 +819,7 @@ describe('the preview hooks and plugin messages', () => {
     await expect.poll(() => rendus(ecran.page)).not.toBeNull()
     const avant = Number(await rendus(ecran.page))
 
-    await ecran.page.getByRole('button', { name: 'Nue', exact: true }).click()
+    await ecran.page.getByRole('treeitem', { name: 'Nue', exact: true }).click()
 
     await expect.poll(ecran.vu).toBe('Étiquette')
     await expect.poll(() => rendus(ecran.page)).toBe(String(avant + 1))
@@ -911,11 +911,11 @@ describe('the panel host', () => {
     await expect.poll(ecran.vu).toBe('Nouveau')
     await expect.poll(() => statut.locator('.body').textContent()).toBe('status: stable')
 
-    await ecran.page.getByRole('button', { name: 'Nue', exact: true }).click()
+    await ecran.page.getByRole('treeitem', { name: 'Nue', exact: true }).click()
     await expect.poll(raison).toBe('no status declared')
     expect(await statut.locator('.body').isVisible()).toBe(false)
 
-    await ecran.page.getByRole('button', { name: 'Par défaut', exact: true }).click()
+    await ecran.page.getByRole('treeitem', { name: 'Par défaut', exact: true }).click()
     await expect.poll(() => statut.locator('.body').isVisible()).toBe(true)
     expect(await raison()).toBeNull()
     expect(await statut.locator('.body').textContent()).toBe('status: stable')
@@ -970,7 +970,7 @@ describe('the controls panel', () => {
     await panneau(ecran.page).locator('input[type="text"]').fill('Bonjour')
     await expect.poll(ecran.vu).toBe('Bonjour')
 
-    await ecran.page.getByRole('button', { name: 'Libellé long', exact: true }).click()
+    await ecran.page.getByRole('treeitem', { name: 'Libellé long', exact: true }).click()
 
     await expect.poll(ecran.vu).not.toBe('Bonjour')
     expect(await panneau(ecran.page).locator('input[type="text"]').inputValue()).toBe('')
@@ -994,7 +994,8 @@ describe('the controls panel', () => {
       ].join('\n'),
     )
 
-    const story = ecran.page.getByRole('button', { name: 'Opaque', exact: true })
+    // Le composant porte le même nom que sa story : la story est au niveau 2.
+    const story = ecran.page.getByRole('treeitem', { name: 'Opaque', exact: true, level: 2 })
     await expect.poll(() => story.count()).toBe(1)
     await story.click()
 
@@ -1021,7 +1022,7 @@ describe('the a11y panel', () => {
 
   test('shows a violation with its rule and the selector at fault', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
-    await ecran.page.getByRole('button', { name: 'Rôle inconnu', exact: true }).click()
+    await ecran.page.getByRole('treeitem', { name: 'Rôle inconnu', exact: true }).click()
 
     const corps = panneau(ecran.page).locator('.body')
     await expect
@@ -1043,7 +1044,7 @@ describe('the a11y panel', () => {
   // peut la voir partie, et la page n'est pas rechargée pour autant.
   test('runs the analysis again without reloading', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
-    await ecran.page.getByRole('button', { name: 'Rôle inconnu', exact: true }).click()
+    await ecran.page.getByRole('treeitem', { name: 'Rôle inconnu', exact: true }).click()
     const corps = panneau(ecran.page).locator('.body')
     await expect.poll(() => corps.locator('section').count()).toBe(1)
     const navigations = ecran.navigations()
@@ -1061,7 +1062,7 @@ describe('the a11y panel', () => {
   // Audit à froid du projet 1.3.
   test('folds on a story that could not be rendered', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
-    await ecran.page.getByRole('button', { name: 'Échoue au rendu', exact: true }).click()
+    await ecran.page.getByRole('treeitem', { name: 'Échoue au rendu', exact: true }).click()
 
     await expect.poll(() => raison(ecran.page)).toBe('the story could not be rendered')
   })
@@ -1088,5 +1089,41 @@ describe('the a11y panel', () => {
       .toEqual(['aria-roles', 'span'])
     expect(await raison(ecran.page)).toBeNull()
     expect(ecran.navigations()).toBe(navigations)
+  })
+})
+
+// L'adresse nomme la story affichée, dans le vrai navigateur : c'est le critère
+// de DCJ-172, et ni jsdom ni un serveur monté à la main ne disent qu'une adresse
+// à requête sert bien le shell.
+describe('the address', () => {
+  test('opens the same story when pasted into another tab', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    await ecran.page.getByRole('treeitem', { name: 'Libellé long', exact: true }).click()
+    await expect.poll(ecran.vu).toBe('Vérification en cours')
+
+    const collee = await browser.newPage()
+    try {
+      await collee.goto(ecran.page.url())
+      await expect
+        .poll(() => collee.frameLocator('iframe[title="preview"]').locator('#root').textContent())
+        .toBe('Vérification en cours')
+      expect(
+        await collee
+          .getByRole('treeitem', { name: 'Libellé long', exact: true })
+          .getAttribute('aria-selected'),
+      ).toBe('true')
+    } finally {
+      await collee.close()
+    }
+  })
+
+  test('goes back to the story shown before', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    await ecran.page.getByRole('treeitem', { name: 'Libellé long', exact: true }).click()
+    await expect.poll(ecran.vu).toBe('Vérification en cours')
+
+    await ecran.page.goBack()
+
+    await expect.poll(ecran.vu).toBe('Nouveau')
   })
 })

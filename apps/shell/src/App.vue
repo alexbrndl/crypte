@@ -8,9 +8,11 @@ import type {
 } from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/shell'
 import { Callout } from '@crypte/ui'
-import { computed, onMounted, ref, shallowRef, useTemplateRef } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef } from 'vue'
 import Panels from './panels.vue'
 import { landing, unreadable, type Shown } from './recover'
+import StoryTree from './story-tree.vue'
+import { placeSearch, readPlace } from './url'
 
 // Le shell ne connaît aucun framework : il est construit à l'avance et livré dans
 // le CLI, là où la preview est compilée chez l'utilisateur.
@@ -67,18 +69,9 @@ const displayed = computed(() => entries.value.find((entry) => entry.id === curr
 // bloquante : la story rend, il manque des lignes à sa table de props.
 const partial = computed(() => displayed.value?.partial ?? null)
 
-// Groupées par dossier, dans l'ordre du manifeste : l'arbre vient du chemin, et
-// aucun titre n'est déclaré nulle part. Section 1.1 des contrats.
-const groups = computed(() => {
-  const byPath = new Map<string, StoryEntry[]>()
-
-  for (const entry of entries.value) {
-    const key = entry.path.join(' / ')
-    byPath.set(key, [...(byPath.get(key) ?? []), entry])
-  }
-
-  return [...byPath]
-})
+// L'adresse d'arrivée, lue une fois : la story qu'elle nomme est la première
+// affichée, si le catalogue la porte.
+let arrival = readPlace(window.location.search)
 
 // Ce qu'un panneau a édité, par-dessus les props de la story affichée. Gardé
 // tant que la même story reste affichée, y compris quand la preview redit
@@ -89,11 +82,17 @@ const groups = computed(() => {
 // panneau peut émettre le sien.
 const overrides = shallowRef<Overrides>({})
 
-function show(id: string) {
+// L'adresse suit la story affichée, pour qu'un lien collé ailleurs rouvre la
+// même. Un clic ajoute une étape à l'historique ; un atterrissage, première
+// story ou story retrouvée après un renommage, remplace celle qui est là.
+function show(id: string, trace: 'push' | 'replace' | 'none' = 'replace') {
   if (id !== current.value) overrides.value = {}
   current.value = id
   shown = entries.value.find((entry) => entry.id === id) ?? shown
   failure.value = null
+  const search = placeSearch({ mode: 'entry', id })
+  if (trace !== 'none' && window.location.search !== search)
+    window.history[trace === 'push' ? 'pushState' : 'replaceState'](null, '', search)
   // Rien ne part avant que la preview ait dit `ready` : un message envoyé à une
   // iframe qui n'écoute pas encore est perdu sans trace.
   if (ready) channel?.send({ type: 'render', id, overrides: overrides.value })
@@ -150,6 +149,14 @@ async function refresh() {
   skipped.value = manifest.skipped ?? []
   status.value = `${stories.length} stories`
 
+  // Lue au premier catalogue, puis oubliée : ensuite, c'est la story affichée
+  // qui fait l'adresse.
+  if (arrival.mode === 'entry') {
+    const id = arrival.id
+    shown = stories.find((entry) => entry.id === id) ?? shown
+  }
+  arrival = { mode: 'home' }
+
   const next = landing(shown, before, stories)
   shown = next.shown
   if (next.status) status.value = next.status
@@ -166,7 +173,19 @@ async function refresh() {
   show(next.id)
 }
 
+// Précédent et suivant du navigateur : l'adresse a changé sans le shell, qui la
+// suit sans ajouter d'étape.
+function travel() {
+  const place = readPlace(window.location.search)
+  if (place.mode === 'entry' && entries.value.some((entry) => entry.id === place.id))
+    show(place.id, 'none')
+}
+
+onBeforeUnmount(() => window.removeEventListener('popstate', travel))
+
 onMounted(() => {
+  window.addEventListener('popstate', travel)
+
   if (frame.value) {
     channel = createShellChannel(frame.value)
     channel.onMessage((message) => {
@@ -227,19 +246,7 @@ onMounted(() => {
   <main>
     <nav>
       <h1>Crypte</h1>
-      <section v-for="[path, stories] of groups" :key="path">
-        <h2>{{ path }}</h2>
-        <button
-          v-for="entry of stories"
-          :key="entry.id"
-          type="button"
-          :aria-current="entry.id === current"
-          @click="show(entry.id)"
-        >
-          {{ entry.name }}
-        </button>
-      </section>
-      <p v-if="entries.length === 0">no story</p>
+      <StoryTree :entries="entries" :current="current" @show="(id) => show(id, 'push')" />
     </nav>
 
     <div>
@@ -289,21 +296,6 @@ main {
   grid-template-columns: 240px 1fr;
   gap: 16px;
   font-family: system-ui, sans-serif;
-}
-
-nav button {
-  display: block;
-  width: 100%;
-  text-align: left;
-  border: 0;
-  background: none;
-  padding: 4px 8px;
-  cursor: pointer;
-}
-
-nav button[aria-current='true'] {
-  background: #e5e7eb;
-  font-weight: 600;
 }
 
 iframe {
