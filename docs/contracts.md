@@ -925,10 +925,9 @@ Left out on purpose. Some belong to a project brief, others wait for a demonstra
 
 **Out of reserve since 21 August 2026, and now planned:**
 
-- The `tokens` entry. The type belongs to the protocol, the reading belongs to `@crypte/tokens`: the line is producing data against displaying it, the same one prop extraction already follows. It is also the first plugin that writes to the manifest, so it is what exercised `NodeHooks` before that contract was frozen. Tracked in DCJ-232 and DCJ-233.
 - The `page` entry, **in two stages**. Stage one is markdown files in the repository, discovered the way stories are and rendered next to components, with no server at all. Stage two is the same files edited by designers and returned as a pull request, which needs `crypte serve`. Confusing the two is what made `page` look expensive and far away. Tracked in DCJ-250, DCJ-251 and DCJ-257.
 
-The field carrying both already exists, so neither is a manifest break. The reason they left reserve is not internal: the documentation tools this project is measured against all ship a token manager, and all sell guidelines as the thing neither Figma nor a component workshop exposes.
+The field carrying it already exists, so it is no manifest break. The reason it left reserve is not internal: the documentation tools this project is measured against all sell guidelines as the thing neither Figma nor a component workshop exposes. The `tokens` entry left reserve the same day, those tools all shipping a token manager too, and is built: 4.2 holds its shape and 8 what produces and draws it.
 
 **Held in reserve, to add when a real case asks for it:**
 
