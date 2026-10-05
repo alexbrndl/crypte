@@ -961,6 +961,7 @@ describe('the component page', () => {
       'src/components/Badge.tsx',
       'stories/Badge.tsx',
     ])
+    expect(page(écran).find('dd a').attributes('href')).toBe('https://figma.com/file/x')
     expect(
       page(écran)
         .findAll('tbody tr')
@@ -994,6 +995,36 @@ describe('the component page', () => {
 
     expect(page(écran).find('dd a').exists()).toBe(false)
     expect(page(écran).find('dd code').text()).toBe('javascript:alert(1)')
+    écran.wrapper.unmount()
+  })
+
+  test('keeps its component folded when its page opens from the label', async () => {
+    const écran = await monte(catalogue)
+    await libellé(écran, 'Badge').find('.chevron').trigger('click')
+
+    await libellé(écran, 'Badge').trigger('click')
+    await vide(écran.wrapper)
+
+    expect(page(écran).find('h2').text()).toBe('Badge')
+    expect(écran.noms()).toEqual(['Par défaut'])
+    expect(JSON.parse(localStorage.getItem('crypte:tree:folded') ?? '[]')).toEqual([
+      'component:badge',
+    ])
+    écran.wrapper.unmount()
+  })
+
+  test('unfolds the folders above a component page the history goes back to', async () => {
+    const profond = entry('checkout/ordersummary--x', 'X', ['checkout', 'OrderSummary'], 's.tsx')
+    window.history.replaceState(null, '', '/?id=bouton--defaut')
+    const écran = await monte([profond, bouton])
+    await libellé(écran, 'checkout').find('.chevron').trigger('click')
+    expect(écran.branches()).toEqual(['checkout', 'Bouton'])
+
+    window.history.replaceState(null, '', '/?component=checkout/ordersummary')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    await vide(écran.wrapper)
+
+    expect(écran.branches()).toEqual(['checkout', 'OrderSummary', 'Bouton'])
     écran.wrapper.unmount()
   })
 
@@ -1123,13 +1154,15 @@ describe('the component page', () => {
     écran.wrapper.unmount()
   })
 
-  // Un fichier de stories supprimé : la page n'a plus rien à montrer. L'adresse
-  // reste, comme celle d'une story perdue : le fichier revenu, elle rouvre la page.
-  test('closes when its component leaves the catalogue, and keeps its address', async () => {
+  // Un fichier de stories retiré, le temps d'un renommage ou d'un changement de
+  // branche : la page le dit et garde son adresse, comme une story perdue, puis
+  // revient avec le fichier.
+  test('says when its component leaves the catalogue, and comes back with it', async () => {
     window.history.replaceState(null, '', '/?component=badge')
     const manifests: Manifest[] = [
       { version: 1, entries: catalogue },
       { version: 1, entries: [bouton] },
+      { version: 1, entries: catalogue },
     ]
     vi.stubGlobal(
       'fetch',
@@ -1160,7 +1193,19 @@ describe('the component page', () => {
     await vide(wrapper)
 
     expect(wrapper.find('.component-page').exists()).toBe(false)
-    expect(wrapper.findAll('p').at(-1)?.text()).toBe('the story on display is gone')
+    expect(wrapper.findAll('p').at(-1)?.text()).toBe('the component on display is gone')
+    expect(window.location.search).toBe('?component=badge')
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'ready', protocolVersion: 1 },
+        origin: window.location.origin,
+        source: frame.contentWindow,
+      }),
+    )
+    await vide(wrapper)
+
+    expect(wrapper.find('.component-page h2').text()).toBe('Badge')
     expect(window.location.search).toBe('?component=badge')
     wrapper.unmount()
   })

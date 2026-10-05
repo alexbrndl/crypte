@@ -87,8 +87,9 @@ function unfold(next: string[]) {
   else keep([...folded.value.filter((key) => !visible.includes(key)), ...closed])
 }
 
-// Ce qu'on regarde reste atteignable : y arriver par son adresse rouvre ce qui le
-// contient.
+// Ce qu'on regarde reste atteignable : y arriver rouvre ce qui le contient, les
+// dossiers au-dessus d'un composant, et le composant d'une story. Pas le composant
+// d'une page : ouvrir sa page n'efface pas un repli choisi.
 watch(
   () => [props.current, props.component] as const,
   ([id, component]) => {
@@ -97,7 +98,7 @@ watch(
         ? props.entries.find((one) => one.id === id)
         : props.entries.find((one) => componentIdOf(one.path) === component)
     if (!entry) return
-    const above = keysAbove(entry)
+    const above = component === null ? keysAbove(entry) : keysAbove(entry).slice(0, -1)
     if (folded.value.some((key) => above.includes(key)))
       keep(folded.value.filter((key) => !above.includes(key)))
   },

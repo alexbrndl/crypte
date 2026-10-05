@@ -197,13 +197,14 @@ async function refresh() {
   }
   arrival = { mode: 'home' }
 
-  // Une page composant reste ouverte tant que son composant a des stories.
-  if (component.value !== null && ofComponent(component.value, stories).length === 0)
-    component.value = null
-
   const next = landing(shown, before, stories)
   shown = next.shown
   if (next.status) status.value = next.status
+
+  // Une page composant dont le composant a disparu reste ouverte et le dit, comme
+  // une story perdue : le fichier revenu, la page revient avec lui.
+  if (component.value !== null && ofComponent(component.value, stories).length === 0)
+    status.value = 'the component on display is gone'
 
   // L'erreur part avec la story : un fichier supprimé fait d'abord échouer son
   // rechargement à chaud, et l'alerte restait par-dessus « la story affichée a
