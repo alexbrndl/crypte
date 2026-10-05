@@ -625,6 +625,16 @@ describe('the address', () => {
     expect(window.history.length).toBe(avant)
   })
 
+  test('stays on its story when the history goes to an address naming none', async ({ écran }) => {
+    await écran.story(1).trigger('click')
+
+    window.history.replaceState(null, '', '/?id=disparue')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    await vide(écran.wrapper)
+
+    expect(écran.story(1).attributes('aria-selected')).toBe('true')
+  })
+
   test('stops following the address once unmounted', async () => {
     const ajoute = vi.spyOn(window, 'addEventListener')
     const retire = vi.spyOn(window, 'removeEventListener')
@@ -637,6 +647,16 @@ describe('the address', () => {
     expect(retire).toHaveBeenCalledWith('popstate', suivi)
     ajoute.mockRestore()
     retire.mockRestore()
+  })
+})
+
+describe('the keyboard', () => {
+  test('shows a story on Enter', async ({ écran }) => {
+    await écran.story(2).trigger('keydown', { key: 'Enter' })
+    await vide(écran.wrapper)
+
+    expect(écran.story(2).attributes('aria-selected')).toBe('true')
+    expect(window.location.search).toBe('?id=bouton--defaut')
   })
 })
 
@@ -729,6 +749,9 @@ describe('the search', () => {
 
     await cherche(écran, '')
     expect(écran.noms()).toEqual(['Par défaut', 'Alerte'])
+
+    await cherche(écran, 'par')
+    expect(écran.noms()).toEqual(['Par défaut', 'Par défaut'])
   })
 
   const branche = (écran: Ecran, nom: string) =>
