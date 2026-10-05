@@ -15,9 +15,10 @@ vp install
 ## Check
 
 ```bash
-vp check          # formatting, lint and types
-vp run -r pack    # builds the three packages
-vp test           # tests
+vp run -r pack        # builds the packages
+vp check              # formatting, lint and the types of .ts files
+vp run -r typecheck   # the types of .vue files, which vp check does not read
+vp test               # tests
 ```
 
 Or the whole chain, in the order it expects:
@@ -26,7 +27,7 @@ Or the whole chain, in the order it expects:
 vp run ready
 ```
 
-**The order matters.** The build has to come before the tests: the isolation test of `@crypte/core` reads built artefacts, not sources. Run without a build, it fails loudly instead of passing while checking nothing.
+**The order matters.** The build comes first: both type checks read the packages' types from `dist/`, and the isolation test of `@crypte/core` reads built artefacts, not sources. Run without a build, they fail loudly instead of passing while checking nothing.
 
 ## Layout
 
