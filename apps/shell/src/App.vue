@@ -30,6 +30,8 @@ const families = ref<TokensEntry[]>([])
 const skipped = ref<SkippedFile[]>([])
 const current = ref<string | null>(null)
 const status = ref('loading the catalogue')
+// Ce qu'un catalogue illisible laisse dire, quelle que soit la page.
+const unread = ref<string | null>(null)
 
 // L'entrée affichée, pas seulement son identifiant : celui-ci vient du chemin et
 // du nom, donc renommer une story le change et la sélection ne se retrouve plus.
@@ -97,6 +99,21 @@ const shownFamily = computed(() => families.value.find((one) => one.id === famil
 // Ce que l'arbre range, dans l'ordre du manifeste : les familles y suivent les
 // stories, les contributions des plugins passant après elles (§6.3).
 const listed = computed(() => [...entries.value, ...families.value])
+
+// La ligne d'état parle de ce qui est affiché. Sous une page, la story chargée
+// dessous rend comme ailleurs, mais ni sa durée de rendu ni sa perte n'y ont leur
+// place. Une page dont l'entrée a disparu reste ouverte et le dit, comme une
+// story perdue : l'entrée revenue, la page revient avec elle.
+const line = computed(() => {
+  if (unread.value !== null) return unread.value
+  if (family.value !== null)
+    return shownFamily.value ? counted(entries.value.length) : 'the tokens on display are gone'
+  if (component.value !== null)
+    return componentStories.value.length > 0
+      ? counted(entries.value.length)
+      : 'the component on display is gone'
+  return status.value
+})
 
 // Ce qu'un panneau a édité, par-dessus les props de la story affichée. Gardé
 // tant que la même story reste affichée, y compris quand la preview redit
@@ -192,16 +209,17 @@ async function refresh() {
   try {
     manifest = (await fetch(MANIFEST).then((answer) => answer.json())) as Manifest
   } catch (error) {
-    status.value = unreadable(error)
+    unread.value = unreadable(error)
     return
   }
 
   const before = entries.value
 
-  // Les stories seules : le manifeste porte d'autres natures d'entrée, et cet
-  // écran n'en montre qu'une. Ce qu'il ne sait pas afficher, il l'ignore.
+  // Les stories et les familles de tokens : `page` est réservée (§4.2), et ce que
+  // le shell ne sait pas dessiner, il l'ignore.
   const stories = manifest.entries.filter((entry): entry is StoryEntry => entry.type === 'story')
 
+  unread.value = null
   entries.value = stories
   families.value = manifest.entries.filter((entry): entry is TokensEntry => entry.type === 'tokens')
   skipped.value = manifest.skipped ?? []
@@ -226,11 +244,6 @@ async function refresh() {
   shown = next.shown
   if (next.status) status.value = next.status
 
-  // Une famille qui a disparu laisse sa page ouverte et le dit, comme une story
-  // perdue : revenue, elle se redessine.
-  if (family.value !== null && shownFamily.value === null)
-    status.value = 'the tokens on display are gone'
-
   // L'erreur part avec la story : un fichier supprimé fait d'abord échouer son
   // rechargement à chaud, et l'alerte restait par-dessus « la story affichée a
   // disparu ».
@@ -239,15 +252,11 @@ async function refresh() {
     // chargée sous la page parti, l'autre porte encore le composant.
     const [rest] = component.value === null ? [] : ofComponent(component.value, stories)
     if (rest) {
-      status.value = counted(stories.length)
       select(rest.id)
       return
     }
     current.value = null
     failure.value = null
-    // Une page composant dont le fichier a disparu reste ouverte et le dit, comme
-    // une story perdue : le fichier revenu, la page revient avec lui.
-    if (component.value !== null) status.value = 'the component on display is gone'
     return
   }
 
@@ -409,7 +418,7 @@ onMounted(() => {
           @send="sendToPreview"
         />
       </div>
-      <p>{{ status }}</p>
+      <p>{{ line }}</p>
     </div>
   </main>
 </template>

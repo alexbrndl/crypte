@@ -1542,3 +1542,63 @@ describe('the tokens page', () => {
     wrapper.unmount()
   })
 })
+
+// La ligne d'état parle de ce qui est affiché, pas de la story chargée dessous.
+describe('the status line under a page', () => {
+  const famille: TokensEntry = { ...jetons }
+
+  test('ignores the render of the story underneath a family or a component', async () => {
+    window.history.replaceState(null, '', '/?id=color--brand')
+    const écran = await monte([badge, alerte, famille])
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    await écran.répond({ type: 'rendered', id: 'badge--defaut', durationMs: 1.2 } as PreviewMessage)
+
+    expect(écran.statut()).toBe('2 stories')
+
+    window.history.replaceState(null, '', '/?component=badge')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    await vide(écran.wrapper)
+    await écran.répond({ type: 'rendered', id: 'badge--defaut', durationMs: 1.2 } as PreviewMessage)
+
+    expect(écran.statut()).toBe('2 stories')
+    écran.wrapper.unmount()
+  })
+
+  // La story dessous perd son fichier : la famille, elle, n'a rien perdu.
+  test('does not say a story is gone under a family that is still there', async () => {
+    window.history.replaceState(null, '', '/?id=color--brand')
+    const manifests: Manifest[] = [
+      { version: 1, entries: [badge, bouton, famille] },
+      { version: 1, entries: [bouton, famille] },
+    ]
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async (url: string) =>
+          ({
+            json: async () =>
+              url === '/@crypte/plugins.json'
+                ? { panels: [], refused: [] }
+                : manifests.length > 1
+                  ? manifests.shift()
+                  : manifests[0],
+          }) as Response,
+      ),
+    )
+    const wrapper = mount(App, { attachTo: document.body })
+    await vide(wrapper)
+    const frame = wrapper.find('iframe').element as HTMLIFrameElement
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'ready', protocolVersion: 1 },
+        origin: window.location.origin,
+        source: frame.contentWindow,
+      }),
+    )
+    await vide(wrapper)
+
+    expect(wrapper.find('.tokens-page h2').text()).toBe('Brand')
+    expect(wrapper.findAll('p').at(-1)?.text()).toBe('1 story')
+    wrapper.unmount()
+  })
+})

@@ -29,9 +29,6 @@ export type Node =
   | { kind: 'story'; key: string; name: string; entry: StoryEntry }
   | { kind: 'tokens'; key: string; name: string; entry: TokensEntry }
 
-// Ce qui se choisit dans l'arbre et s'ouvre par `?id=`.
-export type Leaf = Extract<Node, { entry: unknown }>
-
 // Préfixées par leur nature : un dossier et un composant peuvent porter le même
 // chemin, et une story garde son identifiant, qui est déjà unique.
 const folderKey = (path: readonly string[]) => `folder:${storyId(path, '')}`
