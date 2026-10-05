@@ -19,6 +19,13 @@ const declared = computed(() =>
   STATUSES.filter((status) => props.entries.some((entry) => entry.meta?.status === status)),
 )
 
+// Un statut choisi que plus aucun composant ne déclare sort du choix : son bouton
+// disparaît avec lui, et l'arbre resterait vide sans rien pour en sortir.
+watch(declared, (now) => {
+  if (statuses.value.some((status) => !now.includes(status)))
+    statuses.value = statuses.value.filter((status) => now.includes(status))
+})
+
 // Ce qui est replié, et pas ce qui est ouvert : un composant écrit depuis la
 // dernière visite arrive ouvert, comme tout l'arbre la première fois. Retenu par
 // le shell, comme l'ouverture d'un panneau.
@@ -57,10 +64,14 @@ const expanded = computed(() => {
   return branchKeys(shown.value).filter((key) => !hidden.includes(key))
 })
 
+// Ce qui est replié hors de la vue reste replié : un composant que le filtre de
+// statut cache, ou qu'un fichier cassé retire un instant, reviendrait sinon
+// ouvert dès qu'on replie autre chose.
 function unfold(next: string[]) {
-  const closed = branchKeys(shown.value).filter((key) => !next.includes(key))
+  const visible = branchKeys(shown.value)
+  const closed = visible.filter((key) => !next.includes(key))
   if (searching.value) foldedWhileSearching.value = closed
-  else keep([...folded.value.filter((key) => !branchKeys(shown.value).includes(key)), ...closed])
+  else keep([...folded.value.filter((key) => !visible.includes(key)), ...closed])
 }
 
 // La story affichée reste atteignable : y arriver par son adresse rouvre ce qui

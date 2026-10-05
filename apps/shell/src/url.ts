@@ -16,7 +16,8 @@ export type Place =
   | { mode: 'changes' }
 
 // Un mode par adresse, lu dans cet ordre. Une valeur vide ne nomme rien, et tout
-// autre paramètre appartient à quelqu'un d'autre : les deux passent au suivant.
+// autre paramètre est ignoré : les deux passent au suivant. L'adresse que le
+// shell écrit ensuite ne garde que la sienne, sans eux ni hash.
 export function readPlace(search: string): Place {
   const query = new URLSearchParams(search)
   const id = query.get('id')

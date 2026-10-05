@@ -10,6 +10,7 @@ import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, test as base, vi } from 'vitest'
 import App from '../src/App.vue'
 import Panels from '../src/panels.vue'
+import StoryTree from '../src/story-tree.vue'
 
 // Le composant du shell, monté dans un DOM. Il était le plus gros fichier que
 // rien n'exécutait hors navigateur : 184 lignes, et la couverture ne pouvait même
@@ -581,6 +582,32 @@ describe('the address', () => {
     expect(window.history.length).toBe(avant + 1)
   })
 
+  // Reka redit la sélection quand on reclique la story affichée.
+  test('adds no step when the story shown is clicked again', async ({ écran }) => {
+    const avant = window.history.length
+
+    await écran.story(1).trigger('click')
+    await écran.story(1).trigger('click')
+
+    expect(window.history.length).toBe(avant + 1)
+  })
+
+  // L'adresse d'arrivée ne vaut qu'une fois : chaque `ready`, que la preview dit
+  // à chaque rechargement, ramenait sinon à la story du lien collé.
+  test('forgets the address it arrived at once a story is picked', async () => {
+    window.history.replaceState(null, '', '/?id=badge--alerte')
+    const écran = await monte([badge, alerte, bouton])
+
+    await écran.story(2).trigger('click')
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+
+    expect(écran.story(2).attributes('aria-selected')).toBe('true')
+    await expect
+      .poll(() => écran.envoyés.at(-1))
+      .toEqual({ type: 'render', id: 'bouton--defaut', overrides: {} })
+    écran.wrapper.unmount()
+  })
+
   // Arriver sur la première story n'est pas un pas : précédent ramènerait à une
   // adresse qui ne nomme rien.
   test('names the first story without adding a step', async () => {
@@ -791,6 +818,58 @@ describe('the status', () => {
     await vide(écran.wrapper)
 
     expect(écran.branches()).toEqual(['Bouton'])
+    écran.wrapper.unmount()
+  })
+})
+
+describe('a filter on what changes underneath', () => {
+  const avec = (one: StoryEntry, status: NonNullable<StoryEntry['meta']>['status']) => ({
+    ...one,
+    meta: { status },
+  })
+  const noms = (wrapper: VueWrapper) =>
+    wrapper.findAll('[role="treeitem"]:not(.story) .name').map((one) => one.text())
+  const filtre = (wrapper: VueWrapper) => wrapper.find('[aria-label="Filter by status"]')
+
+  // Éditer `meta.status` dans un fichier de stories atteint l'arbre en direct.
+  test('lets go of a status no component declares any more', async () => {
+    const wrapper = mount(StoryTree, {
+      props: { entries: [avec(badge, 'stable'), avec(bouton, 'draft')], current: null },
+    })
+    await filtre(wrapper).findAll('button')[0]!.trigger('click')
+    expect(noms(wrapper)).toEqual(['Bouton'])
+
+    await wrapper.setProps({ entries: [avec(badge, 'stable'), avec(bouton, 'stable')] })
+
+    expect(noms(wrapper)).toEqual(['Badge', 'Bouton'])
+    expect(
+      filtre(wrapper)
+        .findAll('button')
+        .map((one) => one.attributes('data-state')),
+    ).toEqual(['off'])
+    wrapper.unmount()
+  })
+
+  test('keeps folded what the filter hides while something else is folded', async () => {
+    const écran = await monte([
+      avec(badge, 'stable'),
+      avec(alerte, 'stable'),
+      avec(bouton, 'draft'),
+    ])
+    const branche = (nom: string) =>
+      écran.wrapper
+        .findAll('[role="treeitem"]:not(.story)')
+        .find((one) => one.find('.name').text() === nom)!
+    const draft = () => filtre(écran.wrapper).findAll('button')[0]!
+
+    await branche('Badge').trigger('click')
+    await draft().trigger('click')
+    await branche('Bouton').trigger('click')
+    await draft().trigger('click')
+    await vide(écran.wrapper)
+
+    expect(écran.branches()).toEqual(['Badge', 'Bouton'])
+    expect(écran.noms()).toEqual([])
     écran.wrapper.unmount()
   })
 })
