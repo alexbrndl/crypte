@@ -205,7 +205,7 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
       <span v-if="inapplicable !== null" class="inapplicable">{{ inapplicable }}</span>
     </div>
     <Callout v-if="failure !== null" tone="danger" class="panel-failed" role="alert">
-      Ce panneau a levé : {{ failure }}
+      This panel threw: {{ failure }}
     </Callout>
     <div v-else v-show="expanded" class="body">
       <component

@@ -581,7 +581,7 @@ export default defineStories(Badge, { props: { label: 'Seule' } })
       // qu'il n'a pas ouvert, et l'issue le demande explicitement.
       await expect
         .poll(() => page.locator('main > div > p').last().textContent(), { timeout: 30_000 })
-        .toBe('la story affichée a disparu')
+        .toBe('the story on display is gone')
 
       // Et l'outil marche : la story qui reste rend au clic.
       await page.getByRole('button', { name: 'Default', exact: true }).click()

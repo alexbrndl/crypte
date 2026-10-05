@@ -21,7 +21,7 @@ const frame = useTemplateRef<HTMLIFrameElement>('frame')
 const entries = ref<StoryEntry[]>([])
 const skipped = ref<SkippedFile[]>([])
 const current = ref<string | null>(null)
-const status = ref('chargement du catalogue')
+const status = ref('loading the catalogue')
 
 // L'entrée affichée, pas seulement son identifiant : celui-ci vient du chemin et
 // du nom, donc renommer une story le change et la sélection ne se retrouve plus.
@@ -52,10 +52,10 @@ const setAside = computed(() =>
       read,
       title:
         read === 0
-          ? 'aucune story lue'
+          ? 'no story read'
           : read === 1
-            ? '1 story lue, il en manque'
-            : `${read} stories lues, il en manque`,
+            ? '1 story read, some are missing'
+            : `${read} stories read, some are missing`,
     }
   }),
 )
@@ -185,18 +185,18 @@ onMounted(() => {
           },
           { once: true },
         )
-        status.value = `preview prête, protocole v${message.protocolVersion}`
+        status.value = `preview ready, protocol v${message.protocolVersion}`
         void refresh()
       }
       if (message.type === 'rendered') {
         failure.value = null
-        status.value = `${message.id} rendu en ${message.durationMs.toFixed(1)} ms`
+        status.value = `${message.id} rendered in ${message.durationMs.toFixed(1)} ms`
       }
       // Rattachée à la story affichée : cliquer B pendant que A rend laissait
       // l'erreur de A couvrir B, et masquer la note partielle de B.
       if (message.type === 'error' && message.id === current.value) {
         failure.value = { id: message.id, message: message.message, stack: message.stack }
-        status.value = 'erreur de rendu'
+        status.value = 'render error'
       }
       // Une fois chacune : un hook qui lève lève à chaque rendu, et chaque
       // valeur saisie dans `controls` en ajoutait une ligne identique.
@@ -239,17 +239,18 @@ onMounted(() => {
           {{ entry.name }}
         </button>
       </section>
-      <p v-if="entries.length === 0">aucune story</p>
+      <p v-if="entries.length === 0">no story</p>
     </nav>
 
     <div>
       <!-- Au-dessus de la preview et jamais bloquant : une story écartée est
            absente de l'arbre, donc rien d'autre ne la nomme. -->
       <Callout v-if="setAside.length > 0" tone="warning" class="set-aside" role="status">
-        <h2>Ce que Crypte n'a pas pu lire</h2>
+        <h2>What Crypte could not read</h2>
         <ul>
           <li v-for="one of setAside" :key="one.file">
-            <code>{{ one.file }}</code> : {{ one.title }}. {{ one.reason }}
+            <code>{{ one.file }}</code
+            >: {{ one.title }}. {{ one.reason }}
           </li>
         </ul>
       </Callout>
@@ -258,7 +259,7 @@ onMounted(() => {
            affiché dessous appartient à la story d'avant, et le laisser voir
            ferait croire que celle-ci a rendu. -->
       <Callout v-if="failure" tone="danger" class="failure" role="alert">
-        <h2>{{ failure.id }} n'a pas pu être rendue</h2>
+        <h2>{{ failure.id }} could not be rendered</h2>
         <p>{{ failure.message }}</p>
         <pre v-if="failure.stack">{{ failure.stack }}</pre>
       </Callout>
@@ -267,7 +268,7 @@ onMounted(() => {
       <!-- Sous la preview, pas dessus : la story rend, et l'avertissement ne dit
            que ce qui manque à sa fiche. Le ton dit ce que l'outil ne sait pas
            lire, jamais que le fichier est mal écrit. -->
-      <p v-if="partial && !failure" class="partial">Fiche partielle : {{ partial }}.</p>
+      <p v-if="partial && !failure" class="partial">Incomplete props table: {{ partial }}.</p>
       <Panels
         :entry="displayed"
         :received="received"

@@ -97,9 +97,9 @@ describe('what a panel is refused', () => {
 
     expect(montés(wrapper)).toEqual(['a=un'])
     expect(échecs(wrapper)).toEqual([
-      expect.stringMatching(/^absent n'a pas pu se charger : \S/),
-      "chaine n'a pas pu se charger : une chaîne, pas une erreur",
-      "nombre n'a pas pu se charger : le module n'exporte pas de composant par défaut",
+      expect.stringMatching(/^absent could not load: \S/),
+      'chaine could not load: une chaîne, pas une erreur',
+      'nombre could not load: its default export is not a component',
     ])
   })
 
@@ -120,7 +120,7 @@ describe('what a panel is refused', () => {
       },
     })
 
-    expect(échecs(wrapper)).toEqual(['a11y dans la preview : boum'])
+    expect(échecs(wrapper)).toEqual(['a11y in the preview: boum'])
   })
 
   // Le terminal était le seul endroit où un refus se disait. DCJ-194.
@@ -140,8 +140,8 @@ describe('what a panel is refused', () => {
     // cette attente, le cas lisait les panneaux trop tôt sous couverture.
     await vi.waitFor(() => expect(montés(wrapper)).toEqual(['a=un']))
     expect(échecs(wrapper)).toEqual([
-      'Refusé chez b : `toolbar` is not a key of a plugin, which are name, shell, preview and node',
-      'Refusé chez plugins[2] : a plugin with a browser surface needs a `name`',
+      'Refused in b: `toolbar` is not a key of a plugin, which are name, shell, preview and node',
+      'Refused in plugins[2]: a plugin with a browser surface needs a `name`',
     ])
   })
 
@@ -150,7 +150,7 @@ describe('what a panel is refused', () => {
 
     expect(montés(wrapper)).toEqual([])
     expect(échecs(wrapper)).toEqual([
-      "la liste des plugins n'a pas pu se charger : Unexpected end of JSON input",
+      'the list of plugins could not load: Unexpected end of JSON input',
     ])
   })
 })
@@ -189,7 +189,7 @@ describe('the list read again', () => {
 
     await vi.waitFor(() => expect(montés(wrapper)).toEqual(['garde=1']))
     expect(échecs(wrapper)).toEqual([
-      'Refusé chez neuf : a plugin with a browser surface needs a `name`',
+      'Refused in neuf: a plugin with a browser surface needs a `name`',
     ])
   })
 

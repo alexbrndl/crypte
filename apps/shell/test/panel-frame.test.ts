@@ -310,7 +310,7 @@ describe('a panel that throws', () => {
     const wrapper = monte(fragile, nue, 'fragile')
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.panel-failed').text()).toBe('Ce panneau a levé : rendu cassé')
+    expect(wrapper.find('.panel-failed').text()).toBe('This panel threw: rendu cassé')
     expect(wrapper.find('.body').exists()).toBe(false)
 
     await wrapper.setProps({ entry: brouillon })
@@ -347,7 +347,7 @@ describe('a panel that throws', () => {
     const wrapper = monte(chaine, nue, 'chaine')
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.panel-failed').text()).toBe('Ce panneau a levé : une chaîne')
+    expect(wrapper.find('.panel-failed').text()).toBe('This panel threw: une chaîne')
   })
 })
 

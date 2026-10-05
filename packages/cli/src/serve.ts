@@ -239,10 +239,12 @@ function channelPath(): string {
   }
 }
 
+// No `lang`: the page renders the project's components, in the project's
+// language, which Crypte cannot know. A screen reader falls back on the system's.
 function previewHtml(): string {
   return [
     '<!doctype html>',
-    '<html lang="fr">',
+    '<html>',
     '  <head><meta charset="UTF-8" /><title>Preview</title></head>',
     '  <body>',
     '    <div id="root"></div>',

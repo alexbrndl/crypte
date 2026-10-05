@@ -8,10 +8,10 @@ const props = defineProps<PanelProps>()
 const emit = defineEmits<Pick<PanelEvents, 'inapplicable' | 'send'>>()
 
 const IMPACTS: [Impact, string][] = [
-  ['critical', 'Critique'],
-  ['serious', 'Grave'],
-  ['moderate', 'Modérée'],
-  ['minor', 'Mineure'],
+  ['critical', 'Critical'],
+  ['serious', 'Serious'],
+  ['moderate', 'Moderate'],
+  ['minor', 'Minor'],
 ]
 
 // Only the analysis of the story on display: the shell hands over the last
@@ -40,20 +40,19 @@ watch([() => props.received, () => props.entry], () => {
 // Said again for every entry and every result, section 6.1: a story with no
 // violation folds, and folds no longer once an edit of its props adds one.
 watchEffect(() => {
-  if (!props.entry) return emit('inapplicable', 'aucune story affichée')
+  if (!props.entry) return emit('inapplicable', 'no story on display')
   // No render, so no analysis will come: waiting would be for ever.
   if (typeof props.failed === 'string')
-    return emit('inapplicable', 'la story n’a pas pu être rendue')
+    return emit('inapplicable', 'the story could not be rendered')
 
   const found = results.value
   if (found && found.violations.length === 0) {
     // Nothing read, not nothing wrong: a render that threw leaves the root
-    // empty, and "Relancer l'analyse" analyses it all the same.
-    if (found.passes === 0)
-      return emit('inapplicable', 'aucune règle automatique ne s’applique à ce rendu')
+    // empty, and "Run the analysis again" analyses it all the same.
+    if (found.passes === 0) return emit('inapplicable', 'no automatic rule applies to this render')
 
-    const rules = found.passes === 1 ? 'règle automatique passée' : 'règles automatiques passées'
-    return emit('inapplicable', `${found.passes} ${rules}, aucune violation`)
+    const rules = found.passes === 1 ? 'automatic rule passed' : 'automatic rules passed'
+    return emit('inapplicable', `${found.passes} ${rules}, no violation`)
   }
 
   emit('inapplicable', null)
@@ -70,7 +69,7 @@ const count = (violations: Violation[]) =>
 
 <template>
   <p v-if="!results || running" role="status" style="margin: 0; font-size: 13px">
-    En attente d’une analyse…
+    Waiting for an analysis…
   </p>
   <div v-else style="display: grid; gap: 12px">
     <section v-for="group in groupsOf(results)" :key="group.impact">
@@ -90,5 +89,5 @@ const count = (violations: Violation[]) =>
       </ul>
     </section>
   </div>
-  <button type="button" style="margin-top: 12px" @click="rerun">Relancer l'analyse</button>
+  <button type="button" style="margin-top: 12px" @click="rerun">Run the analysis again</button>
 </template>

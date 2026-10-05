@@ -160,7 +160,7 @@ describe('the shell tree', () => {
   test('says there is no story on an empty catalog', async () => {
     const écran = await monte([])
 
-    expect(écran.wrapper.find('nav p').text()).toBe('aucune story')
+    expect(écran.wrapper.find('nav p').text()).toBe('no story')
     écran.wrapper.unmount()
   })
 
@@ -169,7 +169,7 @@ describe('the shell tree', () => {
   test('says why an unreadable catalog was not read', async () => {
     const écran = await monte([badge], true)
 
-    expect(écran.statut()).toBe('catalogue illisible : Unexpected end of JSON input')
+    expect(écran.statut()).toBe('the catalogue could not be read: Unexpected end of JSON input')
     écran.wrapper.unmount()
   })
 })
@@ -382,7 +382,7 @@ describe('what the preview answers', () => {
       durationMs: 12.34,
     } as PreviewMessage)
 
-    expect(écran.statut()).toBe('badge--defaut rendu en 12.3 ms')
+    expect(écran.statut()).toBe('badge--defaut rendered in 12.3 ms')
   })
 
   // Une story qui échoue laisse un cadre vide, et un cadre vide sans message
@@ -400,7 +400,7 @@ describe('what the preview answers', () => {
     expect(alerte.exists()).toBe(true)
     expect(alerte.text()).toContain('ce composant ne rend jamais')
     expect(alerte.find('pre').text()).toBe('at Boum')
-    expect(écran.statut()).toBe('erreur de rendu')
+    expect(écran.statut()).toBe('render error')
   })
 
   // Le cadre de la story d'avant ne doit plus être visible : le laisser ferait
@@ -452,8 +452,8 @@ describe('what the catalog left out', () => {
     ])
 
     expect(écran.écartés()).toEqual([
-      'stories/Badge.tsx : 2 stories lues, il en manque. stories left out: one whose key is computed at runtime',
-      'stories/Seul.tsx : aucune story lue. the stories block is not an object literal',
+      'stories/Badge.tsx: 2 stories read, some are missing. stories left out: one whose key is computed at runtime',
+      'stories/Seul.tsx: no story read. the stories block is not an object literal',
     ])
     écran.wrapper.unmount()
   })
@@ -465,7 +465,7 @@ describe('what the catalog left out', () => {
     const écran = await monte([partielle as never, alerte])
 
     expect(écran.partielle()).toBe(
-      'Fiche partielle : `...base` brings props this reader cannot follow.',
+      'Incomplete props table: `...base` brings props this reader cannot follow.',
     )
 
     await écran.wrapper.findAll('button')[1]?.trigger('click')
@@ -481,7 +481,7 @@ describe('what the catalog left out', () => {
     const partielle = { ...badge, partial: '`...base` brings props this reader cannot follow' }
     const écran = await monte([partielle as never])
 
-    expect(écran.partielle()).toContain('Fiche partielle')
+    expect(écran.partielle()).toContain('Incomplete props table')
 
     await écran.répond({
       type: 'error',
@@ -509,7 +509,7 @@ describe('what the catalog left out', () => {
     } as PreviewMessage)
 
     expect(écran.wrapper.find('.failure').exists()).toBe(false)
-    expect(écran.partielle()).toContain('Fiche partielle')
+    expect(écran.partielle()).toContain('Incomplete props table')
     écran.wrapper.unmount()
   })
 

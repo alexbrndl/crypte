@@ -6,7 +6,7 @@ import type { StoryEntry } from '@crypte/core/protocol'
 // mot ressemble à un outil qui a cessé de suivre, ce que le panneau d'erreur
 // défend déjà pour un rendu raté.
 export function unreadable(error: unknown): string {
-  return `catalogue illisible : ${error instanceof Error ? error.message : String(error)}`
+  return `the catalogue could not be read: ${error instanceof Error ? error.message : String(error)}`
 }
 
 // Hors du composant pour être testable : la distinction entre `null`, une entrée
@@ -26,7 +26,7 @@ export function landing(
   // La story perdue est gardée, avec le catalogue d'où elle a disparu : quand
   // son fichier revient, c'est elle qu'on retrouve.
   const lost = shown !== null && 'lost' in shown ? shown : { lost: shown as StoryEntry, before }
-  return { id: null, shown: lost, status: 'la story affichée a disparu' }
+  return { id: null, shown: lost, status: 'the story on display is gone' }
 }
 
 // `lost` : la sélection vient d'être perdue, avec le catalogue d'où elle a

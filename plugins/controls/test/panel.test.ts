@@ -68,7 +68,7 @@ describe('the fields', () => {
     expect((wrapper.find('input[type="checkbox"]').element as HTMLInputElement).indeterminate).toBe(
       true,
     )
-    expect(wrapper.find('select option').text()).toBe('— valeur de la story')
+    expect(wrapper.find('select option').text()).toBe('— the story’s value')
     expect(wrapper.find('label').attributes('title')).toBe('Le texte.')
   })
 })
@@ -96,7 +96,7 @@ describe('the form', () => {
     )
 
     expect(wrapper.findAll('select option').map((one) => one.text())).toEqual([
-      '— valeur de la story',
+      '— the story’s value',
       'md',
       'null',
     ])
@@ -110,7 +110,7 @@ describe('the form', () => {
     const wrapper = monte(entry('x--sans-options', { size: { type: 'enum', required: false } }))
 
     expect(wrapper.findAll('select option').map((one) => one.text())).toEqual([
-      '— valeur de la story',
+      '— the story’s value',
     ])
   })
 })
@@ -201,12 +201,12 @@ describe('what an edit emits', () => {
 
 describe('what it says when there is nothing to edit', () => {
   test.for([
-    ['no story on display', null, 'aucune story affichée'],
-    ['a component with no props', entry('x--nue', {}), 'aucune prop sur ce composant'],
+    ['no story on display', null, 'no story on display'],
+    ['a component with no props', entry('x--nue', {}), 'no prop on this component'],
     [
       'a component with no editable prop',
       entry('x--fonctions', { onClick: { type: 'function', required: true } }),
-      'aucune prop modifiable sur ce composant',
+      'no editable prop on this component',
     ],
   ] as const)('folds on %s', ([, story, reason]) => {
     const wrapper = monte(story)
@@ -222,7 +222,7 @@ describe('what it says when there is nothing to edit', () => {
 
     expect(raisons(wrapper)).toEqual([])
     expect(wrapper.find('.unread').text()).toBe(
-      'Props non lues dans le fichier du composant : nothing the reader follows types its props. Seules celles déclarées dans details de la story apparaissent ici.',
+      'Props not read from the component file: nothing the reader follows types its props. Only those the story declares in details appear here.',
     )
   })
 

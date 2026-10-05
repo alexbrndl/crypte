@@ -31,14 +31,14 @@ watch(
 // Said again for every entry, section 6.1: the shell forgets it at each one.
 watchEffect(() => {
   const entry = props.entry
-  if (!entry) return emit('inapplicable', 'aucune story affichée')
+  if (!entry) return emit('inapplicable', 'no story on display')
   if (fields.value.length > 0 || entry.propsUnread !== undefined) return
 
   emit(
     'inapplicable',
     Object.keys(entry.details).length === 0
-      ? 'aucune prop sur ce composant'
-      : 'aucune prop modifiable sur ce composant',
+      ? 'no prop on this component'
+      : 'no editable prop on this component',
   )
 })
 
@@ -93,8 +93,8 @@ const hint = (details: ResolvedPropDetails) =>
      nothing beside it, so a built style sheet would never load. Measured. -->
 <template>
   <p v-if="entry?.propsUnread !== undefined" class="unread" style="color: #92400e; font-size: 13px">
-    Props non lues dans le fichier du composant : {{ entry.propsUnread }}. Seules celles déclarées
-    dans <code>details</code> de la story apparaissent ici.
+    Props not read from the component file: {{ entry.propsUnread }}. Only those the story declares
+    in <code>details</code> appear here.
   </p>
   <form
     v-if="fields.length > 0"
@@ -140,7 +140,7 @@ const hint = (details: ResolvedPropDetails) =>
         :value="name in values ? String(choices(details).indexOf(values[name])) : ''"
         @change="choose(name, choices(details), $event)"
       >
-        <option value="">— {{ hint(details) || 'valeur de la story' }}</option>
+        <option value="">— {{ hint(details) || 'the story’s value' }}</option>
         <option v-for="(option, at) of choices(details)" :key="at" :value="String(at)">
           {{ String(option) }}
         </option>
@@ -152,7 +152,7 @@ const hint = (details: ResolvedPropDetails) =>
       :disabled="Object.keys(values).length === 0"
       @click="reset"
     >
-      Revenir à la story
+      Back to the story
     </button>
   </form>
 </template>
