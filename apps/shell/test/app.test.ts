@@ -1131,6 +1131,82 @@ describe('the component page', () => {
     écran.wrapper.unmount()
   })
 
+  // La story dessous est ce qui retrouve le composant après un renommage.
+  test('loads a story of the component underneath when opened from the tree', async () => {
+    const écran = await monte(catalogue)
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    await écran.story(2).trigger('click')
+
+    await libellé(écran, 'Badge').trigger('click')
+
+    await expect
+      .poll(() => écran.envoyés.at(-1))
+      .toEqual({ type: 'render', id: 'badge--defaut', overrides: {} })
+    écran.wrapper.unmount()
+  })
+
+  // Depuis le fil d'Ariane, la story qu'on regardait est déjà du composant.
+  test('keeps the story underneath when it is already of the component', async () => {
+    window.history.replaceState(null, '', '/?id=badge--alerte')
+    const écran = await monte(catalogue)
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    await expect
+      .poll(() => écran.envoyés.at(-1))
+      .toEqual({ type: 'render', id: 'badge--alerte', overrides: {} })
+    const avant = écran.envoyés.length
+
+    await écran.wrapper.find('nav.trail a').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    expect(page(écran).find('h2').text()).toBe('Badge')
+    expect(écran.envoyés.length).toBe(avant)
+    écran.wrapper.unmount()
+  })
+
+  // Le titre change, le fichier reste : la story retrouvée par son fichier et son
+  // rang emmène la page vers le composant renommé.
+  test('follows its component when the component is renamed', async () => {
+    window.history.replaceState(null, '', '/?component=badge')
+    const renommé = (one: StoryEntry, id: string): StoryEntry => ({ ...one, id, path: ['Pill'] })
+    const manifests: Manifest[] = [
+      { version: 1, entries: catalogue },
+      {
+        version: 1,
+        entries: [renommé(badgeD, 'pill--defaut'), renommé(alerteD, 'pill--alerte'), bouton],
+      },
+    ]
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async (url: string) =>
+          ({
+            json: async () =>
+              url === '/@crypte/plugins.json'
+                ? { panels: [], refused: [] }
+                : manifests.length > 1
+                  ? manifests.shift()
+                  : manifests[0],
+          }) as Response,
+      ),
+    )
+    const wrapper = mount(App, { attachTo: document.body })
+    await vide(wrapper)
+    const frame = wrapper.find('iframe').element as HTMLIFrameElement
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'ready', protocolVersion: 1 },
+        origin: window.location.origin,
+        source: frame.contentWindow,
+      }),
+    )
+    await vide(wrapper)
+
+    expect(wrapper.find('.component-page h2').text()).toBe('Pill')
+    expect(window.location.search).toBe('?component=pill')
+    wrapper.unmount()
+  })
+
   test('follows back and forward between a story and a component page', async () => {
     const écran = await monte(catalogue)
     await libellé(écran, 'Badge').trigger('click')

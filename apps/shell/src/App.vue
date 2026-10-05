@@ -121,8 +121,13 @@ function show(id: string, trace: Trace = 'replace') {
   write(placeSearch({ mode: 'entry', id }), trace)
 }
 
+// Sous la page, la preview charge une story du composant, si elle n'en montre
+// pas déjà une : c'est elle qui retrouve le composant après un renommage, par son
+// fichier et son rang.
 function open(id: string, trace: Trace = 'push') {
   component.value = id
+  const stories = ofComponent(id, entries.value)
+  if (stories[0] && !stories.some((entry) => entry.id === current.value)) select(stories[0].id)
   write(placeSearch({ mode: 'component', id }), trace)
 }
 
@@ -201,25 +206,29 @@ async function refresh() {
   shown = next.shown
   if (next.status) status.value = next.status
 
-  // Une page composant dont le composant a disparu reste ouverte et le dit, comme
-  // une story perdue : le fichier revenu, la page revient avec lui.
-  if (component.value !== null && ofComponent(component.value, stories).length === 0)
-    status.value = 'the component on display is gone'
-
   // L'erreur part avec la story : un fichier supprimé fait d'abord échouer son
   // rechargement à chaud, et l'alerte restait par-dessus « la story affichée a
   // disparu ».
   if (next.id === null) {
     current.value = null
     failure.value = null
+    // Une page composant dont le fichier a disparu reste ouverte et le dit, comme
+    // une story perdue : le fichier revenu, la page revient avec lui.
+    if (component.value !== null) status.value = 'the component on display is gone'
     return
   }
 
   if (opening !== null) {
     select(next.id)
     open(opening, 'replace')
-  } else if (component.value !== null) select(next.id)
-  else show(next.id)
+  } else if (component.value !== null) {
+    // La story dessous est du composant de la page : retrouvée sous un autre
+    // chemin, elle y emmène la page.
+    select(next.id)
+    const id = next.id
+    const followed = componentIdOf(stories.find((entry) => entry.id === id)?.path ?? [])
+    if (followed !== component.value) open(followed, 'replace')
+  } else show(next.id)
 }
 
 // Précédent et suivant du navigateur : l'adresse a changé sans le shell, qui la
