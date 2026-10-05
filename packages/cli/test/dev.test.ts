@@ -9,6 +9,7 @@ import { dev, startDev, type Started, type Running } from '../src/dev'
 import { buildCatalogue } from '../src/manifest'
 import { loadProject } from '../src/project'
 import {
+  CHANGES_ROUTE,
   MANIFEST_ROUTE,
   PLUGINS_ROUTE,
   PREVIEW_ENTRY_ID,
@@ -59,6 +60,15 @@ describe('crypte dev', () => {
 
     expect(status).toBe(200)
     expect(JSON.parse(body)).toEqual(started.held.catalogue.manifest)
+  })
+
+  // La fixture est suivie par ce dépôt et son empreinte est commise : rien n'a
+  // changé, et Git a été lu depuis un sous-dossier du dépôt.
+  it('serves what changed since the last commit, read from Git', async () => {
+    const { status, body } = await get(CHANGES_ROUTE)
+
+    expect(status).toBe(200)
+    expect(JSON.parse(body)).toEqual({ changes: [] })
   })
 
   // Les modules shell des plugins, section 6.1 : listés dans l'ordre de la
