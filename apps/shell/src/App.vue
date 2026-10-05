@@ -11,8 +11,10 @@ import { Callout } from '@crypte/ui'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef } from 'vue'
 import Panels from './panels.vue'
 import { landing, unreadable, type Shown } from './recover'
+import ComponentPage from './component-page.vue'
 import StoryTree from './story-tree.vue'
-import { placeSearch, readPlace } from './url'
+import { componentIdOf } from './tree'
+import { placeSearch, readPlace, sameTab } from './url'
 
 // Le shell ne connaît aucun framework : il est construit à l'avance et livré dans
 // le CLI, là où la preview est compilée chez l'utilisateur.
@@ -69,9 +71,19 @@ const displayed = computed(() => entries.value.find((entry) => entry.id === curr
 // bloquante : la story rend, il manque des lignes à sa table de props.
 const partial = computed(() => displayed.value?.partial ?? null)
 
-// L'adresse d'arrivée, lue une fois : la story qu'elle nomme est la première
-// affichée, si le catalogue la porte.
+// L'adresse d'arrivée, lue une fois : la story ou le composant qu'elle nomme est
+// le premier affiché, si le catalogue le porte.
 let arrival = readPlace(window.location.search)
+
+// La page composant ouverte, par l'identifiant de son composant, ou `null` en mode
+// story. La story `current` reste chargée dessous, panneaux compris : y revenir
+// ne recharge rien.
+const component = ref<string | null>(null)
+const ofComponent = (id: string, stories: readonly StoryEntry[]) =>
+  stories.filter((entry) => componentIdOf(entry.path) === id)
+const componentStories = computed(() =>
+  component.value === null ? [] : ofComponent(component.value, entries.value),
+)
 
 // Ce qu'un panneau a édité, par-dessus les props de la story affichée. Gardé
 // tant que la même story reste affichée, y compris quand la preview redit
@@ -82,25 +94,54 @@ let arrival = readPlace(window.location.search)
 // panneau peut émettre le sien.
 const overrides = shallowRef<Overrides>({})
 
-// L'adresse suit la story affichée, pour qu'un lien collé ailleurs rouvre la
-// même. Un clic ajoute une étape à l'historique ; un atterrissage, première
+const counted = (n: number) => (n === 1 ? '1 story' : `${n} stories`)
+
+type Trace = 'push' | 'replace' | 'none'
+
+// L'adresse suit ce qui est affiché, pour qu'un lien collé ailleurs rouvre la
+// même chose. Un clic ajoute une étape à l'historique ; un atterrissage, première
 // story ou story retrouvée après un renommage, remplace celle qui est là.
-function show(id: string, trace: 'push' | 'replace' | 'none' = 'replace') {
+function write(search: string, trace: Trace) {
+  if (trace !== 'none' && window.location.search !== search)
+    window.history[trace === 'push' ? 'pushState' : 'replaceState'](null, '', search)
+}
+
+// La story que la preview rend, sans changer de page.
+function select(id: string) {
   if (id !== current.value) overrides.value = {}
   current.value = id
   shown = entries.value.find((entry) => entry.id === id) ?? shown
   failure.value = null
-  const search = placeSearch({ mode: 'entry', id })
-  if (trace !== 'none' && window.location.search !== search)
-    window.history[trace === 'push' ? 'pushState' : 'replaceState'](null, '', search)
   // Rien ne part avant que la preview ait dit `ready` : un message envoyé à une
   // iframe qui n'écoute pas encore est perdu sans trace.
   if (ready) channel?.send({ type: 'render', id, overrides: overrides.value })
 }
 
+function show(id: string, trace: Trace = 'replace') {
+  component.value = null
+  select(id)
+  write(placeSearch({ mode: 'entry', id }), trace)
+}
+
+// Sous la page, la preview charge une story du composant, si elle n'en montre
+// pas déjà une : c'est elle qui retrouve le composant après un renommage, par son
+// fichier et son rang.
+function open(id: string, trace: Trace = 'push') {
+  component.value = id
+  const stories = ofComponent(id, entries.value)
+  if (stories[0] && !stories.some((entry) => entry.id === current.value)) select(stories[0].id)
+  write(placeSearch({ mode: 'component', id }), trace)
+}
+
+function follow(event: MouseEvent, go: () => void) {
+  if (!sameTab(event)) return
+  event.preventDefault()
+  go()
+}
+
 function edit(values: Overrides) {
   overrides.value = { ...values }
-  if (current.value !== null) show(current.value)
+  if (current.value !== null) select(current.value)
 }
 
 // Un message entre les deux moitiés d'un plugin : un `type` préfixé, le reste
@@ -147,13 +188,19 @@ async function refresh() {
 
   entries.value = stories
   skipped.value = manifest.skipped ?? []
-  status.value = `${stories.length} stories`
+  status.value = counted(stories.length)
 
-  // Lue au premier catalogue, puis oubliée : ensuite, c'est la story affichée
-  // qui fait l'adresse.
+  // Lue au premier catalogue, puis oubliée : ensuite, c'est ce qui est affiché
+  // qui fait l'adresse. Sous une page composant, la preview charge sa première
+  // story.
+  let opening: string | null = null
   if (arrival.mode === 'entry') {
     const id = arrival.id
     shown = stories.find((entry) => entry.id === id) ?? shown
+  }
+  if (arrival.mode === 'component') {
+    const [first] = ofComponent(arrival.id, stories)
+    if (first) [opening, shown] = [arrival.id, first]
   }
   arrival = { mode: 'home' }
 
@@ -165,12 +212,33 @@ async function refresh() {
   // rechargement à chaud, et l'alerte restait par-dessus « la story affichée a
   // disparu ».
   if (next.id === null) {
+    // Deux fichiers de stories peuvent porter le même titre : celui de la story
+    // chargée sous la page parti, l'autre porte encore le composant.
+    const [rest] = component.value === null ? [] : ofComponent(component.value, stories)
+    if (rest) {
+      status.value = counted(stories.length)
+      select(rest.id)
+      return
+    }
     current.value = null
     failure.value = null
+    // Une page composant dont le fichier a disparu reste ouverte et le dit, comme
+    // une story perdue : le fichier revenu, la page revient avec lui.
+    if (component.value !== null) status.value = 'the component on display is gone'
     return
   }
 
-  show(next.id)
+  if (opening !== null) {
+    select(next.id)
+    open(opening, 'replace')
+  } else if (component.value !== null) {
+    // La story dessous est du composant de la page : retrouvée sous un autre
+    // chemin, elle y emmène la page.
+    select(next.id)
+    const id = next.id
+    const followed = componentIdOf(stories.find((entry) => entry.id === id)?.path ?? [])
+    if (followed !== component.value) open(followed, 'replace')
+  } else show(next.id)
 }
 
 // Précédent et suivant du navigateur : l'adresse a changé sans le shell, qui la
@@ -179,6 +247,8 @@ function travel() {
   const place = readPlace(window.location.search)
   if (place.mode === 'entry' && entries.value.some((entry) => entry.id === place.id))
     show(place.id, 'none')
+  if (place.mode === 'component' && ofComponent(place.id, entries.value).length > 0)
+    open(place.id, 'none')
 }
 
 onBeforeUnmount(() => window.removeEventListener('popstate', travel))
@@ -246,7 +316,13 @@ onMounted(() => {
   <main>
     <nav>
       <h1>Crypte</h1>
-      <StoryTree :entries="entries" :current="current" @show="(id) => show(id, 'push')" />
+      <StoryTree
+        :entries="entries"
+        :current="current"
+        :component="component"
+        @show="(id) => show(id, 'push')"
+        @open="(id) => open(id)"
+      />
     </nav>
 
     <div>
@@ -262,29 +338,51 @@ onMounted(() => {
         </ul>
       </Callout>
 
-      <!-- L'erreur couvre la preview plutôt que de l'accompagner : ce qui reste
+      <ComponentPage
+        v-if="component !== null"
+        :stories="componentStories"
+        @show="(id) => show(id, 'push')"
+      />
+
+      <!-- Masqué et non retiré : la preview et les panneaux gardent leur état
+           pendant qu'une page composant est ouverte. -->
+      <div v-show="component === null">
+        <nav v-if="displayed" class="trail" aria-label="Breadcrumb">
+          <span v-for="(segment, at) of displayed.path.slice(0, -1)" :key="at"
+            >{{ segment }} /
+          </span>
+          <a
+            :href="placeSearch({ mode: 'component', id: componentIdOf(displayed.path) })"
+            @click="follow($event, () => open(componentIdOf(displayed!.path)))"
+            >{{ displayed.path.at(-1) }}</a
+          >
+          / <span aria-current="page">{{ displayed.name }}</span>
+        </nav>
+
+        <!-- L'erreur couvre la preview plutôt que de l'accompagner : ce qui reste
            affiché dessous appartient à la story d'avant, et le laisser voir
            ferait croire que celle-ci a rendu. -->
-      <Callout v-if="failure" tone="danger" class="failure" role="alert">
-        <h2>{{ failure.id }} could not be rendered</h2>
-        <p>{{ failure.message }}</p>
-        <pre v-if="failure.stack">{{ failure.stack }}</pre>
-      </Callout>
-      <iframe v-show="!failure" ref="frame" src="/preview.html" title="preview"></iframe>
+        <Callout v-if="failure" tone="danger" class="failure" role="alert">
+          <h2>{{ failure.id }} could not be rendered</h2>
+          <p>{{ failure.message }}</p>
+          <pre v-if="failure.stack">{{ failure.stack }}</pre>
+        </Callout>
+        <iframe v-show="!failure" ref="frame" src="/preview.html" title="preview"></iframe>
 
-      <!-- Sous la preview, pas dessus : la story rend, et l'avertissement ne dit
+        <!-- Sous la preview, pas dessus : la story rend, et l'avertissement ne dit
            que ce qui manque à sa fiche. Le ton dit ce que l'outil ne sait pas
            lire, jamais que le fichier est mal écrit. -->
-      <p v-if="partial && !failure" class="partial">Incomplete props table: {{ partial }}.</p>
-      <Panels
-        :entry="displayed"
-        :received="received"
-        :failed="failure?.message ?? null"
-        :revision="revision"
-        :errors="pluginErrors"
-        @overrides="edit"
-        @send="sendToPreview"
-      />
+        <p v-if="partial && !failure" class="partial">Incomplete props table: {{ partial }}.</p>
+        <Panels
+          :entry="displayed"
+          :received="received"
+          :failed="failure?.message ?? null"
+          :revision="revision"
+          :errors="pluginErrors"
+          @overrides="edit"
+          @send="sendToPreview"
+        />
+      </div>
       <p>{{ status }}</p>
     </div>
   </main>
@@ -296,6 +394,11 @@ main {
   grid-template-columns: 240px 1fr;
   gap: 16px;
   font-family: system-ui, sans-serif;
+}
+
+.trail {
+  margin-bottom: 8px;
+  font-size: 13px;
 }
 
 iframe {

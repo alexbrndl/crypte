@@ -286,9 +286,9 @@ interface StoryMeta {
 }
 ```
 
-`status` drives a badge in the sidebar and filtering. `owner` is displayed, and will later route comments. `figma` is a link in the docs panel. `description` completes the component's JSDoc.
+`status` drives a badge beside the component in the sidebar, and a filter. The component page shows the rest: `owner`, which will later route comments, `figma` as a link when it is an http or https address and as text otherwise, and `description`.
 
-Every field is optional. The core reads none of them: they travel to the manifest and plugins consume them.
+Every field is optional. The core reads none of them: they travel to the manifest, where the shell and plugins read them.
 
 ### 2.7 Controlled components
 

@@ -88,6 +88,14 @@ describe('the navigation tree', () => {
     ).toEqual(['stable', 'draft'])
   })
 
+  // Celui de l'adresse `?component=`, le préfixe de l'id de ses stories.
+  test('gives a component the id its address uses', () => {
+    const [dossier] = treeOf([avecReference])
+    const composant = dossier?.kind === 'folder' ? dossier.children[0] : undefined
+
+    expect(composant?.kind === 'component' && composant.id).toBe('checkout/ordersummary')
+  })
+
   test('names the branches above a story, from the root down', () => {
     expect(keysAbove(avecReference)).toEqual(['folder:checkout', 'component:checkout/ordersummary'])
     expect(keysAbove(libelle)).toEqual(['component:badge'])
