@@ -70,7 +70,7 @@ async function load() {
   try {
     listed = (await fetch(PLUGINS).then((answer) => answer.json())) as typeof listed
   } catch (error) {
-    if (run === reading) failures.value = [{ name: 'la liste des plugins', message: said(error) }]
+    if (run === reading) failures.value = [{ name: 'the list of plugins', message: said(error) }]
     return
   }
 
@@ -97,7 +97,7 @@ async function load() {
     // ne rendait rien et ne disait rien. Mesuré.
     if (result.status === 'rejected') failed.push({ name, message: said(result.reason) })
     else if ((typeof panel !== 'object' || panel === null) && typeof panel !== 'function')
-      failed.push({ name, message: "le module n'exporte pas de composant par défaut" })
+      failed.push({ name, message: 'its default export is not a component' })
     else found.push({ name, panel: panel as Component })
   })
 
@@ -132,13 +132,14 @@ watch(() => props.revision, load)
     role="alert"
   >
     <p v-for="one of failures" :key="one.name">
-      <code>{{ one.name }}</code> n'a pas pu se charger : {{ one.message }}
+      <code>{{ one.name }}</code> could not load: {{ one.message }}
     </p>
     <p v-for="(one, at) of refused" :key="`refused-${at}`">
-      Refusé chez <code>{{ one.plugin }}</code> : {{ one.reason }}
+      Refused in <code>{{ one.plugin }}</code
+      >: {{ one.reason }}
     </p>
     <p v-for="(one, at) of errors" :key="`preview-${at}`">
-      <code>{{ one.plugin }}</code> dans la preview : {{ one.message }}
+      <code>{{ one.plugin }}</code> in the preview: {{ one.message }}
     </p>
   </Callout>
   <PanelFrame

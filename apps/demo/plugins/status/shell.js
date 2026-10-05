@@ -8,7 +8,7 @@ export default defineComponent({
   emits: ['inapplicable'],
   setup(props, { emit }) {
     watchEffect(() => {
-      if (!props.entry?.meta?.status) emit('inapplicable', 'aucun statut déclaré')
+      if (!props.entry?.meta?.status) emit('inapplicable', 'no status declared')
     })
   },
   template: '<p>statut : {{ entry?.meta?.status }}</p>',

@@ -76,7 +76,7 @@ describe('the landing after a refresh', () => {
     expect(landing(alerte, [defaut, alerte, autre], [autre])).toEqual({
       id: null,
       shown: { lost: alerte, before: [defaut, alerte, autre] },
-      status: 'la story affichée a disparu',
+      status: 'the story on display is gone',
     })
   })
 
@@ -93,6 +93,6 @@ describe('an unreadable catalog', () => {
   // Un rejet qui n'est pas une erreur reste lisible plutôt que de rendre
   // « [object Object] ».
   it('makes readable what is not an error', () => {
-    expect(unreadable(503)).toBe('catalogue illisible : 503')
+    expect(unreadable(503)).toBe('the catalogue could not be read: 503')
   })
 })

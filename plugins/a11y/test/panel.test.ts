@@ -56,7 +56,7 @@ describe('what the panel shows', () => {
     )
 
     const groupes = wrapper.findAll('section').map((one) => one.find('p').text())
-    expect(groupes).toEqual(['Critique · 1 violation', 'Mineure · 2 violations'])
+    expect(groupes).toEqual(['Critical · 1 violation', 'Minor · 2 violations'])
 
     const critique = wrapper.findAll('section')[0]!
     expect(critique.find('code').text()).toBe('aria-roles')
@@ -75,7 +75,7 @@ describe('what the panel shows', () => {
   it('shows nothing of the analysis of another story', () => {
     const wrapper = monte(entry('x--b'), resultats('x--a', []))
 
-    expect(wrapper.find('[role="status"]').text()).toBe('En attente d’une analyse…')
+    expect(wrapper.find('[role="status"]').text()).toBe('Waiting for an analysis…')
     expect(wrapper.find('section').exists()).toBe(false)
     expect(derniere(wrapper)).toBeNull()
   })
@@ -83,7 +83,7 @@ describe('what the panel shows', () => {
   it('waits for an analysis before any has come', () => {
     const wrapper = monte(entry('x--a'))
 
-    expect(wrapper.find('[role="status"]').text()).toBe('En attente d’une analyse…')
+    expect(wrapper.find('[role="status"]').text()).toBe('Waiting for an analysis…')
     expect(derniere(wrapper)).toBeNull()
   })
 })
@@ -91,10 +91,10 @@ describe('what the panel shows', () => {
 describe('when the panel folds', () => {
   it('folds on a story with no violation, with the rules that passed', () => {
     expect(derniere(monte(entry('x--a'), resultats('x--a', [], 12)))).toBe(
-      '12 règles automatiques passées, aucune violation',
+      '12 automatic rules passed, no violation',
     )
     expect(derniere(monte(entry('x--a'), resultats('x--a', [], 1)))).toBe(
-      '1 règle automatique passée, aucune violation',
+      '1 automatic rule passed, no violation',
     )
   })
 
@@ -102,15 +102,15 @@ describe('when the panel folds', () => {
   // même : rien n'a été lu, ce n'est pas « aucune violation ». Revue de la PR #110.
   it('folds without claiming anything when no rule applied', () => {
     expect(derniere(monte(entry('x--a'), resultats('x--a', [], 0)))).toBe(
-      'aucune règle automatique ne s’applique à ce rendu',
+      'no automatic rule applies to this render',
     )
   })
 
   // Pas de rendu, donc pas d'analyse : l'attente ne finissait jamais. Audit à
   // froid du projet 1.3.
   it('folds on a story that could not be rendered', () => {
-    expect(derniere(monte(entry('x--a'), null, 'Boom'))).toBe('la story n’a pas pu être rendue')
-    expect(derniere(monte(entry('x--a'), null, ''))).toBe('la story n’a pas pu être rendue')
+    expect(derniere(monte(entry('x--a'), null, 'Boom'))).toBe('the story could not be rendered')
+    expect(derniere(monte(entry('x--a'), null, ''))).toBe('the story could not be rendered')
   })
 
   // `failed` est facultatif : un shell qui ne le passe pas ne replie pas tout.
@@ -127,14 +127,14 @@ describe('when the panel folds', () => {
   })
 
   it('folds with no story on display', () => {
-    expect(derniere(monte(null))).toBe('aucune story affichée')
+    expect(derniere(monte(null))).toBe('no story on display')
   })
 
   // Le cas qui a fait accepter `null` au cadre : une édition des props ajoute
   // une violation à une story qui n'en avait pas.
   it('unfolds when the same story comes back with a violation', async () => {
     const wrapper = monte(entry('x--a'), resultats('x--a', []))
-    expect(derniere(wrapper)).toBe('12 règles automatiques passées, aucune violation')
+    expect(derniere(wrapper)).toBe('12 automatic rules passed, no violation')
 
     await wrapper.setProps({ received: resultats('x--a', [violation('image-alt', 'critical')]) })
 
@@ -149,7 +149,7 @@ describe('running the analysis again', () => {
     await wrapper.find('button').trigger('click')
 
     expect(wrapper.emitted('send')).toEqual([[{ type: 'a11y:run' }]])
-    expect(wrapper.find('[role="status"]').text()).toBe('En attente d’une analyse…')
+    expect(wrapper.find('[role="status"]').text()).toBe('Waiting for an analysis…')
 
     // Le même résultat qu'avant, reçu de nouveau : l'attente s'arrête quand même.
     await wrapper.setProps({ received: resultats('x--a', [violation('image-alt', 'critical')]) })

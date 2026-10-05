@@ -276,7 +276,7 @@ describe('the screen', () => {
     const etat = ecran.page.locator('main > div > p').last()
     const vus = new Set<string>()
     for (let i = 0; i < 20; i += 1) {
-      vus.add(`${(await etat.textContent())?.split(' en ')[0]} => ${await ecran.vu()}`)
+      vus.add(`${(await etat.textContent())?.split(' in ')[0]} => ${await ecran.vu()}`)
       await new Promise((resolve) => setTimeout(resolve, 50))
     }
 
@@ -284,8 +284,8 @@ describe('the screen', () => {
     // place du mauvais rendu, et elle masquerait le retour de la course. Un
     // cadre vide est celui qui se recharge, le statut d'avant encore affiché.
     expect(
-      [...vus].filter((vu) => /^erreur de rendu|^badge--tres-long rendu => (?!<vide>)/.test(vu)),
-    ).toEqual(['badge--tres-long rendu => Vérification en cours'])
+      [...vus].filter((vu) => /^render error|^badge--tres-long rendered => (?!<vide>)/.test(vu)),
+    ).toEqual(['badge--tres-long rendered => Vérification en cours'])
   })
 
   // L'autre moitié : un module qui n'a pas la story que le manifeste nomme dit
@@ -362,7 +362,7 @@ describe('the screen', () => {
     for (const args of retenus) send(...args)
 
     const etat = ecran.page.locator('main > div > p').last()
-    await expect.poll(() => etat.textContent()).toBe('la story affichée a disparu')
+    await expect.poll(() => etat.textContent()).toBe('the story on display is gone')
     await expect.poll(() => ecran.page.getByRole('alert').count()).toBe(0)
   })
 
@@ -642,7 +642,7 @@ export default defineStories(Badge, {
       const écartés = page.locator('.set-aside li')
       await expect.poll(() => écartés.count(), { timeout: 30_000 }).toBe(1)
       expect(await écartés.first().textContent()).toContain('stories/Calculee.tsx')
-      expect(await écartés.first().textContent()).toContain('1 story lue, il en manque')
+      expect(await écartés.first().textContent()).toContain('1 story read, some are missing')
 
       // Rien n'empêche de travailler : la story lue du même fichier est là et
       // rend, ce qui est la moitié qu'un message ne doit pas coûter.
@@ -780,7 +780,7 @@ describe('a plugin in the browser', () => {
 
     await expect
       .poll(async () => (await ecran.page.locator('.failed').textContent())?.trim())
-      .toBe("hello n'a pas pu se charger : ce panneau lève à l’import")
+      .toBe('hello could not load: ce panneau lève à l’import')
     await expect.poll(ecran.vu).toBe('Nouveau')
   })
 
@@ -802,7 +802,7 @@ describe('a plugin in the browser', () => {
         (await ecran.page.locator('.failed').textContent())?.replace(/\s+/g, ' ').trim(),
       )
       .toBe(
-        'hello dans la preview : its preview module could not load: cette preview lève à l’import',
+        'hello in the preview: its preview module could not load: cette preview lève à l’import',
       )
   })
 })
@@ -878,7 +878,7 @@ describe('the preview hooks and plugin messages', () => {
         (await ecran.page.locator('.failed').textContent())?.replace(/\s+/g, ' ').trim(),
       )
       .toBe(
-        'hello dans la preview : `beforeMount` is not a hook the preview calls, which are afterMount and onMessage',
+        'hello in the preview: `beforeMount` is not a hook the preview calls, which are afterMount and onMessage',
       )
   })
 })
@@ -912,7 +912,7 @@ describe('the panel host', () => {
     await expect.poll(() => statut.locator('.body').textContent()).toBe('statut : stable')
 
     await ecran.page.getByRole('button', { name: 'Nue', exact: true }).click()
-    await expect.poll(raison).toBe('aucun statut déclaré')
+    await expect.poll(raison).toBe('no status declared')
     expect(await statut.locator('.body').isVisible()).toBe(false)
 
     await ecran.page.getByRole('button', { name: 'Par défaut', exact: true }).click()
@@ -1003,7 +1003,7 @@ describe('the controls panel', () => {
         (await panneau(ecran.page).locator('.unread').textContent())?.replace(/\s+/g, ' ').trim(),
       )
       .toBe(
-        'Props non lues dans le fichier du composant : nothing the reader follows types its props. Seules celles déclarées dans details de la story apparaissent ici.',
+        'Props not read from the component file: nothing the reader follows types its props. Only those the story declares in details appear here.',
       )
   })
 })
@@ -1026,7 +1026,7 @@ describe('the a11y panel', () => {
     const corps = panneau(ecran.page).locator('.body')
     await expect
       .poll(() => corps.locator('section > p').allTextContents())
-      .toEqual(['Critique · 1 violation'])
+      .toEqual(['Critical · 1 violation'])
     expect(await corps.locator('section code').allTextContents()).toEqual(['aria-roles', 'span'])
   })
 
@@ -1035,7 +1035,7 @@ describe('the a11y panel', () => {
 
     await expect
       .poll(() => raison(ecran.page))
-      .toMatch(/^\d+ règles automatiques passées, aucune violation$/)
+      .toMatch(/^\d+ automatic rules passed, no violation$/)
     expect(await panneau(ecran.page).locator('.body').isVisible()).toBe(false)
   })
 
@@ -1051,9 +1051,9 @@ describe('the a11y panel', () => {
     await cadre(ecran.page)
       .locator('#root [role="etiquette"]')
       .evaluate((un) => un.removeAttribute('role'))
-    await corps.getByRole('button', { name: "Relancer l'analyse", exact: true }).click()
+    await corps.getByRole('button', { name: 'Run the analysis again', exact: true }).click()
 
-    await expect.poll(() => raison(ecran.page)).toMatch(/aucune violation$/)
+    await expect.poll(() => raison(ecran.page)).toMatch(/no violation$/)
     expect(ecran.navigations()).toBe(navigations)
   })
 
@@ -1063,7 +1063,7 @@ describe('the a11y panel', () => {
     await expect.poll(ecran.vu).toBe('Nouveau')
     await ecran.page.getByRole('button', { name: 'Échoue au rendu', exact: true }).click()
 
-    await expect.poll(() => raison(ecran.page)).toBe('la story n’a pas pu être rendue')
+    await expect.poll(() => raison(ecran.page)).toBe('the story could not be rendered')
   })
 
   // Replié sur une story propre, le panneau s'ouvre quand même : ce qu'on fait
@@ -1071,7 +1071,7 @@ describe('the a11y panel', () => {
   // DCJ-327.
   test('runs the analysis again from a folded panel', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
-    await expect.poll(() => raison(ecran.page)).toMatch(/aucune violation$/)
+    await expect.poll(() => raison(ecran.page)).toMatch(/no violation$/)
     const navigations = ecran.navigations()
 
     await panneau(ecran.page).locator('.head button').click()
@@ -1081,7 +1081,7 @@ describe('the a11y panel', () => {
     await cadre(ecran.page)
       .locator('#root span')
       .evaluate((un) => un.setAttribute('role', 'etiquette'))
-    await corps.getByRole('button', { name: "Relancer l'analyse", exact: true }).click()
+    await corps.getByRole('button', { name: 'Run the analysis again', exact: true }).click()
 
     await expect
       .poll(() => corps.locator('section code').allTextContents())
