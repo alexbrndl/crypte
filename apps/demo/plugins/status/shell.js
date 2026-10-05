@@ -11,5 +11,5 @@ export default defineComponent({
       if (!props.entry?.meta?.status) emit('inapplicable', 'no status declared')
     })
   },
-  template: '<p>statut : {{ entry?.meta?.status }}</p>',
+  template: '<p>status: {{ entry?.meta?.status }}</p>',
 })

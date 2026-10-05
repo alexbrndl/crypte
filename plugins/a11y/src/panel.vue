@@ -48,7 +48,7 @@ watchEffect(() => {
   const found = results.value
   if (found && found.violations.length === 0) {
     // Nothing read, not nothing wrong: a render that threw leaves the root
-    // empty, and "Relancer l'analyse" analyses it all the same.
+    // empty, and "Run the analysis again" analyses it all the same.
     if (found.passes === 0) return emit('inapplicable', 'no automatic rule applies to this render')
 
     const rules = found.passes === 1 ? 'automatic rule passed' : 'automatic rules passed'

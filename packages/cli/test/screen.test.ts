@@ -909,7 +909,7 @@ describe('the panel host', () => {
 
     // La story d'arrivée, un `Badge`, déclare `stable`.
     await expect.poll(ecran.vu).toBe('Nouveau')
-    await expect.poll(() => statut.locator('.body').textContent()).toBe('statut : stable')
+    await expect.poll(() => statut.locator('.body').textContent()).toBe('status: stable')
 
     await ecran.page.getByRole('button', { name: 'Nue', exact: true }).click()
     await expect.poll(raison).toBe('no status declared')
@@ -918,7 +918,7 @@ describe('the panel host', () => {
     await ecran.page.getByRole('button', { name: 'Par défaut', exact: true }).click()
     await expect.poll(() => statut.locator('.body').isVisible()).toBe(true)
     expect(await raison()).toBeNull()
-    expect(await statut.locator('.body').textContent()).toBe('statut : stable')
+    expect(await statut.locator('.body').textContent()).toBe('status: stable')
   })
 
   test('keeps a panel closed across a reload', async ({ ecran }) => {
