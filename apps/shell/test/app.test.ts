@@ -2023,6 +2023,15 @@ describe('the shortcuts', () => {
     expect(document.activeElement).toBe(écran.wrapper.find('input[type="search"]').element)
   })
 
+  // La navigation est masquée en plein écran, et un champ masqué ne prend pas le focus.
+  test('leaves full screen to focus the search on /', async ({ écran }) => {
+    await frappe(écran, 'f')
+    await frappe(écran, '/')
+
+    expect(écran.wrapper.find('main').classes()).not.toContain('full')
+    expect(document.activeElement).toBe(écran.wrapper.find('input[type="search"]').element)
+  })
+
   test('steps with [ and ], and toggles full screen with f, Escape leaving it', async ({
     écran,
   }) => {
