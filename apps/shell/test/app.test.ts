@@ -7,7 +7,7 @@ import type {
   TokensEntry,
 } from '@crypte/core/protocol'
 import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
-import { afterEach, describe, expect, test as base, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, test as base, vi } from 'vitest'
 import App from '../src/App.vue'
 import Panels from '../src/panels.vue'
 import StoryTree from '../src/story-tree.vue'
@@ -142,6 +142,7 @@ const test = base.extend<{ écran: Ecran }>({
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
   // L'adresse et le stockage survivent au démontage : sans ça, la story cliquée
   // par un cas devenait la première affichée du suivant.
   window.history.replaceState(null, '', '/')
@@ -2022,6 +2023,15 @@ describe('the shortcuts', () => {
     expect(document.activeElement).toBe(écran.wrapper.find('input[type="search"]').element)
   })
 
+  // La navigation est masquée en plein écran, et un champ masqué ne prend pas le focus.
+  test('leaves full screen to focus the search on /', async ({ écran }) => {
+    await frappe(écran, 'f')
+    await frappe(écran, '/')
+
+    expect(écran.wrapper.find('main').classes()).not.toContain('full')
+    expect(document.activeElement).toBe(écran.wrapper.find('input[type="search"]').element)
+  })
+
   test('steps with [ and ], and toggles full screen with f, Escape leaving it', async ({
     écran,
   }) => {
@@ -2224,6 +2234,260 @@ describe('the figures of the status bar', () => {
     expect(écran.wrapper.findAll('.figures li')[1]!.attributes('title')).toBe(
       'What a11y loads in the browser, gzipped',
     )
+  })
+})
+
+// La palette vit dans un portail, hors du composant monté : lue dans le document.
+describe('the command palette', () => {
+  // Reka fait défiler jusqu'à l'option surlignée ; jsdom n'a pas de défilement.
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = () => {}
+  })
+
+  const touche = async (écran: Ecran, init: KeyboardEventInit, cible: Element = document.body) => {
+    cible.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, ...init }))
+    await vide(écran.wrapper)
+  }
+  const ouvre = (écran: Ecran) => touche(écran, { key: 'k', ctrlKey: true })
+  const dialogue = () => document.querySelector('[role="dialog"]')
+  const options = () =>
+    [...document.querySelectorAll('[role="dialog"] [role="option"]')].map((one) =>
+      [one.querySelector('span')?.textContent, one.querySelector('kbd')?.textContent]
+        .filter(Boolean)
+        .join(' '),
+    )
+  const groupes = () =>
+    [...document.querySelectorAll('[role="dialog"] [role="group"]')].map(
+      (one) => one.firstElementChild?.textContent,
+    )
+  const tape = async (écran: Ecran, texte: string) => {
+    const champ = document.querySelector<HTMLInputElement>('[role="dialog"] input')!
+    champ.value = texte
+    champ.dispatchEvent(new Event('input', { bubbles: true }))
+    await vide(écran.wrapper)
+  }
+  const choisit = async (écran: Ecran, libellé: string) => {
+    const option = [
+      ...document.querySelectorAll<HTMLElement>('[role="dialog"] [role="option"]'),
+    ].find((one) => one.querySelector('span')?.textContent === libellé)
+    option!.click()
+    await vide(écran.wrapper)
+  }
+
+  // Ctrl+K hors macOS, que jsdom n'est pas : sous macOS, Ctrl+K efface la fin de
+  // la ligne d'un champ.
+  test('opens with Ctrl K and closes with it', async ({ écran }) => {
+    expect(dialogue()).toBeNull()
+
+    const frappe = new KeyboardEvent('keydown', {
+      key: 'k',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    })
+    // Même pendant une saisie, depuis la recherche de l'arbre.
+    écran.wrapper.find('nav .search').element.dispatchEvent(frappe)
+    await vide(écran.wrapper)
+    expect(dialogue()).not.toBeNull()
+    expect(document.activeElement).toBe(document.querySelector('[role="dialog"] input'))
+    // Le navigateur ne la reçoit pas : Ctrl+K y mène à la barre de recherche.
+    expect(frappe.defaultPrevented).toBe(true)
+
+    // Et depuis son propre champ, où est le focus.
+    await touche(
+      écran,
+      { key: 'k', ctrlKey: true },
+      document.querySelector('[role="dialog"] input')!,
+    )
+    expect(dialogue()).toBeNull()
+
+    await touche(écran, { key: 'k', metaKey: true })
+    await touche(écran, { key: 'k', ctrlKey: true, altKey: true })
+    expect(dialogue()).toBeNull()
+  })
+
+  test('opens with ⌘K on macOS, and leaves Ctrl K to the field', async () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (Macintosh)')
+    const écran = await monte([badge])
+
+    try {
+      expect(écran.wrapper.find('nav .commands').text()).toBe('Commands ⌘K')
+      expect(écran.wrapper.find('nav .commands').attributes('aria-keyshortcuts')).toBe('Meta+K')
+      await touche(écran, { key: 'k', ctrlKey: true })
+      expect(dialogue()).toBeNull()
+      await touche(écran, { key: 'k', metaKey: true })
+      expect(dialogue()).not.toBeNull()
+    } finally {
+      écran.wrapper.unmount()
+    }
+  })
+
+  test('opens from the navigation, its shortcut written on it', async ({ écran }) => {
+    const bouton = écran.wrapper.find('nav .commands')
+
+    expect(bouton.text()).toBe('Commands Ctrl K')
+    expect(bouton.attributes('aria-keyshortcuts')).toBe('Control+K')
+    await bouton.trigger('click')
+    await vide(écran.wrapper)
+    expect(dialogue()).not.toBeNull()
+  })
+
+  // Les actions d'abord, leur raccourci affiché : c'est là qu'ils se lisent. La
+  // première story n'a pas de précédente.
+  test('lists the actions with their keys, then every destination', async ({ écran }) => {
+    await ouvre(écran)
+
+    expect(groupes()).toEqual(['Actions', 'Components', 'Stories', 'Pages'])
+    expect(options()).toEqual([
+      'Search the tree /',
+      'Copy link',
+      'Full screen F',
+      'Next story ]',
+      'Badge',
+      'Bouton',
+      'Badge / Par défaut',
+      'Badge / Alerte',
+      'Bouton / Par défaut',
+      'Changes since the last commit',
+    ])
+  })
+
+  test('offers the previous story beside the last one, and only the search under a page', async ({
+    écran,
+  }) => {
+    écran
+      .story(1)
+      .find('.name')
+      .element.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await vide(écran.wrapper)
+    await ouvre(écran)
+    expect(options().slice(0, 4)).toEqual([
+      'Search the tree /',
+      'Copy link',
+      'Full screen F',
+      'Previous story [',
+    ])
+
+    await choisit(écran, 'Bouton')
+    await ouvre(écran)
+    expect(groupes()[0]).toBe('Actions')
+    expect(options()[0]).toBe('Search the tree /')
+    expect(options()[1]).toBe('Badge')
+  })
+
+  // Replié comme la recherche de l'arbre : sans accents ni séparateurs.
+  test('narrows by name, folded like the search of the tree', async ({ écran }) => {
+    await ouvre(écran)
+
+    await tape(écran, 'par defaut')
+    expect(options()).toEqual(['Badge / Par défaut', 'Bouton / Par défaut'])
+    // La première surlignée, qu'Entrée choisit.
+    expect(document.querySelector('[role="option"][data-highlighted] span')?.textContent).toBe(
+      'Badge / Par défaut',
+    )
+
+    await tape(écran, 'zzz')
+    expect(options()).toEqual([])
+    expect(document.querySelector('[role="dialog"] .none')?.textContent).toBe('Nothing matches.')
+
+    // Rouverte, elle repart de rien.
+    await ouvre(écran)
+    await ouvre(écran)
+    expect(options()).toHaveLength(10)
+  })
+
+  test('goes to a story, and closes', async ({ écran }) => {
+    await ouvre(écran)
+    await choisit(écran, 'Badge / Alerte')
+
+    expect(dialogue()).toBeNull()
+    expect(window.location.search).toBe('?id=badge--alerte')
+    expect(écran.wrapper.find('.trail [aria-current="page"]').text()).toBe('Alerte')
+  })
+
+  test('goes to a component page, and to the changes mode', async ({ écran }) => {
+    await ouvre(écran)
+    await choisit(écran, 'Bouton')
+    expect(window.location.search).toBe('?component=bouton')
+    expect(écran.wrapper.find('.component-page').exists()).toBe(true)
+
+    await ouvre(écran)
+    await choisit(écran, 'Changes since the last commit')
+    expect(window.location.search).toBe('?changes')
+    expect(écran.wrapper.find('.changes-page').exists()).toBe(true)
+  })
+
+  test('goes to a family of tokens', async () => {
+    const écran = await monte([badge, jetons])
+
+    await ouvre(écran)
+    expect(groupes()).toEqual(['Actions', 'Components', 'Stories', 'Tokens', 'Pages'])
+    await choisit(écran, 'Color / Brand')
+
+    expect(window.location.search).toBe('?id=color--brand')
+    expect(écran.wrapper.find('.tokens-page').exists()).toBe(true)
+    écran.wrapper.unmount()
+  })
+
+  // Une fois fermée. Le focus que la fermeture rend au bouton, jsdom ne le rend
+  // pas : le cas navigateur de `screen.test.ts` le tient.
+  test('runs an action once closed, and only once', async ({ écran }) => {
+    await ouvre(écran)
+    await choisit(écran, 'Full screen')
+    expect(écran.wrapper.find('main').classes()).toContain('full')
+
+    // Fermée sans choix, elle ne relance pas la dernière commande.
+    await ouvre(écran)
+    await touche(écran, { key: 'Escape' }, document.querySelector('[role="dialog"] input')!)
+    expect(écran.wrapper.find('main').classes()).toContain('full')
+
+    // La recherche quitte le plein écran, où la navigation est masquée.
+    await ouvre(écran)
+    expect(options()[2]).toBe('Leave full screen F')
+    await choisit(écran, 'Search the tree')
+    expect(écran.wrapper.find('main').classes()).not.toContain('full')
+    expect(document.activeElement).toBe(écran.wrapper.find('nav .search').element)
+  })
+
+  // Comme la touche `f` : sans story affichée, aucune barre ne sortirait du plein écran.
+  test('offers only the search with no story on display', async () => {
+    const écran = await monte([jetons])
+
+    await ouvre(écran)
+    expect(groupes()).toEqual(['Actions', 'Tokens', 'Pages'])
+    expect(options()).toEqual([
+      'Search the tree /',
+      'Color / Brand',
+      'Changes since the last commit',
+    ])
+    écran.wrapper.unmount()
+  })
+
+  test('launches the actions of the toolbar', async ({ écran }) => {
+    const écrit = vi.fn(async () => undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText: écrit } })
+
+    await ouvre(écran)
+    await choisit(écran, 'Next story')
+    expect(window.location.search).toBe('?id=badge--alerte')
+
+    await ouvre(écran)
+    await choisit(écran, 'Previous story')
+    expect(window.location.search).toBe('?id=badge--defaut')
+
+    await ouvre(écran)
+    await choisit(écran, 'Copy link')
+    expect(écrit).toHaveBeenCalledWith(window.location.href)
+  })
+
+  test('closes with Escape, and leaves full screen on', async ({ écran }) => {
+    await touche(écran, { key: 'f' })
+    await ouvre(écran)
+
+    await touche(écran, { key: 'Escape' }, document.querySelector('[role="dialog"] input')!)
+
+    expect(dialogue()).toBeNull()
+    expect(écran.wrapper.find('main').classes()).toContain('full')
   })
 })
 
