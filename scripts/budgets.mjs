@@ -447,7 +447,7 @@ export async function main() {
     shellGzipBytes: shellGzipBytes(),
     adapterLines: adapterLines(),
     installedBytes: await installedBytes(),
-    startMs: await startMs(),
+    startMs: await startMs(undefined, 9),
   }
 
   // Une mesure prise et non budgétée serait perdue en silence : `verdicts`
