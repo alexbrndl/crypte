@@ -165,7 +165,8 @@ jobs:
     # 20 comme `check`, parce que ce job fait strictement plus : la même
     # installation de Chromium, bornée à 8 min par son étape, plus `vp install`,
     # `vp run -r pack`, un `npm install` depuis le registre et trois lancements
-    # navigateur. Mesuré à 2 min sur une touche de cache.
+    # navigateur. Mesuré à 2 min sur une touche de cache. Sur une pull request,
+    # la base construite en plus et dix lancements au lieu de trois.
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -194,9 +195,25 @@ jobs:
       - if: steps.chromium.outputs.cache-hit != 'true'
         timeout-minutes: 8
         run: vp node node_modules/playwright/cli.js install --with-deps chromium
+      # La base de la pull request, construite à côté : le même commit mesure
+      # de 945 à 1499 ms d'un runner à l'autre, et à ±7,4 % de sa base sur un
+      # même runner, donc le démarrage de la branche se juge contre le sien, sur
+      # place (DCJ-341). Une empreinte de commit, jamais un texte de la pull
+      # request, entre dans la commande.
+      - if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE"
+          git worktree add "$RUNNER_TEMP/base" "$BASE"
+          cd "$RUNNER_TEMP/base"
+          vp install
+          vp run -r pack
       # Le tableau part au résumé du run, les dépassements sur l'erreur
       # standard, où `::error::` les annote. Le code de sortie décide.
       - name: Report budgets
+        env:
+          CRYPTE_BASE: ${{ github.event_name == 'pull_request' && format('{0}/base', runner.temp) || '' }}
         run: node scripts/budgets.mjs >> "$GITHUB_STEP_SUMMARY"
 
   dependency-review:
