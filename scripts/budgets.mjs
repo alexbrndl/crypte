@@ -63,6 +63,9 @@ function ko(n) {
 // Le shell prébuildé, tel qu'il part chez l'utilisateur : tous les actifs, gzip
 // compris, parce que c'est ce que le navigateur télécharge.
 //
+// La barre d'état du shell compte de la même façon, dans `packages/cli/src/weight.ts` :
+// changer l'une sans l'autre fait diverger les deux chiffres.
+//
 // Lève plutôt que de rendre zéro. Un dossier absent veut dire que `vp pack`
 // n'a pas tourné, et un budget de poids tenu par un bundle inexistant est le
 // pire des verdicts : vert, et sur rien.

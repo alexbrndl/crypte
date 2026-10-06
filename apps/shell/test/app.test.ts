@@ -76,7 +76,7 @@ const monte = async (
   // Ce que répond la route des changements, ou ce qu'elle lève.
   changements: () => unknown = () => ({ changes: [] }),
   // Ce que dit la route du projet.
-  projet: () => unknown = () => ({ stories: 'stories', config: null }),
+  projet: () => unknown = () => ({ stories: 'stories', config: null, shellBytes: 83149 }),
 ): Promise<Ecran> => {
   const manifest: Manifest = { version: 1, entries, ...(skipped ? { skipped } : {}) } as never
 
@@ -85,7 +85,7 @@ const monte = async (
     vi.fn(async (url: string) => {
       // Les panneaux de plugins lisent leur propre route : aucun plugin ici.
       if (url === '/@crypte/plugins.json')
-        return { json: async () => ({ panels: [], refused: [] }) } as Response
+        return { json: async () => ({ panels: [], refused: [], weights: [] }) } as Response
       // Le mode changements lit sa propre route : rien n'a changé ici.
       if (url === '/@crypte/changes.json') return { json: async () => changements() } as Response
       if (url === '/@crypte/project.json') return { json: async () => projet() } as Response
@@ -407,14 +407,16 @@ describe('the values a panel edited', () => {
 })
 
 describe('what the preview answers', () => {
-  test('states the duration of a render', async ({ écran }) => {
+  // La durée de rendu d'une story n'est plus dite : la barre d'état ne porte que
+  // des chiffres sur lesquels on peut agir.
+  test('states that a story rendered, without its duration', async ({ écran }) => {
     await écran.répond({
       type: 'rendered',
       id: 'badge--defaut',
       durationMs: 12.34,
     } as PreviewMessage)
 
-    expect(écran.statut()).toBe('badge--defaut rendered in 12.3 ms')
+    expect(écran.statut()).toBe('badge--defaut rendered')
   })
 
   // Une story qui échoue laisse un cadre vide, et un cadre vide sans message
@@ -565,11 +567,11 @@ describe('what the catalog left out', () => {
           ({
             json: async () =>
               url === '/@crypte/plugins.json'
-                ? { panels: [], refused: [] }
+                ? { panels: [], refused: [], weights: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
                   : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null }
+                    ? { stories: 'stories', config: null, shellBytes: 83149 }
                     : (manifests.shift() ?? manifests[0]),
           }) as Response,
       ),
@@ -1208,11 +1210,11 @@ describe('the component page', () => {
           ({
             json: async () =>
               url === '/@crypte/plugins.json'
-                ? { panels: [], refused: [] }
+                ? { panels: [], refused: [], weights: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
                   : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null }
+                    ? { stories: 'stories', config: null, shellBytes: 83149 }
                     : manifests.length > 1
                       ? manifests.shift()
                       : manifests[0],
@@ -1263,11 +1265,11 @@ describe('the component page', () => {
           ({
             json: async () =>
               url === '/@crypte/plugins.json'
-                ? { panels: [], refused: [] }
+                ? { panels: [], refused: [], weights: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
                   : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null }
+                    ? { stories: 'stories', config: null, shellBytes: 83149 }
                     : manifests.length > 1
                       ? manifests.shift()
                       : manifests[0],
@@ -1331,11 +1333,11 @@ describe('the component page', () => {
           ({
             json: async () =>
               url === '/@crypte/plugins.json'
-                ? { panels: [], refused: [] }
+                ? { panels: [], refused: [], weights: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
                   : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null }
+                    ? { stories: 'stories', config: null, shellBytes: 83149 }
                     : manifests.length > 1
                       ? manifests.shift()
                       : manifests[0],
@@ -1537,11 +1539,11 @@ describe('the tokens page', () => {
           ({
             json: async () =>
               url === '/@crypte/plugins.json'
-                ? { panels: [], refused: [] }
+                ? { panels: [], refused: [], weights: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
                   : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null }
+                    ? { stories: 'stories', config: null, shellBytes: 83149 }
                     : manifests.length > 1
                       ? manifests.shift()
                       : manifests[0],
@@ -1608,11 +1610,11 @@ describe('the status line under a page', () => {
           ({
             json: async () =>
               url === '/@crypte/plugins.json'
-                ? { panels: [], refused: [] }
+                ? { panels: [], refused: [], weights: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
                   : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null }
+                    ? { stories: 'stories', config: null, shellBytes: 83149 }
                     : manifests.length > 1
                       ? manifests.shift()
                       : manifests[0],
@@ -1851,8 +1853,8 @@ describe('a configuration the server could not read', () => {
 
   test('is read again when the window regains focus', async () => {
     const réponses: unknown[] = [
-      { stories: 'stories', config: null },
-      { stories: 'stories', config: raison },
+      { stories: 'stories', config: null, shellBytes: 83149 },
+      { stories: 'stories', config: raison, shellBytes: 83149 },
     ]
     const écran = await monte([badge], false, undefined, undefined, () =>
       réponses.length > 1 ? réponses.shift() : réponses[0],
@@ -2138,11 +2140,11 @@ describe('leaving full screen without Escape', () => {
           ({
             json: async () =>
               url === '/@crypte/plugins.json'
-                ? { panels: [], refused: [] }
+                ? { panels: [], refused: [], weights: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
                   : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null }
+                    ? { stories: 'stories', config: null, shellBytes: 83149 }
                     : manifests.length > 1
                       ? manifests.shift()
                       : manifests[0],
@@ -2174,6 +2176,54 @@ describe('leaving full screen without Escape', () => {
     expect(window.location.search).toBe('?id=bouton--defaut')
     expect(wrapper.find('main').classes()).not.toContain('full')
     wrapper.unmount()
+  })
+})
+
+describe('the figures of the status bar', () => {
+  const chiffres = (écran: Ecran) => écran.wrapper.findAll('.figures li').map((one) => one.text())
+
+  test('weighs the shell as the server measured it', async ({ écran }) => {
+    expect(chiffres(écran)).toEqual(['Shell 83.1 kB'])
+    expect(écran.wrapper.find('.figures li').attributes('title')).toBe('The shell, gzipped')
+  })
+
+  // Rien tant que le projet ne se lit pas, plutôt qu'un chiffre faux.
+  test('weighs nothing when the project cannot be read', async () => {
+    const écran = await monte([badge], false, undefined, undefined, () => {
+      throw new Error('hors ligne')
+    })
+
+    expect(chiffres(écran)).toEqual([])
+    écran.wrapper.unmount()
+  })
+
+  // De l'ouverture de la page à la première story rendue, et seulement elle :
+  // les rendus suivants ne la déplacent pas.
+  test('times the first render from the opening of the page, once', async ({ écran }) => {
+    const maintenant = vi.spyOn(performance, 'now')
+    expect(chiffres(écran)).toEqual(['Shell 83.1 kB'])
+
+    maintenant.mockReturnValue(1234.4)
+    await écran.répond({ type: 'rendered', id: 'badge--defaut', durationMs: 1 } as PreviewMessage)
+    maintenant.mockReturnValue(9999)
+    await écran.répond({ type: 'rendered', id: 'badge--alerte', durationMs: 1 } as PreviewMessage)
+    maintenant.mockRestore()
+
+    expect(chiffres(écran)).toEqual(['Shell 83.1 kB', 'First render 1234 ms'])
+  })
+
+  // Dans l'ordre de la configuration, un plugin sans surface navigateur à zéro.
+  test('weighs each plugin as its panels listed them', async ({ écran }) => {
+    écran.wrapper.findComponent(Panels).vm.$emit('weights', [
+      { plugin: 'a11y', bytes: 156_843 },
+      { plugin: 'tokens', bytes: 0 },
+    ])
+    await vide(écran.wrapper)
+
+    expect(chiffres(écran)).toEqual(['Shell 83.1 kB', 'a11y 156.8 kB', 'tokens 0.0 kB'])
+    expect(écran.wrapper.findAll('.figures li')[1]!.attributes('title')).toBe(
+      'What a11y loads in the browser, gzipped',
+    )
   })
 })
 

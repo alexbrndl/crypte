@@ -13,12 +13,16 @@ const module = (nom: string) =>
 
 // Ce que `/@crypte/plugins.json` rend : les modules à monter, et ce que le CLI
 // a écarté des plugins.
-const monte = async (liste: unknown, refused: unknown[] = []): Promise<VueWrapper> => {
+const monte = async (
+  liste: unknown,
+  refused: unknown[] = [],
+  weights: unknown[] = [],
+): Promise<VueWrapper> => {
   vi.stubGlobal(
     'fetch',
     vi.fn(async () => {
       if (liste instanceof Error) throw liste
-      return { json: async () => ({ panels: liste, refused }) } as Response
+      return { json: async () => ({ panels: liste, refused, weights }) } as Response
     }),
   )
 
@@ -68,6 +72,18 @@ describe('the plugin panels', () => {
     ])
 
     expect(montés(wrapper)).toEqual(['a=null', 'constructor=null'])
+  })
+
+  // Ce que chaque plugin pèse remonte tel que le CLI l'a mesuré, pour la barre
+  // d'état.
+  test('passes on what each plugin weighs', async () => {
+    const poids = [
+      { plugin: 'a', bytes: 1901 },
+      { plugin: 'n', bytes: 0 },
+    ]
+    const wrapper = await monte([{ name: 'a', shell: module('un.ts') }], [], poids)
+
+    expect(wrapper.emitted('weights')).toEqual([[poids]])
   })
 
   // Ce qu'un panneau envoie à sa partie preview remonte, par son cadre qui en

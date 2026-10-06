@@ -48,6 +48,7 @@ describe('the browser surfaces of a plugin', () => {
         { name: 'b', shell: url('shell.mjs'), preview: url('preview.mjs') },
       ),
     ).toEqual({
+      plugins: ['a', 'b'],
       shell: [
         { plugin: 'a', file: join(dossier, 'shell.mjs') },
         { plugin: 'b', file: join(dossier, 'shell.mjs') },
@@ -59,6 +60,7 @@ describe('the browser surfaces of a plugin', () => {
 
   it('reads nothing from a plugin that declares neither', () => {
     expect(avec({ name: 'node-only', node: { entries: () => [] } })).toEqual({
+      plugins: ['node-only'],
       shell: [],
       preview: [],
       refused: [],
@@ -85,6 +87,7 @@ describe('what a surface is refused', () => {
           : pointer
 
     expect(avec({ name: 'p', shell: shell as string })).toEqual({
+      plugins: ['p'],
       shell: [],
       preview: [],
       refused: [{ plugin: 'p', reason: MAL_FORME }],
@@ -122,6 +125,7 @@ describe('what a surface is refused', () => {
   // Chaque surface pour soi : celle qui ne mène nulle part ne coûte pas l'autre.
   it('keeps the surface that points at a file when the other does not', () => {
     expect(avec({ name: 'p', shell: url('shell.mjs'), preview: url('absent.mjs') })).toEqual({
+      plugins: ['p'],
       shell: [{ plugin: 'p', file: join(dossier, 'shell.mjs') }],
       preview: [],
       refused: [
@@ -146,6 +150,7 @@ describe('what a surface is refused', () => {
         { name: 'b', node: { entries: () => [] } },
       ),
     ).toEqual({
+      plugins: ['a', 'b'],
       shell: [{ plugin: 'b', file: join(dossier, 'shell.mjs') }],
       preview: [],
       refused: [
@@ -162,6 +167,7 @@ describe('what a surface is refused', () => {
     expect(
       avec({ name: 'a', shell: url('absent.mjs') }, { name: 'a', shell: url('shell.mjs') }),
     ).toEqual({
+      plugins: ['a'],
       shell: [],
       preview: [],
       refused: [
@@ -178,6 +184,7 @@ describe('what a surface is refused', () => {
   // un plugin nommé `a`. Mesuré, le message n'atteignait personne.
   it('refuses the browser surfaces of a plugin whose name holds a colon', () => {
     expect(avec({ name: 'mon:plugin', preview: url('preview.mjs') })).toEqual({
+      plugins: [],
       shell: [],
       preview: [],
       refused: [
@@ -197,6 +204,7 @@ describe('what a surface is refused', () => {
         node: { entries: () => [] },
       } as unknown as CryptePlugin),
     ).toEqual({
+      plugins: [],
       shell: [],
       preview: [],
       refused: [
@@ -228,6 +236,7 @@ describe('what a surface is refused', () => {
         null as unknown as CryptePlugin,
       ),
     ).toEqual({
+      plugins: ['p'],
       shell: [{ plugin: 'p', file: join(dossier, 'shell.mjs') }],
       preview: [],
       refused: [
@@ -257,6 +266,7 @@ describe('what a surface is refused', () => {
     expect(
       avec(controls as unknown as CryptePlugin, (() => ({})) as unknown as CryptePlugin),
     ).toEqual({
+      plugins: [],
       shell: [],
       preview: [],
       refused: [

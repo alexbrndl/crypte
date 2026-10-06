@@ -128,7 +128,7 @@ const counter = computed(() =>
 )
 
 // La ligne d'état parle de ce qui est affiché. Sous une page, la story chargée
-// dessous rend comme ailleurs, mais ni sa durée de rendu ni sa perte n'y ont leur
+// dessous rend comme ailleurs, mais ni son rendu ni sa perte n'y ont leur
 // place. Une page dont l'entrée a disparu reste ouverte et le dit, comme une
 // story perdue : l'entrée revenue, la page revient avec elle.
 const line = computed(() => {
@@ -154,11 +154,18 @@ const overrides = shallowRef<Overrides>({})
 
 const counted = (n: number) => (n === 1 ? '1 story' : `${n} stories`)
 
+// Les chiffres de la barre d'état, mesurés et jamais estimés. Le premier rendu
+// court de l'ouverture de la page à la première story rendue : au premier
+// chargement après `crypte dev`, il comprend la compilation de Vite.
+const weights = shallowRef<{ plugin: string; bytes: number }[]>([])
+const firstRender = ref<number | null>(null)
+const kB = (bytes: number) => `${(bytes / 1e3).toFixed(1)} kB`
+
 // Ce que le CLI dit du projet : la racine de stories qu'il déclare, et pourquoi
 // la dernière relecture de la configuration a échoué, le serveur gardant la
 // précédente. Relu comme les changements.
 const PROJECT = '/@crypte/project.json'
-const project = ref<{ stories: string; config: string | null } | null>(null)
+const project = ref<{ stories: string; config: string | null; shellBytes: number } | null>(null)
 let asking = 0
 
 async function readProject() {
@@ -472,7 +479,8 @@ onMounted(() => {
       }
       if (message.type === 'rendered') {
         failure.value = null
-        status.value = `${message.id} rendered in ${message.durationMs.toFixed(1)} ms`
+        firstRender.value ??= performance.now()
+        status.value = `${message.id} rendered`
       }
       // Rattachée à la story affichée : cliquer B pendant que A rend laissait
       // l'erreur de A couvrir B, et masquer la note partielle de B.
@@ -666,10 +674,29 @@ onMounted(() => {
             :errors="pluginErrors"
             @overrides="edit"
             @send="sendToPreview"
+            @weights="(measured) => (weights = measured)"
           />
         </div>
       </div>
-      <p>{{ line }}</p>
+      <footer class="status-bar">
+        <p>{{ line }}</p>
+        <ul class="figures">
+          <li v-if="project" title="The shell, gzipped">Shell {{ kB(project.shellBytes) }}</li>
+          <li
+            v-if="firstRender !== null"
+            title="From opening this page to the first story rendered"
+          >
+            First render {{ Math.round(firstRender) }} ms
+          </li>
+          <li
+            v-for="(one, at) of weights"
+            :key="at"
+            :title="`What ${one.plugin} loads in the browser, gzipped`"
+          >
+            {{ one.plugin }} {{ kB(one.bytes) }}
+          </li>
+        </ul>
+      </footer>
     </div>
   </main>
 </template>
@@ -767,5 +794,24 @@ iframe {
   white-space: pre-wrap;
   font-size: 12px;
   color: #7f1d1d;
+}
+
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: #6b7280;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 </style>
