@@ -44,14 +44,13 @@ export const MESURES = {
 // serveur à l'écoute : Vite compile à la demande, donc ce chronomètre-là mesure
 // un traitement qui n'a rien traité et ne bougerait plus quoi qu'on ajoute.
 //
-// Sur le runner, il varie de 786 à 1432 ms d'un run à l'autre : 65 runs du 25
-// septembre au 2 octobre 2026, médiane 1200 ms avant `a11y` et 1254 ms après.
-// Deux runs ne disent donc rien d'une régression : un 819 isolé face à un 1303
-// a fait croire à 480 ms de perte (DCJ-328). Comparer des médianes sur une
-// dizaine de runs, ou mesurer en local. Dans cette fenêtre, seule une vraie
-// régression a franchi le budget, axe importé en tête du module preview (1656
-// ms) ; le bruit seul laissait 68 ms de marge. Rouvert si le budget rougit sans
-// changement de code.
+// Sur le runner, le même commit mesure de 981 à 1499 ms selon le runner tiré,
+// 53 % d'écart, et de 3 % au plus sur un même runner : neuf runs de neuf
+// lancements (DCJ-341). La cible absolue rougissait donc sur du bruit, 1541 ms
+// sur un commit qui ne touchait pas au démarrage. Sur une pull request, le
+// démarrage se juge contre la base, mesurée sur le même runner (`startVersus`).
+// Rouvert si une branche qui ne touche pas au démarrage dépasse sa base de plus
+// de `TOLÉRANCE`.
 function mo(n) {
   return `${(n / 1e6).toFixed(1)} Mo`
 }
@@ -268,8 +267,8 @@ export async function installedBytes() {
 // sur un projet dont rien n'a été compilé, ce qui est un chronomètre sur un
 // traitement qui n'a rien traité. L'écart mesuré entre les deux est de 2,5×.
 //
-// Trois lancements, la médiane. Un seul chiffre sur une machine partagée est
-// une loterie, et une moyenne se laisse tirer par un unique lancement lent.
+// Une médiane, jamais un seul chiffre : sur une machine partagée c'est une
+// loterie, et une moyenne se laisse tirer par un unique lancement lent.
 const LIMITE = 60_000
 
 // Les codes de couleur, construits plutôt qu'écrits : un caractère de contrôle
@@ -288,16 +287,39 @@ export function sansCouleur(texte) {
 
 export const ADRESSE = /(http:\/\/(?:localhost|127\.0\.0\.1|\[::1\]):\d+)/
 
-export async function startMs(projet = join(RACINE, 'apps/demo'), lancements = 3) {
+// Trois lancements de cet arbre, la médiane : ce qui est rapporté sans base, sur
+// `main` ou en local.
+export async function startMs(racine = RACINE, lancements = 3) {
+  return médiane(await chronométrer(Array.from({ length: lancements }, () => racine)))
+}
+
+// La branche et sa base, cinq lancements chacune, sur le même runner. Alternées,
+// pour qu'un runner qui ralentit en cours de job les touche toutes les deux, et
+// l'ordre inversé d'une paire à l'autre, pour qu'aucune ne passe toujours en
+// premier.
+export async function startVersus(base, lancements = 5) {
+  const ordre = Array.from({ length: lancements }, (_, i) =>
+    i % 2 === 0 ? [base, RACINE] : [RACINE, base],
+  ).flat()
+  const pris = await chronométrer(ordre)
+  const de = (racine) => médiane(pris.filter((_, i) => ordre[i] === racine))
+
+  return { base: de(base), branche: de(RACINE) }
+}
+
+// Chaque lancement est un arbre du dépôt : son binaire, et sa démonstration.
+async function chronométrer(arbres) {
   const { chromium } = await import('playwright')
   const { spawn } = await import('node:child_process')
-  const binaire = join(RACINE, 'packages/cli/dist/index.mjs')
 
   const navigateur = await chromium.launch()
   const pris = []
 
   try {
-    for (let i = 0; i < lancements; i += 1) {
+    for (const [i, racine] of arbres.entries()) {
+      const binaire = join(racine, 'packages/cli/dist/index.mjs')
+      const projet = join(racine, 'apps/demo')
+
       // À froid : le cache d'optimisation de Vite est ce que le premier
       // démarrage d'un utilisateur ne trouve pas.
       rmSync(join(projet, 'node_modules/.crypte'), { recursive: true, force: true })
@@ -323,7 +345,7 @@ export async function startMs(projet = join(RACINE, 'apps/demo'), lancements = 3
       })
       page.on('pageerror', (e) => dire(`page: ${e.message}`))
 
-      dire(`lancement ${i + 1}/${lancements} : ${process.execPath} ${binaire} dev ${projet}`)
+      dire(`lancement ${i + 1}/${arbres.length} : ${process.execPath} ${binaire} dev ${projet}`)
       if (!existsSync(binaire))
         throw new Error(`${binaire} n'existe pas : lancer \`vp run -r pack\``)
 
@@ -400,7 +422,7 @@ export async function startMs(projet = join(RACINE, 'apps/demo'), lancements = 3
     await navigateur.close()
   }
 
-  return médiane(pris)
+  return pris
 }
 
 export function médiane(valeurs) {
@@ -409,15 +431,33 @@ export function médiane(valeurs) {
   return Math.round(triées[(triées.length - 1) >> 1])
 }
 
+// Le démarrage d'une branche tient s'il dépasse sa base de 10 % au plus : trois
+// fois le bruit mesuré sur un même runner, et l'import d'axe en tête de module,
+// la seule vraie régression vue (+32 %, DCJ-328), rougit encore.
+export const TOLÉRANCE = 0.1
+
 // Un budget est tenu à égalité : la cible se lit « moins de 1,5 s », et une
-// mesure pile à la cible ne l'a pas dépassée.
-export function verdicts(mesures, budgets = BUDGETS) {
-  return Object.entries(budgets).map(([clé, budget]) => ({
-    clé,
-    mesure: mesures[clé],
-    budget,
-    tenu: mesures[clé] !== undefined && mesures[clé] <= budget,
-  }))
+// mesure pile à la cible ne l'a pas dépassée. Sans base, le démarrage est
+// rapporté contre sa cible, sans verdict.
+export function verdicts(mesures, budgets = BUDGETS, base) {
+  return Object.entries(budgets).map(([clé, cible]) => {
+    const mesure = mesures[clé]
+    if (clé !== 'startMs')
+      return { clé, mesure, budget: cible, tenu: mesure !== undefined && mesure <= cible }
+    if (base === undefined)
+      return { clé, mesure, budget: cible, tenu: mesure !== undefined, rapporté: true }
+
+    const budget = Math.round(base * (1 + TOLÉRANCE))
+    return { clé, mesure, budget, base, tenu: mesure !== undefined && mesure <= budget }
+  })
+}
+
+// La cible écrite, avec sa base quand le démarrage s'y compare.
+function cibleDe(one) {
+  const { format } = MESURES[one.clé]
+  return one.base === undefined
+    ? format(one.budget)
+    : `${format(one.budget)}, base ${format(one.base)} + ${TOLÉRANCE * 100} %`
 }
 
 export function table(rendus) {
@@ -426,7 +466,7 @@ export function table(rendus) {
     const marge =
       one.mesure === undefined ? '' : `${Math.round((1 - one.mesure / one.budget) * 100)} %`
 
-    return `| ${MESURES[one.clé].titre} | ${one.mesure === undefined ? '—' : format(one.mesure)} | ${format(one.budget)} | ${marge} | ${one.tenu ? '✅' : '❌'} |`
+    return `| ${MESURES[one.clé].titre} | ${one.mesure === undefined ? '—' : format(one.mesure)} | ${cibleDe(one)} | ${marge} | ${one.rapporté ? 'rapporté' : one.tenu ? '✅' : '❌'} |`
   })
 
   return [
@@ -436,7 +476,7 @@ export function table(rendus) {
     '| -- | --: | --: | --: | -- |',
     ...lignes,
     '',
-    '- <sub>**Démarrage à froid** : de `crypte dev` à la première story rendue dans un navigateur, cache d’optimisation vidé, médiane de trois lancements.</sub>',
+    '- <sub>**Démarrage à froid** : de `crypte dev` à la première story rendue dans un navigateur, cache d’optimisation vidé. Sur une pull request, cinq lancements de la branche alternés avec cinq de sa base sur le même runner, la branche tenue à 10 % de sa base. Ailleurs, médiane de trois lancements, rapportée sans verdict.</sub>',
     '- <sub>**Poids installé** : les deux paquets et leur fermeture transitive, dépendances de développement et pairs exclus. Les binaires natifs de Vite en sont la plus grosse part et restent comptés.</sub>',
     '- <sub>**Configuration obligatoire**, le cinquième budget, est un type et non un chiffre : `packages/cli/test/config.test-d.ts` tient que `CrypteConfig` en exige exactement deux, `stories` et `adapter`.</sub>',
   ].join('\n')
@@ -447,8 +487,12 @@ export async function main() {
     shellGzipBytes: shellGzipBytes(),
     adapterLines: adapterLines(),
     installedBytes: await installedBytes(),
-    startMs: await startMs(undefined, 9),
   }
+
+  // Vide hors d'une pull request : la variable est posée par le job, vide sur `main`.
+  const base = process.env.CRYPTE_BASE || undefined
+  const démarrage = base ? await startVersus(base) : { branche: await startMs() }
+  mesures.startMs = démarrage.branche
 
   // Une mesure prise et non budgétée serait perdue en silence : `verdicts`
   // parcourt les budgets, pas les mesures.
@@ -458,7 +502,7 @@ export async function main() {
     throw new Error(`mesuré sans budget : ${orphelines.join(', ')}`)
   }
 
-  const rendus = verdicts(mesures)
+  const rendus = verdicts(mesures, BUDGETS, démarrage.base)
 
   console.log(table(rendus))
 
@@ -469,7 +513,7 @@ export async function main() {
   for (const un of rendus) {
     const { titre, format } = MESURES[un.clé]
     process.stderr.write(
-      `${titre} : ${un.mesure === undefined ? 'non mesuré' : format(un.mesure)} (cible ${format(un.budget)}, ${un.mesure} bruts)\n`,
+      `${titre} : ${un.mesure === undefined ? 'non mesuré' : format(un.mesure)} (cible ${cibleDe(un)}, ${un.mesure} bruts)\n`,
     )
   }
 
@@ -479,7 +523,7 @@ export async function main() {
 
   for (const one of dépassés) {
     console.error(
-      `::error::${MESURES[one.clé].titre} : ${MESURES[one.clé].format(one.mesure)} pour une cible de ${MESURES[one.clé].format(one.budget)}.`,
+      `::error::${MESURES[one.clé].titre} : ${MESURES[one.clé].format(one.mesure)} pour une cible de ${cibleDe(one)}.`,
     )
   }
 
