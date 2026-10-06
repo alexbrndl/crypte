@@ -196,8 +196,8 @@ jobs:
         timeout-minutes: 8
         run: vp node node_modules/playwright/cli.js install --with-deps chromium
       # La base de la pull request, construite à côté : le même commit mesure
-      # jusqu'à 53 % plus lent d'un runner à l'autre, et 3 % au plus sur un même
-      # runner, donc le démarrage de la branche se juge contre le sien, sur
+      # de 945 à 1499 ms d'un runner à l'autre, et à ±7,4 % de sa base sur un
+      # même runner, donc le démarrage de la branche se juge contre le sien, sur
       # place (DCJ-341). Une empreinte de commit, jamais un texte de la pull
       # request, entre dans la commande.
       - if: github.event_name == 'pull_request'

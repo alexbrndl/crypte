@@ -44,13 +44,15 @@ export const MESURES = {
 // serveur à l'écoute : Vite compile à la demande, donc ce chronomètre-là mesure
 // un traitement qui n'a rien traité et ne bougerait plus quoi qu'on ajoute.
 //
-// Sur le runner, le même commit mesure de 981 à 1499 ms selon le runner tiré,
-// 53 % d'écart, et de 3 % au plus sur un même runner : neuf runs de neuf
-// lancements (DCJ-341). La cible absolue rougissait donc sur du bruit, 1541 ms
-// sur un commit qui ne touchait pas au démarrage. Sur une pull request, le
-// démarrage se juge contre la base, mesurée sur le même runner (`startVersus`).
+// Sur le runner, le même commit mesure de 945 à 1499 ms selon le runner tiré
+// (DCJ-341). La cible absolue rougissait donc sur du bruit, 1541 ms sur un
+// commit qui ne touchait pas au démarrage. Sur une pull request, le démarrage se
+// juge contre la base, mesurée sur le même runner (`startVersus`).
+//
 // Rouvert si une branche qui ne touche pas au démarrage dépasse sa base de plus
-// de `TOLÉRANCE`.
+// de `TOLÉRANCE`. Ou si la médiane rapportée sur `main` dépasse la cible : la
+// tolérance vaut pour chaque pull request, et quatre à +8 % font +36 %, plus que
+// la régression d'axe, sans qu'aucune ne rougisse.
 function mo(n) {
   return `${(n / 1e6).toFixed(1)} Mo`
 }
@@ -297,7 +299,9 @@ export async function startMs(racine = RACINE, lancements = 3) {
 // pour qu'un runner qui ralentit en cours de job les touche toutes les deux, et
 // l'ordre inversé d'une paire à l'autre, pour qu'aucune ne passe toujours en
 // premier.
-export async function startVersus(base, lancements = 5) {
+export const LANCEMENTS = 5
+
+export async function startVersus(base, lancements = LANCEMENTS) {
   const ordre = Array.from({ length: lancements }, (_, i) =>
     i % 2 === 0 ? [base, RACINE] : [RACINE, base],
   ).flat()
@@ -431,9 +435,10 @@ export function médiane(valeurs) {
   return Math.round(triées[(triées.length - 1) >> 1])
 }
 
-// Le démarrage d'une branche tient s'il dépasse sa base de 10 % au plus : trois
-// fois le bruit mesuré sur un même runner, et l'import d'axe en tête de module,
-// la seule vraie régression vue (+32 %, DCJ-328), rougit encore.
+// Le démarrage d'une branche tient s'il dépasse sa base de 10 % au plus. Trente
+// runs de `startVersus` sur un démarrage identique des deux côtés ont donné de
+// −7,4 à +6,2 %, écart-type 2,5 % : 10 % en font quatre. L'import d'axe en tête
+// de module, la seule vraie régression vue (+32 %, DCJ-328), rougit encore.
 export const TOLÉRANCE = 0.1
 
 // Un budget est tenu à égalité : la cible se lit « moins de 1,5 s », et une
@@ -476,7 +481,7 @@ export function table(rendus) {
     '| -- | --: | --: | --: | -- |',
     ...lignes,
     '',
-    '- <sub>**Démarrage à froid** : de `crypte dev` à la première story rendue dans un navigateur, cache d’optimisation vidé. Sur une pull request, cinq lancements de la branche alternés avec cinq de sa base sur le même runner, la branche tenue à 10 % de sa base. Ailleurs, médiane de trois lancements, rapportée sans verdict.</sub>',
+    `- <sub>**Démarrage à froid** : de \`crypte dev\` à la première story rendue dans un navigateur, cache d’optimisation vidé. Sur une pull request, ${LANCEMENTS} lancements de la branche alternés avec ${LANCEMENTS} de sa base sur le même runner, la branche tenue à ${TOLÉRANCE * 100} % de sa base. Ailleurs, médiane de trois lancements, rapportée sans verdict.</sub>`,
     '- <sub>**Poids installé** : les deux paquets et leur fermeture transitive, dépendances de développement et pairs exclus. Les binaires natifs de Vite en sont la plus grosse part et restent comptés.</sub>',
     '- <sub>**Configuration obligatoire**, le cinquième budget, est un type et non un chiffre : `packages/cli/test/config.test-d.ts` tient que `CrypteConfig` en exige exactement deux, `stories` et `adapter`.</sub>',
   ].join('\n')
