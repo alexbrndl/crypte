@@ -1243,5 +1243,13 @@ describe('the command palette, on screen', () => {
     await dialogue.locator('input').fill('search')
     await dialogue.locator('input').press('Enter')
     await expect.poll(() => ecran.page.locator('nav .search:focus').count()).toBe(1)
+
+    // Depuis le plein écran, qui masque la navigation : la recherche en sort.
+    await ecran.page.getByRole('button', { name: 'Full screen' }).click()
+    await expect.poll(() => ecran.page.locator('main > nav').isVisible()).toBe(false)
+    await ecran.page.locator('main').press('ControlOrMeta+K')
+    await dialogue.locator('input').fill('search')
+    await dialogue.locator('input').press('Enter')
+    await expect.poll(() => ecran.page.locator('nav .search:focus').count()).toBe(1)
   })
 })

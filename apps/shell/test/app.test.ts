@@ -2265,7 +2265,8 @@ describe('the command palette', () => {
     await vide(écran.wrapper)
   }
 
-  // Ctrl+K hors macOS, que jsdom n'est pas ; ⌘K y efface la fin de la ligne.
+  // Ctrl+K hors macOS, que jsdom n'est pas : sous macOS, Ctrl+K efface la fin de
+  // la ligne d'un champ.
   test('opens with Ctrl K and closes with it', async ({ écran }) => {
     expect(dialogue()).toBeNull()
 
@@ -2275,14 +2276,20 @@ describe('the command palette', () => {
       bubbles: true,
       cancelable: true,
     })
-    document.body.dispatchEvent(frappe)
+    // Même pendant une saisie, depuis la recherche de l'arbre.
+    écran.wrapper.find('nav .search').element.dispatchEvent(frappe)
     await vide(écran.wrapper)
     expect(dialogue()).not.toBeNull()
     expect(document.activeElement).toBe(document.querySelector('[role="dialog"] input'))
     // Le navigateur ne la reçoit pas : Ctrl+K y mène à la barre de recherche.
     expect(frappe.defaultPrevented).toBe(true)
 
-    await ouvre(écran)
+    // Et depuis son propre champ, où est le focus.
+    await touche(
+      écran,
+      { key: 'k', ctrlKey: true },
+      document.querySelector('[role="dialog"] input')!,
+    )
     expect(dialogue()).toBeNull()
 
     await touche(écran, { key: 'k', metaKey: true })
@@ -2415,15 +2422,36 @@ describe('the command palette', () => {
 
   // Une fois fermée. Le focus que la fermeture rend au bouton, jsdom ne le rend
   // pas : le cas navigateur de `screen.test.ts` le tient.
-  test('runs an action once closed', async ({ écran }) => {
+  test('runs an action once closed, and only once', async ({ écran }) => {
     await ouvre(écran)
     await choisit(écran, 'Full screen')
     expect(écran.wrapper.find('main').classes()).toContain('full')
 
+    // Fermée sans choix, elle ne relance pas la dernière commande.
+    await ouvre(écran)
+    await touche(écran, { key: 'Escape' }, document.querySelector('[role="dialog"] input')!)
+    expect(écran.wrapper.find('main').classes()).toContain('full')
+
+    // La recherche quitte le plein écran, où la navigation est masquée.
     await ouvre(écran)
     expect(options()[2]).toBe('Leave full screen F')
     await choisit(écran, 'Search the tree')
+    expect(écran.wrapper.find('main').classes()).not.toContain('full')
     expect(document.activeElement).toBe(écran.wrapper.find('nav .search').element)
+  })
+
+  // Comme la touche `f` : sans story affichée, aucune barre ne sortirait du plein écran.
+  test('offers only the search with no story on display', async () => {
+    const écran = await monte([jetons])
+
+    await ouvre(écran)
+    expect(groupes()).toEqual(['Actions', 'Tokens', 'Pages'])
+    expect(options()).toEqual([
+      'Search the tree /',
+      'Color / Brand',
+      'Changes since the last commit',
+    ])
+    écran.wrapper.unmount()
   })
 
   test('launches the actions of the toolbar', async ({ écran }) => {

@@ -9,7 +9,16 @@ import type {
 } from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/shell'
 import { Callout } from '@crypte/ui'
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowRef,
+  useTemplateRef,
+  watch,
+} from 'vue'
 import Panels from './panels.vue'
 import { landing, unreadable, type Shown } from './recover'
 import { CHANGES, type Changes } from './changes'
@@ -293,6 +302,13 @@ async function copyLink() {
 
 const tree = useTemplateRef<{ focusSearch: () => void }>('tree')
 
+// Hors du plein écran d'abord : la navigation y est masquée, et un champ masqué ne
+// prend pas le focus. Mesuré dans Chromium, le focus finissait sur la page.
+function search() {
+  full.value = false
+  void nextTick(() => tree.value?.focusSearch())
+}
+
 // La palette s'ouvre par ⌘K sous macOS, Ctrl+K ailleurs : Ctrl+K efface la fin
 // de la ligne dans un champ sous macOS.
 const palette = ref(false)
@@ -302,7 +318,7 @@ const paletteKeys = mac ? '⌘K' : 'Ctrl K'
 // Celles de la barre d'outils et la recherche, quand elles s'appliquent, avec leur
 // raccourci : la palette est l'endroit où ils se lisent.
 const actions = computed<Action[]>(() => [
-  { label: 'Search the tree', keys: '/', run: () => tree.value?.focusSearch() },
+  { label: 'Search the tree', keys: '/', run: search },
   ...(storyMode.value && displayed.value !== null
     ? [
         { label: 'Copy link', run: () => void copyLink() },
@@ -346,7 +362,7 @@ function shortcut(event: KeyboardEvent) {
   const plain = !event.altKey && !event.ctrlKey
   if (event.key === '/' && plain) {
     event.preventDefault()
-    tree.value?.focusSearch()
+    search()
     return
   }
   if (!storyMode.value) return
