@@ -50,9 +50,9 @@ export const MESURES = {
 // juge contre la base, mesurée sur le même runner (`startVersus`).
 //
 // Rouvert si une branche qui ne touche pas au démarrage dépasse sa base de plus
-// de `TOLÉRANCE`. Ou si la médiane rapportée sur `main` dépasse la cible : la
-// tolérance vaut pour chaque pull request, et quatre à +8 % font +36 %, plus que
-// la régression d'axe, sans qu'aucune ne rougisse.
+// de `TOLÉRANCE`. La tolérance vaut pour chaque pull request prise seule :
+// quatre à +8 % font +36 %, plus que la régression d'axe, sans qu'aucune ne
+// rougisse, et rien ne l'ancre encore (DCJ-342).
 function mo(n) {
   return `${(n / 1e6).toFixed(1)} Mo`
 }
@@ -462,7 +462,7 @@ function cibleDe(one) {
   const { format } = MESURES[one.clé]
   return one.base === undefined
     ? format(one.budget)
-    : `${format(one.budget)}, base ${format(one.base)} + ${TOLÉRANCE * 100} %`
+    : `${format(one.budget)}, base ${format(one.base)} + ${Math.round(TOLÉRANCE * 100)} %`
 }
 
 export function table(rendus) {
@@ -481,7 +481,7 @@ export function table(rendus) {
     '| -- | --: | --: | --: | -- |',
     ...lignes,
     '',
-    `- <sub>**Démarrage à froid** : de \`crypte dev\` à la première story rendue dans un navigateur, cache d’optimisation vidé. Sur une pull request, ${LANCEMENTS} lancements de la branche alternés avec ${LANCEMENTS} de sa base sur le même runner, la branche tenue à ${TOLÉRANCE * 100} % de sa base. Ailleurs, médiane de trois lancements, rapportée sans verdict.</sub>`,
+    `- <sub>**Démarrage à froid** : de \`crypte dev\` à la première story rendue dans un navigateur, cache d’optimisation vidé. Sur une pull request, ${LANCEMENTS} lancements de la branche alternés avec ${LANCEMENTS} de sa base sur le même runner, la branche tenue à ${Math.round(TOLÉRANCE * 100)} % de sa base. Ailleurs, médiane de trois lancements, rapportée sans verdict.</sub>`,
     '- <sub>**Poids installé** : les deux paquets et leur fermeture transitive, dépendances de développement et pairs exclus. Les binaires natifs de Vite en sont la plus grosse part et restent comptés.</sub>',
     '- <sub>**Configuration obligatoire**, le cinquième budget, est un type et non un chiffre : `packages/cli/test/config.test-d.ts` tient que `CrypteConfig` en exige exactement deux, `stories` et `adapter`.</sub>',
   ].join('\n')
