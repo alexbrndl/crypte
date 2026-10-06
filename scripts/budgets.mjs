@@ -389,6 +389,7 @@ export async function startMs(projet = join(RACINE, 'apps/demo'), lancements = 3
         }
 
         pris.push(performance.now() - début)
+        dire(`rendu en ${Math.round(pris.at(-1))} ms`)
       } finally {
         clearInterval(battement)
         enfant.kill('SIGTERM')
