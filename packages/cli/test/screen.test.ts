@@ -276,7 +276,7 @@ describe('the screen', () => {
     const etat = ecran.page.locator('.status-bar > p')
     const vus = new Set<string>()
     for (let i = 0; i < 20; i += 1) {
-      vus.add(`${(await etat.textContent())?.split(' in ')[0]} => ${await ecran.vu()}`)
+      vus.add(`${await etat.textContent()} => ${await ecran.vu()}`)
       await new Promise((resolve) => setTimeout(resolve, 50))
     }
 

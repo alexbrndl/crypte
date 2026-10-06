@@ -9,7 +9,7 @@ import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import { gzip } from 'node:zlib'
-import { parseAstAsync } from 'vite'
+import { parse } from 'vite'
 import type { Surfaces } from './surfaces'
 
 export interface Weight {
@@ -36,20 +36,24 @@ export async function shellBytes(folder: string): Promise<number> {
 // already loads. A preview module goes through Vite, which resolves the bare
 // ones too: `axe-core` is most of what `a11y` weighs.
 //
+// A file both modules import is counted once and followed under each one's rule.
 // A file two plugins import is counted in both: each figure says what removing
 // that plugin alone would save. Reopened when two plugins share a dependency.
 export async function pluginWeights(surfaces: Surfaces): Promise<Weight[]> {
   return Promise.all(
     surfaces.plugins.map(async (plugin) => {
-      const seen = new Set<string>()
+      const counted = new Set<string>()
+      const followed = new Set<string>()
       let bytes = 0
 
       const visit = async (file: string, bare: boolean) => {
-        if (seen.has(file)) return
-        seen.add(file)
+        const side = `${bare}:${file}`
+        if (followed.has(side)) return
+        followed.add(side)
         const one = await read(file)
         if (!one) return
-        bytes += one.bytes
+        if (!counted.has(file)) bytes += one.bytes
+        counted.add(file)
         for (const specifier of one.imports) {
           const found = resolved(specifier, file, bare)
           if (found) await visit(found, bare)
@@ -102,9 +106,6 @@ async function read(file: string): Promise<Read | undefined> {
     return undefined
   }
 
-  // One after the other: run together, the two held the server's thread for 55
-  // ms on `axe-core`, against 2 ms in turn. Measured, and a cold start that
-  // hits a reading of the plugins waits that long for its first story.
   const bytes = (await packed(source, { level: 9 })).length
   const imports = await importsOf(source.toString('utf8'))
   const one = { mtimeMs: stat.mtimeMs, size: stat.size, bytes, imports }
@@ -116,18 +117,18 @@ async function read(file: string): Promise<Read | undefined> {
 // `import()` is not counted: reopened when a plugin splits one off. A file that
 // does not parse as JavaScript, a stylesheet for one, is counted and not
 // followed, and so is TypeScript, which no plugin ships yet.
+//
+// `parse` and not `parseAstAsync`, deprecated: on `axe-core` run beside gzip,
+// the latter held the server's thread for 58 ms, so a cold start waited that
+// long for its first story; `parse` holds it under 2 ms. Measured.
 async function importsOf(source: string): Promise<string[]> {
-  try {
-    const program = await parseAstAsync(source)
-    return program.body.flatMap((node) =>
-      (node.type === 'ImportDeclaration' ||
-        node.type === 'ExportAllDeclaration' ||
-        node.type === 'ExportNamedDeclaration') &&
-      node.source
-        ? [String(node.source.value)]
-        : [],
-    )
-  } catch {
-    return []
-  }
+  const { program } = await parse('module.js', source, { lang: 'js' })
+  return program.body.flatMap((node) =>
+    (node.type === 'ImportDeclaration' ||
+      node.type === 'ExportAllDeclaration' ||
+      node.type === 'ExportNamedDeclaration') &&
+    node.source
+      ? [String(node.source.value)]
+      : [],
+  )
 }

@@ -128,7 +128,7 @@ const counter = computed(() =>
 )
 
 // La ligne d'état parle de ce qui est affiché. Sous une page, la story chargée
-// dessous rend comme ailleurs, mais ni sa durée de rendu ni sa perte n'y ont leur
+// dessous rend comme ailleurs, mais ni son rendu ni sa perte n'y ont leur
 // place. Une page dont l'entrée a disparu reste ouverte et le dit, comme une
 // story perdue : l'entrée revenue, la page revient avec elle.
 const line = computed(() => {

@@ -96,6 +96,38 @@ describe('the weight of a plugin', () => {
     ])
   })
 
+  // Un fichier que les deux modules importent est compté une fois, et suivi sous
+  // la règle de chacun : la preview atteint ce que le shell n'atteint pas.
+  test('follows a file both modules import under the rule of each', async () => {
+    const chemin = arbre({
+      'shell.mjs': "import './partage.mjs'\nexport default {}\n",
+      'preview.mjs': "import './partage.mjs'\nexport default {}\n",
+      'partage.mjs': "import 'dep/lourd.js'\nexport const p = 1\n",
+      'node_modules/dep/package.json': '{ "name": "dep" }',
+      'node_modules/dep/lourd.js': 'window.dep = 1;'.repeat(400),
+    })
+
+    expect(
+      await pluginWeights(
+        surfaces({
+          shell: [{ plugin: 'p', file: chemin('shell.mjs') }],
+          preview: [{ plugin: 'p', file: chemin('preview.mjs') }],
+          plugins: ['p'],
+        }),
+      ),
+    ).toEqual([
+      {
+        plugin: 'p',
+        bytes: gz(
+          chemin('shell.mjs'),
+          chemin('preview.mjs'),
+          chemin('partage.mjs'),
+          chemin('node_modules/dep/lourd.js'),
+        ),
+      },
+    ])
+  })
+
   // Servi tel quel, un module shell n'atteint que ses imports relatifs : un nu
   // passe par l'import map, qui ne connaît que le `vue` du shell.
   test('leaves out what a shell module imports by a bare name', async () => {
