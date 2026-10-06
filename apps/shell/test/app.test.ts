@@ -2426,6 +2426,23 @@ describe('the command palette', () => {
     expect(document.activeElement).toBe(écran.wrapper.find('nav .search').element)
   })
 
+  test('launches the actions of the toolbar', async ({ écran }) => {
+    const écrit = vi.fn(async () => undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText: écrit } })
+
+    await ouvre(écran)
+    await choisit(écran, 'Next story')
+    expect(window.location.search).toBe('?id=badge--alerte')
+
+    await ouvre(écran)
+    await choisit(écran, 'Previous story')
+    expect(window.location.search).toBe('?id=badge--defaut')
+
+    await ouvre(écran)
+    await choisit(écran, 'Copy link')
+    expect(écrit).toHaveBeenCalledWith(window.location.href)
+  })
+
   test('closes with Escape, and leaves full screen on', async ({ écran }) => {
     await touche(écran, { key: 'f' })
     await ouvre(écran)
