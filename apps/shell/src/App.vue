@@ -14,6 +14,7 @@ import Panels from './panels.vue'
 import { landing, unreadable, type Shown } from './recover'
 import { CHANGES, type Changes } from './changes'
 import ChangesPage from './changes-page.vue'
+import CommandPalette, { type Action } from './command-palette.vue'
 import ComponentPage from './component-page.vue'
 import StoryTree from './story-tree.vue'
 import TokensPage from './tokens-page.vue'
@@ -292,11 +293,46 @@ async function copyLink() {
 
 const tree = useTemplateRef<{ focusSearch: () => void }>('tree')
 
+// La palette s'ouvre par ⌘K sous macOS, Ctrl+K ailleurs : Ctrl+K efface la fin
+// de la ligne dans un champ sous macOS.
+const palette = ref(false)
+const mac = /Mac|iPhone|iPad/.test(navigator.userAgent)
+const paletteKeys = mac ? '⌘K' : 'Ctrl K'
+
+// Celles de la barre d'outils et la recherche, quand elles s'appliquent, avec leur
+// raccourci : la palette est l'endroit où ils se lisent.
+const actions = computed<Action[]>(() => [
+  { label: 'Search the tree', keys: '/', run: () => tree.value?.focusSearch() },
+  ...(storyMode.value && displayed.value !== null
+    ? [
+        { label: 'Copy link', run: () => void copyLink() },
+        {
+          label: full.value ? 'Leave full screen' : 'Full screen',
+          keys: 'F',
+          run: () => (full.value = !full.value),
+        },
+        ...(at.value > 0 ? [{ label: 'Previous story', keys: '[', run: () => step(-1) }] : []),
+        ...(at.value < siblings.value.length - 1
+          ? [{ label: 'Next story', keys: ']', run: () => step(1) }]
+          : []),
+      ]
+    : []),
+])
+
 // Inactifs pendant une saisie, et sous ⌘ ou Ctrl, qui sont ceux du navigateur. `[`
 // et `]` se décident sur le caractère : l'AZERTY et le QWERTZ les tapent avec ⌥
 // sous macOS, avec AltGr, qui arrive comme Ctrl et Alt, sous Windows. Une frappe
 // dans la preview n'arrive pas jusqu'ici : l'iframe la garde.
 function shortcut(event: KeyboardEvent) {
+  // Même pendant une saisie, comme toute palette.
+  if (event.key.toLowerCase() === 'k' && (mac ? event.metaKey : event.ctrlKey) && !event.altKey) {
+    event.preventDefault()
+    palette.value = !palette.value
+    return
+  }
+  // La palette répond seule à ses touches : Échap la ferme sans quitter le plein
+  // écran dessous.
+  if (event.target instanceof Element && event.target.closest('[role="dialog"]')) return
   if (event.key === 'Escape') {
     full.value = false
     return
@@ -516,7 +552,17 @@ onMounted(() => {
 <template>
   <main :class="{ full: fullScreen }">
     <nav v-show="!fullScreen">
-      <h1>Crypte</h1>
+      <header class="brand">
+        <h1>Crypte</h1>
+        <button
+          type="button"
+          class="commands"
+          :aria-keyshortcuts="mac ? 'Meta+K' : 'Control+K'"
+          @click="palette = true"
+        >
+          Commands <kbd>{{ paletteKeys }}</kbd>
+        </button>
+      </header>
       <StoryTree
         ref="tree"
         :entries="listed"
@@ -698,10 +744,34 @@ onMounted(() => {
         </ul>
       </footer>
     </div>
+    <CommandPalette
+      v-model:open="palette"
+      :entries="listed"
+      :actions="actions"
+      @show="(id) => show(id, 'push')"
+      @open="(id) => open(id)"
+      @changes="openChanges()"
+    />
   </main>
 </template>
 
 <style scoped>
+.brand {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.commands {
+  font-size: 12px;
+}
+
+.commands kbd {
+  color: #6b7280;
+  font-family: ui-monospace, monospace;
+}
+
 main {
   display: grid;
   grid-template-columns: 240px 1fr;

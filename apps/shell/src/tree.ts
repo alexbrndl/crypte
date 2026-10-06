@@ -81,7 +81,7 @@ export function treeOf(entries: readonly (StoryEntry | TokensEntry)[]): Node[] {
 
 // Comparé replié, comme un identifiant mais sans séparateurs : `libelle long`
 // trouve `Libellé long`, et `order summary` trouve `OrderSummary`.
-const fold = (text: string) => normalizeSegment(text).replaceAll('-', '')
+export const fold = (text: string) => normalizeSegment(text).replaceAll('-', '')
 
 // Une story ou une famille reste si son nom contient la recherche, ou si une
 // branche au-dessus d'elle la contient. Le filtre de statut écarte les composants
