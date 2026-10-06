@@ -18,6 +18,9 @@ export interface Surfaces {
   // A surface that points nowhere, with its reason. Reported like a refused
   // contribution: a plugin must not be able to stop the server, nor fail unseen.
   refused: { plugin: string; reason: string }[]
+  // Every plugin kept, browser surfaces or not, in configuration order: the
+  // status bar weighs each, and one that sends nothing to the browser weighs 0.
+  plugins: string[]
 }
 
 // What a plugin object may hold, section 6.1. A record over `keyof CryptePlugin`,
@@ -33,7 +36,7 @@ const KNOWN = `${LISTED.slice(0, -1).join(', ')} and ${LISTED.at(-1)}`
 
 // In the order `plugins` declares them, which is the order the shell shows.
 export function surfacesOf(project: Project): Surfaces {
-  const found: Surfaces = { shell: [], preview: [], refused: [] }
+  const found: Surfaces = { shell: [], preview: [], refused: [], plugins: [] }
 
   // The names of the plugins before, whatever their surfaces. The shell keeps a
   // panel's open state under its plugin's name, and the plugin messages of
@@ -94,6 +97,7 @@ export function surfacesOf(project: Project): Surfaces {
       continue
     }
 
+    if (!taken.has(name)) found.plugins.push(name)
     taken.add(name)
 
     for (const side of ['shell', 'preview'] as const) {

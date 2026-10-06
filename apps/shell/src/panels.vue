@@ -25,7 +25,12 @@ const props = defineProps<{
   revision: number
 }>()
 
-const emit = defineEmits<{ overrides: [values: Overrides]; send: [message: PanelMessage] }>()
+const emit = defineEmits<{
+  overrides: [values: Overrides]
+  send: [message: PanelMessage]
+  // Ce que chaque plugin coûte au navigateur, mesuré par le CLI, pour la barre d'état.
+  weights: [weights: { plugin: string; bytes: number }[]]
+}>()
 
 const PLUGINS = '/@crypte/plugins.json'
 
@@ -66,6 +71,7 @@ async function load() {
   let listed: {
     panels: { name: string; shell: string }[]
     refused: { plugin: string; reason: string }[]
+    weights: { plugin: string; bytes: number }[]
   }
   try {
     listed = (await fetch(PLUGINS).then((answer) => answer.json())) as typeof listed
@@ -102,6 +108,7 @@ async function load() {
   })
 
   refused.value = listed.refused
+  emit('weights', listed.weights)
   panels.value = found
   failures.value = failed
 

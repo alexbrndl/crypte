@@ -143,7 +143,7 @@ const test = base.extend<{ ecran: Ecran }>({
 
           if (rendu) return rendu
 
-          const etat = await page.locator('main > div > p').last().textContent()
+          const etat = await page.locator('.status-bar > p').textContent()
 
           return `<vide> état: ${etat} ${plaintes.slice(-3).join(' | ')}`
         },
@@ -273,7 +273,7 @@ describe('the screen', () => {
     // Échantillonné plutôt qu'attendu : le mauvais rendu durait jusqu'à ce que
     // Vite voie le fichier, puis se corrigeait, et un `poll` sur l'état final
     // passait par-dessus.
-    const etat = ecran.page.locator('main > div > p').last()
+    const etat = ecran.page.locator('.status-bar > p')
     const vus = new Set<string>()
     for (let i = 0; i < 20; i += 1) {
       vus.add(`${(await etat.textContent())?.split(' in ')[0]} => ${await ecran.vu()}`)
@@ -361,7 +361,7 @@ describe('the screen', () => {
     hot.send = send as typeof hot.send
     for (const args of retenus) send(...args)
 
-    const etat = ecran.page.locator('main > div > p').last()
+    const etat = ecran.page.locator('.status-bar > p')
     await expect.poll(() => etat.textContent()).toBe('the story on display is gone')
     await expect.poll(() => ecran.page.getByRole('alert').count()).toBe(0)
   })
@@ -751,6 +751,24 @@ describe('a plugin in the browser', () => {
     await expect
       .poll(() => cadre(ecran.page).locator('html').getAttribute('data-hello-renders'))
       .toBe('1')
+  })
+
+  // La chaîne entière : le CLI mesure, ses routes portent, le shell affiche.
+  // `axe-core` fait presque tout le poids d'`a11y`, et `tokens` n'envoie rien
+  // au navigateur.
+  test('weighs the shell and each plugin, and times the first render', async ({ ecran }) => {
+    const chiffres = ecran.page.locator('.figures li')
+    await expect.poll(() => chiffres.count()).toBe(7)
+
+    expect(await chiffres.allInnerTexts()).toEqual([
+      expect.stringMatching(/^Shell \d+\.\d kB$/),
+      expect.stringMatching(/^First render \d+ ms$/),
+      'tokens 0.0 kB',
+      expect.stringMatching(/^controls \d\.\d kB$/),
+      expect.stringMatching(/^a11y 1\d\d\.\d kB$/),
+      expect.stringMatching(/^hello \d\.\d kB$/),
+      expect.stringMatching(/^status \d\.\d kB$/),
+    ])
   })
 
   // Deux copies de Vue ne se voient pas : `inject` passe encore, et seul l'état

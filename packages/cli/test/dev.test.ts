@@ -1,9 +1,18 @@
 import { execFileSync } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { request } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { gzipSync } from 'node:zlib'
 import type { CryptePlugin } from '@crypte/core/protocol'
 import { afterAll, beforeAll, describe, expect, it, test as base } from 'vitest'
 import { dev, startDev, type Started, type Running } from '../src/dev'
@@ -22,6 +31,9 @@ import {
 // Ce que `crypte dev` sert vraiment, mesuré sur un serveur qui écoute.
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), 'fixture')
+
+const gz = (...fichiers: string[]) =>
+  fichiers.reduce((total, one) => total + gzipSync(readFileSync(one), { level: 9 }).length, 0)
 
 describe('crypte dev', () => {
   let started: Started
@@ -64,11 +76,22 @@ describe('crypte dev', () => {
     expect(JSON.parse(body)).toEqual(started.held.catalogue.manifest)
   })
 
-  it('serves the story root the project declares, and no configuration failure', async () => {
+  // Le poids du shell compté comme `scripts/budgets.mjs` le compte : tout
+  // `dist/shell` sauf les cartes de source.
+  it('serves the story root the project declares, no configuration failure, and the shell weight', async () => {
+    const shell = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'shell')
+    const fichiers = readdirSync(shell, { recursive: true, withFileTypes: true })
+      .filter((one) => one.isFile() && !one.name.endsWith('.map'))
+      .map((one) => join(one.parentPath, one.name))
     const { status, body } = await get(PROJECT_ROUTE)
 
+    expect(fichiers.length).toBeGreaterThan(1)
     expect(status).toBe(200)
-    expect(JSON.parse(body)).toEqual({ stories: 'stories', config: null })
+    expect(JSON.parse(body)).toEqual({
+      stories: 'stories',
+      config: null,
+      shellBytes: gz(...fichiers),
+    })
   })
 
   // La fixture est suivie par ce dépôt et son empreinte est commise : rien n'a
@@ -111,7 +134,7 @@ describe('crypte dev', () => {
       rmSync(dossier, { recursive: true, force: true })
     })
 
-    it('lists each shell module under its own URL, and what was refused', async () => {
+    it('lists each shell module under its own URL, what was refused, and what each weighs', async () => {
       const { status, body } = await get(PLUGINS_ROUTE)
 
       expect(status).toBe(200)
@@ -123,6 +146,14 @@ describe('crypte dev', () => {
             plugin: 'b',
             reason: '`toolbar` is not a key of a plugin, which are name, shell, preview and node',
           },
+        ],
+        weights: [
+          {
+            plugin: 'a',
+            bytes: gz(join(dossier, 'dist', 'shell.mjs'), join(dossier, 'dist', 'chunk.mjs')),
+          },
+          { plugin: 'b', bytes: 0 },
+          { plugin: 'n', bytes: 0 },
         ],
       })
     })

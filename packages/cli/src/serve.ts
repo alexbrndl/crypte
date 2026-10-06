@@ -13,6 +13,7 @@ import { cssEntryOf, type Project } from './project'
 import { ONLY_STORY } from './stories'
 import { configSources, required } from './config-source'
 import { surfacesOf } from './surfaces'
+import { pluginWeights, shellBytes } from './weight'
 
 // Walks up to `package.json` rather than resolving from this file, which sits in
 // `src/` before the build and in `dist/` after it.
@@ -51,7 +52,7 @@ export const MANIFEST_ROUTE = '/@crypte/manifest.json'
 export const PREVIEW_PAGE = '/preview.html'
 
 // The shell modules of the plugins, as the shell imports them: their name and
-// URL, in configuration order.
+// URL, in configuration order. With what each plugin weighs in the browser.
 export const PLUGINS_ROUTE = '/@crypte/plugins.json'
 
 // What changed in the catalogue since the last commit, or why it cannot be said.
@@ -60,7 +61,7 @@ export const CHANGES_ROUTE = '/@crypte/changes.json'
 
 // What the shell says of the project itself: the story root it declares, where an
 // empty catalogue was looked for, and why the last reread of the configuration
-// failed while the server keeps the previous one.
+// failed while the server keeps the previous one. With what the shell weighs.
 export const PROJECT_ROUTE = '/@crypte/project.json'
 
 // Each shell module's folder, served as is and never through Vite. Vite would
@@ -122,6 +123,9 @@ export function servePlugin(
   // keeps the old `compilerOptions` until the process restarts. Measured.
   let dev: ViteDevServer | undefined
 
+  // Measured once: the shell's files do not change while the server runs.
+  let shellWeight: Promise<number> | undefined
+
   return {
     name: 'crypte:serve',
 
@@ -164,10 +168,19 @@ export function servePlugin(
         }
 
         if (url === PROJECT_ROUTE) {
-          response.setHeader('Content-Type', 'application/json')
-          response.end(
-            JSON.stringify({ stories: project.config.stories, config: unreadConfig() ?? null }),
-          )
+          shellWeight ??= shellBytes(shell)
+          shellWeight
+            .then((bytes) => {
+              response.setHeader('Content-Type', 'application/json')
+              response.end(
+                JSON.stringify({
+                  stories: project.config.stories,
+                  config: unreadConfig() ?? null,
+                  shellBytes: bytes,
+                }),
+              )
+            })
+            .catch(next)
           return
         }
 
@@ -188,9 +201,13 @@ export function servePlugin(
 
           // What was refused of each plugin, so the shell names it beside the
           // panels: the terminal was the only place a refusal was said.
-          response.setHeader('Content-Type', 'application/json')
           const refused = [...current().skippedContributions, ...surfaces.refused]
-          response.end(JSON.stringify({ panels, refused }))
+          pluginWeights(surfaces)
+            .then((weights) => {
+              response.setHeader('Content-Type', 'application/json')
+              response.end(JSON.stringify({ panels, refused, weights }))
+            })
+            .catch(next)
           return
         }
 

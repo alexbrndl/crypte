@@ -165,7 +165,11 @@ export default defineConfig({
       expect(réparé).not.toBe(avant)
       writeFileSync(config, réparé)
       await expect.poll(compte, { timeout: 30_000 }).toBe(3)
-      expect(await projet()).toEqual({ stories: 'stories/checkout', config: null })
+      expect(await projet()).toEqual({
+        stories: 'stories/checkout',
+        config: null,
+        shellBytes: expect.any(Number),
+      })
     } finally {
       await running.close()
       rmSync(root, { recursive: true, force: true })
@@ -588,7 +592,7 @@ export default defineStories(Badge, { props: { label: 'Seule' } })
       // et dite : `recovered` refuse d'envoyer l'utilisateur sur un composant
       // qu'il n'a pas ouvert, et l'issue le demande explicitement.
       await expect
-        .poll(() => page.locator('main > div > p').last().textContent(), { timeout: 30_000 })
+        .poll(() => page.locator('.status-bar > p').textContent(), { timeout: 30_000 })
         .toBe('the story on display is gone')
 
       // Et l'outil marche : la story qui reste rend au clic.
