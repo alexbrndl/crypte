@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Overrides, StoryEntry } from '@crypte/core/protocol'
-import { Callout } from '@crypte/ui'
+import { Alert } from '@crypte/ui'
 import { onMounted, shallowRef, watch, type Component } from 'vue'
 import PanelFrame from './panel-frame.vue'
 
@@ -132,9 +132,9 @@ watch(() => props.revision, load)
 </script>
 
 <template>
-  <Callout
+  <Alert
     v-if="failures.length > 0 || refused.length > 0 || errors.length > 0"
-    tone="danger"
+    color="error"
     class="failed"
     role="alert"
   >
@@ -148,7 +148,7 @@ watch(() => props.revision, load)
     <p v-for="(one, at) of errors" :key="`preview-${at}`">
       <code>{{ one.plugin }}</code> in the preview: {{ one.message }}
     </p>
-  </Callout>
+  </Alert>
   <PanelFrame
     v-for="one of panels"
     :key="one.name"
@@ -164,7 +164,7 @@ watch(() => props.revision, load)
 
 <style scoped>
 .failed {
-  --callout-font-size: 13px;
+  --alert-font-size: 13px;
   margin-top: 12px;
 }
 

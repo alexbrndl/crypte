@@ -116,26 +116,26 @@ ul {
 }
 
 .note {
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .added,
 .removed,
 .status {
   margin-left: 8px;
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 
 .added {
-  color: #166534;
+  color: var(--success-text);
 }
 
 .removed {
-  color: #991b1b;
+  color: var(--error-text);
 }
 
 .status {
-  color: #6b7280;
+  color: var(--text-muted);
 }
 </style>

@@ -7,7 +7,7 @@ import type {
   TokensEntry,
 } from '@crypte/core/protocol'
 import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
-import { afterEach, beforeAll, describe, expect, test as base, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test as base, vi } from 'vitest'
 import App from '../src/App.vue'
 import Panels from '../src/panels.vue'
 import StoryTree from '../src/story-tree.vue'
@@ -67,6 +67,14 @@ interface Ecran {
 const vide = async (wrapper: VueWrapper) => {
   await new Promise((resolve) => setTimeout(resolve, 0))
   await wrapper.vm.$nextTick()
+}
+
+// Le thème du système, que jsdom ne connaît pas : clair au départ, et chaque
+// écouteur posé gardé pour simuler un changement.
+const système = { sombre: false, écouteurs: [] as ((event: MediaQueryListEvent) => void)[] }
+const change = (sombre: boolean) => {
+  système.sombre = sombre
+  for (const one of système.écouteurs) one({ matches: sombre } as MediaQueryListEvent)
 }
 
 const monte = async (
@@ -140,6 +148,19 @@ const test = base.extend<{ écran: Ecran }>({
   },
 })
 
+beforeEach(() => {
+  // Reka fait défiler jusqu'à l'option surlignée de la palette ; jsdom n'a pas de
+  // défilement.
+  Element.prototype.scrollIntoView = () => {}
+  vi.stubGlobal('matchMedia', () => ({
+    matches: système.sombre,
+    addEventListener: (_: string, one: (event: MediaQueryListEvent) => void) =>
+      système.écouteurs.push(one),
+    removeEventListener: (_: string, one: (event: MediaQueryListEvent) => void) =>
+      (système.écouteurs = système.écouteurs.filter((other) => other !== one)),
+  }))
+})
+
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
@@ -147,6 +168,8 @@ afterEach(() => {
   // par un cas devenait la première affichée du suivant.
   window.history.replaceState(null, '', '/')
   localStorage.clear()
+  système.sombre = false
+  delete document.documentElement.dataset.theme
 })
 
 describe('the shell tree', () => {
@@ -2239,11 +2262,6 @@ describe('the figures of the status bar', () => {
 
 // La palette vit dans un portail, hors du composant monté : lue dans le document.
 describe('the command palette', () => {
-  // Reka fait défiler jusqu'à l'option surlignée ; jsdom n'a pas de défilement.
-  beforeAll(() => {
-    Element.prototype.scrollIntoView = () => {}
-  })
-
   const touche = async (écran: Ecran, init: KeyboardEventInit, cible: Element = document.body) => {
     cible.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, ...init }))
     await vide(écran.wrapper)
@@ -2340,6 +2358,7 @@ describe('the command palette', () => {
     expect(groupes()).toEqual(['Actions', 'Components', 'Stories', 'Pages'])
     expect(options()).toEqual([
       'Search the tree /',
+      'Dark theme T',
       'Copy link',
       'Full screen F',
       'Next story ]',
@@ -2361,8 +2380,9 @@ describe('the command palette', () => {
       .element.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await vide(écran.wrapper)
     await ouvre(écran)
-    expect(options().slice(0, 4)).toEqual([
+    expect(options().slice(0, 5)).toEqual([
       'Search the tree /',
+      'Dark theme T',
       'Copy link',
       'Full screen F',
       'Previous story [',
@@ -2372,7 +2392,8 @@ describe('the command palette', () => {
     await ouvre(écran)
     expect(groupes()[0]).toBe('Actions')
     expect(options()[0]).toBe('Search the tree /')
-    expect(options()[1]).toBe('Badge')
+    expect(options()[1]).toBe('Dark theme T')
+    expect(options()[2]).toBe('Badge')
   })
 
   // Replié comme la recherche de l'arbre : sans accents ni séparateurs.
@@ -2393,7 +2414,7 @@ describe('the command palette', () => {
     // Rouverte, elle repart de rien.
     await ouvre(écran)
     await ouvre(écran)
-    expect(options()).toHaveLength(10)
+    expect(options()).toHaveLength(11)
   })
 
   test('goes to a story, and closes', async ({ écran }) => {
@@ -2443,7 +2464,7 @@ describe('the command palette', () => {
 
     // La recherche quitte le plein écran, où la navigation est masquée.
     await ouvre(écran)
-    expect(options()[2]).toBe('Leave full screen F')
+    expect(options()[3]).toBe('Leave full screen F')
     await choisit(écran, 'Search the tree')
     expect(écran.wrapper.find('main').classes()).not.toContain('full')
     expect(document.activeElement).toBe(écran.wrapper.find('nav .search').element)
@@ -2457,6 +2478,7 @@ describe('the command palette', () => {
     expect(groupes()).toEqual(['Actions', 'Tokens', 'Pages'])
     expect(options()).toEqual([
       'Search the tree /',
+      'Dark theme T',
       'Color / Brand',
       'Changes since the last commit',
     ])
@@ -2488,6 +2510,82 @@ describe('the command palette', () => {
 
     expect(dialogue()).toBeNull()
     expect(écran.wrapper.find('main').classes()).toContain('full')
+  })
+})
+
+describe('the theme', () => {
+  const racine = () => document.documentElement.dataset.theme
+  const touche = async (écran: Ecran, key: string, cible: Element = document.body) => {
+    cible.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+    await vide(écran.wrapper)
+  }
+  const ctrlK = async (écran: Ecran) => {
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }),
+    )
+    await vide(écran.wrapper)
+  }
+  // Le libellé de la bascule, lu dans la palette ouverte puis refermée.
+  const bascule = async (écran: Ecran) => {
+    await ctrlK(écran)
+    const libellé = [...document.querySelectorAll('[role="dialog"] [role="option"] span')]
+      .map((one) => one.textContent)
+      .find((one) => one?.endsWith('theme'))
+    await ctrlK(écran)
+    return libellé
+  }
+
+  // Rien de posé : le système décide, et le libellé suit ce qu'il montre.
+  test('follows the system until one is chosen', async ({ écran }) => {
+    expect(racine()).toBeUndefined()
+    expect(await bascule(écran)).toBe('Dark theme')
+
+    change(true)
+    await vide(écran.wrapper)
+    expect(racine()).toBeUndefined()
+    expect(await bascule(écran)).toBe('Light theme')
+  })
+
+  test('switches on t, and remembers the choice', async ({ écran }) => {
+    await touche(écran, 't')
+    expect(racine()).toBe('dark')
+    expect(localStorage.getItem('crypte:theme')).toBe('dark')
+
+    await touche(écran, 't')
+    expect(racine()).toBe('light')
+    expect(localStorage.getItem('crypte:theme')).toBe('light')
+  })
+
+  test('ignores t typed in a field', async ({ écran }) => {
+    await touche(écran, 't', écran.wrapper.find('nav .search').element)
+
+    expect(racine()).toBeUndefined()
+  })
+
+  test('starts from the remembered choice, and ignores anything else', async () => {
+    localStorage.setItem('crypte:theme', 'dark')
+    const écran = await monte([badge])
+    expect(racine()).toBe('dark')
+    écran.wrapper.unmount()
+
+    delete document.documentElement.dataset.theme
+    localStorage.setItem('crypte:theme', 'sepia')
+    const autre = await monte([badge])
+    expect(racine()).toBeUndefined()
+    autre.wrapper.unmount()
+  })
+
+  test('switches from the palette, which names the other theme', async ({ écran }) => {
+    change(true)
+    await vide(écran.wrapper)
+    await ctrlK(écran)
+
+    const option = [
+      ...document.querySelectorAll<HTMLElement>('[role="dialog"] [role="option"]'),
+    ].find((one) => one.querySelector('span')?.textContent === 'Light theme')
+    option!.click()
+    await vide(écran.wrapper)
+    expect(racine()).toBe('light')
   })
 })
 

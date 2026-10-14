@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Overrides, StoryEntry } from '@crypte/core/protocol'
-import { Callout } from '@crypte/ui'
+import { Alert } from '@crypte/ui'
 import { computed, onErrorCaptured, ref, watch, type Component } from 'vue'
 
 // Le cadre d'un panneau de plugin, section 6.1 des contrats. Local au shell,
@@ -204,9 +204,9 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
       </button>
       <span v-if="inapplicable !== null" class="inapplicable">{{ inapplicable }}</span>
     </div>
-    <Callout v-if="failure !== null" tone="danger" class="panel-failed" role="alert">
+    <Alert v-if="failure !== null" color="error" class="panel-failed" role="alert">
       This panel threw: {{ failure }}
-    </Callout>
+    </Alert>
     <div v-else v-show="expanded" class="body">
       <component
         :is="panel"
@@ -223,7 +223,7 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
 
 <style scoped>
 .panel {
-  border-top: 1px solid #e5e7eb;
+  border-top: var(--stroke-hairline) solid var(--border-light);
   padding: 8px 0;
 }
 
@@ -242,7 +242,7 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
 }
 
 .inapplicable {
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 13px;
 }
 
@@ -251,7 +251,7 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
 }
 
 .panel-failed {
-  --callout-font-size: 13px;
+  --alert-font-size: 13px;
   margin-top: 8px;
 }
 </style>

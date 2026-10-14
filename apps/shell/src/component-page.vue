@@ -107,7 +107,7 @@ dl {
 }
 
 dt {
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 dd {
@@ -123,7 +123,7 @@ th,
 td {
   text-align: left;
   padding: 6px 16px 6px 0;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: var(--stroke-hairline) solid var(--border-light);
   vertical-align: baseline;
 }
 
@@ -132,6 +132,6 @@ td {
 }
 
 .none {
-  color: #6b7280;
+  color: var(--text-muted);
 }
 </style>

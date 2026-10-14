@@ -74,7 +74,7 @@ td {
   text-align: left;
   vertical-align: baseline;
   padding: 6px 24px 6px 0;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: var(--stroke-hairline) solid var(--border-light);
 }
 
 tbody th {
@@ -84,7 +84,7 @@ tbody th {
 .kind,
 .alias,
 .absent {
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 12px;
 }
 
@@ -98,7 +98,7 @@ tbody th {
 
 .description {
   margin: 4px 0 0;
-  color: #374151;
+  color: var(--text-primary);
 }
 
 .swatch {
@@ -106,7 +106,7 @@ tbody th {
   width: 12px;
   height: 12px;
   margin-right: 6px;
-  border: 1px solid #d1d5db;
+  border: var(--stroke-hairline) solid var(--border-base);
   border-radius: 2px;
   vertical-align: -1px;
 }

@@ -8,7 +8,7 @@ import type {
   TokensEntry,
 } from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/shell'
-import { Callout } from '@crypte/ui'
+import { Alert } from '@crypte/ui'
 import {
   computed,
   nextTick,
@@ -27,6 +27,7 @@ import CommandPalette, { type Action } from './command-palette.vue'
 import ComponentPage from './component-page.vue'
 import StoryTree from './story-tree.vue'
 import TokensPage from './tokens-page.vue'
+import { useTheme } from './theme'
 import { componentIdOf } from './tree'
 import { placeSearch, readPlace, sameTab } from './url'
 
@@ -317,8 +318,11 @@ const paletteKeys = mac ? '⌘K' : 'Ctrl K'
 
 // Celles de la barre d'outils et la recherche, quand elles s'appliquent, avec leur
 // raccourci : la palette est l'endroit où ils se lisent.
+const { theme, toggle: toggleTheme } = useTheme()
+
 const actions = computed<Action[]>(() => [
   { label: 'Search the tree', keys: '/', run: search },
+  { label: theme.value === 'dark' ? 'Light theme' : 'Dark theme', keys: 'T', run: toggleTheme },
   ...(storyMode.value && displayed.value !== null
     ? [
         { label: 'Copy link', run: () => void copyLink() },
@@ -363,6 +367,10 @@ function shortcut(event: KeyboardEvent) {
   if (event.key === '/' && plain) {
     event.preventDefault()
     search()
+    return
+  }
+  if (event.key === 't' && plain) {
+    toggleTheme()
     return
   }
   if (!storyMode.value) return
@@ -603,24 +611,24 @@ onMounted(() => {
     <div>
       <!-- Dit sur toutes les pages : ce qui est servi n'est plus ce que le fichier
            déclare, et rien d'autre ne le montrerait. -->
-      <Callout v-if="project?.config" tone="warning" class="config" role="alert">
+      <Alert v-if="project?.config" color="warning" class="config" role="alert">
         <h2><code>crypte.config.ts</code> could not be read</h2>
         <p>
           Crypte keeps serving the configuration it read before. Fix the file and save it again:
           {{ project.config }}
         </p>
-      </Callout>
+      </Alert>
 
-      <Callout v-if="stale && entries.length > 0" tone="warning" class="stale" role="status">
+      <Alert v-if="stale && entries.length > 0" color="warning" class="stale" role="status">
         <code>{{ stale }}</code> is not in the catalogue any more: it was probably renamed. Showing
         the first story instead.
-      </Callout>
+      </Alert>
 
       <!-- Pas quand un fichier a été écarté : l'encadré d'en dessous le nomme, et
            le dossier n'est alors pas en cause. -->
-      <Callout
+      <Alert
         v-if="read && listed.length === 0 && skipped.length === 0"
-        tone="warning"
+        color="warning"
         class="empty"
         role="status"
       >
@@ -632,11 +640,11 @@ onMounted(() => {
           Check that <code>stories</code> in <code>crypte.config.ts</code> names the folder of your
           story files, and that each one exports <code>defineStories(…)</code> by default.
         </p>
-      </Callout>
+      </Alert>
 
       <!-- Au-dessus de la preview et jamais bloquant : une story écartée est
            absente de l'arbre, donc rien d'autre ne la nomme. -->
-      <Callout v-if="setAside.length > 0" tone="warning" class="set-aside" role="status">
+      <Alert v-if="setAside.length > 0" color="warning" class="set-aside" role="status">
         <h2>What Crypte could not read</h2>
         <ul>
           <li v-for="one of setAside" :key="one.file">
@@ -644,7 +652,7 @@ onMounted(() => {
             >: {{ one.title }}. {{ one.reason }}
           </li>
         </ul>
-      </Callout>
+      </Alert>
 
       <TokensPage v-if="shownFamily" :family="shownFamily" />
 
@@ -714,11 +722,11 @@ onMounted(() => {
         <!-- L'erreur couvre la preview plutôt que de l'accompagner : ce qui reste
            affiché dessous appartient à la story d'avant, et le laisser voir
            ferait croire que celle-ci a rendu. -->
-        <Callout v-if="failure" tone="danger" class="failure" role="alert">
+        <Alert v-if="failure" color="error" class="failure" role="alert">
           <h2>{{ failure.id }} could not be rendered</h2>
           <p>{{ failure.message }}</p>
           <pre v-if="failure.stack">{{ failure.stack }}</pre>
-        </Callout>
+        </Alert>
         <iframe v-show="!failure" ref="frame" src="/preview.html" title="preview"></iframe>
 
         <!-- Sous la preview, pas dessus : la story rend, et l'avertissement ne dit
@@ -784,15 +792,15 @@ onMounted(() => {
 }
 
 .commands kbd {
-  color: #6b7280;
-  font-family: ui-monospace, monospace;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
 }
 
 main {
   display: grid;
   grid-template-columns: 240px 1fr;
   gap: 16px;
-  font-family: system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 main.full {
@@ -819,7 +827,7 @@ main.full iframe {
 .config,
 .stale,
 .empty {
-  --callout-font-size: 13px;
+  --alert-font-size: 13px;
   margin-bottom: 12px;
 }
 
@@ -832,7 +840,7 @@ main.full iframe {
   justify-content: space-between;
   margin-top: 12px;
   padding: 8px 8px 0;
-  border-top: 1px solid #e5e7eb;
+  border-top: var(--stroke-hairline) solid var(--border-light);
   color: inherit;
   text-decoration: none;
 }
@@ -842,22 +850,22 @@ main.full iframe {
 }
 
 .counter {
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 iframe {
   width: 100%;
   height: 70vh;
-  border: 1px solid #e5e7eb;
+  border: var(--stroke-hairline) solid var(--border-light);
 }
 
 .failure {
-  --callout-padding: 12px 16px;
+  --alert-padding: 12px 16px;
   min-height: 70vh;
 }
 
 .set-aside {
-  --callout-font-size: 13px;
+  --alert-font-size: 13px;
   margin-bottom: 12px;
 }
 
@@ -872,14 +880,14 @@ iframe {
 }
 
 .partial {
-  color: #92400e;
+  color: var(--warning-text);
   font-size: 13px;
 }
 
 .failure pre {
   white-space: pre-wrap;
   font-size: 12px;
-  color: #7f1d1d;
+  color: var(--error-text);
 }
 
 .status-bar {
@@ -896,7 +904,7 @@ iframe {
   margin: 0;
   padding: 0;
   list-style: none;
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }

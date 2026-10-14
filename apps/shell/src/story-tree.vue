@@ -220,7 +220,7 @@ defineExpose({ focusSearch: () => search.value?.focus() })
 }
 
 .statuses button {
-  border: 1px solid #e5e7eb;
+  border: var(--stroke-hairline) solid var(--border-light);
   background: none;
   padding: 2px 8px;
   font-size: 12px;
@@ -228,7 +228,7 @@ defineExpose({ focusSearch: () => search.value?.focus() })
 }
 
 .statuses button[data-state='on'] {
-  background: #e5e7eb;
+  background: var(--background-hover);
 }
 
 .nodes {
@@ -247,7 +247,7 @@ defineExpose({ focusSearch: () => search.value?.focus() })
 }
 
 .nodes li:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: var(--stroke-focus) solid var(--accent-focus);
   outline-offset: -2px;
 }
 
@@ -257,7 +257,7 @@ defineExpose({ focusSearch: () => search.value?.focus() })
 }
 
 .nodes li[data-selected] {
-  background: #e5e7eb;
+  background: var(--background-hover);
   font-weight: 600;
 }
 
@@ -269,6 +269,6 @@ defineExpose({ focusSearch: () => search.value?.focus() })
   margin-left: auto;
   font-size: 11px;
   font-weight: 400;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 </style>

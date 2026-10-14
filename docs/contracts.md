@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.30, reference document. A project brief points here instead of restating these shapes.
+> Version 1.31, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -811,6 +811,8 @@ interface PanelEvents {
 
 A panel declares the part it uses: `defineProps<Pick<PanelProps, 'entry'>>()`, `defineEmits<Pick<PanelEvents, 'inapplicable' | 'overrides'>>()`.
 
+**A panel draws with the shell's design tokens.** It is mounted in the shell's document, not in an iframe, so it inherits the custom properties declared on the root, under the names of the design file's variables: `--text-primary`, `--text-muted`, `--background-raised`, `--border-light`, `--accent-base`, `--warning-text` and the other theme colors, the `--space-*` and `--radius-*` scales, `--font-sans` and `--font-mono`. The colors follow the shell's light or dark theme. A panel reads them with a fallback, `var(--text-muted, #79716b)`: a plugin cannot import `@crypte/ui`, which declares them, and its panel still renders where they are absent.
+
 **`PreviewHooks` is specified in 6.2, and the core types it**: a hook receives the iframe DOM, never a framework, so the core can name everything it gets.
 
 ### 6.2 The golden rule
@@ -971,6 +973,12 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.31.** The shell's design tokens, which panels read (6.1).
+
+| Before | After |
+| --- | --- |
+| a panel's colors were its own, and stayed light in a dark shell | the shell's tokens reach it as custom properties, and 6.1 names them |
 
 **v1.30.** What a panel removed from the configuration leaves behind (6.1), from the second audit of the frozen contract.
 
