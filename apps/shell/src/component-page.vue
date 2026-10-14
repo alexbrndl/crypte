@@ -91,19 +91,63 @@ function follow(event: MouseEvent, id: string) {
 }
 
 h2 {
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-3xl);
+  letter-spacing: var(--tracking-tight);
+}
+
+table {
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+
+thead th {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+th,
+td {
+  text-align: left;
+  vertical-align: baseline;
+  padding: var(--space-1-5) var(--space-6) var(--space-1-5) 0;
+  border-bottom: var(--stroke-hairline) solid var(--border-light);
+}
+
+a {
+  color: var(--text-current);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--text-current-hover);
+}
+
+code {
+  font-size: var(--text-xs);
 }
 
 .description {
-  margin: 0 0 12px;
+  margin: 0 0 var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
 }
 
 dl {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 4px 16px;
-  margin: 0 0 16px;
-  font-size: 13px;
+  gap: var(--space-1) var(--space-4);
+  margin: 0 0 var(--space-6);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
 }
 
 dt {
@@ -114,24 +158,15 @@ dd {
   margin: 0;
 }
 
-table {
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-th,
-td {
-  text-align: left;
-  padding: 6px 16px 6px 0;
-  border-bottom: var(--stroke-hairline) solid var(--border-light);
-  vertical-align: baseline;
+.prop {
+  color: var(--text-muted);
 }
 
 .prop + .prop {
-  margin-left: 6px;
+  margin-left: var(--space-1-5);
 }
 
 .none {
-  color: var(--text-muted);
+  color: var(--text-subtle);
 }
 </style>

@@ -459,6 +459,8 @@ describe('what the preview answers', () => {
     expect(alerte.text()).toContain('ce composant ne rend jamais')
     expect(alerte.find('pre').text()).toBe('at Boum')
     expect(écran.statut()).toBe('render error')
+    // Le point de la barre d'état passe au rouge avec elle.
+    expect(écran.wrapper.find('.status-bar .dot').attributes('data-failed')).toBe('true')
   })
 
   // Le cadre de la story d'avant ne doit plus être visible : le laisser ferait
@@ -1145,7 +1147,11 @@ describe('the component page', () => {
     const écran = await monte(catalogue)
     const fil = écran.wrapper.find('nav.trail')
 
-    expect(fil.text().replace(/\s+/g, ' ')).toBe('Badge / Alerte')
+    // Les séparateurs sont des éléments, espacés par la mise en page.
+    expect(fil.findAll('a, [aria-current], .folder').map((one) => one.text())).toEqual([
+      'Badge',
+      'Alerte',
+    ])
     expect(fil.find('[aria-current="page"]').text()).toBe('Alerte')
 
     await fil.find('a').trigger('click', { button: 0 })
@@ -1160,9 +1166,7 @@ describe('the component page', () => {
     const profond = entry('checkout/ordersummary--x', 'X', ['checkout', 'OrderSummary'], 's.tsx')
     const écran = await monte([profond])
 
-    expect(écran.wrapper.find('nav.trail').text().replace(/\s+/g, ' ')).toBe(
-      'checkout / OrderSummary / X',
-    )
+    expect(écran.wrapper.find('nav.trail').text()).toBe('checkout/OrderSummary/X')
     expect(écran.wrapper.find('nav.trail a').attributes('href')).toBe(
       '?component=checkout/ordersummary',
     )
@@ -1974,7 +1978,8 @@ describe('an address the catalogue no longer holds', () => {
 
 describe('the toolbar of a story', () => {
   const bouton = (écran: Ecran, texte: string) =>
-    écran.wrapper.findAll('.toolbar button').find((one) => one.text() === texte)!
+    // Le libellé, sans le raccourci qui le suit.
+    écran.wrapper.findAll('.toolbar button').find((one) => one.text().startsWith(texte))!
 
   test('copies the address of the story on display', async ({ écran }) => {
     const écrit = vi.fn(async () => {})
@@ -2137,7 +2142,7 @@ describe('leaving full screen without Escape', () => {
     const plein = () => écran.wrapper.find('main').classes().includes('full')
     await écran.wrapper
       .findAll('.toolbar button')
-      .find((one) => one.text() === 'Full screen')!
+      .find((one) => one.text().startsWith('Full screen'))!
       .trigger('click')
     expect(plein()).toBe(true)
 

@@ -136,13 +136,15 @@ function choose(command: Command) {
   top: 12vh;
   left: 50%;
   transform: translateX(-50%);
-  width: min(560px, 90vw);
+  width: min(640px, 90vw);
+  overflow: hidden;
   background: var(--background-raised);
-  border: var(--stroke-hairline) solid var(--border-light);
-  border-radius: 8px;
+  border: var(--stroke-hairline) solid var(--border-base);
+  border-radius: var(--radius-lg);
   box-shadow: 0 12px 32px color-mix(in srgb, var(--stone-950) 18%, transparent);
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
 }
 
 .title {
@@ -156,48 +158,65 @@ function choose(command: Command) {
 .filter {
   box-sizing: border-box;
   width: 100%;
-  padding: 12px 14px;
+  padding: var(--space-3) var(--space-4);
   border: 0;
-  border-bottom: var(--stroke-hairline) solid var(--border-light);
+  border-bottom: var(--stroke-hairline) solid var(--border-base);
+  background: none;
+  color: var(--text-primary);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
   outline: none;
+}
+
+.filter::placeholder {
+  color: var(--text-subtle);
 }
 
 .results {
   max-height: 50vh;
   overflow-y: auto;
-  padding: 4px;
 }
 
 .group {
-  padding: 8px 10px 4px;
+  padding: var(--space-2) var(--space-4) var(--space-1);
+  border-top: var(--stroke-hairline) solid var(--border-light);
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .item {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  padding: 6px 10px;
-  border-radius: 4px;
+  gap: var(--space-3);
+  padding: var(--space-1-5) var(--space-4);
+  color: var(--text-primary);
   cursor: pointer;
 }
 
 .item[data-highlighted] {
-  background: var(--background-hover);
+  background: var(--background-current);
+  color: var(--text-current);
 }
 
 kbd {
+  padding: var(--space-0-5) var(--space-1);
+  border: var(--stroke-hairline) solid var(--border-base);
+  border-radius: var(--radius-xs);
+  background: var(--background-subtle);
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
 }
 
 .none {
   margin: 0;
-  padding: 10px;
-  color: var(--text-muted);
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-subtle);
 }
 </style>
