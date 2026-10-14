@@ -156,11 +156,11 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
     </div>
     <ToggleGroupRoot
       v-if="declared.length > 0"
-      v-model="status"
+      :model-value="chosen ?? 'all'"
       type="single"
       class="tabs"
       aria-label="Filter by status"
-      @update:model-value="(value) => value || (status = 'all')"
+      @update:model-value="(value) => (status = (value as Status | 'all' | undefined) || 'all')"
     >
       <ToggleGroupItem value="all">all</ToggleGroupItem>
       <ToggleGroupItem v-for="one of declared" :key="one" :value="one">
@@ -201,7 +201,14 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
           <span class="band" :style="{ left: `${marker(item.level)}px` }" />
           <span class="marker" :style="{ left: `${marker(item.level)}px` }" />
         </template>
-        <span class="chevron" @click.stop="item.hasChildren && handleToggle()">
+        <!-- L'emplacement est réservé sur chaque ligne ; vide, il laisse passer le clic à la
+             ligne, qui choisit la story. -->
+        <span
+          class="chevron"
+          @click="
+            (event: MouseEvent) => item.hasChildren && (event.stopPropagation(), handleToggle())
+          "
+        >
           <Icon v-if="item.hasChildren" :name="isExpanded ? 'arrow-down-01' : 'arrow-right-01'" />
         </span>
         <span class="name">{{ item.value.name }}</span>

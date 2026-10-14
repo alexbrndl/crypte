@@ -577,7 +577,7 @@ onMounted(() => {
           <button
             type="button"
             class="commands"
-            :aria-keyshortcuts="mac ? 'Meta+K Slash' : 'Control+K Slash'"
+            :aria-keyshortcuts="mac ? 'Meta+K /' : 'Control+K /'"
             @click="palette = true"
           >
             <Icon name="search-01" />

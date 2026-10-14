@@ -809,6 +809,10 @@ const avec = (one: StoryEntry, status: NonNullable<StoryEntry['meta']>['status']
 const grisés = (wrapper: VueWrapper) =>
   wrapper.findAll('[role="treeitem"][data-dimmed] .name').map((one) => one.text())
 const filtre = (wrapper: VueWrapper) => wrapper.find('[aria-label="Filter by status"]')
+const états = (wrapper: VueWrapper) =>
+  filtre(wrapper)
+    .findAll('button')
+    .map((one) => one.attributes('data-state'))
 
 describe('the status', () => {
   test('shows the status beside its component, never beside a story', async () => {
@@ -882,6 +886,39 @@ describe('the rows of the tree', () => {
   })
 })
 
+describe('folding out of view', () => {
+  // Un fichier cassé retire un composant un instant : son repli survit à ce qu'on
+  // replie pendant son absence.
+  test('keeps folded what left the tree while something else was folded', async () => {
+    const branche = (wrapper: VueWrapper, nom: string) =>
+      wrapper
+        .findAll('[role="treeitem"]:not(.story)')
+        .find((one) => one.find('.name').text() === nom)!
+    const wrapper = mount(StoryTree, {
+      props: { entries: [badge, bouton], current: null, component: null },
+    })
+
+    await branche(wrapper, 'Badge').find('.chevron').trigger('click')
+    await wrapper.setProps({ entries: [bouton] })
+    await branche(wrapper, 'Bouton').find('.chevron').trigger('click')
+    await wrapper.setProps({ entries: [badge, bouton] })
+
+    expect(wrapper.findAll('[role="treeitem"].story .name').map((one) => one.text())).toEqual([])
+    wrapper.unmount()
+  })
+
+  // L'emplacement du chevron est réservé sur une story : vide, il laisse passer le clic.
+  test('lets a click on the empty chevron slot of a story choose it', async () => {
+    const wrapper = mount(StoryTree, {
+      props: { entries: [badge], current: null, component: null },
+    })
+
+    await wrapper.find('[role="treeitem"].story .chevron').trigger('click')
+    expect(wrapper.emitted('show')).toEqual([[badge.id]])
+    wrapper.unmount()
+  })
+})
+
 describe('a filter on what changes underneath', () => {
   // Éditer `meta.status` dans un fichier de stories atteint l'arbre en direct.
   // Comme un repli : le choix reste, et revient avec le composant qui le porte.
@@ -903,9 +940,12 @@ describe('a filter on what changes underneath', () => {
         .findAll('button')
         .map((one) => one.text()),
     ).toEqual(['all', 'stable'])
+    // Le choix reste retenu, mais l'onglet montre ce qui s'applique : tous.
+    expect(états(wrapper)).toEqual(['on', 'off'])
 
     await wrapper.setProps({ entries: [avec(badge, 'stable'), avec(bouton, 'draft')] })
     expect(grisés(wrapper)).toEqual(['Badge', 'Par défaut'])
+    expect(états(wrapper)).toEqual(['off', 'on', 'off'])
     wrapper.unmount()
   })
 })
@@ -1992,9 +2032,7 @@ describe('the toolbar of a story', () => {
         .findAll('.toolbar [aria-keyshortcuts]')
         .map((one) => one.attributes('aria-keyshortcuts')),
     ).toEqual(['[', ']', 'f'])
-    expect(écran.wrapper.find('nav .commands').attributes('aria-keyshortcuts')).toBe(
-      'Control+K Slash',
-    )
+    expect(écran.wrapper.find('nav .commands').attributes('aria-keyshortcuts')).toBe('Control+K /')
   })
 })
 
@@ -2297,9 +2335,7 @@ describe('the command palette', () => {
 
     try {
       expect(écran.wrapper.find('nav .commands').text()).toBe('Search or run⌘K')
-      expect(écran.wrapper.find('nav .commands').attributes('aria-keyshortcuts')).toBe(
-        'Meta+K Slash',
-      )
+      expect(écran.wrapper.find('nav .commands').attributes('aria-keyshortcuts')).toBe('Meta+K /')
       await touche(écran, { key: 'k', ctrlKey: true })
       expect(dialogue()).toBeNull()
       await touche(écran, { key: 'k', metaKey: true })
@@ -2313,7 +2349,7 @@ describe('the command palette', () => {
     const bouton = écran.wrapper.find('nav .commands')
 
     expect(bouton.text()).toBe('Search or runCtrl K')
-    expect(bouton.attributes('aria-keyshortcuts')).toBe('Control+K Slash')
+    expect(bouton.attributes('aria-keyshortcuts')).toBe('Control+K /')
     await bouton.trigger('click')
     await vide(écran.wrapper)
     expect(dialogue()).not.toBeNull()
@@ -2362,7 +2398,7 @@ describe('the command palette', () => {
     expect(options()[1]).toBe('Badge')
   })
 
-  // Replié comme la recherche de l'arbre : sans accents ni séparateurs.
+  // Replié par `fold` : sans accents ni séparateurs.
   test('narrows by name, folded like the search of the tree', async ({ écran }) => {
     await ouvre(écran)
 
