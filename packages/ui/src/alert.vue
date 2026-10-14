@@ -1,11 +1,11 @@
 <!-- The alert of the Figma file: a persistent message, its meaning written in its
      title rather than carried by color alone. One consumer today, the shell's
      notices: promoted ahead of the site, which draws the same notices. Reopened if
-     the site ships without using it. Its four colors are the Figma component's,
-     `info` and `success` with no consumer yet. -->
+     the site ships without using it. Two of the Figma component's four colors:
+     `info` and `success` join with their first consumer. -->
 <script setup lang="ts">
 defineProps<{
-  color: 'info' | 'success' | 'warning' | 'error'
+  color: 'warning' | 'error'
 }>()
 </script>
 
@@ -35,18 +35,6 @@ defineProps<{
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
   line-height: var(--leading-sm);
-}
-
-.alert[data-color='info'] {
-  --alert-solid: var(--info-solid);
-  --alert-background: var(--info-background);
-  --alert-text: var(--info-text);
-}
-
-.alert[data-color='success'] {
-  --alert-solid: var(--success-solid);
-  --alert-background: var(--success-background);
-  --alert-text: var(--success-text);
 }
 
 .alert[data-color='warning'] {
