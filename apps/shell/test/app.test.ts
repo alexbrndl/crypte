@@ -459,8 +459,22 @@ describe('what the preview answers', () => {
     expect(alerte.text()).toContain('ce composant ne rend jamais')
     expect(alerte.find('pre').text()).toBe('at Boum')
     expect(écran.statut()).toBe('render error')
-    // Le point de la barre d'état passe au rouge avec elle.
+    // Le point de la barre d'état passe au rouge avec elle, et pas sous une page.
     expect(écran.wrapper.find('.status-bar .dot').attributes('data-failed')).toBe('true')
+    await écran.wrapper.find('nav.trail a').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('.status-bar .dot').attributes('data-failed')).toBeUndefined()
+  })
+
+  test('keeps the status dot green on a story that rendered, red on an unread catalogue', async ({
+    écran,
+  }) => {
+    await écran.répond({ type: 'rendered', id: 'badge--defaut', durationMs: 1 } as PreviewMessage)
+    expect(écran.wrapper.find('.status-bar .dot').attributes('data-failed')).toBeUndefined()
+
+    const illisible = await monte([badge], true)
+    expect(illisible.wrapper.find('.status-bar .dot').attributes('data-failed')).toBe('true')
+    illisible.wrapper.unmount()
   })
 
   // Le cadre de la story d'avant ne doit plus être visible : le laisser ferait

@@ -203,7 +203,8 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
     :data-plugin="name"
     :data-inapplicable="inapplicable !== null || undefined"
   >
-    <!-- La bande dit « ceci se plie sur place » : un panneau sans objet ne la porte pas. -->
+    <!-- Sans objet, le panneau perd la bande de son en-tête : il se plie toujours, mais
+         rien ne l'y invite. -->
     <div class="head">
       <button type="button" :aria-expanded="expanded" @click="toggle">
         <Icon :name="expanded ? 'arrow-down-01' : 'arrow-right-01'" />

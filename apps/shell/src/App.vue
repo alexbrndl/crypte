@@ -156,6 +156,10 @@ const line = computed(() => {
   return status.value
 })
 
+// Le point de la barre d'état dit la même chose que la ligne : rouge sur un catalogue
+// illisible, et sur une erreur de rendu dans le seul mode story.
+const trouble = computed(() => unread.value !== null || (storyMode.value && failure.value !== null))
+
 // Ce qu'un panneau a édité, par-dessus les props de la story affichée. Gardé
 // tant que la même story reste affichée, y compris quand la preview redit
 // `ready` après une édition de fichier : la story repart de ses props quand on
@@ -757,7 +761,7 @@ onMounted(() => {
       </div>
     </div>
     <footer class="status-bar">
-      <span class="dot" :data-failed="failure !== null || undefined" aria-hidden="true" />
+      <span class="dot" :data-failed="trouble || undefined" aria-hidden="true" />
       <p>{{ line }}</p>
       <ul class="figures">
         <li v-if="project" title="The shell, gzipped">Shell {{ kB(project.shellBytes) }}</li>
