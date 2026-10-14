@@ -25,6 +25,8 @@ import { CHANGES, type Changes } from './changes'
 import ChangesPage from './changes-page.vue'
 import CommandPalette, { type Action } from './command-palette.vue'
 import ComponentPage from './component-page.vue'
+import Icon from './icon.vue'
+import Logo from './logo.vue'
 import StoryTree from './story-tree.vue'
 import TokensPage from './tokens-page.vue'
 import { useTheme } from './theme'
@@ -301,15 +303,6 @@ async function copyLink() {
   clearing = setTimeout(() => (copied.value = null), 1500)
 }
 
-const tree = useTemplateRef<{ focusSearch: () => void }>('tree')
-
-// Hors du plein écran d'abord : la navigation y est masquée, et un champ masqué ne
-// prend pas le focus. Mesuré dans Chromium, le focus finissait sur la page.
-function search() {
-  full.value = false
-  void nextTick(() => tree.value?.focusSearch())
-}
-
 // La palette s'ouvre par ⌘K sous macOS, Ctrl+K ailleurs : Ctrl+K efface la fin
 // de la ligne dans un champ sous macOS.
 const palette = ref(false)
@@ -321,7 +314,6 @@ const paletteKeys = mac ? '⌘K' : 'Ctrl K'
 const { theme, toggle: toggleTheme } = useTheme()
 
 const actions = computed<Action[]>(() => [
-  { label: 'Search the tree', keys: '/', run: search },
   { label: theme.value === 'dark' ? 'Light theme' : 'Dark theme', keys: 'T', run: toggleTheme },
   ...(storyMode.value && displayed.value !== null
     ? [
@@ -364,9 +356,10 @@ function shortcut(event: KeyboardEvent) {
     return
   // Alt+F ouvre le menu Fichier sous Windows : `f` et `/` se tapent sans modification.
   const plain = !event.altKey && !event.ctrlKey
+  // La palette est la recherche : `/` l'ouvre, comme le champ de la colonne.
   if (event.key === '/' && plain) {
     event.preventDefault()
-    search()
+    palette.value = true
     return
   }
   if (event.key === 't' && plain) {
@@ -575,26 +568,31 @@ onMounted(() => {
 
 <template>
   <main :class="{ full: fullScreen }">
-    <nav v-show="!fullScreen">
-      <header class="brand">
-        <h1>Crypte</h1>
-        <button
-          type="button"
-          class="commands"
-          :aria-keyshortcuts="mac ? 'Meta+K' : 'Control+K'"
-          @click="palette = true"
-        >
-          Commands <kbd>{{ paletteKeys }}</kbd>
-        </button>
-      </header>
-      <StoryTree
-        ref="tree"
-        :entries="listed"
-        :current="changesOpen ? null : (family ?? current)"
-        :component="component"
-        @show="(id) => show(id, 'push')"
-        @open="(id) => open(id)"
-      />
+    <nav v-show="!fullScreen" class="column">
+      <div class="card">
+        <header class="brand">
+          <h1><Logo /></h1>
+          <!-- La géométrie d'un champ, la conduite d'un bouton : y taper n'écrit
+               rien, il ouvre la palette, qui cherche partout. -->
+          <button
+            type="button"
+            class="commands"
+            :aria-keyshortcuts="mac ? 'Meta+K /' : 'Control+K /'"
+            @click="palette = true"
+          >
+            <Icon name="search-01" />
+            <span>Search or run</span>
+            <kbd>{{ paletteKeys }}</kbd>
+          </button>
+        </header>
+        <StoryTree
+          :entries="listed"
+          :current="changesOpen ? null : (family ?? current)"
+          :component="component"
+          @show="(id) => show(id, 'push')"
+          @open="(id) => open(id)"
+        />
+      </div>
       <!-- Une destination, pas une action : sa place est dans la navigation, au pied,
            et non parmi les boutons qui agissent sur l'entrée affichée. -->
       <a
@@ -780,27 +778,92 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.brand {
+/* La hauteur de la fenêtre, collée en haut : le pied reste en bas, l'arbre défile. */
+.column {
+  position: sticky;
+  top: 0;
+  box-sizing: border-box;
+  height: 100vh;
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
+  flex-direction: column;
+  padding: var(--space-1) var(--space-1) 0;
+  border-radius: var(--radius-lg);
+  background: var(--background-sunken);
+}
+
+.card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  border: var(--stroke-hairline) solid var(--border-light);
+  border-radius: var(--radius-lg);
+  background: var(--background-raised);
+  overflow: hidden;
+}
+
+.brand {
+  border-bottom: var(--stroke-hairline) solid var(--border-base);
+}
+
+.brand h1 {
+  display: flex;
+  margin: 0;
+  padding: var(--space-2-5) var(--space-3);
+  color: var(--text-primary);
+  line-height: 0;
 }
 
 .commands {
-  font-size: 12px;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  box-sizing: border-box;
+  width: calc(100% - 2 * var(--space-3));
+  margin: var(--space-1-5) var(--space-3) var(--space-3);
+  padding: var(--space-1-5) var(--space-2);
+  border: var(--stroke-hairline) solid var(--border-base);
+  border-radius: var(--radius-sm);
+  background: var(--background-raised);
+  color: var(--text-subtle);
+  font: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.commands:hover {
+  border-color: var(--border-strong);
+}
+
+.commands:focus-visible {
+  outline: var(--stroke-focus) solid var(--accent-focus);
+}
+
+.commands span {
+  flex: 1;
 }
 
 .commands kbd {
+  padding: var(--space-0-5) var(--space-1);
+  border: var(--stroke-hairline) solid var(--border-base);
+  border-radius: var(--radius-xs);
+  background: var(--background-subtle);
   color: var(--text-muted);
-  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
 }
 
 main {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 264px 1fr;
   gap: 16px;
   font-family: var(--font-sans);
+}
+
+main > div {
+  padding: var(--space-2) var(--space-2) 0 0;
 }
 
 main.full {
@@ -838,19 +901,32 @@ main.full iframe {
 .changes-entry {
   display: flex;
   justify-content: space-between;
-  margin-top: 12px;
-  padding: 8px 8px 0;
-  border-top: var(--stroke-hairline) solid var(--border-light);
-  color: inherit;
+  align-items: center;
+  margin: var(--space-2);
+  padding: var(--space-1-5) var(--space-2);
+  border: var(--stroke-hairline) solid var(--border-base);
+  border-radius: var(--radius-sm);
+  background: var(--background-raised);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
   text-decoration: none;
 }
 
 .changes-entry[aria-current='page'] {
-  font-weight: 600;
+  border-color: var(--accent-base);
+  background: var(--background-current);
+  color: var(--text-current);
 }
 
 .counter {
-  color: var(--text-muted);
+  padding: var(--space-0-5) var(--space-1);
+  border-radius: var(--radius-xs);
+  background: var(--accent-base);
+  color: var(--text-inverse);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
 }
 
 iframe {

@@ -794,60 +794,27 @@ describe('folding the tree', () => {
   )
 })
 
-describe('the search', () => {
-  const cherche = async (écran: Ecran, texte: string) => {
-    await écran.wrapper.find('input[type="search"]').setValue(texte)
-    await vide(écran.wrapper)
-  }
+// Le shell n'a plus de champ à lui, la palette mise à part : un champ posé à
+// côté porte les frappes « pendant une saisie ».
+const champ = () => {
+  const one = document.createElement('input')
+  document.body.append(one)
+  return one
+}
 
-  test('keeps the stories whose name, or whose component name, holds it', async ({ écran }) => {
-    await cherche(écran, 'bout')
-    expect(écran.branches()).toEqual(['Bouton'])
-    expect(écran.noms()).toEqual(['Par défaut'])
-
-    await cherche(écran, 'alerte')
-    expect(écran.noms()).toEqual(['Alerte'])
-  })
-
-  test('says when nothing matches', async ({ écran }) => {
-    await cherche(écran, 'nulle part')
-
-    expect(écran.noms()).toEqual([])
-    expect(écran.wrapper.find('nav').text()).toContain('nothing matches')
-  })
-
-  // Une recherche ouvre tout ce qu'elle trouve, et ce qu'on y replie ne survit
-  // pas à la recherche.
-  test('opens what it finds, and forgets what was folded while searching', async ({ écran }) => {
-    await branche(écran, 'Bouton').find('.chevron').trigger('click')
-    await vide(écran.wrapper)
-
-    await cherche(écran, 'par')
-    expect(écran.noms()).toEqual(['Par défaut', 'Par défaut'])
-
-    await branche(écran, 'Badge').find('.chevron').trigger('click')
-    await vide(écran.wrapper)
-    expect(écran.noms()).toEqual(['Par défaut'])
-
-    await cherche(écran, '')
-    expect(écran.noms()).toEqual(['Par défaut', 'Alerte'])
-
-    await cherche(écran, 'par')
-    expect(écran.noms()).toEqual(['Par défaut', 'Par défaut'])
-  })
-
-  const branche = (écran: Ecran, nom: string) =>
-    écran.wrapper
-      .findAll('[role="treeitem"]:not(.story)')
-      .find((one) => one.find('.name').text() === nom)!
+const avec = (one: StoryEntry, status: NonNullable<StoryEntry['meta']>['status']) => ({
+  ...one,
+  meta: { status },
 })
+const grisés = (wrapper: VueWrapper) =>
+  wrapper.findAll('[role="treeitem"][data-dimmed] .name').map((one) => one.text())
+const filtre = (wrapper: VueWrapper) => wrapper.find('[aria-label="Filter by status"]')
+const états = (wrapper: VueWrapper) =>
+  filtre(wrapper)
+    .findAll('button')
+    .map((one) => one.attributes('data-state'))
 
 describe('the status', () => {
-  const avec = (one: StoryEntry, status: NonNullable<StoryEntry['meta']>['status']) => ({
-    ...one,
-    meta: { status },
-  })
-
   test('shows the status beside its component, never beside a story', async () => {
     const écran = await monte([avec(badge, 'stable'), avec(alerte, 'stable'), bouton])
 
@@ -856,39 +823,106 @@ describe('the status', () => {
   })
 
   test('offers no filter when no component declares a status', async ({ écran }) => {
-    expect(écran.wrapper.find('[aria-label="Filter by status"]').exists()).toBe(false)
+    expect(filtre(écran.wrapper).exists()).toBe(false)
   })
 
-  test('keeps the components of the chosen status', async () => {
+  // Il grise et n'enlève rien : l'arbre garde sa forme et ses replis.
+  test('greys the components of another status, one at a time, until all', async () => {
     const écran = await monte([
       avec(badge, 'stable'),
       avec(alerte, 'stable'),
       avec(bouton, 'draft'),
     ])
-    const filtre = écran.wrapper.find('[aria-label="Filter by status"]')
+    const onglets = () => filtre(écran.wrapper).findAll('button')
 
-    expect(filtre.findAll('button').map((one) => one.text())).toEqual(['draft', 'stable'])
+    expect(onglets().map((one) => one.text())).toEqual(['all', 'draft', 'stable'])
+    expect(grisés(écran.wrapper)).toEqual([])
 
-    await filtre.findAll('button')[0]!.trigger('click')
+    await onglets()[1]!.trigger('click')
     await vide(écran.wrapper)
+    expect(écran.branches()).toEqual(['Badge', 'Bouton'])
+    expect(grisés(écran.wrapper)).toEqual(['Badge', 'Par défaut', 'Alerte'])
 
-    expect(écran.branches()).toEqual(['Bouton'])
+    await onglets()[0]!.trigger('click')
+    await vide(écran.wrapper)
+    expect(grisés(écran.wrapper)).toEqual([])
+
+    // Recliquer l'onglet choisi revient à tous, plutôt qu'à aucun onglet.
+    await onglets()[1]!.trigger('click')
+    await onglets()[1]!.trigger('click')
+    await vide(écran.wrapper)
+    expect(grisés(écran.wrapper)).toEqual([])
+    expect(onglets()[0]!.attributes('data-state')).toBe('on')
     écran.wrapper.unmount()
   })
 })
 
-describe('a filter on what changes underneath', () => {
-  const avec = (one: StoryEntry, status: NonNullable<StoryEntry['meta']>['status']) => ({
-    ...one,
-    meta: { status },
-  })
-  const noms = (wrapper: VueWrapper) =>
-    wrapper.findAll('[role="treeitem"]:not(.story) .name').map((one) => one.text())
-  const filtre = (wrapper: VueWrapper) => wrapper.find('[aria-label="Filter by status"]')
+// Les guides au centre du chevron de chaque ancêtre ; la ligne choisie remplace celui
+// de son parent par son marqueur, d'où part sa bande (composant row du fichier Figma).
+describe('the rows of the tree', () => {
+  const ligne = (wrapper: VueWrapper, nom: string) =>
+    wrapper.findAll('[role="treeitem"]').find((one) => one.find('.name').text() === nom)!
+  const gauches = (row: DOMWrapper<Element>, sélecteur: string) =>
+    row.findAll(sélecteur).map((one) => (one.element as HTMLElement).style.left)
 
+  test('draws one guide per ancestor, and a marker in place of the parent one', () => {
+    const plié = {
+      ...entry('checkout/ordersummary--x', 'X', ['checkout', 'OrderSummary'], 'stories/O.tsx'),
+    }
+    const wrapper = mount(StoryTree, {
+      props: { entries: [plié, badge, jetons], current: plié.id, component: null },
+    })
+
+    expect(gauches(ligne(wrapper, 'checkout'), '.guide')).toEqual([])
+    expect(gauches(ligne(wrapper, 'OrderSummary'), '.guide')).toEqual(['20px'])
+    expect(gauches(ligne(wrapper, 'X'), '.guide')).toEqual(['20px'])
+    expect(gauches(ligne(wrapper, 'X'), '.marker')).toEqual(['32px'])
+    expect(gauches(ligne(wrapper, 'X'), '.band')).toEqual(['32px'])
+    expect(gauches(ligne(wrapper, 'Par défaut'), '.marker')).toEqual([])
+    expect(ligne(wrapper, 'checkout').find('.meta').text()).toBe('1')
+    // Une famille compte comme une story.
+    expect(ligne(wrapper, 'Color').find('.meta').text()).toBe('1')
+    wrapper.unmount()
+  })
+})
+
+describe('folding out of view', () => {
+  // Un fichier cassé retire un composant un instant : son repli survit à ce qu'on
+  // replie pendant son absence.
+  test('keeps folded what left the tree while something else was folded', async () => {
+    const branche = (wrapper: VueWrapper, nom: string) =>
+      wrapper
+        .findAll('[role="treeitem"]:not(.story)')
+        .find((one) => one.find('.name').text() === nom)!
+    const wrapper = mount(StoryTree, {
+      props: { entries: [badge, bouton], current: null, component: null },
+    })
+
+    await branche(wrapper, 'Badge').find('.chevron').trigger('click')
+    await wrapper.setProps({ entries: [bouton] })
+    await branche(wrapper, 'Bouton').find('.chevron').trigger('click')
+    await wrapper.setProps({ entries: [badge, bouton] })
+
+    expect(wrapper.findAll('[role="treeitem"].story .name').map((one) => one.text())).toEqual([])
+    wrapper.unmount()
+  })
+
+  // L'emplacement du chevron est réservé sur une story : vide, il laisse passer le clic.
+  test('lets a click on the empty chevron slot of a story choose it', async () => {
+    const wrapper = mount(StoryTree, {
+      props: { entries: [badge], current: null, component: null },
+    })
+
+    await wrapper.find('[role="treeitem"].story .chevron').trigger('click')
+    expect(wrapper.emitted('show')).toEqual([[badge.id]])
+    wrapper.unmount()
+  })
+})
+
+describe('a filter on what changes underneath', () => {
   // Éditer `meta.status` dans un fichier de stories atteint l'arbre en direct.
   // Comme un repli : le choix reste, et revient avec le composant qui le porte.
-  test('stops filtering by a status no component declares, and filters again when one does', async () => {
+  test('stops greying by a status no component declares, and greys again when one does', async () => {
     const wrapper = mount(StoryTree, {
       props: {
         entries: [avec(badge, 'stable'), avec(bouton, 'draft')],
@@ -896,50 +930,23 @@ describe('a filter on what changes underneath', () => {
         component: null,
       },
     })
-    await filtre(wrapper).findAll('button')[0]!.trigger('click')
-    expect(noms(wrapper)).toEqual(['Bouton'])
+    await filtre(wrapper).findAll('button')[1]!.trigger('click')
+    expect(grisés(wrapper)).toEqual(['Badge', 'Par défaut'])
 
     await wrapper.setProps({ entries: [avec(badge, 'stable'), avec(bouton, 'stable')] })
-
-    expect(noms(wrapper)).toEqual(['Badge', 'Bouton'])
+    expect(grisés(wrapper)).toEqual([])
     expect(
       filtre(wrapper)
         .findAll('button')
-        .map((one) => one.attributes('data-state')),
-    ).toEqual(['off'])
+        .map((one) => one.text()),
+    ).toEqual(['all', 'stable'])
+    // Le choix reste retenu, mais l'onglet montre ce qui s'applique : tous.
+    expect(états(wrapper)).toEqual(['on', 'off'])
 
     await wrapper.setProps({ entries: [avec(badge, 'stable'), avec(bouton, 'draft')] })
-
-    expect(noms(wrapper)).toEqual(['Bouton'])
-    expect(
-      filtre(wrapper)
-        .findAll('button')
-        .map((one) => one.attributes('data-state')),
-    ).toEqual(['on', 'off'])
+    expect(grisés(wrapper)).toEqual(['Badge', 'Par défaut'])
+    expect(états(wrapper)).toEqual(['off', 'on', 'off'])
     wrapper.unmount()
-  })
-
-  test('keeps folded what the filter hides while something else is folded', async () => {
-    const écran = await monte([
-      avec(badge, 'stable'),
-      avec(alerte, 'stable'),
-      avec(bouton, 'draft'),
-    ])
-    const branche = (nom: string) =>
-      écran.wrapper
-        .findAll('[role="treeitem"]:not(.story)')
-        .find((one) => one.find('.name').text() === nom)!
-    const draft = () => filtre(écran.wrapper).findAll('button')[0]!
-
-    await branche('Badge').find('.chevron').trigger('click')
-    await draft().trigger('click')
-    await branche('Bouton').find('.chevron').trigger('click')
-    await draft().trigger('click')
-    await vide(écran.wrapper)
-
-    expect(écran.branches()).toEqual(['Badge', 'Bouton'])
-    expect(écran.noms()).toEqual([])
-    écran.wrapper.unmount()
   })
 })
 
@@ -2025,7 +2032,7 @@ describe('the toolbar of a story', () => {
         .findAll('.toolbar [aria-keyshortcuts]')
         .map((one) => one.attributes('aria-keyshortcuts')),
     ).toEqual(['[', ']', 'f'])
-    expect(écran.wrapper.find('input[type="search"]').attributes('aria-keyshortcuts')).toBe('/')
+    expect(écran.wrapper.find('nav .commands').attributes('aria-keyshortcuts')).toBe('Control+K /')
   })
 })
 
@@ -2040,19 +2047,13 @@ describe('the shortcuts', () => {
     await vide(écran.wrapper)
   }
 
-  test('focuses the search on /', async ({ écran }) => {
-    await frappe(écran, '/')
-
-    expect(document.activeElement).toBe(écran.wrapper.find('input[type="search"]').element)
-  })
-
-  // La navigation est masquée en plein écran, et un champ masqué ne prend pas le focus.
-  test('leaves full screen to focus the search on /', async ({ écran }) => {
+  // La palette est la recherche, plein écran compris.
+  test('opens the palette on /', async ({ écran }) => {
     await frappe(écran, 'f')
     await frappe(écran, '/')
 
-    expect(écran.wrapper.find('main').classes()).not.toContain('full')
-    expect(document.activeElement).toBe(écran.wrapper.find('input[type="search"]').element)
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull()
+    expect(écran.wrapper.find('main').classes()).toContain('full')
   })
 
   test('steps with [ and ], and toggles full screen with f, Escape leaving it', async ({
@@ -2070,7 +2071,9 @@ describe('the shortcuts', () => {
   })
 
   test('stays out of the way while typing, and of the browser own shortcuts', async ({ écran }) => {
-    await frappe(écran, 'f', {}, écran.wrapper.find('input[type="search"]').element)
+    const saisie = champ()
+    await frappe(écran, 'f', {}, saisie)
+    saisie.remove()
     await frappe(écran, 'f', { ctrlKey: true })
     await frappe(écran, ']', { metaKey: true })
 
@@ -2303,8 +2306,10 @@ describe('the command palette', () => {
       bubbles: true,
       cancelable: true,
     })
-    // Même pendant une saisie, depuis la recherche de l'arbre.
-    écran.wrapper.find('nav .search').element.dispatchEvent(frappe)
+    // Même pendant une saisie.
+    const saisie = champ()
+    saisie.dispatchEvent(frappe)
+    saisie.remove()
     await vide(écran.wrapper)
     expect(dialogue()).not.toBeNull()
     expect(document.activeElement).toBe(document.querySelector('[role="dialog"] input'))
@@ -2329,8 +2334,8 @@ describe('the command palette', () => {
     const écran = await monte([badge])
 
     try {
-      expect(écran.wrapper.find('nav .commands').text()).toBe('Commands ⌘K')
-      expect(écran.wrapper.find('nav .commands').attributes('aria-keyshortcuts')).toBe('Meta+K')
+      expect(écran.wrapper.find('nav .commands').text()).toBe('Search or run⌘K')
+      expect(écran.wrapper.find('nav .commands').attributes('aria-keyshortcuts')).toBe('Meta+K /')
       await touche(écran, { key: 'k', ctrlKey: true })
       expect(dialogue()).toBeNull()
       await touche(écran, { key: 'k', metaKey: true })
@@ -2343,8 +2348,8 @@ describe('the command palette', () => {
   test('opens from the navigation, its shortcut written on it', async ({ écran }) => {
     const bouton = écran.wrapper.find('nav .commands')
 
-    expect(bouton.text()).toBe('Commands Ctrl K')
-    expect(bouton.attributes('aria-keyshortcuts')).toBe('Control+K')
+    expect(bouton.text()).toBe('Search or runCtrl K')
+    expect(bouton.attributes('aria-keyshortcuts')).toBe('Control+K /')
     await bouton.trigger('click')
     await vide(écran.wrapper)
     expect(dialogue()).not.toBeNull()
@@ -2357,7 +2362,6 @@ describe('the command palette', () => {
 
     expect(groupes()).toEqual(['Actions', 'Components', 'Stories', 'Pages'])
     expect(options()).toEqual([
-      'Search the tree /',
       'Dark theme T',
       'Copy link',
       'Full screen F',
@@ -2380,8 +2384,7 @@ describe('the command palette', () => {
       .element.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await vide(écran.wrapper)
     await ouvre(écran)
-    expect(options().slice(0, 5)).toEqual([
-      'Search the tree /',
+    expect(options().slice(0, 4)).toEqual([
       'Dark theme T',
       'Copy link',
       'Full screen F',
@@ -2391,12 +2394,11 @@ describe('the command palette', () => {
     await choisit(écran, 'Bouton')
     await ouvre(écran)
     expect(groupes()[0]).toBe('Actions')
-    expect(options()[0]).toBe('Search the tree /')
-    expect(options()[1]).toBe('Dark theme T')
-    expect(options()[2]).toBe('Badge')
+    expect(options()[0]).toBe('Dark theme T')
+    expect(options()[1]).toBe('Badge')
   })
 
-  // Replié comme la recherche de l'arbre : sans accents ni séparateurs.
+  // Replié par `fold` : sans accents ni séparateurs.
   test('narrows by name, folded like the search of the tree', async ({ écran }) => {
     await ouvre(écran)
 
@@ -2414,7 +2416,7 @@ describe('the command palette', () => {
     // Rouverte, elle repart de rien.
     await ouvre(écran)
     await ouvre(écran)
-    expect(options()).toHaveLength(11)
+    expect(options()).toHaveLength(10)
   })
 
   test('goes to a story, and closes', async ({ écran }) => {
@@ -2462,12 +2464,10 @@ describe('the command palette', () => {
     await touche(écran, { key: 'Escape' }, document.querySelector('[role="dialog"] input')!)
     expect(écran.wrapper.find('main').classes()).toContain('full')
 
-    // La recherche quitte le plein écran, où la navigation est masquée.
     await ouvre(écran)
-    expect(options()[3]).toBe('Leave full screen F')
-    await choisit(écran, 'Search the tree')
+    expect(options()[2]).toBe('Leave full screen F')
+    await choisit(écran, 'Leave full screen')
     expect(écran.wrapper.find('main').classes()).not.toContain('full')
-    expect(document.activeElement).toBe(écran.wrapper.find('nav .search').element)
   })
 
   // Comme la touche `f` : sans story affichée, aucune barre ne sortirait du plein écran.
@@ -2476,12 +2476,7 @@ describe('the command palette', () => {
 
     await ouvre(écran)
     expect(groupes()).toEqual(['Actions', 'Tokens', 'Pages'])
-    expect(options()).toEqual([
-      'Search the tree /',
-      'Dark theme T',
-      'Color / Brand',
-      'Changes since the last commit',
-    ])
+    expect(options()).toEqual(['Dark theme T', 'Color / Brand', 'Changes since the last commit'])
     écran.wrapper.unmount()
   })
 
@@ -2558,7 +2553,9 @@ describe('the theme', () => {
 
   // Alt+T est un raccourci du navigateur sous Windows, comme Alt+F.
   test('ignores t typed in a field, or under Alt', async ({ écran }) => {
-    await touche(écran, 't', écran.wrapper.find('nav .search').element)
+    const saisie = champ()
+    await touche(écran, 't', saisie)
+    saisie.remove()
     document.body.dispatchEvent(
       new KeyboardEvent('keydown', { key: 't', altKey: true, bubbles: true }),
     )

@@ -83,31 +83,28 @@ export function treeOf(entries: readonly (StoryEntry | TokensEntry)[]): Node[] {
 // trouve `Libellé long`, et `order summary` trouve `OrderSummary`.
 export const fold = (text: string) => normalizeSegment(text).replaceAll('-', '')
 
-// Une story ou une famille reste si son nom contient la recherche, ou si une
-// branche au-dessus d'elle la contient. Le filtre de statut écarte les composants
-// hors des statuts choisis, ceux qui n'en déclarent aucun, et les familles de
-// tokens, qui n'en ont pas. Une branche sans rien dessous disparaît.
-export function filtered(
-  nodes: readonly Node[],
-  query: string,
-  statuses: readonly Status[],
-): Node[] {
-  const wanted = fold(query)
+// Ce que le filtre de statut grise, par clé : il n'enlève rien de l'arbre, qui
+// garde sa forme et ses replis. Un composant hors du statut choisi, ou qui n'en
+// déclare aucun, est grisé avec ses stories ; une famille de tokens, qui n'a pas
+// de statut, aussi ; un dossier quand rien dessous ne correspond.
+export function dimmed(nodes: readonly Node[], status: Status | null): Set<string> {
+  const out = new Set<string>()
+  if (status === null) return out
 
-  const keep = (node: Node, above: boolean): Node | null => {
-    if (node.kind === 'tokens' && statuses.length > 0) return null
-    if (node.kind === 'story' || node.kind === 'tokens')
-      return above || fold(node.name).includes(wanted) ? node : null
-    if (node.kind === 'component' && statuses.length > 0) {
-      if (!node.status || !statuses.includes(node.status)) return null
+  const visit = (node: Node, off: boolean): boolean => {
+    if (node.kind === 'story' || node.kind === 'tokens') {
+      const grey = off || node.kind === 'tokens'
+      if (grey) out.add(node.key)
+      return !grey
     }
-
-    const here = above || fold(node.name).includes(wanted)
-    const children = node.children.flatMap((child) => keep(child, here) ?? [])
-    return children.length > 0 ? { ...node, children } : null
+    const here = off || (node.kind === 'component' && node.status !== status)
+    const lit = node.children.map((child) => visit(child, here)).some(Boolean)
+    if (!lit) out.add(node.key)
+    return lit
   }
 
-  return nodes.flatMap((node) => keep(node, false) ?? [])
+  for (const node of nodes) visit(node, false)
+  return out
 }
 
 export function branchKeys(nodes: readonly Node[]): string[] {
