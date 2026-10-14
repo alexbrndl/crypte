@@ -92,7 +92,11 @@ const hint = (details: ResolvedPropDetails) =>
 <!-- Styles inline, and no style block: the shell imports this module and
      nothing beside it, so a built style sheet would never load. Measured. -->
 <template>
-  <p v-if="entry?.propsUnread !== undefined" class="unread" style="color: #92400e; font-size: 13px">
+  <p
+    v-if="entry?.propsUnread !== undefined"
+    class="unread"
+    style="color: var(--warning-text, #b55200); font-size: 13px"
+  >
     Props not read from the component file: {{ entry.propsUnread }}. Only those the story declares
     in <code>details</code> appear here.
   </p>

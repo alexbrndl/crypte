@@ -141,7 +141,7 @@ function settle(event: Event) {
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgb(17 24 39 / 0.3);
+  background: color-mix(in srgb, var(--stone-950) 30%, transparent);
 }
 
 .palette {
@@ -150,11 +150,11 @@ function settle(event: Event) {
   left: 50%;
   transform: translateX(-50%);
   width: min(560px, 90vw);
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--background-raised);
+  border: var(--stroke-hairline) solid var(--border-light);
   border-radius: 8px;
-  box-shadow: 0 12px 32px rgb(17 24 39 / 0.18);
-  font-family: system-ui, sans-serif;
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--stone-950) 18%, transparent);
+  font-family: var(--font-sans);
   font-size: 13px;
 }
 
@@ -171,7 +171,7 @@ function settle(event: Event) {
   width: 100%;
   padding: 12px 14px;
   border: 0;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: var(--stroke-hairline) solid var(--border-light);
   font: inherit;
   font-size: 14px;
   outline: none;
@@ -185,7 +185,7 @@ function settle(event: Event) {
 
 .group {
   padding: 8px 10px 4px;
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 11px;
 }
 
@@ -199,18 +199,18 @@ function settle(event: Event) {
 }
 
 .item[data-highlighted] {
-  background: #f3f4f6;
+  background: var(--background-hover);
 }
 
 kbd {
-  color: #6b7280;
-  font-family: ui-monospace, monospace;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 
 .none {
   margin: 0;
   padding: 10px;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 </style>

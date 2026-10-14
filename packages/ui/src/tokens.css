@@ -1,0 +1,193 @@
+/* The design tokens of the Figma file `Crypte`, collections Palette, Scale and
+   Theme, under their Figma names: `text/primary` is `--text-primary`. Copied
+   by hand, so a variable changed in Figma changes here too.
+
+   Light or dark follows the system, and `data-theme` on the root forces one:
+   `light-dark()` reads the `color-scheme` it sets. */
+
+:root {
+  color-scheme: light dark;
+
+  /* Palette */
+  --base-white: #ffffff;
+  --base-black: #000000;
+  --stone-50: #fafaf9;
+  --stone-100: #f5f5f4;
+  --stone-200: #e7e5e4;
+  --stone-300: #d6d3d1;
+  --stone-400: #a6a09b;
+  --stone-500: #79716b;
+  --stone-600: #57534d;
+  --stone-700: #44403b;
+  --stone-800: #292524;
+  --stone-900: #1c1917;
+  --stone-950: #0c0a09;
+  --teal-50: #f0fdfa;
+  --teal-100: #cbfbf1;
+  --teal-200: #96f7e4;
+  --teal-300: #46ecd5;
+  --teal-400: #00d3bd;
+  --teal-500: #00b9a6;
+  --teal-600: #009488;
+  --teal-700: #00776e;
+  --teal-800: #005f5a;
+  --teal-900: #0b4f4a;
+  --teal-950: #022f2e;
+  --amber-50: #fffbeb;
+  --amber-100: #fef3c6;
+  --amber-200: #fee685;
+  --amber-300: #ffd237;
+  --amber-400: #fabc00;
+  --amber-500: #f69e00;
+  --amber-600: #da7700;
+  --amber-700: #b55200;
+  --amber-800: #953d00;
+  --amber-900: #7b3306;
+  --amber-950: #461901;
+  --red-50: #fef2f2;
+  --red-100: #ffe2e2;
+  --red-200: #ffcaca;
+  --red-300: #ffa3a4;
+  --red-400: #ff6568;
+  --red-500: #fb2c36;
+  --red-600: #e40016;
+  --red-700: #bf000f;
+  --red-800: #9f0712;
+  --red-900: #82181a;
+  --red-950: #460809;
+  --green-50: #f0fdf4;
+  --green-100: #dcfce7;
+  --green-200: #b9f8cf;
+  --green-300: #7bf1a8;
+  --green-400: #05df72;
+  --green-500: #00c65a;
+  --green-600: #00a447;
+  --green-700: #00813a;
+  --green-800: #016630;
+  --green-900: #0d542b;
+  --green-950: #032e15;
+  --blue-50: #eff6ff;
+  --blue-100: #dbeafe;
+  --blue-200: #bedbff;
+  --blue-300: #91c5ff;
+  --blue-400: #56a2ff;
+  --blue-500: #3280ff;
+  --blue-600: #155dfc;
+  --blue-700: #1447e6;
+  --blue-800: #193cb8;
+  --blue-900: #1c398e;
+  --blue-950: #162456;
+
+  /* Scale */
+  --space-0: 0;
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-2-5: 10px;
+  --space-3: 12px;
+  --space-3-5: 14px;
+  --space-4: 16px;
+  --space-4-5: 18px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-9: 36px;
+  --space-10: 40px;
+  --space-11: 44px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+  --space-32: 128px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+  --text-2xs: 10px;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 30px;
+  --leading-2xs: 14px;
+  --leading-xs: 16px;
+  --leading-sm: 20px;
+  --leading-base: 24px;
+  --leading-lg: 28px;
+  --leading-xl: 28px;
+  --leading-2xl: 32px;
+  --leading-3xl: 36px;
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
+  --stroke-hairline: 1px;
+  --stroke-icon: 1.25px;
+  --stroke-focus: 1.5px;
+  --stroke-marker: 2px;
+  --size-icon: var(--space-4);
+  --size-dot: var(--space-2);
+  --font-sans: 'Geist', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+
+  /* Theme: light, dark */
+  --background-base: light-dark(var(--stone-50), var(--stone-900));
+  --background-raised: light-dark(var(--base-white), var(--stone-800));
+  --background-subtle: light-dark(var(--stone-100), var(--stone-700));
+  --background-hover: light-dark(var(--stone-200), var(--stone-600));
+  --background-sunken: light-dark(var(--stone-200), var(--stone-950));
+  --background-current: light-dark(var(--teal-100), var(--teal-900));
+  --background-current-hover: light-dark(var(--teal-200), var(--teal-800));
+  --background-inverse: light-dark(var(--stone-900), var(--stone-50));
+  --background-inverse-hover: light-dark(var(--stone-800), var(--stone-200));
+  --text-primary: light-dark(var(--stone-900), var(--stone-50));
+  --text-muted: light-dark(var(--stone-500), var(--stone-400));
+  --text-subtle: light-dark(var(--stone-400), var(--stone-600));
+  --text-current: light-dark(var(--teal-700), var(--teal-400));
+  --text-current-hover: light-dark(var(--teal-800), var(--teal-200));
+  --text-inverse: light-dark(var(--base-white), var(--stone-950));
+  --border-base: light-dark(var(--stone-300), var(--stone-500));
+  --border-strong: light-dark(var(--stone-400), var(--stone-400));
+  --border-light: light-dark(var(--stone-200), var(--stone-950));
+  --accent-base: light-dark(var(--teal-600), var(--teal-500));
+  --accent-hover: light-dark(var(--teal-700), var(--teal-400));
+  --accent-focus: light-dark(var(--teal-600), var(--teal-500));
+  --info-text: light-dark(var(--blue-700), var(--blue-400));
+  --info-background: light-dark(var(--blue-50), var(--blue-950));
+  --info-border: light-dark(var(--blue-200), var(--blue-900));
+  --info-solid: light-dark(var(--blue-600), var(--blue-400));
+  --success-text: light-dark(var(--green-700), var(--green-400));
+  --success-background: light-dark(var(--green-50), var(--green-950));
+  --success-border: light-dark(var(--green-200), var(--green-900));
+  --success-solid: light-dark(var(--green-600), var(--green-400));
+  --warning-text: light-dark(var(--amber-700), var(--amber-400));
+  --warning-background: light-dark(var(--amber-50), var(--amber-950));
+  --warning-border: light-dark(var(--amber-200), var(--amber-900));
+  --warning-solid: light-dark(var(--amber-600), var(--amber-400));
+  --error-text: light-dark(var(--red-700), var(--red-400));
+  --error-background: light-dark(var(--red-50), var(--red-950));
+  --error-border: light-dark(var(--red-200), var(--red-900));
+  --error-solid: light-dark(var(--red-600), var(--red-400));
+  --status-draft: light-dark(var(--warning-solid), var(--warning-solid));
+  --status-stable: light-dark(var(--success-solid), var(--success-solid));
+  --status-deprecated: light-dark(var(--stone-500), var(--stone-400));
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
