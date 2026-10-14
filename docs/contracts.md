@@ -921,11 +921,11 @@ Left out on purpose. Some belong to a project brief, others wait for a demonstra
 - How the sidebar, the search and the panels look and behave.
 - Caching and start-up work.
 - The storage format of `visual-tests` baselines.
-- A write API for `crypte serve`, such as comments or editing. Postponed.
+- Editing a story from the shell. Planned as the `editor` plugin, which hands each change to a coding agent rather than writing the source itself (DCJ-343). There is no `crypte serve`.
 
 **Out of reserve since 21 August 2026, and now planned:**
 
-- The `page` entry, **in two stages**. Stage one is markdown files in the repository, discovered the way stories are and rendered next to components, with no server at all. Stage two is the same files edited by designers and returned as a pull request, which needs `crypte serve`. Confusing the two is what made `page` look expensive and far away. Tracked in DCJ-250, DCJ-251 and DCJ-257.
+- The `page` entry, **in two stages**. Stage one is markdown files in the repository, discovered the way stories are and rendered next to components, with no server at all. Stage two is designers editing those files, which goes through a coding agent like any other change (DCJ-343). Confusing the two is what made `page` look expensive and far away. Tracked in DCJ-250 and DCJ-251.
 
 The field carrying it already exists, so it is no manifest break. The reason it left reserve is not internal: the documentation tools this project is measured against all sell guidelines as the thing neither Figma nor a component workshop exposes. The `tokens` entry left reserve the same day, those tools all shipping a token manager too, and is built: 4.2 holds its shape and 8 what produces and draws it.
 
