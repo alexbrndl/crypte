@@ -2556,8 +2556,13 @@ describe('the theme', () => {
     expect(localStorage.getItem('crypte:theme')).toBe('light')
   })
 
-  test('ignores t typed in a field', async ({ écran }) => {
+  // Alt+T est un raccourci du navigateur sous Windows, comme Alt+F.
+  test('ignores t typed in a field, or under Alt', async ({ écran }) => {
     await touche(écran, 't', écran.wrapper.find('nav .search').element)
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 't', altKey: true, bubbles: true }),
+    )
+    await vide(écran.wrapper)
 
     expect(racine()).toBeUndefined()
   })

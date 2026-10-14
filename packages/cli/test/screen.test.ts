@@ -1221,6 +1221,20 @@ describe('the shortcuts', () => {
   })
 })
 
+// Les tokens de `@crypte/ui` et `light-dark()` jugés là où ils se calculent : jsdom
+// ne résout aucune couleur.
+describe('the theme, on screen', () => {
+  test('follows the system, then turns the page dark on t', async ({ ecran }) => {
+    const fond = () =>
+      ecran.page.evaluate<string>('getComputedStyle(document.documentElement).backgroundColor')
+    await expect.poll(ecran.vu).toBe('Nouveau')
+
+    expect(await fond()).toBe('rgb(250, 250, 249)')
+    await ecran.page.locator('main').press('t')
+    await expect.poll(fond).toBe('rgb(28, 25, 23)')
+  })
+})
+
 // ⌘K sous macOS, Ctrl+K ailleurs : Playwright choisit selon le système, comme le
 // shell selon son navigateur.
 describe('the command palette, on screen', () => {
