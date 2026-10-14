@@ -18,7 +18,7 @@
 │   ├── agent-stories/               écrire des stories avec un agent
 │   ├── export/                      l'export au format Storybook
 │   ├── migrate/                      depuis Storybook, et l'export retour
-│   ├── decisions/                    miroir public de docs/internal/comprendre.md
+│   ├── decisions/                    les décisions, aujourd'hui en commentaires du code
 │   └── contributing/
 │
 ├── plugins/

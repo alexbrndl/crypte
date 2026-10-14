@@ -3,14 +3,10 @@
 How to set Crypte up on a project.
 
 > **The CLI runs; nothing is published yet.** No package is on npm, so you install from a clone. Section 8 of [`contracts.md`](../../docs/contracts.md) lists what exists.
->
-> Every example on this page is run by a test. If one of them stopped being true, that test would fail.
 
 ## Configure a project
 
 Crypte reads one file at the root of your project, `crypte.config.ts`.
-
-<!-- checked: config -->
 
 ```ts
 import { defineConfig } from '@crypte/cli'
@@ -41,8 +37,6 @@ crypte.config.ts must declare `stories`, the root of the story files.
 ## Design tokens
 
 The `tokens` plugin reads your CSS custom properties and puts them in the manifest, one entry per family. You write no token file: they are the ones already in your style sheet.
-
-<!-- checked: tokens -->
 
 ```ts
 import { defineConfig } from '@crypte/cli'
@@ -77,8 +71,6 @@ What it reads, and what it leaves alone:
 
 If your project uses aliases such as `@/components/Button`, Crypte picks them up on its own. You declare nothing.
 
-<!-- checked: aliases -->
-
 ```json
 {
   "compilerOptions": {
@@ -104,8 +96,6 @@ Aliases do not apply inside style sheets. An `@import '@/vars.css'` does not res
 
 One file per component, under the `stories` root you declared. `@crypte/react` exports `defineStories`, and section 2 of [`contracts.md`](../../docs/contracts.md) has the full format.
 
-<!-- checked: story -->
-
 ```ts
 import { defineStories } from '@crypte/react'
 import { Badge } from '@/components/Badge'
@@ -129,12 +119,8 @@ crypte dev
 
 It reads your configuration, resolves your aliases, discovers your stories, writes `.crypte/manifest.json` and its fingerprint, and serves the workshop. A story that throws shows its error instead of an empty frame, and it watches your files while it runs.
 
-The commands today are `crypte dev`, `crypte check` and `crypte init`. The help line says the same:
-
-```
-crypte — protocol v1, commands: dev, check, init
-```
+The commands today are `crypte dev`, `crypte check` and `crypte init`, and `crypte --help` lists them.
 
 `crypte init` writes a `crypte.config.ts` in a project that already has its components: it reads the framework from `package.json`, proposes a story root, and refuses rather than overwrite a configuration you already have.
 
-`crypte check` reports two things: a story whose component is gone, which fails the command, and an exported component with no story, which is a warning only.
+`crypte check` reports five problems, listed in section 1.2 of [`contracts.md`](../../docs/contracts.md). Two fail the command: a story whose component is gone, and a fingerprint that the stories no longer match. The others are warnings.
