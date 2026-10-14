@@ -2,15 +2,25 @@ import { computed, onBeforeUnmount, ref, watchEffect } from 'vue'
 
 // Le thème du shell : celui du système tant qu'on n'en a pas choisi un, puis le
 // choix, retenu d'une session à l'autre. Posé en `data-theme` sur la racine, que
-// `tokens.css` de `@crypte/ui` lit ; absent, le système décide seul.
+// `tokens.css` de `@crypte/ui` lit ; absent, le système décide seul. `localStorage`
+// peut lever, en navigation privée par exemple : le choix vaut alors pour la page,
+// sans être retenu, et le shell monte quand même.
 
 export type Theme = 'light' | 'dark'
 
 const KEY = 'crypte:theme'
 
+function remembered(): string | null {
+  try {
+    return localStorage.getItem(KEY)
+  } catch {
+    return null
+  }
+}
+
 export function useTheme() {
   const query = window.matchMedia('(prefers-color-scheme: dark)')
-  const stored = localStorage.getItem(KEY)
+  const stored = remembered()
   const chosen = ref<Theme | null>(stored === 'light' || stored === 'dark' ? stored : null)
   const system = ref<Theme>(query.matches ? 'dark' : 'light')
 
@@ -28,7 +38,11 @@ export function useTheme() {
 
   function toggle() {
     chosen.value = theme.value === 'dark' ? 'light' : 'dark'
-    localStorage.setItem(KEY, chosen.value)
+    try {
+      localStorage.setItem(KEY, chosen.value)
+    } catch {
+      // Rien à retenir : le thème suit le choix jusqu'au prochain chargement.
+    }
   }
 
   return { theme, toggle }

@@ -2580,6 +2580,33 @@ describe('the theme', () => {
     autre.wrapper.unmount()
   })
 
+  // Navigation privée, données du site bloquées : le shell monte et bascule, sans
+  // rien retenir.
+  test('mounts and switches when storage throws', async () => {
+    const lève = () => {
+      throw new DOMException('denied', 'SecurityError')
+    }
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(lève)
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(lève)
+    const écran = await monte([badge])
+
+    expect(écran.noms()).toEqual(['Par défaut'])
+    await touche(écran, 't')
+    expect(racine()).toBe('dark')
+    écran.wrapper.unmount()
+  })
+
+  // Un système déjà sombre au montage : le premier t passe en clair.
+  test('starts dark with a dark system, and leaves it on t', async () => {
+    système.sombre = true
+    const écran = await monte([badge])
+
+    expect(await bascule(écran)).toBe('Light theme')
+    await touche(écran, 't')
+    expect(racine()).toBe('light')
+    écran.wrapper.unmount()
+  })
+
   test('switches from the palette, which names the other theme', async ({ écran }) => {
     change(true)
     await vide(écran.wrapper)

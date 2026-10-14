@@ -1,6 +1,8 @@
 <!-- The alert of the Figma file: a persistent message, its meaning written in its
-     title rather than carried by color alone. Two consumers, the shell's notices
-     and the site's. -->
+     title rather than carried by color alone. One consumer today, the shell's
+     notices: promoted ahead of the site, which draws the same notices. Reopened if
+     the site ships without using it. Its four colors are the Figma component's,
+     `info` and `success` with no consumer yet. -->
 <script setup lang="ts">
 defineProps<{
   color: 'info' | 'success' | 'warning' | 'error'

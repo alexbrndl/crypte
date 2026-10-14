@@ -35,7 +35,7 @@ vp run ready
 packages/core     @crypte/core      the core, three entries: protocol, shell, preview
 packages/cli      @crypte/cli       the `crypte` binary
 packages/react    @crypte/react     the React adapter
-packages/ui       @crypte/ui        the components the shell, plugins and the site share
+packages/ui       @crypte/ui        the components the shell and the site share
 plugins/tokens    @crypte/tokens    the plugin that reads a project's CSS custom properties
 plugins/controls  @crypte/controls  the plugin whose panel edits a story's props live
 plugins/a11y      @crypte/a11y      the plugin that analyses each render with axe-core
