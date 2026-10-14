@@ -82,22 +82,9 @@ watch(open, (now) => {
   if (now) query.value = ''
 })
 
-// Lancée une fois la palette fermée, et sans le focus que la fermeture rend au
-// bouton qui l'a ouverte : la recherche de l'arbre le perdait aussitôt pris.
-// Mesuré dans Chromium.
-let pending: (() => void) | null = null
-
 function choose(command: Command) {
-  pending = command.run
   open.value = false
-}
-
-function settle(event: Event) {
-  if (!pending) return
-  event.preventDefault()
-  const run = pending
-  pending = null
-  run()
+  command.run()
 }
 </script>
 
@@ -105,7 +92,7 @@ function settle(event: Event) {
   <DialogRoot v-model:open="open">
     <DialogPortal>
       <DialogOverlay class="overlay" />
-      <DialogContent class="palette" :aria-describedby="undefined" @close-auto-focus="settle">
+      <DialogContent class="palette" :aria-describedby="undefined">
         <DialogTitle class="title">Commands</DialogTitle>
         <ListboxRoot highlight-on-hover>
           <ListboxFilter

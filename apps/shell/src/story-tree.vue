@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { ToggleGroupItem, ToggleGroupRoot, TreeItem, TreeRoot } from 'reka-ui'
-import { computed, ref, useTemplateRef, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import Icon from './icon.vue'
 import {
   STATUSES,
   branchKeys,
   componentIdOf,
-  filtered,
+  dimmed,
   keysAbove,
   treeOf,
   type Node,
@@ -22,8 +23,8 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ show: [id: string]; open: [component: string] }>()
 
-const query = ref('')
-const statuses = ref<Status[]>([])
+// Un statut à la fois, ou tous : les onglets du fichier Figma.
+const status = ref<Status | 'all'>('all')
 
 // Le filtre n'apparaît que si un composant déclare un statut : sinon il
 // n'aurait rien à filtrer, et choisir un statut viderait l'arbre.
@@ -33,13 +34,15 @@ const declared = computed(() =>
   ),
 )
 
-// Un statut choisi que plus aucun composant ne déclare ne filtre plus : son bouton
-// disparaît avec lui, et l'arbre resterait vide sans rien pour en sortir. Il reste
-// choisi, comme un repli reste replié, et revient avec le composant qui le porte.
-const chosen = computed(() => statuses.value.filter((status) => declared.value.includes(status)))
+// Un statut choisi que plus aucun composant ne déclare ne grise plus rien : son
+// onglet disparaît avec lui. Il reste choisi, comme un repli reste replié, et
+// revient avec le composant qui le porte.
+const chosen = computed(() =>
+  status.value !== 'all' && declared.value.includes(status.value) ? status.value : null,
+)
 
-const tree = computed(() => treeOf(props.entries))
-const shown = computed(() => filtered(tree.value, query.value, chosen.value))
+const shown = computed(() => treeOf(props.entries))
+const grey = computed(() => dimmed(shown.value, chosen.value))
 
 // Ce qui est replié, et pas ce qui est ouvert : un composant écrit depuis la
 // dernière visite arrive ouvert, comme tout l'arbre la première fois. Retenu par
@@ -66,27 +69,16 @@ const keep = (keys: string[]) => {
   }
 }
 
-// Une recherche ouvre tout ce qu'elle trouve, sans toucher à ce qui est retenu :
-// replier pendant qu'on cherche ne vaut que pour cette recherche.
-const foldedWhileSearching = ref<string[]>([])
-const searching = computed(() => query.value.trim() !== '')
-watch(query, () => {
-  foldedWhileSearching.value = []
-})
+const expanded = computed(() =>
+  branchKeys(shown.value).filter((key) => !folded.value.includes(key)),
+)
 
-const expanded = computed(() => {
-  const hidden = searching.value ? foldedWhileSearching.value : folded.value
-  return branchKeys(shown.value).filter((key) => !hidden.includes(key))
-})
-
-// Ce qui est replié hors de la vue reste replié : un composant que le filtre de
-// statut cache, ou qu'un fichier cassé retire un instant, reviendrait sinon
-// ouvert dès qu'on replie autre chose.
+// Ce qui est replié hors de la vue reste replié : un composant qu'un fichier
+// cassé retire un instant reviendrait sinon ouvert dès qu'on replie autre chose.
 function unfold(next: string[]) {
   const visible = branchKeys(shown.value)
   const closed = visible.filter((key) => !next.includes(key))
-  if (searching.value) foldedWhileSearching.value = closed
-  else keep([...folded.value.filter((key) => !visible.includes(key)), ...closed])
+  keep([...folded.value.filter((key) => !visible.includes(key)), ...closed])
 }
 
 // Ce qu'on regarde reste atteignable : y arriver rouvre ce qui le contient, les
@@ -137,31 +129,42 @@ const notFolding = (node: Node, event: CustomEvent<{ originalEvent: Event }>) =>
 
 const childrenOf = (node: Node) => ('children' in node ? node.children : undefined)
 
-// Pour le raccourci `/`, que le shell écoute.
-const search = useTemplateRef<HTMLInputElement>('search')
-defineExpose({ focusSearch: () => search.value?.focus() })
+// Les entrées sous un dossier, stories et familles : le compte de la ligne.
+const count = (node: Node): number =>
+  node.kind === 'story' || node.kind === 'tokens'
+    ? 1
+    : 'children' in node
+      ? node.children.reduce((n, one) => n + count(one), 0)
+      : 0
+const stories = computed(() => props.entries.filter((entry) => entry.type === 'story').length)
+
+// Les guides sont au centre du chevron de chaque ancêtre, à 20, 32, 44 px. Une ligne
+// sélectionnée remplace le guide de son parent par son marqueur, et sa bande part de
+// là : la sélection se pose dans la hiérarchie au lieu de la couvrir.
+const GUIDE = 20
+const STEP = 12
+const guides = (level: number, selected: boolean) =>
+  Array.from({ length: level - 1 - (selected ? 1 : 0) }, (_, at) => GUIDE + at * STEP)
+const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
 </script>
 
 <template>
   <div class="tree">
-    <input
-      ref="search"
-      v-model="query"
-      type="search"
-      class="search"
-      aria-label="Search"
-      aria-keyshortcuts="/"
-      placeholder="Search (/)"
-    />
+    <div class="title">
+      <h2>Stories</h2>
+      <span class="meta">{{ stories }}</span>
+    </div>
     <ToggleGroupRoot
       v-if="declared.length > 0"
-      v-model="statuses"
-      type="multiple"
-      class="statuses"
+      v-model="status"
+      type="single"
+      class="tabs"
       aria-label="Filter by status"
+      @update:model-value="(value) => value || (status = 'all')"
     >
-      <ToggleGroupItem v-for="status of declared" :key="status" :value="status">
-        {{ status }}
+      <ToggleGroupItem value="all">all</ToggleGroupItem>
+      <ToggleGroupItem v-for="one of declared" :key="one" :value="one">
+        {{ one }}
       </ToggleGroupItem>
     </ToggleGroupRoot>
     <TreeRoot
@@ -180,95 +183,181 @@ defineExpose({ focusSearch: () => search.value?.focus() })
       <TreeItem
         v-for="item of flattenItems"
         :key="item._id"
-        v-slot="{ isExpanded, handleToggle }"
+        v-slot="{ isExpanded, isSelected, handleToggle }"
         v-bind="item.bind"
         :class="item.value.kind"
-        :style="{ paddingLeft: `${(item.level - 1) * 12 + 8}px` }"
+        :data-dimmed="grey.has(item.value.key) || undefined"
+        :style="{ paddingLeft: `${12 + (item.level - 1) * STEP}px` }"
         @select="(event) => item.value.kind === 'folder' && event.preventDefault()"
         @toggle="(event) => notFolding(item.value, event)"
       >
         <span
-          v-if="item.hasChildren"
-          class="chevron"
-          aria-hidden="true"
-          @click.stop="handleToggle()"
-          >{{ isExpanded ? '▾' : '▸' }}</span
-        >
+          v-for="left of guides(item.level, isSelected)"
+          :key="left"
+          class="guide"
+          :style="{ left: `${left}px` }"
+        />
+        <template v-if="isSelected">
+          <span class="band" :style="{ left: `${marker(item.level)}px` }" />
+          <span class="marker" :style="{ left: `${marker(item.level)}px` }" />
+        </template>
+        <span class="chevron" @click.stop="item.hasChildren && handleToggle()">
+          <Icon v-if="item.hasChildren" :name="isExpanded ? 'arrow-down-01' : 'arrow-right-01'" />
+        </span>
         <span class="name">{{ item.value.name }}</span>
+        <span v-if="item.value.kind === 'folder'" class="meta">{{ count(item.value) }}</span>
         <span v-if="item.value.kind === 'component' && item.value.status" class="status">
           {{ item.value.status }}
         </span>
       </TreeItem>
     </TreeRoot>
-    <p v-if="entries.length === 0">no story</p>
-    <p v-else-if="shown.length === 0">nothing matches</p>
+    <p v-if="entries.length === 0" class="none">no story</p>
   </div>
 </template>
 
 <style scoped>
-.search {
-  width: 100%;
-  box-sizing: border-box;
-  margin-bottom: 8px;
-  padding: 4px 8px;
-}
-
-.statuses {
+.tree {
   display: flex;
-  gap: 4px;
-  margin-bottom: 8px;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
 }
 
-.statuses button {
-  border: var(--stroke-hairline) solid var(--border-light);
+.title {
+  display: flex;
+  align-items: center;
+  padding: var(--space-1-5) var(--space-3);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+}
+
+.title h2 {
+  flex: 1;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: inherit;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.meta,
+.status {
+  color: var(--text-subtle);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+}
+
+.tabs {
+  display: flex;
+  margin: 0 var(--space-3);
+  border: var(--stroke-hairline) solid var(--border-base);
+  border-radius: var(--radius-sm);
+  background: var(--background-raised);
+}
+
+.tabs button {
+  flex: 1;
+  padding: var(--space-1) var(--space-1-5);
+  border: var(--stroke-hairline) solid transparent;
+  border-radius: var(--radius-sm);
   background: none;
-  padding: 2px 8px;
-  font-size: 12px;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
   cursor: pointer;
 }
 
-.statuses button[data-state='on'] {
-  background: var(--background-hover);
+.tabs button[data-state='on'] {
+  border-color: var(--accent-base);
+  background: var(--background-current);
+  color: var(--text-current);
 }
 
 .nodes {
-  list-style: none;
+  flex: 1;
+  overflow-y: auto;
   margin: 0;
-  padding: 0;
+  padding: var(--space-2) 0;
+  list-style: none;
 }
 
 .nodes li {
+  position: relative;
+  z-index: 0;
   display: flex;
-  gap: 4px;
-  align-items: baseline;
-  padding-block: 4px;
-  padding-right: 8px;
+  gap: var(--space-1-5);
+  align-items: center;
+  padding-block: var(--space-0-5);
+  padding-right: var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
   cursor: pointer;
+}
+
+.nodes li:hover {
+  background: var(--background-hover);
+  color: var(--text-primary);
 }
 
 .nodes li:focus-visible {
   outline: var(--stroke-focus) solid var(--accent-focus);
-  outline-offset: -2px;
-}
-
-.nodes li.folder,
-.nodes li.component {
-  font-weight: 600;
+  outline-offset: calc(-1 * var(--stroke-focus));
 }
 
 .nodes li[data-selected] {
-  background: var(--background-hover);
-  font-weight: 600;
+  color: var(--text-current);
+  font-weight: var(--weight-medium);
+}
+
+.nodes li[data-dimmed] {
+  opacity: 0.4;
+}
+
+/* Sous le fond de la ligne, comme le veut le composant row du fichier Figma. */
+.guide {
+  position: absolute;
+  inset-block: 0;
+  z-index: -1;
+  border-left: var(--stroke-hairline) solid var(--border-base);
+}
+
+.band {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  z-index: -1;
+  background: var(--background-current);
+}
+
+.marker {
+  position: absolute;
+  inset-block: 0;
+  width: var(--stroke-marker);
+  background: var(--accent-base);
 }
 
 .chevron {
-  width: 1em;
+  display: flex;
+  width: var(--size-icon);
+  height: var(--size-icon);
+  color: var(--text-subtle);
 }
 
-.status {
-  margin-left: auto;
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--text-muted);
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.none {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-subtle);
+  font-size: var(--text-sm);
 }
 </style>

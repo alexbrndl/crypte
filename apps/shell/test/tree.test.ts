@@ -1,6 +1,6 @@
 import type { StoryEntry, StoryMeta, TokensEntry } from '@crypte/core/protocol'
 import { describe, expect, test } from 'vitest'
-import { branchKeys, filtered, keysAbove, treeOf, type Node } from '../src/tree'
+import { branchKeys, dimmed, fold, keysAbove, treeOf, type Node } from '../src/tree'
 
 const entry = (
   id: string,
@@ -102,62 +102,42 @@ describe('the navigation tree', () => {
   })
 })
 
-describe('the search', () => {
-  const tree = treeOf(catalogue)
-
-  test('keeps everything when it is empty', () => {
-    expect(filtered(tree, '', [])).toEqual(tree)
-  })
-
-  test('finds a story by its name, accents and spaces aside', () => {
-    expect(shape(filtered(tree, 'libelle long', []))).toEqual([
-      { 'component Badge': ['Libellé long'] },
-    ])
-  })
-
-  test('keeps every story of a component it finds by name', () => {
-    expect(shape(filtered(tree, 'order summary', []))).toEqual([
-      { 'folder checkout': [{ 'component OrderSummary': ['With reference', 'Without'] }] },
-    ])
-  })
-
-  test('keeps everything under a folder it finds by name', () => {
-    expect(shape(filtered(tree, 'CHECKOUT', []))).toEqual([
-      {
-        'folder checkout': [
-          { 'component OrderSummary': ['With reference', 'Without'] },
-          { 'component Cart': ['Empty'] },
-        ],
-      },
-    ])
+// Le repli avec lequel la palette compare : sans accents ni séparateurs.
+describe('the folding the palette searches with', () => {
+  test('drops accents, spaces and case', () => {
+    expect(fold('Libellé long')).toBe(fold('libelle LONG'))
+    expect(fold('OrderSummary')).toContain(fold('order summary'))
   })
 
   // Les signes restent hors de l'alphabet latin, comme dans un identifiant
   // (§4.3) : `й` n'est pas un `и` accentué.
   test('keeps the marks of a non latin script', () => {
-    expect(shape(filtered(tree, 'активн', []))).toEqual([{ 'component Button': ['Активная'] }])
-    expect(filtered(treeOf([entry('x--vse', 'Всё', ['X'])]), 'все', [])).toEqual([])
-  })
-
-  test('keeps nothing when nothing matches', () => {
-    expect(filtered(tree, 'nowhere', [])).toEqual([])
+    expect(fold('Активная')).toContain(fold('активн'))
+    expect(fold('Всё')).not.toContain(fold('все'))
   })
 })
 
+// Le filtre grise et n'enlève rien : l'arbre garde sa forme et ses replis.
 describe('the status filter', () => {
   const tree = treeOf(catalogue)
 
-  test('keeps the components of the chosen statuses, and none without one', () => {
-    expect(shape(filtered(tree, '', ['draft', 'deprecated']))).toEqual([
-      { 'folder checkout': [{ 'component Cart': ['Empty'] }] },
-      { 'component Button': ['Активная'] },
-    ])
+  test('greys nothing without a status', () => {
+    expect([...dimmed(tree, null)]).toEqual([])
   })
 
-  test('applies with the search', () => {
-    expect(shape(filtered(tree, 'checkout', ['stable']))).toEqual([
-      { 'folder checkout': [{ 'component OrderSummary': ['With reference', 'Without'] }] },
-    ])
+  test('greys what does not carry the status, and a folder with nothing lit below', () => {
+    expect([...dimmed(tree, 'draft')].sort()).toEqual(
+      [
+        'component:checkout/ordersummary',
+        avecReference.id,
+        sansReference.id,
+        'component:badge',
+        libelle.id,
+        'component:button',
+        active.id,
+      ].sort(),
+    )
+    expect([...dimmed(tree, 'deprecated')]).toContain('folder:checkout')
   })
 })
 
@@ -180,11 +160,10 @@ describe('a tokens family in the tree', () => {
     expect(keysAbove(couleur)).toEqual(['folder:tokens'])
   })
 
-  test('is found by its name or its folder, and hidden by a status filter', () => {
-    const tree = treeOf([libelle, couleur])
-
-    expect(shape(filtered(tree, 'colo', []))).toEqual([{ 'folder Tokens': ['color'] }])
-    expect(shape(filtered(tree, 'tokens', []))).toEqual([{ 'folder Tokens': ['color'] }])
-    expect(filtered(treeOf([couleur]), '', ['stable'])).toEqual([])
+  // Une famille n'a pas de statut : un filtre la grise, avec son dossier.
+  test('is greyed by a status filter', () => {
+    expect([...dimmed(treeOf([couleur]), 'stable')].sort()).toEqual(
+      ['folder:tokens', couleur.id].sort(),
+    )
   })
 })

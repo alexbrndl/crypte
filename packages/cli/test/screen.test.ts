@@ -1238,7 +1238,9 @@ describe('the theme, on screen', () => {
 // ⌘K sous macOS, Ctrl+K ailleurs : Playwright choisit selon le système, comme le
 // shell selon son navigateur.
 describe('the command palette, on screen', () => {
-  test('goes to a story by its name, and runs an action once closed', async ({ ecran }) => {
+  test('goes to a story by its name, and runs an action from the navigation field', async ({
+    ecran,
+  }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
     const dialogue = ecran.page.getByRole('dialog')
 
@@ -1248,22 +1250,13 @@ describe('the command palette, on screen', () => {
     await expect.poll(() => new URL(ecran.page.url()).search).toBe('?id=badge--avertissement')
     await expect.poll(() => dialogue.count()).toBe(0)
 
-    // Ouverte par son bouton, la palette rend le focus au bouton en se fermant :
-    // la recherche le prend quand même.
-    await ecran.page.getByRole('button', { name: /^Commands/ }).click()
+    // Le champ de la colonne ouvre la palette, qui affiche les raccourcis.
+    await ecran.page.getByRole('button', { name: /^Search or run/ }).click()
     await expect
-      .poll(() => dialogue.getByRole('option', { name: 'Search the tree /' }).isVisible())
+      .poll(() => dialogue.getByRole('option', { name: 'Full screen F' }).isVisible())
       .toBe(true)
-    await dialogue.locator('input').fill('search')
+    await dialogue.locator('input').fill('full')
     await dialogue.locator('input').press('Enter')
-    await expect.poll(() => ecran.page.locator('nav .search:focus').count()).toBe(1)
-
-    // Depuis le plein écran, qui masque la navigation : la recherche en sort.
-    await ecran.page.getByRole('button', { name: 'Full screen' }).click()
     await expect.poll(() => ecran.page.locator('main > nav').isVisible()).toBe(false)
-    await ecran.page.locator('main').press('ControlOrMeta+K')
-    await dialogue.locator('input').fill('search')
-    await dialogue.locator('input').press('Enter')
-    await expect.poll(() => ecran.page.locator('nav .search:focus').count()).toBe(1)
   })
 })
