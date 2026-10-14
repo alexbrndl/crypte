@@ -95,24 +95,73 @@ function follow(event: MouseEvent, go: () => void) {
 <style scoped>
 .changes-page {
   min-height: 70vh;
-  font-size: 13px;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
 }
 
 h2 {
-  margin: 0 0 12px;
-  font-size: 20px;
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-3xl);
+  letter-spacing: var(--tracking-tight);
+}
+
+table {
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+
+thead th {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+th,
+td {
+  text-align: left;
+  vertical-align: baseline;
+  padding: var(--space-1-5) var(--space-6) var(--space-1-5) 0;
+  border-bottom: var(--stroke-hairline) solid var(--border-light);
+}
+
+a {
+  color: var(--text-current);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--text-current-hover);
+}
+
+code {
+  font-size: var(--text-xs);
 }
 
 h3 {
-  margin: 16px 0 6px;
-  font-size: 13px;
+  margin: var(--space-6) 0 var(--space-1-5);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 ul {
   margin: 0;
-  padding-left: 18px;
-  display: grid;
-  gap: 4px;
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  padding: var(--space-1-5) 0;
+  border-bottom: var(--stroke-hairline) solid var(--border-light);
 }
 
 .note {
@@ -122,13 +171,13 @@ ul {
 .added,
 .removed,
 .status {
-  margin-left: 8px;
+  margin-left: var(--space-2);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .added {
-  color: var(--success-text);
+  color: var(--text-current);
 }
 
 .removed {

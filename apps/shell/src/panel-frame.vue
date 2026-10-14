@@ -2,6 +2,7 @@
 import type { Overrides, StoryEntry } from '@crypte/core/protocol'
 import { Alert } from '@crypte/ui'
 import { computed, onErrorCaptured, ref, watch, type Component } from 'vue'
+import Icon from './icon.vue'
 
 // Le cadre d'un panneau de plugin, section 6.1 des contrats. Local au shell,
 // son seul consommateur : les panneaux sont montés dedans, ils ne le dessinent
@@ -197,9 +198,16 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
 </script>
 
 <template>
-  <section class="panel" :data-plugin="name">
+  <section
+    class="panel"
+    :data-plugin="name"
+    :data-inapplicable="inapplicable !== null || undefined"
+  >
+    <!-- Sans objet, le panneau perd la bande de son en-tête : il se plie toujours, mais
+         rien ne l'y invite. -->
     <div class="head">
       <button type="button" :aria-expanded="expanded" @click="toggle">
+        <Icon :name="expanded ? 'arrow-down-01' : 'arrow-right-01'" />
         {{ name }}
       </button>
       <span v-if="inapplicable !== null" class="inapplicable">{{ inapplicable }}</span>
@@ -223,35 +231,69 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
 
 <style scoped>
 .panel {
-  border-top: var(--stroke-hairline) solid var(--border-light);
-  padding: 8px 0;
+  border-bottom: var(--stroke-hairline) solid var(--border-base);
 }
 
 .head {
   display: flex;
-  gap: 8px;
-  align-items: baseline;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  background: var(--background-subtle);
 }
 
 .head button {
+  display: flex;
+  flex: 1;
+  gap: var(--space-2);
+  align-items: center;
+  padding: 0;
   border: 0;
   background: none;
-  padding: 0;
-  font-weight: 600;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-xs);
+  letter-spacing: 0.05em;
+  text-align: left;
+  text-transform: uppercase;
   cursor: pointer;
 }
 
+.head button:focus-visible {
+  outline: var(--stroke-focus) solid var(--accent-focus);
+}
+
+.head .icon {
+  color: var(--text-subtle);
+}
+
+.panel[data-inapplicable] {
+  background: var(--background-base);
+}
+
+.panel[data-inapplicable] .head {
+  background: none;
+}
+
+.panel[data-inapplicable] .head button {
+  color: var(--text-subtle);
+}
+
 .inapplicable {
-  color: var(--text-muted);
-  font-size: 13px;
+  color: var(--text-subtle);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  text-align: right;
 }
 
 .body {
-  padding-top: 8px;
+  padding: var(--space-1-5) var(--space-3);
+  font-size: var(--text-sm);
 }
 
 .panel-failed {
-  --alert-font-size: 13px;
-  margin-top: 8px;
+  margin: var(--space-2) var(--space-3);
 }
 </style>

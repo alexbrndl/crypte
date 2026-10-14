@@ -61,35 +61,62 @@ const tokens = computed(() => Object.entries(props.family.tokens))
 }
 
 h2 {
-  margin: 0 0 12px;
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-3xl);
+  letter-spacing: var(--tracking-tight);
 }
 
 table {
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+
+thead th {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 th,
 td {
   text-align: left;
   vertical-align: baseline;
-  padding: 6px 24px 6px 0;
+  padding: var(--space-1-5) var(--space-6) var(--space-1-5) 0;
   border-bottom: var(--stroke-hairline) solid var(--border-light);
 }
 
+a {
+  color: var(--text-current);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--text-current-hover);
+}
+
+code {
+  font-size: var(--text-xs);
+}
+
 tbody th {
-  font-weight: 400;
+  font-weight: var(--weight-normal);
 }
 
 .kind,
 .alias,
 .absent {
-  color: var(--text-muted);
-  font-size: 12px;
+  color: var(--text-subtle);
+  font-size: var(--text-xs);
 }
 
 .kind {
-  margin-left: 8px;
+  margin-left: var(--space-2);
 }
 
 .alias {
@@ -97,17 +124,17 @@ tbody th {
 }
 
 .description {
-  margin: 4px 0 0;
-  color: var(--text-primary);
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
 }
 
 .swatch {
   display: inline-block;
-  width: 12px;
-  height: 12px;
-  margin-right: 6px;
+  width: var(--space-3);
+  height: var(--space-3);
+  margin-right: var(--space-1-5);
   border: var(--stroke-hairline) solid var(--border-base);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   vertical-align: -1px;
 }
 </style>

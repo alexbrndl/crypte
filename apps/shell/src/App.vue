@@ -156,6 +156,10 @@ const line = computed(() => {
   return status.value
 })
 
+// Le point de la barre d'état dit la même chose que la ligne : rouge sur un catalogue
+// illisible, et sur une erreur de rendu dans le seul mode story.
+const trouble = computed(() => unread.value !== null || (storyMode.value && failure.value !== null))
+
 // Ce qu'un panneau a édité, par-dessus les props de la story affichée. Gardé
 // tant que la même story reste affichée, y compris quand la preview redit
 // `ready` après une édition de fichier : la story repart de ses props quand on
@@ -606,134 +610,143 @@ onMounted(() => {
       </a>
     </nav>
 
-    <div>
-      <!-- Dit sur toutes les pages : ce qui est servi n'est plus ce que le fichier
-           déclare, et rien d'autre ne le montrerait. -->
-      <Alert v-if="project?.config" color="warning" class="config" role="alert">
-        <h2><code>crypte.config.ts</code> could not be read</h2>
-        <p>
-          Crypte keeps serving the configuration it read before. Fix the file and save it again:
-          {{ project.config }}
-        </p>
-      </Alert>
-
-      <Alert v-if="stale && entries.length > 0" color="warning" class="stale" role="status">
-        <code>{{ stale }}</code> is not in the catalogue any more: it was probably renamed. Showing
-        the first story instead.
-      </Alert>
-
-      <!-- Pas quand un fichier a été écarté : l'encadré d'en dessous le nomme, et
-           le dossier n'est alors pas en cause. -->
-      <Alert
-        v-if="read && listed.length === 0 && skipped.length === 0"
-        color="warning"
-        class="empty"
-        role="status"
-      >
-        <h2 v-if="project">
-          No story found in <code>{{ project.stories }}/</code>
-        </h2>
-        <h2 v-else>No story found</h2>
-        <p>
-          Check that <code>stories</code> in <code>crypte.config.ts</code> names the folder of your
-          story files, and that each one exports <code>defineStories(…)</code> by default.
-        </p>
-      </Alert>
-
-      <!-- Au-dessus de la preview et jamais bloquant : une story écartée est
-           absente de l'arbre, donc rien d'autre ne la nomme. -->
-      <Alert v-if="setAside.length > 0" color="warning" class="set-aside" role="status">
-        <h2>What Crypte could not read</h2>
-        <ul>
-          <li v-for="one of setAside" :key="one.file">
-            <code>{{ one.file }}</code
-            >: {{ one.title }}. {{ one.reason }}
-          </li>
-        </ul>
-      </Alert>
-
-      <TokensPage v-if="shownFamily" :family="shownFamily" />
-
-      <ChangesPage
-        v-if="changesOpen"
-        :changes="changes"
-        :stories="entries"
-        @show="(id) => show(id, 'push')"
-        @open="(id) => open(id)"
-      />
-
-      <ComponentPage
-        v-if="component !== null"
-        :stories="componentStories"
-        @show="(id) => show(id, 'push')"
-      />
-
-      <!-- Masqué et non retiré : la preview et les panneaux gardent leur état
-           pendant qu'une page composant ou une famille est ouverte. -->
-      <div v-show="component === null && family === null && !changesOpen">
-        <div v-if="displayed" class="toolbar">
-          <nav class="trail" aria-label="Breadcrumb">
-            <span v-for="(segment, at) of displayed.path.slice(0, -1)" :key="at"
-              >{{ segment }} /
-            </span>
-            <a
-              :href="placeSearch({ mode: 'component', id: componentIdOf(displayed.path) })"
-              @click="follow($event, () => open(componentIdOf(displayed!.path)))"
-              >{{ displayed.path.at(-1) }}</a
-            >
-            / <span aria-current="page">{{ displayed.name }}</span>
-          </nav>
-          <div class="actions">
-            <button type="button" class="copy" @click="copyLink">
-              {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
-            </button>
-            <button
-              type="button"
-              title="Previous story ([)"
-              aria-keyshortcuts="["
-              :disabled="at <= 0"
-              @click="step(-1)"
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              title="Next story (])"
-              aria-keyshortcuts="]"
-              :disabled="at >= siblings.length - 1"
-              @click="step(1)"
-            >
-              Next
-            </button>
-            <button
-              type="button"
-              title="Full screen (F, Escape to leave)"
-              aria-keyshortcuts="f"
-              :aria-pressed="full"
-              @click="full = !full"
-            >
-              {{ full ? 'Leave full screen' : 'Full screen' }}
-            </button>
-          </div>
+    <div class="workspace">
+      <div v-if="storyMode && displayed" class="toolbar">
+        <!-- Le dossier n'est pas une destination, le composant en est une : seul il
+               porte l'accent. Le séparateur suit le segment qui le précède. -->
+        <nav class="trail" aria-label="Breadcrumb">
+          <span v-for="(segment, at) of displayed.path.slice(0, -1)" :key="at" class="folder"
+            >{{ segment }}<span class="separator">/</span></span
+          >
+          <a
+            :href="placeSearch({ mode: 'component', id: componentIdOf(displayed.path) })"
+            @click="follow($event, () => open(componentIdOf(displayed!.path)))"
+            >{{ displayed.path.at(-1) }}</a
+          ><span class="separator">/</span>
+          <span aria-current="page">{{ displayed.name }}</span>
+        </nav>
+        <div class="actions">
+          <button type="button" class="copy" @click="copyLink">
+            <Icon name="copy-01" />
+            {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
+          </button>
+          <button
+            type="button"
+            title="Previous story ([)"
+            aria-keyshortcuts="["
+            :disabled="at <= 0"
+            @click="step(-1)"
+          >
+            Previous <kbd>[</kbd>
+          </button>
+          <button
+            type="button"
+            title="Next story (])"
+            aria-keyshortcuts="]"
+            :disabled="at >= siblings.length - 1"
+            @click="step(1)"
+          >
+            Next <kbd>]</kbd>
+          </button>
+          <button
+            type="button"
+            title="Full screen (F, Escape to leave)"
+            aria-keyshortcuts="f"
+            :aria-pressed="full"
+            @click="full = !full"
+          >
+            {{ full ? 'Leave full screen' : 'Full screen' }} <kbd>F</kbd>
+          </button>
         </div>
+      </div>
 
-        <!-- L'erreur couvre la preview plutôt que de l'accompagner : ce qui reste
+      <div class="body">
+        <div class="stage">
+          <!-- Dit sur toutes les pages : ce qui est servi n'est plus ce que le fichier
+           déclare, et rien d'autre ne le montrerait. -->
+          <Alert v-if="project?.config" color="warning" class="config" role="alert">
+            <h2><code>crypte.config.ts</code> could not be read</h2>
+            <p>
+              Crypte keeps serving the configuration it read before. Fix the file and save it again:
+              {{ project.config }}
+            </p>
+          </Alert>
+
+          <Alert v-if="stale && entries.length > 0" color="warning" class="stale" role="status">
+            <code>{{ stale }}</code> is not in the catalogue any more: it was probably renamed.
+            Showing the first story instead.
+          </Alert>
+
+          <!-- Pas quand un fichier a été écarté : l'encadré d'en dessous le nomme, et
+           le dossier n'est alors pas en cause. -->
+          <Alert
+            v-if="read && listed.length === 0 && skipped.length === 0"
+            color="warning"
+            class="empty"
+            role="status"
+          >
+            <h2 v-if="project">
+              No story found in <code>{{ project.stories }}/</code>
+            </h2>
+            <h2 v-else>No story found</h2>
+            <p>
+              Check that <code>stories</code> in <code>crypte.config.ts</code> names the folder of
+              your story files, and that each one exports <code>defineStories(…)</code> by default.
+            </p>
+          </Alert>
+
+          <!-- Au-dessus de la preview et jamais bloquant : une story écartée est
+           absente de l'arbre, donc rien d'autre ne la nomme. -->
+          <Alert v-if="setAside.length > 0" color="warning" class="set-aside" role="status">
+            <h2>What Crypte could not read</h2>
+            <ul>
+              <li v-for="one of setAside" :key="one.file">
+                <code>{{ one.file }}</code
+                >: {{ one.title }}. {{ one.reason }}
+              </li>
+            </ul>
+          </Alert>
+
+          <TokensPage v-if="shownFamily" :family="shownFamily" />
+
+          <ChangesPage
+            v-if="changesOpen"
+            :changes="changes"
+            :stories="entries"
+            @show="(id) => show(id, 'push')"
+            @open="(id) => open(id)"
+          />
+
+          <ComponentPage
+            v-if="component !== null"
+            :stories="componentStories"
+            @show="(id) => show(id, 'push')"
+          />
+
+          <!-- Masqué et non retiré : la preview et les panneaux gardent leur état
+           pendant qu'une page composant ou une famille est ouverte. -->
+          <div v-show="component === null && family === null && !changesOpen">
+            <!-- L'erreur couvre la preview plutôt que de l'accompagner : ce qui reste
            affiché dessous appartient à la story d'avant, et le laisser voir
            ferait croire que celle-ci a rendu. -->
-        <Alert v-if="failure" color="error" class="failure" role="alert">
-          <h2>{{ failure.id }} could not be rendered</h2>
-          <p>{{ failure.message }}</p>
-          <pre v-if="failure.stack">{{ failure.stack }}</pre>
-        </Alert>
-        <iframe v-show="!failure" ref="frame" src="/preview.html" title="preview"></iframe>
+            <Alert v-if="failure" color="error" class="failure" role="alert">
+              <h2>{{ failure.id }} could not be rendered</h2>
+              <p>{{ failure.message }}</p>
+              <pre v-if="failure.stack">{{ failure.stack }}</pre>
+            </Alert>
+            <iframe v-show="!failure" ref="frame" src="/preview.html" title="preview"></iframe>
 
-        <!-- Sous la preview, pas dessus : la story rend, et l'avertissement ne dit
+            <!-- Sous la preview, pas dessus : la story rend, et l'avertissement ne dit
            que ce qui manque à sa fiche. Le ton dit ce que l'outil ne sait pas
            lire, jamais que le fichier est mal écrit. -->
-        <p v-if="partial && !failure" class="partial">Incomplete props table: {{ partial }}.</p>
+            <p v-if="partial && !failure" class="partial">Incomplete props table: {{ partial }}.</p>
+          </div>
+        </div>
         <!-- Un élément autour : la racine de Panels est un fragment, où v-show ne
-             s'applique pas, et les panneaux restaient visibles en plein écran. -->
-        <div v-show="!fullScreen">
+             s'applique pas. Masqués et non retirés sous une page : ils gardent leur
+             état. -->
+        <aside v-show="!fullScreen && storyMode" class="panel-column" aria-label="Panels">
+          <h2 class="column-title">Panels</h2>
           <Panels
             :entry="displayed"
             :received="received"
@@ -744,28 +757,26 @@ onMounted(() => {
             @send="sendToPreview"
             @weights="(measured) => (weights = measured)"
           />
-        </div>
+        </aside>
       </div>
-      <footer class="status-bar">
-        <p>{{ line }}</p>
-        <ul class="figures">
-          <li v-if="project" title="The shell, gzipped">Shell {{ kB(project.shellBytes) }}</li>
-          <li
-            v-if="firstRender !== null"
-            title="From opening this page to the first story rendered"
-          >
-            First render {{ Math.round(firstRender) }} ms
-          </li>
-          <li
-            v-for="(one, at) of weights"
-            :key="at"
-            :title="`What ${one.plugin} loads in the browser, gzipped`"
-          >
-            {{ one.plugin }} {{ kB(one.bytes) }}
-          </li>
-        </ul>
-      </footer>
     </div>
+    <footer class="status-bar">
+      <span class="dot" :data-failed="trouble || undefined" aria-hidden="true" />
+      <p>{{ line }}</p>
+      <ul class="figures">
+        <li v-if="project" title="The shell, gzipped">Shell {{ kB(project.shellBytes) }}</li>
+        <li v-if="firstRender !== null" title="From opening this page to the first story rendered">
+          First render {{ Math.round(firstRender) }} ms
+        </li>
+        <li
+          v-for="(one, at) of weights"
+          :key="at"
+          :title="`What ${one.plugin} loads in the browser, gzipped`"
+        >
+          {{ one.plugin }} {{ kB(one.bytes) }}
+        </li>
+      </ul>
+    </footer>
     <CommandPalette
       v-model:open="palette"
       :entries="listed"
@@ -778,12 +789,10 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* La hauteur de la fenêtre, collée en haut : le pied reste en bas, l'arbre défile. */
+/* Le pied reste en bas, l'arbre défile. */
 .column {
-  position: sticky;
-  top: 0;
   box-sizing: border-box;
-  height: 100vh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   padding: var(--space-1) var(--space-1) 0;
@@ -855,47 +864,161 @@ onMounted(() => {
   line-height: var(--leading-xs);
 }
 
+/* La fenêtre entière : la colonne, l'espace de travail, et la barre d'état en bas
+   sur toute la largeur. Chaque zone défile seule. */
 main {
   display: grid;
   grid-template-columns: 264px 1fr;
-  gap: 16px;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100vh;
   font-family: var(--font-sans);
-}
-
-main > div {
-  padding: var(--space-2) var(--space-2) 0 0;
 }
 
 main.full {
   grid-template-columns: 1fr;
 }
 
-main.full iframe {
-  height: 85vh;
+.workspace {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
 }
 
+/* Au-dessus du canvas et des panneaux : elle traite de ce qui est affiché. */
 .toolbar {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
-  margin-bottom: 8px;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 36px;
+  box-sizing: border-box;
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  background: var(--background-raised);
+  border-bottom: var(--stroke-hairline) solid var(--border-light);
+}
+
+.trail {
+  display: flex;
+  flex: 1;
+  gap: var(--space-2);
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  white-space: nowrap;
+}
+
+.trail .folder {
+  display: flex;
+  gap: var(--space-2);
+  color: var(--text-muted);
+}
+
+.trail a {
+  color: var(--text-current);
+  text-decoration: none;
+}
+
+.trail a:hover {
+  color: var(--text-current-hover);
+}
+
+.trail .separator {
+  color: var(--text-subtle);
 }
 
 .actions {
   display: flex;
-  gap: 4px;
+  gap: var(--space-2);
+}
+
+/* Le bouton du fichier Figma : contour neutre, ou plein inversé pour l'action
+   principale, copier le lien. */
+.actions button {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  border: var(--stroke-hairline) solid var(--border-base);
+  border-radius: var(--radius-sm);
+  background: var(--background-raised);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  cursor: pointer;
+}
+
+.actions button:hover:not(:disabled) {
+  background: var(--background-hover);
+}
+
+.actions button:focus-visible {
+  outline: var(--stroke-focus) solid var(--accent-focus);
+  outline-offset: var(--stroke-hairline);
+}
+
+.actions button:disabled {
+  color: var(--text-subtle);
+  cursor: default;
+}
+
+.actions .copy {
+  border-color: transparent;
+  background: var(--background-inverse);
+  color: var(--text-inverse);
+}
+
+.actions .copy:hover:not(:disabled) {
+  background: var(--background-inverse-hover);
+}
+
+.actions kbd {
+  padding: var(--space-0-5) var(--space-1);
+  border: var(--stroke-hairline) solid var(--border-base);
+  border-radius: var(--radius-xs);
+  background: var(--background-subtle);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.stage {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: var(--space-3);
+}
+
+.panel-column {
+  width: 340px;
+  flex: none;
+  overflow-y: auto;
+  border-left: var(--stroke-hairline) solid var(--border-light);
+  background: var(--background-raised);
+}
+
+.column-title {
+  margin: 0;
+  padding: var(--space-1-5) var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .config,
 .stale,
 .empty {
-  --alert-font-size: 13px;
-  margin-bottom: 12px;
-}
-
-.trail {
-  font-size: 13px;
+  margin-bottom: var(--space-3);
 }
 
 .changes-entry {
@@ -929,59 +1052,85 @@ main.full iframe {
   line-height: var(--leading-xs);
 }
 
+/* Le canvas : la story sur une trame de points, comme dans les maquettes. */
 iframe {
+  display: block;
   width: 100%;
-  height: 70vh;
+  height: calc(100vh - 140px);
+  min-height: 320px;
   border: var(--stroke-hairline) solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background-color: var(--background-base);
+  background-image: radial-gradient(var(--border-light) 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+
+main.full iframe {
+  height: calc(100vh - 100px);
 }
 
 .failure {
-  --alert-padding: 12px 16px;
-  min-height: 70vh;
+  min-height: 60vh;
 }
 
 .set-aside {
-  --alert-font-size: 13px;
-  margin-bottom: 12px;
-}
-
-.set-aside h2 {
-  font-size: 13px;
-  margin: 0 0 4px;
+  margin-bottom: var(--space-3);
 }
 
 .set-aside ul {
   margin: 0;
-  padding-left: 18px;
+  padding-left: var(--space-4);
 }
 
 .partial {
   color: var(--warning-text);
-  font-size: 13px;
+  font-size: var(--text-xs);
 }
 
 .failure pre {
   white-space: pre-wrap;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
   color: var(--error-text);
 }
 
+/* L'état du canal, ce qui vient d'être fait, et les poids. */
 .status-bar {
+  grid-column: 1 / -1;
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
+  gap: var(--space-2);
+  align-items: center;
+  height: 28px;
+  padding: 0 var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+}
+
+.status-bar p {
+  flex: 1;
+  margin: 0;
+}
+
+.dot {
+  width: var(--size-dot);
+  height: var(--size-dot);
+  border-radius: var(--radius-full);
+  background: var(--success-solid);
+}
+
+.dot[data-failed] {
+  background: var(--error-solid);
 }
 
 .figures {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
-  color: var(--text-muted);
-  font-size: 12px;
+  color: var(--text-subtle);
   font-variant-numeric: tabular-nums;
 }
 </style>
