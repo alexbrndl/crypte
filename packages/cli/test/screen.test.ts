@@ -997,6 +997,26 @@ describe('the controls panel', () => {
     await expect.poll(() => new URL(ecran.page.url()).search).toBe('?id=badge--avertissement')
   })
 
+  // Le shell tient les valeurs et les rend au panneau : l'en-tête les efface, et
+  // les champs suivent. Plus de bouton au pied du panneau.
+  test('resets every value from the head of the panel', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    const remise = panneau(ecran.page).locator('.head').getByRole('button', { name: 'Reset all' })
+    const texte = panneau(ecran.page).locator('input[type="text"]')
+    expect(await remise.count()).toBe(0)
+
+    await texte.fill('Bonjour')
+    await expect.poll(ecran.vu).toBe('Bonjour')
+    await remise.click()
+
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    expect(await texte.inputValue()).toBe('')
+    expect(await remise.count()).toBe(0)
+    expect(
+      await panneau(ecran.page).getByRole('button', { name: 'Back to the story' }).count(),
+    ).toBe(0)
+  })
+
   test('renders the story with what is typed, without remounting it', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
 

@@ -48,19 +48,21 @@ const said = (error: unknown) => (error instanceof Error ? error.message : Strin
 // dans l'ordre de `plugins`, le dernier gagnant sur une prop éditée par deux.
 // Remplacer à chaque émission effaçait l'édition de l'autre panneau. Mesuré.
 // Oublié avec la story, comme le shell oublie les valeurs, et avec le plugin.
-const edited = new Map<string, Overrides>()
+// Rendu à chaque panneau en `overrides` : c'est d'ici qu'il les lit, et que
+// l'en-tête les efface.
+const edited = shallowRef<Record<string, Overrides>>({})
 
 const merge = () =>
-  emit('overrides', Object.assign({}, ...panels.value.map((one) => edited.get(one.name) ?? {})))
+  emit('overrides', Object.assign({}, ...panels.value.map((one) => edited.value[one.name] ?? {})))
 
 function edit(name: string, values: Overrides) {
-  edited.set(name, values)
+  edited.value = { ...edited.value, [name]: values }
   merge()
 }
 
 watch(
   () => props.entry?.id,
-  () => edited.clear(),
+  () => (edited.value = {}),
 )
 
 // La dernière lecture lancée : une plus ancienne qui finirait après elle
@@ -122,11 +124,13 @@ async function load() {
   // échoue, la fusion suivante les écarte, et elles reviennent quand il charge de
   // nouveau. Laissé de côté par DCJ-334 : l'URL d'un module ne change qu'avec le
   // nom de son fichier. Rouvert si un usage renomme le module d'un plugin.
-  let dropped = false
-  for (const name of edited.keys()) {
-    if (!listed.panels.some((one) => one.name === name)) dropped = edited.delete(name)
+  const kept = Object.fromEntries(
+    Object.entries(edited.value).filter(([name]) => listed.panels.some((one) => one.name === name)),
+  )
+  if (Object.keys(kept).length < Object.keys(edited.value).length) {
+    edited.value = kept
+    merge()
   }
-  if (dropped) merge()
 }
 
 onMounted(load)
@@ -160,6 +164,7 @@ watch(() => props.revision, load)
     :received="Object.hasOwn(received, one.name) ? (received[one.name] ?? null) : null"
     :failed="failed"
     :values="values"
+    :overrides="edited[one.name] ?? {}"
     @overrides="(values: Overrides) => edit(one.name, values)"
     @send="(message: PanelMessage) => emit('send', message)"
   />

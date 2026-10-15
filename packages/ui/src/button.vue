@@ -1,9 +1,12 @@
-<!-- The button of the Figma file, label shape, md size: 28 px high. Two of its four
-     variants: `outline`, which the shell and the plugins draw, and `secondary`, the
-     shell's copy link. `primary` and `ghost` join with their first consumer. A `kbd`
+<!-- The button of the Figma file, label shape, md size: 28 px high. Three of its
+     four variants: `outline`, which the shell and the plugins draw, `secondary`, the
+     shell's copy link, and `ghost`, the reset of a panel's head. `primary` joins
+     with its first consumer. A `kbd`
      in the label is drawn as the Figma keycap. -->
 <script setup lang="ts">
-withDefaults(defineProps<{ variant?: 'outline' | 'secondary' }>(), { variant: 'outline' })
+withDefaults(defineProps<{ variant?: 'outline' | 'secondary' | 'ghost' }>(), {
+  variant: 'outline',
+})
 </script>
 
 <template>
@@ -77,6 +80,15 @@ withDefaults(defineProps<{ variant?: 'outline' | 'secondary' }>(), { variant: 'o
   box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
   background: var(--background-raised);
   color: var(--text-muted);
+}
+
+.button[data-variant='ghost'] {
+  background: none;
+  color: var(--text-primary);
+}
+
+.button[data-variant='ghost']:hover:not(:disabled) {
+  background: var(--background-hover);
 }
 
 .button[data-variant='secondary'] :slotted(kbd) {

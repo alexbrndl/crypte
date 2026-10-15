@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.35, reference document. A project brief points here instead of restating these shapes.
+> Version 1.36, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -795,7 +795,7 @@ export default {
 
 **A panel talks to its own preview module.** It emits `send` with a message, and receives, as its `received` prop, the last message its preview module sent. Both carry a `type` that starts with the plugin's name (5.4): the frame drops a message a panel sends under another name, and says so in the console. What crosses is a JSON copy, so a panel may send its reactive state; a message JSON cannot carry is dropped the same way, and so is one sent before the preview is ready, like a `render` would be, or before the plugin's preview module has arrived.
 
-**A panel that edits the story emits `overrides`**, the values to render it with, primitives only (5.1). The shell sends them in `render`, keeps them while that story stays on display, a preview that says `ready` again included, and drops them when another story is shown. Anything but `null`, a boolean, a finite number or a string is refused, `undefined` included, named with its plugin and prop, and the whole edit dropped. Several panels may edit: each keeps its own values, and the render merges them in the order `plugins` declares, the later panel winning a prop both edit. A panel the CLI no longer lists, removed from `plugins` or its `shell` refused, takes its values with it. `@crypte/controls` is the panel that does.
+**A panel that edits the story emits `overrides`**, the values to render it with, primitives only (5.1). The shell sends them in `render`, keeps them while that story stays on display, a preview that says `ready` again included, and drops them when another story is shown. Anything but `null`, a boolean, a finite number or a string is refused, `undefined` included, named with its plugin and prop, and the whole edit dropped. Several panels may edit: each keeps its own values, and the render merges them in the order `plugins` declares, the later panel winning a prop both edit. A panel the CLI no longer lists, removed from `plugins` or its `shell` refused, takes its values with it. `@crypte/controls` is the panel that does. **It reads them back from its `overrides` prop**, what the shell holds for it, rather than keeping its own copy: the frame shows a **Reset all** in the panel's head while they are not empty, and the panel follows when it clears them, as it does when another story is shown.
 
 **Only the module is loaded.** A style sheet built beside it never reaches the page, so a panel styles itself inline.
 
@@ -809,6 +809,7 @@ interface PanelProps {
   received: { type: string; [key: string]: unknown } | null
   failed?: string | null
   values?: RenderedValues | null
+  overrides?: Overrides
 }
 
 interface PanelEvents {
@@ -982,6 +983,12 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.36.** The shell hands a panel back what it edited (6.1).
+
+| Before | After |
+| --- | --- |
+| a panel kept its own copy of what it edited, and reset it itself | it reads it as its `overrides` prop, and the head's Reset all clears it |
 
 **v1.35.** What a story rendered with reaches the panels (5.3, 6.1).
 

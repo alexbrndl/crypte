@@ -41,7 +41,7 @@ const statut = defineComponent({
 
 const monte = (panel: Component, story: StoryEntry | null, name = 'status') =>
   mount(PanelFrame, {
-    props: { name, panel, entry: story, received: null, failed: null, values: null },
+    props: { name, panel, entry: story, received: null, failed: null, values: null, overrides: {} },
   })
 
 // Le style lu tel quel : `isVisible()` rendait l'inverse du DOM sur un montage
@@ -138,6 +138,7 @@ describe('a panel with nothing to say', () => {
         received: { type: 'a11y:r', propre: true },
         failed: null,
         values: null,
+        overrides: {},
       },
     })
     await wrapper.vm.$nextTick()
@@ -257,6 +258,7 @@ describe('whether a panel is open', () => {
           received: recu(propre),
           failed: null,
           values: null,
+          overrides: {},
         },
       })
 
@@ -418,6 +420,24 @@ describe('what a panel edits', () => {
         return () => h('button', { onClick: () => emit('overrides', values) }, 'éditer')
       },
     })
+
+  // Ce que le shell tient pour ce panneau revient en prop, et l'en-tête offre de
+  // tout rendre à la story tant que ce n'est pas vide.
+  test('hands the panel what the shell holds, and resets it all from the head', async () => {
+    const lit = defineComponent({
+      props: { overrides: { type: Object, default: undefined } },
+      setup: (props) => () => h('output', JSON.stringify(props.overrides)),
+    })
+    const wrapper = monte(lit, nue)
+    const remise = () => wrapper.findAll('.head button').find((one) => one.text() === 'Reset all')
+
+    expect(remise()).toBeUndefined()
+
+    await wrapper.setProps({ overrides: { label: 'Bonjour' } })
+    expect(wrapper.find('output').text()).toBe('{"label":"Bonjour"}')
+    await remise()!.trigger('click')
+    expect(wrapper.emitted('overrides')).toEqual([[{}]])
+  })
 
   test('passes on a plain copy of primitive values', async () => {
     const valeurs = { label: 'Bonjour', count: 2, on: false, nothing: null }

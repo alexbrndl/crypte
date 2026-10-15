@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import type { Overrides, PanelEvents, PanelProps, ResolvedPropDetails } from '@crypte/core/protocol'
 import { Button, Checkbox, Field, Input, Select } from '@crypte/ui'
-import { computed, ref, watch, watchEffect } from 'vue'
+import { computed, watchEffect } from 'vue'
 
-const props = defineProps<Pick<PanelProps, 'entry' | 'values'>>()
+// `overrides` spelled out: picked from `PanelProps`, the SFC compiler could not
+// resolve its runtime type and the panel did not compile.
+const props = defineProps<
+  Pick<PanelProps, 'entry' | 'values'> & { overrides?: Record<string, unknown> }
+>()
 
 const emit = defineEmits<Pick<PanelEvents, 'inapplicable' | 'overrides'>>()
 
@@ -15,18 +19,11 @@ const fields = computed(() =>
   Object.entries(props.entry?.details ?? {}).filter(([, details]) => EDITABLE.has(details.type)),
 )
 
-// What was edited, and nothing else: what the story renders with comes from
-// the `values` prop, and is not an override until it is edited.
-const edited = ref<Overrides>({})
-
-// Another story starts from its own props: the shell drops the overrides then,
-// and the fields follow.
-watch(
-  () => props.entry?.id,
-  () => {
-    edited.value = {}
-  },
-)
+// What was edited, and nothing else, as the shell holds it (6.1): it drops it
+// with the story and on the head's Reset all, and the fields follow. What the
+// story renders with comes from the `values` prop, and is not an override until
+// it is edited.
+const edited = computed<Overrides>(() => props.overrides ?? {})
 
 // Said again for every entry, section 6.1: the shell forgets it at each one.
 watchEffect(() => {
@@ -43,19 +40,12 @@ watchEffect(() => {
 })
 
 function set(name: string, value: unknown) {
-  edited.value = { ...edited.value, [name]: value }
-  emit('overrides', edited.value)
+  emit('overrides', { ...edited.value, [name]: value })
 }
 
 function unset(name: string) {
   const { [name]: _, ...rest } = edited.value
-  edited.value = rest
   emit('overrides', rest)
-}
-
-function reset() {
-  edited.value = {}
-  emit('overrides', {})
 }
 
 // An emptied text field goes back to the story's value rather than to `''`:
@@ -161,12 +151,5 @@ const hint = (name: string, details: ResolvedPropDetails) => {
         />
       </template>
     </Field>
-    <Button
-      style="align-self: flex-start"
-      :disabled="Object.keys(edited).length === 0"
-      @click="reset"
-    >
-      Back to the story
-    </Button>
   </form>
 </template>
