@@ -2,7 +2,7 @@
      au trait de 1,25. Le trait suit la couleur du texte autour. -->
 <script setup lang="ts">
 defineProps<{
-  name: 'arrow-right-01' | 'arrow-down-01' | 'search-01' | 'copy-01' | 'full-screen'
+  name: 'arrow-right-01' | 'arrow-down-01' | 'search-01' | 'copy-01' | 'full-screen' | 'tick-02'
 }>()
 </script>
 
@@ -21,6 +21,7 @@ defineProps<{
   >
     <path v-if="name === 'arrow-right-01'" d="M6 4C6 4 10 6.946 10 8C10 9.054 6 12 6 12" />
     <path v-else-if="name === 'arrow-down-01'" d="M12 6C12 6 9.054 10 8 10C6.946 10 4 6 4 6" />
+    <path v-else-if="name === 'tick-02'" d="M3.333 8.667L6 11.333L12.667 4.667" />
     <path
       v-else-if="name === 'full-screen'"
       d="M2.667 6V4.667C2.667 3.562 3.562 2.667 4.667 2.667H6M10 2.667H11.333C12.438 2.667 13.333 3.562 13.333 4.667V6M13.333 10V11.333C13.333 12.438 12.438 13.333 11.333 13.333H10M6 13.333H4.667C3.562 13.333 2.667 12.438 2.667 11.333V10"

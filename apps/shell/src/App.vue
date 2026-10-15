@@ -12,8 +12,10 @@ import { createShellChannel } from '@crypte/core/shell'
 import { Alert, Button } from '@crypte/ui'
 import {
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuItemIndicator,
   DropdownMenuPortal,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuRoot,
   DropdownMenuTrigger,
 } from 'reka-ui'
@@ -236,6 +238,8 @@ const fullScreen = computed(() => full.value && storyMode.value)
 
 // Un réglage de vue, pas un lieu qu'on partage : hors de l'adresse.
 const ZOOMS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]
+// Ce que le menu propose ; les touches parcourent toute l'échelle.
+const PRESETS = [0.5, 0.75, 1, 1.25, 1.5, 2]
 const zoom = ref(1)
 
 function zoomBy(step: number) {
@@ -733,36 +737,33 @@ onMounted(() => {
             <div v-if="displayed" class="stage-tools">
               <DropdownMenuRoot>
                 <DropdownMenuTrigger as-child>
-                  <Button class="level" :aria-label="`Zoom, ${Math.round(zoom * 100)} %`">
+                  <Button
+                    class="level"
+                    :aria-label="`Zoom, ${Math.round(zoom * 100)} %`"
+                    title="Zoom (+, -, 0 for actual size)"
+                  >
                     {{ Math.round(zoom * 100) }} %
                     <Icon name="arrow-down-01" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuPortal>
                   <DropdownMenuContent class="shell-menu" align="end" :side-offset="4">
-                    <DropdownMenuItem
-                      class="shell-menu-item"
-                      :disabled="zoom === ZOOMS.at(-1)"
-                      aria-keyshortcuts="Plus"
-                      @select="zoomBy(1)"
+                    <DropdownMenuRadioGroup
+                      :model-value="String(zoom)"
+                      @update:model-value="(level) => (zoom = Number(level))"
                     >
-                      Zoom in <kbd>+</kbd>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      class="shell-menu-item"
-                      :disabled="zoom === ZOOMS[0]"
-                      aria-keyshortcuts="-"
-                      @select="zoomBy(-1)"
-                    >
-                      Zoom out <kbd>-</kbd>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      class="shell-menu-item"
-                      aria-keyshortcuts="0"
-                      @select="zoom = 1"
-                    >
-                      Actual size <kbd>0</kbd>
-                    </DropdownMenuItem>
+                      <DropdownMenuRadioItem
+                        v-for="level of PRESETS"
+                        :key="level"
+                        :value="String(level)"
+                        class="shell-menu-item"
+                      >
+                        {{ level * 100 }} %
+                        <DropdownMenuItemIndicator class="shell-menu-check">
+                          <Icon name="tick-02" />
+                        </DropdownMenuItemIndicator>
+                      </DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
                   </DropdownMenuContent>
                 </DropdownMenuPortal>
               </DropdownMenuRoot>
@@ -850,7 +851,8 @@ onMounted(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: var(--space-1) var(--space-1) 0;
+  margin: var(--space-1) var(--space-1) 0;
+  padding: var(--space-0-25);
   border-radius: var(--radius-lg);
   background: var(--background-sunken);
 }
@@ -962,12 +964,6 @@ main.full {
   border: var(--stroke-hairline) solid var(--border-light);
   border-radius: var(--radius-lg);
   background: var(--background-raised);
-}
-
-main.full .workspace {
-  margin: 0;
-  border: 0;
-  border-radius: 0;
 }
 
 /* Au-dessus du canvas et des panneaux : elle traite de ce qui est affiché. */
@@ -1170,7 +1166,6 @@ iframe {
   align-items: center;
   height: 28px;
   padding: 0 var(--space-3);
-  box-shadow: inset 0 var(--stroke-hairline) 0 var(--border-base);
   /* The subtle background of the Figma frame, although muted text falls under
      4.5:1 on it: secondary, by the owner's decision of 15 October 2026. The axe
      case leaves it out of the contrast rule for that reason. Reopened when the
@@ -1213,7 +1208,7 @@ iframe {
 <style>
 .shell-menu {
   z-index: 10;
-  min-width: 180px;
+  min-width: 120px;
   padding: var(--space-1);
   border: var(--stroke-hairline) solid var(--border-base);
   border-radius: var(--radius-sm);
@@ -1240,13 +1235,7 @@ iframe {
   color: var(--text-current);
 }
 
-.shell-menu-item[data-disabled] {
-  color: var(--text-subtle);
-  cursor: default;
-}
-
-.shell-menu-item kbd {
-  color: var(--text-muted);
-  font-size: var(--text-xs);
+.shell-menu-check {
+  display: flex;
 }
 </style>
