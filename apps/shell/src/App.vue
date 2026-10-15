@@ -8,7 +8,7 @@ import type {
   TokensEntry,
 } from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/shell'
-import { Alert } from '@crypte/ui'
+import { Alert, Button } from '@crypte/ui'
 import {
   computed,
   nextTick,
@@ -641,8 +641,7 @@ onMounted(() => {
         </nav>
         <div class="actions">
           <div class="zoom" role="group" aria-label="Zoom">
-            <button
-              type="button"
+            <Button
               class="square"
               aria-label="Zoom out"
               title="Zoom out (-)"
@@ -651,12 +650,11 @@ onMounted(() => {
               @click="zoomBy(-1)"
             >
               <Icon name="minus-sign" />
-            </button>
-            <button type="button" title="Actual size (0)" aria-keyshortcuts="0" @click="zoom = 1">
+            </Button>
+            <Button title="Actual size (0)" aria-keyshortcuts="0" @click="zoom = 1">
               {{ Math.round(zoom * 100) }} %
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
               class="square"
               aria-label="Zoom in"
               title="Zoom in (+)"
@@ -665,21 +663,20 @@ onMounted(() => {
               @click="zoomBy(1)"
             >
               <Icon name="plus-sign" />
-            </button>
+            </Button>
           </div>
-          <button type="button" class="copy" @click="copyLink">
+          <Button variant="secondary" class="copy" @click="copyLink">
             <Icon name="copy-01" />
             {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             title="Full screen (F, Escape to leave)"
             aria-keyshortcuts="f"
             :aria-pressed="full"
             @click="full = !full"
           >
             {{ full ? 'Leave full screen' : 'Full screen' }} <kbd>F</kbd>
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -988,38 +985,6 @@ main.full .workspace {
   gap: var(--space-2);
 }
 
-/* Le bouton du fichier Figma : contour neutre, ou plein inversé pour l'action
-   principale, copier le lien. */
-.actions button {
-  display: flex;
-  gap: var(--space-1);
-  align-items: center;
-  padding: var(--space-1) var(--space-2);
-  border: 0;
-  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
-  border-radius: var(--radius-sm);
-  background: var(--background-raised);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: var(--text-sm);
-  line-height: var(--leading-sm);
-  cursor: pointer;
-}
-
-.actions button:hover:not(:disabled) {
-  background: var(--background-hover);
-}
-
-.actions button:focus-visible {
-  outline: var(--stroke-focus) solid var(--accent-focus);
-  outline-offset: var(--stroke-hairline);
-}
-
-.actions button:disabled {
-  color: var(--text-subtle);
-  cursor: default;
-}
-
 .zoom {
   display: flex;
   gap: var(--space-1);
@@ -1035,27 +1000,6 @@ main.full .workspace {
 .zoom .square {
   min-width: 0;
   padding: var(--space-1) var(--space-1-5);
-}
-
-.actions .copy {
-  box-shadow: none;
-  background: var(--background-inverse);
-  color: var(--text-inverse);
-}
-
-.actions .copy:hover:not(:disabled) {
-  background: var(--background-inverse-hover);
-}
-
-.actions kbd {
-  padding: var(--space-0-5) var(--space-1);
-  border: 0;
-  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
-  border-radius: var(--radius-xs);
-  background: var(--background-raised);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
 }
 
 .body {

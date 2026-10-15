@@ -10,8 +10,8 @@ export default defineConfig({
     entry: {
       // La fabrique, lue par le CLI dans Node.
       index: 'src/index.ts',
-      // Le panneau, servi tel quel au shell : `vue`, pair, reste son seul import
-      // nu, que l'import map du shell résout.
+      // Le panneau, servi tel quel au shell : `vue` et `@crypte/ui`, pairs, restent
+      // ses seuls imports nus, que l'import map du shell résout.
       shell: 'src/shell.ts',
       // Les hooks, importés par le Vite du projet : `axe-core`, dépendance, y
       // reste un import nu que ce Vite résout.

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Overrides, PanelEvents, PanelProps, ResolvedPropDetails } from '@crypte/core/protocol'
+import { Button, Checkbox, Input, Select } from '@crypte/ui'
 import { computed, ref, watch, watchEffect } from 'vue'
 
 const props = defineProps<Pick<PanelProps, 'entry'>>()
@@ -105,9 +106,9 @@ const hint = (details: ResolvedPropDetails) =>
     style="
       display: grid;
       grid-template-columns: max-content 1fr;
-      gap: 6px 12px;
+      gap: var(--space-2) var(--space-3);
       align-items: center;
-      font-size: 13px;
+      font-size: var(--text-sm);
     "
     @submit.prevent
   >
@@ -118,28 +119,27 @@ const hint = (details: ResolvedPropDetails) =>
       style="display: contents"
     >
       <span>{{ name }}</span>
-      <input
+      <Input
         v-if="details.type === 'string'"
         type="text"
         :value="values[name] ?? ''"
         :placeholder="hint(details)"
         @input="text(name, $event)"
       />
-      <input
+      <Input
         v-else-if="details.type === 'number'"
         type="number"
         :value="values[name] ?? ''"
         :placeholder="hint(details)"
         @input="number(name, $event)"
       />
-      <input
+      <Checkbox
         v-else-if="details.type === 'boolean'"
-        type="checkbox"
         :checked="values[name] === true"
         :indeterminate="!(name in values)"
         @change="set(name, ($event.target as HTMLInputElement).checked)"
       />
-      <select
+      <Select
         v-else
         :value="name in values ? String(choices(details).indexOf(values[name])) : ''"
         @change="choose(name, choices(details), $event)"
@@ -148,15 +148,14 @@ const hint = (details: ResolvedPropDetails) =>
         <option v-for="(option, at) of choices(details)" :key="at" :value="String(at)">
           {{ String(option) }}
         </option>
-      </select>
+      </Select>
     </label>
-    <button
-      type="button"
+    <Button
       style="grid-column: 1 / -1; justify-self: start"
       :disabled="Object.keys(values).length === 0"
       @click="reset"
     >
       Back to the story
-    </button>
+    </Button>
   </form>
 </template>
