@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
-import { Button, Checkbox, Input, Select } from '../src'
+import { nextTick } from 'vue'
+import { Button, Checkbox, Field, Input, Select } from '../src'
 
 // Ce que les plugins et le shell reçoivent : l'élément natif, ses attributs et ses
 // écouteurs passés tels quels, le dessin du fichier Figma en plus.
@@ -45,23 +46,71 @@ describe('Input', () => {
   })
 })
 
-// Sur la liste et non sur son enveloppe : un `value` posé sur le `span` ne
-// choisirait rien.
+// Sur le déclencheur, que `Field` nomme par son id : la liste elle-même est
+// téléportée dans le document à l'ouverture.
 describe('Select', () => {
-  it('passes its attributes and listeners to the select, its options in the slot', async () => {
-    const change = vi.fn()
-    const wrapper = mount(Select, {
-      attrs: { value: 'b', 'aria-label': 'tone', onChange: change },
-      slots: { default: '<option value="a">A</option><option value="b">B</option>' },
-    })
-    const select = wrapper.get('select')
-    await select.trigger('change')
+  const options = [
+    { value: '0', label: 'neutral' },
+    { value: '1', label: 'warning' },
+  ]
 
-    expect(wrapper.element.tagName).toBe('SPAN')
-    expect(wrapper.attributes('aria-label')).toBeUndefined()
-    expect(select.attributes('aria-label')).toBe('tone')
-    expect((select.element as HTMLSelectElement).value).toBe('b')
-    expect(change).toHaveBeenCalledOnce()
+  it('shows the label of its value, its attributes on the trigger', async () => {
+    const wrapper = mount(Select, {
+      props: { options, modelValue: '1' },
+      attrs: { id: 'tone', 'aria-label': 'tone' },
+      attachTo: document.body,
+    })
+    await nextTick()
+    const trigger = wrapper.get('[role="combobox"]')
+
+    expect(trigger.attributes()).toMatchObject({ id: 'tone', 'aria-label': 'tone' })
+    expect(trigger.text()).toBe('warning')
+    wrapper.unmount()
+  })
+
+  it('shows its placeholder with no value', () => {
+    const wrapper = mount(Select, { props: { options, placeholder: '—' } })
+
+    expect(wrapper.get('[role="combobox"]').text()).toBe('—')
+  })
+
+  it('emits the value of the option chosen', async () => {
+    const wrapper = mount(Select, {
+      props: { options, modelValue: '1' },
+      attachTo: document.body,
+    })
+    await wrapper.get('[role="combobox"]').trigger('keydown', { key: 'Enter' })
+    await nextTick()
+    const neutre = [...document.querySelectorAll('[role="option"]')].find(
+      (one) => one.textContent?.trim() === 'neutral',
+    ) as HTMLElement
+    neutre.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }))
+    await nextTick()
+
+    expect(wrapper.emitted('update:modelValue')).toEqual([['0']])
+    wrapper.unmount()
+  })
+})
+
+// L'étiquette nomme le contrôle par l'id qu'elle lui donne, et le marqueur ne dit
+// « overridden » que pour une valeur saisie.
+describe('Field', () => {
+  it('labels its control, and says when the value is overridden', async () => {
+    const wrapper = mount(Field, {
+      props: { label: 'tone' },
+      slots: {
+        default: '<template #default="{ id }"><input :id="id" /></template>',
+        action: '<button>Reset</button>',
+      },
+    })
+
+    expect(wrapper.get('label').attributes('for')).toBe(wrapper.get('input').attributes('id'))
+    expect(wrapper.get('label').text()).toBe('tone')
+    expect(wrapper.find('.marker').exists()).toBe(false)
+    expect(wrapper.get('.action button').text()).toBe('Reset')
+
+    await wrapper.setProps({ overridden: true })
+    expect(wrapper.get('.marker').text()).toBe('overridden')
   })
 })
 

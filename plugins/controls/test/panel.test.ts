@@ -1,6 +1,8 @@
 import type { RenderedValues, ResolvedPropDetails, StoryEntry } from '@crypte/core/protocol'
 import { mount, type VueWrapper } from '@vue/test-utils'
+import { Field, Select } from '@crypte/ui'
 import { describe, expect, test } from 'vitest'
+import { nextTick } from 'vue'
 import controls from '../src/index'
 import Panel from '../src/panel.vue'
 
@@ -46,21 +48,40 @@ const émis = (wrapper: VueWrapper) => wrapper.emitted('overrides')?.map(([value
 const raisons = (wrapper: VueWrapper) =>
   wrapper.emitted('inapplicable')?.map(([reason]) => reason) ?? []
 
+// La liste est celle de Reka, téléportée à l'ouverture : on la lit et on la
+// choisit par le composant, par rang comme le panneau.
+const liste = (wrapper: VueWrapper) => wrapper.findComponent(Select)
+const choix = (wrapper: VueWrapper) =>
+  liste(wrapper)
+    .props('options')
+    .map((one) => one.label)
+const choisi = (wrapper: VueWrapper) => liste(wrapper).props('modelValue') as string | undefined
+const choisit = async (wrapper: VueWrapper, at: string) => {
+  liste(wrapper).vm.$emit('update:modelValue', at)
+  await nextTick()
+}
+const libellés = (wrapper: VueWrapper) =>
+  wrapper.findAllComponents(Field).map((one) => one.props('label') as string)
+const bouton = (wrapper: VueWrapper, texte: string) =>
+  wrapper.findAll('button').find((one) => one.text() === texte)
+
 describe('the fields', () => {
   test('draws one field per editable prop, by its kind', () => {
     const wrapper = monte(toutes)
 
     expect(
-      wrapper.findAll('label').map((one) => {
-        const field = one.find('input, select')
-        return `${one.find('span').text()}:${field.element.tagName.toLowerCase()}${field.attributes('type') ? `[${field.attributes('type')}]` : ''}`
+      wrapper.findAllComponents(Field).map((one) => {
+        const control = one.findComponent(Select).exists()
+          ? 'select'
+          : `input[${one.find('input').attributes('type')}]`
+        return `${one.props('label')}:${control}`
       }),
     ).toEqual(['label:input[text]', 'count:input[number]', 'on:input[checkbox]', 'size:select'])
     expect(raisons(wrapper)).toEqual([])
   })
 
-  // Le manifeste ne porte pas la valeur de la story : le champ part vide, avec
-  // le défaut en indication, et la case n'est ni cochée ni décochée.
+  // Avant le rendu, rien n'est saisi : le défaut en indication, la case ni
+  // cochée ni décochée, et la liste sur son indication.
   test('starts with nothing edited, the default as a hint before the story renders', () => {
     const wrapper = monte(toutes)
 
@@ -69,8 +90,9 @@ describe('the fields', () => {
     expect((wrapper.find('input[type="checkbox"]').element as HTMLInputElement).indeterminate).toBe(
       true,
     )
-    expect(wrapper.find('select option').text()).toBe('—')
-    expect(wrapper.find('label').attributes('title')).toBe('Le texte.')
+    expect(choisi(wrapper)).toBeUndefined()
+    expect(liste(wrapper).props('placeholder')).toBe('—')
+    expect(wrapper.findComponent(Field).attributes('title')).toBe('Le texte.')
   })
 
   // Ce que le composant affiche : la valeur rendue l'emporte sur le défaut, et
@@ -82,13 +104,13 @@ describe('the fields', () => {
     expect(texte.attributes('placeholder')).toBe('Rendu')
     expect(wrapper.find('input[type="number"]').attributes('placeholder')).toBe('4')
     expect((wrapper.find('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(true)
-    expect((wrapper.find('select').element as HTMLSelectElement).value).toBe('1')
-    expect(wrapper.findAll('select option').map((one) => one.text())).toEqual(['sm', '2'])
+    expect(choisi(wrapper)).toBe('1')
+    expect(choix(wrapper)).toEqual(['sm', '2'])
     expect(émis(wrapper)).toEqual([])
 
-    await wrapper.find('select').setValue('0')
+    await choisit(wrapper, '0')
     await wrapper.find('input[type="checkbox"]').setValue(false)
-    expect((wrapper.find('select').element as HTMLSelectElement).value).toBe('0')
+    expect(choisi(wrapper)).toBe('0')
     expect((wrapper.find('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(false)
     expect(émis(wrapper).at(-1)).toEqual({ size: 'sm', on: false })
   })
@@ -116,9 +138,9 @@ describe('the form', () => {
       }),
     )
 
-    expect(wrapper.findAll('select option').map((one) => one.text())).toEqual(['—', 'md', 'null'])
+    expect(choix(wrapper)).toEqual(['md', 'null'])
 
-    await wrapper.find('select').setValue('0')
+    await choisit(wrapper, '0')
     expect(émis(wrapper).at(-1)).toEqual({ size: 'md' })
   })
 
@@ -126,7 +148,7 @@ describe('the form', () => {
   test('offers nothing for an enum with no options', () => {
     const wrapper = monte(entry('x--sans-options', { size: { type: 'enum', required: false } }))
 
-    expect(wrapper.findAll('select option').map((one) => one.text())).toEqual(['—'])
+    expect(choix(wrapper)).toEqual([])
   })
 })
 
@@ -138,7 +160,7 @@ describe('what an edit emits', () => {
     await wrapper.find('input[type="number"]').setValue('12')
     await wrapper.find('input[type="checkbox"]').setValue(true)
     // Par rang : la seconde option est le nombre 2, qui reste un nombre.
-    await wrapper.find('select').setValue('1')
+    await choisit(wrapper, '1')
 
     expect(émis(wrapper).at(-1)).toEqual({ label: 'Bonjour', count: 12, on: true, size: 2 })
   })
@@ -156,9 +178,30 @@ describe('what an edit emits', () => {
     expect(émis(wrapper).slice(-2)).toEqual([{ count: 12 }, {}])
   })
 
+  // Le champ surchargé le dit, et se rend seul à la story : les autres gardent
+  // ce qui a été saisi.
+  test('marks an overridden field, and gives that one back to the story', async () => {
+    const wrapper = monte(toutes)
+    await wrapper.find('input[type="text"]').setValue('Bonjour')
+    await choisit(wrapper, '1')
+
+    const champs = wrapper.findAllComponents(Field)
+    expect(champs.map((one) => one.props('overridden'))).toEqual([true, false, false, true])
+    expect(wrapper.findAll('button').filter((one) => one.text() === 'Reset')).toHaveLength(2)
+
+    await champs[3]!.find('button').trigger('click')
+    expect(émis(wrapper).at(-1)).toEqual({ label: 'Bonjour' })
+    expect(wrapper.findAllComponents(Field).map((one) => one.props('overridden'))).toEqual([
+      true,
+      false,
+      false,
+      false,
+    ])
+  })
+
   test('goes back to the story in one click', async () => {
     const wrapper = monte(toutes)
-    const retour = () => wrapper.find('button')
+    const retour = () => bouton(wrapper, 'Back to the story')!
 
     expect(retour().attributes('disabled')).toBeDefined()
 
@@ -176,7 +219,7 @@ describe('what an edit emits', () => {
     const wrapper = monte(toutes)
     await wrapper.find('input[type="text"]').setValue('Bonjour')
     await wrapper.find('input[type="checkbox"]').setValue(true)
-    await wrapper.find('select').setValue('1')
+    await choisit(wrapper, '1')
     const avant = émis(wrapper).length
 
     await wrapper.setProps({ entry: { ...toutes, id: 'x--autre' } })
@@ -185,7 +228,7 @@ describe('what an edit emits', () => {
     expect((wrapper.find('input[type="checkbox"]').element as HTMLInputElement).indeterminate).toBe(
       true,
     )
-    expect((wrapper.find('select').element as HTMLSelectElement).value).toBe('-1')
+    expect(choisi(wrapper)).toBeUndefined()
     expect(émis(wrapper)).toHaveLength(avant)
   })
 
@@ -249,7 +292,7 @@ describe('what it says when there is nothing to edit', () => {
     )
 
     expect(wrapper.find('.unread').exists()).toBe(true)
-    expect(wrapper.findAll('label').map((one) => one.find('span').text())).toEqual(['label'])
+    expect(libellés(wrapper)).toEqual(['label'])
   })
 })
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Overrides, PanelEvents, PanelProps, ResolvedPropDetails } from '@crypte/core/protocol'
-import { Button, Checkbox, Input, Select } from '@crypte/ui'
+import { Button, Checkbox, Field, Input, Select } from '@crypte/ui'
 import { computed, ref, watch, watchEffect } from 'vue'
 
 const props = defineProps<Pick<PanelProps, 'entry' | 'values'>>()
@@ -73,11 +73,13 @@ function number(name: string, event: Event) {
   else set(name, value)
 }
 
-// By index, since an option may be a number and a `<select>` only holds text.
-// Every option is a value: a list goes back to the story with the others, by
-// `Back to the story`.
-function choose(name: string, options: unknown[], event: Event) {
-  set(name, options[Number((event.target as HTMLSelectElement).value)])
+// By index, since an option may be a number or `null` and a select holds text.
+// A value the options do not hold, or none, shows the placeholder.
+const optionsOf = (details: ResolvedPropDetails) =>
+  choices(details).map((option, at) => ({ value: String(at), label: String(option) }))
+const selected = (name: string, details: ResolvedPropDetails) => {
+  const at = choices(details).indexOf(shown(name, details))
+  return at === -1 ? undefined : String(at)
 }
 
 // Primitives only, section 5.1: a story's `details` may list an object, which
@@ -112,57 +114,55 @@ const hint = (name: string, details: ResolvedPropDetails) => {
   </p>
   <form
     v-if="fields.length > 0"
-    style="
-      display: grid;
-      grid-template-columns: max-content 1fr;
-      gap: var(--space-2) var(--space-3);
-      align-items: center;
-      font-size: var(--text-sm);
-    "
+    style="display: flex; flex-direction: column; gap: var(--space-3)"
     @submit.prevent
   >
-    <label
+    <Field
       v-for="[name, details] of fields"
       :key="name"
+      :label="name"
+      :overridden="name in edited"
       :title="details.description"
-      style="display: contents"
     >
-      <span>{{ name }}</span>
-      <Input
-        v-if="details.type === 'string'"
-        type="text"
-        :value="edited[name] ?? ''"
-        :placeholder="hint(name, details)"
-        @input="text(name, $event)"
-      />
-      <Input
-        v-else-if="details.type === 'number'"
-        type="number"
-        :value="edited[name] ?? ''"
-        :placeholder="hint(name, details)"
-        @input="number(name, $event)"
-      />
-      <Checkbox
-        v-else-if="details.type === 'boolean'"
-        :checked="shown(name, details) === true"
-        :indeterminate="shown(name, details) === undefined"
-        @change="set(name, ($event.target as HTMLInputElement).checked)"
-      />
-      <Select
-        v-else
-        :value="String(choices(details).indexOf(shown(name, details)))"
-        @change="choose(name, choices(details), $event)"
-      >
-        <option v-if="!choices(details).includes(shown(name, details))" value="-1" disabled>
-          —
-        </option>
-        <option v-for="(option, at) of choices(details)" :key="at" :value="String(at)">
-          {{ String(option) }}
-        </option>
-      </Select>
-    </label>
+      <template #action>
+        <Button v-if="name in edited" @click="unset(name)">Reset</Button>
+      </template>
+      <template #default="{ id }">
+        <Input
+          v-if="details.type === 'string'"
+          :id="id"
+          type="text"
+          :value="edited[name] ?? ''"
+          :placeholder="hint(name, details)"
+          @input="text(name, $event)"
+        />
+        <Input
+          v-else-if="details.type === 'number'"
+          :id="id"
+          type="number"
+          :value="edited[name] ?? ''"
+          :placeholder="hint(name, details)"
+          @input="number(name, $event)"
+        />
+        <Checkbox
+          v-else-if="details.type === 'boolean'"
+          :id="id"
+          :checked="shown(name, details) === true"
+          :indeterminate="shown(name, details) === undefined"
+          @change="set(name, ($event.target as HTMLInputElement).checked)"
+        />
+        <Select
+          v-else
+          :id="id"
+          :options="optionsOf(details)"
+          :model-value="selected(name, details)"
+          placeholder="—"
+          @update:model-value="(at) => set(name, choices(details)[Number(at)])"
+        />
+      </template>
+    </Field>
     <Button
-      style="grid-column: 1 / -1; justify-self: start"
+      style="align-self: flex-start"
       :disabled="Object.keys(edited).length === 0"
       @click="reset"
     >

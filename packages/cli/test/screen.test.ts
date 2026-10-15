@@ -975,14 +975,14 @@ describe('the controls panel', () => {
     await expect
       .poll(() => panneau(ecran.page).locator('input[type="text"]').getAttribute('placeholder'))
       .toBe('Nouveau')
-    expect(await panneau(ecran.page).locator('select option:checked').textContent()).toBe('warning')
+    expect(await panneau(ecran.page).getByRole('combobox').textContent()).toBe('warning')
   })
 
   test('renders the story with what is typed, without remounting it', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
 
     await expect
-      .poll(() => panneau(ecran.page).locator('label > span:first-child').allTextContents())
+      .poll(() => panneau(ecran.page).locator('label').allTextContents())
       .toEqual(['label', 'tone'])
 
     // Une marque sur le nœud rendu : un composant remonté la perdrait. C'est la
@@ -994,7 +994,9 @@ describe('the controls panel', () => {
     await panneau(ecran.page).locator('input[type="text"]').fill('Bonjour')
     await expect.poll(ecran.vu).toBe('Bonjour')
 
-    await panneau(ecran.page).locator('select').selectOption({ label: 'warning' })
+    // La liste de Reka, téléportée dans la page à l'ouverture.
+    await panneau(ecran.page).getByRole('combobox').click()
+    await ecran.page.getByRole('option', { name: 'warning' }).click()
     await expect
       .poll(() => cadre(ecran.page).locator('#root span').getAttribute('style'))
       .toContain('--color-warning')
