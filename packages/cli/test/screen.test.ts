@@ -769,7 +769,13 @@ describe('a plugin in the browser', () => {
     expect(await ecran.page.locator('.status-bar .render').innerText()).toMatch(
       /^First render \d+ ms$/,
     )
-    expect((await chiffres.nth(1).getAttribute('title'))?.split('\n')).toEqual([
+    // Le poids de chacun dans le tooltip du compte.
+    await chiffres.nth(1).locator('[tabindex]').hover()
+    // Le texte que Reka garde pour les lecteurs d'écran, masqué à l'œil : `getByRole`
+    // ne le compte pas.
+    const bulle = ecran.page.locator('[role="tooltip"]')
+    await expect.poll(() => bulle.count(), { timeout: 5000 }).toBe(1)
+    expect((await bulle.textContent())?.split('\n')).toEqual([
       'tokens 0.0 kB',
       expect.stringMatching(/^controls \d\.\d kB$/),
       expect.stringMatching(/^a11y 1\d\d\.\d kB$/),

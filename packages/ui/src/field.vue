@@ -2,11 +2,12 @@
      Overridden, the label row carries the marker in strong emphasis. The control
      goes in the default slot, which receives the id the label points to; the
      `action` slot sits at the end of the label row, its buttons at the sm size of
-     the Figma field. -->
+     the Figma field. A `description` shows as a tooltip on the label. -->
 <script setup lang="ts">
 import { useId } from 'vue'
+import Tooltip from './tooltip.vue'
 
-defineProps<{ label: string; overridden?: boolean }>()
+defineProps<{ label: string; overridden?: boolean; description?: string }>()
 
 const id = useId()
 </script>
@@ -14,7 +15,10 @@ const id = useId()
 <template>
   <div class="field">
     <div class="row">
-      <label :for="id">{{ label }}</label>
+      <Tooltip v-if="description" :content="description">
+        <label :for="id">{{ label }}</label>
+      </Tooltip>
+      <label v-else :for="id">{{ label }}</label>
       <span v-if="overridden" class="marker">overridden</span>
       <span class="action"><slot name="action" /></span>
     </div>
@@ -34,7 +38,6 @@ const id = useId()
   display: flex;
   gap: var(--space-1-5);
   align-items: center;
-  min-height: 24px;
 }
 
 label {

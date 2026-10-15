@@ -104,7 +104,7 @@ const hint = (name: string, details: ResolvedPropDetails) => {
   </p>
   <form
     v-if="fields.length > 0"
-    style="display: flex; flex-direction: column; gap: var(--space-3)"
+    style="display: flex; flex-direction: column; gap: var(--space-2)"
     @submit.prevent
   >
     <Field
@@ -112,7 +112,7 @@ const hint = (name: string, details: ResolvedPropDetails) => {
       :key="name"
       :label="name"
       :overridden="name in edited"
-      :title="details.description"
+      :description="details.description"
     >
       <template #action>
         <Button v-if="name in edited" @click="unset(name)">Reset</Button>

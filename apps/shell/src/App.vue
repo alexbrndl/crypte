@@ -9,7 +9,7 @@ import type {
   TokensEntry,
 } from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/shell'
-import { Alert, Button } from '@crypte/ui'
+import { Alert, Button, Tooltip } from '@crypte/ui'
 import {
   DropdownMenuContent,
   DropdownMenuItemIndicator,
@@ -238,8 +238,6 @@ const fullScreen = computed(() => full.value && storyMode.value)
 
 // Un réglage de vue, pas un lieu qu'on partage : hors de l'adresse.
 const ZOOMS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]
-// Ce que le menu propose ; les touches parcourent toute l'échelle.
-const PRESETS = [0.5, 0.75, 1, 1.25, 1.5, 2]
 const zoom = ref(1)
 
 function zoomBy(step: number) {
@@ -736,16 +734,14 @@ onMounted(() => {
                  qu'on quitte d'ici puisque la barre d'outils part avec lui. -->
             <div v-if="displayed" class="stage-tools">
               <DropdownMenuRoot>
-                <DropdownMenuTrigger as-child>
-                  <Button
-                    class="level"
-                    :aria-label="`Zoom, ${Math.round(zoom * 100)} %`"
-                    title="Zoom (+, -, 0 for actual size)"
-                  >
-                    {{ Math.round(zoom * 100) }} %
-                    <Icon name="arrow-down-01" />
-                  </Button>
-                </DropdownMenuTrigger>
+                <Tooltip content="Zoom: + and -, 0 for actual size">
+                  <DropdownMenuTrigger as-child>
+                    <Button class="level" :aria-label="`Zoom, ${Math.round(zoom * 100)} %`">
+                      {{ Math.round(zoom * 100) }} %
+                      <Icon name="arrow-down-01" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </Tooltip>
                 <DropdownMenuPortal>
                   <DropdownMenuContent class="shell-menu" align="end" :side-offset="4">
                     <DropdownMenuRadioGroup
@@ -753,7 +749,7 @@ onMounted(() => {
                       @update:model-value="(level) => (zoom = Number(level))"
                     >
                       <DropdownMenuRadioItem
-                        v-for="level of PRESETS"
+                        v-for="level of ZOOMS"
                         :key="level"
                         :value="String(level)"
                         class="shell-menu-item"
@@ -767,16 +763,17 @@ onMounted(() => {
                   </DropdownMenuContent>
                 </DropdownMenuPortal>
               </DropdownMenuRoot>
-              <Button
-                class="square"
-                :aria-label="full ? 'Leave full screen' : 'Full screen'"
-                :title="full ? 'Leave full screen (F, Escape)' : 'Full screen (F)'"
-                aria-keyshortcuts="f"
-                :aria-pressed="full"
-                @click="full = !full"
-              >
-                <Icon name="full-screen" />
-              </Button>
+              <Tooltip :content="full ? 'Leave full screen: F or Escape' : 'Full screen: F'">
+                <Button
+                  class="square"
+                  :aria-label="full ? 'Leave full screen' : 'Full screen'"
+                  aria-keyshortcuts="f"
+                  :aria-pressed="full"
+                  @click="full = !full"
+                >
+                  <Icon name="full-screen" />
+                </Button>
+              </Tooltip>
             </div>
             <!-- L'erreur couvre la preview plutôt que de l'accompagner : ce qui reste
            affiché dessous appartient à la story d'avant, et le laisser voir
@@ -816,20 +813,25 @@ onMounted(() => {
     <footer class="status-bar">
       <span class="dot" :data-failed="trouble || undefined" aria-hidden="true" />
       <p>{{ line }}</p>
-      <span
+      <!-- Focusables, pour que le clavier lise leur tooltip comme la souris. -->
+      <Tooltip
         v-if="firstRender !== null"
-        class="render"
-        title="From opening this page to the first story rendered"
+        content="From opening this page to the first story rendered"
       >
-        First render {{ Math.round(firstRender) }} ms
-      </span>
+        <span class="render" tabindex="0">First render {{ Math.round(firstRender) }} ms</span>
+      </Tooltip>
       <ul class="figures">
-        <li v-if="project" title="The shell, gzipped">Shell {{ kB(project.shellBytes) }}</li>
-        <li
-          v-if="weights.length > 0"
-          :title="weights.map((one) => `${one.plugin} ${kB(one.bytes)}`).join('\n')"
-        >
-          {{ weights.length }} {{ weights.length === 1 ? 'plugin' : 'plugins' }}
+        <li v-if="project">
+          <Tooltip content="The shell, gzipped">
+            <span tabindex="0">Shell {{ kB(project.shellBytes) }}</span>
+          </Tooltip>
+        </li>
+        <li v-if="weights.length > 0">
+          <Tooltip :content="weights.map((one) => `${one.plugin} ${kB(one.bytes)}`).join('\n')">
+            <span tabindex="0">
+              {{ weights.length }} {{ weights.length === 1 ? 'plugin' : 'plugins' }}
+            </span>
+          </Tooltip>
         </li>
       </ul>
     </footer>
@@ -1178,6 +1180,11 @@ iframe {
 
 .status-bar p {
   margin: 0;
+}
+
+.status-bar [tabindex]:focus-visible {
+  outline: var(--stroke-focus) solid var(--accent-focus);
+  outline-offset: var(--stroke-hairline);
 }
 
 .dot {

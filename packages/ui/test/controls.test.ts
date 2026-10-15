@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
-import { Button, Checkbox, Field, Input, Select } from '../src'
+import { Button, Checkbox, Field, Input, Select, Tooltip } from '../src'
 
 // Ce que les plugins et le shell reçoivent : l'élément natif, ses attributs et ses
 // écouteurs passés tels quels, le dessin du fichier Figma en plus.
@@ -126,5 +126,25 @@ describe('Checkbox', () => {
 
     const vide = mount(Checkbox, { attrs: { indeterminate: true } })
     expect((vide.element as HTMLInputElement).indeterminate).toBe(true)
+  })
+})
+
+// Au focus comme au survol : le clavier lit ce que la souris lit, et le
+// déclencheur porte le lien vers son texte.
+describe('Tooltip', () => {
+  it('shows its content on focus, described by it', async () => {
+    const wrapper = mount(Tooltip, {
+      props: { content: 'Full screen: F' },
+      slots: { default: '<button>plein écran</button>' },
+      attachTo: document.body,
+    })
+    await wrapper.get('button').trigger('focus')
+    await nextTick()
+    await nextTick()
+    const bulle = document.querySelector('[role="tooltip"]')
+
+    expect(bulle?.textContent).toBe('Full screen: F')
+    expect(wrapper.get('button').attributes('aria-describedby')).toBe(bulle?.id)
+    wrapper.unmount()
   })
 })
