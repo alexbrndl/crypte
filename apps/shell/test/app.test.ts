@@ -2149,12 +2149,16 @@ describe('the zoom', () => {
     await frappe(écran, 'f')
     await ouvre(écran)
     const menu = document.querySelector('[role="menu"]')!
-    const tape = async (key: string) => {
-      menu.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+    const tape = async (key: string, options: KeyboardEventInit = {}) => {
+      menu.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...options }))
       await vide(écran.wrapper)
     }
 
     await tape('+')
+    expect(niveau(écran)).toBe('125 %')
+    // Sous ⌘ ou Ctrl, celles du navigateur.
+    await tape('0', { metaKey: true })
+    await tape('-', { ctrlKey: true })
     expect(niveau(écran)).toBe('125 %')
     await tape('0')
     for (const key of ['f', 'Escape']) await tape(key)
