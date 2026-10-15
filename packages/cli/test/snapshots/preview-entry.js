@@ -102,6 +102,8 @@ function __crypte_render(id, overrides) {
 
   // The wrappers last: the adapter nests them, outermost first, and the
   // global one of section 2.5 comes from the configuration text.
+  // The core's `layout`, 2.4, which the page's style places the container by.
+  __crypte_container.dataset.layout = entry.options.layout ?? 'centered'
   __crypte_adapter.mount(__crypte_container, component, props, __crypte_wrapsOf(__crypte_wrap, definition))
 
   // The story drawn, which the channel hands to the plugins' hooks once

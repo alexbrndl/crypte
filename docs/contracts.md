@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.36, reference document. A project brief points here instead of restating these shapes.
+> Version 1.37, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -230,7 +230,13 @@ interface Story<P> {
 }
 ```
 
-The second argument is typed by the plugins you have installed, which is what gives autocompletion. **With no plugin installed, no option key is accepted at all**, so the example above needs the plugin that declares `responsive`. The common case has no options and never uses this helper.
+The second argument is typed by the core and the plugins you have installed, which is what gives autocompletion. **The core declares one key, `layout`**: where the story sits in the stage, `centered` by default, `padded` with a 16 px margin, or `fullscreen` on the whole frame, for a page or a bar. **Every other key comes from a plugin**, so the example above needs the plugin that declares `responsive`. The common case has no options and never uses this helper.
+
+```ts
+interface CoreStoryOptions {
+  layout?: 'centered' | 'padded' | 'fullscreen'
+}
+```
 
 The same thing can be written by hand, since the union accepts either shape:
 
@@ -983,6 +989,12 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.37.** Where a story sits in the stage (2.4).
+
+| Before | After |
+| --- | --- |
+| a story sat at the top left of the frame, with no option of the core | the core's `layout` option centres it by default, or pads it, or gives it the whole frame |
 
 **v1.36.** The shell hands a panel back what it edited (6.1).
 

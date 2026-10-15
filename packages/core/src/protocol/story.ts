@@ -16,11 +16,14 @@ export interface Story<P> {
   options?: StoryOptions
 }
 
-// Accepts no key while the extension point is empty: an interface with no
-// property would accept any object.
-export type StoryOptions = [keyof PluginStoryOptions] extends [never]
-  ? Record<string, never>
-  : PluginStoryOptions
+// The core's own options, and those the installed plugins declare.
+export type StoryOptions = CoreStoryOptions & PluginStoryOptions
+
+// Where the story sits in the stage: centred, the default, with a margin, or on
+// the whole frame, for a page or a bar.
+export interface CoreStoryOptions {
+  layout?: 'centered' | 'padded' | 'fullscreen'
+}
 
 // The core knows no framework: a component stays an opaque value.
 // Components only: a wrapper function would not differ from a React component,

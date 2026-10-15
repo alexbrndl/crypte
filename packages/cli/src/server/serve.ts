@@ -299,7 +299,17 @@ function previewHtml(): string {
   return [
     '<!doctype html>',
     '<html>',
-    '  <head><meta charset="UTF-8" /><title>Preview</title></head>',
+    '  <head>',
+    '    <meta charset="UTF-8" />',
+    '    <title>Preview</title>',
+    // The three layouts of 2.4, by the container's `data-layout`. No margin of
+    // the page's own: `padded` gives one, `fullscreen` none.
+    '    <style>',
+    '      html, body { height: 100%; margin: 0 }',
+    '      #root[data-layout="centered"] { display: flex; align-items: center; justify-content: center; min-height: 100% }',
+    '      #root[data-layout="padded"] { box-sizing: border-box; min-height: 100%; padding: 16px }',
+    '    </style>',
+    '  </head>',
     '  <body>',
     '    <div id="root"></div>',
     `    <script type="module" src="${PREVIEW_ENTRY}"></script>`,
@@ -604,6 +614,8 @@ export function previewEntry(project: Project, files: string[] = []): string {
     '',
     '  // The wrappers last: the adapter nests them, outermost first, and the',
     '  // global one of section 2.5 comes from the configuration text.',
+    "  // The core's `layout`, 2.4, which the page's style places the container by.",
+    `  ${OWN}container.dataset.layout = entry.options.layout ?? 'centered'`,
     `  ${OWN}adapter.mount(${OWN}container, component, props, ${OWN}wrapsOf(${OWN}wrap, definition))`,
     '',
     "  // The story drawn, which the channel hands to the plugins' hooks once",

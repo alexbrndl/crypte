@@ -9,6 +9,7 @@ export type {
   StoryDefinition,
   Story,
   StoryOptions,
+  CoreStoryOptions,
   Wrap,
   WrapEntry,
   StoryMeta,

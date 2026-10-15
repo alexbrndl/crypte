@@ -1298,6 +1298,35 @@ describe('the shortcuts', () => {
   })
 })
 
+// L'option `layout` du noyau (2.4), jugée où elle place la story.
+describe('the layout of a story, on screen', () => {
+  test('centres a story by default, and gives the frame to a fullscreen one', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    const cadre = (await ecran.page.locator('iframe[title="preview"]').boundingBox())!
+    const badge = ecran.page.frameLocator('iframe[title="preview"]').getByText('Nouveau')
+    const milieu = async () => {
+      const boite = (await badge.boundingBox())!
+      return [
+        Math.round(boite.x + boite.width / 2 - cadre.x - cadre.width / 2),
+        Math.round(boite.y + boite.height / 2 - cadre.y - cadre.height / 2),
+      ]
+    }
+    expect((await milieu()).map((ecart) => Math.abs(ecart) <= 1)).toEqual([true, true])
+
+    // Donnée au catalogue servi plutôt qu'écrite dans le fichier : le rechargement
+    // qu'une édition déclenche passait les 20 s d'un cas dans la suite entière.
+    const entry = ecran.held.catalogue.manifest.entries.find(
+      (one) => one.id === 'badge--par-defaut',
+    )
+    if (entry?.type !== 'story') throw new Error('badge--par-defaut absente du catalogue')
+    entry.options = { layout: 'fullscreen' }
+    await ecran.page.reload()
+    await expect
+      .poll(async () => Math.round((await badge.boundingBox())!.x - cadre.x))
+      .toBeLessThan(20)
+  })
+})
+
 // L'échelle posée sur le document de la preview, jugée où elle se calcule.
 describe('the zoom, on screen', () => {
   test('scales the story and keeps the size of its frame', async ({ ecran }) => {
