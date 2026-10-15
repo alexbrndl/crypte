@@ -346,7 +346,7 @@ function shortcut(event: KeyboardEvent) {
   if (target instanceof Element && target.closest('input, textarea, select, [contenteditable]'))
     return
   // Alt+F ouvre le menu Fichier sous Windows : `f` et `/` se tapent sans modification.
-  const plain = !event.altKey && !event.ctrlKey
+  const plain = !event.altKey
   // La palette est la recherche : `/` l'ouvre, comme le champ de la colonne.
   if (event.key === '/' && plain) {
     event.preventDefault()
@@ -744,7 +744,7 @@ onMounted(() => {
         <li v-if="project" title="The shell, gzipped">Shell {{ kB(project.shellBytes) }}</li>
         <li
           v-if="weights.length > 0"
-          :title="weights.map((one) => `${one.plugin} ${kB(one.bytes)}`).join('\n') || undefined"
+          :title="weights.map((one) => `${one.plugin} ${kB(one.bytes)}`).join('\n')"
         >
           {{ weights.length }} {{ weights.length === 1 ? 'plugin' : 'plugins' }}
         </li>

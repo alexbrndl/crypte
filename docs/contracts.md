@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.31, reference document. A project brief points here instead of restating these shapes.
+> Version 1.32, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -286,7 +286,7 @@ interface StoryMeta {
 }
 ```
 
-`status` drives a badge beside the component in the sidebar, and a filter. The component page shows the rest: `owner`, which will later route comments, `figma` as a link when it is an http or https address and as text otherwise, and `description`.
+`status` drives a filter in the sidebar, which greys the components that do not carry the chosen status. The component page shows the rest: `owner`, which will later route comments, `figma` as a link when it is an http or https address and as text otherwise, and `description`.
 
 Every field is optional. The core reads none of them: they travel to the manifest, where the shell and plugins read them.
 
@@ -973,6 +973,12 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.32.** What `status` drives in the sidebar (2.6).
+
+| Before | After |
+| --- | --- |
+| a badge beside the component, and a filter | the filter alone, which greys the components without the chosen status |
 
 **v1.31.** The shell's design tokens, which panels read (6.1).
 
