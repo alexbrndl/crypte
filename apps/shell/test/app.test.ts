@@ -2041,22 +2041,23 @@ describe('the toolbar of a story', () => {
   test('shows the preview alone in full screen, without navigation or panels', async ({
     écran,
   }) => {
-    await bouton(écran, 'Full screen').trigger('click')
+    await écran.wrapper.find('[aria-label="Full screen"]').trigger('click')
 
     expect(écran.wrapper.find('main').classes()).toContain('full')
     expect(écran.wrapper.find('main > nav').isVisible()).toBe(false)
     expect(écran.wrapper.findComponent(Panels).isVisible()).toBe(false)
 
-    await bouton(écran, 'Leave full screen').trigger('click')
+    // Sur la scène, qui reste : c'est d'ici qu'on le quitte.
+    await écran.wrapper.find('[aria-label="Leave full screen"]').trigger('click')
     expect(écran.wrapper.find('main > nav').isVisible()).toBe(true)
   })
 
   test('names its shortcuts on its buttons', async ({ écran }) => {
     expect(
       écran.wrapper
-        .findAll('.toolbar [aria-keyshortcuts]')
+        .findAll('.stage-tools [aria-keyshortcuts]')
         .map((one) => one.attributes('aria-keyshortcuts')),
-    ).toEqual(['-', '0', '+', 'f'])
+    ).toEqual(['f'])
     expect(écran.wrapper.find('nav .commands').attributes('aria-keyshortcuts')).toBe('Control+K /')
   })
 })
@@ -2070,30 +2071,50 @@ describe('the zoom', () => {
     Object.defineProperty(écran.wrapper.find('iframe').element, 'contentDocument', { value: page })
     return page.documentElement.style
   }
-  const niveau = (écran: Ecran) => écran.wrapper.find('.zoom').text()
+  const niveau = (écran: Ecran) => écran.wrapper.find('.stage-tools .level').text()
+  // Le menu de Reka, téléporté dans le document à l'ouverture.
+  const article = (texte: string) =>
+    [...document.querySelectorAll('[role="menuitem"]')].find((one) =>
+      one.textContent?.trim().startsWith(texte),
+    ) as HTMLElement
+  const ouvre = async (écran: Ecran) => {
+    await écran.wrapper.find('.stage-tools .level').trigger('keydown', { key: 'Enter' })
+    await vide(écran.wrapper)
+    await vide(écran.wrapper)
+  }
+  const choisit = async (écran: Ecran, texte: string) => {
+    await ouvre(écran)
+    article(texte).click()
+    await vide(écran.wrapper)
+  }
   const frappe = async (écran: Ecran, key: string) => {
     document.body.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
     await vide(écran.wrapper)
   }
 
-  test('steps in and out by its buttons, and stops at 25 and 400 %', async ({ écran }) => {
+  test('steps in and out from its menu, and stops at 25 and 400 %', async ({ écran }) => {
     const style = racine(écran)
-    await écran.wrapper.find('[aria-label="Zoom in"]').trigger('click')
+    await choisit(écran, 'Zoom in')
     expect(niveau(écran)).toBe('125 %')
     expect(style.zoom).toBe('1.25')
+    await choisit(écran, 'Zoom out')
+    expect(niveau(écran)).toBe('100 %')
 
-    for (let i = 0; i < 9; i += 1)
-      await écran.wrapper.find('[aria-label="Zoom out"]').trigger('click')
+    for (let i = 0; i < 9; i += 1) await frappe(écran, '-')
     expect(niveau(écran)).toBe('25 %')
-    expect(écran.wrapper.find('[aria-label="Zoom out"]').attributes('disabled')).toBeDefined()
+    await ouvre(écran)
+    expect(article('Zoom out').hasAttribute('data-disabled')).toBe(true)
+    await frappe(écran, 'Escape')
 
-    for (let i = 0; i < 9; i += 1)
-      await écran.wrapper.find('[aria-label="Zoom in"]').trigger('click')
+    for (let i = 0; i < 9; i += 1) await frappe(écran, '+')
     expect(niveau(écran)).toBe('400 %')
-    expect(écran.wrapper.find('[aria-label="Zoom in"]').attributes('disabled')).toBeDefined()
+    await ouvre(écran)
+    expect(article('Zoom in').hasAttribute('data-disabled')).toBe(true)
   })
 
-  test('answers +, = and -, and comes back to actual size on 0 or its level', async ({ écran }) => {
+  test('answers +, = and -, and comes back to actual size on 0 or from its menu', async ({
+    écran,
+  }) => {
     const style = racine(écran)
     await frappe(écran, '+')
     await frappe(écran, '=')
@@ -2105,8 +2126,23 @@ describe('the zoom', () => {
     expect(style.zoom).toBe('')
 
     await frappe(écran, '+')
-    await écran.wrapper.find('.zoom button:nth-child(2)').trigger('click')
+    await choisit(écran, 'Actual size')
     expect(style.zoom).toBe('')
+  })
+
+  // Le menu ouvert garde ses touches : Échap le ferme, sans quitter le plein
+  // écran ni toucher à l'échelle. Revue de #146.
+  test('keeps its keys while its menu is open', async ({ écran }) => {
+    await frappe(écran, 'f')
+    await ouvre(écran)
+    const menu = document.querySelector('[role="menu"]')!
+    for (const key of ['+', '0', 'f', 'Escape'])
+      menu.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+    await vide(écran.wrapper)
+
+    expect(écran.wrapper.find('main').classes()).toContain('full')
+    expect(niveau(écran)).toBe('100 %')
+    expect(écran.wrapper.find('.stage-tools .level').attributes('aria-label')).toBe('Zoom, 100 %')
   })
 
   // Une page rechargée repart à 1 : chaque `ready` repose l'échelle.
@@ -2202,10 +2238,7 @@ describe('leaving full screen without Escape', () => {
     écran,
   }) => {
     const plein = () => écran.wrapper.find('main').classes().includes('full')
-    await écran.wrapper
-      .findAll('.toolbar button')
-      .find((one) => one.text().startsWith('Full screen'))!
-      .trigger('click')
+    await écran.wrapper.find('[aria-label="Full screen"]').trigger('click')
     expect(plein()).toBe(true)
 
     await écran.wrapper.find('nav.trail a').trigger('click', { button: 0 })
@@ -2550,7 +2583,7 @@ describe('the command palette', () => {
     await choisit(écran, 'Copy link')
     expect(écrit).toHaveBeenCalledWith(window.location.href)
 
-    const zoom = () => écran.wrapper.find('.zoom').text()
+    const zoom = () => écran.wrapper.find('.stage-tools .level').text()
     await ouvre(écran)
     await choisit(écran, 'Zoom in')
     expect(zoom()).toBe('125 %')

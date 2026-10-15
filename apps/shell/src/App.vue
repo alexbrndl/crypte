@@ -11,6 +11,13 @@ import type {
 import { createShellChannel } from '@crypte/core/shell'
 import { Alert, Button } from '@crypte/ui'
 import {
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuRoot,
+  DropdownMenuTrigger,
+} from 'reka-ui'
+import {
   computed,
   nextTick,
   onBeforeUnmount,
@@ -359,9 +366,11 @@ function shortcut(event: KeyboardEvent) {
     palette.value = !palette.value
     return
   }
-  // La palette répond seule à ses touches : Échap la ferme sans quitter le plein
-  // écran dessous.
-  if (event.target instanceof Element && event.target.closest('[role="dialog"]')) return
+  // La palette et le menu de zoom répondent seuls à leurs touches : Échap les
+  // ferme sans quitter le plein écran dessous. Menu ouvert, ses raccourcis se
+  // taisent aussi : ses articles se choisissent au clavier, par Reka.
+  if (event.target instanceof Element && event.target.closest('[role="dialog"], [role="menu"]'))
+    return
   if (event.key === 'Escape') {
     full.value = false
     return
@@ -646,42 +655,9 @@ onMounted(() => {
           <span aria-current="page">{{ displayed.name }}</span>
         </nav>
         <div class="actions">
-          <div class="zoom" role="group" aria-label="Zoom">
-            <Button
-              class="square"
-              aria-label="Zoom out"
-              title="Zoom out (-)"
-              aria-keyshortcuts="-"
-              :disabled="zoom === ZOOMS[0]"
-              @click="zoomBy(-1)"
-            >
-              <Icon name="minus-sign" />
-            </Button>
-            <Button title="Actual size (0)" aria-keyshortcuts="0" @click="zoom = 1">
-              {{ Math.round(zoom * 100) }} %
-            </Button>
-            <Button
-              class="square"
-              aria-label="Zoom in"
-              title="Zoom in (+)"
-              aria-keyshortcuts="+"
-              :disabled="zoom === ZOOMS.at(-1)"
-              @click="zoomBy(1)"
-            >
-              <Icon name="plus-sign" />
-            </Button>
-          </div>
           <Button variant="secondary" class="copy" @click="copyLink">
             <Icon name="copy-01" />
             {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
-          </Button>
-          <Button
-            title="Full screen (F, Escape to leave)"
-            aria-keyshortcuts="f"
-            :aria-pressed="full"
-            @click="full = !full"
-          >
-            {{ full ? 'Leave full screen' : 'Full screen' }} <kbd>F</kbd>
           </Button>
         </div>
       </div>
@@ -752,6 +728,55 @@ onMounted(() => {
           <!-- Masqué et non retiré : la preview et les panneaux gardent leur état
            pendant qu'une page composant ou une famille est ouverte. -->
           <div v-show="component === null && family === null && !changesOpen" class="canvas">
+            <!-- Sur la scène, ce qui agit sur elle : l'échelle et le plein écran,
+                 qu'on quitte d'ici puisque la barre d'outils part avec lui. -->
+            <div v-if="displayed" class="stage-tools">
+              <DropdownMenuRoot>
+                <DropdownMenuTrigger as-child>
+                  <Button class="level" :aria-label="`Zoom, ${Math.round(zoom * 100)} %`">
+                    {{ Math.round(zoom * 100) }} %
+                    <Icon name="arrow-down-01" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuContent class="shell-menu" align="end" :side-offset="4">
+                    <DropdownMenuItem
+                      class="shell-menu-item"
+                      :disabled="zoom === ZOOMS.at(-1)"
+                      aria-keyshortcuts="Plus"
+                      @select="zoomBy(1)"
+                    >
+                      Zoom in <kbd>+</kbd>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      class="shell-menu-item"
+                      :disabled="zoom === ZOOMS[0]"
+                      aria-keyshortcuts="-"
+                      @select="zoomBy(-1)"
+                    >
+                      Zoom out <kbd>-</kbd>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      class="shell-menu-item"
+                      aria-keyshortcuts="0"
+                      @select="zoom = 1"
+                    >
+                      Actual size <kbd>0</kbd>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenuPortal>
+              </DropdownMenuRoot>
+              <Button
+                class="square"
+                :aria-label="full ? 'Leave full screen' : 'Full screen'"
+                :title="full ? 'Leave full screen (F, Escape)' : 'Full screen (F)'"
+                aria-keyshortcuts="f"
+                :aria-pressed="full"
+                @click="full = !full"
+              >
+                <Icon name="full-screen" />
+              </Button>
+            </div>
             <!-- L'erreur couvre la preview plutôt que de l'accompagner : ce qui reste
            affiché dessous appartient à la story d'avant, et le laisser voir
            ferait croire que celle-ci a rendu. -->
@@ -992,27 +1017,29 @@ main.full .workspace {
   gap: var(--space-2);
 }
 
-.zoom {
-  display: flex;
-  gap: var(--space-1);
-}
-
-.zoom button {
-  justify-content: center;
-  min-width: 56px;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Le bouton icône md de Figma : 28 × 28. */
-.zoom .square {
-  min-width: 0;
-  padding: var(--space-1) var(--space-1-5);
-}
-
 .body {
   display: flex;
   flex: 1;
   min-height: 0;
+}
+
+.stage-tools {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: flex;
+  gap: var(--space-1);
+}
+
+.stage-tools .level {
+  min-width: 72px;
+  justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Le bouton icône md de Figma : 28 × 28. */
+.stage-tools .square {
+  padding: var(--space-1) var(--space-1-5);
 }
 
 /* La preview occupe toute la scène, sans cadre ; les pages et les encadrés gardent
@@ -1030,6 +1057,7 @@ main.full .workspace {
 }
 
 .canvas {
+  position: relative;
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -1143,8 +1171,11 @@ iframe {
   height: 28px;
   padding: 0 var(--space-3);
   box-shadow: inset 0 var(--stroke-hairline) 0 var(--border-base);
-  /* Not the subtle background of the Figma component: muted text falls under
-     4.5:1 on it. */
+  /* The subtle background of the Figma frame, although muted text falls under
+     4.5:1 on it: secondary, by the owner's decision of 15 October 2026. The axe
+     case leaves it out of the contrast rule for that reason. Reopened when the
+     bar carries something a user must read to act, an error or a step to take. */
+  background: var(--background-subtle);
   color: var(--text-muted);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
@@ -1174,5 +1205,48 @@ iframe {
   list-style: none;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+}
+</style>
+
+<!-- Not scoped: the zoom menu is teleported to the body, out of reach of the scope
+     attribute, so a scoped rule never matched it. Measured in Chromium. -->
+<style>
+.shell-menu {
+  z-index: 10;
+  min-width: 180px;
+  padding: var(--space-1);
+  border: var(--stroke-hairline) solid var(--border-base);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--stone-950) 14%, transparent);
+  background: var(--background-raised);
+  font-family: var(--font-sans);
+}
+
+.shell-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-xs);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  cursor: pointer;
+  outline: none;
+}
+
+.shell-menu-item[data-highlighted] {
+  background: var(--background-current);
+  color: var(--text-current);
+}
+
+.shell-menu-item[data-disabled] {
+  color: var(--text-subtle);
+  cursor: default;
+}
+
+.shell-menu-item kbd {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
 }
 </style>

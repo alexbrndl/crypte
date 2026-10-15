@@ -1336,6 +1336,9 @@ describe('the command palette, on screen', () => {
   })
 })
 
+// Ce que le cas lit du document de la page, sans la bibliothèque DOM des types.
+type Lieu = { querySelector(selector: string): { closest(selector: string): unknown } | null }
+
 // axe-core sur le shell servi, pas sur `apps/shell/dist` : seul le serveur lui
 // donne un catalogue, donc un arbre, des panneaux et des pages à juger. Le cadre
 // de la preview est exclu, c'est le code de l'utilisateur, que le panneau `a11y`
@@ -1375,9 +1378,24 @@ describe('accessibility, on screen', () => {
         const { violations } = await (
           globalThis as unknown as { axe: typeof import('axe-core') }
         ).axe.run({ exclude: [['iframe']] })
-        return violations.map(
-          (v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`,
-        )
+        // La barre d'état garde le fond subtle de Figma, où le texte muted passe
+        // sous 4,5:1 : secondaire, décidé par le propriétaire. Hors du contraste
+        // seulement, ses noms et sa structure restent jugés.
+        return violations
+          .map((v) => ({
+            ...v,
+            nodes:
+              v.id === 'color-contrast'
+                ? v.nodes.filter(
+                    (n) =>
+                      !(globalThis as unknown as { document: Lieu }).document
+                        .querySelector(String(n.target[0]))
+                        ?.closest('.status-bar'),
+                  )
+                : v.nodes,
+          }))
+          .filter((v) => v.nodes.length > 0)
+          .map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)
       })
       violations.push(...trouve.map((v) => `${nom}, ${v}`).filter((v) => !admis.has(v)))
     }
