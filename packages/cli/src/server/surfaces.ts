@@ -5,7 +5,7 @@
 import { statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type { CryptePlugin } from '@crypte/core/protocol'
-import type { Project } from './project'
+import type { Project } from '../config/project'
 
 export interface Surface {
   plugin: string

@@ -19,19 +19,19 @@ import {
   useTemplateRef,
   watch,
 } from 'vue'
-import Panels from './panels.vue'
-import { landing, unreadable, type Shown } from './recover'
-import { CHANGES, type Changes } from './changes'
-import ChangesPage from './changes-page.vue'
-import CommandPalette, { type Action } from './command-palette.vue'
-import ComponentPage from './component-page.vue'
-import Icon from './icon.vue'
-import Logo from './logo.vue'
-import StoryTree from './story-tree.vue'
-import TokensPage from './tokens-page.vue'
-import { useTheme } from './theme'
-import { componentIdOf } from './tree'
-import { placeSearch, readPlace, sameTab } from './url'
+import Panels from './panels/panels.vue'
+import { landing, unreadable, type Shown } from './navigation/recover'
+import { CHANGES, type Changes } from './pages/changes'
+import ChangesPage from './pages/changes-page.vue'
+import CommandPalette, { type Action } from './navigation/command-palette.vue'
+import ComponentPage from './pages/component-page.vue'
+import Icon from './ui/icon.vue'
+import Logo from './ui/logo.vue'
+import StoryTree from './navigation/story-tree.vue'
+import TokensPage from './pages/tokens-page.vue'
+import { useTheme } from './theme/theme'
+import { componentIdOf } from './navigation/tree'
+import { placeSearch, readPlace, sameTab } from './navigation/url'
 
 // Le shell ne connaît aucun framework : il est construit à l'avance et livré dans
 // le CLI, là où la preview est compilée chez l'utilisateur.

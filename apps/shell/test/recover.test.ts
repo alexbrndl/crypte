@@ -1,6 +1,6 @@
 import type { StoryEntry } from '@crypte/core/protocol'
 import { describe, expect, it } from 'vitest'
-import { landing, recovered, unreadable } from '../src/recover'
+import { landing, recovered, unreadable } from '../src/navigation/recover'
 
 // Où retombe la sélection quand le catalogue change sous elle. Perdre sa place à
 // chaque frappe est pire que ne pas recharger du tout, d'où un repli plutôt

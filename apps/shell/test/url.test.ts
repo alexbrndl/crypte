@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { placeSearch, readPlace, type Place } from '../src/url'
+import { placeSearch, readPlace, type Place } from '../src/navigation/url'
 
 // Les adresses que le shell lit et écrit. Elles finissent dans des liens collés
 // ailleurs : un nom qui change casse tous ceux qui existent déjà.

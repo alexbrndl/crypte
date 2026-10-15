@@ -4,10 +4,10 @@ import { dirname, isAbsolute, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createServer, type InlineConfig, type ViteDevServer } from 'vite'
 import { describe, expect, test as base } from 'vitest'
-import { projectPathsOf } from '../src/config-paths'
-import { capture, isBareSpecifier } from '../src/paths'
-import { defineConfig } from '../src/config'
-import { ConfigError, cssEntryOf, loadProject, viteConfigOf } from '../src/project'
+import { projectPathsOf } from '../src/config/config-paths'
+import { capture, isBareSpecifier } from '../src/config/paths'
+import { defineConfig } from '../src/config/config'
+import { ConfigError, cssEntryOf, loadProject, viteConfigOf } from '../src/config/project'
 
 // La fixture reproduit les contraintes d'un projet réel : alias `@/`, pas de
 // `tsconfig.json` mais un `jsconfig.json` à commentaires, des fichiers `.jsx`,

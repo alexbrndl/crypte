@@ -12,8 +12,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium, type Browser } from 'playwright'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
-import { dev, type Running } from '../src/dev'
-import { MANIFEST_ROUTE, PROJECT_ROUTE } from '../src/serve'
+import { dev, type Running } from '../src/commands/dev'
+import { MANIFEST_ROUTE, PROJECT_ROUTE } from '../src/server/serve'
 
 // Éditer `crypte.config.ts` remet les deux pages en marche sans commande.
 // `server.restart()` de Vite ne suffit pas : notre configuration est lue par

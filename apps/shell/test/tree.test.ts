@@ -1,6 +1,6 @@
 import type { StoryEntry, StoryMeta, TokensEntry } from '@crypte/core/protocol'
 import { describe, expect, test } from 'vitest'
-import { branchKeys, dimmed, fold, keysAbove, treeOf, type Node } from '../src/tree'
+import { branchKeys, dimmed, fold, keysAbove, treeOf, type Node } from '../src/navigation/tree'
 
 const entry = (
   id: string,

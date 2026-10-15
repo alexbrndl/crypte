@@ -3,8 +3,8 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { changesOf, changesSince, committedFingerprint } from '../src/changes'
-import type { Fingerprint, FingerprintEntry } from '../src/fingerprint'
+import { changesOf, changesSince, committedFingerprint } from '../src/catalogue/changes'
+import type { Fingerprint, FingerprintEntry } from '../src/catalogue/fingerprint'
 
 // Ce qui a changé depuis le dernier commit : l'empreinte que `HEAD` porte,
 // relue dans Git, contre celle du catalogue servi.

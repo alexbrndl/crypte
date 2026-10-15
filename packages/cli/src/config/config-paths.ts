@@ -3,7 +3,7 @@
 
 import { dirname, join, resolve } from 'node:path'
 import { parse, type TSConfckParseResult } from 'tsconfck'
-import { ConfigError } from './errors'
+import { ConfigError } from '../errors'
 import type { ProjectPaths } from './paths'
 
 // The two accepted names, TypeScript's and the one JavaScript projects use.

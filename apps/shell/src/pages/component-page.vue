@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { StoryEntry } from '@crypte/core/protocol'
 import { computed } from 'vue'
-import { placeSearch, sameTab } from './url'
+import { placeSearch, sameTab } from '../navigation/url'
 
 // La page d'un composant : ce que son fichier de stories déclare une fois pour
 // toutes ses stories, et la liste de celles-ci. Aucune zone de plugin : le

@@ -7,7 +7,7 @@ import { loadConfigFromFile, type InlineConfig, type PluginOption } from 'vite'
 import { readProjectPaths } from './config-paths'
 import type { CrypteConfig } from './config'
 import { pathsPlugin, type ProjectPaths } from './paths'
-import { ConfigError } from './errors'
+import { ConfigError } from '../errors'
 
 const CONFIG_FILE = 'crypte.config.ts'
 

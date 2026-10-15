@@ -4,8 +4,14 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Manifest } from '@crypte/core/protocol'
 import { afterAll, describe, expect, it } from 'vitest'
-import { buildCatalogue, OUTPUT, storiesOf, storyFiles, writeCatalogue } from '../src/manifest'
-import { loadProject } from '../src/project'
+import {
+  buildCatalogue,
+  OUTPUT,
+  storiesOf,
+  storyFiles,
+  writeCatalogue,
+} from '../src/catalogue/manifest'
+import { loadProject } from '../src/config/project'
 
 // Le catalogue écrit à partir du dossier de stories. Voir docs/contracts.md § 4.
 

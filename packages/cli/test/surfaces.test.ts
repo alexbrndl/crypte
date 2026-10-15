@@ -4,9 +4,9 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { CryptePlugin } from '@crypte/core/protocol'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { buildCatalogue } from '../src/manifest'
-import { loadProject, type Project } from '../src/project'
-import { surfacesOf } from '../src/surfaces'
+import { buildCatalogue } from '../src/catalogue/manifest'
+import { loadProject, type Project } from '../src/config/project'
+import { surfacesOf } from '../src/server/surfaces'
 
 // Où vivent les surfaces navigateur d'un plugin, et ce qui en est refusé.
 // Section 6.1 de docs/contracts.md.

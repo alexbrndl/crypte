@@ -2,7 +2,7 @@
 import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { ToggleGroupItem, ToggleGroupRoot, TreeItem, TreeRoot } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
-import Icon from './icon.vue'
+import Icon from '../ui/icon.vue'
 import {
   STATUSES,
   branchKeys,

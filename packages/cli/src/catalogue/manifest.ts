@@ -11,12 +11,12 @@ import {
   type ResolvedPropDetails,
   type StoryEntry,
 } from '@crypte/core/protocol'
-import { ConfigError, reason } from './errors'
-import { best, isBareSpecifier, ordered, substituted } from './paths'
+import { ConfigError, reason } from '../errors'
+import { best, isBareSpecifier, ordered, substituted } from '../config/paths'
 import { propsOf, type PropsRead } from './props'
 import { entriesOf, posix, STORY_EXTENSIONS } from './stories'
-import { surfacesOf } from './surfaces'
-import type { Project } from './project'
+import { surfacesOf } from '../server/surfaces'
+import type { Project } from '../config/project'
 
 // The build writes here, and Git ignores it: the fingerprint beside it is what
 // gets committed.

@@ -3,7 +3,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, posix, resolve } from 'node:path'
-import { ConfigError } from './errors'
+import { ConfigError } from '../errors'
 
 const CONFIG_FILE = 'crypte.config.ts'
 
