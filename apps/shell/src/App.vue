@@ -985,9 +985,6 @@ main.full .workspace {
   gap: var(--space-2);
 }
 
-/* Le bouton du fichier Figma : contour neutre, ou plein inversé pour l'action
-   principale, copier le lien. */
-
 .zoom {
   display: flex;
   gap: var(--space-1);

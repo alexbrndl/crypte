@@ -1,7 +1,7 @@
 <!-- The button of the Figma file, label shape, md size: 28 px high. Two of its four
-     variants, the two the shell and the plugins draw: `outline` and `secondary`.
-     `primary` and `ghost` join with their first consumer. A `kbd` in the label is
-     drawn as the Figma keycap. -->
+     variants: `outline`, which the shell and the plugins draw, and `secondary`, the
+     shell's copy link. `primary` and `ghost` join with their first consumer. A `kbd`
+     in the label is drawn as the Figma keycap. -->
 <script setup lang="ts">
 withDefaults(defineProps<{ variant?: 'outline' | 'secondary' }>(), { variant: 'outline' })
 </script>
