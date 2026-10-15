@@ -650,9 +650,9 @@ The fingerprint is not a smaller manifest and nothing reads it to render. `crypt
 
 ### 5.1 Principle
 
-The shell and the preview talk through `postMessage`, with JSON-serialisable messages. **The shell structurally cannot reach React, Vue, or the component instance.** Two things go through the DOM of the frame, which has the shell's origin: the shell listens for `pagehide` on its window, and sets the CSS `zoom` of its root element to scale the story.
+The shell and the preview talk through `postMessage`, with JSON-serialisable messages. **The shell never reaches React, Vue, or the component instance.** The frame has the shell's origin, and two things go through its DOM, neither touching the framework nor the instance: the shell listens for `pagehide` on its window, and sets the CSS `zoom` of its root element to scale the story.
 
-That constraint is what keeps the core framework-neutral. One exception here would undo the whole architecture.
+That constraint is what keeps the core framework-neutral. One exception reaching the framework would undo the whole architecture.
 
 ```ts
 const PROTOCOL_VERSION = 1
