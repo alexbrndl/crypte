@@ -70,6 +70,22 @@ describe('a panel with nothing to say', () => {
     expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'aucun statut déclaré', corps: false })
   })
 
+  // Ce que la bande dit par un fond, le bouton le dit au lecteur d'écran : ce
+  // qu'il plie, et pourquoi le panneau est sans objet, seulement quand il l'est.
+  test('names what its toggle folds, and its reason only when it has one', async () => {
+    const wrapper = monte(statut, nue)
+    await wrapper.vm.$nextTick()
+    const bouton = () => wrapper.find('.head .toggle')
+
+    expect(bouton().attributes('aria-controls')).toBe(wrapper.find('.body').attributes('id'))
+    expect(wrapper.find(`#${bouton().attributes('aria-describedby')}`).text()).toBe(
+      'aucun statut déclaré',
+    )
+
+    await wrapper.setProps({ entry: brouillon })
+    expect(bouton().attributes('aria-describedby')).toBeUndefined()
+  })
+
   // La décision même : déclaré story par story, jamais une fois. Le cadre
   // oublie la déclaration au changement de story, et le panneau la redit ou non.
   test('unfolds on a story it has something to say about, and folds again after', async () => {
