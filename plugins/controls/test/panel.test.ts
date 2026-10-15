@@ -103,7 +103,7 @@ describe('the fields', () => {
     )
     expect(choisi(wrapper)).toBeUndefined()
     expect(liste(wrapper).props('placeholder')).toBe('—')
-    expect(wrapper.findComponent(Field).attributes('title')).toBe('Le texte.')
+    expect(wrapper.findComponent(Field).props('description')).toBe('Le texte.')
   })
 
   // Ce que le composant affiche : la valeur rendue l'emporte sur le défaut, et

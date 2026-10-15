@@ -104,7 +104,7 @@ const hint = (name: string, details: ResolvedPropDetails) => {
   </p>
   <form
     v-if="fields.length > 0"
-    style="display: flex; flex-direction: column; gap: var(--space-3)"
+    style="display: flex; flex-direction: column; gap: var(--space-2)"
     @submit.prevent
   >
     <Field
@@ -112,15 +112,16 @@ const hint = (name: string, details: ResolvedPropDetails) => {
       :key="name"
       :label="name"
       :overridden="name in edited"
-      :title="details.description"
+      :description="details.description"
     >
       <template #action>
         <Button v-if="name in edited" @click="unset(name)">Reset</Button>
       </template>
-      <template #default="{ id }">
+      <template #default="{ id, describedBy }">
         <Input
           v-if="details.type === 'string'"
           :id="id"
+          :aria-describedby="describedBy"
           type="text"
           :value="edited[name] ?? ''"
           :placeholder="hint(name, details)"
@@ -129,6 +130,7 @@ const hint = (name: string, details: ResolvedPropDetails) => {
         <Input
           v-else-if="details.type === 'number'"
           :id="id"
+          :aria-describedby="describedBy"
           type="number"
           :value="edited[name] ?? ''"
           :placeholder="hint(name, details)"
@@ -137,6 +139,7 @@ const hint = (name: string, details: ResolvedPropDetails) => {
         <Checkbox
           v-else-if="details.type === 'boolean'"
           :id="id"
+          :aria-describedby="describedBy"
           :checked="shown(name, details) === true"
           :indeterminate="shown(name, details) === undefined"
           @change="set(name, ($event.target as HTMLInputElement).checked)"
@@ -144,6 +147,7 @@ const hint = (name: string, details: ResolvedPropDetails) => {
         <Select
           v-else
           :id="id"
+          :aria-describedby="describedBy"
           :options="optionsOf(details)"
           :model-value="selected(name, details)"
           placeholder="—"

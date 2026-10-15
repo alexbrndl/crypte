@@ -769,7 +769,13 @@ describe('a plugin in the browser', () => {
     expect(await ecran.page.locator('.status-bar .render').innerText()).toMatch(
       /^First render \d+ ms$/,
     )
-    expect((await chiffres.nth(1).getAttribute('title'))?.split('\n')).toEqual([
+    // Le poids de chacun dans le tooltip du compte.
+    await chiffres.nth(1).locator('[tabindex]').hover()
+    // Le texte que Reka garde pour les lecteurs d'écran, masqué à l'œil : `getByRole`
+    // ne le compte pas.
+    const bulle = ecran.page.locator('[role="tooltip"]')
+    await expect.poll(() => bulle.count(), { timeout: 5000 }).toBe(1)
+    expect((await bulle.textContent())?.split('\n')).toEqual([
       'tokens 0.0 kB',
       expect.stringMatching(/^controls \d\.\d kB$/),
       expect.stringMatching(/^a11y 1\d\d\.\d kB$/),
@@ -1292,6 +1298,18 @@ describe('the zoom, on screen', () => {
       .poll(async () => (await story.boundingBox())!.width / avant.story.width)
       .toBeCloseTo(1.5, 1)
     expect(await cadre.boundingBox()).toEqual(avant.cadre)
+  })
+
+  // Le menu rend le focus à son bouton à la fermeture : son tooltip, ouvert au
+  // focus, revenait après chaque choix. Revue de #149.
+  test('reopens no tooltip once a level is chosen', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    await ecran.page.locator('.stage-tools .level').click()
+    await ecran.page.getByRole('menuitemradio', { name: '300 %' }).click()
+    await new Promise((resolve) => setTimeout(resolve, 800))
+
+    expect(await ecran.page.locator('.stage-tools .level').textContent()).toContain('300 %')
+    expect(await ecran.page.locator('.crypte-tooltip').count()).toBe(0)
   })
 })
 

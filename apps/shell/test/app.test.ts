@@ -9,6 +9,7 @@ import type {
 import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test as base, vi } from 'vitest'
 import App from '../src/App.vue'
+import { Tooltip } from '@crypte/ui'
 import Panels from '../src/panels/panels.vue'
 import StoryTree from '../src/navigation/story-tree.vue'
 
@@ -2092,8 +2093,8 @@ describe('the zoom', () => {
     await vide(écran.wrapper)
   }
 
-  // Des valeurs dans le menu, le niveau courant coché ; les touches parcourent
-  // toute l'échelle, de 25 à 400 %, au-delà de ce que le menu propose.
+  // Toute l'échelle dans le menu, le niveau courant coché ; les touches la
+  // parcourent aussi, de 25 à 400 %.
   test('takes a value from its menu, and steps by its keys from 25 to 400 %', async ({ écran }) => {
     const style = racine(écran)
     await ouvre(écran)
@@ -2103,12 +2104,15 @@ describe('the zoom', () => {
         one.getAttribute('aria-checked'),
       ]),
     ).toEqual([
+      ['25 %', 'false'],
       ['50 %', 'false'],
       ['75 %', 'false'],
       ['100 %', 'true'],
       ['125 %', 'false'],
       ['150 %', 'false'],
       ['200 %', 'false'],
+      ['300 %', 'false'],
+      ['400 %', 'false'],
     ])
     article('150 %').click()
     await vide(écran.wrapper)
@@ -2335,7 +2339,9 @@ describe('the figures of the status bar', () => {
 
   test('weighs the shell as the server measured it', async ({ écran }) => {
     expect(chiffres(écran)).toEqual(['Shell 83.1 kB'])
-    expect(écran.wrapper.find('.figures li').attributes('title')).toBe('The shell, gzipped')
+    expect(écran.wrapper.find('.figures li').findComponent(Tooltip).props('content')).toBe(
+      'The shell, gzipped',
+    )
   })
 
   // Rien tant que le projet ne se lit pas, plutôt qu'un chiffre faux.
@@ -2374,7 +2380,7 @@ describe('the figures of the status bar', () => {
     await vide(écran.wrapper)
 
     expect(chiffres(écran)).toEqual(['Shell 83.1 kB', '2 plugins'])
-    expect(écran.wrapper.findAll('.figures li')[1]!.attributes('title')).toBe(
+    expect(écran.wrapper.findAll('.figures li')[1]!.findComponent(Tooltip).props('content')).toBe(
       'a11y 156.8 kB\ntokens 0.0 kB',
     )
   })
