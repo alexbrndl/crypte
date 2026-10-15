@@ -77,7 +77,9 @@ describe('a panel with nothing to say', () => {
     await wrapper.vm.$nextTick()
     const bouton = () => wrapper.find('.head .toggle')
 
-    expect(bouton().attributes('aria-controls')).toBe(wrapper.find('.body').attributes('id'))
+    const corps = wrapper.find('.body').attributes('id')
+    expect(corps).toMatch(/.+/)
+    expect(bouton().attributes('aria-controls')).toBe(corps)
     expect(wrapper.find(`#${bouton().attributes('aria-describedby')}`).text()).toBe(
       'aucun statut déclaré',
     )

@@ -218,7 +218,7 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
         type="button"
         class="toggle"
         :aria-expanded="expanded"
-        :aria-controls="bodyId"
+        :aria-controls="failure === null ? bodyId : undefined"
         :aria-describedby="inapplicable !== null ? reasonId : undefined"
         @click="toggle"
       >
