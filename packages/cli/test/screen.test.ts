@@ -759,11 +759,17 @@ describe('a plugin in the browser', () => {
   // au navigateur.
   test('weighs the shell and each plugin, and times the first render', async ({ ecran }) => {
     const chiffres = ecran.page.locator('.figures li')
-    await expect.poll(() => chiffres.count()).toBe(7)
+    await expect.poll(() => chiffres.count()).toBe(2)
+    await expect.poll(() => ecran.page.locator('.status-bar .render').count()).toBe(1)
 
     expect(await chiffres.allInnerTexts()).toEqual([
       expect.stringMatching(/^Shell \d+\.\d kB$/),
-      expect.stringMatching(/^First render \d+ ms$/),
+      '5 plugins',
+    ])
+    expect(await ecran.page.locator('.status-bar .render').innerText()).toMatch(
+      /^First render \d+ ms$/,
+    )
+    expect((await chiffres.nth(1).getAttribute('title'))?.split('\n')).toEqual([
       'tokens 0.0 kB',
       expect.stringMatching(/^controls \d\.\d kB$/),
       expect.stringMatching(/^a11y 1\d\d\.\d kB$/),
@@ -1208,12 +1214,8 @@ describe('the changes mode', () => {
 
 // Les raccourcis dans le vrai navigateur, sur la page et non dans la preview.
 describe('the shortcuts', () => {
-  test('steps to the next story, and shows the preview alone until Escape', async ({ ecran }) => {
+  test('shows the preview alone until Escape', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
-
-    expect(new URL(ecran.page.url()).search).toBe('?id=badge--par-defaut')
-    await ecran.page.locator('main').press(']')
-    await expect.poll(() => new URL(ecran.page.url()).search).toBe('?id=badge--avertissement')
 
     await ecran.page.locator('main').press('f')
     await expect.poll(() => ecran.page.locator('main > nav').isVisible()).toBe(false)

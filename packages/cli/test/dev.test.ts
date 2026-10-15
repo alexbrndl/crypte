@@ -78,7 +78,7 @@ describe('crypte dev', () => {
 
   // Le poids du shell compté comme `scripts/budgets.mjs` le compte : tout
   // `dist/shell` sauf les cartes de source.
-  it('serves the story root the project declares, no configuration failure, and the shell weight', async () => {
+  it('serves the story root the project declares, no configuration failure, the shell weight and the version', async () => {
     const shell = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'shell')
     const fichiers = readdirSync(shell, { recursive: true, withFileTypes: true })
       .filter((one) => one.isFile() && !one.name.endsWith('.map'))
@@ -91,6 +91,11 @@ describe('crypte dev', () => {
       stories: 'stories',
       config: null,
       shellBytes: gz(...fichiers),
+      version: (
+        JSON.parse(readFileSync(join(shell, '..', '..', 'package.json'), 'utf8')) as {
+          version: string
+        }
+      ).version,
     })
   })
 

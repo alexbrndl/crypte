@@ -84,7 +84,12 @@ const monte = async (
   // Ce que répond la route des changements, ou ce qu'elle lève.
   changements: () => unknown = () => ({ changes: [] }),
   // Ce que dit la route du projet.
-  projet: () => unknown = () => ({ stories: 'stories', config: null, shellBytes: 83149 }),
+  projet: () => unknown = () => ({
+    stories: 'stories',
+    config: null,
+    shellBytes: 83149,
+    version: '1.2.3',
+  }),
 ): Promise<Ecran> => {
   const manifest: Manifest = { version: 1, entries, ...(skipped ? { skipped } : {}) } as never
 
@@ -611,7 +616,7 @@ describe('what the catalog left out', () => {
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
                   : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null, shellBytes: 83149 }
+                    ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
                     : (manifests.shift() ?? manifests[0]),
           }) as Response,
       ),
@@ -831,13 +836,6 @@ const états = (wrapper: VueWrapper) =>
     .map((one) => one.attributes('data-state'))
 
 describe('the status', () => {
-  test('shows the status beside its component, never beside a story', async () => {
-    const écran = await monte([avec(badge, 'stable'), avec(alerte, 'stable'), bouton])
-
-    expect(écran.wrapper.findAll('.status').map((one) => one.text())).toEqual(['stable'])
-    écran.wrapper.unmount()
-  })
-
   test('offers no filter when no component declares a status', async ({ écran }) => {
     expect(filtre(écran.wrapper).exists()).toBe(false)
   })
@@ -1263,7 +1261,7 @@ describe('the component page', () => {
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
                   : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null, shellBytes: 83149 }
+                    ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
                     : manifests.length > 1
                       ? manifests.shift()
                       : manifests[0],
@@ -1318,7 +1316,7 @@ describe('the component page', () => {
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
                   : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null, shellBytes: 83149 }
+                    ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
                     : manifests.length > 1
                       ? manifests.shift()
                       : manifests[0],
@@ -1386,7 +1384,7 @@ describe('the component page', () => {
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
                   : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null, shellBytes: 83149 }
+                    ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
                     : manifests.length > 1
                       ? manifests.shift()
                       : manifests[0],
@@ -1592,7 +1590,7 @@ describe('the tokens page', () => {
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
                   : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null, shellBytes: 83149 }
+                    ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
                     : manifests.length > 1
                       ? manifests.shift()
                       : manifests[0],
@@ -1663,7 +1661,7 @@ describe('the status line under a page', () => {
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
                   : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null, shellBytes: 83149 }
+                    ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
                     : manifests.length > 1
                       ? manifests.shift()
                       : manifests[0],
@@ -1902,7 +1900,7 @@ describe('a configuration the server could not read', () => {
 
   test('is read again when the window regains focus', async () => {
     const réponses: unknown[] = [
-      { stories: 'stories', config: null, shellBytes: 83149 },
+      { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' },
       { stories: 'stories', config: raison, shellBytes: 83149 },
     ]
     const écran = await monte([badge], false, undefined, undefined, () =>
@@ -2017,21 +2015,6 @@ describe('the toolbar of a story', () => {
     expect(écran.wrapper.find('.toolbar .copy').text()).toBe('Copy failed')
   })
 
-  // Parmi les sœurs du même composant, sans boucler ni passer au composant suivant.
-  test('steps through the stories of the component, and stops at its ends', async ({ écran }) => {
-    expect(bouton(écran, 'Previous').attributes('disabled')).toBeDefined()
-
-    await bouton(écran, 'Next').trigger('click')
-    await vide(écran.wrapper)
-    expect(écran.story(1).attributes('aria-selected')).toBe('true')
-    expect(window.location.search).toBe('?id=badge--alerte')
-    expect(bouton(écran, 'Next').attributes('disabled')).toBeDefined()
-
-    await bouton(écran, 'Previous').trigger('click')
-    await vide(écran.wrapper)
-    expect(écran.story(0).attributes('aria-selected')).toBe('true')
-  })
-
   test('shows the preview alone in full screen, without navigation or panels', async ({
     écran,
   }) => {
@@ -2050,7 +2033,7 @@ describe('the toolbar of a story', () => {
       écran.wrapper
         .findAll('.toolbar [aria-keyshortcuts]')
         .map((one) => one.attributes('aria-keyshortcuts')),
-    ).toEqual(['[', ']', 'f'])
+    ).toEqual(['f'])
     expect(écran.wrapper.find('nav .commands').attributes('aria-keyshortcuts')).toBe('Control+K /')
   })
 })
@@ -2075,14 +2058,7 @@ describe('the shortcuts', () => {
     expect(écran.wrapper.find('main').classes()).toContain('full')
   })
 
-  test('steps with [ and ], and toggles full screen with f, Escape leaving it', async ({
-    écran,
-  }) => {
-    await frappe(écran, ']')
-    expect(window.location.search).toBe('?id=badge--alerte')
-    await frappe(écran, '[')
-    expect(window.location.search).toBe('?id=badge--defaut')
-
+  test('toggles full screen with f, Escape leaving it', async ({ écran }) => {
     await frappe(écran, 'f')
     expect(écran.wrapper.find('main').classes()).toContain('full')
     await frappe(écran, 'Escape')
@@ -2094,7 +2070,7 @@ describe('the shortcuts', () => {
     await frappe(écran, 'f', {}, saisie)
     saisie.remove()
     await frappe(écran, 'f', { ctrlKey: true })
-    await frappe(écran, ']', { metaKey: true })
+    await frappe(écran, 'f', { metaKey: true })
 
     expect(écran.wrapper.find('main').classes()).not.toContain('full')
     expect(window.location.search).toBe('?id=badge--defaut')
@@ -2106,7 +2082,6 @@ describe('the shortcuts', () => {
     await vide(écran.wrapper)
 
     await frappe(écran, 'f')
-    await frappe(écran, ']')
 
     expect(écran.wrapper.find('main').classes()).not.toContain('full')
     expect(window.location.search).toBe('?component=badge')
@@ -2119,27 +2094,6 @@ describe('the shortcuts on other keyboards', () => {
     document.body.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...options }))
     await vide(écran.wrapper)
   }
-
-  // AZERTY et QWERTZ sous macOS : ⌥⇧( donne `[`, ⌥⇧) donne `]`.
-  test('steps on [ and ] typed with Option', async ({ écran }) => {
-    await frappe(écran, ']', { altKey: true, shiftKey: true })
-    expect(window.location.search).toBe('?id=badge--alerte')
-    await frappe(écran, '[', { altKey: true, shiftKey: true })
-    expect(window.location.search).toBe('?id=badge--defaut')
-  })
-
-  // Sous Windows, AltGr arrive comme Ctrl et Alt.
-  test('steps on ] typed with AltGr, and not under Ctrl alone', async ({ écran }) => {
-    await frappe(écran, ']', { ctrlKey: true })
-    expect(window.location.search).toBe('?id=badge--defaut')
-
-    await frappe(écran, ']', {
-      ctrlKey: true,
-      altKey: true,
-      modifierAltGraph: true,
-    } as KeyboardEventInit)
-    expect(window.location.search).toBe('?id=badge--alerte')
-  })
 
   // Alt+F ouvre le menu Fichier sous Windows.
   test('leaves f under Alt to the browser', async ({ écran }) => {
@@ -2199,7 +2153,7 @@ describe('leaving full screen without Escape', () => {
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
                   : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null, shellBytes: 83149 }
+                    ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
                     : manifests.length > 1
                       ? manifests.shift()
                       : manifests[0],
@@ -2234,6 +2188,12 @@ describe('leaving full screen without Escape', () => {
   })
 })
 
+describe('the version', () => {
+  test('is written beside the logo, once the project is read', async ({ écran }) => {
+    expect(écran.wrapper.find('.identity .version').text()).toBe('1.2.3')
+  })
+})
+
 describe('the figures of the status bar', () => {
   const chiffres = (écran: Ecran) => écran.wrapper.findAll('.figures li').map((one) => one.text())
 
@@ -2243,12 +2203,13 @@ describe('the figures of the status bar', () => {
   })
 
   // Rien tant que le projet ne se lit pas, plutôt qu'un chiffre faux.
-  test('weighs nothing when the project cannot be read', async () => {
+  test('weighs nothing and names no version when the project cannot be read', async () => {
     const écran = await monte([badge], false, undefined, undefined, () => {
       throw new Error('hors ligne')
     })
 
     expect(chiffres(écran)).toEqual([])
+    expect(écran.wrapper.find('.version').exists()).toBe(false)
     écran.wrapper.unmount()
   })
 
@@ -2264,20 +2225,21 @@ describe('the figures of the status bar', () => {
     await écran.répond({ type: 'rendered', id: 'badge--alerte', durationMs: 1 } as PreviewMessage)
     maintenant.mockRestore()
 
-    expect(chiffres(écran)).toEqual(['Shell 83.1 kB', 'First render 1234 ms'])
+    expect(écran.wrapper.find('.status-bar .render').text()).toBe('First render 1234 ms')
   })
 
-  // Dans l'ordre de la configuration, un plugin sans surface navigateur à zéro.
-  test('weighs each plugin as its panels listed them', async ({ écran }) => {
+  // Le compte seul, le poids de chacun dans l'infobulle, dans l'ordre de la
+  // configuration : un plugin sans surface navigateur à zéro.
+  test('counts the plugins, and weighs each as its panels listed them', async ({ écran }) => {
     écran.wrapper.findComponent(Panels).vm.$emit('weights', [
       { plugin: 'a11y', bytes: 156_843 },
       { plugin: 'tokens', bytes: 0 },
     ])
     await vide(écran.wrapper)
 
-    expect(chiffres(écran)).toEqual(['Shell 83.1 kB', 'a11y 156.8 kB', 'tokens 0.0 kB'])
+    expect(chiffres(écran)).toEqual(['Shell 83.1 kB', '2 plugins'])
     expect(écran.wrapper.findAll('.figures li')[1]!.attributes('title')).toBe(
-      'What a11y loads in the browser, gzipped',
+      'a11y 156.8 kB\ntokens 0.0 kB',
     )
   })
 })
@@ -2374,8 +2336,7 @@ describe('the command palette', () => {
     expect(dialogue()).not.toBeNull()
   })
 
-  // Les actions d'abord, leur raccourci affiché : c'est là qu'ils se lisent. La
-  // première story n'a pas de précédente.
+  // Les actions d'abord, leur raccourci affiché : c'est là qu'ils se lisent.
   test('lists the actions with their keys, then every destination', async ({ écran }) => {
     await ouvre(écran)
 
@@ -2384,7 +2345,6 @@ describe('the command palette', () => {
       'Dark theme T',
       'Copy link',
       'Full screen F',
-      'Next story ]',
       'Badge',
       'Bouton',
       'Badge / Par défaut',
@@ -2394,27 +2354,13 @@ describe('the command palette', () => {
     ])
   })
 
-  test('offers the previous story beside the last one, and only the search under a page', async ({
-    écran,
-  }) => {
-    écran
-      .story(1)
-      .find('.name')
-      .element.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    await vide(écran.wrapper)
+  test('offers only the theme under a page', async ({ écran }) => {
     await ouvre(écran)
-    expect(options().slice(0, 4)).toEqual([
-      'Dark theme T',
-      'Copy link',
-      'Full screen F',
-      'Previous story [',
-    ])
-
     await choisit(écran, 'Bouton')
     await ouvre(écran)
+
     expect(groupes()[0]).toBe('Actions')
-    expect(options()[0]).toBe('Dark theme T')
-    expect(options()[1]).toBe('Badge')
+    expect(options().slice(0, 2)).toEqual(['Dark theme T', 'Badge'])
   })
 
   // Replié par `fold` : sans accents ni séparateurs.
@@ -2435,7 +2381,7 @@ describe('the command palette', () => {
     // Rouverte, elle repart de rien.
     await ouvre(écran)
     await ouvre(écran)
-    expect(options()).toHaveLength(10)
+    expect(options()).toHaveLength(9)
   })
 
   test('goes to a story, and closes', async ({ écran }) => {
@@ -2502,14 +2448,6 @@ describe('the command palette', () => {
   test('launches the actions of the toolbar', async ({ écran }) => {
     const écrit = vi.fn(async () => undefined)
     vi.stubGlobal('navigator', { clipboard: { writeText: écrit } })
-
-    await ouvre(écran)
-    await choisit(écran, 'Next story')
-    expect(window.location.search).toBe('?id=badge--alerte')
-
-    await ouvre(écran)
-    await choisit(écran, 'Previous story')
-    expect(window.location.search).toBe('?id=badge--defaut')
 
     await ouvre(écran)
     await choisit(écran, 'Copy link')
