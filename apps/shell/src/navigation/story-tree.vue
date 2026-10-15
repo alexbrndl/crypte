@@ -330,7 +330,8 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
   position: absolute;
   inset-block: 0;
   z-index: -1;
-  box-shadow: inset var(--stroke-hairline) 0 0 var(--border-base);
+  /* A border: the guide has no width, an inset shadow would draw nothing. */
+  border-left: var(--stroke-hairline) solid var(--border-base);
 }
 
 .band {
