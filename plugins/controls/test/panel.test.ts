@@ -149,13 +149,11 @@ describe('what an edit emits', () => {
 
     await wrapper.find('input[type="text"]').setValue('Bonjour')
     await wrapper.find('input[type="number"]').setValue('12')
-    await wrapper.find('select').setValue('0')
 
     await wrapper.find('input[type="text"]').setValue('')
     await wrapper.find('input[type="number"]').setValue('')
-    await wrapper.find('select').setValue('')
 
-    expect(émis(wrapper).slice(-3)).toEqual([{ count: 12, size: 'sm' }, { size: 'sm' }, {}])
+    expect(émis(wrapper).slice(-2)).toEqual([{ count: 12 }, {}])
   })
 
   test('goes back to the story in one click', async () => {

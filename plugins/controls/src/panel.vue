@@ -74,10 +74,10 @@ function number(name: string, event: Event) {
 }
 
 // By index, since an option may be a number and a `<select>` only holds text.
+// Every option is a value: a list goes back to the story with the others, by
+// `Back to the story`.
 function choose(name: string, options: unknown[], event: Event) {
-  const at = (event.target as HTMLSelectElement).value
-  if (at === '') unset(name)
-  else set(name, options[Number(at)])
+  set(name, options[Number((event.target as HTMLSelectElement).value)])
 }
 
 // Primitives only, section 5.1: a story's `details` may list an object, which

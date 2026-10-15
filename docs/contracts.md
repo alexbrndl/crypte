@@ -663,7 +663,7 @@ The preview announces `PROTOCOL_VERSION` in its `ready` message. It is separate 
 
 **It is 1, and the work that wrote this chapter is that version 1.** The counter moves at the first breaking change *after* publication, when a preview and a shell of different versions can actually meet.
 
-The channel never carries a story's props. It carries the id of the entry to render, and the **overrides** coming from controls. An override is always a primitive edited in a panel, so it is always serialisable.
+The channel never carries a story's props to the preview, which imports the modules itself. It carries the id of the entry to render, and the **overrides** coming from controls. What comes back is what the story rendered with, its primitive props only (5.3). An override is always a primitive edited in a panel, so it is always serialisable.
 
 Each direction has its own type: `ShellMessage` goes to the iframe, `PreviewMessage` comes back.
 
