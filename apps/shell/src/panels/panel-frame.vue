@@ -249,20 +249,23 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
   border-bottom: var(--stroke-hairline) solid var(--border-base);
 }
 
+/* 40 px open or folded, as the Figma header with its action; 32 px without
+   object, as its inapplicable state. */
 .head {
   display: flex;
+  box-sizing: border-box;
   gap: var(--space-2);
   align-items: center;
+  min-height: 40px;
   padding: var(--space-2) var(--space-3);
   background: var(--background-subtle);
 }
 
 /* The sm button of the Figma panel header, 24 px high, by the button's custom
-   properties. Its negative margin keeps the head at the height it has without it. */
+   properties. */
 .reset {
   --button-height: 24px;
   --button-padding: var(--space-0-5) var(--space-2);
-  margin-block: calc(-1 * var(--space-1));
 }
 
 .head .toggle {
@@ -297,6 +300,7 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
 }
 
 .panel[data-inapplicable] .head {
+  min-height: 0;
   background: none;
 }
 
@@ -312,7 +316,7 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
 }
 
 .body {
-  padding: var(--space-1-5) var(--space-3);
+  padding: var(--space-3);
   font-size: var(--text-sm);
 }
 

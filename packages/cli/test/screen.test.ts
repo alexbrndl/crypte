@@ -1344,7 +1344,27 @@ describe('the components, on screen', () => {
       tab: await hauteur('.tabs button'),
       row: await hauteur('[role=treeitem]'),
       'button md': await hauteur('.actions .copy'),
-    }).toEqual({ 'input/text': 32, keycap: 20, tab: 24, row: 24, 'button md': 28 })
+      'panel/header': await hauteur('[data-plugin="controls"] .head'),
+      'panel/body padding': await ecran.page.evaluate<string>(
+        `getComputedStyle(document.querySelector('[data-plugin="controls"] .body')).padding`,
+      ),
+    }).toEqual({
+      'input/text': 32,
+      keycap: 20,
+      tab: 24,
+      row: 24,
+      'button md': 28,
+      'panel/header': 40,
+      'panel/body padding': '12px',
+    })
+
+    // Les lignes des tableaux de Figma : un en-tête de 24 px, des articles de 32.
+    await ecran.page.goto(new URL('?component=badge', ecran.page.url()).href)
+    expect(
+      await ecran.page
+        .locator('.component-page tr')
+        .evaluateAll((rows) => rows.slice(0, 2).map((one) => one.getBoundingClientRect().height)),
+    ).toEqual([24, 32])
   })
 })
 
