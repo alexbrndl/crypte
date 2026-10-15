@@ -380,17 +380,15 @@ declare module '@crypte/core/protocol' {
 
 Slider bounds and the `control` setting, which removes a prop from the editing panel without removing it from the documentation, belong to the `controls` plugin. **They mean nothing without it**, so the core does not know them. With the plugin absent, writing them is a compile error, which is what we want: nobody would read them.
 
-**An empty extension point is not enough to get that refusal.** TypeScript does not report excess properties against a type that has no property at all, so any object satisfies an empty interface. `PropDetails` escapes this because it inherits core fields and is therefore never empty. `StoryOptions`, made of nothing but the extension point, has to ask for it:
+**An empty extension point is not enough to get that refusal.** TypeScript does not report excess properties against a type that has no property at all, so any object satisfies an empty interface. `PropDetails` escapes this because it inherits core fields and is therefore never empty. `StoryOptions` escapes it the same way, through the core's own `layout` (2.4):
 
 ```ts
 interface PluginStoryOptions {}
 
-type StoryOptions = [keyof PluginStoryOptions] extends [never]
-  ? Record<string, never>
-  : PluginStoryOptions
+type StoryOptions = CoreStoryOptions & PluginStoryOptions
 ```
 
-No key is accepted while the extension point is empty, and the usual excess-property check comes back as soon as a plugin fills it.
+With no plugin installed, `layout` is the one key accepted, and each plugin adds its own.
 
 When inference fails, on a project with no `tsconfig` or on a type too complex to read, the kind falls back to `unknown` and the prop stays documented. **A failed inference must never stop a story from rendering.**
 

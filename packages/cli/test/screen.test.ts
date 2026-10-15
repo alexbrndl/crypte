@@ -1300,31 +1300,70 @@ describe('the shortcuts', () => {
 
 // L'option `layout` du noyau (2.4), jugée où elle place la story.
 describe('the layout of a story, on screen', () => {
-  test('centres a story by default, and gives the frame to a fullscreen one', async ({ ecran }) => {
-    await expect.poll(ecran.vu).toBe('Nouveau')
+  const placement = async (ecran: Ecran) => {
     const cadre = (await ecran.page.locator('iframe[title="preview"]').boundingBox())!
-    const badge = ecran.page.frameLocator('iframe[title="preview"]').getByText('Nouveau')
-    const milieu = async () => {
-      const boite = (await badge.boundingBox())!
-      return [
+    const boite = (await ecran.page
+      .frameLocator('iframe[title="preview"]')
+      .getByText('Nouveau')
+      .boundingBox())!
+    return {
+      gauche: Math.round(boite.x - cadre.x),
+      milieu: [
         Math.round(boite.x + boite.width / 2 - cadre.x - cadre.width / 2),
         Math.round(boite.y + boite.height / 2 - cadre.y - cadre.height / 2),
-      ]
+      ],
     }
-    expect((await milieu()).map((ecart) => Math.abs(ecart) <= 1)).toEqual([true, true])
+  }
 
-    // Donnée au catalogue servi plutôt qu'écrite dans le fichier : le rechargement
-    // qu'une édition déclenche passait les 20 s d'un cas dans la suite entière.
+  // Les trois mises en page, données au catalogue servi et relues au
+  // rechargement : `padded` est à 16 px de `fullscreen`.
+  test('centres a story by default, pads it, or gives it the whole frame', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    expect((await placement(ecran)).milieu.map((ecart) => Math.abs(ecart) <= 1)).toEqual([
+      true,
+      true,
+    ])
+
     const entry = ecran.held.catalogue.manifest.entries.find(
       (one) => one.id === 'badge--par-defaut',
     )
     if (entry?.type !== 'story') throw new Error('badge--par-defaut absente du catalogue')
-    entry.options = { layout: 'fullscreen' }
-    await ecran.page.reload()
-    await expect
-      .poll(async () => Math.round((await badge.boundingBox())!.x - cadre.x))
-      .toBeLessThan(20)
+    const gauche = async (layout: string) => {
+      entry.options = { layout }
+      await ecran.page.reload()
+      await expect.poll(ecran.vu).toBe('Nouveau')
+      return (await placement(ecran)).gauche
+    }
+    const plein = await gauche('fullscreen')
+    const marge = await gauche('padded')
+
+    expect(marge - plein).toBe(16)
   })
+
+  // Lue dans le module avant le manifeste : une option écrite par décomposition
+  // n'arrive pas au manifeste, lu sans exécuter le fichier. Revue de #152.
+  test(
+    'reads the layout the module declares, spread included',
+    { timeout: 60_000 },
+    async ({ ecran }) => {
+      await expect.poll(ecran.vu).toBe('Nouveau')
+      const centre = (await placement(ecran)).gauche
+      const file = join(ecran.root, 'stories', 'Badge.tsx')
+      writeFileSync(
+        file,
+        readFileSync(file, 'utf8')
+          .replace(
+            'export default',
+            "const plein = { layout: 'fullscreen' } as const\n\nexport default",
+          )
+          .replace("'Par défaut': {},", "'Par défaut': { props: {}, options: { ...plein } },"),
+      )
+
+      await expect
+        .poll(async () => (await placement(ecran)).gauche, { timeout: 45_000 })
+        .toBeLessThan(centre / 2)
+    },
+  )
 })
 
 // L'échelle posée sur le document de la preview, jugée où elle se calcule.
