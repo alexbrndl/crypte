@@ -250,7 +250,7 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
 
 .meta,
 .status {
-  color: var(--text-subtle);
+  color: var(--text-muted);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
 }
@@ -364,7 +364,7 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
 .none {
   margin: 0;
   padding: var(--space-2) var(--space-3);
-  color: var(--text-subtle);
+  color: var(--text-muted);
   font-size: var(--text-sm);
 }
 </style>

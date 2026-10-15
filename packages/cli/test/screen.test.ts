@@ -18,6 +18,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium, type Browser, type Frame, type Page } from 'playwright'
@@ -1258,5 +1259,52 @@ describe('the command palette, on screen', () => {
     await dialogue.locator('input').fill('full')
     await dialogue.locator('input').press('Enter')
     await expect.poll(() => ecran.page.locator('main > nav').isVisible()).toBe(false)
+  })
+})
+
+// axe-core sur le shell servi, pas sur `apps/shell/dist` : seul le serveur lui
+// donne un catalogue, donc un arbre, des panneaux et des pages à juger. Le cadre
+// de la preview est exclu, c'est le code de l'utilisateur, que le panneau `a11y`
+// juge déjà. Chaque écran dans les deux thèmes, le contraste changeant avec eux.
+const axe = createRequire(import.meta.url).resolve('axe-core')
+
+const ecrans = [
+  ['a story', '?id=badge--nouveau'],
+  ['a component page', '?component=badge--'],
+  ['a token family', '?id=tokens--color'],
+  ['the changes', '?changes'],
+  ['the command palette', '?id=badge--nouveau'],
+] as const
+
+// Les résultats de la palette défilent sans être focalisables : le focus reste
+// dans le champ, qui désigne l'option active par `aria-activedescendant` et la
+// fait défiler aux flèches. axe ne lit pas ce motif.
+const admis = new Set(['the command palette, scrollable-region-focusable: .results'])
+
+describe('accessibility, on screen', () => {
+  test.for(['light', 'dark'] as const)('has no axe violation in %s', async (theme, { ecran }) => {
+    await ecran.page.emulateMedia({ colorScheme: theme })
+    const violations: string[] = []
+
+    for (const [nom, adresse] of ecrans) {
+      await ecran.page.goto(new URL(adresse, ecran.page.url()).href)
+      await expect.poll(() => ecran.page.locator('main').count()).toBe(1)
+      if (nom === 'the command palette') {
+        await ecran.page.locator('main').press('ControlOrMeta+K')
+        await expect.poll(() => ecran.page.getByRole('dialog').count()).toBe(1)
+      }
+      await ecran.page.addScriptTag({ path: axe })
+      const trouve = await ecran.page.evaluate(async () => {
+        const { violations } = await (
+          globalThis as unknown as { axe: typeof import('axe-core') }
+        ).axe.run({ exclude: [['iframe']] })
+        return violations.map(
+          (v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`,
+        )
+      })
+      violations.push(...trouve.map((v) => `${nom}, ${v}`).filter((v) => !admis.has(v)))
+    }
+
+    expect(violations).toEqual([])
   })
 })
