@@ -850,7 +850,8 @@ onMounted(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: var(--space-1) var(--space-1) 0;
+  margin: var(--space-1) var(--space-1) 0;
+  padding: var(--space-0-25);
   border-radius: var(--radius-lg);
   background: var(--background-sunken);
 }
@@ -962,12 +963,6 @@ main.full {
   border: var(--stroke-hairline) solid var(--border-light);
   border-radius: var(--radius-lg);
   background: var(--background-raised);
-}
-
-main.full .workspace {
-  margin: 0;
-  border: 0;
-  border-radius: 0;
 }
 
 /* Au-dessus du canvas et des panneaux : elle traite de ce qui est affiché. */
@@ -1170,7 +1165,6 @@ iframe {
   align-items: center;
   height: 28px;
   padding: 0 var(--space-3);
-  box-shadow: inset 0 var(--stroke-hairline) 0 var(--border-base);
   /* The subtle background of the Figma frame, although muted text falls under
      4.5:1 on it: secondary, by the owner's decision of 15 October 2026. The axe
      case leaves it out of the contrast rule for that reason. Reopened when the
