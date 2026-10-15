@@ -1224,6 +1224,24 @@ describe('the shortcuts', () => {
   })
 })
 
+// L'échelle posée sur le document de la preview, jugée où elle se calcule.
+describe('the zoom, on screen', () => {
+  test('scales the story and keeps the size of its frame', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    // Le badge et non son bloc, qui prend toute la largeur à toute échelle.
+    const story = ecran.page.frameLocator('iframe[title="preview"]').getByText('Nouveau')
+    const cadre = ecran.page.locator('iframe[title="preview"]')
+    const avant = { story: (await story.boundingBox())!, cadre: (await cadre.boundingBox())! }
+
+    await ecran.page.locator('main').press('+')
+    await ecran.page.locator('main').press('+')
+    await expect
+      .poll(async () => (await story.boundingBox())!.width / avant.story.width)
+      .toBeCloseTo(1.5, 1)
+    expect(await cadre.boundingBox()).toEqual(avant.cadre)
+  })
+})
+
 // Les tokens de `@crypte/ui` et `light-dark()` jugés là où ils se calculent : jsdom
 // ne résout aucune couleur.
 describe('the theme, on screen', () => {

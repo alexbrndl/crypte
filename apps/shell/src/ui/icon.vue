@@ -1,7 +1,9 @@
 <!-- Les Hugeicons du fichier Figma (jeu gratuit stroke-rounded, MIT), à 16 px et
      au trait de 1,25. Le trait suit la couleur du texte autour. -->
 <script setup lang="ts">
-defineProps<{ name: 'arrow-right-01' | 'arrow-down-01' | 'search-01' | 'copy-01' }>()
+defineProps<{
+  name: 'arrow-right-01' | 'arrow-down-01' | 'search-01' | 'copy-01' | 'minus-sign' | 'plus-sign'
+}>()
 </script>
 
 <template>
@@ -19,6 +21,8 @@ defineProps<{ name: 'arrow-right-01' | 'arrow-down-01' | 'search-01' | 'copy-01'
   >
     <path v-if="name === 'arrow-right-01'" d="M6 4C6 4 10 6.946 10 8C10 9.054 6 12 6 12" />
     <path v-else-if="name === 'arrow-down-01'" d="M12 6C12 6 9.054 10 8 10C6.946 10 4 6 4 6" />
+    <path v-else-if="name === 'minus-sign'" d="M13.3333 8H2.66667" />
+    <path v-else-if="name === 'plus-sign'" d="M8 2.66667V13.3333M13.3333 8H2.66667" />
     <template v-else-if="name === 'copy-01'">
       <path
         d="M6.586 6.586C6 7.17133 6 8.11467 6 10V10.6667C6 12.552 6 13.4953 6.586 14.0807C7.17133 14.6667 8.11467 14.6667 10 14.6667H10.6667C12.552 14.6667 13.4953 14.6667 14.0807 14.0807C14.6667 13.4953 14.6667 12.552 14.6667 10.6667V10C14.6667 8.11467 14.6667 7.17133 14.0807 6.586C13.4953 6 12.552 6 10.6667 6H10C8.11467 6 7.17133 6 6.586 6.586Z"

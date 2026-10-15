@@ -222,6 +222,24 @@ const storyMode = computed(
 )
 const fullScreen = computed(() => full.value && storyMode.value)
 
+// Un réglage de vue, pas un lieu qu'on partage : hors de l'adresse.
+const ZOOMS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]
+const zoom = ref(1)
+
+function zoomBy(step: number) {
+  const at = ZOOMS.indexOf(zoom.value) + step
+  zoom.value = ZOOMS[Math.min(Math.max(at, 0), ZOOMS.length - 1)]!
+}
+
+// Sur la racine du document de la preview, de même origine : le cadre garde sa
+// taille et la story se met en page à l'échelle. Reposé à chaque `ready`, une
+// page rechargée repartant à 1.
+function applyZoom() {
+  const root = frame.value?.contentDocument?.documentElement
+  if (root) root.style.zoom = zoom.value === 1 ? '' : String(zoom.value)
+}
+watch(zoom, applyZoom)
+
 // Quitté, pas seulement masqué, quand la story affichée disparaît : la barre part
 // avec son bouton de sortie, et le plein écran revenait au clic suivant.
 watch(displayed, (now) => {
@@ -320,6 +338,9 @@ const actions = computed<Action[]>(() => [
           keys: 'F',
           run: () => (full.value = !full.value),
         },
+        { label: 'Zoom in', keys: '+', run: () => zoomBy(1) },
+        { label: 'Zoom out', keys: '-', run: () => zoomBy(-1) },
+        { label: 'Actual size', keys: '0', run: () => (zoom.value = 1) },
       ]
     : []),
 ])
@@ -360,7 +381,11 @@ function shortcut(event: KeyboardEvent) {
   if (!storyMode.value) return
   // Comme le bouton, qui n'existe qu'avec une story : sans elle, aucune barre ne
   // permettrait d'en sortir.
-  if (event.key === 'f' && plain && displayed.value !== null) full.value = !full.value
+  if (displayed.value === null || !plain) return
+  if (event.key === 'f') full.value = !full.value
+  if (event.key === '+' || event.key === '=') zoomBy(1)
+  if (event.key === '-') zoomBy(-1)
+  if (event.key === '0') zoom.value = 1
 }
 
 function follow(event: MouseEvent, go: () => void) {
@@ -517,6 +542,7 @@ onMounted(() => {
           { once: true },
         )
         status.value = `preview ready, protocol v${message.protocolVersion}`
+        applyZoom()
         void refresh()
       }
       if (message.type === 'rendered') {
@@ -614,6 +640,33 @@ onMounted(() => {
           <span aria-current="page">{{ displayed.name }}</span>
         </nav>
         <div class="actions">
+          <div class="zoom" role="group" aria-label="Zoom">
+            <button
+              type="button"
+              class="square"
+              aria-label="Zoom out"
+              title="Zoom out (-)"
+              aria-keyshortcuts="-"
+              :disabled="zoom === ZOOMS[0]"
+              @click="zoomBy(-1)"
+            >
+              <Icon name="minus-sign" />
+            </button>
+            <button type="button" title="Actual size (0)" aria-keyshortcuts="0" @click="zoom = 1">
+              {{ Math.round(zoom * 100) }} %
+            </button>
+            <button
+              type="button"
+              class="square"
+              aria-label="Zoom in"
+              title="Zoom in (+)"
+              aria-keyshortcuts="+"
+              :disabled="zoom === ZOOMS.at(-1)"
+              @click="zoomBy(1)"
+            >
+              <Icon name="plus-sign" />
+            </button>
+          </div>
           <button type="button" class="copy" @click="copyLink">
             <Icon name="copy-01" />
             {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
@@ -965,6 +1018,23 @@ main.full .workspace {
 .actions button:disabled {
   color: var(--text-subtle);
   cursor: default;
+}
+
+.zoom {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.zoom button {
+  justify-content: center;
+  min-width: 56px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Le bouton icône md de Figma : 28 × 28. */
+.zoom .square {
+  min-width: 0;
+  padding: var(--space-1) var(--space-1-5);
 }
 
 .actions .copy {
