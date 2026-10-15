@@ -1,6 +1,6 @@
 // The two pages `crypte dev` serves, and where each comes from.
 
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sirv from 'sirv'
@@ -30,6 +30,11 @@ function packageRoot(): string {
 }
 
 const SHELL = join(packageRoot(), 'dist', 'shell')
+
+// Shown beside the logo of the shell.
+const VERSION = (
+  JSON.parse(readFileSync(join(packageRoot(), 'package.json'), 'utf8')) as { version: string }
+).version
 
 // The preview is not prebuilt and cannot be: it imports the adapter the user
 // installed and the story modules of their project, so it belongs to their
@@ -177,6 +182,7 @@ export function servePlugin(
                   stories: project.config.stories,
                   config: unreadConfig() ?? null,
                   shellBytes: bytes,
+                  version: VERSION,
                 }),
               )
             })

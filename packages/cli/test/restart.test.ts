@@ -169,6 +169,7 @@ export default defineConfig({
         stories: 'stories/checkout',
         config: null,
         shellBytes: expect.any(Number),
+        version: expect.any(String),
       })
     } finally {
       await running.close()

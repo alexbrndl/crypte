@@ -182,7 +182,12 @@ const kB = (bytes: number) => `${(bytes / 1e3).toFixed(1)} kB`
 // la dernière relecture de la configuration a échoué, le serveur gardant la
 // précédente. Relu comme les changements.
 const PROJECT = '/@crypte/project.json'
-const project = ref<{ stories: string; config: string | null; shellBytes: number } | null>(null)
+const project = ref<{
+  stories: string
+  config: string | null
+  shellBytes: number
+  version: string
+} | null>(null)
 let asking = 0
 
 async function readProject() {
@@ -281,18 +286,6 @@ function openChanges(trace: Trace = 'push') {
   write(placeSearch({ mode: 'changes' }), trace)
 }
 
-// Les stories sœurs de la story affichée, celles du même composant.
-const siblings = computed(() =>
-  displayed.value === null ? [] : ofComponent(componentIdOf(displayed.value.path), entries.value),
-)
-const at = computed(() => siblings.value.findIndex((entry) => entry.id === current.value))
-
-// Sans boucler : la dernière n'a pas de suivante.
-function step(delta: number) {
-  const target = siblings.value[at.value + delta]
-  if (target) show(target.id, 'push')
-}
-
 const copied = ref<'yes' | 'failed' | null>(null)
 let clearing: ReturnType<typeof setTimeout> | undefined
 
@@ -327,18 +320,12 @@ const actions = computed<Action[]>(() => [
           keys: 'F',
           run: () => (full.value = !full.value),
         },
-        ...(at.value > 0 ? [{ label: 'Previous story', keys: '[', run: () => step(-1) }] : []),
-        ...(at.value < siblings.value.length - 1
-          ? [{ label: 'Next story', keys: ']', run: () => step(1) }]
-          : []),
       ]
     : []),
 ])
 
-// Inactifs pendant une saisie, et sous ⌘ ou Ctrl, qui sont ceux du navigateur. `[`
-// et `]` se décident sur le caractère : l'AZERTY et le QWERTZ les tapent avec ⌥
-// sous macOS, avec AltGr, qui arrive comme Ctrl et Alt, sous Windows. Une frappe
-// dans la preview n'arrive pas jusqu'ici : l'iframe la garde.
+// Inactifs pendant une saisie, et sous ⌘ ou Ctrl, qui sont ceux du navigateur. Une
+// frappe dans la preview n'arrive pas jusqu'ici : l'iframe la garde.
 function shortcut(event: KeyboardEvent) {
   // Même pendant une saisie, comme toute palette.
   if (event.key.toLowerCase() === 'k' && (mac ? event.metaKey : event.ctrlKey) && !event.altKey) {
@@ -354,7 +341,7 @@ function shortcut(event: KeyboardEvent) {
     return
   }
   if (event.metaKey) return
-  if (event.ctrlKey && !event.getModifierState('AltGraph')) return
+  if (event.ctrlKey) return
   const target = event.target
   if (target instanceof Element && target.closest('input, textarea, select, [contenteditable]'))
     return
@@ -374,8 +361,6 @@ function shortcut(event: KeyboardEvent) {
   // Comme le bouton, qui n'existe qu'avec une story : sans elle, aucune barre ne
   // permettrait d'en sortir.
   if (event.key === 'f' && plain && displayed.value !== null) full.value = !full.value
-  if (event.key === '[') step(-1)
-  if (event.key === ']') step(1)
 }
 
 function follow(event: MouseEvent, go: () => void) {
@@ -575,7 +560,10 @@ onMounted(() => {
     <nav v-show="!fullScreen" class="column">
       <div class="card">
         <header class="brand">
-          <h1><Logo /></h1>
+          <div class="identity">
+            <h1><Logo /></h1>
+            <span v-if="project" class="version">{{ project.version }}</span>
+          </div>
           <!-- La géométrie d'un champ, la conduite d'un bouton : y taper n'écrit
                rien, il ouvre la palette, qui cherche partout. -->
           <button
@@ -629,24 +617,6 @@ onMounted(() => {
           <button type="button" class="copy" @click="copyLink">
             <Icon name="copy-01" />
             {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
-          </button>
-          <button
-            type="button"
-            title="Previous story ([)"
-            aria-keyshortcuts="["
-            :disabled="at <= 0"
-            @click="step(-1)"
-          >
-            Previous <kbd>[</kbd>
-          </button>
-          <button
-            type="button"
-            title="Next story (])"
-            aria-keyshortcuts="]"
-            :disabled="at >= siblings.length - 1"
-            @click="step(1)"
-          >
-            Next <kbd>]</kbd>
           </button>
           <button
             type="button"
@@ -725,7 +695,7 @@ onMounted(() => {
 
           <!-- Masqué et non retiré : la preview et les panneaux gardent leur état
            pendant qu'une page composant ou une famille est ouverte. -->
-          <div v-show="component === null && family === null && !changesOpen">
+          <div v-show="component === null && family === null && !changesOpen" class="canvas">
             <!-- L'erreur couvre la preview plutôt que de l'accompagner : ce qui reste
            affiché dessous appartient à la story d'avant, et le laisser voir
            ferait croire que celle-ci a rendu. -->
@@ -763,17 +733,20 @@ onMounted(() => {
     <footer class="status-bar">
       <span class="dot" :data-failed="trouble || undefined" aria-hidden="true" />
       <p>{{ line }}</p>
+      <span
+        v-if="firstRender !== null"
+        class="render"
+        title="From opening this page to the first story rendered"
+      >
+        First render {{ Math.round(firstRender) }} ms
+      </span>
       <ul class="figures">
         <li v-if="project" title="The shell, gzipped">Shell {{ kB(project.shellBytes) }}</li>
-        <li v-if="firstRender !== null" title="From opening this page to the first story rendered">
-          First render {{ Math.round(firstRender) }} ms
-        </li>
         <li
-          v-for="(one, at) of weights"
-          :key="at"
-          :title="`What ${one.plugin} loads in the browser, gzipped`"
+          v-if="weights.length > 0"
+          :title="weights.map((one) => `${one.plugin} ${kB(one.bytes)}`).join('\n') || undefined"
         >
-          {{ one.plugin }} {{ kB(one.bytes) }}
+          {{ weights.length }} {{ weights.length === 1 ? 'plugin' : 'plugins' }}
         </li>
       </ul>
     </footer>
@@ -817,12 +790,25 @@ onMounted(() => {
   box-shadow: inset 0 calc(-1 * var(--stroke-hairline)) 0 var(--border-base);
 }
 
-.brand h1 {
+.identity {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2-5) var(--space-3);
+}
+
+.identity h1 {
   display: flex;
   margin: 0;
-  padding: var(--space-2-5) var(--space-3);
   color: var(--text-primary);
   line-height: 0;
+}
+
+.version {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  font-variant-numeric: tabular-nums;
 }
 
 .commands {
@@ -882,11 +868,24 @@ main.full {
   grid-template-columns: 1fr;
 }
 
+/* Une carte, comme la colonne. A real border: the backgrounds of its children
+   would cover an inset one. */
 .workspace {
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  margin: var(--space-1) var(--space-1) 0;
+  overflow: hidden;
+  border: var(--stroke-hairline) solid var(--border-light);
+  border-radius: var(--radius-lg);
+  background: var(--background-raised);
+}
+
+main.full .workspace {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
 }
 
 /* Au-dessus du canvas et des panneaux : elle traite de ce qui est affiché. */
@@ -898,7 +897,7 @@ main.full {
   box-sizing: border-box;
   padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
   background: var(--background-raised);
-  box-shadow: inset 0 calc(-1 * var(--stroke-hairline)) 0 var(--border-light);
+  box-shadow: inset 0 calc(-1 * var(--stroke-hairline)) 0 var(--border-base);
 }
 
 .trail {
@@ -995,11 +994,25 @@ main.full {
   min-height: 0;
 }
 
+/* La preview occupe toute la scène, sans cadre ; les pages et les encadrés gardent
+   leur marge. */
 .stage {
+  display: flex;
   flex: 1;
+  flex-direction: column;
   min-width: 0;
   overflow-y: auto;
-  padding: var(--space-3);
+}
+
+.stage > :not(.canvas) {
+  margin: var(--space-3);
+}
+
+.canvas {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .panel-column {
@@ -1008,7 +1021,7 @@ main.full {
   overflow-y: auto;
   /* A real border, not the inset shadow of the components: the backgrounds of
      its children would cover it. */
-  border-left: var(--stroke-hairline) solid var(--border-light);
+  border-left: var(--stroke-hairline) solid var(--border-base);
   background: var(--background-raised);
 }
 
@@ -1064,23 +1077,18 @@ main.full {
 /* Le canvas : la story sur une trame de points, comme dans les maquettes. */
 iframe {
   display: block;
+  flex: 1;
   width: 100%;
-  height: calc(100vh - 140px);
   min-height: 320px;
   border: 0;
-  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-light);
-  border-radius: var(--radius-sm);
-  background-color: var(--background-base);
+  background-color: var(--background-subtle);
   background-image: radial-gradient(var(--border-light) 1px, transparent 1px);
   background-size: 12px 12px;
 }
 
-main.full iframe {
-  height: calc(100vh - 100px);
-}
-
 .failure {
   min-height: 60vh;
+  margin: var(--space-3);
 }
 
 .set-aside {
@@ -1093,6 +1101,7 @@ main.full iframe {
 }
 
 .partial {
+  margin: var(--space-2) var(--space-3);
   color: var(--warning-text);
   font-size: var(--text-xs);
 }
@@ -1112,13 +1121,15 @@ main.full iframe {
   align-items: center;
   height: 28px;
   padding: 0 var(--space-3);
+  box-shadow: inset 0 var(--stroke-hairline) 0 var(--border-base);
+  /* Not the subtle background of the Figma component: muted text falls under
+     4.5:1 on it. */
   color: var(--text-muted);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
 }
 
 .status-bar p {
-  flex: 1;
   margin: 0;
 }
 
@@ -1137,7 +1148,7 @@ main.full iframe {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
-  margin: 0;
+  margin: 0 0 0 auto;
   padding: 0;
   list-style: none;
   color: var(--text-muted);

@@ -213,9 +213,6 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
         </span>
         <span class="name">{{ item.value.name }}</span>
         <span v-if="item.value.kind === 'folder'" class="meta">{{ count(item.value) }}</span>
-        <span v-if="item.value.kind === 'component' && item.value.status" class="status">
-          {{ item.value.status }}
-        </span>
       </TreeItem>
     </TreeRoot>
     <p v-if="entries.length === 0" class="none">no story</p>
@@ -248,8 +245,7 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
   text-transform: uppercase;
 }
 
-.meta,
-.status {
+.meta {
   color: var(--text-muted);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
