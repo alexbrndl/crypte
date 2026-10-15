@@ -1271,7 +1271,7 @@ const axe = createRequire(import.meta.url).resolve('axe-core')
 // Chacun avec ce qui prouve qu'il est dessiné : une adresse périmée retombe sur
 // la première story sous une alerte, et axe jugerait alors un autre écran.
 const ecrans = [
-  ['a story', '?id=badge--par-defaut', 'iframe[title="preview"]'],
+  ['a story', '?id=badge--par-defaut', 'iframe[title="preview"]:visible'],
   ['a component page', '?component=badge', '.component-page'],
   ['a token family', '?id=tokens--color', '.tokens-page'],
   ['the changes', '?changes', '.changes-page'],
