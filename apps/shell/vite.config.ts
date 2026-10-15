@@ -17,9 +17,12 @@ import { defineConfig, type Plugin } from 'vite'
 const require = createRequire(import.meta.url)
 const browserVue = require.resolve('vue/dist/vue.esm-browser.prod.js')
 
-// `@crypte/ui` de même : les panneaux des plugins dessinent avec les composants du
-// shell, une seule version de chacun. Ses styles restent dans la feuille du shell,
-// que `main.ts` importe.
+// `@crypte/ui` de même, mais construit ici, comme une entrée du build plutôt que
+// copié : les panneaux des plugins dessinent avec les composants du shell, une
+// seule version de chacun, et le shell et `@crypte/ui` partagent la même copie de
+// Reka. Copié, son `dist` en portait une seconde. Signature stricte : l'entrée
+// garde les noms que les plugins importent. Ses styles restent dans la feuille du
+// shell, que `main.ts` importe.
 const ui = require.resolve('@crypte/ui')
 
 const shared: Plugin = {
@@ -27,11 +30,20 @@ const shared: Plugin = {
   apply: 'build',
   generateBundle() {
     this.emitFile({ type: 'asset', fileName: 'vendor/vue.js', source: readFileSync(browserVue) })
-    this.emitFile({ type: 'asset', fileName: 'vendor/ui.js', source: readFileSync(ui) })
   },
 }
 
 export default defineConfig({
   plugins: [vue(), shared],
-  build: { rolldownOptions: { external: ['vue', '@crypte/ui'] } },
+  build: {
+    rolldownOptions: {
+      external: ['vue'],
+      input: { index: 'index.html', 'vendor/ui': ui },
+      preserveEntrySignatures: 'strict',
+      output: {
+        entryFileNames: (chunk) =>
+          chunk.name === 'vendor/ui' ? 'vendor/ui.js' : 'assets/[name]-[hash].js',
+      },
+    },
+  },
 })

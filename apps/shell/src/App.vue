@@ -16,6 +16,7 @@ import {
   DropdownMenuPortal,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuRoot,
   DropdownMenuTrigger,
 } from 'reka-ui'
@@ -369,10 +370,16 @@ function shortcut(event: KeyboardEvent) {
     return
   }
   // La palette et le menu de zoom répondent seuls à leurs touches : Échap les
-  // ferme sans quitter le plein écran dessous. Menu ouvert, ses raccourcis se
-  // taisent aussi : ses articles se choisissent au clavier, par Reka.
-  if (event.target instanceof Element && event.target.closest('[role="dialog"], [role="menu"]'))
+  // ferme sans quitter le plein écran dessous. Le menu laisse passer les touches
+  // du zoom, que son pied annonce ; le reste, f compris, lui revient.
+  if (event.target instanceof Element && event.target.closest('[role="dialog"]')) return
+  if (event.target instanceof Element && event.target.closest('[role="menu"]')) {
+    if (event.metaKey || event.ctrlKey || event.altKey) return
+    if (event.key === '+' || event.key === '=') zoomBy(1)
+    if (event.key === '-') zoomBy(-1)
+    if (event.key === '0') zoom.value = 1
     return
+  }
   if (event.key === 'Escape') {
     full.value = false
     return
@@ -734,14 +741,15 @@ onMounted(() => {
                  qu'on quitte d'ici puisque la barre d'outils part avec lui. -->
             <div v-if="displayed" class="stage-tools">
               <DropdownMenuRoot>
-                <Tooltip content="Zoom: + and -, 0 for actual size">
-                  <DropdownMenuTrigger as-child>
-                    <Button class="level" :aria-label="`Zoom, ${Math.round(zoom * 100)} %`">
-                      {{ Math.round(zoom * 100) }} %
-                      <Icon name="arrow-down-01" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                </Tooltip>
+                <!-- Pas de tooltip : le menu rend le focus à son bouton, en focus visible,
+                     et le tooltip revenait après chaque choix. Ses touches sont dites au
+                     pied du menu. -->
+                <DropdownMenuTrigger as-child>
+                  <Button class="level" :aria-label="`Zoom, ${Math.round(zoom * 100)} %`">
+                    {{ Math.round(zoom * 100) }} %
+                    <Icon name="arrow-down-01" />
+                  </Button>
+                </DropdownMenuTrigger>
                 <DropdownMenuPortal>
                   <DropdownMenuContent class="shell-menu" align="end" :side-offset="4">
                     <DropdownMenuRadioGroup
@@ -760,6 +768,10 @@ onMounted(() => {
                         </DropdownMenuItemIndicator>
                       </DropdownMenuRadioItem>
                     </DropdownMenuRadioGroup>
+                    <DropdownMenuSeparator class="shell-menu-separator" />
+                    <p class="shell-menu-hint">
+                      <kbd>+</kbd> <kbd>-</kbd> to step, <kbd>0</kbd> for 100 %
+                    </p>
                   </DropdownMenuContent>
                 </DropdownMenuPortal>
               </DropdownMenuRoot>
@@ -1240,6 +1252,24 @@ iframe {
 .shell-menu-item[data-highlighted] {
   background: var(--background-current);
   color: var(--text-current);
+}
+
+.shell-menu-separator {
+  height: var(--stroke-hairline);
+  margin: var(--space-1) 0;
+  background: var(--border-light);
+}
+
+.shell-menu-hint {
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+}
+
+.shell-menu-hint kbd {
+  font-family: var(--font-mono);
 }
 
 .shell-menu-check {

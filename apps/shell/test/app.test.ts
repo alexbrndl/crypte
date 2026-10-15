@@ -2143,15 +2143,25 @@ describe('the zoom', () => {
     expect(style.zoom).toBe('')
   })
 
-  // Le menu ouvert garde ses touches : Échap le ferme, sans quitter le plein
-  // écran ni toucher à l'échelle. Revue de #146.
-  test('keeps its keys while its menu is open', async ({ écran }) => {
+  // Menu ouvert, les touches du zoom marchent, comme son pied l'annonce ; Échap
+  // le ferme sans quitter le plein écran. Revues de #146 et #151.
+  test('steps by its keys while its menu is open, and keeps the others', async ({ écran }) => {
     await frappe(écran, 'f')
     await ouvre(écran)
     const menu = document.querySelector('[role="menu"]')!
-    for (const key of ['+', '0', 'f', 'Escape'])
-      menu.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
-    await vide(écran.wrapper)
+    const tape = async (key: string, options: KeyboardEventInit = {}) => {
+      menu.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...options }))
+      await vide(écran.wrapper)
+    }
+
+    await tape('+')
+    expect(niveau(écran)).toBe('125 %')
+    // Sous ⌘ ou Ctrl, celles du navigateur.
+    await tape('0', { metaKey: true })
+    await tape('-', { ctrlKey: true })
+    expect(niveau(écran)).toBe('125 %')
+    await tape('0')
+    for (const key of ['f', 'Escape']) await tape(key)
 
     expect(écran.wrapper.find('main').classes()).toContain('full')
     expect(niveau(écran)).toBe('100 %')
