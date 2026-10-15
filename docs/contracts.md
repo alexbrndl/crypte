@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.32, reference document. A project brief points here instead of restating these shapes.
+> Version 1.33, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -650,9 +650,9 @@ The fingerprint is not a smaller manifest and nothing reads it to render. `crypt
 
 ### 5.1 Principle
 
-The shell and the preview talk through `postMessage` only, with JSON-serialisable messages. **The shell structurally cannot reach React, Vue, or the component instance.**
+The shell and the preview talk through `postMessage`, with JSON-serialisable messages. **The shell never reaches React, Vue, or the component instance.** The frame has the shell's origin, and two things go through its DOM, neither touching the framework nor the instance: the shell listens for `pagehide` on its window, and sets the CSS `zoom` of its root element to scale the story.
 
-That constraint is what keeps the core framework-neutral. One exception here would undo the whole architecture.
+That constraint is what keeps the core framework-neutral. One exception reaching the framework would undo the whole architecture.
 
 ```ts
 const PROTOCOL_VERSION = 1
@@ -973,6 +973,12 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.33.** What the shell reaches outside the channel (5.1).
+
+| Before | After |
+| --- | --- |
+| `postMessage` only | `postMessage`, plus `pagehide` on the frame's window and the `zoom` of its root element |
 
 **v1.32.** What `status` drives in the sidebar (2.6).
 

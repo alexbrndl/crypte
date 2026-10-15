@@ -2033,8 +2033,79 @@ describe('the toolbar of a story', () => {
       écran.wrapper
         .findAll('.toolbar [aria-keyshortcuts]')
         .map((one) => one.attributes('aria-keyshortcuts')),
-    ).toEqual(['f'])
+    ).toEqual(['-', '0', '+', 'f'])
     expect(écran.wrapper.find('nav .commands').attributes('aria-keyshortcuts')).toBe('Control+K /')
+  })
+})
+
+// La story à l'échelle, son cadre à la même taille : sur la racine du document de
+// la preview.
+describe('the zoom', () => {
+  // jsdom ne charge pas la page de la preview : un document à la place du sien.
+  const racine = (écran: Ecran) => {
+    const page = document.implementation.createHTMLDocument()
+    Object.defineProperty(écran.wrapper.find('iframe').element, 'contentDocument', { value: page })
+    return page.documentElement.style
+  }
+  const niveau = (écran: Ecran) => écran.wrapper.find('.zoom').text()
+  const frappe = async (écran: Ecran, key: string) => {
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+    await vide(écran.wrapper)
+  }
+
+  test('steps in and out by its buttons, and stops at 25 and 400 %', async ({ écran }) => {
+    const style = racine(écran)
+    await écran.wrapper.find('[aria-label="Zoom in"]').trigger('click')
+    expect(niveau(écran)).toBe('125 %')
+    expect(style.zoom).toBe('1.25')
+
+    for (let i = 0; i < 9; i += 1)
+      await écran.wrapper.find('[aria-label="Zoom out"]').trigger('click')
+    expect(niveau(écran)).toBe('25 %')
+    expect(écran.wrapper.find('[aria-label="Zoom out"]').attributes('disabled')).toBeDefined()
+
+    for (let i = 0; i < 9; i += 1)
+      await écran.wrapper.find('[aria-label="Zoom in"]').trigger('click')
+    expect(niveau(écran)).toBe('400 %')
+    expect(écran.wrapper.find('[aria-label="Zoom in"]').attributes('disabled')).toBeDefined()
+  })
+
+  test('answers +, = and -, and comes back to actual size on 0 or its level', async ({ écran }) => {
+    const style = racine(écran)
+    await frappe(écran, '+')
+    await frappe(écran, '=')
+    expect(niveau(écran)).toBe('150 %')
+    await frappe(écran, '-')
+    expect(niveau(écran)).toBe('125 %')
+    await frappe(écran, '0')
+    expect(niveau(écran)).toBe('100 %')
+    expect(style.zoom).toBe('')
+
+    await frappe(écran, '+')
+    await écran.wrapper.find('.zoom button:nth-child(2)').trigger('click')
+    expect(style.zoom).toBe('')
+  })
+
+  // Une page rechargée repart à 1 : chaque `ready` repose l'échelle.
+  test('is set again on the page of each ready', async ({ écran }) => {
+    const style = racine(écran)
+    await frappe(écran, '+')
+    style.zoom = ''
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+
+    expect(style.zoom).toBe('1.25')
+  })
+
+  test('leaves the keys alone under a page', async ({ écran }) => {
+    window.history.replaceState(null, '', '/?component=badge')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    await vide(écran.wrapper)
+    await frappe(écran, '+')
+
+    window.history.replaceState(null, '', '/?id=badge--defaut')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    await vide(écran.wrapper)
+    expect(niveau(écran)).toBe('100 %')
   })
 })
 
@@ -2345,6 +2416,9 @@ describe('the command palette', () => {
       'Dark theme T',
       'Copy link',
       'Full screen F',
+      'Zoom in +',
+      'Zoom out -',
+      'Actual size 0',
       'Badge',
       'Bouton',
       'Badge / Par défaut',
@@ -2381,7 +2455,7 @@ describe('the command palette', () => {
     // Rouverte, elle repart de rien.
     await ouvre(écran)
     await ouvre(écran)
-    expect(options()).toHaveLength(9)
+    expect(options()).toHaveLength(12)
   })
 
   test('goes to a story, and closes', async ({ écran }) => {
@@ -2452,6 +2526,17 @@ describe('the command palette', () => {
     await ouvre(écran)
     await choisit(écran, 'Copy link')
     expect(écrit).toHaveBeenCalledWith(window.location.href)
+
+    const zoom = () => écran.wrapper.find('.zoom').text()
+    await ouvre(écran)
+    await choisit(écran, 'Zoom in')
+    expect(zoom()).toBe('125 %')
+    await ouvre(écran)
+    await choisit(écran, 'Actual size')
+    expect(zoom()).toBe('100 %')
+    await ouvre(écran)
+    await choisit(écran, 'Zoom out')
+    expect(zoom()).toBe('75 %')
   })
 
   test('closes with Escape, and leaves full screen on', async ({ écran }) => {
