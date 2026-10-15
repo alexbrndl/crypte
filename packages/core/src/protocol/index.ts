@@ -51,6 +51,7 @@ export type {
   ShellMessage,
   PreviewMessage,
   Overrides,
+  RenderedValues,
   PluginShellMessages,
   PluginPreviewMessages,
   PluginMessage,

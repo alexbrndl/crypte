@@ -40,7 +40,9 @@ const statut = defineComponent({
 })
 
 const monte = (panel: Component, story: StoryEntry | null, name = 'status') =>
-  mount(PanelFrame, { props: { name, panel, entry: story, received: null, failed: null } })
+  mount(PanelFrame, {
+    props: { name, panel, entry: story, received: null, failed: null, values: null },
+  })
 
 // Le style lu tel quel : `isVisible()` rendait l'inverse du DOM sur un montage
 // qui n'est pas attaché au document. Mesuré.
@@ -135,6 +137,7 @@ describe('a panel with nothing to say', () => {
         entry: nue,
         received: { type: 'a11y:r', propre: true },
         failed: null,
+        values: null,
       },
     })
     await wrapper.vm.$nextTick()
@@ -247,7 +250,14 @@ describe('whether a panel is open', () => {
     const recu = (propre: boolean) => ({ type: 'a11y:r', propre })
     const monteAnalyse = (propre: boolean) =>
       mount(PanelFrame, {
-        props: { name: 'a11y', panel: analyse, entry: nue, received: recu(propre), failed: null },
+        props: {
+          name: 'a11y',
+          panel: analyse,
+          entry: nue,
+          received: recu(propre),
+          failed: null,
+          values: null,
+        },
       })
 
     test('keeps open a folded panel the user opened, when it unfolds', async () => {

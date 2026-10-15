@@ -966,6 +966,18 @@ describe('the controls panel', () => {
   const panneau = (page: Page) => page.locator('[data-plugin="controls"]')
   const cadre = (page: Page) => page.frameLocator('iframe[title="preview"]')
 
+  // La chaîne entière : la preview dit ce qu'elle a rendu, le shell le passe au
+  // panneau, les champs le montrent. `warning` n'est pas le défaut de `tone`.
+  test('shows what the story rendered with, without anything typed', async ({ ecran }) => {
+    await ecran.page.goto(new URL('?id=badge--avertissement', ecran.page.url()).href)
+    await expect.poll(ecran.vu).toBe('Nouveau')
+
+    await expect
+      .poll(() => panneau(ecran.page).locator('input[type="text"]').getAttribute('placeholder'))
+      .toBe('Nouveau')
+    expect(await panneau(ecran.page).locator('select option:checked').textContent()).toBe('warning')
+  })
+
   test('renders the story with what is typed, without remounting it', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
 

@@ -3,7 +3,7 @@ import type { Overrides, PanelEvents, PanelProps, ResolvedPropDetails } from '@c
 import { Button, Checkbox, Input, Select } from '@crypte/ui'
 import { computed, ref, watch, watchEffect } from 'vue'
 
-const props = defineProps<Pick<PanelProps, 'entry'>>()
+const props = defineProps<Pick<PanelProps, 'entry' | 'values'>>()
 
 const emit = defineEmits<Pick<PanelEvents, 'inapplicable' | 'overrides'>>()
 
@@ -15,17 +15,16 @@ const fields = computed(() =>
   Object.entries(props.entry?.details ?? {}).filter(([, details]) => EDITABLE.has(details.type)),
 )
 
-// What was edited, and nothing else. The manifest does not carry a story's
-// values, section 5.1, so a field starts empty and the story renders as it
-// was written until one is edited.
-const values = ref<Overrides>({})
+// What was edited, and nothing else: what the story renders with comes from
+// the `values` prop, and is not an override until it is edited.
+const edited = ref<Overrides>({})
 
 // Another story starts from its own props: the shell drops the overrides then,
 // and the fields follow.
 watch(
   () => props.entry?.id,
   () => {
-    values.value = {}
+    edited.value = {}
   },
 )
 
@@ -44,18 +43,18 @@ watchEffect(() => {
 })
 
 function set(name: string, value: unknown) {
-  values.value = { ...values.value, [name]: value }
-  emit('overrides', values.value)
+  edited.value = { ...edited.value, [name]: value }
+  emit('overrides', edited.value)
 }
 
 function unset(name: string) {
-  const { [name]: _, ...rest } = values.value
-  values.value = rest
+  const { [name]: _, ...rest } = edited.value
+  edited.value = rest
   emit('overrides', rest)
 }
 
 function reset() {
-  values.value = {}
+  edited.value = {}
   emit('overrides', {})
 }
 
@@ -86,8 +85,18 @@ function choose(name: string, options: unknown[], event: Event) {
 const choices = (details: ResolvedPropDetails) =>
   (details.options ?? []).filter((one) => typeof one !== 'object' || one === null)
 
-const hint = (details: ResolvedPropDetails) =>
-  details.default === undefined ? '' : String(details.default)
+// What the component shows for a prop: what was edited, else what the story
+// rendered with (6.1), else the declared default, for a prop the story leaves
+// out. A text field shows the last two as its placeholder, greyed: typing
+// replaces them, and emptying the field brings them back.
+const inherited = (name: string, details: ResolvedPropDetails) =>
+  props.values?.[name] ?? details.default
+const shown = (name: string, details: ResolvedPropDetails) =>
+  name in edited.value ? edited.value[name] : inherited(name, details)
+const hint = (name: string, details: ResolvedPropDetails) => {
+  const value = inherited(name, details)
+  return value === undefined ? '' : String(value)
+}
 </script>
 
 <!-- Styles inline, and no style block: the shell imports this module and
@@ -122,29 +131,31 @@ const hint = (details: ResolvedPropDetails) =>
       <Input
         v-if="details.type === 'string'"
         type="text"
-        :value="values[name] ?? ''"
-        :placeholder="hint(details)"
+        :value="edited[name] ?? ''"
+        :placeholder="hint(name, details)"
         @input="text(name, $event)"
       />
       <Input
         v-else-if="details.type === 'number'"
         type="number"
-        :value="values[name] ?? ''"
-        :placeholder="hint(details)"
+        :value="edited[name] ?? ''"
+        :placeholder="hint(name, details)"
         @input="number(name, $event)"
       />
       <Checkbox
         v-else-if="details.type === 'boolean'"
-        :checked="values[name] === true"
-        :indeterminate="!(name in values)"
+        :checked="shown(name, details) === true"
+        :indeterminate="shown(name, details) === undefined"
         @change="set(name, ($event.target as HTMLInputElement).checked)"
       />
       <Select
         v-else
-        :value="name in values ? String(choices(details).indexOf(values[name])) : ''"
+        :value="String(choices(details).indexOf(shown(name, details)))"
         @change="choose(name, choices(details), $event)"
       >
-        <option value="">— {{ hint(details) || 'the story’s value' }}</option>
+        <option v-if="!choices(details).includes(shown(name, details))" value="-1" disabled>
+          —
+        </option>
         <option v-for="(option, at) of choices(details)" :key="at" :value="String(at)">
           {{ String(option) }}
         </option>
@@ -152,7 +163,7 @@ const hint = (details: ResolvedPropDetails) =>
     </label>
     <Button
       style="grid-column: 1 / -1; justify-self: start"
-      :disabled="Object.keys(values).length === 0"
+      :disabled="Object.keys(edited).length === 0"
       @click="reset"
     >
       Back to the story

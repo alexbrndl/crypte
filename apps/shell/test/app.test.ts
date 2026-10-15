@@ -448,6 +448,29 @@ describe('what the preview answers', () => {
     expect(écran.statut()).toBe('badge--defaut rendered')
   })
 
+  // Ce que la story affichée a rendu, et seulement elle : un `rendered` d'une
+  // autre story, arrivé entre-temps, ne remplit pas les champs de celle-ci.
+  test('hands the panels what the story on display rendered with', async ({ écran }) => {
+    const valeurs = () => écran.wrapper.findComponent(Panels).props('values')
+    expect(valeurs()).toBeNull()
+
+    await écran.répond({
+      type: 'rendered',
+      id: 'badge--defaut',
+      durationMs: 1,
+      values: { label: 'Nouveau' },
+    } as PreviewMessage)
+    expect(valeurs()).toEqual({ label: 'Nouveau' })
+
+    await écran.répond({
+      type: 'rendered',
+      id: 'badge--alerte',
+      durationMs: 1,
+      values: { label: 'Alerte' },
+    } as PreviewMessage)
+    expect(valeurs()).toBeNull()
+  })
+
   // Une story qui échoue laisse un cadre vide, et un cadre vide sans message
   // ressemble à un outil cassé.
   test('shows a render error, with its stack', async ({ écran }) => {

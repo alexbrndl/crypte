@@ -56,7 +56,7 @@ describe('discrimination by the type field', () => {
       message.type === 'ready' ? message.protocolVersion : undefined
 
     expect(read({ type: 'ready', protocolVersion: 1 })).toBe(1)
-    expect(read({ type: 'rendered', id: 'x', durationMs: 0 })).toBeUndefined()
+    expect(read({ type: 'rendered', id: 'x', durationMs: 0, values: {} })).toBeUndefined()
   })
 })
 
