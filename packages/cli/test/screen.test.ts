@@ -1268,12 +1268,14 @@ describe('the command palette, on screen', () => {
 // juge déjà. Chaque écran dans les deux thèmes, le contraste changeant avec eux.
 const axe = createRequire(import.meta.url).resolve('axe-core')
 
+// Chacun avec ce qui prouve qu'il est dessiné : une adresse périmée retombe sur
+// la première story sous une alerte, et axe jugerait alors un autre écran.
 const ecrans = [
-  ['a story', '?id=badge--nouveau'],
-  ['a component page', '?component=badge--'],
-  ['a token family', '?id=tokens--color'],
-  ['the changes', '?changes'],
-  ['the command palette', '?id=badge--nouveau'],
+  ['a story', '?id=badge--par-defaut', 'iframe[title="preview"]'],
+  ['a component page', '?component=badge', '.component-page'],
+  ['a token family', '?id=tokens--color', '.tokens-page'],
+  ['the changes', '?changes', '.changes-page'],
+  ['the command palette', '?id=badge--par-defaut', '[role="dialog"]'],
 ] as const
 
 // Les résultats de la palette défilent sans être focalisables : le focus reste
@@ -1286,13 +1288,14 @@ describe('accessibility, on screen', () => {
     await ecran.page.emulateMedia({ colorScheme: theme })
     const violations: string[] = []
 
-    for (const [nom, adresse] of ecrans) {
+    for (const [nom, adresse, dessine] of ecrans) {
       await ecran.page.goto(new URL(adresse, ecran.page.url()).href)
       await expect.poll(() => ecran.page.locator('main').count()).toBe(1)
       if (nom === 'the command palette') {
         await ecran.page.locator('main').press('ControlOrMeta+K')
-        await expect.poll(() => ecran.page.getByRole('dialog').count()).toBe(1)
       }
+      await expect.poll(() => ecran.page.locator(dessine).count()).toBe(1)
+      expect(await ecran.page.locator('.stale').count()).toBe(0)
       await ecran.page.addScriptTag({ path: axe })
       const trouve = await ecran.page.evaluate(async () => {
         const { violations } = await (
