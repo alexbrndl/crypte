@@ -94,7 +94,9 @@ td {
 }
 
 /* Mono text on a 14 px line: aligned on the baseline, it grew each row by 1 px. */
-td code {
+td code,
+th code,
+.kind {
   vertical-align: top;
 }
 

@@ -1365,6 +1365,12 @@ describe('the components, on screen', () => {
         .locator('.component-page tr')
         .evaluateAll((rows) => rows.slice(0, 2).map((one) => one.getBoundingClientRect().height)),
     ).toEqual([24, 32])
+    await ecran.page.goto(new URL('?id=tokens--space', ecran.page.url()).href)
+    expect(
+      await ecran.page
+        .locator('.tokens-page tr')
+        .evaluateAll((rows) => rows.slice(0, 2).map((one) => one.getBoundingClientRect().height)),
+    ).toEqual([24, 32])
   })
 })
 
