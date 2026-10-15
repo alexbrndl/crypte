@@ -278,11 +278,11 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
 }
 
 .panel[data-inapplicable] .head button {
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .inapplicable {
-  color: var(--text-subtle);
+  color: var(--text-muted);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
   text-align: right;

@@ -834,7 +834,7 @@ onMounted(() => {
   border: var(--stroke-hairline) solid var(--border-base);
   border-radius: var(--radius-sm);
   background: var(--background-raised);
-  color: var(--text-subtle);
+  color: var(--text-muted);
   font: inherit;
   font-size: var(--text-sm);
   line-height: var(--leading-sm);
@@ -858,7 +858,7 @@ onMounted(() => {
   padding: var(--space-0-5) var(--space-1);
   border: var(--stroke-hairline) solid var(--border-base);
   border-radius: var(--radius-xs);
-  background: var(--background-subtle);
+  background: var(--background-raised);
   color: var(--text-muted);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
@@ -977,7 +977,7 @@ main.full {
   padding: var(--space-0-5) var(--space-1);
   border: var(--stroke-hairline) solid var(--border-base);
   border-radius: var(--radius-xs);
-  background: var(--background-subtle);
+  background: var(--background-raised);
   color: var(--text-muted);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
@@ -1130,7 +1130,7 @@ main.full iframe {
   margin: 0;
   padding: 0;
   list-style: none;
-  color: var(--text-subtle);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 </style>

@@ -111,7 +111,7 @@ tbody th {
 .kind,
 .alias,
 .absent {
-  color: var(--text-subtle);
+  color: var(--text-muted);
   font-size: var(--text-xs);
 }
 

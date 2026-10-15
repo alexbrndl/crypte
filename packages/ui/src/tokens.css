@@ -153,6 +153,8 @@
   --background-inverse-hover: light-dark(var(--stone-800), var(--stone-200));
   --text-primary: light-dark(var(--stone-900), var(--stone-50));
   --text-muted: light-dark(var(--stone-500), var(--stone-400));
+  /* Under 4.5:1 on every background: icons, separators and disabled controls
+     only. Text that must be read takes `--text-muted`. */
   --text-subtle: light-dark(var(--stone-400), var(--stone-600));
   --text-current: light-dark(var(--teal-700), var(--teal-400));
   --text-current-hover: light-dark(var(--teal-800), var(--teal-200));

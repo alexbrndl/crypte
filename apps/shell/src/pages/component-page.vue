@@ -167,6 +167,6 @@ dd {
 }
 
 .none {
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 </style>

@@ -102,7 +102,7 @@ function choose(command: Command) {
             aria-label="Go to or run"
             placeholder="Go to a story, a component, tokens, or run an action"
           />
-          <ListboxContent class="results">
+          <ListboxContent class="results" aria-label="Results">
             <p v-if="groups.length === 0" class="none">Nothing matches.</p>
             <ListboxGroup v-for="group of groups" :key="group.name">
               <ListboxGroupLabel class="group">{{ group.name }}</ListboxGroupLabel>
@@ -170,7 +170,7 @@ function choose(command: Command) {
 }
 
 .filter::placeholder {
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .results {
@@ -207,7 +207,7 @@ kbd {
   padding: var(--space-0-5) var(--space-1);
   border: var(--stroke-hairline) solid var(--border-base);
   border-radius: var(--radius-xs);
-  background: var(--background-subtle);
+  background: var(--background-raised);
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
@@ -217,6 +217,6 @@ kbd {
 .none {
   margin: 0;
   padding: var(--space-3) var(--space-4);
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 </style>
