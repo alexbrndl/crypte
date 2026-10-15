@@ -25,6 +25,7 @@ import { chromium, type Browser, type Frame, type Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, test as base } from 'vitest'
 import type { ViteDevServer } from 'vite'
 import { startDev, type Started } from '../src/commands/dev'
+import { storyId } from '@crypte/core/protocol'
 import { storyFilesOf } from '../src/catalogue/manifest'
 
 // Ce que l'utilisateur voit vraiment, dans un navigateur. Les autres cas
@@ -1549,4 +1550,73 @@ describe('accessibility, on screen', () => {
 
     expect(violations).toEqual([])
   })
+})
+
+// Le 1280 sur un corpus réel : des noms longs, et une écriture non latine, que
+// la normalisation garde (`tag--активная-…`). Une maquette choisit des libellés
+// qui tiennent ; ici, rien ne doit déborder en largeur, sur la page composant
+// comme dans le mode changements, servi par une réponse au corpus du même genre.
+describe('a long and non-Latin corpus at 1280', () => {
+  const CYRILLIQUE = 'Активная кнопка с очень длинным названием для проверки переноса строки'
+  const LONG = 'Un nom de story particulièrement long qui ne tient jamais sur une seule ligne'
+  const deborde = (ecran: Ecran) =>
+    ecran.page.evaluate<
+      string[]
+    >(`[...document.querySelectorAll('main, .stage, .component-page, .changes-page, table')]
+      .filter((e) => e.scrollWidth > e.clientWidth + 1)
+      .map((e) => (e.className || e.tagName) + ' ' + e.scrollWidth + '>' + e.clientWidth)`)
+
+  test('overflows nowhere, on the component page or in the changes mode', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    expect(ecran.page.viewportSize()?.width).toBe(1280)
+
+    const file = join(ecran.root, 'stories', 'Tag.tsx')
+    writeFileSync(
+      file,
+      readFileSync(file, 'utf8').replace(
+        '    Nue: {},',
+        `    Nue: {},\n    '${CYRILLIQUE}': {},\n    '${LONG}': { className: 'une-classe-au-nom-volontairement-tres-long-pour-le-tableau' },`,
+      ),
+    )
+    await expect
+      .poll(() => ecran.page.getByRole('treeitem', { name: CYRILLIQUE }).count(), {
+        timeout: 30_000,
+      })
+      .toBe(1)
+
+    await ecran.page.goto(new URL('?component=tag', ecran.page.url()).href)
+    await expect.poll(() => ecran.page.locator('.component-page').count()).toBe(1)
+    expect(await deborde(ecran)).toEqual([])
+
+    // Par le noyau : la normalisation retire les accents latins, et un identifiant
+    // calculé à la main ne trouvait pas sa story, la ligne restant du code nu.
+    const id = (nom: string) => storyId(['Tag'], nom)
+    await ecran.page.route('**/@crypte/changes.json', (route) =>
+      route.fulfill({
+        json: {
+          changes: [
+            { kind: 'appeared', id: id(CYRILLIQUE) },
+            {
+              kind: 'changed',
+              id: id(LONG),
+              props: {
+                before: ['children'],
+                after: ['children', 'className', 'unePropAuNomTresLong'],
+              },
+            },
+            {
+              kind: 'disappeared',
+              id: 'tag--une-story-disparue-au-nom-tout-aussi-long-que-les-autres',
+            },
+          ],
+        },
+      }),
+    )
+    await ecran.page.goto(new URL('?changes', ecran.page.url()).href)
+    // Les trois lignes dessinées en liens, vers leur story ou leur composant : la plus large
+    // est celle d'une story changée, son nom suivi de ses props.
+    await expect.poll(() => ecran.page.locator('.changes-page li').count()).toBe(3)
+    expect(await ecran.page.locator('.changes-page li a').count()).toBe(3)
+    expect(await deborde(ecran)).toEqual([])
+  }, 60_000)
 })
