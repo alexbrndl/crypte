@@ -2526,6 +2526,17 @@ describe('the command palette', () => {
     await ouvre(écran)
     await choisit(écran, 'Copy link')
     expect(écrit).toHaveBeenCalledWith(window.location.href)
+
+    const zoom = () => écran.wrapper.find('.zoom').text()
+    await ouvre(écran)
+    await choisit(écran, 'Zoom in')
+    expect(zoom()).toBe('125 %')
+    await ouvre(écran)
+    await choisit(écran, 'Actual size')
+    expect(zoom()).toBe('100 %')
+    await ouvre(écran)
+    await choisit(écran, 'Zoom out')
+    expect(zoom()).toBe('75 %')
   })
 
   test('closes with Escape, and leaves full screen on', async ({ écran }) => {
