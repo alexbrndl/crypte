@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
-import { entriesOf } from '../src/stories'
+import { entriesOf } from '../src/catalogue/stories'
 
 // La lecture d'un fichier de story, sans l'exécuter. Voir docs/contracts.md § 2.
 

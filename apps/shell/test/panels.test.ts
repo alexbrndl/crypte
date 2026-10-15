@@ -1,6 +1,6 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import Panels from '../src/panels.vue'
+import Panels from '../src/panels/panels.vue'
 
 // La zone où le shell monte les modules shell des plugins. Le navigateur la tient
 // aussi, dans `packages/cli/test/screen.test.ts`, mais contre le shell

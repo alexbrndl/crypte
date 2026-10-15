@@ -4,11 +4,11 @@
 import { readFileSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 import { parseSync } from 'vite'
-import { propertyOf, wrapperNames, type Node } from './ast'
-import { ConfigError } from './errors'
+import { propertyOf, wrapperNames, type Node } from '../catalogue/ast'
+import { ConfigError } from '../errors'
 import { capture, isBareSpecifier } from './paths'
 import type { Project } from './project'
-import { componentRef } from './stories'
+import { componentRef } from '../catalogue/stories'
 
 // The imports and the expression the browser needs to build the adapter, as text.
 // Never guessed from `adapter.name`: that breaks the moment an adapter is wrapped.

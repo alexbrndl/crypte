@@ -15,9 +15,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { gzipSync } from 'node:zlib'
 import type { CryptePlugin } from '@crypte/core/protocol'
 import { afterAll, beforeAll, describe, expect, it, test as base } from 'vitest'
-import { dev, startDev, type Started, type Running } from '../src/dev'
-import { buildCatalogue } from '../src/manifest'
-import { loadProject } from '../src/project'
+import { dev, startDev, type Started, type Running } from '../src/commands/dev'
+import { buildCatalogue } from '../src/catalogue/manifest'
+import { loadProject } from '../src/config/project'
 import {
   CHANGES_ROUTE,
   MANIFEST_ROUTE,
@@ -26,7 +26,7 @@ import {
   PREVIEW_ENTRY_ID,
   previewEntry,
   servePlugin,
-} from '../src/serve'
+} from '../src/server/serve'
 
 // Ce que `crypte dev` sert vraiment, mesuré sur un serveur qui écoute.
 
@@ -424,7 +424,7 @@ describe('what the command says on startup', () => {
 })
 
 // La forme que la route des changements sert sur une liste non vide : celle que le
-// shell dessine (`apps/shell/src/changes.ts`, écrite à la main dans `app.test.ts`).
+// shell dessine (`apps/shell/src/pages/changes.ts`, écrite à la main dans `app.test.ts`).
 // Une copie de la fixture dans son propre dépôt, où l'empreinte commise précède
 // une story éditée.
 describe('the changes route on a committed project', () => {

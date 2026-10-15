@@ -2,8 +2,8 @@
 import type { StoryEntry } from '@crypte/core/protocol'
 import { computed } from 'vue'
 import { componentOfId, type Change, type Changes } from './changes'
-import { componentIdOf } from './tree'
-import { placeSearch, sameTab } from './url'
+import { componentIdOf } from '../navigation/tree'
+import { placeSearch, sameTab } from '../navigation/url'
 
 // Ce qui a changé dans le catalogue depuis le dernier commit : des identifiants,
 // des statuts et des noms de props, jamais un pixel. Trois natures, séparées parce

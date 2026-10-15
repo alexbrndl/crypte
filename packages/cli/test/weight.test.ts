@@ -11,8 +11,8 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { afterEach, describe, expect, test } from 'vitest'
-import type { Surfaces } from '../src/surfaces'
-import { pluginWeights, shellBytes } from '../src/weight'
+import type { Surfaces } from '../src/server/surfaces'
+import { pluginWeights, shellBytes } from '../src/server/weight'
 
 // Ce que le shell et chaque plugin coûtent au navigateur, gzip niveau 9 fichier
 // par fichier, la règle du budget du shell.

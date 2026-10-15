@@ -23,8 +23,8 @@ import { fileURLToPath } from 'node:url'
 import { chromium, type Browser, type Frame, type Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, test as base } from 'vitest'
 import type { ViteDevServer } from 'vite'
-import { startDev, type Started } from '../src/dev'
-import { storyFilesOf } from '../src/manifest'
+import { startDev, type Started } from '../src/commands/dev'
+import { storyFilesOf } from '../src/catalogue/manifest'
 
 // Ce que l'utilisateur voit vraiment, dans un navigateur. Les autres cas
 // prouvent que les routes répondent ; ceux-ci prouvent qu'une story s'affiche,

@@ -1,10 +1,10 @@
 // What the `crypte` command does with its arguments.
 
 import { PROTOCOL_VERSION } from '@crypte/core/protocol'
-import { check as verify } from './check'
-import { dev as start } from './dev'
+import { check as verify } from './commands/check'
+import { dev as start } from './commands/dev'
 import { ConfigError } from './errors'
-import { init as create } from './init'
+import { init as create } from './commands/init'
 
 // The three commands, taken as arguments so a test reaches them without a
 // server, a file written or a process spawned.

@@ -2,8 +2,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { CryptePlugin, TokensEntry } from '@crypte/core/protocol'
 import { describe, expect, it } from 'vitest'
-import { buildCatalogue, type Catalogue } from '../src/manifest'
-import { loadProject } from '../src/project'
+import { buildCatalogue, type Catalogue } from '../src/catalogue/manifest'
+import { loadProject } from '../src/config/project'
 
 // Ce qu'un plugin contribue au manifeste, et ce qui lui est refusé.
 // Section 6.3 de docs/contracts.md.

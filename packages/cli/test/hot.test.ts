@@ -11,9 +11,9 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Manifest, StoryEntry } from '@crypte/core/protocol'
 import { describe, expect, test as base } from 'vitest'
-import { componentFiles, startDev } from '../src/dev'
-import { storiesOf, type Catalogue } from '../src/manifest'
-import { MANIFEST_ROUTE } from '../src/serve'
+import { componentFiles, startDev } from '../src/commands/dev'
+import { storiesOf, type Catalogue } from '../src/catalogue/manifest'
+import { MANIFEST_ROUTE } from '../src/server/serve'
 
 // Ce que le serveur fait des fichiers pendant qu'il tourne. Sur une copie de la
 // fixture : ces cas écrivent des fichiers de story, et la fixture est commitée.

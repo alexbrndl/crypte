@@ -8,7 +8,7 @@ un commentaire de code.
 
 _1. Le produit. Ce que la commande fait quand aucun framework n'est reconnu, et la liste des adaptateurs qu'elle imprime alors. `guide.md` ne décrit aujourd'hui que l'autre refus, celui d'écraser une configuration existante ; un utilisateur sans React tombe sur une erreur que rien n'annonce._
 
-`init` lit `package.json`, reconnaît le framework, écrit les deux clés requises de la section 1.5 des contrats, rien d'autre. Sans framework reconnu il n'écrit rien et nomme les adaptateurs qui existent : une configuration dont `adapter` est vide échoue une commande plus tard, en nommant un fichier que l'utilisateur n'a pas écrit. Cette commande n'a pas de section de contrat à elle, parce que le fichier qu'elle écrit est la section 1.5. Les autres raisons vivent en commentaire dans `packages/cli/src/init.ts`.
+`init` lit `package.json`, reconnaît le framework, écrit les deux clés requises de la section 1.5 des contrats, rien d'autre. Sans framework reconnu il n'écrit rien et nomme les adaptateurs qui existent : une configuration dont `adapter` est vide échoue une commande plus tard, en nommant un fichier que l'utilisateur n'a pas écrit. Cette commande n'a pas de section de contrat à elle, parce que le fichier qu'elle écrit est la section 1.5. Les autres raisons vivent en commentaire dans `packages/cli/src/commands/init.ts`.
 
 _Rouvre si : un second adaptateur apparaît et la reconnaissance devient un vrai choix, ou une mesure montre que les conseils imprimés ne sont pas lus._
 

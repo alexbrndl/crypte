@@ -12,9 +12,9 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, test } from 'vitest'
-import { configFor, init, linesOf, planFor } from '../src/init'
-import { buildCatalogue } from '../src/manifest'
-import { loadProject } from '../src/project'
+import { configFor, init, linesOf, planFor } from '../src/commands/init'
+import { buildCatalogue } from '../src/catalogue/manifest'
+import { loadProject } from '../src/config/project'
 
 // `crypte init` s'installe dans un projet qui existe déjà : il lit ce que le
 // projet déclare, et refuse plutôt que d'écrire une configuration que

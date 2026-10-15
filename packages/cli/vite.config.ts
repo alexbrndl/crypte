@@ -6,7 +6,7 @@ export default defineConfig({
       // `index` est le binaire, `config` l'API que le projet importe. Deux
       // entrées, sinon importer `defineConfig` exécuterait la commande.
       index: 'src/index.ts',
-      config: 'src/config.ts',
+      config: 'src/config/config.ts',
     },
     format: ['esm'],
     platform: 'node',

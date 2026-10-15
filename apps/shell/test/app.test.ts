@@ -9,8 +9,8 @@ import type {
 import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test as base, vi } from 'vitest'
 import App from '../src/App.vue'
-import Panels from '../src/panels.vue'
-import StoryTree from '../src/story-tree.vue'
+import Panels from '../src/panels/panels.vue'
+import StoryTree from '../src/navigation/story-tree.vue'
 
 // Le composant du shell, monté dans un DOM. Il était le plus gros fichier que
 // rien n'exécutait hors navigateur : 184 lignes, et la couverture ne pouvait même

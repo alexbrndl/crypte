@@ -3,10 +3,10 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, test } from 'vitest'
-import { check, componentsIn, orphans, problemsOf } from '../src/check'
-import { FINGERPRINT, fingerprintOf, writeFingerprint } from '../src/fingerprint'
-import { buildCatalogue, storiesOf } from '../src/manifest'
-import { loadProject } from '../src/project'
+import { check, componentsIn, orphans, problemsOf } from '../src/commands/check'
+import { FINGERPRINT, fingerprintOf, writeFingerprint } from '../src/catalogue/fingerprint'
+import { buildCatalogue, storiesOf } from '../src/catalogue/manifest'
+import { loadProject } from '../src/config/project'
 
 // Les deux problèmes de la section 1.2 : la story orpheline, qui fait sortir en
 // 1, et le composant sans story, qui avertit. Le second ne regarde que les

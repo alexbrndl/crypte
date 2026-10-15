@@ -4,8 +4,8 @@
 import { join } from 'node:path'
 import { readFileSync, watch, type FSWatcher } from 'node:fs'
 import { createServer, type ViteDevServer } from 'vite'
-import { reason } from './errors'
-import { FINGERPRINT, fingerprintOf, writeFingerprint } from './fingerprint'
+import { reason } from '../errors'
+import { FINGERPRINT, fingerprintOf, writeFingerprint } from '../catalogue/fingerprint'
 import {
   buildCatalogue,
   OUTPUT,
@@ -13,11 +13,11 @@ import {
   storyFilesOf,
   writeCatalogue,
   type Catalogue,
-} from './manifest'
-import { loadProject, viteConfigOf, type Project } from './project'
-import { configPackages } from './config-source'
-import { servePlugin, PREVIEW_ENTRY_ID, PREVIEW_PAGE } from './serve'
-import { componentWatchers, debounced } from './watch'
+} from '../catalogue/manifest'
+import { loadProject, viteConfigOf, type Project } from '../config/project'
+import { configPackages } from '../config/config-source'
+import { servePlugin, PREVIEW_ENTRY_ID, PREVIEW_PAGE } from '../server/serve'
+import { componentWatchers, debounced } from '../server/watch'
 
 // What `dev` closes when it stops watching. An `FSWatcher` satisfies it, and so
 // does the set of component watchers, which is replaced at every build and so

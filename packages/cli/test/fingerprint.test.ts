@@ -3,9 +3,9 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Manifest, StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { describe, expect, it } from 'vitest'
-import { FINGERPRINT, fingerprintOf, writeFingerprint } from '../src/fingerprint'
-import { buildCatalogue, storiesOf } from '../src/manifest'
-import { loadProject } from '../src/project'
+import { FINGERPRINT, fingerprintOf, writeFingerprint } from '../src/catalogue/fingerprint'
+import { buildCatalogue, storiesOf } from '../src/catalogue/manifest'
+import { loadProject } from '../src/config/project'
 
 // L'empreinte commitée., « Ce que le condensé
 // garde de chaque story ».

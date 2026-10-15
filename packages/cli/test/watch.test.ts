@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { componentWatchers, debounced, type Watch } from '../src/watch'
+import { componentWatchers, debounced, type Watch } from '../src/server/watch'
 
 // Ce que le vrai système de fichiers ne sait pas éprouver sur macOS : un
 // surveillant voisin y capte l'écriture d'un surveillant mort, aucune API

@@ -7,7 +7,7 @@ import type {
   PanelProps,
   PreviewContext,
   PreviewHooks,
-} from '../src/config'
+} from '../src/config/config'
 
 // Le cinquième budget de `DCJ-176` : « configuration obligatoire, racine des
 // stories et adaptateur, rien d'autre ». C'est un type et pas un chiffre, donc

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { PROTOCOL_VERSION } from '@crypte/core/protocol'
 import { exitCode, help, run } from '../src/cli'
-import type { Running } from '../src/dev'
+import type { Running } from '../src/commands/dev'
 import { ConfigError } from '../src/errors'
 
 // Ce que la commande fait de ses arguments. Rien ne l'éprouvait : la couverture

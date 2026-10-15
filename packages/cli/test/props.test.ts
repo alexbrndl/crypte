@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { propsOf } from '../src/props'
+import { propsOf } from '../src/catalogue/props'
 
 // Ce qu'un fichier de composant déclare de ses props, et ce que la lecture
 // refuse de deviner. Section 3.2 de docs/contracts.md.

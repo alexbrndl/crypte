@@ -2,7 +2,7 @@ import type { StoryEntry, StoryMeta } from '@crypte/core/protocol'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { defineComponent, h, isProxy, ref, watchEffect, type Component } from 'vue'
-import PanelFrame from '../src/panel-frame.vue'
+import PanelFrame from '../src/panels/panel-frame.vue'
 
 // Le cadre d'un panneau de plugin : sans objet story par story, ouverture
 // retenue sous le nom du plugin, et ce qu'un panneau lève affiché à sa place.
