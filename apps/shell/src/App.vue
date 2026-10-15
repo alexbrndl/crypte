@@ -805,6 +805,8 @@ onMounted(() => {
   flex: 1;
   flex-direction: column;
   min-height: 0;
+  /* A real border, not the inset shadow of the components: the backgrounds of
+     its children would cover it. */
   border: var(--stroke-hairline) solid var(--border-light);
   border-radius: var(--radius-lg);
   background: var(--background-raised);
@@ -812,7 +814,7 @@ onMounted(() => {
 }
 
 .brand {
-  border-bottom: var(--stroke-hairline) solid var(--border-base);
+  box-shadow: inset 0 calc(-1 * var(--stroke-hairline)) 0 var(--border-base);
 }
 
 .brand h1 {
@@ -831,7 +833,8 @@ onMounted(() => {
   width: calc(100% - 2 * var(--space-3));
   margin: var(--space-1-5) var(--space-3) var(--space-3);
   padding: var(--space-1-5) var(--space-2);
-  border: var(--stroke-hairline) solid var(--border-base);
+  border: 0;
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
   border-radius: var(--radius-sm);
   background: var(--background-raised);
   color: var(--text-muted);
@@ -843,7 +846,7 @@ onMounted(() => {
 }
 
 .commands:hover {
-  border-color: var(--border-strong);
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-strong);
 }
 
 .commands:focus-visible {
@@ -856,7 +859,8 @@ onMounted(() => {
 
 .commands kbd {
   padding: var(--space-0-5) var(--space-1);
-  border: var(--stroke-hairline) solid var(--border-base);
+  border: 0;
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
   border-radius: var(--radius-xs);
   background: var(--background-raised);
   color: var(--text-muted);
@@ -894,7 +898,7 @@ main.full {
   box-sizing: border-box;
   padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
   background: var(--background-raised);
-  border-bottom: var(--stroke-hairline) solid var(--border-light);
+  box-shadow: inset 0 calc(-1 * var(--stroke-hairline)) 0 var(--border-light);
 }
 
 .trail {
@@ -939,7 +943,8 @@ main.full {
   gap: var(--space-1);
   align-items: center;
   padding: var(--space-1) var(--space-2);
-  border: var(--stroke-hairline) solid var(--border-base);
+  border: 0;
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
   border-radius: var(--radius-sm);
   background: var(--background-raised);
   color: var(--text-primary);
@@ -964,7 +969,7 @@ main.full {
 }
 
 .actions .copy {
-  border-color: transparent;
+  box-shadow: none;
   background: var(--background-inverse);
   color: var(--text-inverse);
 }
@@ -975,7 +980,8 @@ main.full {
 
 .actions kbd {
   padding: var(--space-0-5) var(--space-1);
-  border: var(--stroke-hairline) solid var(--border-base);
+  border: 0;
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
   border-radius: var(--radius-xs);
   background: var(--background-raised);
   color: var(--text-muted);
@@ -1000,6 +1006,8 @@ main.full {
   width: 340px;
   flex: none;
   overflow-y: auto;
+  /* A real border, not the inset shadow of the components: the backgrounds of
+     its children would cover it. */
   border-left: var(--stroke-hairline) solid var(--border-light);
   background: var(--background-raised);
 }
@@ -1027,7 +1035,8 @@ main.full {
   align-items: center;
   margin: var(--space-2);
   padding: var(--space-1-5) var(--space-2);
-  border: var(--stroke-hairline) solid var(--border-base);
+  border: 0;
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
   border-radius: var(--radius-sm);
   background: var(--background-raised);
   color: var(--text-primary);
@@ -1037,7 +1046,7 @@ main.full {
 }
 
 .changes-entry[aria-current='page'] {
-  border-color: var(--accent-base);
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--accent-base);
   background: var(--background-current);
   color: var(--text-current);
 }
@@ -1058,7 +1067,8 @@ iframe {
   width: 100%;
   height: calc(100vh - 140px);
   min-height: 320px;
-  border: var(--stroke-hairline) solid var(--border-light);
+  border: 0;
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-light);
   border-radius: var(--radius-sm);
   background-color: var(--background-base);
   background-image: radial-gradient(var(--border-light) 1px, transparent 1px);

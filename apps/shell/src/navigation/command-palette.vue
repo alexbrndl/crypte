@@ -139,6 +139,7 @@ function choose(command: Command) {
   width: min(640px, 90vw);
   overflow: hidden;
   background: var(--background-raised);
+  /* A real border: the highlighted option would cover an inset one. */
   border: var(--stroke-hairline) solid var(--border-base);
   border-radius: var(--radius-lg);
   box-shadow: 0 12px 32px color-mix(in srgb, var(--stone-950) 18%, transparent);
@@ -160,7 +161,7 @@ function choose(command: Command) {
   width: 100%;
   padding: var(--space-3) var(--space-4);
   border: 0;
-  border-bottom: var(--stroke-hairline) solid var(--border-base);
+  box-shadow: inset 0 calc(-1 * var(--stroke-hairline)) 0 var(--border-base);
   background: none;
   color: var(--text-primary);
   font: inherit;
@@ -180,7 +181,7 @@ function choose(command: Command) {
 
 .group {
   padding: var(--space-2) var(--space-4) var(--space-1);
-  border-top: var(--stroke-hairline) solid var(--border-light);
+  box-shadow: inset 0 var(--stroke-hairline) 0 var(--border-light);
   color: var(--text-muted);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
@@ -205,7 +206,8 @@ function choose(command: Command) {
 
 kbd {
   padding: var(--space-0-5) var(--space-1);
-  border: var(--stroke-hairline) solid var(--border-base);
+  border: 0;
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
   border-radius: var(--radius-xs);
   background: var(--background-raised);
   color: var(--text-muted);

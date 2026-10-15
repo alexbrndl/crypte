@@ -231,6 +231,7 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
 
 <style scoped>
 .panel {
+  /* A border: folded, the opaque head would cover an inset one. */
   border-bottom: var(--stroke-hairline) solid var(--border-base);
 }
 

@@ -132,6 +132,9 @@
   --tracking-normal: 0;
   --tracking-wide: 0.025em;
   --tracking-wider: 0.05em;
+  /* Figma strokes sit inside the box. A component draws its stroke as
+     `box-shadow: inset 0 0 0 var(--stroke-hairline) …`: a border would add to its
+     size, 2 px per nesting level. */
   --stroke-hairline: 1px;
   --stroke-icon: 1.25px;
   --stroke-focus: 1.5px;

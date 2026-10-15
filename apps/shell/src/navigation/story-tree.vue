@@ -258,7 +258,8 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
 .tabs {
   display: flex;
   margin: 0 var(--space-3);
-  border: var(--stroke-hairline) solid var(--border-base);
+  border: 0;
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
   border-radius: var(--radius-sm);
   background: var(--background-raised);
 }
@@ -266,7 +267,8 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
 .tabs button {
   flex: 1;
   padding: var(--space-1) var(--space-1-5);
-  border: var(--stroke-hairline) solid transparent;
+  border: 0;
+  box-shadow: inset 0 0 0 var(--stroke-hairline) transparent;
   border-radius: var(--radius-sm);
   background: none;
   color: var(--text-muted);
@@ -277,7 +279,7 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
 }
 
 .tabs button[data-state='on'] {
-  border-color: var(--accent-base);
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--accent-base);
   background: var(--background-current);
   color: var(--text-current);
 }
@@ -328,6 +330,7 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
   position: absolute;
   inset-block: 0;
   z-index: -1;
+  /* A border: the guide has no width, an inset shadow would draw nothing. */
   border-left: var(--stroke-hairline) solid var(--border-base);
 }
 

@@ -1236,6 +1236,27 @@ describe('the theme, on screen', () => {
   })
 })
 
+// Les hauteurs des composants Figma (page `core/ui`), traits compris : Figma les
+// pose à l'intérieur, une `border` les ajouterait à la boîte.
+describe('the components, on screen', () => {
+  test('have the heights of their Figma components', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    const hauteur = (selecteur: string) =>
+      ecran.page
+        .locator(selecteur)
+        .first()
+        .evaluate((e) => e.getBoundingClientRect().height)
+
+    expect({
+      'input/text': await hauteur('.commands'),
+      keycap: await hauteur('.commands kbd'),
+      tab: await hauteur('.tabs button'),
+      row: await hauteur('[role=treeitem]'),
+      'button md': await hauteur('.actions .copy'),
+    }).toEqual({ 'input/text': 32, keycap: 20, tab: 24, row: 24, 'button md': 28 })
+  })
+})
+
 // ⌘K sous macOS, Ctrl+K ailleurs : Playwright choisit selon le système, comme le
 // shell selon son navigateur.
 describe('the command palette, on screen', () => {
