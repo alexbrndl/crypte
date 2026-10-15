@@ -367,7 +367,8 @@ function shortcut(event: KeyboardEvent) {
     return
   }
   // La palette et le menu de zoom répondent seuls à leurs touches : Échap les
-  // ferme sans quitter le plein écran dessous.
+  // ferme sans quitter le plein écran dessous. Menu ouvert, ses raccourcis se
+  // taisent aussi : ses articles se choisissent au clavier, par Reka.
   if (event.target instanceof Element && event.target.closest('[role="dialog"], [role="menu"]'))
     return
   if (event.key === 'Escape') {
@@ -742,7 +743,7 @@ onMounted(() => {
                     <DropdownMenuItem
                       class="shell-menu-item"
                       :disabled="zoom === ZOOMS.at(-1)"
-                      aria-keyshortcuts="+"
+                      aria-keyshortcuts="Plus"
                       @select="zoomBy(1)"
                     >
                       Zoom in <kbd>+</kbd>
