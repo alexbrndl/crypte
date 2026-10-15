@@ -52,8 +52,12 @@ const said = (error: unknown) => (error instanceof Error ? error.message : Strin
 // l'en-tête les efface.
 const edited = shallowRef<Record<string, Overrides>>({})
 
+// Par `hasOwn` : un plugin nommé `toString` lirait sinon la fonction du prototype.
+const heldFor = (name: string) =>
+  Object.hasOwn(edited.value, name) ? (edited.value[name] ?? {}) : {}
+
 const merge = () =>
-  emit('overrides', Object.assign({}, ...panels.value.map((one) => edited.value[one.name] ?? {})))
+  emit('overrides', Object.assign({}, ...panels.value.map((one) => heldFor(one.name))))
 
 function edit(name: string, values: Overrides) {
   edited.value = { ...edited.value, [name]: values }
@@ -164,7 +168,7 @@ watch(() => props.revision, load)
     :received="Object.hasOwn(received, one.name) ? (received[one.name] ?? null) : null"
     :failed="failed"
     :values="values"
-    :overrides="edited[one.name] ?? {}"
+    :overrides="heldFor(one.name)"
     @overrides="(values: Overrides) => edit(one.name, values)"
     @send="(message: PanelMessage) => emit('send', message)"
   />
