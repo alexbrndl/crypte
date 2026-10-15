@@ -366,9 +366,10 @@ function shortcut(event: KeyboardEvent) {
     palette.value = !palette.value
     return
   }
-  // La palette répond seule à ses touches : Échap la ferme sans quitter le plein
-  // écran dessous.
-  if (event.target instanceof Element && event.target.closest('[role="dialog"]')) return
+  // La palette et le menu de zoom répondent seuls à leurs touches : Échap les
+  // ferme sans quitter le plein écran dessous.
+  if (event.target instanceof Element && event.target.closest('[role="dialog"], [role="menu"]'))
+    return
   if (event.key === 'Escape') {
     full.value = false
     return
@@ -731,7 +732,7 @@ onMounted(() => {
             <div v-if="displayed" class="stage-tools">
               <DropdownMenuRoot>
                 <DropdownMenuTrigger as-child>
-                  <Button class="level" aria-label="Zoom">
+                  <Button class="level" :aria-label="`Zoom, ${Math.round(zoom * 100)} %`">
                     {{ Math.round(zoom * 100) }} %
                     <Icon name="arrow-down-01" />
                   </Button>
@@ -741,6 +742,7 @@ onMounted(() => {
                     <DropdownMenuItem
                       class="shell-menu-item"
                       :disabled="zoom === ZOOMS.at(-1)"
+                      aria-keyshortcuts="+"
                       @select="zoomBy(1)"
                     >
                       Zoom in <kbd>+</kbd>
@@ -748,11 +750,16 @@ onMounted(() => {
                     <DropdownMenuItem
                       class="shell-menu-item"
                       :disabled="zoom === ZOOMS[0]"
+                      aria-keyshortcuts="-"
                       @select="zoomBy(-1)"
                     >
                       Zoom out <kbd>-</kbd>
                     </DropdownMenuItem>
-                    <DropdownMenuItem class="shell-menu-item" @select="zoom = 1">
+                    <DropdownMenuItem
+                      class="shell-menu-item"
+                      aria-keyshortcuts="0"
+                      @select="zoom = 1"
+                    >
                       Actual size <kbd>0</kbd>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -1165,7 +1172,8 @@ iframe {
   box-shadow: inset 0 var(--stroke-hairline) 0 var(--border-base);
   /* The subtle background of the Figma frame, although muted text falls under
      4.5:1 on it: secondary, by the owner's decision of 15 October 2026. The axe
-     case leaves it out of the contrast rule for that reason. */
+     case leaves it out of the contrast rule for that reason. Reopened when the
+     bar carries something a user must read to act, an error or a step to take. */
   background: var(--background-subtle);
   color: var(--text-muted);
   font-size: var(--text-xs);

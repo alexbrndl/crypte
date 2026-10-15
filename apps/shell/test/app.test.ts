@@ -2130,6 +2130,21 @@ describe('the zoom', () => {
     expect(style.zoom).toBe('')
   })
 
+  // Le menu ouvert garde ses touches : Échap le ferme, sans quitter le plein
+  // écran ni toucher à l'échelle. Revue de #146.
+  test('keeps its keys while its menu is open', async ({ écran }) => {
+    await frappe(écran, 'f')
+    await ouvre(écran)
+    const menu = document.querySelector('[role="menu"]')!
+    for (const key of ['+', '0', 'f', 'Escape'])
+      menu.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+    await vide(écran.wrapper)
+
+    expect(écran.wrapper.find('main').classes()).toContain('full')
+    expect(niveau(écran)).toBe('100 %')
+    expect(écran.wrapper.find('.stage-tools .level').attributes('aria-label')).toBe('Zoom, 100 %')
+  })
+
   // Une page rechargée repart à 1 : chaque `ready` repose l'échelle.
   test('is set again on the page of each ready', async ({ écran }) => {
     const style = racine(écran)
