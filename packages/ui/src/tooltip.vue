@@ -15,7 +15,9 @@ defineProps<{ content: string }>()
 
 <template>
   <TooltipProvider :delay-duration="400">
-    <TooltipRoot>
+    <!-- On keyboard focus only: a menu that hands the focus back to its trigger
+         reopened its tooltip after every choice. -->
+    <TooltipRoot ignore-non-keyboard-focus>
       <TooltipTrigger as-child><slot /></TooltipTrigger>
       <TooltipPortal>
         <TooltipContent class="crypte-tooltip" :side-offset="4">{{ content }}</TooltipContent>

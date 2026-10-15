@@ -112,6 +112,29 @@ describe('Field', () => {
     await wrapper.setProps({ overridden: true })
     expect(wrapper.get('.marker').text()).toBe('overridden')
   })
+
+  // La description au survol de l'étiquette, et pour le clavier sur le contrôle,
+  // qui la reçoit par `described-by` ; sans description, rien de tout ça.
+  it('describes its control when it has a description, and only then', async () => {
+    const champ = (description?: string) =>
+      mount(Field, {
+        props: { label: 'tone', description },
+        slots: {
+          default:
+            '<template #default="{ id, describedBy }"><input :id="id" :aria-describedby="describedBy" /></template>',
+        },
+      })
+
+    const décrit = champ('Neutre par défaut.')
+    const lien = décrit.get('input').attributes('aria-describedby')
+    expect(décrit.findComponent(Tooltip).props('content')).toBe('Neutre par défaut.')
+    expect(décrit.get(`[id="${lien}"]`).text()).toBe('Neutre par défaut.')
+
+    const nu = champ()
+    expect(nu.get('input').attributes('aria-describedby')).toBeUndefined()
+    expect(nu.findComponent(Tooltip).exists()).toBe(false)
+    expect(nu.find('.description').exists()).toBe(false)
+  })
 })
 
 describe('Checkbox', () => {
@@ -129,17 +152,21 @@ describe('Checkbox', () => {
   })
 })
 
-// Au focus comme au survol : le clavier lit ce que la souris lit, et le
-// déclencheur porte le lien vers son texte.
+// Au survol, le déclencheur portant le lien vers son texte. Au focus clavier
+// seulement, ce que jsdom ne sait pas dire : jugé dans le navigateur.
 describe('Tooltip', () => {
-  it('shows its content on focus, described by it', async () => {
+  it('shows its content on hover, described by it', async () => {
     const wrapper = mount(Tooltip, {
       props: { content: 'Full screen: F' },
       slots: { default: '<button>plein écran</button>' },
       attachTo: document.body,
     })
-    await wrapper.get('button').trigger('focus')
-    await nextTick()
+    wrapper
+      .get('button')
+      .element.dispatchEvent(
+        new PointerEvent('pointermove', { bubbles: true, pointerType: 'mouse' }),
+      )
+    await new Promise((resolve) => setTimeout(resolve, 500))
     await nextTick()
     const bulle = document.querySelector('[role="tooltip"]')
 

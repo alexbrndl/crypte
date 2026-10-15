@@ -1299,6 +1299,18 @@ describe('the zoom, on screen', () => {
       .toBeCloseTo(1.5, 1)
     expect(await cadre.boundingBox()).toEqual(avant.cadre)
   })
+
+  // Le menu rend le focus à son bouton à la fermeture : son tooltip, ouvert au
+  // focus, revenait après chaque choix. Revue de #149.
+  test('reopens no tooltip once a level is chosen', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    await ecran.page.locator('.stage-tools .level').click()
+    await ecran.page.getByRole('menuitemradio', { name: '300 %' }).click()
+    await new Promise((resolve) => setTimeout(resolve, 800))
+
+    expect(await ecran.page.locator('.stage-tools .level').textContent()).toContain('300 %')
+    expect(await ecran.page.locator('.crypte-tooltip').count()).toBe(0)
+  })
 })
 
 // Les tokens de `@crypte/ui` et `light-dark()` jugés là où ils se calculent : jsdom
