@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Overrides, RenderedValues, StoryEntry } from '@crypte/core/protocol'
 import { Alert, Button } from '@crypte/ui'
-import { computed, onErrorCaptured, ref, watch, type Component } from 'vue'
+import { computed, onErrorCaptured, ref, useId, watch, type Component } from 'vue'
 import Icon from '../ui/icon.vue'
 
 // Le cadre d'un panneau de plugin, section 6.1 des contrats. Local au shell,
@@ -26,6 +26,9 @@ const props = defineProps<{
 // Ce qu'un panneau a édité, que le shell envoie dans `render`, et ce qu'il
 // envoie à sa partie preview.
 const emit = defineEmits<{ overrides: [values: Overrides]; send: [message: PanelMessage] }>()
+
+const bodyId = useId()
+const reasonId = useId()
 
 // Ce qu'un panneau envoie à sa partie preview, sous son propre nom, section 5.4.
 // Un autre préfixe atteindrait un autre plugin, ou personne : refusé, et dit.
@@ -209,11 +212,22 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
     <!-- Sans objet, le panneau perd la bande de son en-tête : il se plie toujours, mais
          rien ne l'y invite. -->
     <div class="head">
-      <button type="button" class="toggle" :aria-expanded="expanded" @click="toggle">
+      <!-- La bande dit « ceci se plie » par un fond : le bouton le dit au lecteur
+           d'écran, ce qu'il plie et, sans objet, pourquoi. -->
+      <button
+        type="button"
+        class="toggle"
+        :aria-expanded="expanded"
+        :aria-controls="failure === null ? bodyId : undefined"
+        :aria-describedby="inapplicable !== null ? reasonId : undefined"
+        @click="toggle"
+      >
         <Icon :name="expanded ? 'arrow-down-01' : 'arrow-right-01'" />
         {{ name }}
       </button>
-      <span v-if="inapplicable !== null" class="inapplicable">{{ inapplicable }}</span>
+      <span v-if="inapplicable !== null" :id="reasonId" class="inapplicable">{{
+        inapplicable
+      }}</span>
       <!-- Tout panneau qui édite l'a, sans rien écrire : le shell tient ses valeurs. -->
       <Button
         v-if="Object.keys(overrides).length > 0"
@@ -227,7 +241,7 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
     <Alert v-if="failure !== null" color="error" class="panel-failed" role="alert">
       This panel threw: {{ failure }}
     </Alert>
-    <div v-else v-show="expanded" class="body">
+    <div v-else v-show="expanded" :id="bodyId" class="body">
       <component
         :is="panel"
         :entry="entry"
