@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Overrides, StoryEntry } from '@crypte/core/protocol'
+import type { Overrides, RenderedValues, StoryEntry } from '@crypte/core/protocol'
 import { Alert } from '@crypte/ui'
 import { onMounted, shallowRef, watch, type Component } from 'vue'
 import PanelFrame from './panel-frame.vue'
@@ -19,6 +19,8 @@ const props = defineProps<{
   errors: { plugin: string; message: string }[]
   // Pourquoi la story affichée n'a pas pu être rendue, ou `null`.
   failed: string | null
+  // Ce que la story affichée a rendu, ou `null` avant son rendu.
+  values: RenderedValues | null
   // Change à chaque `ready` de la preview : la liste est alors relue, puisqu'une
   // édition de la configuration relance le serveur et recharge la preview. Lue
   // au montage seulement, un plugin retiré gardait son panneau. Mesuré.
@@ -157,6 +159,7 @@ watch(() => props.revision, load)
     :entry="entry"
     :received="Object.hasOwn(received, one.name) ? (received[one.name] ?? null) : null"
     :failed="failed"
+    :values="values"
     @overrides="(values: Overrides) => edit(one.name, values)"
     @send="(message: PanelMessage) => emit('send', message)"
   />

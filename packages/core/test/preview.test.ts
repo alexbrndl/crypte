@@ -302,8 +302,40 @@ describe('after a render', () => {
 
     envoie(RENDER)
 
-    expect(recus).toEqual([{ type: 'rendered', id: 'badge--par-defaut', durationMs: 5 }])
+    expect(recus).toEqual([
+      { type: 'rendered', id: 'badge--par-defaut', durationMs: 5, values: {} },
+    ])
     horloge.mockRestore()
+  })
+
+  // Ce qu'un panneau peut montrer dans un champ, comme une surcharge (5.1) : le
+  // reste n'a pas de champ et ne passerait pas l'aller-retour JSON.
+  it('sends the primitive props of what render returned, and nothing else', () => {
+    createPreviewChannel({
+      render: () => ({
+        props: {
+          label: 'Nouveau',
+          count: 3,
+          open: false,
+          onClick: () => {},
+          children: { type: 'span' },
+          ratio: Number.NaN,
+          far: Number.POSITIVE_INFINITY,
+          none: null,
+          absent: undefined,
+          list: ['a'],
+        },
+      }),
+    })
+    recus.length = 0
+
+    envoie(RENDER)
+
+    expect((recus[0] as { values: unknown }).values).toEqual({
+      label: 'Nouveau',
+      count: 3,
+      open: false,
+    })
   })
 
   it('calls nothing after a render that threw', () => {

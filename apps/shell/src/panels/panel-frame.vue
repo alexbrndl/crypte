@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Overrides, StoryEntry } from '@crypte/core/protocol'
+import type { Overrides, RenderedValues, StoryEntry } from '@crypte/core/protocol'
 import { Alert } from '@crypte/ui'
 import { computed, onErrorCaptured, ref, watch, type Component } from 'vue'
 import Icon from '../ui/icon.vue'
@@ -18,6 +18,7 @@ const props = defineProps<{
   // `null` tant que sa partie preview n'a rien dit, comme `PanelProps` le promet.
   received: PanelMessage | null
   failed: string | null
+  values: RenderedValues | null
 }>()
 
 // Ce qu'un panneau a édité, que le shell envoie dans `render`, et ce qu'il
@@ -221,6 +222,7 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
         :entry="entry"
         :received="received"
         :failed="failed"
+        :values="values"
         @inapplicable="declare"
         @overrides="edit"
         @send="send"

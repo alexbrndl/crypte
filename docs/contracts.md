@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.34, reference document. A project brief points here instead of restating these shapes.
+> Version 1.35, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -663,7 +663,7 @@ The preview announces `PROTOCOL_VERSION` in its `ready` message. It is separate 
 
 **It is 1, and the work that wrote this chapter is that version 1.** The counter moves at the first breaking change *after* publication, when a preview and a shell of different versions can actually meet.
 
-The channel never carries a story's props. It carries the id of the entry to render, and the **overrides** coming from controls. An override is always a primitive edited in a panel, so it is always serialisable.
+The channel never carries a story's props to the preview, which imports the modules itself. It carries the id of the entry to render, and the **overrides** coming from controls. What comes back is what the story rendered with, its primitive props only (5.3). An override is always a primitive edited in a panel, so it is always serialisable.
 
 Each direction has its own type: `ShellMessage` goes to the iframe, `PreviewMessage` comes back.
 
@@ -684,13 +684,19 @@ type ShellMessage =
 ```ts
 type PreviewMessage =
   | { type: 'ready'; protocolVersion: number }
-  | { type: 'rendered'; id: string; durationMs: number }
+  | { type: 'rendered'; id: string; durationMs: number; values: RenderedValues }
   | { type: 'error'; id: string; message: string; stack?: string }
   | { type: 'plugin-error'; plugin: string; message: string }
   | MessagesOf<PluginPreviewMessages>
 ```
 
-`ready` says the preview is up. `rendered` reports a finished render and how long it took. `error` reports a render that threw, and the shell shows it without falling over. `plugin-error` names a plugin whose preview module could not load or exported anything but its hooks, had a hook throw or reject, or sent a message under another name (6.2); the stories render all the same, and the shell shows each once, beside the plugins' panels. The time `rendered` carries is the render's alone: the plugins' hooks run once it is out.
+`ready` says the preview is up. `rendered` reports a finished render, how long it took, and what the story rendered with: its props after 2.3's merge, overrides included, keeping a string, a finite number or a boolean, as an override is (5.1).
+
+```ts
+type RenderedValues = Record<string, string | number | boolean>
+```
+
+`error` reports a render that threw, and the shell shows it without falling over. `plugin-error` names a plugin whose preview module could not load or exported anything but its hooks, had a hook throw or reject, or sent a message under another name (6.2); the stories render all the same, and the shell shows each once, beside the plugins' panels. The time `rendered` carries is the render's alone: the plugins' hooks run once it is out.
 
 ### 5.4 Rules
 
@@ -783,6 +789,8 @@ export default {
 
 **It is said story by story, never once.** The frame forgets it whenever it receives a new `entry`, another story or the same one read again after an edit, so a panel that does not say it again is open. `null` unfolds it without waiting for the next story: an analysis can find a violation on the story where it found none. Any other value that is not a non-empty string is ignored.
 
+**A panel reads what the story on display rendered with** from its `values` prop, the `RenderedValues` of the last `rendered` for that story (5.3), `null` until it renders: `@crypte/controls` fills its fields with them, so a field shows what the component shows.
+
 **A panel learns that the story on display could not be rendered** from its `failed` prop, the error's message, `null` otherwise: a panel waiting for that render, as `a11y` waits for its analysis, would wait for ever.
 
 **A panel talks to its own preview module.** It emits `send` with a message, and receives, as its `received` prop, the last message its preview module sent. Both carry a `type` that starts with the plugin's name (5.4): the frame drops a message a panel sends under another name, and says so in the console. What crosses is a JSON copy, so a panel may send its reactive state; a message JSON cannot carry is dropped the same way, and so is one sent before the preview is ready, like a `render` would be, or before the plugin's preview module has arrived.
@@ -800,6 +808,7 @@ interface PanelProps {
   entry: StoryEntry | null
   received: { type: string; [key: string]: unknown } | null
   failed?: string | null
+  values?: RenderedValues | null
 }
 
 interface PanelEvents {
@@ -973,6 +982,12 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.35.** What a story rendered with reaches the panels (5.3, 6.1).
+
+| Before | After |
+| --- | --- |
+| a panel knew a prop's type and default, never the value the story passed | `rendered` carries `values`, and a panel reads them as its `values` prop |
 
 **v1.34.** A panel draws with the design system (6.1).
 

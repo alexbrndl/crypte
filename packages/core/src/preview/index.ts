@@ -1,13 +1,19 @@
 // The iframe side of the channel.
 
-import { PROTOCOL_VERSION, type PreviewMessage, type ShellMessage } from '../protocol/channel'
+import {
+  PROTOCOL_VERSION,
+  type PreviewMessage,
+  type RenderedValues,
+  type ShellMessage,
+} from '../protocol/channel'
 import type { PreviewContext, PreviewHooks } from '../protocol/plugin'
 
 // Marker read by test/isolation.test.ts
 export const PREVIEW_MARKER = '__crypte_preview__'
 
 export interface PreviewHandlers {
-  // What it returns is handed to `rendered`.
+  // What it returns is handed to `rendered`, and its `props`, the primitive
+  // ones, travel to the shell with the `rendered` message.
   render(id: string, overrides: Record<string, unknown>): unknown
   // After a render that went through, once `rendered` is out: what runs here,
   // the plugins' `afterMount`, is not part of the time the shell shows.
@@ -41,7 +47,12 @@ export function createPreviewChannel(handlers: PreviewHandlers): PreviewChannel 
     let drawn: unknown
     try {
       drawn = handlers.render(id, overrides)
-      reply({ type: 'rendered', id, durationMs: performance.now() - startedAt })
+      reply({
+        type: 'rendered',
+        id,
+        durationMs: performance.now() - startedAt,
+        values: primitivesOf((drawn as { props?: unknown } | null | undefined)?.props),
+      })
     } catch (error) {
       reply({
         type: 'error',
@@ -234,6 +245,20 @@ function hooksOf(module: unknown): PreviewHooks | string {
   }
 
   return hooks as PreviewHooks
+}
+
+// A string, a finite number or a boolean, as an override is (5.1): the rest has
+// no field to show it in, and would not survive the JSON round trip of 5.4.
+function primitivesOf(props: unknown): RenderedValues {
+  if (typeof props !== 'object' || props === null) return {}
+  return Object.fromEntries(
+    Object.entries(props).filter(
+      ([, value]) =>
+        typeof value === 'string' ||
+        typeof value === 'boolean' ||
+        (typeof value === 'number' && Number.isFinite(value)),
+    ),
+  ) as RenderedValues
 }
 
 const text = (error: unknown) => (error instanceof Error ? error.message : String(error))

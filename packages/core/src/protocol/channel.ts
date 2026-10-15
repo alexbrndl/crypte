@@ -11,7 +11,7 @@ export type ShellMessage =
 
 export type PreviewMessage =
   | { type: 'ready'; protocolVersion: number }
-  | { type: 'rendered'; id: string; durationMs: number }
+  | { type: 'rendered'; id: string; durationMs: number; values: RenderedValues }
   | { type: 'error'; id: string; message: string; stack?: string }
   // A plugin's preview module that could not load, or a hook that threw: the
   // stories still render, and the shell names the plugin.
@@ -34,9 +34,13 @@ type MessagesOf<T> = {
     : never
 }[keyof T]
 
-// The channel never carries a story's props: the preview imports the modules
-// itself. It carries the values edited in a panel.
+// The channel never carries a story's props to the preview: the preview imports
+// the modules itself. It carries the values edited in a panel.
 export type Overrides = Record<string, unknown>
+
+// What a story rendered with, overrides included, its primitive props only: a
+// panel shows them, a function or a node has no field to show it in.
+export type RenderedValues = Record<string, string | number | boolean>
 
 export const PROTOCOL_VERSION = 1
 

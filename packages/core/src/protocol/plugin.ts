@@ -1,6 +1,6 @@
 // The plugin contract, section 6 of docs/contracts.md. Frozen: 6.5 says what breaks it.
 
-import type { Overrides } from './channel'
+import type { Overrides, RenderedValues } from './channel'
 import type { ManifestEntry, StoryEntry } from './manifest'
 
 export interface CryptePlugin {
@@ -28,6 +28,8 @@ export interface PanelProps {
   // Why the story on display could not be rendered, or `null`. A panel waiting
   // for that render, `a11y`'s analysis, otherwise waited for ever.
   failed?: string | null
+  // What the story on display last rendered with, or `null` before it renders.
+  values?: RenderedValues | null
 }
 
 // What a panel may emit, section 6.1, in the form `defineEmits` takes. A panel

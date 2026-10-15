@@ -2,6 +2,7 @@
 import type {
   Manifest,
   Overrides,
+  RenderedValues,
   ShellMessage,
   SkippedFile,
   StoryEntry,
@@ -176,6 +177,10 @@ const counted = (n: number) => (n === 1 ? '1 story' : `${n} stories`)
 // chargement après `crypte dev`, il comprend la compilation de Vite.
 const weights = shallowRef<{ plugin: string; bytes: number }[]>([])
 const firstRender = ref<number | null>(null)
+
+// Ce que la dernière story rendue a reçu, sous son identifiant : les panneaux ne
+// le lisent que pour la story affichée, une autre ayant pu répondre entre-temps.
+const rendered = shallowRef<{ id: string; values: RenderedValues } | null>(null)
 const kB = (bytes: number) => `${(bytes / 1e3).toFixed(1)} kB`
 
 // Ce que le CLI dit du projet : la racine de stories qu'il déclare, et pourquoi
@@ -548,6 +553,7 @@ onMounted(() => {
       if (message.type === 'rendered') {
         failure.value = null
         firstRender.value ??= performance.now()
+        rendered.value = { id: message.id, values: message.values }
         status.value = `${message.id} rendered`
       }
       // Rattachée à la story affichée : cliquer B pendant que A rend laissait
@@ -771,6 +777,7 @@ onMounted(() => {
             :entry="displayed"
             :received="received"
             :failed="failure?.message ?? null"
+            :values="rendered && rendered.id === displayed?.id ? rendered.values : null"
             :revision="revision"
             :errors="pluginErrors"
             @overrides="edit"

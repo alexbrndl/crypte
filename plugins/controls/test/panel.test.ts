@@ -1,4 +1,4 @@
-import type { ResolvedPropDetails, StoryEntry } from '@crypte/core/protocol'
+import type { RenderedValues, ResolvedPropDetails, StoryEntry } from '@crypte/core/protocol'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { describe, expect, test } from 'vitest'
 import controls from '../src/index'
@@ -39,7 +39,8 @@ const toutes = entry('x--toutes', {
   className: { type: 'unknown', required: false },
 })
 
-const monte = (story: StoryEntry | null) => mount(Panel, { props: { entry: story } })
+const monte = (story: StoryEntry | null, values: RenderedValues | null = null) =>
+  mount(Panel, { props: { entry: story, values } })
 
 const émis = (wrapper: VueWrapper) => wrapper.emitted('overrides')?.map(([values]) => values) ?? []
 const raisons = (wrapper: VueWrapper) =>
@@ -60,7 +61,7 @@ describe('the fields', () => {
 
   // Le manifeste ne porte pas la valeur de la story : le champ part vide, avec
   // le défaut en indication, et la case n'est ni cochée ni décochée.
-  test('starts empty, with the default as a hint', () => {
+  test('starts with nothing edited, the default as a hint before the story renders', () => {
     const wrapper = monte(toutes)
 
     expect(wrapper.find('input[type="text"]').attributes('placeholder')).toBe('Nouveau')
@@ -68,8 +69,28 @@ describe('the fields', () => {
     expect((wrapper.find('input[type="checkbox"]').element as HTMLInputElement).indeterminate).toBe(
       true,
     )
-    expect(wrapper.find('select option').text()).toBe('— the story’s value')
+    expect(wrapper.find('select option').text()).toBe('—')
     expect(wrapper.find('label').attributes('title')).toBe('Le texte.')
+  })
+
+  // Ce que le composant affiche : la valeur rendue l'emporte sur le défaut, et
+  // une valeur saisie sur les deux. Un champ texte la montre en indice, grisée.
+  test('shows what the story rendered with, until a field is edited', async () => {
+    const wrapper = monte(toutes, { label: 'Rendu', count: 4, on: true, size: 2 })
+    const texte = wrapper.find('input[type="text"]')
+
+    expect(texte.attributes('placeholder')).toBe('Rendu')
+    expect(wrapper.find('input[type="number"]').attributes('placeholder')).toBe('4')
+    expect((wrapper.find('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(true)
+    expect((wrapper.find('select').element as HTMLSelectElement).value).toBe('1')
+    expect(wrapper.findAll('select option').map((one) => one.text())).toEqual(['sm', '2'])
+    expect(émis(wrapper)).toEqual([])
+
+    await wrapper.find('select').setValue('0')
+    await wrapper.find('input[type="checkbox"]').setValue(false)
+    expect((wrapper.find('select').element as HTMLSelectElement).value).toBe('0')
+    expect((wrapper.find('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(false)
+    expect(émis(wrapper).at(-1)).toEqual({ size: 'sm', on: false })
   })
 })
 
@@ -95,23 +116,17 @@ describe('the form', () => {
       }),
     )
 
-    expect(wrapper.findAll('select option').map((one) => one.text())).toEqual([
-      '— the story’s value',
-      'md',
-      'null',
-    ])
+    expect(wrapper.findAll('select option').map((one) => one.text())).toEqual(['—', 'md', 'null'])
 
     await wrapper.find('select').setValue('0')
     expect(émis(wrapper).at(-1)).toEqual({ size: 'md' })
   })
 
-  // Un `enum` écrit sans ses valeurs : la liste ne propose que la story.
-  test('offers only the story’s value for an enum with no options', () => {
+  // Un `enum` écrit sans ses valeurs : la liste n'a rien à proposer.
+  test('offers nothing for an enum with no options', () => {
     const wrapper = monte(entry('x--sans-options', { size: { type: 'enum', required: false } }))
 
-    expect(wrapper.findAll('select option').map((one) => one.text())).toEqual([
-      '— the story’s value',
-    ])
+    expect(wrapper.findAll('select option').map((one) => one.text())).toEqual(['—'])
   })
 })
 
@@ -134,13 +149,11 @@ describe('what an edit emits', () => {
 
     await wrapper.find('input[type="text"]').setValue('Bonjour')
     await wrapper.find('input[type="number"]').setValue('12')
-    await wrapper.find('select').setValue('0')
 
     await wrapper.find('input[type="text"]').setValue('')
     await wrapper.find('input[type="number"]').setValue('')
-    await wrapper.find('select').setValue('')
 
-    expect(émis(wrapper).slice(-3)).toEqual([{ count: 12, size: 'sm' }, { size: 'sm' }, {}])
+    expect(émis(wrapper).slice(-2)).toEqual([{ count: 12 }, {}])
   })
 
   test('goes back to the story in one click', async () => {
@@ -172,7 +185,7 @@ describe('what an edit emits', () => {
     expect((wrapper.find('input[type="checkbox"]').element as HTMLInputElement).indeterminate).toBe(
       true,
     )
-    expect((wrapper.find('select').element as HTMLSelectElement).value).toBe('')
+    expect((wrapper.find('select').element as HTMLSelectElement).value).toBe('-1')
     expect(émis(wrapper)).toHaveLength(avant)
   })
 

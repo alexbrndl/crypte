@@ -27,7 +27,7 @@ const monte = async (
   )
 
   const wrapper = mount(Panels, {
-    props: { entry: null, received: {}, errors: [], failed: null, revision: 0 },
+    props: { entry: null, received: {}, errors: [], failed: null, values: null, revision: 0 },
   })
 
   // L'import d'un module prend plus d'un tour de microtâches : attendu jusqu'à
@@ -132,6 +132,7 @@ describe('what a panel is refused', () => {
         received: {},
         errors: [{ plugin: 'a11y', message: 'boum' }],
         failed: null,
+        values: null,
         revision: 0,
       },
     })
@@ -197,7 +198,7 @@ describe('the list read again', () => {
       },
     )
     const wrapper = mount(Panels, {
-      props: { entry: null, received: {}, errors: [], failed: null, revision: 0 },
+      props: { entry: null, received: {}, errors: [], failed: null, values: null, revision: 0 },
     })
     await vi.waitFor(() => expect(montés(wrapper)).toEqual(['garde=1', 'part=un']))
 
@@ -232,7 +233,7 @@ describe('the list read again', () => {
     vi.stubGlobal('fetch', fetch)
 
     const wrapper = mount(Panels, {
-      props: { entry: null, received: {}, errors: [], failed: null, revision: 0 },
+      props: { entry: null, received: {}, errors: [], failed: null, values: null, revision: 0 },
     })
     await wrapper.setProps({ revision: 1 })
     await vi.waitFor(() => expect(montés(wrapper)).toEqual(['neuf=deux']))
@@ -256,7 +257,7 @@ describe('the list read again', () => {
     vi.stubGlobal('fetch', fetch)
 
     const wrapper = mount(Panels, {
-      props: { entry: null, received: {}, errors: [], failed: null, revision: 0 },
+      props: { entry: null, received: {}, errors: [], failed: null, values: null, revision: 0 },
     })
     await wrapper.setProps({ revision: 1 })
     await vi.waitFor(() => expect(montés(wrapper)).toEqual(['neuf=deux']))
