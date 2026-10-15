@@ -127,7 +127,7 @@ td {
   text-align: left;
   vertical-align: baseline;
   padding: var(--space-1-5) var(--space-6) var(--space-1-5) 0;
-  border-bottom: var(--stroke-hairline) solid var(--border-light);
+  box-shadow: inset 0 calc(-1 * var(--stroke-hairline)) 0 var(--border-light);
 }
 
 a {
@@ -161,7 +161,7 @@ ul {
 
 li {
   padding: var(--space-1-5) 0;
-  border-bottom: var(--stroke-hairline) solid var(--border-light);
+  box-shadow: inset 0 calc(-1 * var(--stroke-hairline)) 0 var(--border-light);
 }
 
 .note {

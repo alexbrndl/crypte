@@ -231,7 +231,7 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
 
 <style scoped>
 .panel {
-  border-bottom: var(--stroke-hairline) solid var(--border-base);
+  box-shadow: inset 0 calc(-1 * var(--stroke-hairline)) 0 var(--border-base);
 }
 
 .head {

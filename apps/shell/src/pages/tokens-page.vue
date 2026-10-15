@@ -88,7 +88,7 @@ td {
   text-align: left;
   vertical-align: baseline;
   padding: var(--space-1-5) var(--space-6) var(--space-1-5) 0;
-  border-bottom: var(--stroke-hairline) solid var(--border-light);
+  box-shadow: inset 0 calc(-1 * var(--stroke-hairline)) 0 var(--border-light);
 }
 
 a {
@@ -133,7 +133,8 @@ tbody th {
   width: var(--space-3);
   height: var(--space-3);
   margin-right: var(--space-1-5);
-  border: var(--stroke-hairline) solid var(--border-base);
+  border: 0;
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
   border-radius: var(--radius-xs);
   vertical-align: -1px;
 }

@@ -21,7 +21,7 @@ defineProps<{
 .alert {
   box-sizing: border-box;
   padding: var(--alert-padding, var(--space-3) var(--space-4));
-  border-left: var(--stroke-marker) solid var(--alert-solid);
+  box-shadow: inset var(--stroke-marker) 0 0 var(--alert-solid);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   background: var(--alert-background);
   color: var(--text-muted);
