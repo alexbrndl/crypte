@@ -170,6 +170,21 @@ function recent(folder: string): number {
 }
 
 describe('the shell copy', () => {
+  // Le shell et `@crypte/ui`, construit comme une entrée de son build, partagent
+  // une copie de Reka : copié tel quel, le `dist` de `@crypte/ui` en portait une
+  // seconde, 19 kB gzip de plus. Compté par une chaîne que seul Reka écrit.
+  base('carries one copy of Reka', () => {
+    const shell = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'shell')
+    const modules = readdirSync(shell, { withFileTypes: true, recursive: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.js'))
+      .map((entry) => readFileSync(join(entry.parentPath, entry.name), 'utf8'))
+
+    expect(modules.length).toBeGreaterThan(1)
+    expect(modules.filter((one) => one.includes('data-reka-popper-content-wrapper'))).toHaveLength(
+      1,
+    )
+  })
+
   base('is not older than its sources', () => {
     const ici = dirname(fileURLToPath(import.meta.url))
     expect(
@@ -1300,8 +1315,8 @@ describe('the zoom, on screen', () => {
     expect(await cadre.boundingBox()).toEqual(avant.cadre)
   })
 
-  // Le menu rend le focus à son bouton à la fermeture : son tooltip, ouvert au
-  // focus, revenait après chaque choix. Revue de #149.
+  // Le menu rend le focus à son bouton à la fermeture, en focus visible : un
+  // tooltip sur ce bouton revenait après chaque choix. Revue de #149.
   test('reopens no tooltip once a level is chosen', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
     await ecran.page.locator('.stage-tools .level').click()
