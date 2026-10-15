@@ -975,14 +975,33 @@ describe('the controls panel', () => {
     await expect
       .poll(() => panneau(ecran.page).locator('input[type="text"]').getAttribute('placeholder'))
       .toBe('Nouveau')
-    expect(await panneau(ecran.page).locator('select option:checked').textContent()).toBe('warning')
+    expect(await panneau(ecran.page).getByRole('combobox').textContent()).toBe('warning')
+  })
+
+  // Deux copies de Reka sur la page, celle du shell et celle de `@crypte/ui` :
+  // la liste ouverte sous la palette, un Échap laissait le corps de la page sans
+  // événements de pointeur, et plus rien ne répondait au clic. Revue de #145.
+  test('leaves the shell usable after Escape closes the palette over its list', async ({
+    ecran,
+  }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    await panneau(ecran.page).getByRole('combobox').click()
+    await ecran.page.locator('main').press('ControlOrMeta+K')
+    await expect.poll(() => ecran.page.getByRole('dialog').count()).toBe(1)
+    await ecran.page.keyboard.press('Escape')
+    await ecran.page.keyboard.press('Escape')
+
+    await ecran.page
+      .getByRole('treeitem', { name: 'Avertissement', exact: true })
+      .click({ timeout: 5000 })
+    await expect.poll(() => new URL(ecran.page.url()).search).toBe('?id=badge--avertissement')
   })
 
   test('renders the story with what is typed, without remounting it', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
 
     await expect
-      .poll(() => panneau(ecran.page).locator('label > span:first-child').allTextContents())
+      .poll(() => panneau(ecran.page).locator('label').allTextContents())
       .toEqual(['label', 'tone'])
 
     // Une marque sur le nœud rendu : un composant remonté la perdrait. C'est la
@@ -994,7 +1013,9 @@ describe('the controls panel', () => {
     await panneau(ecran.page).locator('input[type="text"]').fill('Bonjour')
     await expect.poll(ecran.vu).toBe('Bonjour')
 
-    await panneau(ecran.page).locator('select').selectOption({ label: 'warning' })
+    // La liste de Reka, téléportée dans la page à l'ouverture.
+    await panneau(ecran.page).getByRole('combobox').click()
+    await ecran.page.getByRole('option', { name: 'warning' }).click()
     await expect
       .poll(() => cadre(ecran.page).locator('#root span').getAttribute('style'))
       .toContain('--color-warning')

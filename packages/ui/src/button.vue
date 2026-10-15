@@ -18,8 +18,8 @@ withDefaults(defineProps<{ variant?: 'outline' | 'secondary' }>(), { variant: 'o
   gap: var(--space-1);
   align-items: center;
   box-sizing: border-box;
-  min-height: 28px;
-  padding: var(--space-1) var(--space-2);
+  min-height: var(--button-height, 28px);
+  padding: var(--button-padding, var(--space-1) var(--space-2));
   border: 0;
   border-radius: var(--radius-sm);
   font: inherit;

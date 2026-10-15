@@ -13,7 +13,10 @@ export default defineConfig({
       index: 'src/index.ts',
     },
     format: ['esm'],
-    platform: 'neutral',
+    platform: 'browser',
+    // Served to the browser as is, the shell's `vendor/ui.js`, with the part of
+    // Reka its select uses: 46 kB gzip as written, 27 minified.
+    minify: true,
     plugins: [sfc],
     // Declarations come from `vue-tsc` in the `pack` script instead: the pack's
     // own generator runs TypeScript 7, which no longer has the API `vue-tsc`
