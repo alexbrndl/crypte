@@ -970,7 +970,7 @@ describe('the controls panel', () => {
     await expect.poll(ecran.vu).toBe('Nouveau')
 
     await expect
-      .poll(() => panneau(ecran.page).locator('label span').allTextContents())
+      .poll(() => panneau(ecran.page).locator('label > span:first-child').allTextContents())
       .toEqual(['label', 'tone'])
 
     // Une marque sur le nœud rendu : un composant remonté la perdrait. C'est la

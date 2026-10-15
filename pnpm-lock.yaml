@@ -449,6 +449,9 @@ importers:
         specifier: ^4.13.0
         version: 4.13.0
     devDependencies:
+      '@crypte/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@vitejs/plugin-vue':
         specifier: ^6.0.1
         version: 6.0.8(vite@8.2.1(@types/node@24.13.3))(vue@3.5.41(typescript@6.0.3))
@@ -471,6 +474,9 @@ importers:
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
+      '@crypte/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@vitejs/plugin-vue':
         specifier: ^6.0.1
         version: 6.0.8(vite@8.2.1(@types/node@24.13.3))(vue@3.5.41(typescript@6.0.3))

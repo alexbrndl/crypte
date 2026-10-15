@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PanelEvents, PanelProps } from '@crypte/core/protocol'
+import { Button } from '@crypte/ui'
 import { computed, ref, watch, watchEffect } from 'vue'
 import type { Impact, Results, Violation } from './results'
 
@@ -89,5 +90,5 @@ const count = (violations: Violation[]) =>
       </ul>
     </section>
   </div>
-  <button type="button" style="margin-top: 12px" @click="rerun">Run the analysis again</button>
+  <Button style="margin-top: var(--space-3)" @click="rerun">Run the analysis again</Button>
 </template>

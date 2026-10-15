@@ -120,3 +120,27 @@ test('no library, CLI included, depends on @crypte/ui', () => {
   expect(déclarent).toEqual([])
   expect(sources.filter((f) => lire(f).includes('@crypte/ui'))).toEqual([])
 })
+
+// Ce que le shell sert par son import map, un plugin le laisse hors de son
+// bundle : déclaré en pair, que le pack ne copie pas. En dépendance de
+// développement seule, il serait copié dedans, et le panneau tournerait sur une
+// seconde copie que rien ne signale.
+test('a plugin keeps what the shell serves out of its bundle', () => {
+  const plugins = PUBLIÉS.filter((dossier) => dossier.startsWith('plugins/'))
+  const sources = sourcesOf(plugins)
+  const fautifs = []
+
+  for (const nom of ['vue', '@crypte/ui']) {
+    const importent = plugins.filter((dossier) =>
+      sources.some((f) => f.startsWith(`${dossier}/`) && lire(f).includes(`from '${nom}'`)),
+    )
+    expect(importent, `aucun plugin n'importe ${nom}, le garde ne lit plus rien`).not.toEqual([])
+    for (const dossier of importent) {
+      const manifeste = JSON.parse(lire(dossier, 'package.json'))
+      if (!manifeste.peerDependencies?.[nom] || manifeste.dependencies?.[nom])
+        fautifs.push(`${dossier}: ${nom}`)
+    }
+  }
+
+  expect(fautifs).toEqual([])
+})

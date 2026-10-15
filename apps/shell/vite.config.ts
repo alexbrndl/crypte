@@ -10,22 +10,28 @@ import { defineConfig, type Plugin } from 'vite'
 // Vue hors du bundle, résolu par l'import map de `index.html` vers ce fichier :
 // le shell et les panneaux des plugins chargent ainsi la même copie. Avec une
 // seconde copie, `inject` passe encore mais l'état propre d'un panneau ne
-// redessine plus, sans avertissement. Mesuré dans Chromium. Rouvert quand un
-// plugin importe `@crypte/ui` : il rejoint alors l'import map, pour la même raison.
+// redessine plus, sans avertissement. Mesuré dans Chromium.
 //
 // La version avec compilateur : un module écrit à la main avec `template` ne
 // rendait rien sans elle, et sans un mot. 21 Ko gzip de plus, servis en local.
-const browserVue = createRequire(import.meta.url).resolve('vue/dist/vue.esm-browser.prod.js')
+const require = createRequire(import.meta.url)
+const browserVue = require.resolve('vue/dist/vue.esm-browser.prod.js')
+
+// `@crypte/ui` de même : les panneaux des plugins dessinent avec les composants du
+// shell, une seule version de chacun. Ses styles restent dans la feuille du shell,
+// que `main.ts` importe.
+const ui = require.resolve('@crypte/ui')
 
 const shared: Plugin = {
-  name: 'crypte:shared-vue',
+  name: 'crypte:shared',
   apply: 'build',
   generateBundle() {
     this.emitFile({ type: 'asset', fileName: 'vendor/vue.js', source: readFileSync(browserVue) })
+    this.emitFile({ type: 'asset', fileName: 'vendor/ui.js', source: readFileSync(ui) })
   },
 }
 
 export default defineConfig({
   plugins: [vue(), shared],
-  build: { rolldownOptions: { external: ['vue'] } },
+  build: { rolldownOptions: { external: ['vue', '@crypte/ui'] } },
 })
