@@ -78,7 +78,7 @@ fix: resolve aliases from jsconfig  plutôt que   correction du bug
 
 **Placement d'un composant.** Chez son seul consommateur tant qu'il n'en a qu'un, quel que soit son niveau. Dans `@crypte/ui` dès que deux consommateurs indépendants le dessinent : le shell, un plugin, le site. Jamais dans `core`, qui reste sans Vue. **Sauf ce qu'un panneau de plugin dessine**, qui va dans `@crypte/ui` dès le premier consommateur : la feuille de style d'un panneau n'atteint jamais la page, un composant local y perdrait ses styles.
 
-Le seul mouvement est la promotion, du local vers `@crypte/ui` : une fois publié, en retirer un composant est une rupture. En cas de doute, local. Une prop qu'un seul consommateur utilise n'entre pas dans le composant partagé, et la densité passe par les variables CSS du contexte, jamais par une prop.
+Le seul mouvement est la promotion, du local vers `@crypte/ui` : une fois publié, en retirer un composant est une rupture. En cas de doute, local. Une prop qu'un seul consommateur utilise n'entre pas dans un composant qui en a déjà plusieurs, et la densité passe par les variables CSS du contexte, jamais par une prop.
 
 **Périmètre.** Ne couvrir que ce qui est démontré par l'usage. Un mécanisme ajouté par précaution crée un usage qu'on ne peut plus reprendre.
 
