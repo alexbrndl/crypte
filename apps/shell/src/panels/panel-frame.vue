@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Overrides, RenderedValues, StoryEntry } from '@crypte/core/protocol'
-import { Alert } from '@crypte/ui'
+import { Alert, Button } from '@crypte/ui'
 import { computed, onErrorCaptured, ref, watch, type Component } from 'vue'
 import Icon from '../ui/icon.vue'
 
@@ -19,6 +19,8 @@ const props = defineProps<{
   received: PanelMessage | null
   failed: string | null
   values: RenderedValues | null
+  // Ce que ce panneau a édité, que le shell tient pour la story affichée.
+  overrides: Overrides
 }>()
 
 // Ce qu'un panneau a édité, que le shell envoie dans `render`, et ce qu'il
@@ -207,11 +209,20 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
     <!-- Sans objet, le panneau perd la bande de son en-tête : il se plie toujours, mais
          rien ne l'y invite. -->
     <div class="head">
-      <button type="button" :aria-expanded="expanded" @click="toggle">
+      <button type="button" class="toggle" :aria-expanded="expanded" @click="toggle">
         <Icon :name="expanded ? 'arrow-down-01' : 'arrow-right-01'" />
         {{ name }}
       </button>
       <span v-if="inapplicable !== null" class="inapplicable">{{ inapplicable }}</span>
+      <!-- Tout panneau qui édite l'a, sans rien écrire : le shell tient ses valeurs. -->
+      <Button
+        v-if="Object.keys(overrides).length > 0"
+        variant="ghost"
+        class="reset"
+        @click="emit('overrides', {})"
+      >
+        Reset all
+      </Button>
     </div>
     <Alert v-if="failure !== null" color="error" class="panel-failed" role="alert">
       This panel threw: {{ failure }}
@@ -223,6 +234,7 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
         :received="received"
         :failed="failed"
         :values="values"
+        :overrides="overrides"
         @inapplicable="declare"
         @overrides="edit"
         @send="send"
@@ -245,7 +257,15 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
   background: var(--background-subtle);
 }
 
-.head button {
+/* The sm button of the Figma panel header, 24 px high, by the button's custom
+   properties. Its negative margin keeps the head at the height it has without it. */
+.reset {
+  --button-height: 24px;
+  --button-padding: var(--space-0-5) var(--space-2);
+  margin-block: calc(-1 * var(--space-1));
+}
+
+.head .toggle {
   display: flex;
   flex: 1;
   gap: var(--space-2);
@@ -264,7 +284,7 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
   cursor: pointer;
 }
 
-.head button:focus-visible {
+.head .toggle:focus-visible {
   outline: var(--stroke-focus) solid var(--accent-focus);
 }
 
@@ -280,7 +300,7 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
   background: none;
 }
 
-.panel[data-inapplicable] .head button {
+.panel[data-inapplicable] .head .toggle {
   color: var(--text-muted);
 }
 

@@ -41,8 +41,19 @@ const toutes = entry('x--toutes', {
   className: { type: 'unknown', required: false },
 })
 
-const monte = (story: StoryEntry | null, values: RenderedValues | null = null) =>
-  mount(Panel, { props: { entry: story, values } })
+// Le shell tient ce que le panneau édite et le lui rend en `overrides` (6.1) :
+// le montage joue ce rôle, chaque émission revient en prop.
+const monte = (story: StoryEntry | null, values: RenderedValues | null = null) => {
+  const wrapper: VueWrapper = mount(Panel, {
+    props: {
+      entry: story,
+      values,
+      overrides: {},
+      onOverrides: (overrides: Record<string, unknown>) => void wrapper.setProps({ overrides }),
+    },
+  })
+  return wrapper
+}
 
 const émis = (wrapper: VueWrapper) => wrapper.emitted('overrides')?.map(([values]) => values) ?? []
 const raisons = (wrapper: VueWrapper) =>
@@ -199,30 +210,16 @@ describe('what an edit emits', () => {
     ])
   })
 
-  test('goes back to the story in one click', async () => {
-    const wrapper = monte(toutes)
-    const retour = () => bouton(wrapper, 'Back to the story')!
-
-    expect(retour().attributes('disabled')).toBeDefined()
-
-    await wrapper.find('input[type="text"]').setValue('Bonjour')
-    expect(retour().attributes('disabled')).toBeUndefined()
-
-    await retour().trigger('click')
-    expect(émis(wrapper).at(-1)).toEqual({})
-    expect((wrapper.find('input[type="text"]').element as HTMLInputElement).value).toBe('')
-  })
-
-  // Une autre story repart de ses props : le shell lâche les valeurs, et les
-  // champs suivent sans rien émettre de plus.
-  test('starts over on another story, and emits nothing for it', async () => {
+  // Une autre story repart de ses props, ou l'en-tête rend tout à la story : le
+  // shell lâche les valeurs, et les champs suivent sans rien émettre de plus.
+  test('follows the shell when it drops the values, and emits nothing for it', async () => {
     const wrapper = monte(toutes)
     await wrapper.find('input[type="text"]').setValue('Bonjour')
     await wrapper.find('input[type="checkbox"]').setValue(true)
     await choisit(wrapper, '1')
     const avant = émis(wrapper).length
 
-    await wrapper.setProps({ entry: { ...toutes, id: 'x--autre' } })
+    await wrapper.setProps({ entry: { ...toutes, id: 'x--autre' }, overrides: {} })
 
     expect((wrapper.find('input[type="text"]').element as HTMLInputElement).value).toBe('')
     expect((wrapper.find('input[type="checkbox"]').element as HTMLInputElement).indeterminate).toBe(

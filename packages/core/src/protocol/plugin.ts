@@ -30,6 +30,10 @@ export interface PanelProps {
   failed?: string | null
   // What the story on display last rendered with, or `null` before it renders.
   values?: RenderedValues | null
+  // What this panel last edited and the shell still holds for the story on
+  // display: a panel that edits reads its values here rather than keeping its
+  // own, so the shell can reset them.
+  overrides?: Overrides
 }
 
 // What a panel may emit, section 6.1, in the form `defineEmits` takes. A panel
