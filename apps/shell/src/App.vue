@@ -370,10 +370,15 @@ function shortcut(event: KeyboardEvent) {
     return
   }
   // La palette et le menu de zoom répondent seuls à leurs touches : Échap les
-  // ferme sans quitter le plein écran dessous. Menu ouvert, ses raccourcis se
-  // taisent aussi : ses articles se choisissent au clavier, par Reka.
-  if (event.target instanceof Element && event.target.closest('[role="dialog"], [role="menu"]'))
+  // ferme sans quitter le plein écran dessous. Le menu laisse passer les touches
+  // du zoom, que son pied annonce ; le reste, f compris, lui revient.
+  if (event.target instanceof Element && event.target.closest('[role="dialog"]')) return
+  if (event.target instanceof Element && event.target.closest('[role="menu"]')) {
+    if (event.key === '+' || event.key === '=') zoomBy(1)
+    if (event.key === '-') zoomBy(-1)
+    if (event.key === '0') zoom.value = 1
     return
+  }
   if (event.key === 'Escape') {
     full.value = false
     return
