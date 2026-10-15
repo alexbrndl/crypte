@@ -2074,7 +2074,7 @@ describe('the zoom', () => {
   const niveau = (écran: Ecran) => écran.wrapper.find('.stage-tools .level').text()
   // Le menu de Reka, téléporté dans le document à l'ouverture.
   const article = (texte: string) =>
-    [...document.querySelectorAll('[role="menuitem"]')].find((one) =>
+    [...document.querySelectorAll('[role^="menuitem"]')].find((one) =>
       one.textContent?.trim().startsWith(texte),
     ) as HTMLElement
   const ouvre = async (écran: Ecran) => {
@@ -2092,24 +2092,33 @@ describe('the zoom', () => {
     await vide(écran.wrapper)
   }
 
-  test('steps in and out from its menu, and stops at 25 and 400 %', async ({ écran }) => {
+  // Des valeurs dans le menu, le niveau courant coché ; les touches parcourent
+  // toute l'échelle, de 25 à 400 %, au-delà de ce que le menu propose.
+  test('takes a value from its menu, and steps by its keys from 25 to 400 %', async ({ écran }) => {
     const style = racine(écran)
-    await choisit(écran, 'Zoom in')
-    expect(niveau(écran)).toBe('125 %')
-    expect(style.zoom).toBe('1.25')
-    await choisit(écran, 'Zoom out')
-    expect(niveau(écran)).toBe('100 %')
+    await ouvre(écran)
+    expect(
+      [...document.querySelectorAll('[role="menuitemradio"]')].map((one) => [
+        one.textContent?.trim(),
+        one.getAttribute('aria-checked'),
+      ]),
+    ).toEqual([
+      ['50 %', 'false'],
+      ['75 %', 'false'],
+      ['100 %', 'true'],
+      ['125 %', 'false'],
+      ['150 %', 'false'],
+      ['200 %', 'false'],
+    ])
+    article('150 %').click()
+    await vide(écran.wrapper)
+    expect(niveau(écran)).toBe('150 %')
+    expect(style.zoom).toBe('1.5')
 
     for (let i = 0; i < 9; i += 1) await frappe(écran, '-')
     expect(niveau(écran)).toBe('25 %')
-    await ouvre(écran)
-    expect(article('Zoom out').hasAttribute('data-disabled')).toBe(true)
-    await frappe(écran, 'Escape')
-
     for (let i = 0; i < 9; i += 1) await frappe(écran, '+')
     expect(niveau(écran)).toBe('400 %')
-    await ouvre(écran)
-    expect(article('Zoom in').hasAttribute('data-disabled')).toBe(true)
   })
 
   test('answers +, = and -, and comes back to actual size on 0 or from its menu', async ({
@@ -2126,7 +2135,7 @@ describe('the zoom', () => {
     expect(style.zoom).toBe('')
 
     await frappe(écran, '+')
-    await choisit(écran, 'Actual size')
+    await choisit(écran, '100 %')
     expect(style.zoom).toBe('')
   })
 
