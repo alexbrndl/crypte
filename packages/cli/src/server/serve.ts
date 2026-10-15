@@ -299,7 +299,19 @@ function previewHtml(): string {
   return [
     '<!doctype html>',
     '<html>',
-    '  <head><meta charset="UTF-8" /><title>Preview</title></head>',
+    '  <head>',
+    '    <meta charset="UTF-8" />',
+    '    <title>Preview</title>',
+    // The three layouts of 2.4, by the container's `data-layout`. No margin of
+    // the page's own: `padded` gives one, `fullscreen` none.
+    '    <style>',
+    '      html, body { height: 100%; margin: 0 }',
+    // `safe`: a story wider than the frame starts at its left edge and scrolls,
+    // where a plain `center` pushed its left part out of reach.
+    '      #root[data-layout="centered"] { display: flex; align-items: safe center; justify-content: safe center; min-height: 100% }',
+    '      #root[data-layout="padded"] { box-sizing: border-box; min-height: 100%; padding: 16px }',
+    '    </style>',
+    '  </head>',
     '  <body>',
     '    <div id="root"></div>',
     `    <script type="module" src="${PREVIEW_ENTRY}"></script>`,
@@ -604,6 +616,12 @@ export function previewEntry(project: Project, files: string[] = []): string {
     '',
     '  // The wrappers last: the adapter nests them, outermost first, and the',
     '  // global one of section 2.5 comes from the configuration text.',
+    "  // The core's `layout`, 2.4, which the page's style places the container by.",
+    '  // Read from the module first: the manifest is read without running the file,',
+    '  // and loses options written through a variable or a spread.',
+    `  const ${OWN}declared = definition.stories?.[entry.name]`,
+    `  const ${OWN}own = ${OWN}declared !== null && typeof ${OWN}declared === 'object' && 'props' in ${OWN}declared ? ${OWN}declared.options : undefined`,
+    `  ${OWN}container.dataset.layout = ${OWN}own?.layout ?? entry.options.layout ?? 'centered'`,
     `  ${OWN}adapter.mount(${OWN}container, component, props, ${OWN}wrapsOf(${OWN}wrap, definition))`,
     '',
     "  // The story drawn, which the channel hands to the plugins' hooks once",

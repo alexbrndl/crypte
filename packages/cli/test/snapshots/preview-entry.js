@@ -102,6 +102,12 @@ function __crypte_render(id, overrides) {
 
   // The wrappers last: the adapter nests them, outermost first, and the
   // global one of section 2.5 comes from the configuration text.
+  // The core's `layout`, 2.4, which the page's style places the container by.
+  // Read from the module first: the manifest is read without running the file,
+  // and loses options written through a variable or a spread.
+  const __crypte_declared = definition.stories?.[entry.name]
+  const __crypte_own = __crypte_declared !== null && typeof __crypte_declared === 'object' && 'props' in __crypte_declared ? __crypte_declared.options : undefined
+  __crypte_container.dataset.layout = __crypte_own?.layout ?? entry.options.layout ?? 'centered'
   __crypte_adapter.mount(__crypte_container, component, props, __crypte_wrapsOf(__crypte_wrap, definition))
 
   // The story drawn, which the channel hands to the plugins' hooks once

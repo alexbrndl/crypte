@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.36, reference document. A project brief points here instead of restating these shapes.
+> Version 1.37, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -230,7 +230,13 @@ interface Story<P> {
 }
 ```
 
-The second argument is typed by the plugins you have installed, which is what gives autocompletion. **With no plugin installed, no option key is accepted at all**, so the example above needs the plugin that declares `responsive`. The common case has no options and never uses this helper.
+The second argument is typed by the core and the plugins you have installed, which is what gives autocompletion. **The core declares one key, `layout`**: where the story sits in the stage, `centered` by default, `padded` with a 16 px margin, or `fullscreen` on the whole frame, for a page or a bar. **Every other key comes from a plugin**, so the example above needs the plugin that declares `responsive`. The common case has no options and never uses this helper.
+
+```ts
+interface CoreStoryOptions {
+  layout?: 'centered' | 'padded' | 'fullscreen'
+}
+```
 
 The same thing can be written by hand, since the union accepts either shape:
 
@@ -374,17 +380,15 @@ declare module '@crypte/core/protocol' {
 
 Slider bounds and the `control` setting, which removes a prop from the editing panel without removing it from the documentation, belong to the `controls` plugin. **They mean nothing without it**, so the core does not know them. With the plugin absent, writing them is a compile error, which is what we want: nobody would read them.
 
-**An empty extension point is not enough to get that refusal.** TypeScript does not report excess properties against a type that has no property at all, so any object satisfies an empty interface. `PropDetails` escapes this because it inherits core fields and is therefore never empty. `StoryOptions`, made of nothing but the extension point, has to ask for it:
+**An empty extension point is not enough to get that refusal.** TypeScript does not report excess properties against a type that has no property at all, so any object satisfies an empty interface. `PropDetails` escapes this because it inherits core fields and is therefore never empty. `StoryOptions` escapes it the same way, through the core's own `layout` (2.4):
 
 ```ts
 interface PluginStoryOptions {}
 
-type StoryOptions = [keyof PluginStoryOptions] extends [never]
-  ? Record<string, never>
-  : PluginStoryOptions
+type StoryOptions = CoreStoryOptions & PluginStoryOptions
 ```
 
-No key is accepted while the extension point is empty, and the usual excess-property check comes back as soon as a plugin fills it.
+With no plugin installed, `layout` is the one key accepted, and each plugin adds its own.
 
 When inference fails, on a project with no `tsconfig` or on a type too complex to read, the kind falls back to `unknown` and the prop stays documented. **A failed inference must never stop a story from rendering.**
 
@@ -983,6 +987,12 @@ Seven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.37.** Where a story sits in the stage (2.4).
+
+| Before | After |
+| --- | --- |
+| a story sat at the top left of the frame, with no option of the core | the core's `layout` option centres it by default, or pads it, or gives it the whole frame |
 
 **v1.36.** The shell hands a panel back what it edited (6.1).
 

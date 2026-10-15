@@ -14,8 +14,11 @@ export const borne = { min: 0 } satisfies PropDetails
 // @ts-expect-error aucun plugin n'a déclaré `responsive`
 export const option = { responsive: 'mobile' } satisfies StoryOptions
 
-// @ts-expect-error aucune option n'existe sans plugin
+// @ts-expect-error aucune autre option que `layout` n'existe sans plugin
 export const quelconque = { nimportequoi: 42 } satisfies StoryOptions
+
+// @ts-expect-error `layout` ne prend que les trois mises en page du noyau
+export const etire = { layout: 'stretch' } satisfies StoryOptions
 
 // @ts-expect-error aucun plugin n'a déclaré ce message
 export const message = { type: 'controls:open', open: true } satisfies ShellMessage
@@ -31,6 +34,9 @@ export function versionOf(message: PreviewMessage): number | undefined {
 // Ce que le noyau accepte seul.
 export const noyau = { description: 'Une prop', options: ['a'] } satisfies PropDetails
 export const vide = {} satisfies StoryOptions
+export const centree = { layout: 'centered' } satisfies StoryOptions
+export const marge = { layout: 'padded' } satisfies StoryOptions
+export const pleine = { layout: 'fullscreen' } satisfies StoryOptions
 export const rendu = {
   type: 'render',
   id: 'badge--par-defaut',
