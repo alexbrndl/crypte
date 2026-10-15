@@ -67,7 +67,7 @@ label {
   background: var(--accent-base);
 }
 
-/* The sm button of the Figma field, 24 px high: the density goes through the
+/* The xs button of the Figma file, 20 px high: the density goes through the
    button's custom properties, never through a prop. */
 .action {
   display: flex;
