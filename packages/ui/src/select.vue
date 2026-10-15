@@ -44,7 +44,16 @@ const model = defineModel<string>()
       </svg>
     </SelectTrigger>
     <SelectPortal>
-      <SelectContent class="crypte-select-content" position="popper" :side-offset="4">
+      <!-- Never modal: the shell keeps its own copy of Reka, and the two lock the
+           body apart. Escape with the palette over the list closed both and left
+           the body without pointer events, the shell dead until a reload. -->
+      <SelectContent
+        class="crypte-select-content"
+        position="popper"
+        :side-offset="4"
+        :body-lock="false"
+        :disable-outside-pointer-events="false"
+      >
         <SelectViewport>
           <SelectItem
             v-for="option of options"
