@@ -62,7 +62,9 @@ function entriesOf(ctx: NodeContext, options: TokensOptions): TokensEntry[] {
     one === DEFAULT_THEME ? -1 : other === DEFAULT_THEME ? 1 : one.localeCompare(other, 'en'),
   )
   const base = declared.get(DEFAULT_THEME) ?? new Map<string, string>()
-  const names = new Set([...declared.values()].flatMap((one) => [...one.keys()]))
+  // Declaration order, the default's first: the sheet's order is the author's,
+  // accent before background, base before hover.
+  const names = new Set(themes.flatMap((theme) => [...declared.get(theme)!.keys()]))
 
   // Each theme folded over the default, so an alias written once in `:root` still
   // resolves against what the theme redefined.
@@ -73,7 +75,7 @@ function entriesOf(ctx: NodeContext, options: TokensOptions): TokensEntry[] {
     ]),
   )
 
-  for (const name of [...names].sort((one, other) => one.localeCompare(other, 'en'))) {
+  for (const name of names) {
     const [family, key] = split(name)
     const tokens = families.get(family) ?? new Map<string, TokenValue>()
     const value: TokenValue = { type: 'unknown', themes: {} }
@@ -97,15 +99,13 @@ function entriesOf(ctx: NodeContext, options: TokensOptions): TokensEntry[] {
     families.set(family, tokens)
   }
 
-  return [...families]
-    .map(([family, tokens]) => ({
-      type: 'tokens' as const,
-      id: storyId(['Tokens'], family),
-      path: ['Tokens'],
-      name: family,
-      tokens: Object.fromEntries(tokens),
-    }))
-    .sort((one, other) => one.id.localeCompare(other.id, 'en'))
+  return [...families].map(([family, tokens]) => ({
+    type: 'tokens' as const,
+    id: storyId(['Tokens'], family),
+    path: ['Tokens'],
+    name: family,
+    tokens: Object.fromEntries(tokens),
+  }))
 }
 
 // A `light-dark()` value holds two themes in one declaration: written in the

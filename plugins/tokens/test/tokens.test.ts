@@ -154,6 +154,17 @@ describe('the kind of a token', () => {
 
     expect(Object.keys(family(media, 'a')?.one?.themes ?? {})).toEqual(['default', 'dark'])
   })
+
+  // Les familles et leurs clés suivent la feuille : l'auteur y range accent avant
+  // background, base avant hover. Un thème ajoute ses noms après ceux du défaut.
+  it('keeps the order of the sheet, families and keys', () => {
+    const entries = read(
+      ':root { --zeta-hover: 1px; --zeta-base: 2px; --alpha-one: 3px }\n@media (prefers-color-scheme: dark) { :root { --zeta-focus: 4px } }',
+    )
+
+    expect(entries.map((one) => one.name)).toEqual(['zeta', 'alpha'])
+    expect(Object.keys(family(entries, 'zeta') ?? {})).toEqual(['hover', 'base', 'focus'])
+  })
 })
 
 // Le croisement que la première version de ces cas n'a pas fait : chaque forme de

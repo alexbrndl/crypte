@@ -9,6 +9,7 @@ import TokensView from '../src/tokens/tokens-view.vue'
 const token = (family: string, key: string, value: string, type: TokenValue['type']) => ({
   name: `${family}-${key}`,
   key: `tokens--${family}/${key}`,
+  label: key,
   family,
   value: { type, themes: { default: { value } } },
 })
@@ -91,9 +92,6 @@ describe('the layouts of the tokens view', () => {
 
     expect(wrapper.attributes('data-layout')).toBe('list')
     expect(wrapper.findAll('.swatch, .bar, .shape, .specimen')).toHaveLength(0)
-    expect([wrapper.find('.name').text(), wrapper.find('.value').text()]).toEqual([
-      'size-icon',
-      '16px',
-    ])
+    expect([wrapper.find('.name').text(), wrapper.find('.value').text()]).toEqual(['icon', '16px'])
   })
 })

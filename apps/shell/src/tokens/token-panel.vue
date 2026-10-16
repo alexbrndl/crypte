@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import type { StoryEntry } from '@crypte/core/protocol'
-import { ComponentIcon, Hexagon01Icon, LinkSquare02Icon } from '@hugeicons/core-free-icons'
-import { computed } from 'vue'
+import {
+  ArrowDown01Icon,
+  ArrowRight01Icon,
+  ComponentIcon,
+  Hexagon01Icon,
+  LinkSquare02Icon,
+} from '@hugeicons/core-free-icons'
+import { computed, ref } from 'vue'
 import Icon from '../ui/icon.vue'
 import { componentIdOf } from '../navigation/tree'
-import type { Category, Token } from './categories'
+import { shown, type Category, type Token } from './categories'
 
 // Le panneau d'un token, source « token » de la maquette : sa valeur dans chaque
 // thème, son nom CSS, les tokens qui pointent vers lui et les composants qui le
@@ -22,6 +28,20 @@ const emit = defineEmits<{
   token: [category: string, token: string, event: MouseEvent]
   component: [id: string, event: MouseEvent]
 }>()
+
+const open = ref(true)
+
+// Un token au format des variables Figma, `accent/base` ; un nom qu'aucun token
+// ne porte reste tel quel.
+const tokens = computed(() =>
+  props.categories.flatMap((category) => category.groups.flatMap((group) => group.tokens)),
+)
+const figma = (token: Token) =>
+  token.label === token.family ? token.family : `${token.family}/${token.label}`
+const figmaOf = (name: string) => {
+  const found = tokens.value.find((one) => one.name === name)
+  return found ? figma(found) : name
+}
 
 // Les thèmes dans l'ordre où le token les déclare, chacun avec le bout de sa chaîne.
 const themes = computed(() =>
@@ -49,7 +69,10 @@ const pointing = computed(() => {
 const users = computed(() => {
   const name = props.token?.name
   if (name === undefined) return []
-  const found = new Map<string, { key: string; id: string; name: string; file: string }>()
+  const found = new Map<
+    string,
+    { key: string; id: string; name: string; file: string; folder: string }
+  >()
   for (const story of props.stories) {
     const { component } = story
     if (!component.tokens?.includes(name)) continue
@@ -60,6 +83,7 @@ const users = computed(() => {
         id: componentIdOf(story.path),
         name: story.path.at(-1)!,
         file: component.file,
+        folder: story.path.slice(0, -1).join(' / '),
       })
   }
   return [...found.values()]
@@ -69,17 +93,35 @@ const users = computed(() => {
 <template>
   <section class="panel" :aria-label="token ? token.name : 'Token'">
     <header class="head">
-      <h3>{{ token?.name ?? 'Token' }}</h3>
+      <h3>
+        <button
+          type="button"
+          class="toggle"
+          :aria-expanded="open"
+          aria-controls="token-panel-body"
+          @click="open = !open"
+        >
+          <Icon :icon="open ? ArrowDown01Icon : ArrowRight01Icon" />
+          {{ token ? figma(token) : 'Token' }}
+        </button>
+      </h3>
       <span class="source">token</span>
     </header>
-    <div class="body">
+    <div v-show="open" id="token-panel-body" class="body">
       <p v-if="token === null" class="caption">Select a token to see its values and its uses.</p>
       <template v-else>
         <p class="caption">value</p>
         <p v-for="one of themes" :key="one.theme" class="row value">
           <code class="key">{{ one.theme }}</code
           >{{ ' ' }}
-          <code>{{ one.end ? `${one.end} · ${one.value}` : one.value }}</code>
+          <span
+            v-if="token.value.type === 'color'"
+            class="swatch"
+            :style="{ backgroundColor: one.value }"
+          />
+          <code>{{
+            one.end ? `${figmaOf(one.end)} · ${shown(one.value)}` : shown(one.value)
+          }}</code>
         </p>
         <p class="row value">
           <code class="key">css</code>{{ ' ' }}
@@ -96,7 +138,7 @@ const users = computed(() => {
             @click="emit('token', one.category, one.token.name, $event)"
           >
             <Icon :icon="Hexagon01Icon" />
-            <span class="label">{{ one.token.name }}</span
+            <span class="label">{{ figma(one.token) }}</span
             >{{ ' ' }}
             <code class="meta">{{ one.category }}</code>
           </a>
@@ -116,7 +158,7 @@ const users = computed(() => {
           <Icon :icon="ComponentIcon" />
           <span class="label">{{ one.name }}</span
           >{{ ' ' }}
-          <code class="meta">{{ one.file }}</code>
+          <code v-if="one.folder" class="meta">{{ one.folder }}</code>
           <Icon :icon="LinkSquare02Icon" />
         </a>
       </template>
@@ -141,6 +183,7 @@ const users = computed(() => {
 }
 
 h3 {
+  display: flex;
   flex: 1;
   min-width: 0;
   margin: 0;
@@ -157,6 +200,39 @@ h3 {
 
 /* Muted, not the subtle of the Figma header: subtle falls to 4.39:1 on its
    background. */
+.toggle {
+  display: flex;
+  flex: 1;
+  gap: var(--space-2);
+  align-items: center;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.toggle:focus-visible {
+  outline: var(--stroke-focus) solid var(--accent-focus);
+}
+
+.toggle .icon {
+  color: var(--text-subtle);
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: var(--radius-xs);
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
+}
+
 .source {
   color: var(--text-muted);
   font-size: var(--text-xs);

@@ -11,6 +11,9 @@ export interface Token {
   // le partager : `key`, lui, est unique.
   name: string
   key: string
+  // La clé dans sa famille, ce que la maquette écrit sous un nuancier : la
+  // famille est dans l'en-tête du groupe.
+  label: string
   family: string
   value: TokenValue
 }
@@ -63,6 +66,7 @@ export function categoriesOf(families: readonly TokensEntry[]): Category[] {
       group.tokens.push({
         name: nameOf(entry.name, key),
         key: `${entry.id}/${key}`,
+        label: key,
         family: entry.name,
         value,
       })
@@ -109,6 +113,10 @@ function scaled(tokens: Token[]): Token[] {
     .sort((one, other) => one.at - other.at)
     .map((one) => one.token)
 }
+
+// Un hexadécimal en capitales, comme les variables Figma l'écrivent ; le reste tel quel.
+export const shown = (value: string) =>
+  /^#[0-9a-f]{3,8}$/i.test(value) ? value.toUpperCase() : value
 
 // La valeur d'un token dans le thème affiché : la sienne, sinon celle de `default`,
 // qui vaut pour tous. Rien quand la source ne dit rien de ce thème (§4.2) : une

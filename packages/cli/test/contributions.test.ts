@@ -219,8 +219,8 @@ describe('the demo, end to end', () => {
     expect(entries.map((entry) => entry.id)).toEqual([
       'tokens--color',
       'tokens--radius',
-      'tokens--size',
       'tokens--space',
+      'tokens--size',
     ])
   })
 
