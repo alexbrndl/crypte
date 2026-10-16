@@ -2968,12 +2968,17 @@ describe('the command palette', () => {
       .findAllComponents(Tooltip)
       .map((one) => [one.props('content'), one.props('keys')].filter(Boolean).join(' '))
   const dialogue = () => document.querySelector('[role="dialog"]')
-  const options = () =>
-    [...document.querySelectorAll('[role="dialog"] [role="option"]')].map((one) =>
-      [one.querySelector('span')?.textContent, one.querySelector('kbd')?.textContent]
+  // Le contexte et le libellé comme un chemin, puis la fin de ligne.
+  const ligne = (one: Element) =>
+    [
+      [one.querySelector('.context')?.textContent, one.querySelector('.label')?.textContent]
         .filter(Boolean)
-        .join(' '),
-    )
+        .join(' / '),
+      one.querySelector('.trailing')?.textContent?.trim(),
+    ]
+      .filter(Boolean)
+      .join(' ')
+  const options = () => [...document.querySelectorAll('[role="dialog"] [role="option"]')].map(ligne)
   const groupes = () =>
     [...document.querySelectorAll('[role="dialog"] [role="group"]')].map(
       (one) => one.firstElementChild?.textContent,
@@ -2987,7 +2992,12 @@ describe('the command palette', () => {
   const choisit = async (écran: Ecran, libellé: string) => {
     const option = [
       ...document.querySelectorAll<HTMLElement>('[role="dialog"] [role="option"]'),
-    ].find((one) => one.querySelector('span')?.textContent === libellé)
+    ].find(
+      (one) =>
+        [one.querySelector('.context')?.textContent, one.querySelector('.label')?.textContent]
+          .filter(Boolean)
+          .join(' / ') === libellé,
+    )
     option!.click()
     await vide(écran.wrapper)
   }
@@ -3057,7 +3067,7 @@ describe('the command palette', () => {
   test('lists the actions with their keys, then every destination', async ({ écran }) => {
     await ouvre(écran)
 
-    expect(groupes()).toEqual(['Actions', 'Components', 'Stories', 'Pages'])
+    expect(groupes()).toEqual(['Actions', 'Components', 'Stories', 'Pages', 'Filters'])
     expect(options()).toEqual([
       'Dark theme T',
       'Copy link',
@@ -3065,12 +3075,15 @@ describe('the command palette', () => {
       'Zoom in +',
       'Zoom out -',
       'Actual size 0',
+      'Install a plugin…',
       'Badge',
       'Bouton',
       'Badge / Par défaut',
       'Badge / Alerte',
       'Bouton / Par défaut',
       'Changes since the last commit',
+      'is: / draft · stable · deprecated',
+      'type: / story · component · token',
     ])
   })
 
@@ -3079,8 +3092,14 @@ describe('the command palette', () => {
     await choisit(écran, 'Bouton')
     await ouvre(écran)
 
-    expect(groupes()[0]).toBe('Actions')
-    expect(options().slice(0, 2)).toEqual(['Dark theme T', 'Badge'])
+    // La story quittée revient en tête, parmi les récents.
+    expect(groupes().slice(0, 2)).toEqual(['Recent', 'Actions'])
+    expect(options().slice(0, 4)).toEqual([
+      'Badge / Par défaut just now',
+      'Dark theme T',
+      'Install a plugin…',
+      'Badge',
+    ])
   })
 
   // Replié par `fold` : sans accents ni séparateurs.
@@ -3090,18 +3109,20 @@ describe('the command palette', () => {
     await tape(écran, 'par defaut')
     expect(options()).toEqual(['Badge / Par défaut', 'Bouton / Par défaut'])
     // La première surlignée, qu'Entrée choisit.
-    expect(document.querySelector('[role="option"][data-highlighted] span')?.textContent).toBe(
+    expect(ligne(document.querySelector('[role="option"][data-highlighted]')!)).toBe(
       'Badge / Par défaut',
     )
 
     await tape(écran, 'zzz')
     expect(options()).toEqual([])
-    expect(document.querySelector('[role="dialog"] .none')?.textContent).toBe('Nothing matches.')
+    expect(document.querySelector('[role="dialog"] .none')?.textContent?.trim()).toBe(
+      'Nothing matches.',
+    )
 
     // Rouverte, elle repart de rien.
     await ouvre(écran)
     await ouvre(écran)
-    expect(options()).toHaveLength(12)
+    expect(options()).toHaveLength(15)
   })
 
   test('goes to a story, and closes', async ({ écran }) => {
@@ -3129,7 +3150,7 @@ describe('the command palette', () => {
     const écran = await monte([badge, jetons])
 
     await ouvre(écran)
-    expect(groupes()).toEqual(['Actions', 'Components', 'Stories', 'Tokens', 'Pages'])
+    expect(groupes()).toEqual(['Actions', 'Components', 'Stories', 'Tokens', 'Pages', 'Filters'])
     await choisit(écran, 'Color / Brand')
 
     expect(window.location.search).toBe('?tokens=palette')
@@ -3160,8 +3181,15 @@ describe('the command palette', () => {
     const écran = await monte([jetons])
 
     await ouvre(écran)
-    expect(groupes()).toEqual(['Actions', 'Tokens', 'Pages'])
-    expect(options()).toEqual(['Dark theme T', 'Color / Brand', 'Changes since the last commit'])
+    expect(groupes()).toEqual(['Actions', 'Tokens', 'Pages', 'Filters'])
+    expect(options()).toEqual([
+      'Dark theme T',
+      'Install a plugin…',
+      'Color / Brand',
+      'Changes since the last commit',
+      'is: / draft · stable · deprecated',
+      'type: / story · component · token',
+    ])
     écran.wrapper.unmount()
   })
 
@@ -3193,6 +3221,164 @@ describe('the command palette', () => {
 
     expect(dialogue()).toBeNull()
     expect(écran.wrapper.find('main').classes()).toContain('full')
+  })
+
+  // Deux clés se combinent, deux valeurs s'additionnent, et le nom s'y ajoute.
+  test('filters by status and by type, combined with a name', async () => {
+    const écran = await monte([avec(badge, 'draft'), avec(alerte, 'stable'), bouton, jetons])
+
+    await ouvre(écran)
+    // Sans nom tapé, les filtres restent proposés sous les résultats.
+    await tape(écran, 'is:draft')
+    expect(options()).toEqual([
+      'Badge / Par défaut draft',
+      'is: / draft · stable · deprecated',
+      'type: / story · component · token',
+    ])
+    expect(document.querySelector('[role="dialog"] .count')?.textContent).toBe('1 result')
+
+    await tape(écran, 'is:draft is:stable type:story')
+    expect(options()).toEqual([
+      'Badge / Par défaut draft',
+      'Badge / Alerte stable',
+      'is: / draft · stable · deprecated',
+      'type: / story · component · token',
+    ])
+
+    await tape(écran, 'type:component')
+    expect(options()).toEqual([
+      'Badge',
+      'Bouton',
+      'is: / draft · stable · deprecated',
+      'type: / story · component · token',
+    ])
+
+    await tape(écran, 'type:token')
+    expect(options()).toEqual([
+      'Color / Brand',
+      'is: / draft · stable · deprecated',
+      'type: / story · component · token',
+    ])
+
+    await tape(écran, 'type:story alerte')
+    expect(options()).toEqual(['Badge / Alerte stable'])
+
+    // Une valeur inconnue ne garde rien, et rien de ce qui ne porte pas de statut.
+    await tape(écran, 'is:zz')
+    expect(options()).toEqual([
+      'is: / draft · stable · deprecated',
+      'type: / story · component · token',
+    ])
+    expect(document.querySelector('[role="dialog"] .count')?.textContent).toBe('0 results')
+    écran.wrapper.unmount()
+  })
+
+  test('completes a filter with Tab, and leaves the field alone when nothing completes', async ({
+    écran,
+  }) => {
+    await ouvre(écran)
+    const champ = document.querySelector<HTMLInputElement>('[role="dialog"] input')!
+
+    await tape(écran, 'ty')
+    const frappe = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+    champ.dispatchEvent(frappe)
+    await vide(écran.wrapper)
+    expect(champ.value).toBe('type:')
+    expect(frappe.defaultPrevented).toBe(true)
+
+    await tape(écran, 'badge')
+    const vaine = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+    champ.dispatchEvent(vaine)
+    await vide(écran.wrapper)
+    expect(champ.value).toBe('badge')
+  })
+
+  test('writes a filter key from its row, and stays open', async ({ écran }) => {
+    await ouvre(écran)
+    await tape(écran, 'is:draft')
+    await choisit(écran, 'type: / story · component · token')
+
+    expect(dialogue()).not.toBeNull()
+    expect(document.querySelector<HTMLInputElement>('[role="dialog"] input')!.value).toBe(
+      'is:draft type:',
+    )
+    // Un nom tapé, les filtres ne se proposent plus.
+    await tape(écran, 'badge')
+    expect(groupes()).not.toContain('Filters')
+  })
+
+  // Retenus d'une session à l'autre, le plus récent d'abord, et seulement ce qui
+  // existe encore. Un stockage illisible ne propose rien.
+  test('offers the places left, newest first, with their age', async ({ écran }) => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      await ouvre(écran)
+      await choisit(écran, 'Bouton')
+      vi.setSystemTime(Date.now() + 5 * 60_000)
+      await ouvre(écran)
+      await choisit(écran, 'Badge / Alerte')
+      vi.setSystemTime(Date.now() + 60_000)
+      await ouvre(écran)
+
+      expect(options().slice(0, 2)).toEqual(['Bouton 1 min ago', 'Badge / Par défaut 6 min ago'])
+      expect(JSON.parse(localStorage.getItem('crypte:palette:recent')!)).toHaveLength(2)
+      await choisit(écran, 'Bouton')
+      expect(window.location.search).toBe('?component=bouton')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  test('forgets what is gone, and an unreadable storage', async () => {
+    localStorage.setItem(
+      'crypte:palette:recent',
+      JSON.stringify([
+        { key: 'gone--story', at: 0 },
+        { key: 'badge--alerte', at: Date.now() },
+        'x',
+      ]),
+    )
+    const écran = await monte([badge, alerte])
+    await ouvre(écran)
+    expect(groupes()[0]).toBe('Recent')
+    expect(options()[0]).toBe('Badge / Alerte just now')
+    écran.wrapper.unmount()
+
+    localStorage.setItem('crypte:palette:recent', '{')
+    const illisible = await monte([badge, alerte])
+    await ouvre(illisible)
+    expect(groupes()[0]).toBe('Actions')
+    illisible.wrapper.unmount()
+  })
+
+  // Ni catalogue ni installation à chaud : la commande à copier.
+  test('shows the npm command of a plugin to install, and copies it', async ({ écran }) => {
+    const écrit = vi.fn(async () => {})
+    vi.stubGlobal('navigator', { clipboard: { writeText: écrit } })
+
+    await ouvre(écran)
+    await choisit(écran, 'Install a plugin…')
+    expect(dialogue()).not.toBeNull()
+    const copie = () => document.querySelector<HTMLButtonElement>('[role="dialog"] .copy')!
+    expect(document.querySelector('[role="dialog"] .snippet code')?.textContent).toBe(
+      'npm install -D <package>',
+    )
+    expect(copie().disabled).toBe(true)
+
+    const champ = document.querySelector<HTMLInputElement>('[role="dialog"] .install input')!
+    champ.value = '@acme/crypte-figma'
+    champ.dispatchEvent(new Event('input', { bubbles: true }))
+    await vide(écran.wrapper)
+    copie().click()
+    await vide(écran.wrapper)
+
+    expect(écrit).toHaveBeenCalledWith('npm install -D @acme/crypte-figma')
+    expect(copie().textContent?.trim()).toBe('Copied')
+
+    // Rouverte, elle revient à la recherche.
+    await ouvre(écran)
+    await ouvre(écran)
+    expect(document.querySelector('[role="dialog"] .install')).toBeNull()
   })
 })
 
@@ -3299,7 +3485,7 @@ describe('the theme', () => {
 
     const option = [
       ...document.querySelectorAll<HTMLElement>('[role="dialog"] [role="option"]'),
-    ].find((one) => one.querySelector('span')?.textContent === 'Light theme')
+    ].find((one) => one.querySelector('.label')?.textContent === 'Light theme')
     option!.click()
     await vide(écran.wrapper)
     expect(racine()).toBe('light')

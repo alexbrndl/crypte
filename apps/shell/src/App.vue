@@ -37,6 +37,7 @@ import { differencesOf, sinceLabel } from './versions/differences'
 import VersionsSidebar, { type Since, type Versions } from './versions/versions-sidebar.vue'
 import VersionsView from './versions/versions-view.vue'
 import CommandPalette, { type Action } from './navigation/command-palette.vue'
+import { useRecent } from './navigation/recent'
 import ComponentPage from './pages/component-page.vue'
 import EmptyGuide from './pages/empty-guide.vue'
 import { ArrowDown01Icon, Copy01Icon, FullScreenIcon, Tick02Icon } from '@hugeicons/core-free-icons'
@@ -161,6 +162,26 @@ const changesOpen = ref(false)
 const changesAt = ref<Since & { change?: string }>({})
 const changes = ref<Changes | null>(null)
 let reading = 0
+
+// Ce qui est ouvert, sous la clé de sa commande dans la palette, qui le propose
+// parmi les récents une fois quitté : l'endroit où l'on est n'y a rien à faire. Une catégorie de tokens sans token choisi n'y a pas
+// de commande : seule la famille du token choisi entre.
+const { visits, remember } = useRecent()
+const here = computed(() => {
+  if (changesOpen.value) return 'changes'
+  if (tokensAt.value !== null) {
+    const name = tokensAt.value.token
+    return (
+      shownCategory.value?.groups.find((group) => group.tokens.some((one) => one.name === name))
+        ?.id ?? null
+    )
+  }
+  if (component.value !== null) return `component:${component.value}`
+  return current.value
+})
+watch(here, (_, left) => {
+  if (left !== null) remember(left)
+})
 
 const sinceQuery = () => {
   const query = new URLSearchParams()
@@ -1172,6 +1193,7 @@ onMounted(() => {
       v-model:open="palette"
       :entries="listed"
       :actions="actions"
+      :recent="visits"
       @show="(id) => show(id, 'push')"
       @open="(id) => open(id)"
       @changes="openChanges()"
