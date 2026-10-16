@@ -32,9 +32,12 @@ withDefaults(defineProps<{ variant?: 'outline' | 'secondary' | 'ghost' }>(), {
   cursor: pointer;
 }
 
+/* Outside, unlike the inner frame of Figma: inside, the ring falls under 3:1 on
+   the inverse background of `secondary`, and matches the stroke of a pressed
+   `outline`. */
 .button:focus-visible {
   outline: var(--stroke-focus) solid var(--accent-focus);
-  outline-offset: calc(-1 * var(--stroke-focus));
+  outline-offset: var(--stroke-hairline);
 }
 
 .button:disabled {

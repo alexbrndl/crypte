@@ -23,8 +23,10 @@
   box-shadow: inset 0 0 0 var(--stroke-hairline) var(--accent-base);
 }
 
+/* An outline rather than a shadow: forced colors drop shadows. */
 .checkbox:focus-visible {
-  box-shadow: inset 0 0 0 var(--stroke-focus) var(--accent-focus);
+  outline: var(--stroke-focus) solid var(--accent-focus);
+  outline-offset: calc(-1 * var(--stroke-focus));
 }
 
 .checkbox:checked,
