@@ -1501,6 +1501,7 @@ const ecrans = [
   ['a token family', '?id=tokens--color', '.tokens-page'],
   ['the changes', '?changes', '.changes-page'],
   ['the command palette', '?id=badge--par-defaut', '[role="dialog"]'],
+  ['the zoom menu', '?id=badge--par-defaut', '[role="menu"]'],
 ] as const
 
 // Les résultats de la palette défilent sans être focalisables : le focus reste
@@ -1519,6 +1520,7 @@ describe('accessibility, on screen', () => {
       if (nom === 'the command palette') {
         await ecran.page.locator('main').press('ControlOrMeta+K')
       }
+      if (nom === 'the zoom menu') await ecran.page.locator('.stage-tools .level').click()
       await expect.poll(() => ecran.page.locator(dessine).count()).toBe(1)
       expect(await ecran.page.locator('.stale').count()).toBe(0)
       await ecran.page.addScriptTag({ path: axe })
