@@ -1703,6 +1703,48 @@ describe('the tokens view', () => {
     écran.wrapper.unmount()
   })
 
+  // Le panneau suit la sélection, et ses lignes mènent au composant qui lit le token.
+  test('describes the token selected, and leads to a component that reads it', async () => {
+    const lecteur: StoryEntry = {
+      ...badge,
+      component: { ...badge.component, tokens: ['Brand-primary'] },
+    }
+    // Un token qui en vise un autre : sa ligne d'alias mène à sa sélection.
+    const lien: TokensEntry = {
+      type: 'tokens',
+      id: 'color--link',
+      path: ['Color'],
+      name: 'Link',
+      tokens: {
+        base: { type: 'color', themes: { light: { value: '#4fe0a0', alias: ['Brand-primary'] } } },
+      },
+    }
+    window.history.replaceState(null, '', '/?tokens=color')
+    const écran = await monte([lecteur, famille, lien])
+    const panneau = () => écran.wrapper.find('[aria-label="Token panel"]')
+
+    expect(panneau().find('h3').text()).toBe('Token')
+    await clique(écran, vue(écran).find('.item'))
+    expect(panneau().find('h3').text()).toBe('Brand-primary')
+    expect(panneau().text()).toContain('used by · 1 component')
+
+    const [alias] = panneau().findAll('a')
+    await clique(écran, alias!)
+    expect(window.location.search).toBe('?tokens=color&token=Link-base')
+    expect(panneau().find('h3').text()).toBe('Link-base')
+
+    window.history.back()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    await vide(écran.wrapper)
+    expect(panneau().find('h3').text()).toBe('Brand-primary')
+
+    await clique(écran, panneau().findAll('a').at(-1)!)
+    expect(window.location.search).toBe('?component=badge')
+    expect(écran.wrapper.find('.component-page').exists()).toBe(true)
+    expect(panneau().exists()).toBe(false)
+    écran.wrapper.unmount()
+  })
+
   // `?id=` nomme encore une famille (§4.3) : un lien collé avant la vue tokens
   // ouvre la catégorie où elle commence.
   test('opens the category of a family named by an older address', async () => {

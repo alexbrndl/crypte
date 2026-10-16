@@ -43,6 +43,7 @@ import Icon from './ui/icon.vue'
 import StoryTree from './navigation/story-tree.vue'
 import CategoryList from './tokens/category-list.vue'
 import { categoriesOf } from './tokens/categories'
+import TokenPanel from './tokens/token-panel.vue'
 import TokensView from './tokens/tokens-view.vue'
 import { useTheme } from './theme/theme'
 import { componentIdOf } from './navigation/tree'
@@ -128,6 +129,15 @@ const categories = computed(() => categoriesOf(families.value))
 const shownCategory = computed(
   () => categories.value.find((one) => one.name === tokensAt.value?.category) ?? null,
 )
+
+// Le token choisi dans la catégorie affichée, que son panneau décrit.
+const selectedToken = computed(() => {
+  const name = tokensAt.value?.token
+  return (
+    shownCategory.value?.groups.flatMap((group) => group.tokens).find((one) => one.name === name) ??
+    null
+  )
+})
 
 // La catégorie où commence une famille, que `?id=` nomme encore (§4.3) et que la
 // palette propose : son premier token y mène.
@@ -1000,6 +1010,24 @@ onMounted(() => {
             @count="(count, troubles) => ((panelCount = count), (panelTroubles = troubles))"
           />
         </aside>
+        <!-- Toujours en place, même sous 1180 px : le canvas d'une catégorie se lit à
+             côté de son panneau, et aucune barre d'outils n'y porterait le bouton. -->
+        <aside
+          v-if="view === 'tokens' && !noTokens && !fullScreen"
+          class="panel-column"
+          aria-label="Token panel"
+        >
+          <h2 class="column-title">Panels</h2>
+          <TokenPanel
+            :token="selectedToken"
+            :categories="categories"
+            :stories="entries"
+            :href-of-token="(category, token) => placeSearch({ mode: 'tokens', category, token })"
+            :href-of-component="(id) => placeSearch({ mode: 'component', id })"
+            @token="(category, token, event) => follow(event, () => openTokens(category, token))"
+            @component="(id, event) => follow(event, () => open(id))"
+          />
+        </aside>
       </div>
     </div>
     <footer class="status-bar">
@@ -1185,7 +1213,7 @@ main.full {
     display: inline-flex;
   }
 
-  .panel-column {
+  #panels {
     position: absolute;
     inset-block: 0;
     right: 0;
@@ -1194,7 +1222,7 @@ main.full {
     box-shadow: 0 0 24px rgb(0 0 0 / 0.16);
   }
 
-  .panel-column[data-open] {
+  #panels[data-open] {
     display: block;
   }
 }
