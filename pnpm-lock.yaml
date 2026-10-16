@@ -211,6 +211,12 @@ catalogs:
     '@changesets/cli':
       specifier: ^2.31.1
       version: 2.31.1
+    '@hugeicons/core-free-icons':
+      specifier: ^4.3.5
+      version: 4.3.5
+    '@hugeicons/vue':
+      specifier: ^1.0.8
+      version: 1.0.8
     '@types/node':
       specifier: ^24
       version: 24.13.3
@@ -322,6 +328,12 @@ importers:
       '@crypte/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@hugeicons/core-free-icons':
+        specifier: 'catalog:'
+        version: 4.3.5
+      '@hugeicons/vue':
+        specifier: 'catalog:'
+        version: 1.0.8(vue@3.5.41(typescript@6.0.3))
       reka-ui:
         specifier: 'catalog:'
         version: 2.10.5(vue@3.5.41(typescript@6.0.3))
@@ -738,6 +750,14 @@ packages:
 
   '@floating-ui/vue@1.1.11':
     resolution: {integrity: sha512-HzHKCNVxnGS35r9fCHBc3+uCnjw9IWIlCPL683cGgM9Kgj2BiAl8x1mS7vtvP6F9S/e/q4O6MApwSHj8hNLGfw==}
+
+  '@hugeicons/core-free-icons@4.3.5':
+    resolution: {integrity: sha512-Sv+NjHRPnQk+yZsGCMcGznCHdTfJR9PMMOEKcJYAQU4gy90dmlc9PwdtvYOImBZIjiheMsTLL5eMn2DmHxUiUg==}
+
+  '@hugeicons/vue@1.0.8':
+    resolution: {integrity: sha512-T1fNH9/+0QntvNsWJRpWj9AlSXpHkHPNdf35/UWcVWQpPzm2BbH1heW2pSIKRka6NoXSte2vzNRJmmriRPfxIQ==}
+    peerDependencies:
+      vue: ^2.6.0 || ^3.0.0
 
   '@inquirer/external-editor@1.0.3':
     resolution: {integrity: sha512-RWbSrDiYmO4LbejWY7ttpxczuwQyZLBUyygsA9Nsv95hpzUWwnNTVQmAq3xuh7vNwCp07UTmE5i11XAEExx4RA==}
@@ -3218,6 +3238,12 @@ snapshots:
     transitivePeerDependencies:
       - '@vue/composition-api'
       - vue
+
+  '@hugeicons/core-free-icons@4.3.5': {}
+
+  '@hugeicons/vue@1.0.8(vue@3.5.41(typescript@6.0.3))':
+    dependencies:
+      vue: 3.5.41(typescript@6.0.3)
 
   '@inquirer/external-editor@1.0.3(@types/node@24.13.3)':
     dependencies:

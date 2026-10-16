@@ -2,6 +2,7 @@
 import type { Overrides, RenderedValues, StoryEntry } from '@crypte/core/protocol'
 import { Alert, Button } from '@crypte/ui'
 import { computed, onErrorCaptured, ref, useId, watch, type Component } from 'vue'
+import { ArrowDown01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons'
 import Icon from '../ui/icon.vue'
 
 // Le cadre d'un panneau de plugin, section 6.1 des contrats. Local au shell,
@@ -222,7 +223,7 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
         :aria-describedby="inapplicable !== null ? reasonId : undefined"
         @click="toggle"
       >
-        <Icon :name="expanded ? 'arrow-down-01' : 'arrow-right-01'" />
+        <Icon :icon="expanded ? ArrowDown01Icon : ArrowRight01Icon" />
         {{ name }}
       </button>
       <span v-if="inapplicable !== null" :id="reasonId" class="inapplicable">{{

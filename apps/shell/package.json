@@ -12,6 +12,8 @@
   "dependencies": {
     "@crypte/core": "workspace:*",
     "@crypte/ui": "workspace:*",
+    "@hugeicons/core-free-icons": "catalog:",
+    "@hugeicons/vue": "catalog:",
     "reka-ui": "catalog:"
   },
   "devDependencies": {

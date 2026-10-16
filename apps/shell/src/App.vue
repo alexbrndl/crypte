@@ -36,6 +36,13 @@ import { CHANGES, type Changes } from './pages/changes'
 import ChangesPage from './pages/changes-page.vue'
 import CommandPalette, { type Action } from './navigation/command-palette.vue'
 import ComponentPage from './pages/component-page.vue'
+import {
+  ArrowDown01Icon,
+  Copy01Icon,
+  FullScreenIcon,
+  Search01Icon,
+  Tick02Icon,
+} from '@hugeicons/core-free-icons'
 import Icon from './ui/icon.vue'
 import Logo from './ui/logo.vue'
 import StoryTree from './navigation/story-tree.vue'
@@ -634,7 +641,7 @@ onMounted(() => {
             :aria-keyshortcuts="mac ? 'Meta+K /' : 'Control+K /'"
             @click="palette = true"
           >
-            <Icon name="search-01" />
+            <Icon :icon="Search01Icon" />
             <span>Search or run</span>
             <kbd>{{ paletteKeys }}</kbd>
           </button>
@@ -677,7 +684,7 @@ onMounted(() => {
         </nav>
         <div class="actions">
           <Button variant="secondary" class="copy" @click="copyLink">
-            <Icon name="copy-01" />
+            <Icon :icon="Copy01Icon" />
             {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
           </Button>
         </div>
@@ -766,7 +773,7 @@ onMounted(() => {
                 <DropdownMenuTrigger as-child>
                   <Button class="level" :aria-label="`Zoom, ${Math.round(zoom * 100)} %`">
                     {{ Math.round(zoom * 100) }} %
-                    <Icon name="arrow-down-01" />
+                    <Icon :icon="ArrowDown01Icon" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuPortal to=".stage-tools">
@@ -789,7 +796,7 @@ onMounted(() => {
                       >
                         {{ level * 100 }} %
                         <DropdownMenuItemIndicator class="shell-menu-check">
-                          <Icon name="tick-02" />
+                          <Icon :icon="Tick02Icon" />
                         </DropdownMenuItemIndicator>
                       </DropdownMenuRadioItem>
                     </DropdownMenuRadioGroup>
@@ -810,7 +817,7 @@ onMounted(() => {
                   :aria-pressed="full"
                   @click="full = !full"
                 >
-                  <Icon name="full-screen" />
+                  <Icon :icon="FullScreenIcon" />
                 </Button>
               </Tooltip>
             </div>

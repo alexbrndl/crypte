@@ -1,46 +1,21 @@
 <!-- Les Hugeicons du fichier Figma (jeu gratuit stroke-rounded, MIT), à 16 px et
      au trait de 1,25. Le trait suit la couleur du texte autour. -->
 <script setup lang="ts">
-defineProps<{
-  name: 'arrow-right-01' | 'arrow-down-01' | 'search-01' | 'copy-01' | 'full-screen' | 'tick-02'
-}>()
+import type { Search01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon, type IconArray } from '@hugeicons/vue'
+
+defineProps<{ icon: typeof Search01Icon }>()
 </script>
 
 <template>
-  <svg
+  <HugeiconsIcon
     class="icon"
-    width="16"
-    height="16"
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="1.25"
-    stroke-linecap="round"
-    stroke-linejoin="round"
+    :icon="icon as IconArray"
+    :size="16"
+    :stroke-width="1.25"
+    absolute-stroke-width
     aria-hidden="true"
-  >
-    <path v-if="name === 'arrow-right-01'" d="M6 4C6 4 10 6.946 10 8C10 9.054 6 12 6 12" />
-    <path v-else-if="name === 'arrow-down-01'" d="M12 6C12 6 9.054 10 8 10C6.946 10 4 6 4 6" />
-    <path v-else-if="name === 'tick-02'" d="M3.333 8.667L6 11.333L12.667 4.667" />
-    <path
-      v-else-if="name === 'full-screen'"
-      d="M2.667 6V4.667C2.667 3.562 3.562 2.667 4.667 2.667H6M10 2.667H11.333C12.438 2.667 13.333 3.562 13.333 4.667V6M13.333 10V11.333C13.333 12.438 12.438 13.333 11.333 13.333H10M6 13.333H4.667C3.562 13.333 2.667 12.438 2.667 11.333V10"
-    />
-    <template v-else-if="name === 'copy-01'">
-      <path
-        d="M6.586 6.586C6 7.17133 6 8.11467 6 10V10.6667C6 12.552 6 13.4953 6.586 14.0807C7.17133 14.6667 8.11467 14.6667 10 14.6667H10.6667C12.552 14.6667 13.4953 14.6667 14.0807 14.0807C14.6667 13.4953 14.6667 12.552 14.6667 10.6667V10C14.6667 8.11467 14.6667 7.17133 14.0807 6.586C13.4953 6 12.552 6 10.6667 6H10C8.11467 6 7.17133 6 6.586 6.586Z"
-      />
-      <path
-        d="M11.3333 6C11.332 4.02865 11.302 3.00731 10.728 2.30798C10.6173 2.17331 10.4933 2.04931 10.3586 1.93865C9.62065 1.33331 8.52531 1.33331 6.33331 1.33331C4.14198 1.33331 3.04598 1.33331 2.30798 1.93865C2.17331 2.04931 2.04931 2.17331 1.93865 2.30798C1.33331 3.04598 1.33331 4.14198 1.33331 6.33331C1.33331 8.52531 1.33331 9.62065 1.93865 10.3586C2.04931 10.4933 2.17331 10.6173 2.30798 10.728C3.00731 11.302 4.02865 11.332 6 11.3333"
-      />
-    </template>
-    <template v-else>
-      <path d="M11.3333 11.3333L14 14" />
-      <path
-        d="M7.33333 2C10.2787 2 12.6667 4.388 12.6667 7.33333C12.6667 10.2787 10.2787 12.6667 7.33333 12.6667C4.388 12.6667 2 10.2787 2 7.33333C2 4.388 4.388 2 7.33333 2Z"
-      />
-    </template>
-  </svg>
+  />
 </template>
 
 <style scoped>

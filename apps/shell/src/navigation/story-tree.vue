@@ -2,6 +2,7 @@
 import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { ToggleGroupItem, ToggleGroupRoot, TreeItem, TreeRoot } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
+import { ArrowDown01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons'
 import Icon from '../ui/icon.vue'
 import {
   STATUSES,
@@ -209,7 +210,7 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
             (event: MouseEvent) => item.hasChildren && (event.stopPropagation(), handleToggle())
           "
         >
-          <Icon v-if="item.hasChildren" :name="isExpanded ? 'arrow-down-01' : 'arrow-right-01'" />
+          <Icon v-if="item.hasChildren" :icon="isExpanded ? ArrowDown01Icon : ArrowRight01Icon" />
         </span>
         <span class="name">{{ item.value.name }}</span>
         <span v-if="item.value.kind === 'folder'" class="meta">{{ count(item.value) }}</span>
