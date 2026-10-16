@@ -4,7 +4,8 @@ import { expect, test } from 'vitest'
 import Icon from '../src/ui/icon.vue'
 
 // Le trait de Figma, 1,25 à 16 px, se rend à 1,875 dans le repère de 24 des
-// Hugeicons. Sans `absolute-stroke-width`, le jeu garde son 1,5 d'origine.
+// Hugeicons. Sans `absolute-stroke-width`, le 1,25 s'appliquerait dans ce repère
+// et le trait rendrait 0,83 px.
 test.each([
   ['search-01', Search01Icon],
   ['arrow-right-01', ArrowRight01Icon],
