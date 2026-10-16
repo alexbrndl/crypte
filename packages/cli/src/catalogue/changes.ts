@@ -76,7 +76,14 @@ function commitOf(
 ): { ref: string; sha: string; reason?: undefined } | { reason: string } {
   if (since.before !== undefined) {
     if (Number.isNaN(Date.parse(since.before))) return { reason: `"${since.before}" is not a date` }
-    const sha = git(root, ['rev-list', '-1', `--before=${since.before}`, 'HEAD'])
+    // In full: a date alone, Git completes with the current time of day, so the
+    // commit found moved with the hour of the request.
+    const sha = git(root, [
+      'rev-list',
+      '-1',
+      `--before=${new Date(Date.parse(since.before)).toISOString()}`,
+      'HEAD',
+    ])
     if (typeof sha !== 'string') return { reason: sha.reason }
     return sha === ''
       ? { reason: `no commit before ${since.before}` }
@@ -228,14 +235,28 @@ function gitReason(error: unknown): string {
 // what it lacks is named rather than thrown on (DCJ-278).
 function fingerprintIn(read: unknown): Fingerprint | null {
   if (!isObject(read) || !Array.isArray(read['entries'])) return null
-  return read['entries'].every(isEntry) ? (read as unknown as Fingerprint) : null
+  if (!read['entries'].every(isEntry)) return null
+  // Absent, the tokens are unknown; present, each one must read.
+  if ('tokens' in read && !(Array.isArray(read['tokens']) && read['tokens'].every(isToken)))
+    return null
+  return read as unknown as Fingerprint
 }
 
 function missing(read: unknown): string {
   if (!isObject(read) || !Array.isArray(read['entries'])) return 'no `entries` list'
   const at = read['entries'].findIndex((one) => !isEntry(one))
-  return `entry ${at} lacks a string \`id\`, a string \`status\` or a \`props\` list`
+  if (at !== -1) return `entry ${at} lacks a string \`id\`, a string \`status\` or a \`props\` list`
+  if (!Array.isArray(read['tokens'])) return '`tokens` is not a list'
+  return `token ${read['tokens'].findIndex((one) => !isToken(one))} lacks a string \`family\`, \`key\` or \`type\`, or \`themes\` of strings`
 }
+
+const isToken = (value: unknown): value is FingerprintToken =>
+  isObject(value) &&
+  typeof value['family'] === 'string' &&
+  typeof value['key'] === 'string' &&
+  typeof value['type'] === 'string' &&
+  isObject(value['themes']) &&
+  Object.values(value['themes']).every((one) => typeof one === 'string')
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null

@@ -199,7 +199,8 @@ describe('the catalog while the server runs', () => {
     // régression que ce cas nomme vit en aval, dans `syncComponents` : le jeu
     // réellement surveillé se lit donc lui aussi, et en entier plutôt qu'en
     // absences, pour attraper le surveillant récursif posé sur l'ancêtre commun.
-    expect(projet.surveilles()).toEqual(cités)
+    // Plus la feuille déclarée en `css`, dont un plugin lit les tokens.
+    expect(projet.surveilles()).toEqual([...cités, join(projet.root, 'src', 'styles', 'app.css')])
   })
 
   // Une sauvegarde atomique, temporaire puis `rename` par-dessus, est ce que
@@ -370,4 +371,78 @@ export default defineStories(Badge, { props: { ...base, size: 'lg' } })
 
     expect(projet.rechargements()).toBe(avant)
   })
+})
+
+// La feuille déclarée en `css` : un plugin y lit ses tokens, et l'empreinte les
+// garde. Modifiée seule, elle laissait l'empreinte en retard, et `crypte check`
+// échouait sur le commit. Un plugin du cas, qui contribue la longueur de la
+// feuille : @crypte/tokens ne se résout pas depuis la copie.
+describe('the declared style sheet while the server runs', () => {
+  base(
+    'rebuilds, rewrites the fingerprint and reloads when it changes',
+    async () => {
+      const root = mkdtempSync(join(fixture, '..', 'tmp-hot-'))
+      cpSync(fixture, root, { recursive: true })
+      writeFileSync(
+        join(root, 'crypte.config.ts'),
+        [
+          "import { readFileSync } from 'node:fs'",
+          "import { join } from 'node:path'",
+          "import { defineConfig } from '@crypte/cli'",
+          '',
+          'export default defineConfig({',
+          "  stories: 'stories',",
+          "  css: 'src/styles/app.css',",
+          "  adapter: { name: 'fixture' },",
+          '  plugins: [',
+          '    {',
+          "      name: 'feuille',",
+          '      node: {',
+          '        entries: (ctx) => [',
+          '          {',
+          "            type: 'tokens',",
+          "            id: 'tokens--feuille',",
+          "            path: ['Tokens'],",
+          "            name: 'feuille',",
+          "            tokens: { longueur: { type: 'number', themes: { default: { value: String(readFileSync(join(ctx.root, ctx.css ?? ''), 'utf8').length) } } } },",
+          '          },',
+          '        ],',
+          '      },',
+          '    },',
+          '  ],',
+          '})',
+          '',
+        ].join('\n'),
+      )
+      const feuille = join(root, 'src', 'styles', 'app.css')
+      const started = await startDev(root, () => {})
+      await started.server.listen()
+      let reloads = 0
+      const sent = started.server.hot.send.bind(started.server.hot)
+      started.server.hot.send = ((payload: { type?: string }) => {
+        if (payload?.type === 'full-reload') reloads += 1
+        return sent(payload as never)
+      }) as typeof started.server.hot.send
+
+      try {
+        expect(started.watched()).toContain(feuille)
+        const longueur = () =>
+          (
+            JSON.parse(readFileSync(join(root, '.crypte', 'fingerprint.json'), 'utf8')) as {
+              tokens?: { themes: { default: string } }[]
+            }
+          ).tokens?.[0]?.themes.default
+        const avant = longueur()
+
+        writeFileSync(feuille, `${readFileSync(feuille, 'utf8')}\n:root { --x: 1px; }\n`)
+
+        await expect.poll(longueur, { timeout: 5_000 }).not.toBe(avant)
+        expect(reloads).toBeGreaterThan(0)
+      } finally {
+        await started.server.close()
+        rmSync(root, { recursive: true, force: true })
+      }
+    },
+    30_000,
+  )
 })

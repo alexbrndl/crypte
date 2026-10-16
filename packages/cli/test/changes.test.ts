@@ -239,6 +239,31 @@ describe('the committed fingerprint', () => {
     )
   })
 
+  // Une résolution de conflit à la main suffit : la section `tokens` se lit comme
+  // les entrées, et ce qui manque se nomme au lieu de lever.
+  test.each([
+    [null, '`tokens` is not a list'],
+    [{}, '`tokens` is not a list'],
+    [
+      [{ family: 'f', key: 'k', type: 'color' }],
+      'token 0 lacks a string `family`, `key` or `type`, or `themes` of strings',
+    ],
+    [
+      [{ family: 'f', key: 'k', type: 'color', themes: { light: 1 } }],
+      'token 0 lacks a string `family`, `key` or `type`, or `themes` of strings',
+    ],
+  ])('names a committed tokens section that does not read: %j', (tokens, manque) => {
+    const root = dossier()
+    commis(root, JSON.stringify({ ...empreinte(), tokens }))
+
+    expect(committedFingerprint(root)).toBe(
+      `the committed .crypte/fingerprint.json is not a fingerprint: ${manque}`,
+    )
+    expect(changesSince(root, empreinte())).toEqual({
+      reason: `the committed .crypte/fingerprint.json is not a fingerprint: ${manque}`,
+    })
+  })
+
   test('gives the changes, or the reason there are none to read', () => {
     const root = dossier()
     commis(root, JSON.stringify(empreinte(entrée('a--x', []))))
@@ -364,6 +389,34 @@ describe('the point a comparison starts from', () => {
       [
         { kind: 'appeared', id: 'x--c' },
         { kind: 'disappeared', id: 'x--b' },
+      ],
+    ])
+  })
+
+  // Une date seule, Git la complète à l'heure courante : le commit trouvé
+  // changeait avec l'heure de la requête. Minuit UTC, quelle que soit l'heure.
+  test('reads a date alone as its midnight, whatever the time of the request', () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'crypte-since-')))
+    dossiers.push(root)
+    git(root, '2026-02-14T00:00:00Z', 'init', '-q', '-b', 'main')
+    for (const [id, date] of [
+      ['veille', '2026-02-14T12:00:00Z'],
+      ['jour', '2026-02-15T01:00:00Z'],
+    ] as const) {
+      mkdirSync(join(root, '.crypte'), { recursive: true })
+      writeFileSync(
+        join(root, '.crypte', 'fingerprint.json'),
+        JSON.stringify({ ...empreinte(entrée(`x--${id}`, [])), tokens: [] }),
+      )
+      git(root, date, 'add', '-A')
+      git(root, date, 'commit', '-qm', id)
+    }
+
+    expect(depuis(root, { before: '2026-02-15' })).toEqual([
+      'before 2026-02-15',
+      [
+        { kind: 'appeared', id: 'x--c' },
+        { kind: 'disappeared', id: 'x--veille' },
       ],
     ])
   })

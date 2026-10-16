@@ -36,10 +36,12 @@ function tags(root: string): Versions['tags'] {
     'refs/tags',
   ])
   if (!listed) return []
-  return listed.split('\n').map((line) => {
+  // In ISO form whatever Git prints, `Z` or `+00:00` depending on its version. A
+  // tag on a blob or a tree has no date, and is no release to start from.
+  return listed.split('\n').flatMap((line) => {
     const [name = '', date = ''] = line.split('\t')
-    // In ISO form whatever Git prints, `Z` or `+00:00` depending on its version.
-    return { name, date: new Date(date).toISOString() }
+    const at = Date.parse(date)
+    return Number.isNaN(at) ? [] : [{ name, date: new Date(at).toISOString() }]
   })
 }
 

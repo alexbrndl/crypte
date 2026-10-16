@@ -63,6 +63,21 @@ describe('the versions a comparison can start from', () => {
     expect(versionsOf(autre)).toEqual({ branch: null, tags: [] })
   })
 
+  // Un tag léger sur un blob n'a pas de date : ce n'est pas une release.
+  test('leaves out a tag that points at no commit', () => {
+    const root = dossier()
+    git(root, '2026-01-01T00:00:00Z', 'init', '-q', '-b', 'main')
+    commit(root, '2026-01-01T12:00:00Z', 'a')
+    git(root, '2026-01-01T12:00:00Z', 'tag', 'v1.0.0')
+    const blob = execFileSync('git', ['hash-object', '-w', 'a'], {
+      cwd: root,
+      encoding: 'utf8',
+    }).trim()
+    git(root, '2026-01-01T12:00:00Z', 'tag', 'blob', blob)
+
+    expect(versionsOf(root).tags.map((one) => one.name)).toEqual(['v1.0.0'])
+  })
+
   test('offers nothing outside a repository', () => {
     expect(versionsOf(dossier())).toEqual({ branch: null, tags: [] })
   })
