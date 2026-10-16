@@ -1277,9 +1277,9 @@ describe('the tokens page', () => {
   })
 })
 
-// Le mode changements dans le vrai navigateur. La copie de la démonstration n'est
-// suivie par aucun commit : le mode le dit au lieu de disparaître.
-describe('the changes mode', () => {
+// La vue versions dans le vrai navigateur. La copie de la démonstration n'est
+// suivie par aucun commit : la vue le dit au lieu de disparaître.
+describe('the versions view', () => {
   test('says why it cannot read the changes of a project Git does not follow', async ({
     ecran,
   }) => {
@@ -1288,7 +1288,7 @@ describe('the changes mode', () => {
     await ecran.page.locator('.activity-bar .item', { hasText: 'versions' }).click()
 
     await expect
-      .poll(async () => (await ecran.page.locator('.changes-page .note').textContent())?.trim())
+      .poll(async () => (await ecran.page.locator('.versions-view .note').textContent())?.trim())
       .toBe('The changes cannot be read: .crypte/fingerprint.json has never been committed.')
     expect(new URL(ecran.page.url()).search).toBe('?changes')
     expect(await ecran.page.locator('.activity-bar .count').count()).toBe(0)
@@ -1527,7 +1527,7 @@ const ecrans = [
   ['a story', '?id=badge--par-defaut', 'iframe[title="preview"]:visible'],
   ['a component page', '?component=badge', '.component-page'],
   ['a token category', '?tokens=color', '.tokens-view'],
-  ['the changes', '?changes', '.changes-page'],
+  ['the versions', '?changes', '.versions-view'],
   ['the command palette', '?id=badge--par-defaut', '[role="dialog"]'],
   ['the zoom menu', '?id=badge--par-defaut', '[role="menu"]'],
 ] as const
@@ -1577,11 +1577,11 @@ describe('a long and non-Latin corpus at 1280', () => {
   const deborde = (ecran: Ecran) =>
     ecran.page.evaluate<
       string[]
-    >(`[...document.querySelectorAll('main, .stage, .component-page, .changes-page, table')]
+    >(`[...document.querySelectorAll('main, .stage, .sidebar, .component-page, .versions-view, table')]
       .filter((e) => e.scrollWidth > e.clientWidth + 1)
       .map((e) => (e.className || e.tagName) + ' ' + e.scrollWidth + '>' + e.clientWidth)`)
 
-  test('overflows nowhere, on the component page or in the changes mode', async ({ ecran }) => {
+  test('overflows nowhere, on the component page or in the versions view', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
     expect(ecran.page.viewportSize()?.width).toBe(1280)
 
@@ -1609,6 +1609,8 @@ describe('a long and non-Latin corpus at 1280', () => {
     await ecran.page.route('**/@crypte/changes.json', (route) =>
       route.fulfill({
         json: {
+          from: { ref: 'HEAD', commit: 'abcdef0' },
+          tokens: [],
           changes: [
             { kind: 'appeared', id: id(CYRILLIQUE) },
             {
@@ -1628,10 +1630,12 @@ describe('a long and non-Latin corpus at 1280', () => {
       }),
     )
     await ecran.page.goto(new URL('?changes', ecran.page.url()).href)
-    // Les trois lignes dessinées en liens, vers leur story ou leur composant : la plus large
-    // est celle d'une story changée, son nom suivi de ses props.
-    await expect.poll(() => ecran.page.locator('.changes-page li').count()).toBe(3)
-    expect(await ecran.page.locator('.changes-page li a').count()).toBe(3)
+    // Les trois lignes dans la sidebar, et le détail de la plus large : une story
+    // changée, son nom suivi de ses props.
+    await expect.poll(() => ecran.page.locator('.sidebar li a').count()).toBe(3)
+    expect(await deborde(ecran)).toEqual([])
+    await ecran.page.locator('.sidebar li a').nth(1).click()
+    await expect.poll(() => ecran.page.locator('.versions-view .change').count()).toBe(1)
     expect(await deborde(ecran)).toEqual([])
   }, 60_000)
 })

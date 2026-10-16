@@ -33,7 +33,9 @@ import {
 import Panels from './panels/panels.vue'
 import { landing, unreadable, type Shown } from './navigation/recover'
 import { CHANGES, type Changes } from './pages/changes'
-import ChangesPage from './pages/changes-page.vue'
+import { differencesOf } from './versions/differences'
+import VersionsSidebar, { type Since, type Versions } from './versions/versions-sidebar.vue'
+import VersionsView from './versions/versions-view.vue'
 import CommandPalette, { type Action } from './navigation/command-palette.vue'
 import ComponentPage from './pages/component-page.vue'
 import EmptyGuide from './pages/empty-guide.vue'
@@ -152,17 +154,27 @@ const categoryOf = (id: string) => {
 // stories, les contributions des plugins passant après elles (§6.3).
 const listed = computed(() => [...entries.value, ...families.value])
 
-// Le mode changements : ouvert ou non, et ce que le CLI en dit, relu avec le
-// catalogue. Comme une page, il laisse la preview chargée dessous.
+// La vue versions : ouverte ou non, son point de départ et l'écart choisi, et ce
+// que le CLI en dit, relu avec le catalogue. Comme une page, elle laisse la
+// preview chargée dessous.
 const changesOpen = ref(false)
+const changesAt = ref<Since & { change?: string }>({})
 const changes = ref<Changes | null>(null)
 let reading = 0
+
+const sinceQuery = () => {
+  const query = new URLSearchParams()
+  if (changesAt.value.from) query.set('from', changesAt.value.from)
+  if (changesAt.value.before) query.set('before', changesAt.value.before)
+  const text = query.toString()
+  return text === '' ? '' : `?${text}`
+}
 
 async function readChanges() {
   const run = (reading += 1)
   let read: Changes
   try {
-    read = (await fetch(CHANGES).then((answer) => answer.json())) as Changes
+    read = (await fetch(`${CHANGES}${sinceQuery()}`).then((answer) => answer.json())) as Changes
   } catch (error) {
     read = {
       reason: `its route could not be read: ${error instanceof Error ? error.message : String(error)}`,
@@ -172,9 +184,40 @@ async function readChanges() {
   if (run === reading) changes.value = read
 }
 
+// Les points de départ que le CLI propose, relus à l'ouverture de la vue.
+const VERSIONS = '/@crypte/versions.json'
+const versions = ref<Versions | null>(null)
+async function readVersions() {
+  try {
+    versions.value = (await fetch(VERSIONS).then((answer) => answer.json())) as Versions
+  } catch {
+    // Moins de points proposés : le dernier commit, les périodes et la saisie restent.
+  }
+}
+
+// Les écarts, une ligne chacun, et celui que l'adresse choisit.
+const differences = computed(() =>
+  changes.value !== null && 'changes' in changes.value
+    ? differencesOf(
+        changes.value.changes,
+        changes.value.tokens ?? [],
+        entries.value,
+        families.value,
+      )
+    : { tokens: [], stories: [] },
+)
+const difference = computed(
+  () =>
+    [...differences.value.tokens, ...differences.value.stories].find(
+      (one) => one.key === changesAt.value.change,
+    ) ?? null,
+)
+
 // Le compteur de la vue versions : rien quand les changements ne se lisent pas.
 const counter = computed(() =>
-  changes.value !== null && 'changes' in changes.value ? changes.value.changes.length : null,
+  changes.value !== null && 'changes' in changes.value
+    ? differences.value.tokens.length + differences.value.stories.length
+    : null,
 )
 
 // La ligne d'état parle de ce qui est affiché. Sous une page, la story chargée
@@ -183,7 +226,10 @@ const counter = computed(() =>
 // story perdue : l'entrée revenue, la page revient avec elle.
 const line = computed(() => {
   if (unread.value !== null) return unread.value
-  if (changesOpen.value) return counted(entries.value.length)
+  if (changesOpen.value)
+    return changes.value !== null && 'from' in changes.value
+      ? `${counter.value} ${counter.value === 1 ? 'difference' : 'differences'} since ${changes.value.from.ref === 'HEAD' ? 'the last commit' : changes.value.from.ref}`
+      : counted(entries.value.length)
   if (noTokens.value) return 'no tokens found'
   if (tokensAt.value !== null)
     return shownCategory.value
@@ -398,14 +444,22 @@ function open(id: string, trace: Trace = 'push') {
 
 // Relus à l'ouverture et au retour sur la fenêtre : un commit ne touche aucun
 // fichier que Vite surveille, donc aucun `ready` ne les aurait relus.
-function openChanges(trace: Trace = 'push') {
+function openChanges(trace: Trace = 'push', at: Since & { change?: string } = {}) {
   if (trace === 'push') stale.value = null
   full.value = false
+  changesAt.value = at
   void readChanges()
+  void readVersions()
   changesOpen.value = true
   component.value = null
   tokensAt.value = null
-  write(placeSearch({ mode: 'changes' }), trace)
+  write(placeSearch({ mode: 'changes', ...at }), trace)
+}
+
+// Un écart choisi : la même comparaison, sans la relire.
+function selectChange(key: string) {
+  changesAt.value = { ...changesAt.value, change: key }
+  write(placeSearch({ mode: 'changes', ...changesAt.value }), 'push')
 }
 
 // La vue de l'activity bar, déduite de ce qui est affiché : une page composant est
@@ -626,7 +680,10 @@ async function refresh() {
     const [first] = ofComponent(arrival.id, stories)
     if (first) [opening, shown] = [arrival.id, first]
   }
-  if (arrival.mode === 'changes') changesOpen.value = true
+  if (arrival.mode === 'changes') {
+    const { mode: _, ...at } = arrival
+    if (!changesOpen.value) openChanges('none', at)
+  }
   if (arrival.mode === 'entry' && !shown && tokensAt.value === null) stale.value = arrival.id
   if (arrival.mode === 'component' && opening === null) stale.value = arrival.id
   arrival = { mode: 'home' }
@@ -674,7 +731,10 @@ function travel() {
   if (place.mode === 'component' && ofComponent(place.id, entries.value).length > 0)
     open(place.id, 'none')
   if (place.mode === 'tokens') openTokens(place.category, place.token, 'none')
-  if (place.mode === 'changes') openChanges('none')
+  if (place.mode === 'changes') {
+    const { mode: _, ...at } = place
+    openChanges('none', at)
+  }
 }
 
 onBeforeUnmount(() => {
@@ -770,6 +830,17 @@ onMounted(() => {
           :current="tokensAt?.category ?? null"
           :href-of="(category) => placeSearch({ mode: 'tokens', category })"
           @pick="(category, event) => follow(event, () => openTokens(category))"
+        />
+        <VersionsSidebar
+          v-else-if="view === 'versions'"
+          :since="changesAt"
+          :versions="versions"
+          :tokens="differences.tokens"
+          :stories="differences.stories"
+          :selected="changesAt.change ?? null"
+          :href-of="(key) => placeSearch({ mode: 'changes', ...changesAt, change: key })"
+          @since="(since) => openChanges('push', since)"
+          @select="(key, event) => follow(event, () => selectChange(key))"
         />
         <StoryTree
           v-else
@@ -885,12 +956,16 @@ onMounted(() => {
             @select="(token, event) => follow(event, () => openTokens(shownCategory!.name, token))"
           />
 
-          <ChangesPage
+          <VersionsView
             v-if="changesOpen"
             :changes="changes"
+            :difference="difference"
+            :count="counter ?? 0"
             :stories="entries"
-            @show="(id) => show(id, 'push')"
-            @open="(id) => open(id)"
+            :href-of-story="(id) => placeSearch({ mode: 'entry', id })"
+            :href-of-component="(id) => placeSearch({ mode: 'component', id })"
+            @story="(id, event) => follow(event, () => show(id, 'push'))"
+            @component="(id, event) => follow(event, () => open(id))"
           />
 
           <ComponentPage
