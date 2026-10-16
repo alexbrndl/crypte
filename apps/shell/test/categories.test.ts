@@ -132,6 +132,28 @@ describe('the categories of the tokens view', () => {
     ).toEqual(['text', 'leading', 'weight', 'tracking', 'font'])
   })
 
+  // Deux familles de même nom, d'un autre producteur que @crypte/tokens : seul
+  // l'identifiant est unique (§4.3), et chacune garde son groupe.
+  test('keeps two families of the same name apart, by their identifier', () => {
+    const one = {
+      ...family('Brand', { base: aliased('#111111', 'a') }),
+      id: 'a--brand',
+      path: ['A'],
+    }
+    const other = {
+      ...family('Brand', { base: aliased('#222222', 'b') }),
+      id: 'b--brand',
+      path: ['B'],
+    }
+    const [color] = categoriesOf([one, other])
+
+    expect(color!.groups.map((group) => group.id)).toEqual(['a--brand', 'b--brand'])
+    expect(color!.groups.flatMap((group) => group.tokens.map((token) => token.key))).toEqual([
+      'a--brand/base',
+      'b--brand/base',
+    ])
+  })
+
   test('has no category without a family', () => {
     expect(categoriesOf([])).toEqual([])
   })

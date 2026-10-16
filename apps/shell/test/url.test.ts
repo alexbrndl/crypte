@@ -21,7 +21,7 @@ describe('reading an address', () => {
       '?tokens=color&token=accent-base',
       { mode: 'tokens', category: 'color', token: 'accent-base' },
     ],
-    // Un token sans catégorie ne nomme rien, une valeur vide non plus.
+    // Un token vide ne nomme rien : la catégorie seule reste.
     ['?tokens=color&token=', { mode: 'tokens', category: 'color' }],
   ])('reads %j', (search, place) => {
     expect(readPlace(search)).toEqual(place)

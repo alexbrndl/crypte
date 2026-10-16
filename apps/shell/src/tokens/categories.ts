@@ -6,13 +6,19 @@ import type { TokensEntry, TokenValue } from '@crypte/core/protocol'
 // iraient alors dans `TokensEntry.path`, que le plugin remplit.
 
 export interface Token {
-  // Le nom de la propriété sans ses tirets, ce qu'un `var(--…)` écrit.
+  // Le nom de la propriété sans ses tirets, ce qu'un `var(--…)` écrit quand la
+  // famille vient de @crypte/tokens. Deux familles d'un autre producteur peuvent
+  // le partager : `key`, lui, est unique.
   name: string
+  key: string
   family: string
   value: TokenValue
 }
 
 export interface Group {
+  // L'identifiant de la famille, seul unique (§4.3) : deux familles peuvent porter
+  // le même `name`.
+  id: string
   family: string
   tokens: Token[]
 }
@@ -42,7 +48,7 @@ function categoryOf(family: string, value: TokenValue, semantic: boolean): strin
 }
 
 export function categoriesOf(families: readonly TokensEntry[]): Category[] {
-  const found = new Map<string, Map<string, Token[]>>()
+  const found = new Map<string, Map<string, { family: string; tokens: Token[] }>>()
 
   for (const entry of families) {
     const colors = Object.values(entry.tokens).filter((value) => value.type === 'color')
@@ -52,10 +58,15 @@ export function categoriesOf(families: readonly TokensEntry[]): Category[] {
 
     for (const [key, value] of Object.entries(entry.tokens)) {
       const category = categoryOf(entry.name, value, semantic)
-      const groups = found.get(category) ?? new Map<string, Token[]>()
-      const tokens = groups.get(entry.name) ?? []
-      tokens.push({ name: nameOf(entry.name, key), family: entry.name, value })
-      groups.set(entry.name, tokens)
+      const groups = found.get(category) ?? new Map<string, { family: string; tokens: Token[] }>()
+      const group = groups.get(entry.id) ?? { family: entry.name, tokens: [] }
+      group.tokens.push({
+        name: nameOf(entry.name, key),
+        key: `${entry.id}/${key}`,
+        family: entry.name,
+        value,
+      })
+      groups.set(entry.id, group)
       found.set(category, groups)
     }
   }
@@ -69,9 +80,9 @@ export function categoriesOf(families: readonly TokensEntry[]): Category[] {
     .map(([name, groups]) => ({
       name,
       groups: [...groups]
-        .map(([family, tokens]) => ({ family, tokens: scaled(tokens) }))
+        .map(([id, group]) => ({ id, family: group.family, tokens: scaled(group.tokens) }))
         .sort((one, other) => typeRank(one.family) - typeRank(other.family)),
-      count: [...groups.values()].reduce((sum, tokens) => sum + tokens.length, 0),
+      count: [...groups.values()].reduce((sum, group) => sum + group.tokens.length, 0),
     }))
     .sort((one, other) => rank(one.name) - rank(other.name) || one.name.localeCompare(other.name))
 }

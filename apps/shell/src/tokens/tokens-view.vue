@@ -49,12 +49,12 @@ function specimen(token: Token): Record<string, string> {
 
 <template>
   <section class="tokens-view" :aria-label="category.name" :data-layout="layout">
-    <section v-for="group of category.groups" :key="group.family" class="group">
+    <section v-for="group of category.groups" :key="group.id" class="group">
       <h2>
         {{ group.family }}<span class="count">{{ group.tokens.length }}</span>
       </h2>
       <ul class="items">
-        <li v-for="token of group.tokens" :key="token.name">
+        <li v-for="token of group.tokens" :key="token.key">
           <a
             class="item"
             :href="hrefOf(token.name)"

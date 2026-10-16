@@ -1579,11 +1579,21 @@ describe('the activity bar', () => {
     expect(infobulles()).toContain('Light theme T')
   })
 
-  test('has no tokens entry without a family', async ({ écran }) => {
+  // Sans token, la vue reste atteignable et dit comment en déclarer (E2).
+  test('guides to the first token when the project has none', async ({ écran }) => {
     expect(écran.wrapper.findAll('.activity-bar .label').map((one) => one.text())).toEqual([
+      'tokens',
       'stories',
       'versions',
     ])
+
+    await clique(écran, 'tokens')
+    expect(window.location.search).toBe('?tokens=color')
+    expect(écran.wrapper.find('.empty h2').text()).toBe('No token found')
+    expect(écran.wrapper.find('.empty pre').text()).toContain('--color-accent: #009488;')
+    expect(écran.wrapper.find('.sidebar .none').text()).toBe('no tokens')
+    expect(écran.wrapper.find('iframe').isVisible()).toBe(false)
+    expect(écran.statut()).toBe('no tokens found')
   })
 
   // Sans story, l'entrée stories ramène à l'adresse nue, et non à une requête vide
@@ -1724,9 +1734,11 @@ describe('the tokens view', () => {
 
   test('says when its category leaves the catalogue, and comes back with it', async () => {
     window.history.replaceState(null, '', '/?tokens=color')
+    // Une autre famille reste : le catalogue a encore des tokens, seule la
+    // catégorie affichée est partie.
     const manifests: Manifest[] = [
       { version: 1, entries: [badge, famille] },
-      { version: 1, entries: [badge] },
+      { version: 1, entries: [badge, jetons] },
       { version: 1, entries: [badge, famille] },
     ]
     vi.stubGlobal(

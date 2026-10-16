@@ -135,7 +135,7 @@ const categoryOf = (id: string) => {
   const entry = families.value.find((one) => one.id === id)
   return entry === undefined
     ? undefined
-    : categories.value.find((one) => one.groups.some((group) => group.family === entry.name))?.name
+    : categories.value.find((one) => one.groups.some((group) => group.id === entry.id))?.name
 }
 
 // Ce que la palette cherche, dans l'ordre du manifeste : les familles y suivent les
@@ -174,6 +174,7 @@ const counter = computed(() =>
 const line = computed(() => {
   if (unread.value !== null) return unread.value
   if (changesOpen.value) return counted(entries.value.length)
+  if (noTokens.value) return 'no tokens found'
   if (tokensAt.value !== null)
     return shownCategory.value
       ? `${shownCategory.value.count} ${shownCategory.value.count === 1 ? 'token' : 'tokens'} ${shownCategory.value.name}`
@@ -273,6 +274,11 @@ import { Badge } from '${'../'.repeat(storiesRoot.value.split('/').length + 1)}s
 
 export default defineStories(Badge)`,
 )
+
+const TOKENS_SNIPPET = `:root {
+  --color-accent: #009488;
+  --space-2: 8px;
+}`
 
 // Sous 1180 px, la colonne des panneaux sort de la grille et s'ouvre par-dessus
 // le canvas, depuis un bouton de la barre d'outils qui en dit le nombre.
@@ -400,7 +406,11 @@ const view = computed<View>(() =>
 
 // Où mène chaque entrée : la story chargée, la catégorie ouverte ou la première,
 // les changements. Sans token, la vue tokens n'a rien à montrer.
-const firstCategory = () => tokensAt.value?.category ?? categories.value[0]?.name ?? null
+// Sans aucun token, la vue tokens reste atteignable : elle dit comment en déclarer.
+const firstCategory = () => tokensAt.value?.category ?? categories.value[0]?.name ?? 'color'
+const noTokens = computed(
+  () => read.value && tokensAt.value !== null && categories.value.length === 0,
+)
 const hrefs = computed<Record<View, string | null>>(() => {
   const tokens = firstCategory()
   return {
@@ -408,7 +418,7 @@ const hrefs = computed<Record<View, string | null>>(() => {
       current.value === null
         ? window.location.pathname
         : placeSearch({ mode: 'entry', id: current.value }),
-    tokens: tokens === null ? null : placeSearch({ mode: 'tokens', category: tokens }),
+    tokens: placeSearch({ mode: 'tokens', category: tokens }),
     versions: placeSearch({ mode: 'changes' }),
   }
 })
@@ -417,7 +427,7 @@ function go(to: View, event: MouseEvent) {
   follow(event, () => {
     if (to === 'versions') openChanges()
     const tokens = firstCategory()
-    if (to === 'tokens' && tokens !== null) openTokens(tokens)
+    if (to === 'tokens') openTokens(tokens)
     if (to !== 'stories') return
     if (current.value !== null) show(current.value, 'push')
     else {
@@ -843,8 +853,19 @@ onMounted(() => {
             </ul>
           </Alert>
 
+          <div v-if="noTokens" class="empty">
+            <EmptyGuide
+              title="No token found"
+              :path="null"
+              rule="Crypte reads the custom properties of the style sheet declared as css in crypte.config.ts, and groups them by category."
+              mapping="src/styles.css  >  tokens / color, space…"
+              :snippet="TOKENS_SNIPPET"
+              note='A dark theme goes under [data-theme="dark"] or prefers-color-scheme: dark, and light-dark() works too.'
+              outcome="The tokens appear, grouped by category."
+            />
+          </div>
           <TokensView
-            v-if="shownCategory"
+            v-else-if="shownCategory"
             :category="shownCategory"
             :theme="theme"
             :selected="tokensAt?.token ?? null"
