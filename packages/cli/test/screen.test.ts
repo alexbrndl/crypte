@@ -1288,6 +1288,35 @@ describe('the changes mode', () => {
   })
 })
 
+// Sous 1180 px, la colonne des panneaux quitte la grille : un bouton l'ouvre
+// par-dessus le canvas, qui garde sa largeur. 1280 reste la mise en page entière.
+describe('the panels below 1180', () => {
+  test('fold behind a button, and open over the canvas', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    const colonne = ecran.page.locator('#panels')
+    const bouton = ecran.page.locator('.panels-toggle')
+    const large = () =>
+      ecran.page.locator('.canvas').evaluate((e) => e.getBoundingClientRect().width)
+    expect(await colonne.isVisible()).toBe(true)
+    expect(await bouton.isVisible()).toBe(false)
+
+    try {
+      await ecran.page.setViewportSize({ width: 1024, height: 900 })
+      await expect.poll(() => colonne.isVisible()).toBe(false)
+      expect(await bouton.isVisible()).toBe(true)
+      const avant = await large()
+
+      await bouton.click()
+      await expect.poll(() => colonne.isVisible()).toBe(true)
+      expect(await large()).toBe(avant)
+      await ecran.page.keyboard.press('Escape')
+      await expect.poll(() => colonne.isVisible()).toBe(false)
+    } finally {
+      await ecran.page.setViewportSize({ width: 1280, height: 720 })
+    }
+  })
+})
+
 // Les raccourcis dans le vrai navigateur, sur la page et non dans la preview.
 describe('the shortcuts', () => {
   test('shows the preview alone until Escape', async ({ ecran }) => {
