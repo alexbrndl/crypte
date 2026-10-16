@@ -1268,10 +1268,10 @@ describe('the tokens page', () => {
     const vue = ecran.page.locator('.tokens-view')
     await expect.poll(() => vue.getAttribute('aria-label')).toBe('color')
     expect(await vue.locator('.item .name').allTextContents()).toEqual([
-      'badge-background',
       'neutral',
-      'text',
       'warning',
+      'text',
+      'badge-background',
     ])
     expect(await vue.locator('.swatch').count()).toBe(4)
   })

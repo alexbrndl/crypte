@@ -67,6 +67,19 @@ interface Ecran {
 // Le montage lance `refresh()`, qui attend `fetch` : deux sauts de microtâche
 // que `nextTick` seul ne couvre pas. Un tour de macrotâche les vide, et Vue rend
 // ensuite. Sans ça, l'arbre était vide dans six cas sur treize.
+// `location.reload` ne se redéfinit pas sous jsdom : la fenêtre de la preview est
+// remplacée le temps du clic.
+async function rechargeAuClic(frame: HTMLIFrameElement, clic: () => Promise<void>) {
+  const reload = vi.fn()
+  Object.defineProperty(frame, 'contentWindow', {
+    configurable: true,
+    value: { location: { reload } },
+  })
+  await clic()
+  Reflect.deleteProperty(frame, 'contentWindow')
+  return reload
+}
+
 const vide = async (wrapper: VueWrapper) => {
   await new Promise((resolve) => setTimeout(resolve, 0))
   await wrapper.vm.$nextTick()
@@ -1713,6 +1726,10 @@ describe('the tokens view', () => {
       écran.wrapper.findAll('.toolbar .trail > span').map((one) => one.text().replace(/\s+/g, ''))
 
     expect(fil()).toEqual(['color'])
+    const recharge = await rechargeAuClic(écran.wrapper.find('iframe').element, () =>
+      écran.wrapper.find('.toolbar .reload').trigger('click'),
+    )
+    expect(recharge).toHaveBeenCalledOnce()
     expect(écran.wrapper.findAll('.toolbar .actions button').map((one) => one.text())).toEqual([
       'Reload',
       'Copy link',
@@ -2470,6 +2487,15 @@ describe('the toolbar of a story', () => {
   const bouton = (écran: Ecran, texte: string) =>
     // Le libellé, sans le raccourci qui le suit.
     écran.wrapper.findAll('.toolbar button').find((one) => one.text().startsWith(texte))!
+
+  // La preview relit le manifeste à son `ready` : la recharger suffit.
+  test('reloads the preview', async ({ écran }) => {
+    const recharge = await rechargeAuClic(écran.wrapper.find('iframe').element, () =>
+      bouton(écran, 'Reload').trigger('click'),
+    )
+
+    expect(recharge).toHaveBeenCalledOnce()
+  })
 
   test('copies the address of the story on display', async ({ écran }) => {
     const écrit = vi.fn(async () => {})
