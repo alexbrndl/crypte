@@ -16,11 +16,14 @@ import {
 } from './tree'
 
 // `component` : la page composant ouverte, par son identifiant ; sinon l'entrée
-// `current`, story ou famille de tokens, est celle qu'on regarde.
+// `current`, story ou famille de tokens, est celle qu'on regarde. `label` titre
+// la colonne et nomme l'arbre, `none` dit qu'il est vide.
 const props = defineProps<{
   entries: (StoryEntry | TokensEntry)[]
   current: string | null
   component: string | null
+  label: string
+  none: string
 }>()
 const emit = defineEmits<{ show: [id: string]; open: [component: string] }>()
 
@@ -137,7 +140,6 @@ const count = (node: Node): number =>
     : 'children' in node
       ? node.children.reduce((n, one) => n + count(one), 0)
       : 0
-const stories = computed(() => props.entries.filter((entry) => entry.type === 'story').length)
 
 // Les guides sont au centre du chevron de chaque ancêtre, à 20, 32, 44 px. Une ligne
 // sélectionnée remplace le guide de son parent par son marqueur, et sa bande part de
@@ -152,8 +154,8 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
 <template>
   <div class="tree">
     <div class="title">
-      <h2>Stories</h2>
-      <span class="meta">{{ stories }}</span>
+      <h2>{{ label }}</h2>
+      <span class="meta">{{ entries.length }}</span>
     </div>
     <ToggleGroupRoot
       v-if="declared.length > 0"
@@ -177,7 +179,7 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
       :model-value="selected"
       selection-behavior="replace"
       class="nodes"
-      aria-label="Stories"
+      :aria-label="label"
       @update:expanded="unfold"
       @update:model-value="pick"
     >
@@ -216,7 +218,7 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
         <span v-if="item.value.kind === 'folder'" class="meta">{{ count(item.value) }}</span>
       </TreeItem>
     </TreeRoot>
-    <p v-if="entries.length === 0" class="none">no story</p>
+    <p v-if="entries.length === 0" class="none">{{ none }}</p>
   </div>
 </template>
 
@@ -228,10 +230,11 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
   min-height: 0;
 }
 
+/* The column-title of the Figma sidebar, 32 px with its taller top. */
 .title {
   display: flex;
   align-items: center;
-  padding: var(--space-1-5) var(--space-3);
+  padding: var(--space-2-5) var(--space-3) var(--space-1-5);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
 }
@@ -247,7 +250,7 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
 }
 
 .meta {
-  color: var(--text-muted);
+  color: var(--text-subtle);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
 }
@@ -318,6 +321,18 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
   font-weight: var(--weight-medium);
 }
 
+.nodes li[data-selected]:hover {
+  color: var(--text-current-hover);
+}
+
+.nodes li[data-selected]:hover .band {
+  background: var(--background-current-hover);
+}
+
+.nodes li[data-selected]:hover .marker {
+  background: var(--accent-hover);
+}
+
 .nodes li[data-dimmed] {
   opacity: 0.4;
 }
@@ -363,7 +378,7 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
 
 .none {
   margin: 0;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-0-5) var(--space-3);
   color: var(--text-muted);
   font-size: var(--text-sm);
 }

@@ -36,15 +36,9 @@ import { CHANGES, type Changes } from './pages/changes'
 import ChangesPage from './pages/changes-page.vue'
 import CommandPalette, { type Action } from './navigation/command-palette.vue'
 import ComponentPage from './pages/component-page.vue'
-import {
-  ArrowDown01Icon,
-  Copy01Icon,
-  FullScreenIcon,
-  Search01Icon,
-  Tick02Icon,
-} from '@hugeicons/core-free-icons'
+import { ArrowDown01Icon, Copy01Icon, FullScreenIcon, Tick02Icon } from '@hugeicons/core-free-icons'
+import ActivityBar, { type View } from './navigation/activity-bar.vue'
 import Icon from './ui/icon.vue'
-import Logo from './ui/logo.vue'
 import StoryTree from './navigation/story-tree.vue'
 import TokensPage from './pages/tokens-page.vue'
 import { useTheme } from './theme/theme'
@@ -153,7 +147,7 @@ async function readChanges() {
   if (run === reading) changes.value = read
 }
 
-// Le compteur du pied de la navigation : rien quand les changements ne se lisent pas.
+// Le compteur de la vue versions : rien quand les changements ne se lisent pas.
 const counter = computed(() =>
   changes.value !== null && 'changes' in changes.value ? changes.value.changes.length : null,
 )
@@ -338,6 +332,43 @@ function openChanges(trace: Trace = 'push') {
   write(placeSearch({ mode: 'changes' }), trace)
 }
 
+// La vue de l'activity bar, déduite de ce qui est affiché : une page composant est
+// de la vue stories, une famille de la vue tokens, les changements de la vue versions.
+const view = computed<View>(() =>
+  changesOpen.value ? 'versions' : family.value !== null ? 'tokens' : 'stories',
+)
+
+// Où mène chaque entrée : la story chargée, la famille ouverte ou la première, les
+// changements. Sans famille, la vue tokens n'a rien à montrer.
+const hrefs = computed<Record<View, string | null>>(() => {
+  const tokens = family.value ?? families.value[0]?.id ?? null
+  return {
+    stories:
+      current.value === null
+        ? window.location.pathname
+        : placeSearch({ mode: 'entry', id: current.value }),
+    tokens: tokens === null ? null : placeSearch({ mode: 'entry', id: tokens }),
+    versions: placeSearch({ mode: 'changes' }),
+  }
+})
+
+function go(to: View, event: MouseEvent) {
+  follow(event, () => {
+    if (to === 'versions') openChanges()
+    const tokens = family.value ?? families.value[0]?.id
+    if (to === 'tokens' && tokens !== undefined) show(tokens, 'push')
+    if (to !== 'stories') return
+    if (current.value !== null) show(current.value, 'push')
+    else {
+      changesOpen.value = false
+      family.value = null
+      component.value = null
+      // Le chemin seul : une adresse vide laisserait la requête en place.
+      write(window.location.pathname, 'push')
+    }
+  })
+}
+
 const copied = ref<'yes' | 'failed' | null>(null)
 let clearing: ReturnType<typeof setTimeout> | undefined
 
@@ -357,13 +388,16 @@ async function copyLink() {
 const palette = ref(false)
 const mac = /Mac|iPhone|iPad/.test(navigator.userAgent)
 const paletteKeys = mac ? '⌘K' : 'Ctrl K'
+const paletteShortcuts = mac ? 'Meta+K /' : 'Control+K /'
 
 // Celles de la barre d'outils et la recherche, quand elles s'appliquent, avec leur
 // raccourci : la palette est l'endroit où ils se lisent.
 const { theme, toggle: toggleTheme } = useTheme()
 
+const themeLabel = computed(() => (theme.value === 'dark' ? 'Light theme' : 'Dark theme'))
+
 const actions = computed<Action[]>(() => [
-  { label: theme.value === 'dark' ? 'Light theme' : 'Dark theme', keys: 'T', run: toggleTheme },
+  { label: themeLabel.value, keys: 'T', run: toggleTheme },
   ...(storyMode.value && displayed.value !== null
     ? [
         { label: 'Copy link', run: () => void copyLink() },
@@ -626,46 +660,32 @@ onMounted(() => {
 
 <template>
   <main :class="{ full: fullScreen }">
-    <nav v-show="!fullScreen" class="column">
-      <div class="card">
-        <header class="brand">
-          <div class="identity">
-            <h1><Logo /></h1>
-            <span v-if="project" class="version">{{ project.version }}</span>
-          </div>
-          <!-- La géométrie d'un champ, la conduite d'un bouton : y taper n'écrit
-               rien, il ouvre la palette, qui cherche partout. -->
-          <button
-            type="button"
-            class="commands"
-            :aria-keyshortcuts="mac ? 'Meta+K /' : 'Control+K /'"
-            @click="palette = true"
-          >
-            <Icon :icon="Search01Icon" />
-            <span>Search or run</span>
-            <kbd>{{ paletteKeys }}</kbd>
-          </button>
-        </header>
+    <div v-show="!fullScreen" class="activity-column">
+      <ActivityBar
+        :current="view"
+        :hrefs="hrefs"
+        :counter="counter"
+        :search-keys="paletteKeys"
+        :search-shortcuts="paletteShortcuts"
+        :theme-label="themeLabel"
+        @go="go"
+        @search="palette = true"
+        @theme="toggleTheme"
+      />
+    </div>
+    <div v-show="!fullScreen" class="nav-column">
+      <div class="sidebar">
         <StoryTree
-          :entries="listed"
+          :entries="view === 'tokens' ? families : entries"
           :current="changesOpen ? null : (family ?? current)"
           :component="component"
+          :label="view === 'tokens' ? 'Tokens' : 'Stories'"
+          :none="view === 'tokens' ? 'no tokens' : 'no story'"
           @show="(id) => show(id, 'push')"
           @open="(id) => open(id)"
         />
       </div>
-      <!-- Une destination, pas une action : sa place est dans la navigation, au pied,
-           et non parmi les boutons qui agissent sur l'entrée affichée. -->
-      <a
-        class="changes-entry"
-        :href="placeSearch({ mode: 'changes' })"
-        :aria-current="changesOpen ? 'page' : undefined"
-        @click="follow($event, () => openChanges())"
-      >
-        Changes
-        <span v-if="counter !== null" class="counter">{{ counter }}</span>
-      </a>
-    </nav>
+    </div>
 
     <div class="workspace">
       <div v-if="storyMode && displayed" class="toolbar">
@@ -866,6 +886,7 @@ onMounted(() => {
       >
         <span class="render" tabindex="0">First render {{ Math.round(firstRender) }} ms</span>
       </Tooltip>
+      <span v-if="project" class="version">Crypte {{ project.version }}</span>
       <ul class="figures">
         <li v-if="project">
           <Tooltip content="The shell, gzipped">
@@ -893,23 +914,26 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Le pied reste en bas, l'arbre défile. */
-.column {
+/* L'activity bar, puis la sidebar et l'espace de travail, chacun posé sur le fond
+   de la page avec 4 px autour. */
+.activity-column {
   box-sizing: border-box;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-  margin: var(--space-1) var(--space-1) 0;
-  padding: var(--space-0-25);
-  border-radius: var(--radius-lg);
-  background: var(--background-sunken);
+  padding: var(--space-1) 0 var(--space-1) var(--space-1);
 }
 
-.card {
+.nav-column {
+  box-sizing: border-box;
+  display: flex;
+  min-height: 0;
+  padding: var(--space-1) var(--space-1) 0;
+}
+
+.sidebar {
   display: flex;
   flex: 1;
   flex-direction: column;
-  min-height: 0;
+  min-width: 0;
   /* A real border, not the inset shadow of the components: the backgrounds of
      its children would cover it. */
   border: var(--stroke-hairline) solid var(--border-light);
@@ -918,79 +942,11 @@ onMounted(() => {
   overflow: hidden;
 }
 
-.brand {
-  box-shadow: inset 0 calc(-1 * var(--stroke-hairline)) 0 var(--border-base);
-}
-
-.identity {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  padding: var(--space-2-5) var(--space-3);
-}
-
-.identity h1 {
-  display: flex;
-  margin: 0;
-  color: var(--text-primary);
-  line-height: 0;
-}
-
-.version {
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
-  font-variant-numeric: tabular-nums;
-}
-
-.commands {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  box-sizing: border-box;
-  width: calc(100% - 2 * var(--space-3));
-  margin: var(--space-1-5) var(--space-3) var(--space-3);
-  padding: var(--space-1-5) var(--space-2);
-  border: 0;
-  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
-  border-radius: var(--radius-sm);
-  background: var(--background-raised);
-  color: var(--text-muted);
-  font: inherit;
-  font-size: var(--text-sm);
-  line-height: var(--leading-sm);
-  text-align: left;
-  cursor: pointer;
-}
-
-.commands:hover {
-  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-strong);
-}
-
-.commands:focus-visible {
-  outline: var(--stroke-focus) solid var(--accent-focus);
-}
-
-.commands span {
-  flex: 1;
-}
-
-.commands kbd {
-  padding: var(--space-0-5) var(--space-1);
-  border: 0;
-  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
-  border-radius: var(--radius-xs);
-  background: var(--background-raised);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
-}
-
-/* La fenêtre entière : la colonne, l'espace de travail, et la barre d'état en bas
-   sur toute la largeur. Chaque zone défile seule. */
+/* La fenêtre entière : l'activity bar, la sidebar, l'espace de travail, et la barre
+   d'état en bas sur toute la largeur. Chaque zone défile seule. */
 main {
   display: grid;
-  grid-template-columns: 264px 1fr;
+  grid-template-columns: 56px 267px 1fr;
   grid-template-rows: minmax(0, 1fr) auto;
   height: 100vh;
   font-family: var(--font-sans);
@@ -1135,38 +1091,6 @@ main.full {
   margin-bottom: var(--space-3);
 }
 
-.changes-entry {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: var(--space-2);
-  padding: var(--space-1-5) var(--space-2);
-  border: 0;
-  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
-  border-radius: var(--radius-sm);
-  background: var(--background-raised);
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-  line-height: var(--leading-sm);
-  text-decoration: none;
-}
-
-.changes-entry[aria-current='page'] {
-  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--accent-base);
-  background: var(--background-current);
-  color: var(--text-current);
-}
-
-.counter {
-  padding: var(--space-0-5) var(--space-1);
-  border-radius: var(--radius-xs);
-  background: var(--accent-base);
-  color: var(--text-inverse);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
-}
-
 /* Le canvas : la story sur une trame de points, comme dans les maquettes. */
 iframe {
   display: block;
@@ -1214,6 +1138,8 @@ iframe {
   align-items: center;
   height: 28px;
   padding: 0 var(--space-3);
+  box-shadow: inset 0 var(--stroke-hairline) 0 var(--border-base);
+  background: var(--background-subtle);
   color: var(--text-muted);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);

@@ -310,21 +310,17 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
   color: var(--text-subtle);
 }
 
-.panel[data-inapplicable] {
-  background: var(--background-base);
-}
-
 .panel[data-inapplicable] .head {
   min-height: 0;
   background: none;
 }
 
 .panel[data-inapplicable] .head .toggle {
-  color: var(--text-muted);
+  color: var(--text-subtle);
 }
 
 .inapplicable {
-  color: var(--text-muted);
+  color: var(--text-subtle);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
   text-align: right;

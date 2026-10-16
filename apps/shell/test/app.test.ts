@@ -58,6 +58,8 @@ interface Ecran {
   noms: () => string[]
   branches: () => string[]
   story: (at: number) => DOMWrapper<Element>
+  // L'entrée de l'activity bar qui porte ce libellé.
+  vue: (label: string) => DOMWrapper<Element>
   écartés: () => string[]
   partielle: () => string | false
 }
@@ -139,6 +141,9 @@ const monte = async (
     branches: () =>
       wrapper.findAll('[role="treeitem"]:not(.story):not(.tokens) .name').map((one) => one.text()),
     story: (at) => wrapper.findAll('[role="treeitem"].story')[at]!,
+    vue: (label) =>
+      wrapper.findAll('.activity-bar .item').find((one) => one.find('.label').text() === label) ??
+      wrapper.find('.activity-bar .absent'),
   }
 }
 
@@ -186,12 +191,17 @@ describe('the shell tree', () => {
     expect(écran.noms()).toEqual(['Par défaut', 'Alerte', 'Par défaut'])
   })
 
-  // Une famille n'a pas de composant : tout son chemin est fait de dossiers.
-  test('puts a tokens family under its folders, apart from the stories', async () => {
+  // Une famille n'a pas de composant : tout son chemin est fait de dossiers. Elle
+  // est de la vue tokens, que l'arbre des stories ne montre pas.
+  test('puts a tokens family under its folders, in the tokens view', async () => {
     const écran = await monte([badge, jetons])
 
     expect(écran.noms()).toEqual(['Par défaut'])
-    expect(écran.branches()).toEqual(['Badge', 'Color'])
+    expect(écran.branches()).toEqual(['Badge'])
+    await écran.vue('tokens').trigger('click')
+    await vide(écran.wrapper)
+    expect(écran.noms()).toEqual([])
+    expect(écran.branches()).toEqual(['Color'])
     expect(
       écran.wrapper.findAll('[role="treeitem"].tokens .name').map((one) => one.text()),
     ).toEqual(['Brand'])
@@ -222,7 +232,7 @@ describe('the shell tree', () => {
   test('says there is no story on an empty catalog', async () => {
     const écran = await monte([])
 
-    expect(écran.wrapper.find('nav p').text()).toBe('no story')
+    expect(écran.wrapper.find('.sidebar p').text()).toBe('no story')
     écran.wrapper.unmount()
   })
 
@@ -908,7 +918,13 @@ describe('the rows of the tree', () => {
       ...entry('checkout/ordersummary--x', 'X', ['checkout', 'OrderSummary'], 'stories/O.tsx'),
     }
     const wrapper = mount(StoryTree, {
-      props: { entries: [plié, badge, jetons], current: plié.id, component: null },
+      props: {
+        entries: [plié, badge, jetons],
+        current: plié.id,
+        component: null,
+        label: 'Stories',
+        none: 'no story',
+      },
     })
 
     expect(gauches(ligne(wrapper, 'checkout'), '.guide')).toEqual([])
@@ -933,7 +949,13 @@ describe('folding out of view', () => {
         .findAll('[role="treeitem"]:not(.story)')
         .find((one) => one.find('.name').text() === nom)!
     const wrapper = mount(StoryTree, {
-      props: { entries: [badge, bouton], current: null, component: null },
+      props: {
+        entries: [badge, bouton],
+        current: null,
+        component: null,
+        label: 'Stories',
+        none: 'no story',
+      },
     })
 
     await branche(wrapper, 'Badge').find('.chevron').trigger('click')
@@ -948,7 +970,13 @@ describe('folding out of view', () => {
   // L'emplacement du chevron est réservé sur une story : vide, il laisse passer le clic.
   test('lets a click on the empty chevron slot of a story choose it', async () => {
     const wrapper = mount(StoryTree, {
-      props: { entries: [badge], current: null, component: null },
+      props: {
+        entries: [badge],
+        current: null,
+        component: null,
+        label: 'Stories',
+        none: 'no story',
+      },
     })
 
     await wrapper.find('[role="treeitem"].story .chevron').trigger('click')
@@ -966,6 +994,8 @@ describe('a filter on what changes underneath', () => {
         entries: [avec(badge, 'stable'), avec(bouton, 'draft')],
         current: null,
         component: null,
+        label: 'Stories',
+        none: 'no story',
       },
     })
     await filtre(wrapper).findAll('button')[1]!.trigger('click')
@@ -1456,7 +1486,9 @@ describe('the tree around a component', () => {
   const stories = (wrapper: VueWrapper) =>
     wrapper.findAll('[role="treeitem"].story .name').map((one) => one.text())
   const arbre = (entries: StoryEntry[]) =>
-    mount(StoryTree, { props: { entries, current: null, component: null } })
+    mount(StoryTree, {
+      props: { entries, current: null, component: null, label: 'Stories', none: 'no story' },
+    })
 
   test('folds a component from its chevron, without opening it', async () => {
     const wrapper = arbre([badge, alerte, bouton])
@@ -1494,6 +1526,66 @@ describe('the tree around a component', () => {
 })
 
 // La page d'une famille de tokens : chaque token dans chaque thème déclaré.
+describe('the activity bar', () => {
+  const marquée = (écran: Ecran) =>
+    écran.wrapper.find('.activity-bar [aria-current="page"] .label').text()
+  const clique = async (écran: Ecran, label: string) => {
+    await écran.vue(label).trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+  }
+
+  test('marks the view on display, and leads back to the story', async () => {
+    const écran = await monte([badge, alerte, jetons])
+    expect(marquée(écran)).toBe('stories')
+
+    await clique(écran, 'tokens')
+    expect(marquée(écran)).toBe('tokens')
+    expect(écran.wrapper.find('.sidebar .title').text()).toBe('Tokens1')
+    await clique(écran, 'versions')
+    expect(marquée(écran)).toBe('versions')
+    expect(window.location.search).toBe('?changes')
+
+    await clique(écran, 'stories')
+    expect(marquée(écran)).toBe('stories')
+    expect(window.location.search).toBe('?id=badge--defaut')
+    expect(écran.wrapper.find('iframe').isVisible()).toBe(true)
+    expect(écran.wrapper.find('.sidebar .title').text()).toBe('Stories2')
+    écran.wrapper.unmount()
+  })
+
+  // Une page composant est de la vue stories : son entrée y ramène la story chargée.
+  test('counts a component page in the stories view', async ({ écran }) => {
+    await écran.wrapper.find('nav.trail a').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(marquée(écran)).toBe('stories')
+
+    await clique(écran, 'stories')
+    expect(écran.wrapper.find('.component-page').exists()).toBe(false)
+    expect(window.location.search).toBe('?id=badge--defaut')
+  })
+
+  test('has no tokens entry without a family', async ({ écran }) => {
+    expect(écran.wrapper.findAll('.activity-bar .label').map((one) => one.text())).toEqual([
+      'stories',
+      'versions',
+    ])
+  })
+
+  // Sans story, l'entrée stories ramène à l'adresse nue, et non à une requête vide
+  // qui laisserait la précédente en place.
+  test('leads home when no story is loaded', async () => {
+    const écran = await monte([jetons])
+    await clique(écran, 'versions')
+    expect(window.location.search).toBe('?changes')
+
+    await clique(écran, 'stories')
+    expect(window.location.search).toBe('')
+    expect(marquée(écran)).toBe('stories')
+    expect(écran.wrapper.find('.sidebar p').text()).toBe('no story')
+    écran.wrapper.unmount()
+  })
+})
+
 describe('the tokens page', () => {
   const famille: TokensEntry = {
     type: 'tokens',
@@ -1516,7 +1608,7 @@ describe('the tokens page', () => {
   const page = (écran: Ecran) => écran.wrapper.find('.tokens-page')
   const feuille = (écran: Ecran) => écran.wrapper.find('[role="treeitem"].tokens')
 
-  test('opens from the tree, without rendering anything in the preview', async () => {
+  test('opens from the activity bar, without rendering anything in the preview', async () => {
     const écran = await monte([badge, famille])
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
     await expect
@@ -1524,7 +1616,7 @@ describe('the tokens page', () => {
       .toEqual({ type: 'render', id: 'badge--defaut', overrides: {} })
     const avant = écran.envoyés.length
 
-    await feuille(écran).trigger('click')
+    await écran.vue('tokens').trigger('click')
     await vide(écran.wrapper)
     await new Promise((resolve) => setTimeout(resolve, 20))
 
@@ -1580,7 +1672,7 @@ describe('the tokens page', () => {
 
   test('follows back and forward between a story and a family', async () => {
     const écran = await monte([badge, famille])
-    await feuille(écran).trigger('click')
+    await écran.vue('tokens').trigger('click')
     await vide(écran.wrapper)
 
     window.history.replaceState(null, '', '/?id=badge--defaut')
@@ -1725,18 +1817,18 @@ describe('the changes mode', () => {
       { kind: 'disappeared', id: 'parti--defaut' },
     ],
   }
-  const entrée = (écran: Ecran) => écran.wrapper.find('nav .changes-entry')
+  const entrée = (écran: Ecran) => écran.vue('versions')
   const page = (écran: Ecran) => écran.wrapper.find('.changes-page')
   const ouvre = async (écran: Ecran) => {
     await entrée(écran).trigger('click', { button: 0 })
     await vide(écran.wrapper)
   }
 
-  test('opens from the foot of the navigation, which counts the changes', async () => {
+  test('opens from the activity bar, which counts the changes', async () => {
     const écran = await monte([badge, alerte, bouton], false, undefined, () => lus)
     const avant = window.history.length
 
-    expect(entrée(écran).find('.counter').text()).toBe('4')
+    expect(entrée(écran).find('.count').text()).toBe('4')
     await ouvre(écran)
 
     expect(page(écran).find('h2').text()).toBe('Changes since the last commit')
@@ -1799,7 +1891,7 @@ describe('the changes mode', () => {
     const écran = await monte([badge], false, undefined, () => ({ changes: [] }))
     await ouvre(écran)
 
-    expect(entrée(écran).find('.counter').text()).toBe('0')
+    expect(entrée(écran).find('.count').text()).toBe('0')
     expect(page(écran).find('.note').text()).toBe('Nothing changed in the catalogue.')
     écran.wrapper.unmount()
   })
@@ -1812,7 +1904,7 @@ describe('the changes mode', () => {
     }))
     await ouvre(écran)
 
-    expect(entrée(écran).find('.counter').exists()).toBe(false)
+    expect(entrée(écran).find('.count').exists()).toBe(false)
     expect(page(écran).find('.note').text()).toBe(
       'The changes cannot be read: the project is not in a Git repository.',
     )
@@ -1858,11 +1950,11 @@ describe('the changes mode', () => {
     const écran = await monte([badge, alerte, bouton], false, undefined, () =>
       réponses.length > 1 ? réponses.shift() : réponses[0],
     )
-    expect(entrée(écran).find('.counter').text()).toBe('0')
+    expect(entrée(écran).find('.count').text()).toBe('0')
 
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
 
-    expect(entrée(écran).find('.counter').text()).toBe('4')
+    expect(entrée(écran).find('.count').text()).toBe('4')
     écran.wrapper.unmount()
   })
 
@@ -1872,14 +1964,14 @@ describe('the changes mode', () => {
     const écran = await monte([badge, alerte, bouton], false, undefined, () =>
       réponses.length > 1 ? réponses.shift() : réponses[0],
     )
-    expect(entrée(écran).find('.counter').text()).toBe('0')
+    expect(entrée(écran).find('.count').text()).toBe('0')
 
     window.dispatchEvent(new Event('focus'))
     await vide(écran.wrapper)
-    expect(entrée(écran).find('.counter').text()).toBe('4')
+    expect(entrée(écran).find('.count').text()).toBe('4')
 
     await ouvre(écran)
-    expect(entrée(écran).find('.counter').text()).toBe('0')
+    expect(entrée(écran).find('.count').text()).toBe('0')
     expect(page(écran).find('.note').text()).toBe('Nothing changed in the catalogue.')
     écran.wrapper.unmount()
   })
@@ -1893,12 +1985,12 @@ describe('the changes mode', () => {
     ]
     const écran = await monte([badge], false, undefined, () => (réponses.shift() ?? (() => ({})))())
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
-    expect(entrée(écran).find('.counter').text()).toBe('0')
+    expect(entrée(écran).find('.count').text()).toBe('0')
 
     lente(lus)
     await vide(écran.wrapper)
 
-    expect(entrée(écran).find('.counter').text()).toBe('0')
+    expect(entrée(écran).find('.count').text()).toBe('0')
     écran.wrapper.unmount()
   })
 })
@@ -2045,12 +2137,12 @@ describe('the toolbar of a story', () => {
     await écran.wrapper.find('[aria-label="Full screen"]').trigger('click')
 
     expect(écran.wrapper.find('main').classes()).toContain('full')
-    expect(écran.wrapper.find('main > nav').isVisible()).toBe(false)
+    expect(écran.wrapper.find('.nav-column').isVisible()).toBe(false)
     expect(écran.wrapper.findComponent(Panels).isVisible()).toBe(false)
 
     // Sur la scène, qui reste : c'est d'ici qu'on le quitte.
     await écran.wrapper.find('[aria-label="Leave full screen"]').trigger('click')
-    expect(écran.wrapper.find('main > nav').isVisible()).toBe(true)
+    expect(écran.wrapper.find('.nav-column').isVisible()).toBe(true)
   })
 
   test('names its shortcuts on its buttons', async ({ écran }) => {
@@ -2059,7 +2151,9 @@ describe('the toolbar of a story', () => {
         .findAll('.stage-tools [aria-keyshortcuts]')
         .map((one) => one.attributes('aria-keyshortcuts')),
     ).toEqual(['f'])
-    expect(écran.wrapper.find('nav .commands').attributes('aria-keyshortcuts')).toBe('Control+K /')
+    expect(écran.wrapper.find('[aria-label="Search or run"]').attributes('aria-keyshortcuts')).toBe(
+      'Control+K /',
+    )
   })
 })
 
@@ -2298,7 +2392,7 @@ describe('leaving full screen without Escape', () => {
     await écran.story(1).trigger('click')
     await vide(écran.wrapper)
     expect(plein()).toBe(false)
-    expect(écran.wrapper.find('main > nav').isVisible()).toBe(true)
+    expect(écran.wrapper.find('.nav-column').isVisible()).toBe(true)
   })
 
   // Sans story affichée, aucune barre ne permettrait d'en sortir.
@@ -2309,7 +2403,7 @@ describe('leaving full screen without Escape', () => {
     await vide(écran.wrapper)
 
     expect(écran.wrapper.find('main').classes()).not.toContain('full')
-    expect(écran.wrapper.find('main > nav').isVisible()).toBe(true)
+    expect(écran.wrapper.find('.nav-column').isVisible()).toBe(true)
     écran.wrapper.unmount()
   })
 
@@ -2354,7 +2448,7 @@ describe('leaving full screen without Escape', () => {
     await vide(wrapper)
 
     expect(wrapper.find('main').classes()).not.toContain('full')
-    expect(wrapper.find('main > nav').isVisible()).toBe(true)
+    expect(wrapper.find('.nav-column').isVisible()).toBe(true)
 
     // Quitté, pas masqué : la story suivante ne le rallume pas.
     await wrapper.find('[role="treeitem"].story').trigger('click')
@@ -2366,8 +2460,8 @@ describe('leaving full screen without Escape', () => {
 })
 
 describe('the version', () => {
-  test('is written beside the logo, once the project is read', async ({ écran }) => {
-    expect(écran.wrapper.find('.identity .version').text()).toBe('1.2.3')
+  test('is written in the status bar, once the project is read', async ({ écran }) => {
+    expect(écran.wrapper.find('.status-bar .version').text()).toBe('Crypte 1.2.3')
   })
 })
 
@@ -2430,6 +2524,8 @@ describe('the command palette', () => {
     await vide(écran.wrapper)
   }
   const ouvre = (écran: Ecran) => touche(écran, { key: 'k', ctrlKey: true })
+  const infobulles = (écran: Ecran) =>
+    écran.wrapper.findAllComponents(Tooltip).map((one) => one.props('content'))
   const dialogue = () => document.querySelector('[role="dialog"]')
   const options = () =>
     [...document.querySelectorAll('[role="dialog"] [role="option"]')].map((one) =>
@@ -2494,8 +2590,9 @@ describe('the command palette', () => {
     const écran = await monte([badge])
 
     try {
-      expect(écran.wrapper.find('nav .commands').text()).toBe('Search or run⌘K')
-      expect(écran.wrapper.find('nav .commands').attributes('aria-keyshortcuts')).toBe('Meta+K /')
+      const recherche = écran.wrapper.find('[aria-label="Search or run"]')
+      expect(recherche.attributes('aria-keyshortcuts')).toBe('Meta+K /')
+      expect(infobulles(écran)).toContain('Search or run: ⌘K')
       await touche(écran, { key: 'k', ctrlKey: true })
       expect(dialogue()).toBeNull()
       await touche(écran, { key: 'k', metaKey: true })
@@ -2505,10 +2602,10 @@ describe('the command palette', () => {
     }
   })
 
-  test('opens from the navigation, its shortcut written on it', async ({ écran }) => {
-    const bouton = écran.wrapper.find('nav .commands')
+  test('opens from the activity bar, its shortcut in its tooltip', async ({ écran }) => {
+    const bouton = écran.wrapper.find('[aria-label="Search or run"]')
 
-    expect(bouton.text()).toBe('Search or runCtrl K')
+    expect(infobulles(écran)).toContain('Search or run: Ctrl K')
     expect(bouton.attributes('aria-keyshortcuts')).toBe('Control+K /')
     await bouton.trigger('click')
     await vide(écran.wrapper)
