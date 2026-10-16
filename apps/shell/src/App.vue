@@ -164,8 +164,9 @@ const changes = ref<Changes | null>(null)
 let reading = 0
 
 // Ce qui est ouvert, sous la clé de sa commande dans la palette, qui le propose
-// parmi les récents une fois quitté : l'endroit où l'on est n'y a rien à faire. Une catégorie de tokens sans token choisi n'y a pas
-// de commande : seule la famille du token choisi entre.
+// parmi les récents une fois quitté, et le tait tant qu'on y est. Une catégorie
+// de tokens sans token choisi n'y a pas de commande : seule la famille du token
+// choisi entre.
 const { visits, remember } = useRecent()
 const here = computed(() => {
   if (changesOpen.value) return 'changes'
@@ -1194,6 +1195,7 @@ onMounted(() => {
       :entries="listed"
       :actions="actions"
       :recent="visits"
+      :here="here"
       @show="(id) => show(id, 'push')"
       @open="(id) => open(id)"
       @changes="openChanges()"

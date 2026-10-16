@@ -3223,52 +3223,48 @@ describe('the command palette', () => {
     expect(écran.wrapper.find('main').classes()).toContain('full')
   })
 
-  // Deux clés se combinent, deux valeurs s'additionnent, et le nom s'y ajoute.
+  // Deux clés se combinent, deux valeurs s'additionnent, et le nom s'y ajoute. Le
+  // statut est celui du composant, ses stories le suivent.
   test('filters by status and by type, combined with a name', async () => {
-    const écran = await monte([avec(badge, 'draft'), avec(alerte, 'stable'), bouton, jetons])
+    const écran = await monte([
+      avec(badge, 'draft'),
+      avec(alerte, 'draft'),
+      avec(bouton, 'stable'),
+      jetons,
+    ])
+    const filtres = ['is: / draft · stable · deprecated', 'type: / story · component · token']
 
     await ouvre(écran)
     // Sans nom tapé, les filtres restent proposés sous les résultats.
     await tape(écran, 'is:draft')
     expect(options()).toEqual([
+      'Badge draft',
       'Badge / Par défaut draft',
-      'is: / draft · stable · deprecated',
-      'type: / story · component · token',
+      'Badge / Alerte draft',
+      ...filtres,
     ])
-    expect(document.querySelector('[role="dialog"] .count')?.textContent).toBe('1 result')
+    expect(document.querySelector('[role="dialog"] .count')?.textContent).toBe('3 results')
 
     await tape(écran, 'is:draft is:stable type:story')
     expect(options()).toEqual([
       'Badge / Par défaut draft',
-      'Badge / Alerte stable',
-      'is: / draft · stable · deprecated',
-      'type: / story · component · token',
+      'Badge / Alerte draft',
+      'Bouton / Par défaut stable',
+      ...filtres,
     ])
 
-    await tape(écran, 'type:component')
-    expect(options()).toEqual([
-      'Badge',
-      'Bouton',
-      'is: / draft · stable · deprecated',
-      'type: / story · component · token',
-    ])
+    await tape(écran, 'is:stable type:component')
+    expect(options()).toEqual(['Bouton stable', ...filtres])
 
     await tape(écran, 'type:token')
-    expect(options()).toEqual([
-      'Color / Brand',
-      'is: / draft · stable · deprecated',
-      'type: / story · component · token',
-    ])
+    expect(options()).toEqual(['Color / Brand', ...filtres])
 
     await tape(écran, 'type:story alerte')
-    expect(options()).toEqual(['Badge / Alerte stable'])
+    expect(options()).toEqual(['Badge / Alerte draft'])
 
     // Une valeur inconnue ne garde rien, et rien de ce qui ne porte pas de statut.
     await tape(écran, 'is:zz')
-    expect(options()).toEqual([
-      'is: / draft · stable · deprecated',
-      'type: / story · component · token',
-    ])
+    expect(options()).toEqual(filtres)
     expect(document.querySelector('[role="dialog"] .count')?.textContent).toBe('0 results')
     écran.wrapper.unmount()
   })
@@ -3324,6 +3320,12 @@ describe('the command palette', () => {
       expect(JSON.parse(localStorage.getItem('crypte:palette:recent')!)).toHaveLength(2)
       await choisit(écran, 'Bouton')
       expect(window.location.search).toBe('?component=bouton')
+      // Revenu sur la page, elle sort des récents tant qu'on y est.
+      await ouvre(écran)
+      expect(options().slice(0, 2)).toEqual([
+        'Badge / Alerte just now',
+        'Badge / Par défaut 6 min ago',
+      ])
     } finally {
       vi.useRealTimers()
     }

@@ -1,10 +1,11 @@
+import { STATUSES } from './tree'
+
 // Les filtres de la palette, `is:` et `type:`, mêlés au nom cherché. Deux clés
 // différentes se combinent, deux valeurs de la même clé s'additionnent :
 // `is:draft is:stable type:story` garde les stories en brouillon ou stables.
 
 export const FILTERS = {
-  // Les statuts de `meta.status` (§4.2).
-  is: ['draft', 'stable', 'deprecated'],
+  is: STATUSES,
   type: ['story', 'component', 'token'],
 } as const
 

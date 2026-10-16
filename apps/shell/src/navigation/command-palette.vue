@@ -36,6 +36,8 @@ const props = defineProps<{
   entries: (StoryEntry | TokensEntry)[]
   actions: Action[]
   recent: Visit[]
+  // La clé de l'endroit affiché, que les récents taisent.
+  here: string | null
 }>()
 const emit = defineEmits<{ show: [id: string]; open: [component: string]; changes: [] }>()
 const open = defineModel<boolean>('open', { required: true })
@@ -57,9 +59,11 @@ const GROUPS = ['Actions', 'Components', 'Stories', 'Tokens', 'Pages']
 
 const installing = ref(false)
 
-// Dans l'ordre du manifeste, comme l'arbre.
+// Dans l'ordre du manifeste, comme l'arbre. Le statut est celui du composant, lu
+// sur sa première story comme le filtre de la sidebar : `meta` se déclare par
+// fichier, et `is:stable` garde ou écarte un composant avec toutes ses stories.
 const commands = computed<Command[]>(() => {
-  const components = new Map<string, string[]>()
+  const components = new Map<string, { path: string[]; status?: string }>()
   const entries: Command[] = []
 
   for (const entry of props.entries) {
@@ -75,16 +79,22 @@ const commands = computed<Command[]>(() => {
       })
       continue
     }
+    const id = componentIdOf(entry.path)
+    if (!components.has(id))
+      components.set(id, {
+        path: entry.path,
+        ...(entry.meta?.status ? { status: entry.meta.status } : {}),
+      })
+    const { status } = components.get(id)!
     entries.push({
       key: entry.id,
       group: 'Stories',
       type: 'story',
       context,
       label: entry.name,
-      ...(entry.meta?.status ? { status: entry.meta.status } : {}),
+      ...(status ? { status } : {}),
       run: () => emit('show', entry.id),
     })
-    components.set(componentIdOf(entry.path), entry.path)
   }
 
   return [
@@ -103,12 +113,13 @@ const commands = computed<Command[]>(() => {
       label: 'Install a plugin…',
       run: () => (installing.value = true),
     },
-    ...[...components].map(([id, path]) => ({
+    ...[...components].map(([id, { path, status }]) => ({
       key: `component:${id}`,
       group: 'Components',
       type: 'component' as const,
       context: path.slice(0, -1).join(' / '),
       label: path.at(-1)!,
+      ...(status ? { status } : {}),
       run: () => emit('open', id),
     })),
     ...entries,
@@ -141,6 +152,7 @@ const kept = computed(() => {
 const recentRows = computed(() =>
   query.value.trim() === ''
     ? props.recent.flatMap((visit) => {
+        if (visit.key === props.here) return []
         const command = commands.value.find((one) => one.key === visit.key)
         return command ? [{ ...command, key: `recent:${visit.key}`, at: visit.at }] : []
       })
@@ -260,7 +272,7 @@ plugins: [plugin()],</code></pre>
               class="filter"
               aria-label="Go to or run"
               placeholder="Search or run"
-              @keydown.tab="tab"
+              @keydown.tab.exact="tab"
             />
             <span class="count">{{ count }}</span>
           </div>
