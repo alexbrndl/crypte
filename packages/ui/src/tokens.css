@@ -156,19 +156,19 @@
   --background-inverse: light-dark(var(--stone-900), var(--stone-50));
   --background-inverse-hover: light-dark(var(--stone-800), var(--stone-200));
   --text-primary: light-dark(var(--stone-900), var(--stone-50));
-  --text-muted: light-dark(var(--stone-500), var(--stone-400));
-  /* Under 4.5:1 on every background: icons, separators and disabled controls
-     only. Text that must be read takes `--text-muted`. */
-  --text-subtle: light-dark(var(--stone-400), var(--stone-600));
+  --text-muted: light-dark(var(--stone-600), var(--stone-300));
+  /* 4.5:1 on base and raised only: text on any other background takes
+     `--text-muted`. */
+  --text-subtle: light-dark(var(--stone-500), var(--stone-400));
   --text-current: light-dark(var(--teal-700), var(--teal-400));
   --text-current-hover: light-dark(var(--teal-800), var(--teal-200));
   --text-inverse: light-dark(var(--base-white), var(--stone-950));
   --border-base: light-dark(var(--stone-300), var(--stone-500));
   --border-strong: light-dark(var(--stone-400), var(--stone-400));
   --border-light: light-dark(var(--stone-200), var(--stone-950));
-  --accent-base: light-dark(var(--teal-600), var(--teal-500));
-  --accent-hover: light-dark(var(--teal-700), var(--teal-400));
-  --accent-focus: light-dark(var(--teal-600), var(--teal-500));
+  --accent-base: light-dark(var(--teal-700), var(--teal-500));
+  --accent-hover: light-dark(var(--teal-800), var(--teal-400));
+  --accent-focus: light-dark(var(--teal-700), var(--teal-500));
   --info-text: light-dark(var(--blue-700), var(--blue-400));
   --info-background: light-dark(var(--blue-50), var(--blue-950));
   --info-border: light-dark(var(--blue-200), var(--blue-900));

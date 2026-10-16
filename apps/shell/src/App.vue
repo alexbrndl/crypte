@@ -1207,11 +1207,6 @@ iframe {
   align-items: center;
   height: 28px;
   padding: 0 var(--space-3);
-  /* The subtle background of the Figma frame, although muted text falls under
-     4.5:1 on it: secondary, by the owner's decision of 15 October 2026. The axe
-     case leaves it out of the contrast rule for that reason. Reopened when the
-     bar carries something a user must read to act, an error or a step to take. */
-  background: var(--background-subtle);
   color: var(--text-muted);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
