@@ -67,6 +67,11 @@ interface Ecran {
 // Le montage lance `refresh()`, qui attend `fetch` : deux sauts de microtâche
 // que `nextTick` seul ne couvre pas. Un tour de macrotâche les vide, et Vue rend
 // ensuite. Sans ça, l'arbre était vide dans six cas sur treize.
+const vide = async (wrapper: VueWrapper) => {
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  await wrapper.vm.$nextTick()
+}
+
 // `location.reload` ne se redéfinit pas sous jsdom : la fenêtre de la preview est
 // remplacée le temps du clic.
 async function rechargeAuClic(frame: HTMLIFrameElement, clic: () => Promise<void>) {
@@ -78,11 +83,6 @@ async function rechargeAuClic(frame: HTMLIFrameElement, clic: () => Promise<void
   await clic()
   Reflect.deleteProperty(frame, 'contentWindow')
   return reload
-}
-
-const vide = async (wrapper: VueWrapper) => {
-  await new Promise((resolve) => setTimeout(resolve, 0))
-  await wrapper.vm.$nextTick()
 }
 
 // Le thème du système, que jsdom ne connaît pas : clair au départ, et chaque
