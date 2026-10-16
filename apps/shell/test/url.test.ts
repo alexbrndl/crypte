@@ -16,6 +16,13 @@ describe('reading an address', () => {
     ['?component=checkout/ordersummary', { mode: 'component', id: 'checkout/ordersummary' }],
     ['?changes', { mode: 'changes' }],
     ['?changes=', { mode: 'changes' }],
+    ['?tokens=color', { mode: 'tokens', category: 'color' }],
+    [
+      '?tokens=color&token=accent-base',
+      { mode: 'tokens', category: 'color', token: 'accent-base' },
+    ],
+    // Un token sans catégorie ne nomme rien, une valeur vide non plus.
+    ['?tokens=color&token=', { mode: 'tokens', category: 'color' }],
   ])('reads %j', (search, place) => {
     expect(readPlace(search)).toEqual(place)
   })
@@ -25,6 +32,8 @@ describe('reading an address', () => {
   test.each([
     '?id=',
     '?component=',
+    '?tokens=',
+    '?token=accent-base',
     '?story=badge--defaut',
     '?ID=badge--defaut',
     '?s=badge--defaut',
@@ -41,6 +50,8 @@ describe('reading an address', () => {
     })
     expect(readPlace('?changes&component=badge')).toEqual({ mode: 'component', id: 'badge' })
     expect(readPlace('?id=&component=badge')).toEqual({ mode: 'component', id: 'badge' })
+    expect(readPlace('?changes&tokens=color')).toEqual({ mode: 'tokens', category: 'color' })
+    expect(readPlace('?tokens=color&component=badge')).toEqual({ mode: 'component', id: 'badge' })
   })
 
   test('ignores what someone else adds to the address', () => {
@@ -60,6 +71,11 @@ describe('writing an address', () => {
     ],
     [{ mode: 'component', id: 'checkout/ordersummary' }, '?component=checkout/ordersummary'],
     [{ mode: 'changes' }, '?changes'],
+    [{ mode: 'tokens', category: 'color' }, '?tokens=color'],
+    [
+      { mode: 'tokens', category: 'color', token: 'accent-base' },
+      '?tokens=color&token=accent-base',
+    ],
     // Un identifiant n'est pas ASCII (§4.3), et une famille de tokens porte
     // l'identifiant que son plugin lui donne : ce qui couperait la requête
     // s'encode.
@@ -80,6 +96,8 @@ describe('writing an address', () => {
       { mode: 'entry', id: 'a&b=c#d e+f' },
       { mode: 'component', id: 'checkout/ordersummary' },
       { mode: 'changes' },
+      { mode: 'tokens', category: 'color' },
+      { mode: 'tokens', category: 'a&b', token: 'c#d e' },
     ]
 
     for (const place of places) expect(readPlace(placeSearch(place))).toEqual(place)

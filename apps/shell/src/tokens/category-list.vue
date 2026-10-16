@@ -1,0 +1,121 @@
+<script setup lang="ts">
+import type { Category } from './categories'
+
+// La sidebar de la vue tokens : une ligne par catégorie, avec son compte, comme
+// la liste plate de la maquette.
+defineProps<{
+  categories: Category[]
+  current: string | null
+  hrefOf: (category: string) => string
+}>()
+const emit = defineEmits<{ pick: [category: string, event: MouseEvent] }>()
+</script>
+
+<template>
+  <div class="categories">
+    <div class="title">
+      <h2>Tokens</h2>
+      <span class="meta">{{ categories.reduce((sum, one) => sum + one.count, 0) }}</span>
+    </div>
+    <p v-if="categories.length === 0" class="none">no tokens</p>
+    <ul aria-label="Tokens">
+      <li v-for="category of categories" :key="category.name">
+        <a
+          :href="hrefOf(category.name)"
+          :aria-current="category.name === current ? 'page' : undefined"
+          @click="emit('pick', category.name, $event)"
+        >
+          <span class="name">{{ category.name }}</span>
+          <span class="meta">{{ category.count }}</span>
+        </a>
+      </li>
+    </ul>
+  </div>
+</template>
+
+<style scoped>
+.categories {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* The column-title of the Figma sidebar, 32 px with its taller top. */
+.title {
+  display: flex;
+  align-items: center;
+  padding: var(--space-2-5) var(--space-3) var(--space-1-5);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+}
+
+.title h2 {
+  flex: 1;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: inherit;
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+}
+
+.meta {
+  color: var(--text-subtle);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+}
+
+ul {
+  flex: 1;
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--space-2) 0;
+  list-style: none;
+}
+
+a {
+  position: relative;
+  display: flex;
+  gap: var(--space-1-5);
+  align-items: center;
+  padding: var(--space-0-5) var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  text-decoration: none;
+}
+
+a:hover {
+  background: var(--background-hover);
+  color: var(--text-primary);
+}
+
+a:focus-visible {
+  outline: var(--stroke-focus) solid var(--accent-focus);
+  outline-offset: calc(-1 * var(--stroke-focus));
+}
+
+/* La ligne courante de l'arbre : la bande, le marqueur et le libellé en accent. */
+a[aria-current='page'] {
+  background: var(--background-current);
+  box-shadow: inset var(--stroke-marker) 0 0 var(--accent-base);
+  color: var(--text-current);
+  font-weight: var(--weight-medium);
+}
+
+a[aria-current='page'] .meta {
+  color: var(--text-current);
+}
+
+.name {
+  flex: 1;
+}
+
+.none {
+  margin: 0;
+  padding: var(--space-0-5) var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+</style>

@@ -193,18 +193,19 @@ describe('the shell tree', () => {
 
   // Une famille n'a pas de composant : tout son chemin est fait de dossiers. Elle
   // est de la vue tokens, que l'arbre des stories ne montre pas.
-  test('puts a tokens family under its folders, in the tokens view', async () => {
+  test('keeps a tokens family out of the tree, for the categories of the tokens view', async () => {
     const écran = await monte([badge, jetons])
 
     expect(écran.noms()).toEqual(['Par défaut'])
     expect(écran.branches()).toEqual(['Badge'])
-    await écran.vue('tokens').trigger('click')
+    await écran.vue('tokens').trigger('click', { button: 0 })
     await vide(écran.wrapper)
-    expect(écran.noms()).toEqual([])
-    expect(écran.branches()).toEqual(['Color'])
+    expect(écran.wrapper.find('[role="tree"]').exists()).toBe(false)
     expect(
-      écran.wrapper.findAll('[role="treeitem"].tokens .name').map((one) => one.text()),
-    ).toEqual(['Brand'])
+      écran.wrapper
+        .findAll('.sidebar li a')
+        .map((one) => `${one.find('.name').text()} ${one.find('.meta').text()}`),
+    ).toEqual(['palette 1'])
     écran.wrapper.unmount()
   })
 
@@ -1600,7 +1601,7 @@ describe('the activity bar', () => {
   })
 })
 
-describe('the tokens page', () => {
+describe('the tokens view', () => {
   const famille: TokensEntry = {
     type: 'tokens',
     id: 'color--brand',
@@ -1619,10 +1620,23 @@ describe('the tokens page', () => {
       night: { type: 'dimension', themes: { dark: { value: '4px' } } },
     },
   }
-  const page = (écran: Ecran) => écran.wrapper.find('.tokens-page')
-  const feuille = (écran: Ecran) => écran.wrapper.find('[role="treeitem"].tokens')
+  const vue = (écran: Ecran) => écran.wrapper.find('.tokens-view')
+  const catégories = (écran: Ecran) =>
+    écran.wrapper
+      .findAll('.sidebar li a')
+      .map((one) => `${one.find('.name').text()} ${one.find('.meta').text()}`)
+  const courante = (écran: Ecran) =>
+    écran.wrapper.find('.sidebar [aria-current="page"] .name').text()
+  const valeurs = (écran: Ecran) =>
+    vue(écran)
+      .findAll('.item')
+      .map((one) => `${one.find('.name').text()} ${one.find('.value').text()}`)
+  const clique = async (écran: Ecran, cible: DOMWrapper<Element>) => {
+    await cible.trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+  }
 
-  test('opens from the activity bar, without rendering anything in the preview', async () => {
+  test('opens on its first category from the activity bar, without rendering anything', async () => {
     const écran = await monte([badge, famille])
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
     await expect
@@ -1630,80 +1644,86 @@ describe('the tokens page', () => {
       .toEqual({ type: 'render', id: 'badge--defaut', overrides: {} })
     const avant = écran.envoyés.length
 
-    await écran.vue('tokens').trigger('click')
-    await vide(écran.wrapper)
+    await clique(écran, écran.vue('tokens'))
     await new Promise((resolve) => setTimeout(resolve, 20))
 
-    expect(page(écran).find('h2').text()).toBe('Brand')
-    expect(window.location.search).toBe('?id=color--brand')
-    expect(feuille(écran).attributes('aria-selected')).toBe('true')
+    // Un alias fait de la famille une famille sémantique, et non une palette ; sa
+    // dimension a sa propre catégorie, du nom de la famille.
+    expect(catégories(écran)).toEqual(['color 1', 'Brand 1'])
+    expect(courante(écran)).toBe('color')
+    expect(vue(écran).attributes('aria-label')).toBe('color')
+    expect(window.location.search).toBe('?tokens=color')
     expect(écran.wrapper.find('iframe').isVisible()).toBe(false)
     expect(écran.envoyés.length).toBe(avant)
+    expect(écran.statut()).toBe('1 token color')
     écran.wrapper.unmount()
   })
 
-  test('shows each token in each theme, its alias chain, and a theme it lacks', async () => {
-    window.history.replaceState(null, '', '/?id=color--brand')
+  // Le thème du shell décide de la valeur montrée, et un thème que la source ne
+  // déclare pas n'emprunte rien à un autre (§4.2).
+  test('shows each value in the theme of the shell, and a theme it lacks', async () => {
+    window.history.replaceState(null, '', '/?tokens=color')
     const écran = await monte([badge, famille])
+    const pastille = () => vue(écran).find('.swatch').element as HTMLElement
 
-    expect(
-      page(écran)
-        .findAll('thead th')
-        .map((one) => one.text()),
-    ).toEqual(['Token', 'light', 'dark'])
-    const lignes = page(écran)
-      .findAll('tbody tr')
-      .map((row) => [
-        row.find('th code').text(),
-        row.find('th .kind').text(),
-        row.find('th .description').exists() ? row.find('th .description').text() : null,
-        ...row.findAll('td').map((cell) => cell.text()),
-      ])
-    expect(lignes).toEqual([
-      [
-        'primary',
-        'color',
-        'Filled buttons only.',
-        '#4fe0a0',
-        '#1f5fd6 via color-blue → color-cobalt',
-      ],
-      ['night', 'dimension', null, 'not declared', '4px'],
-    ])
-    écran.wrapper.unmount()
-  })
-
-  // `background-color` et pas `background` : une valeur en `url(…)` n'y charge rien.
-  test('draws a swatch for a color, and none for another kind', async () => {
-    window.history.replaceState(null, '', '/?id=color--brand')
-    const écran = await monte([famille])
-    const pastilles = page(écran).findAll('.swatch')
-
-    expect(pastilles).toHaveLength(2)
-    expect((pastilles[0]!.element as HTMLElement).style.backgroundColor).toBe('rgb(79, 224, 160)')
-    expect((pastilles[0]!.element as HTMLElement).style.backgroundImage).toBe('')
-    écran.wrapper.unmount()
-  })
-
-  test('follows back and forward between a story and a family', async () => {
-    const écran = await monte([badge, famille])
-    await écran.vue('tokens').trigger('click')
+    expect(valeurs(écran)).toEqual(['Brand-primary #4fe0a0'])
+    expect(pastille().style.backgroundColor).toBe('rgb(79, 224, 160)')
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 't', bubbles: true }))
     await vide(écran.wrapper)
+    expect(valeurs(écran)).toEqual(['Brand-primary #1f5fd6'])
+    expect(pastille().style.backgroundColor).toBe('rgb(31, 95, 214)')
+
+    await clique(écran, écran.wrapper.findAll('.sidebar li a')[1]!)
+    expect(valeurs(écran)).toEqual(['Brand-night 4px'])
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 't', bubbles: true }))
+    await vide(écran.wrapper)
+    expect(valeurs(écran)).toEqual(['Brand-night not declared'])
+    écran.wrapper.unmount()
+  })
+
+  test('selects a token under its own address', async () => {
+    window.history.replaceState(null, '', '/?tokens=color')
+    const écran = await monte([badge, famille])
+    const avant = window.history.length
+
+    await clique(écran, vue(écran).find('.item'))
+    expect(window.location.search).toBe('?tokens=color&token=Brand-primary')
+    expect(window.history.length).toBe(avant + 1)
+    expect(vue(écran).find('.item').attributes('aria-current')).toBe('true')
+    écran.wrapper.unmount()
+  })
+
+  // `?id=` nomme encore une famille (§4.3) : un lien collé avant la vue tokens
+  // ouvre la catégorie où elle commence.
+  test('opens the category of a family named by an older address', async () => {
+    window.history.replaceState(null, '', '/?id=color--brand')
+    const écran = await monte([badge, famille])
+
+    expect(courante(écran)).toBe('color')
+    expect(écran.wrapper.find('.stale').exists()).toBe(false)
+    écran.wrapper.unmount()
+  })
+
+  test('follows back and forward between a story and a token', async () => {
+    const écran = await monte([badge, famille])
+    await clique(écran, écran.vue('tokens'))
 
     window.history.replaceState(null, '', '/?id=badge--defaut')
     window.dispatchEvent(new PopStateEvent('popstate'))
     await vide(écran.wrapper)
-    expect(page(écran).exists()).toBe(false)
+    expect(vue(écran).exists()).toBe(false)
     expect(écran.wrapper.find('iframe').isVisible()).toBe(true)
 
-    window.history.replaceState(null, '', '/?id=color--brand')
+    window.history.replaceState(null, '', '/?tokens=Brand&token=Brand-night')
     window.dispatchEvent(new PopStateEvent('popstate'))
     await vide(écran.wrapper)
-    expect(page(écran).find('h2').text()).toBe('Brand')
+    expect(courante(écran)).toBe('Brand')
+    expect(vue(écran).find('[aria-current="true"] .name').text()).toBe('Brand-night')
     écran.wrapper.unmount()
   })
 
-  test('says when its family leaves the catalogue, and comes back with it', async () => {
-    window.history.replaceState(null, '', '/?id=color--brand')
+  test('says when its category leaves the catalogue, and comes back with it', async () => {
+    window.history.replaceState(null, '', '/?tokens=color')
     const manifests: Manifest[] = [
       { version: 1, entries: [badge, famille] },
       { version: 1, entries: [badge] },
@@ -1742,12 +1762,12 @@ describe('the tokens page', () => {
     }
 
     await ready()
-    expect(wrapper.find('.tokens-page').exists()).toBe(false)
+    expect(wrapper.find('.tokens-view').exists()).toBe(false)
     expect(wrapper.findAll('p').at(-1)?.text()).toBe('the tokens on display are gone')
-    expect(window.location.search).toBe('?id=color--brand')
+    expect(window.location.search).toBe('?tokens=color')
 
     await ready()
-    expect(wrapper.find('.tokens-page h2').text()).toBe('Brand')
+    expect(wrapper.find('.tokens-view').attributes('aria-label')).toBe('color')
     wrapper.unmount()
   })
 })
@@ -1762,7 +1782,7 @@ describe('the status line under a page', () => {
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
     await écran.répond({ type: 'rendered', id: 'badge--defaut', durationMs: 1.2 } as PreviewMessage)
 
-    expect(écran.statut()).toBe('2 stories')
+    expect(écran.statut()).toBe('1 token palette')
 
     window.history.replaceState(null, '', '/?component=badge')
     window.dispatchEvent(new PopStateEvent('popstate'))
@@ -1810,8 +1830,8 @@ describe('the status line under a page', () => {
     )
     await vide(wrapper)
 
-    expect(wrapper.find('.tokens-page h2').text()).toBe('Brand')
-    expect(wrapper.findAll('p').at(-1)?.text()).toBe('1 story')
+    expect(wrapper.find('.tokens-view').attributes('aria-label')).toBe('palette')
+    expect(wrapper.findAll('p').at(-1)?.text()).toBe('1 token palette')
     wrapper.unmount()
   })
 })
@@ -2801,8 +2821,8 @@ describe('the command palette', () => {
     expect(groupes()).toEqual(['Actions', 'Components', 'Stories', 'Tokens', 'Pages'])
     await choisit(écran, 'Color / Brand')
 
-    expect(window.location.search).toBe('?id=color--brand')
-    expect(écran.wrapper.find('.tokens-page').exists()).toBe(true)
+    expect(window.location.search).toBe('?tokens=palette')
+    expect(écran.wrapper.find('.tokens-view').exists()).toBe(true)
     écran.wrapper.unmount()
   })
 
