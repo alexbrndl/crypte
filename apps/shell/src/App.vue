@@ -241,6 +241,15 @@ const fullScreen = computed(() => full.value && storyMode.value)
 const ZOOMS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]
 const zoom = ref(1)
 
+// Ouvert, le menu se pose sur le niveau courant plutôt que sur le premier : un
+// lecteur d'écran annonce ce qui est choisi. Après le focus que Reka pose
+// lui-même sur le premier article.
+function focusLevel() {
+  setTimeout(() =>
+    document.querySelector<HTMLElement>('.shell-menu [aria-checked="true"]')?.focus(),
+  )
+}
+
 function zoomBy(step: number) {
   const at = ZOOMS.indexOf(zoom.value) + step
   zoom.value = ZOOMS[Math.min(Math.max(at, 0), ZOOMS.length - 1)]!
@@ -740,7 +749,10 @@ onMounted(() => {
             <!-- Sur la scène, ce qui agit sur elle : l'échelle et le plein écran,
                  qu'on quitte d'ici puisque la barre d'outils part avec lui. -->
             <div v-if="displayed" class="stage-tools">
-              <DropdownMenuRoot>
+              <!-- Non modal, et téléporté dans les outils de la scène : modal, Reka
+                   masquait tout le shell aux lecteurs d'écran, et dans le corps de la page
+                   le menu était hors de tout repère. Mesuré par le cas axe. -->
+              <DropdownMenuRoot :modal="false" @update:open="(open) => open && focusLevel()">
                 <!-- Pas de tooltip : le menu rend le focus à son bouton, en focus visible,
                      et le tooltip revenait après chaque choix. Ses touches sont dites au
                      pied du menu. -->
@@ -750,8 +762,13 @@ onMounted(() => {
                     <Icon name="arrow-down-01" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuPortal>
-                  <DropdownMenuContent class="shell-menu" align="end" :side-offset="4">
+                <DropdownMenuPortal to=".stage-tools">
+                  <DropdownMenuContent
+                    class="shell-menu"
+                    align="end"
+                    :side-offset="4"
+                    aria-describedby="zoom-keys"
+                  >
                     <DropdownMenuRadioGroup
                       :model-value="String(zoom)"
                       @update:model-value="(level) => (zoom = Number(level))"
@@ -769,7 +786,9 @@ onMounted(() => {
                       </DropdownMenuRadioItem>
                     </DropdownMenuRadioGroup>
                     <DropdownMenuSeparator class="shell-menu-separator" />
-                    <p class="shell-menu-hint">
+                    <!-- Hors de l'arbre ARIA, où un paragraphe n'est pas un enfant valide
+                         d'un menu : il le décrit par son id. -->
+                    <p id="zoom-keys" class="shell-menu-hint" aria-hidden="true">
                       <kbd>+</kbd> <kbd>-</kbd> to step, <kbd>0</kbd> for 100 %
                     </p>
                   </DropdownMenuContent>

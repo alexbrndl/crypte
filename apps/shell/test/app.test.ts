@@ -2168,6 +2168,19 @@ describe('the zoom', () => {
     expect(écran.wrapper.find('.stage-tools .level').attributes('aria-label')).toBe('Zoom, 100 %')
   })
 
+  // Ouvert, le menu se pose sur le niveau courant : un lecteur d'écran annonce
+  // ce qui est choisi, pas le premier article.
+  test('opens its menu on the level in use', async ({ écran }) => {
+    await frappe(écran, '+')
+    await ouvre(écran)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(document.activeElement?.textContent?.trim()).toBe('125 %')
+    expect(document.querySelector('[role="menu"]')?.getAttribute('aria-describedby')).toBe(
+      'zoom-keys',
+    )
+  })
+
   // Une page rechargée repart à 1 : chaque `ready` repose l'échelle.
   test('is set again on the page of each ready', async ({ écran }) => {
     const style = racine(écran)
