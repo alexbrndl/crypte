@@ -275,3 +275,113 @@ describe('a var() that is not the whole value', () => {
     })
   })
 })
+
+// `light-dark()` porte deux thèmes dans une déclaration : lu comme un littéral, il
+// rendait `unknown` et un seul thème `default` sur toute la feuille de @crypte/ui.
+describe('a light-dark() value', () => {
+  it('gives the light and dark themes, each with its own kind', () => {
+    const entries = read(':root { --text-primary: light-dark(#1c1917, #fafaf9) }')
+
+    expect(family(entries, 'text')).toEqual({
+      primary: {
+        type: 'color',
+        themes: { light: { value: '#1c1917' }, dark: { value: '#fafaf9' } },
+      },
+    })
+  })
+
+  it('resolves each half after the chain that led to it', () => {
+    const entries = read(`:root {
+      --stone-50: #fafaf9;
+      --stone-900: #1c1917;
+      --text-base: light-dark(var(--stone-900), var(--stone-50));
+      --text-primary: var(--text-base);
+    }`)
+
+    expect(family(entries, 'text')?.primary).toEqual({
+      type: 'color',
+      themes: {
+        light: { value: '#1c1917', alias: ['text-base', 'stone-900'] },
+        dark: { value: '#fafaf9', alias: ['text-base', 'stone-50'] },
+      },
+    })
+  })
+
+  // `--status-draft` de @crypte/ui mène par `--warning-solid` à une autre paire.
+  it('takes the same half again when a half leads to another pair', () => {
+    const entries = read(`:root {
+      --a: light-dark(#111111, #eeeeee);
+      --b: light-dark(var(--a), var(--a));
+    }`)
+
+    expect(family(entries, 'b')?.b).toEqual({
+      type: 'color',
+      themes: {
+        light: { value: '#111111', alias: ['a'] },
+        dark: { value: '#eeeeee', alias: ['a'] },
+      },
+    })
+  })
+
+  it('stops on a pair that comes back to itself', () => {
+    const entries = read(':root { --a: light-dark(var(--a), #eeeeee) }')
+
+    expect(family(entries, 'a')?.a?.themes.dark).toEqual({ value: '#eeeeee' })
+    expect(family(entries, 'a')?.a?.themes.light?.value).toBe('light-dark(var(--a), #eeeeee)')
+  })
+
+  // Le cas courant : le thème sombre redéfinit une primitive, pas le token. Sa
+  // moitié se résout dans le thème replié, et non dans le défaut.
+  it('resolves the dark half in a dark theme that redefines a primitive', () => {
+    const entries =
+      read(`:root { --text-primary: light-dark(var(--stone-900), var(--stone-50)); --stone-50: #fafaf9; --stone-900: #1c1917 }
+      [data-theme="light"] { --stone-900: #000000 }
+      [data-theme="dark"] { --stone-50: #222222 }`)
+
+    expect(family(entries, 'text')?.primary?.themes).toEqual({
+      light: { value: '#000000', alias: ['stone-900'] },
+      dark: { value: '#222222', alias: ['stone-50'] },
+    })
+  })
+
+  it('lets a declared dark theme win over the dark half', () => {
+    const entries = read(`:root { --text-primary: light-dark(#111111, #eeeeee) }
+      [data-theme="dark"] { --text-primary: #ffffff }`)
+
+    expect(family(entries, 'text')?.primary?.themes).toEqual({
+      light: { value: '#111111' },
+      dark: { value: '#ffffff' },
+    })
+  })
+
+  it('keeps the value as written in a theme that is neither light nor dark', () => {
+    const entries = read('[data-theme="brand"] { --text-primary: light-dark(#111111, #eeeeee) }')
+
+    expect(family(entries, 'text')?.primary).toEqual({
+      type: 'unknown',
+      themes: { brand: { value: 'light-dark(#111111, #eeeeee)' } },
+    })
+  })
+
+  it.each([
+    'light-dark(#111111)',
+    'light-dark(#111111, #222222, #333333)',
+    'light-dark(#111111, #222222) #333333',
+    'light-dark(#111111, #222222) mix(#333333)',
+    'light-dark(#111111, )',
+    'light-dark(rgb(1, 2, 3), #222222',
+  ])('keeps %s as written, not one whole pair', (written) => {
+    const entries = read(`:root { --text-primary: ${written} }`)
+
+    expect(family(entries, 'text')?.primary?.themes).toEqual({ default: { value: written } })
+  })
+
+  it('keeps commas nested in a half', () => {
+    const entries = read(':root { --text-primary: light-dark(rgb(1, 2, 3), rgb(4, 5, 6)) }')
+
+    expect(family(entries, 'text')?.primary?.themes).toEqual({
+      light: { value: 'rgb(1, 2, 3)' },
+      dark: { value: 'rgb(4, 5, 6)' },
+    })
+  })
+})

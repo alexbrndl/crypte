@@ -87,8 +87,10 @@ function entriesOf(ctx: NodeContext, options: TokensOptions): TokensEntry[] {
       if (raw === undefined) continue
 
       const resolved = resolve(raw, values)
-      if (value.type === 'unknown') value.type = kindOf(resolved.value)
-      value.themes[theme] = resolved
+      for (const [into, read] of byScheme(theme, resolved, values)) {
+        if (value.type === 'unknown') value.type = kindOf(read.value)
+        value.themes[into] = read
+      }
     }
 
     tokens.set(key, value)
@@ -104,6 +106,76 @@ function entriesOf(ctx: NodeContext, options: TokensOptions): TokensEntry[] {
       tokens: Object.fromEntries(tokens),
     }))
     .sort((one, other) => one.id.localeCompare(other.id, 'en'))
+}
+
+// A `light-dark()` value holds two themes in one declaration: written in the
+// default theme it gives `light` and `dark`, and a `light` or `dark` theme keeps
+// its own half. Any other theme keeps the value as written, there being no half
+// to pick. Each half resolves on its own, after the chain that led to it.
+function byScheme(
+  theme: string,
+  resolved: TokenInTheme,
+  values: Map<string, string>,
+): [string, TokenInTheme][] {
+  const halves = lightDarkOf(resolved.value)
+  if (halves === undefined) return [[theme, resolved]]
+
+  const wanted: [string, string][] =
+    theme === DEFAULT_THEME
+      ? [
+          ['light', halves[0]],
+          ['dark', halves[1]],
+        ]
+      : theme === 'light'
+        ? [[theme, halves[0]]]
+        : theme === 'dark'
+          ? [[theme, halves[1]]]
+          : []
+  if (wanted.length === 0) return [[theme, resolved]]
+
+  // A half can lead to another `light-dark()`, as `--status-draft` does through
+  // `--warning-solid` in @crypte/ui: the same half is taken again, until a value
+  // is no pair or comes back, which a cycle does.
+  return wanted.map(([into, half]) => {
+    const side = into === 'light' ? 0 : 1
+    const alias = [...(resolved.alias ?? [])]
+    const seen = new Set<string>()
+    let inner = resolve(half, values)
+    alias.push(...(inner.alias ?? []))
+
+    for (let pair = lightDarkOf(inner.value); pair !== undefined; pair = lightDarkOf(inner.value)) {
+      if (seen.has(inner.value)) break
+      seen.add(inner.value)
+      inner = resolve(pair[side], values)
+      alias.push(...(inner.alias ?? []))
+    }
+
+    return [into, alias.length === 0 ? { value: inner.value } : { value: inner.value, alias }]
+  })
+}
+
+// The two halves of a value that is **wholly** one `light-dark(a, b)`: balanced,
+// one comma at its own depth, nothing after the closing parenthesis.
+function lightDarkOf(value: string): [string, string] | undefined {
+  const open = 'light-dark('
+  if (!value.startsWith(open) || !value.endsWith(')')) return undefined
+
+  const inside = value.slice(open.length, -1)
+  const commas: number[] = []
+  let depth = 0
+
+  for (let at = 0; at < inside.length; at += 1) {
+    if (inside[at] === '(') depth += 1
+    else if (inside[at] === ')') depth -= 1
+    else if (inside[at] === ',' && depth === 0) commas.push(at)
+    if (depth < 0) return undefined
+  }
+  if (depth !== 0 || commas.length !== 1) return undefined
+
+  const light = inside.slice(0, commas[0]).trim()
+  const dark = inside.slice(commas[0]! + 1).trim()
+
+  return light === '' || dark === '' ? undefined : [light, dark]
 }
 
 // `--color-brand-primary` gives the `color` family and the `brand-primary` key.
