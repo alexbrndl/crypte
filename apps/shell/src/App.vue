@@ -870,7 +870,7 @@ onMounted(() => {
                   </DropdownMenuContent>
                 </DropdownMenuPortal>
               </DropdownMenuRoot>
-              <Tooltip :content="full ? 'Leave full screen: F or Escape' : 'Full screen: F'">
+              <Tooltip :content="full ? 'Leave full screen, or Escape' : 'Full screen'" keys="F">
                 <Button
                   class="square"
                   :aria-label="full ? 'Leave full screen' : 'Full screen'"
@@ -1328,7 +1328,12 @@ iframe {
   line-height: var(--leading-xs);
 }
 
+/* The keycap of the Figma file. */
 .shell-menu-hint kbd {
+  padding: var(--space-0-5) var(--space-1);
+  border-radius: var(--radius-xs);
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
+  background: var(--background-subtle);
   font-family: var(--font-mono);
 }
 

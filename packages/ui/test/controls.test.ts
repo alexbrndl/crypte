@@ -155,9 +155,9 @@ describe('Checkbox', () => {
 // Au survol, le déclencheur portant le lien vers son texte. Au focus clavier
 // seulement, ce que jsdom ne sait pas dire : jugé dans le navigateur.
 describe('Tooltip', () => {
-  it('shows its content on hover, described by it', async () => {
+  it('shows its content and its keys on hover, described by them', async () => {
     const wrapper = mount(Tooltip, {
-      props: { content: 'Full screen: F' },
+      props: { content: 'Full screen', keys: 'F' },
       slots: { default: '<button>plein écran</button>' },
       attachTo: document.body,
     })
@@ -170,8 +170,29 @@ describe('Tooltip', () => {
     await nextTick()
     const bulle = document.querySelector('[role="tooltip"]')
 
-    expect(bulle?.textContent).toBe('Full screen: F')
+    expect(bulle?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Full screen F')
+    expect(document.querySelector('.crypte-tooltip-keys')?.textContent).toBe('F')
     expect(wrapper.get('button').attributes('aria-describedby')).toBe(bulle?.id)
+    wrapper.unmount()
+  })
+
+  // Sans raccourci, ni touche ni espace : le texte lu est le contenu seul.
+  it('draws no key and adds nothing to its content without keys', async () => {
+    const wrapper = mount(Tooltip, {
+      props: { content: 'The shell, gzipped' },
+      slots: { default: '<button>poids</button>' },
+      attachTo: document.body,
+    })
+    wrapper
+      .get('button')
+      .element.dispatchEvent(
+        new PointerEvent('pointermove', { bubbles: true, pointerType: 'mouse' }),
+      )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    await nextTick()
+
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toBe('The shell, gzipped')
+    expect(document.querySelector('.crypte-tooltip-keys')).toBeNull()
     wrapper.unmount()
   })
 })

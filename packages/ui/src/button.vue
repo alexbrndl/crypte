@@ -81,7 +81,7 @@ withDefaults(defineProps<{ variant?: 'outline' | 'secondary' | 'ghost' }>(), {
 
 .button[data-variant='outline'] :slotted(kbd) {
   box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
-  background: var(--background-raised);
+  background: var(--background-subtle);
   color: var(--text-muted);
 }
 

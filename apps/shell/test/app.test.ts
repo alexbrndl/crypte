@@ -1566,14 +1566,16 @@ describe('the activity bar', () => {
 
   test('switches the theme from its button, which names the other theme', async ({ écran }) => {
     const infobulles = () =>
-      écran.wrapper.findAllComponents(Tooltip).map((one) => one.props('content'))
-    expect(infobulles()).toContain('Dark theme: T')
+      écran.wrapper
+        .findAllComponents(Tooltip)
+        .map((one) => [one.props('content'), one.props('keys')].filter(Boolean).join(' '))
+    expect(infobulles()).toContain('Dark theme T')
 
     await écran.wrapper.find('[aria-label="Dark theme"]').trigger('click')
     await vide(écran.wrapper)
     expect(document.documentElement.dataset.theme).toBe('dark')
     expect(écran.wrapper.find('[aria-label="Light theme"]').exists()).toBe(true)
-    expect(infobulles()).toContain('Light theme: T')
+    expect(infobulles()).toContain('Light theme T')
   })
 
   test('has no tokens entry without a family', async ({ écran }) => {
@@ -2631,7 +2633,9 @@ describe('the command palette', () => {
   }
   const ouvre = (écran: Ecran) => touche(écran, { key: 'k', ctrlKey: true })
   const infobulles = (écran: Ecran) =>
-    écran.wrapper.findAllComponents(Tooltip).map((one) => one.props('content'))
+    écran.wrapper
+      .findAllComponents(Tooltip)
+      .map((one) => [one.props('content'), one.props('keys')].filter(Boolean).join(' '))
   const dialogue = () => document.querySelector('[role="dialog"]')
   const options = () =>
     [...document.querySelectorAll('[role="dialog"] [role="option"]')].map((one) =>
@@ -2698,7 +2702,7 @@ describe('the command palette', () => {
     try {
       const recherche = écran.wrapper.find('[aria-label="Search or run"]')
       expect(recherche.attributes('aria-keyshortcuts')).toBe('Meta+K /')
-      expect(infobulles(écran)).toContain('Search or run: ⌘K')
+      expect(infobulles(écran)).toContain('Search or run ⌘K')
       await touche(écran, { key: 'k', ctrlKey: true })
       expect(dialogue()).toBeNull()
       await touche(écran, { key: 'k', metaKey: true })
@@ -2711,7 +2715,7 @@ describe('the command palette', () => {
   test('opens from the activity bar, its shortcut in its tooltip', async ({ écran }) => {
     const bouton = écran.wrapper.find('[aria-label="Search or run"]')
 
-    expect(infobulles(écran)).toContain('Search or run: Ctrl K')
+    expect(infobulles(écran)).toContain('Search or run Ctrl K')
     expect(bouton.attributes('aria-keyshortcuts')).toBe('Control+K /')
     await bouton.trigger('click')
     await vide(écran.wrapper)
