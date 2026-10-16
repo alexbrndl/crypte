@@ -9,7 +9,7 @@ import type {
 import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test as base, vi } from 'vitest'
 import App from '../src/App.vue'
-import { Tooltip } from '@crypte/ui'
+import { Select, Tooltip } from '@crypte/ui'
 import Panels from '../src/panels/panels.vue'
 import StoryTree from '../src/navigation/story-tree.vue'
 
@@ -111,7 +111,12 @@ const monte = async (
       if (url.startsWith('/@crypte/changes.json'))
         return { json: async () => changements(url) } as Response
       if (url === '/@crypte/versions.json')
-        return { json: async () => ({ branch: 'main', tags: [] }) } as Response
+        return {
+          json: async () => ({
+            branch: 'main',
+            tags: [{ name: 'v1.0.0', date: '2026-01-01T00:00:00.000Z' }],
+          }),
+        } as Response
       if (url === '/@crypte/project.json') return { json: async () => projet() } as Response
       if (échoue) throw new Error('Unexpected end of JSON input')
 
@@ -2054,6 +2059,111 @@ describe('the versions view', () => {
     await vide(écran.wrapper)
     expect(window.location.search).toBe('?changes&before=2026-09-16')
     expect(lues.at(-1)).toBe('/@crypte/changes.json?before=2026-09-16')
+    écran.wrapper.unmount()
+  })
+
+  // Le menu : le dernier commit, la branche par défaut, deux périodes et chaque tag
+  // que le CLI liste. Un choix entre dans l'adresse et dans la requête.
+  test('starts from a point of its menu, the default branch, a period or a tag', async () => {
+    const lues: string[] = []
+    const écran = await monte([badge], false, undefined, (url) => (lues.push(url), lus))
+    await clique(écran, entrée(écran))
+    const menu = écran.wrapper.find('.sidebar').findComponent(Select)
+
+    expect(menu.props('options').map((one: { label: string }) => one.label)).toEqual([
+      'Last commit',
+      'main',
+      'Last 7 days',
+      'Last 30 days',
+      'v1.0.0 · 2026-01-01',
+    ])
+    menu.vm.$emit('update:modelValue', 'ref:v1.0.0')
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?changes&from=v1.0.0')
+    expect(lues.at(-1)).toBe('/@crypte/changes.json?from=v1.0.0')
+
+    const semaine = menu.props('options')[2]!.value as string
+    menu.vm.$emit('update:modelValue', semaine)
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe(`?changes&before=${semaine.slice(7)}`)
+
+    menu.vm.$emit('update:modelValue', 'ref:HEAD')
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?changes')
+    expect(lues.at(-1)).toBe('/@crypte/changes.json')
+    écran.wrapper.unmount()
+  })
+
+  // Quittée, la vue oublie son point : l'entrée mène au dernier commit, et son
+  // compteur compte depuis lui.
+  test('forgets where it started once left, the counter counting from the last commit', async () => {
+    const écran = await monte([badge, alerte, bouton, jetons], false, undefined, (url) =>
+      url.includes('from=') ? lus : { ...lus, changes: [], tokens: [] },
+    )
+    await clique(écran, entrée(écran))
+    const champ = écran.wrapper.find('.sidebar input')
+    await champ.setValue('v1')
+    await champ.trigger('keydown', { key: 'Enter' })
+    await vide(écran.wrapper)
+    expect(entrée(écran).find('.count').text()).toBe('5')
+
+    await clique(écran, écran.vue('stories'))
+    expect(entrée(écran).attributes('href')).toBe('?changes')
+    expect(entrée(écran).find('.count').text()).toBe('0')
+    écran.wrapper.unmount()
+  })
+
+  // Une date dite « before 2026-09-16 » par le CLI se lit comme la date seule, et un
+  // tag qui commence comme une date reste un tag.
+  test('says a date as itself, and reads a tag that starts like one as a revision', async () => {
+    const lues: string[] = []
+    const écran = await monte([badge], false, undefined, (url) => {
+      lues.push(url)
+      return {
+        ...lus,
+        changes: [],
+        tokens: [],
+        from: { ref: 'before 2026-09-16', commit: '1234567' },
+      }
+    })
+    await clique(écran, entrée(écran))
+
+    expect(vue(écran).find('h2').text()).toBe('What changed since 2026-09-16')
+    expect(écran.statut()).toBe('0 differences since 2026-09-16')
+    const champ = écran.wrapper.find('.sidebar input')
+    await champ.setValue('2026-09-16-hotfix')
+    await champ.trigger('keydown', { key: 'Enter' })
+    await vide(écran.wrapper)
+    expect(lues.at(-1)).toBe('/@crypte/changes.json?from=2026-09-16-hotfix')
+    écran.wrapper.unmount()
+  })
+
+  // Un token apparu n'a pas d'avant, un token parti pas d'après.
+  test('details a token that appeared or disappeared, a side with no value', async () => {
+    const deux = {
+      ...lus,
+      changes: [],
+      tokens: [
+        { kind: 'appeared', family: 'color--brand', key: 'primary', after: { light: '#4fe0a0' } },
+        { kind: 'disappeared', family: 'color--old', key: 'base', before: { light: '#111111' } },
+      ],
+    }
+    window.history.replaceState(null, '', '/?changes&change=token:color--brand/primary')
+    const écran = await monte([badge, jetons], false, undefined, () => deux)
+    const cellules = () =>
+      vue(écran)
+        .findAll('tbody tr')
+        .map((one) =>
+          one
+            .findAll('th, td')
+            .map((cell) => cell.text().trim())
+            .join(' '),
+        )
+
+    expect(cellules()).toEqual(['light none #4fe0a0'])
+    await clique(écran, ligne(écran, 'base'))
+    expect(cellules()).toEqual(['light #111111 none'])
+    expect(lignes(écran)).toEqual(['+ Brand-primary token', '− base token'])
     écran.wrapper.unmount()
   })
 

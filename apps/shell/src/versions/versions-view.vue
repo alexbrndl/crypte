@@ -3,7 +3,7 @@ import type { StoryEntry } from '@crypte/core/protocol'
 import { computed } from 'vue'
 import { componentIdOf } from '../navigation/tree'
 import { componentOfId, type Changes } from '../pages/changes'
-import type { Difference } from './differences'
+import { sinceLabel, type Difference } from './differences'
 
 // Le canvas de la vue versions : ce qui a changé depuis le point choisi, puis le
 // détail de l'écart sélectionné. Pour un token, sa valeur avant et après dans
@@ -23,11 +23,7 @@ const emit = defineEmits<{
 }>()
 
 const since = computed(() =>
-  props.changes !== null && 'from' in props.changes
-    ? props.changes.from.ref === 'HEAD'
-      ? 'the last commit'
-      : props.changes.from.ref
-    : null,
+  props.changes !== null && 'from' in props.changes ? sinceLabel(props.changes.from.ref) : null,
 )
 
 // Les thèmes du token, de part et d'autre, chacun avec sa valeur avant et après.

@@ -33,7 +33,7 @@ import {
 import Panels from './panels/panels.vue'
 import { landing, unreadable, type Shown } from './navigation/recover'
 import { CHANGES, type Changes } from './pages/changes'
-import { differencesOf } from './versions/differences'
+import { differencesOf, sinceLabel } from './versions/differences'
 import VersionsSidebar, { type Since, type Versions } from './versions/versions-sidebar.vue'
 import VersionsView from './versions/versions-view.vue'
 import CommandPalette, { type Action } from './navigation/command-palette.vue'
@@ -228,7 +228,7 @@ const line = computed(() => {
   if (unread.value !== null) return unread.value
   if (changesOpen.value)
     return changes.value !== null && 'from' in changes.value
-      ? `${counter.value} ${counter.value === 1 ? 'difference' : 'differences'} since ${changes.value.from.ref === 'HEAD' ? 'the last commit' : changes.value.from.ref}`
+      ? `${counter.value} ${counter.value === 1 ? 'difference' : 'differences'} since ${sinceLabel(changes.value.from.ref)}`
       : counted(entries.value.length)
   if (noTokens.value) return 'no tokens found'
   if (tokensAt.value !== null)
@@ -407,7 +407,7 @@ function show(id: string, trace: Trace = 'replace') {
   const category = categoryOf(id)
   if (category !== undefined) return openTokens(category, undefined, trace)
   if (trace === 'push') stale.value = null
-  changesOpen.value = false
+  closeChanges()
   component.value = null
   tokensAt.value = null
   select(id)
@@ -417,7 +417,7 @@ function show(id: string, trace: Trace = 'replace') {
 function openTokens(category: string, token?: string, trace: Trace = 'push') {
   if (trace === 'push') stale.value = null
   full.value = false
-  changesOpen.value = false
+  closeChanges()
   component.value = null
   tokensAt.value = token === undefined ? { category } : { category, token }
   write(
@@ -434,7 +434,7 @@ function openTokens(category: string, token?: string, trace: Trace = 'push') {
 function open(id: string, trace: Trace = 'push') {
   if (trace === 'push') stale.value = null
   full.value = false
-  changesOpen.value = false
+  closeChanges()
   component.value = id
   tokensAt.value = null
   const stories = ofComponent(id, entries.value)
@@ -454,6 +454,16 @@ function openChanges(trace: Trace = 'push', at: Since & { change?: string } = {}
   component.value = null
   tokensAt.value = null
   write(placeSearch({ mode: 'changes', ...at }), trace)
+}
+
+// Quittée, la vue oublie son point de départ : l'entrée de l'activity bar mène au
+// dernier commit, et son compteur comptait encore depuis le point d'avant.
+function closeChanges() {
+  if (!changesOpen.value) return
+  changesOpen.value = false
+  const moved = changesAt.value.from !== undefined || changesAt.value.before !== undefined
+  changesAt.value = {}
+  if (moved) void readChanges()
 }
 
 // Un écart choisi : la même comparaison, sans la relire.
@@ -495,7 +505,7 @@ function go(to: View, event: MouseEvent) {
     if (to !== 'stories') return
     if (current.value !== null) show(current.value, 'push')
     else {
-      changesOpen.value = false
+      closeChanges()
       tokensAt.value = null
       component.value = null
       // Le chemin seul : une adresse vide laisserait la requête en place.

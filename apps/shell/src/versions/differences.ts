@@ -26,6 +26,10 @@ export type Difference =
       name: string
     }
 
+// Le point de départ en mots : le CLI nomme une date `before 2026-09-16`.
+export const sinceLabel = (ref: string) =>
+  ref === 'HEAD' ? 'the last commit' : ref.startsWith('before ') ? ref.slice(7) : ref
+
 export const storyKey = (id: string) => `story:${id}`
 export const tokenKey = (family: string, key: string) => `token:${family}/${key}`
 

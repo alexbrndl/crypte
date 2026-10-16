@@ -13,6 +13,8 @@ export interface Since {
   before?: string
 }
 
+// La forme de `/@crypte/versions.json`, `packages/cli/src/catalogue/versions.ts`,
+// que le shell ne peut pas importer : tenue par le cas qui dessine les tags.
 export interface Versions {
   branch: string | null
   tags: { name: string; date: string }[]
@@ -68,7 +70,8 @@ const typed = ref('')
 function apply() {
   const point = typed.value.trim()
   if (point === '') return
-  emit('since', /^\d{4}-\d{2}-\d{2}/.test(point) ? { before: point } : { from: point })
+  // Une date entière seulement : `2026-09-16-hotfix` est un tag.
+  emit('since', /^\d{4}-\d{2}-\d{2}$/.test(point) ? { before: point } : { from: point })
   typed.value = ''
 }
 
