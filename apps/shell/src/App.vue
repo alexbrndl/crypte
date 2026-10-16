@@ -405,8 +405,8 @@ const view = computed<View>(() =>
 )
 
 // Où mène chaque entrée : la story chargée, la catégorie ouverte ou la première,
-// les changements. Sans token, la vue tokens n'a rien à montrer.
-// Sans aucun token, la vue tokens reste atteignable : elle dit comment en déclarer.
+// les changements. Sans aucun token, la vue tokens reste atteignable : elle dit
+// comment en déclarer.
 const firstCategory = () => tokensAt.value?.category ?? categories.value[0]?.name ?? 'color'
 const noTokens = computed(
   () => read.value && tokensAt.value !== null && categories.value.length === 0,
