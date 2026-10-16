@@ -1709,8 +1709,18 @@ describe('the tokens view', () => {
       ...badge,
       component: { ...badge.component, tokens: ['Brand-primary'] },
     }
+    // Un token qui en vise un autre : sa ligne d'alias mène à sa sélection.
+    const lien: TokensEntry = {
+      type: 'tokens',
+      id: 'color--link',
+      path: ['Color'],
+      name: 'Link',
+      tokens: {
+        base: { type: 'color', themes: { light: { value: '#4fe0a0', alias: ['Brand-primary'] } } },
+      },
+    }
     window.history.replaceState(null, '', '/?tokens=color')
-    const écran = await monte([lecteur, famille])
+    const écran = await monte([lecteur, famille, lien])
     const panneau = () => écran.wrapper.find('[aria-label="Token panel"]')
 
     expect(panneau().find('h3').text()).toBe('Token')
@@ -1718,7 +1728,17 @@ describe('the tokens view', () => {
     expect(panneau().find('h3').text()).toBe('Brand-primary')
     expect(panneau().text()).toContain('used by · 1 component')
 
-    await clique(écran, panneau().find('a'))
+    const [alias] = panneau().findAll('a')
+    await clique(écran, alias!)
+    expect(window.location.search).toBe('?tokens=color&token=Link-base')
+    expect(panneau().find('h3').text()).toBe('Link-base')
+
+    window.history.back()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    await vide(écran.wrapper)
+    expect(panneau().find('h3').text()).toBe('Brand-primary')
+
+    await clique(écran, panneau().findAll('a').at(-1)!)
     expect(window.location.search).toBe('?component=badge')
     expect(écran.wrapper.find('.component-page').exists()).toBe(true)
     expect(panneau().exists()).toBe(false)

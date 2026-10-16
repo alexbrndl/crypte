@@ -49,13 +49,14 @@ const pointing = computed(() => {
 const users = computed(() => {
   const name = props.token?.name
   if (name === undefined) return []
-  const found = new Map<string, { id: string; name: string; file: string }>()
+  const found = new Map<string, { key: string; id: string; name: string; file: string }>()
   for (const story of props.stories) {
     const { component } = story
     if (!component.tokens?.includes(name)) continue
     const key = `${component.file}#${component.export}`
     if (!found.has(key))
       found.set(key, {
+        key,
         id: componentIdOf(story.path),
         name: story.path.at(-1)!,
         file: component.file,
@@ -107,7 +108,7 @@ const users = computed(() => {
         <p v-if="users.length === 0" class="row empty">No component reads it.</p>
         <a
           v-for="one of users"
-          :key="one.file"
+          :key="one.key"
           class="row link"
           :href="hrefOfComponent(one.id)"
           @click="emit('component', one.id, $event)"

@@ -96,16 +96,25 @@ describe('the token panel', () => {
     ])
   })
 
-  // Un token sans alias ni lecteur : ni la ligne des alias, ni un compte faux.
+  // Un token que rien ne vise ni ne lit : pas de ligne des alias, et un compte nul.
   test('says no component reads a token nobody reads, and lists no alias it lacks', () => {
-    expect(lignes(monte('teal-500'))).toEqual([
+    const wrapper = monte('accent-focus')
+
+    expect(lignes(wrapper)).toEqual([
       'value',
-      'default #00b9a6',
-      'css var(--teal-500)',
-      'aliases pointing here · 1',
-      'accent-base color',
+      'light teal-700 · #00776e',
+      'css var(--accent-focus)',
       'used by · 0 components',
       'No component reads it.',
+    ])
+    expect(wrapper.findAll('a')).toHaveLength(0)
+  })
+
+  // Une primitive visée par un thème seulement compte quand même.
+  test('counts a token that aims at it in one theme only', () => {
+    expect(lignes(monte('teal-500')).slice(3, 5)).toEqual([
+      'aliases pointing here · 1',
+      'accent-base color',
     ])
   })
 
