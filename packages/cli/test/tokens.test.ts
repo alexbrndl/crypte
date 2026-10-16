@@ -62,6 +62,30 @@ describe('the custom properties a component reads', () => {
     expect(tokensOf(join(root, 'Badge.vue'))).toEqual(['text-primary'])
   })
 
+  // Une chaîne `--mot` hors d'un `var(${…})` n'est pas une lecture : une classe,
+  // une option de ligne de commande, ou un contenu CSS dans le `<style>` d'un .vue.
+  it('reads no quoted name outside a var() template', () => {
+    const root = project({
+      'Badge.tsx': "cx('badge', { '--primary': p })\nprogram.option('--verbose')",
+      'Badge.vue': "<style>\n.a::after { content: '--quoted'; }\n</style>",
+    })
+
+    expect(tokensOf(join(root, 'Badge.tsx'))).toEqual([])
+    expect(tokensOf(join(root, 'Badge.vue'))).toEqual([])
+  })
+
+  it('reads a sheet imported with a Vite query, or linked by <style src>', () => {
+    const root = project({
+      'Badge.tsx': "import styles from './badge.css?inline'",
+      'badge.css': '.badge { color: var(--inline); }',
+      'Card.vue': '<template><div /></template>\n<style scoped src="./card.css"></style>',
+      'card.css': '.card { color: var(--linked); }',
+    })
+
+    expect(tokensOf(join(root, 'Badge.tsx'))).toEqual(['inline'])
+    expect(tokensOf(join(root, 'Card.vue'))).toEqual(['linked'])
+  })
+
   it('reads none from a component that reads none, and skips a sheet that is not there', () => {
     const root = project({ 'Badge.tsx': `import './absente.css'\nexport const Badge = () => null` })
 
