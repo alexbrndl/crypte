@@ -34,7 +34,7 @@ withDefaults(defineProps<{ variant?: 'outline' | 'secondary' | 'ghost' }>(), {
 
 .button:focus-visible {
   outline: var(--stroke-focus) solid var(--accent-focus);
-  outline-offset: var(--stroke-hairline);
+  outline-offset: calc(-1 * var(--stroke-focus));
 }
 
 .button:disabled {
