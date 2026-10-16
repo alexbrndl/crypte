@@ -133,9 +133,23 @@ function byScheme(
           : []
   if (wanted.length === 0) return [[theme, resolved]]
 
+  // A half can lead to another `light-dark()`, as `--status-draft` does through
+  // `--warning-solid` in @crypte/ui: the same half is taken again, until a value
+  // is no pair or comes back, which a cycle does.
   return wanted.map(([into, half]) => {
-    const inner = resolve(half, values)
-    const alias = [...(resolved.alias ?? []), ...(inner.alias ?? [])]
+    const side = into === 'light' ? 0 : 1
+    const alias = [...(resolved.alias ?? [])]
+    const seen = new Set<string>()
+    let inner = resolve(half, values)
+    alias.push(...(inner.alias ?? []))
+
+    for (let pair = lightDarkOf(inner.value); pair !== undefined; pair = lightDarkOf(inner.value)) {
+      if (seen.has(inner.value)) break
+      seen.add(inner.value)
+      inner = resolve(pair[side], values)
+      alias.push(...(inner.alias ?? []))
+    }
+
     return [into, alias.length === 0 ? { value: inner.value } : { value: inner.value, alias }]
   })
 }

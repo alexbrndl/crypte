@@ -307,6 +307,43 @@ describe('a light-dark() value', () => {
     })
   })
 
+  // `--status-draft` de @crypte/ui mène par `--warning-solid` à une autre paire.
+  it('takes the same half again when a half leads to another pair', () => {
+    const entries = read(`:root {
+      --a: light-dark(#111111, #eeeeee);
+      --b: light-dark(var(--a), var(--a));
+    }`)
+
+    expect(family(entries, 'b')?.b).toEqual({
+      type: 'color',
+      themes: {
+        light: { value: '#111111', alias: ['a'] },
+        dark: { value: '#eeeeee', alias: ['a'] },
+      },
+    })
+  })
+
+  it('stops on a pair that comes back to itself', () => {
+    const entries = read(':root { --a: light-dark(var(--a), #eeeeee) }')
+
+    expect(family(entries, 'a')?.a?.themes.dark).toEqual({ value: '#eeeeee' })
+    expect(family(entries, 'a')?.a?.themes.light?.value).toBe('light-dark(var(--a), #eeeeee)')
+  })
+
+  // Le cas courant : le thème sombre redéfinit une primitive, pas le token. Sa
+  // moitié se résout dans le thème replié, et non dans le défaut.
+  it('resolves the dark half in a dark theme that redefines a primitive', () => {
+    const entries =
+      read(`:root { --text-primary: light-dark(var(--stone-900), var(--stone-50)); --stone-50: #fafaf9; --stone-900: #1c1917 }
+      [data-theme="light"] { --stone-900: #000000 }
+      [data-theme="dark"] { --stone-50: #222222 }`)
+
+    expect(family(entries, 'text')?.primary?.themes).toEqual({
+      light: { value: '#000000', alias: ['stone-900'] },
+      dark: { value: '#222222', alias: ['stone-50'] },
+    })
+  })
+
   it('lets a declared dark theme win over the dark half', () => {
     const entries = read(`:root { --text-primary: light-dark(#111111, #eeeeee) }
       [data-theme="dark"] { --text-primary: #ffffff }`)
