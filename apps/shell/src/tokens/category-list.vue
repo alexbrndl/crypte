@@ -74,12 +74,14 @@ ul {
   list-style: none;
 }
 
+/* Indented as a tree row of the first level, past the slot of its chevron. */
 a {
   position: relative;
   display: flex;
   gap: var(--space-1-5);
   align-items: center;
-  padding: var(--space-0-5) var(--space-3);
+  padding: var(--space-0-5) var(--space-3) var(--space-0-5)
+    calc(var(--space-3) + var(--size-icon) + var(--space-1-5));
   color: var(--text-muted);
   font-size: var(--text-sm);
   line-height: var(--leading-sm);
@@ -96,12 +98,26 @@ a:focus-visible {
   outline-offset: calc(-1 * var(--stroke-focus));
 }
 
-/* La ligne courante de l'arbre : la bande, le marqueur et le libellé en accent. */
+/* La ligne courante de l'arbre : la bande et le marqueur partent à 8 px, le
+   libellé en accent. */
 a[aria-current='page'] {
-  background: var(--background-current);
-  box-shadow: inset var(--stroke-marker) 0 0 var(--accent-base);
+  --band: var(--background-current);
+  --marker: var(--accent-base);
+  background: linear-gradient(
+    to right,
+    transparent var(--space-2),
+    var(--marker) var(--space-2),
+    var(--marker) calc(var(--space-2) + var(--stroke-marker)),
+    var(--band) calc(var(--space-2) + var(--stroke-marker))
+  );
   color: var(--text-current);
   font-weight: var(--weight-medium);
+}
+
+a[aria-current='page']:hover {
+  --band: var(--background-current-hover);
+  --marker: var(--accent-hover);
+  color: var(--text-current-hover);
 }
 
 a[aria-current='page'] .meta {

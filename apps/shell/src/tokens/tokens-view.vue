@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { valueIn, type Category, type Token } from './categories'
+import { shown, valueIn, type Category, type Token } from './categories'
 
 // Une catégorie de tokens, dessinée selon ce qu'elle porte : des nuanciers pour
 // les couleurs, des barres à l'échelle pour l'espace, des spécimens pour la
@@ -78,8 +78,10 @@ function specimen(token: Token): Record<string, string> {
             />
             <span v-if="layout === 'stroke'" class="shape" :style="{ borderWidth: value(token) }" />
             <span class="meta">
-              <code class="name">{{ token.name }}</code>
-              <code class="value">{{ value(token) ?? 'not declared' }}</code>
+              <code class="name">{{ token.label }}</code>
+              <code class="value">{{
+                value(token) === undefined ? 'not declared' : shown(value(token)!)
+              }}</code>
             </span>
             <span v-if="layout === 'typography'" class="specimen" :style="specimen(token)">
               Order summary 348.00
@@ -98,8 +100,8 @@ function specimen(token: Token): Record<string, string> {
   flex: 1;
   background: var(--background-subtle);
   flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-6) var(--space-5);
+  gap: var(--space-4-5);
+  padding: var(--space-5) var(--space-6);
 }
 
 .group {
@@ -112,7 +114,7 @@ h2 {
   display: flex;
   gap: var(--space-2);
   margin: 0;
-  color: var(--text-muted);
+  color: var(--text-primary);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   line-height: var(--leading-xs);
@@ -121,7 +123,7 @@ h2 {
 }
 
 .count {
-  color: var(--text-muted);
+  color: var(--text-subtle);
   font-weight: var(--weight-normal);
   letter-spacing: 0;
 }
@@ -213,6 +215,7 @@ h2 {
   width: 112px;
   padding: 0;
   overflow: hidden;
+  border-radius: var(--radius-md);
   box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
   background: var(--background-raised);
 }
@@ -220,7 +223,8 @@ h2 {
 [data-layout='swatches'] .item[aria-current='true'],
 [data-layout='radius'] .item[aria-current='true'],
 [data-layout='stroke'] .item[aria-current='true'] {
-  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--accent-base);
+  box-shadow: inset 0 0 0 var(--stroke-marker) var(--accent-base);
+  background: var(--background-raised);
 }
 
 [data-layout='swatches'] .meta,
@@ -231,9 +235,18 @@ h2 {
   padding: var(--space-1-5) var(--space-2);
 }
 
+/* Inset by the item's stroke, as in Figma (110 wide in 112): flush, its fill would
+   cover the stroke, which the item draws under its children. */
 .swatch {
   height: 36px;
+  margin: var(--stroke-hairline) var(--stroke-hairline) 0;
+  border-radius: calc(var(--radius-md) - var(--stroke-hairline))
+    calc(var(--radius-md) - var(--stroke-hairline)) 0 0;
   box-shadow: inset 0 calc(-1 * var(--stroke-hairline)) 0 var(--border-base);
+}
+
+.item[aria-current='true'] .swatch {
+  margin: var(--stroke-marker) var(--stroke-marker) 0;
 }
 
 .shape {

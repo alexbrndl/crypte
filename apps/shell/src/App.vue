@@ -233,7 +233,7 @@ const line = computed(() => {
   if (noTokens.value) return 'no tokens found'
   if (tokensAt.value !== null)
     return shownCategory.value
-      ? `${shownCategory.value.count} ${shownCategory.value.count === 1 ? 'token' : 'tokens'} ${shownCategory.value.name}`
+      ? `${shownCategory.value.count} ${shownCategory.value.count === 1 ? 'token' : 'tokens'} ${shownCategory.value.name}, ${theme.value} theme`
       : 'the tokens on display are gone'
   if (component.value !== null)
     return componentStories.value.length > 0
@@ -512,6 +512,11 @@ function go(to: View, event: MouseEvent) {
       write(window.location.pathname, 'push')
     }
   })
+}
+
+// La preview rechargée : elle redit `ready`, et le shell relit le manifeste.
+function reload() {
+  frame.value?.contentWindow?.location.reload()
 }
 
 const copied = ref<'yes' | 'failed' | null>(null)
@@ -896,6 +901,28 @@ onMounted(() => {
               aria-label="a plugin failed"
             />
           </Button>
+          <Button class="reload" @click="reload">Reload</Button>
+          <Button variant="secondary" class="copy" @click="copyLink">
+            <Icon :icon="Copy01Icon" />
+            {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
+          </Button>
+        </div>
+      </div>
+      <!-- La vue tokens a la sienne : la catégorie, la famille et la clé du token choisi. -->
+      <div v-else-if="view === 'tokens' && shownCategory" class="toolbar">
+        <nav class="trail" aria-label="Breadcrumb">
+          <span v-if="selectedToken" class="folder"
+            >{{ shownCategory.name }}<span class="separator">/</span></span
+          >
+          <template v-if="selectedToken">
+            <span class="family">{{ selectedToken.family }}</span
+            ><span class="separator">/</span>
+            <span aria-current="page">{{ selectedToken.label }}</span>
+          </template>
+          <span v-else aria-current="page">{{ shownCategory.name }}</span>
+        </nav>
+        <div class="actions">
+          <Button class="reload" @click="reload">Reload</Button>
           <Button variant="secondary" class="copy" @click="copyLink">
             <Icon :icon="Copy01Icon" />
             {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
@@ -1236,6 +1263,10 @@ main.full {
   display: flex;
   gap: var(--space-2);
   color: var(--text-muted);
+}
+
+.trail .family {
+  color: var(--text-current);
 }
 
 .trail a {

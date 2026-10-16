@@ -1678,7 +1678,7 @@ describe('the tokens view', () => {
     expect(window.location.search).toBe('?tokens=color')
     expect(écran.wrapper.find('iframe').isVisible()).toBe(false)
     expect(écran.envoyés.length).toBe(avant)
-    expect(écran.statut()).toBe('1 token color')
+    expect(écran.statut()).toBe('1 token color, light theme')
     écran.wrapper.unmount()
   })
 
@@ -1689,18 +1689,37 @@ describe('the tokens view', () => {
     const écran = await monte([badge, famille])
     const pastille = () => vue(écran).find('.swatch').element as HTMLElement
 
-    expect(valeurs(écran)).toEqual(['Brand-primary #4fe0a0'])
+    expect(valeurs(écran)).toEqual(['primary #4FE0A0'])
     expect(pastille().style.backgroundColor).toBe('rgb(79, 224, 160)')
     document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 't', bubbles: true }))
     await vide(écran.wrapper)
-    expect(valeurs(écran)).toEqual(['Brand-primary #1f5fd6'])
+    expect(valeurs(écran)).toEqual(['primary #1F5FD6'])
     expect(pastille().style.backgroundColor).toBe('rgb(31, 95, 214)')
 
     await clique(écran, écran.wrapper.findAll('.sidebar li a')[1]!)
-    expect(valeurs(écran)).toEqual(['Brand-night 4px'])
+    expect(valeurs(écran)).toEqual(['night 4px'])
     document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 't', bubbles: true }))
     await vide(écran.wrapper)
-    expect(valeurs(écran)).toEqual(['Brand-night not declared'])
+    expect(valeurs(écran)).toEqual(['night not declared'])
+    écran.wrapper.unmount()
+  })
+
+  // La barre d'outils de la vue : la catégorie, puis la famille et la clé du token
+  // choisi, et les deux actions de la maquette.
+  test('names the category, then the family and key of the token, in its toolbar', async () => {
+    window.history.replaceState(null, '', '/?tokens=color')
+    const écran = await monte([badge, famille])
+    const fil = () =>
+      écran.wrapper.findAll('.toolbar .trail > span').map((one) => one.text().replace(/\s+/g, ''))
+
+    expect(fil()).toEqual(['color'])
+    expect(écran.wrapper.findAll('.toolbar .actions button').map((one) => one.text())).toEqual([
+      'Reload',
+      'Copy link',
+    ])
+    await clique(écran, vue(écran).find('.item'))
+    expect(fil()).toEqual(['color/', 'Brand', '/', 'primary'])
+    expect(écran.wrapper.find('.toolbar [aria-current="page"]').text()).toBe('primary')
     écran.wrapper.unmount()
   })
 
@@ -1738,18 +1757,18 @@ describe('the tokens view', () => {
 
     expect(panneau().find('h3').text()).toBe('Token')
     await clique(écran, vue(écran).find('.item'))
-    expect(panneau().find('h3').text()).toBe('Brand-primary')
+    expect(panneau().find('h3').text()).toBe('Brand/primary')
     expect(panneau().text()).toContain('used by · 1 component')
 
     const [alias] = panneau().findAll('a')
     await clique(écran, alias!)
     expect(window.location.search).toBe('?tokens=color&token=Link-base')
-    expect(panneau().find('h3').text()).toBe('Link-base')
+    expect(panneau().find('h3').text()).toBe('Link/base')
 
     window.history.back()
     await new Promise((resolve) => setTimeout(resolve, 20))
     await vide(écran.wrapper)
-    expect(panneau().find('h3').text()).toBe('Brand-primary')
+    expect(panneau().find('h3').text()).toBe('Brand/primary')
 
     await clique(écran, panneau().findAll('a').at(-1)!)
     expect(window.location.search).toBe('?component=badge')
@@ -1783,7 +1802,7 @@ describe('the tokens view', () => {
     window.dispatchEvent(new PopStateEvent('popstate'))
     await vide(écran.wrapper)
     expect(courante(écran)).toBe('Brand')
-    expect(vue(écran).find('[aria-current="true"] .name').text()).toBe('Brand-night')
+    expect(vue(écran).find('[aria-current="true"] .name').text()).toBe('night')
     écran.wrapper.unmount()
   })
 
@@ -1849,7 +1868,7 @@ describe('the status line under a page', () => {
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
     await écran.répond({ type: 'rendered', id: 'badge--defaut', durationMs: 1.2 } as PreviewMessage)
 
-    expect(écran.statut()).toBe('1 token palette')
+    expect(écran.statut()).toBe('1 token palette, light theme')
 
     window.history.replaceState(null, '', '/?component=badge')
     window.dispatchEvent(new PopStateEvent('popstate'))
@@ -1898,7 +1917,7 @@ describe('the status line under a page', () => {
     await vide(wrapper)
 
     expect(wrapper.find('.tokens-view').attributes('aria-label')).toBe('palette')
-    expect(wrapper.findAll('p').at(-1)?.text()).toBe('1 token palette')
+    expect(wrapper.findAll('p').at(-1)?.text()).toBe('1 token palette, light theme')
     wrapper.unmount()
   })
 })

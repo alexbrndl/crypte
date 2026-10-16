@@ -78,17 +78,17 @@ describe('the token panel', () => {
   test('gives each theme with the end of its chain, the CSS name, what points here and what reads it', () => {
     const wrapper = monte('accent-base')
 
-    expect(wrapper.find('h3').text()).toBe('accent-base')
+    expect(wrapper.find('h3').text()).toBe('accent/base')
     expect(wrapper.find('.source').text()).toBe('token')
     expect(lignes(wrapper)).toEqual([
       'value',
-      'light teal-700 · #00776e',
-      'dark teal-500 · #00b9a6',
+      'light teal/700 · #00776E',
+      'dark teal/500 · #00B9A6',
       'css var(--accent-base)',
       'aliases pointing here · 1',
-      'accent-focus color',
+      'accent/focus color',
       'used by · 1 component',
-      'Button src/Button.tsx',
+      'Button ui',
     ])
     expect(wrapper.findAll('a').map((one) => one.attributes('href'))).toEqual([
       '?tokens=color&token=accent-focus',
@@ -102,7 +102,7 @@ describe('the token panel', () => {
 
     expect(lignes(wrapper)).toEqual([
       'value',
-      'light teal-700 · #00776e',
+      'light teal/700 · #00776E',
       'css var(--accent-focus)',
       'used by · 0 components',
       'No component reads it.',
@@ -114,8 +114,18 @@ describe('the token panel', () => {
   test('counts a token that aims at it in one theme only', () => {
     expect(lignes(monte('teal-500')).slice(3, 5)).toEqual([
       'aliases pointing here · 1',
-      'accent-base color',
+      'accent/base color',
     ])
+  })
+
+  test('folds its body from its head', async () => {
+    const wrapper = monte('accent-base')
+    const bouton = wrapper.find('.toggle')
+
+    expect(bouton.attributes('aria-expanded')).toBe('true')
+    await bouton.trigger('click')
+    expect(bouton.attributes('aria-expanded')).toBe('false')
+    expect((wrapper.find('#token-panel-body').element as HTMLElement).style.display).toBe('none')
   })
 
   test('asks for a token when none is selected', () => {
