@@ -23,6 +23,7 @@ import {
   MANIFEST_ROUTE,
   PLUGINS_ROUTE,
   PROJECT_ROUTE,
+  VERSIONS_ROUTE,
   PREVIEW_ENTRY_ID,
   previewEntry,
   servePlugin,
@@ -105,7 +106,32 @@ describe('crypte dev', () => {
     const { status, body } = await get(CHANGES_ROUTE)
 
     expect(status).toBe(200)
-    expect(JSON.parse(body)).toEqual({ changes: [] })
+    expect(JSON.parse(body)).toEqual({
+      from: { ref: 'HEAD', commit: expect.stringMatching(/^[0-9a-f]{7}$/) },
+      changes: [],
+      tokens: [],
+    })
+  })
+
+  // Le point de départ passe par la requête ; un nom inconnu se dit au lieu
+  // d'échouer.
+  it('reads the point a comparison starts from in its query', async () => {
+    const inconnu = await get(`${CHANGES_ROUTE}?from=pas-une-revision`)
+    expect(JSON.parse(inconnu.body)).toEqual({
+      reason: '"pas-une-revision" is not a commit Git knows',
+    })
+
+    const daté = await get(`${CHANGES_ROUTE}?before=1970-01-02`)
+    expect(JSON.parse(daté.body)).toEqual({ reason: 'no commit before 1970-01-02' })
+  })
+
+  it('serves the versions a comparison can start from', async () => {
+    const { status, body } = await get(VERSIONS_ROUTE)
+    const read = JSON.parse(body) as { branch: unknown; tags: unknown }
+
+    expect(status).toBe(200)
+    expect(Object.keys(read)).toEqual(['branch', 'tags'])
+    expect(Array.isArray(read.tags)).toBe(true)
   })
 
   // Les modules shell des plugins, section 6.1 : listés dans l'ordre de la
@@ -459,10 +485,12 @@ describe('the changes route on a committed project', () => {
       const answer = await fetch(`http://localhost:${address.port}${CHANGES_ROUTE}`)
 
       expect(await answer.json()).toEqual({
+        from: { ref: 'HEAD', commit: expect.stringMatching(/^[0-9a-f]{7}$/) },
         changes: [
           { kind: 'changed', id: 'badge--default', props: { before: [], after: ['label'] } },
           { kind: 'appeared', id: 'badge--neuve' },
         ],
+        tokens: [],
       })
     } finally {
       await started?.server.close()

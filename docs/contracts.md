@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.38, reference document. A project brief points here instead of restating these shapes.
+> Version 1.39, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -645,9 +645,9 @@ The CLI writes two files side by side in `.crypte/`.
 
 **The manifest is the truth.** It is regenerated from the story files on every build, so when the two disagree it is the fingerprint that is out of date, never the other way round.
 
-The fingerprint is not a smaller manifest and nothing reads it to render. `crypte dev` reads the version `HEAD` holds, through Git, and serves its difference with the catalogue to the shell's changes mode. It exists so that Git holds the history of a catalogue: per **story** entry, the identifier, the component as `file#export`, the status, the sorted prop names, and one digest folding everything else but `component.tokens`. The digest reads `source` with its attributes sorted, so reordering props in a story file, which changes nothing rendered, leaves the fingerprint alone. That is enough to say what changed between two versions, and small enough to commit on every build. Measured on 500 stories: the full manifest is 706 KB raw and 83 KB gzipped, the fingerprint 131 KB and 9 KB, which is 268 bytes per story.
+The fingerprint is not a smaller manifest and nothing reads it to render. `crypte dev` reads the version a commit holds, through Git, and serves its difference with the catalogue to the shell's versions view: `HEAD` by default, or a branch, a tag or a commit the shell names, or the last commit before a date. It exists so that Git holds the history of a catalogue: per **story** entry, the identifier, the component as `file#export`, the status, the sorted prop names, and one digest folding everything else but `component.tokens`. The digest reads `source` with its attributes sorted, so reordering props in a story file, which changes nothing rendered, leaves the fingerprint alone. That is enough to say what changed between two versions, and small enough to commit on every build. Measured on 500 stories: the full manifest is 706 KB raw and 83 KB gzipped, the fingerprint 131 KB and 9 KB, which is 268 bytes per story.
 
-**Story entries only, and that is a boundary rather than an oversight.** Every field above is a story's: a component reference, a status, prop names. A `tokens` family changing therefore leaves the committed fingerprint untouched, so this file answers "what changed in the component catalogue", not "what changed in the manifest". Whether a token set deserves its own committed history is a separate question, and the first producer is what will settle it.
+**Tokens have a section of their own**, beside the story entries: per token, its family's identifier, its key, its kind and the literal of each theme, sorted by family and key. The values themselves and not a digest, since the versions view shows a token before and after. A fingerprint committed before this section has no `tokens` at all, which reads as "unknown", not "empty": the token history starts with the next commit.
 
 **A missing or stale fingerprint is never fatal to a build.** It is a record, so the build writes it and moves on. Telling a project that its record is behind is the job of `crypte check`, which fails on it (1.2). The two are compared as data, so reformatting the file is not a change.
 
@@ -971,7 +971,7 @@ This document is a contract. This section is the only place that says what exist
 | 1.5, path aliases | built |
 | 2 and 3, the types | built, and `defineStories` and `story` with them. Inference reads what a component file declares, and 3.2's merge completes it from the story file |
 | 4, the manifest | built, and written by `crypte dev` at start-up, on every restart of the configuration and on every rebuild, so the file follows what is served. The CLI produces `story` entries and a plugin's `node` surface contributes `tokens` ones (6.3); the shell draws both |
-| 4.6, the fingerprint | built, and written by `crypte dev` whenever the catalogue served changes it: at start-up, on a restart of the configuration, and on a story change. So `crypte check` does not fail after a session, and trying a `stories` path then reverting rewrites the same bytes. `crypte dev` also reads the version `HEAD` holds, through Git, and serves the shell's changes mode the stories that appeared, disappeared, or whose props or status moved |
+| 4.6, the fingerprint | built, and written by `crypte dev` whenever the catalogue served changes it: at start-up, on a restart of the configuration, and on a story change. So `crypte check` does not fail after a session, and trying a `stories` path then reverting rewrites the same bytes. `crypte dev` also reads the version a commit holds, `HEAD` or one the shell names, through Git, and serves the shell the stories that appeared, disappeared, or whose props or status moved, and the tokens that appeared, disappeared or changed value |
 | 5, the channel | built and exercised on both sides |
 | 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. The `shell` and `preview` modules are loaded, and the shell mounts each shell module in a frame that folds when the panel is `inapplicable` and remembers whether it is open. A preview module's `afterMount` and `onMessage` are called, plugin messages cross the channel both ways, and a preview module that fails is named in the shell. `@crypte/controls` edits a story's props through `overrides`, `@crypte/a11y` analyses each render with axe-core and unfolds its panel with `null` when a violation appears, and the demonstration's `hello` and `status` plugins use the rest. `controls` does not add `min`, `max`, `step` or `control` to `PluginPropDetails` yet (3.3), so writing them is still a compile error. A panel's props and events are typed by `PanelProps` and `PanelEvents`, and a key a plugin does not have is refused. A project's own plugin imports them from `@crypte/cli`. **Frozen** since v1.25 (6.5) |
 
@@ -992,6 +992,12 @@ Nine known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.39.** Tokens in the fingerprint, and a comparison from any commit (4.6).
+
+| Before | After |
+| --- | --- |
+| the fingerprint held story entries only, compared with `HEAD` | it holds the tokens too, each with the literal of each theme, and the comparison starts from `HEAD`, a branch, a tag, a commit or the last commit before a date |
 
 **v1.38.** Which components a token reaches (4.2).
 
