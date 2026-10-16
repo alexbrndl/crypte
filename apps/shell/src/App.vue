@@ -41,7 +41,9 @@ import { ArrowDown01Icon, Copy01Icon, FullScreenIcon, Tick02Icon } from '@hugeic
 import ActivityBar, { type View } from './navigation/activity-bar.vue'
 import Icon from './ui/icon.vue'
 import StoryTree from './navigation/story-tree.vue'
-import TokensPage from './pages/tokens-page.vue'
+import CategoryList from './tokens/category-list.vue'
+import { categoriesOf } from './tokens/categories'
+import TokensView from './tokens/tokens-view.vue'
 import { useTheme } from './theme/theme'
 import { componentIdOf } from './navigation/tree'
 import { placeSearch, readPlace, sameTab } from './navigation/url'
@@ -119,10 +121,22 @@ const componentStories = computed(() =>
   component.value === null ? [] : ofComponent(component.value, entries.value),
 )
 
-// La famille de tokens ouverte, par son identifiant, ou `null`. Comme une page
-// composant, elle laisse la preview et les panneaux chargés dessous.
-const family = ref<string | null>(null)
-const shownFamily = computed(() => families.value.find((one) => one.id === family.value) ?? null)
+// La catégorie de tokens ouverte, et le token choisi dedans, ou `null`. Comme une
+// page composant, elle laisse la preview et les panneaux chargés dessous.
+const tokensAt = ref<{ category: string; token?: string } | null>(null)
+const categories = computed(() => categoriesOf(families.value))
+const shownCategory = computed(
+  () => categories.value.find((one) => one.name === tokensAt.value?.category) ?? null,
+)
+
+// La catégorie où commence une famille, que `?id=` nomme encore (§4.3) et que la
+// palette propose : son premier token y mène.
+const categoryOf = (id: string) => {
+  const entry = families.value.find((one) => one.id === id)
+  return entry === undefined
+    ? undefined
+    : categories.value.find((one) => one.groups.some((group) => group.id === entry.id))?.name
+}
 
 // Ce que la palette cherche, dans l'ordre du manifeste : les familles y suivent les
 // stories, les contributions des plugins passant après elles (§6.3).
@@ -160,8 +174,11 @@ const counter = computed(() =>
 const line = computed(() => {
   if (unread.value !== null) return unread.value
   if (changesOpen.value) return counted(entries.value.length)
-  if (family.value !== null)
-    return shownFamily.value ? counted(entries.value.length) : 'the tokens on display are gone'
+  if (noTokens.value) return 'no tokens found'
+  if (tokensAt.value !== null)
+    return shownCategory.value
+      ? `${shownCategory.value.count} ${shownCategory.value.count === 1 ? 'token' : 'tokens'} ${shownCategory.value.name}`
+      : 'the tokens on display are gone'
   if (component.value !== null)
     return componentStories.value.length > 0
       ? counted(entries.value.length)
@@ -235,7 +252,7 @@ const stale = ref<string | null>(null)
 // Le plein écran : la preview seule, sans navigation ni panneaux.
 const full = ref(false)
 const storyMode = computed(
-  () => component.value === null && family.value === null && !changesOpen.value,
+  () => component.value === null && tokensAt.value === null && !changesOpen.value,
 )
 const fullScreen = computed(() => full.value && storyMode.value)
 
@@ -257,6 +274,11 @@ import { Badge } from '${'../'.repeat(storiesRoot.value.split('/').length + 1)}s
 
 export default defineStories(Badge)`,
 )
+
+const TOKENS_SNIPPET = `:root {
+  --color-accent: #009488;
+  --space-2: 8px;
+}`
 
 // Sous 1180 px, la colonne des panneaux sort de la grille et s'ouvre par-dessus
 // le canvas, depuis un bouton de la barre d'outils qui en dit le nombre.
@@ -324,14 +346,30 @@ function select(id: string) {
 }
 
 // Une story ou une famille de tokens : `?id=` les nomme toutes les deux (§4.3).
+// Une famille ouvre sa catégorie, sous l'adresse de la vue tokens.
 function show(id: string, trace: Trace = 'replace') {
+  const category = categoryOf(id)
+  if (category !== undefined) return openTokens(category, undefined, trace)
   if (trace === 'push') stale.value = null
   changesOpen.value = false
   component.value = null
-  family.value = families.value.some((one) => one.id === id) ? id : null
-  if (family.value !== null) full.value = false
-  if (family.value === null) select(id)
+  tokensAt.value = null
+  select(id)
   write(placeSearch({ mode: 'entry', id }), trace)
+}
+
+function openTokens(category: string, token?: string, trace: Trace = 'push') {
+  if (trace === 'push') stale.value = null
+  full.value = false
+  changesOpen.value = false
+  component.value = null
+  tokensAt.value = token === undefined ? { category } : { category, token }
+  write(
+    placeSearch(
+      token === undefined ? { mode: 'tokens', category } : { mode: 'tokens', category, token },
+    ),
+    trace,
+  )
 }
 
 // Sous la page, la preview charge une story du composant, si elle n'en montre
@@ -342,7 +380,7 @@ function open(id: string, trace: Trace = 'push') {
   full.value = false
   changesOpen.value = false
   component.value = id
-  family.value = null
+  tokensAt.value = null
   const stories = ofComponent(id, entries.value)
   if (stories[0] && !stories.some((entry) => entry.id === current.value)) select(stories[0].id)
   write(placeSearch({ mode: 'component', id }), trace)
@@ -356,26 +394,31 @@ function openChanges(trace: Trace = 'push') {
   void readChanges()
   changesOpen.value = true
   component.value = null
-  family.value = null
+  tokensAt.value = null
   write(placeSearch({ mode: 'changes' }), trace)
 }
 
 // La vue de l'activity bar, déduite de ce qui est affiché : une page composant est
 // de la vue stories, une famille de la vue tokens, les changements de la vue versions.
 const view = computed<View>(() =>
-  changesOpen.value ? 'versions' : family.value !== null ? 'tokens' : 'stories',
+  changesOpen.value ? 'versions' : tokensAt.value !== null ? 'tokens' : 'stories',
 )
 
-// Où mène chaque entrée : la story chargée, la famille ouverte ou la première, les
-// changements. Sans famille, la vue tokens n'a rien à montrer.
+// Où mène chaque entrée : la story chargée, la catégorie ouverte ou la première,
+// les changements. Sans aucun token, la vue tokens reste atteignable : elle dit
+// comment en déclarer.
+const firstCategory = () => tokensAt.value?.category ?? categories.value[0]?.name ?? 'color'
+const noTokens = computed(
+  () => read.value && tokensAt.value !== null && categories.value.length === 0,
+)
 const hrefs = computed<Record<View, string | null>>(() => {
-  const tokens = family.value ?? families.value[0]?.id ?? null
+  const tokens = firstCategory()
   return {
     stories:
       current.value === null
         ? window.location.pathname
         : placeSearch({ mode: 'entry', id: current.value }),
-    tokens: tokens === null ? null : placeSearch({ mode: 'entry', id: tokens }),
+    tokens: placeSearch({ mode: 'tokens', category: tokens }),
     versions: placeSearch({ mode: 'changes' }),
   }
 })
@@ -383,13 +426,13 @@ const hrefs = computed<Record<View, string | null>>(() => {
 function go(to: View, event: MouseEvent) {
   follow(event, () => {
     if (to === 'versions') openChanges()
-    const tokens = family.value ?? families.value[0]?.id
-    if (to === 'tokens' && tokens !== undefined) show(tokens, 'push')
+    const tokens = firstCategory()
+    if (to === 'tokens') openTokens(tokens)
     if (to !== 'stories') return
     if (current.value !== null) show(current.value, 'push')
     else {
       changesOpen.value = false
-      family.value = null
+      tokensAt.value = null
       component.value = null
       // Le chemin seul : une adresse vide laisserait la requête en place.
       write(window.location.pathname, 'push')
@@ -561,14 +604,20 @@ async function refresh() {
   if (arrival.mode === 'entry') {
     const id = arrival.id
     shown = stories.find((entry) => entry.id === id) ?? shown
-    if (families.value.some((one) => one.id === id)) family.value = id
+    const category = categoryOf(id)
+    if (category !== undefined) tokensAt.value = { category }
   }
+  if (arrival.mode === 'tokens')
+    tokensAt.value =
+      arrival.token === undefined
+        ? { category: arrival.category }
+        : { category: arrival.category, token: arrival.token }
   if (arrival.mode === 'component') {
     const [first] = ofComponent(arrival.id, stories)
     if (first) [opening, shown] = [arrival.id, first]
   }
   if (arrival.mode === 'changes') changesOpen.value = true
-  if (arrival.mode === 'entry' && !shown && family.value === null) stale.value = arrival.id
+  if (arrival.mode === 'entry' && !shown && tokensAt.value === null) stale.value = arrival.id
   if (arrival.mode === 'component' && opening === null) stale.value = arrival.id
   arrival = { mode: 'home' }
 
@@ -602,7 +651,7 @@ async function refresh() {
     const id = next.id
     const followed = componentIdOf(stories.find((entry) => entry.id === id)?.path ?? [])
     if (followed !== component.value) open(followed, 'replace')
-  } else if (family.value !== null || changesOpen.value) select(next.id)
+  } else if (tokensAt.value !== null || changesOpen.value) select(next.id)
   else show(next.id)
 }
 
@@ -614,6 +663,7 @@ function travel() {
     show(place.id, 'none')
   if (place.mode === 'component' && ofComponent(place.id, entries.value).length > 0)
     open(place.id, 'none')
+  if (place.mode === 'tokens') openTokens(place.category, place.token, 'none')
   if (place.mode === 'changes') openChanges('none')
 }
 
@@ -704,12 +754,20 @@ onMounted(() => {
     </div>
     <div v-show="!fullScreen" class="nav-column">
       <div class="sidebar">
+        <CategoryList
+          v-if="view === 'tokens'"
+          :categories="categories"
+          :current="tokensAt?.category ?? null"
+          :href-of="(category) => placeSearch({ mode: 'tokens', category })"
+          @pick="(category, event) => follow(event, () => openTokens(category))"
+        />
         <StoryTree
-          :entries="view === 'tokens' ? families : entries"
-          :current="changesOpen ? null : (family ?? current)"
+          v-else
+          :entries="entries"
+          :current="changesOpen ? null : current"
           :component="component"
-          :label="view === 'tokens' ? 'Tokens' : 'Stories'"
-          :none="view === 'tokens' ? 'no tokens' : 'no story'"
+          label="Stories"
+          none="no story"
           @show="(id) => show(id, 'push')"
           @open="(id) => open(id)"
         />
@@ -795,7 +853,27 @@ onMounted(() => {
             </ul>
           </Alert>
 
-          <TokensPage v-if="shownFamily" :family="shownFamily" />
+          <div v-if="noTokens" class="empty">
+            <EmptyGuide
+              title="No token found"
+              :path="null"
+              rule="Crypte reads the custom properties of the style sheet declared as css in crypte.config.ts, and groups them by category."
+              mapping="src/styles.css  >  tokens / color, space…"
+              :snippet="TOKENS_SNIPPET"
+              note='A dark theme goes under [data-theme="dark"] or prefers-color-scheme: dark, and light-dark() works too.'
+              outcome="The tokens appear, grouped by category."
+            />
+          </div>
+          <TokensView
+            v-else-if="shownCategory"
+            :category="shownCategory"
+            :theme="theme"
+            :selected="tokensAt?.token ?? null"
+            :href-of="
+              (token) => placeSearch({ mode: 'tokens', category: shownCategory!.name, token })
+            "
+            @select="(token, event) => follow(event, () => openTokens(shownCategory!.name, token))"
+          />
 
           <ChangesPage
             v-if="changesOpen"
@@ -814,7 +892,7 @@ onMounted(() => {
           <!-- Masqué et non retiré : la preview et les panneaux gardent leur état
            pendant qu'une page composant ou une famille est ouverte. -->
           <div
-            v-show="component === null && family === null && !changesOpen && !noStory"
+            v-show="component === null && tokensAt === null && !changesOpen && !noStory"
             class="canvas"
           >
             <!-- Sur la scène, ce qui agit sur elle : l'échelle et le plein écran,
@@ -1152,6 +1230,10 @@ main.full {
 
 .stage > :not(.canvas) {
   margin: var(--space-3);
+}
+
+.stage > .tokens-view {
+  margin: 0;
 }
 
 .canvas {

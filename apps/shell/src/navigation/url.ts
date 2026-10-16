@@ -14,6 +14,9 @@ export type Place =
   // `storyId(path, '')`, le préfixe que partagent toutes les stories du composant.
   | { mode: 'component'; id: string }
   | { mode: 'changes' }
+  // Une catégorie de la vue tokens, et le token choisi dedans. Les catégories
+  // viennent du shell et non du manifeste : elles n'entrent pas dans `id`.
+  | { mode: 'tokens'; category: string; token?: string }
 
 // Un mode par adresse, lu dans cet ordre. Une valeur vide ne nomme rien, et tout
 // autre paramètre est ignoré : les deux passent au suivant. L'adresse que le
@@ -24,6 +27,9 @@ export function readPlace(search: string): Place {
   if (id) return { mode: 'entry', id }
   const component = query.get('component')
   if (component) return { mode: 'component', id: component }
+  const category = query.get('tokens')
+  const token = query.get('token')
+  if (category) return token ? { mode: 'tokens', category, token } : { mode: 'tokens', category }
   if (query.has('changes')) return { mode: 'changes' }
   return { mode: 'home' }
 }
@@ -31,6 +37,8 @@ export function readPlace(search: string): Place {
 export function placeSearch(place: Place): string {
   if (place.mode === 'entry') return `?id=${encoded(place.id)}`
   if (place.mode === 'component') return `?component=${encoded(place.id)}`
+  if (place.mode === 'tokens')
+    return `?tokens=${encoded(place.category)}${place.token ? `&token=${encoded(place.token)}` : ''}`
   if (place.mode === 'changes') return '?changes'
   return ''
 }

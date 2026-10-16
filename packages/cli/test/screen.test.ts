@@ -1252,21 +1252,28 @@ describe('the component page', () => {
 
 // Les familles que `@crypte/tokens` lit dans la démonstration : le critère de DCJ-338.
 describe('the tokens page', () => {
-  test('lists the four families, and opens one from its address', async ({ ecran }) => {
+  test('lists the four categories, and opens a family from its older address', async ({
+    ecran,
+  }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
     await ecran.page.locator('.activity-bar .item', { hasText: 'tokens' }).click()
-    const familles = ecran.page.locator('.sidebar [role="treeitem"].tokens .name')
+    const categories = ecran.page.locator('.sidebar li .name')
     await expect
-      .poll(() => familles.allTextContents())
-      .toEqual(['color', 'radius', 'size', 'space'])
+      .poll(() => categories.allTextContents())
+      .toEqual(['color', 'space', 'radius', 'size'])
 
     const origin = new URL(ecran.page.url()).origin
     await ecran.page.goto(`${origin}/?id=tokens--color`)
 
-    const page = ecran.page.locator('.tokens-page')
-    await expect.poll(() => page.locator('h2').textContent()).toBe('color')
-    expect(await page.locator('thead th').allTextContents()).toEqual(['Token', 'default', 'dark'])
-    expect(await page.locator('tbody tr').count()).toBe(4)
+    const vue = ecran.page.locator('.tokens-view')
+    await expect.poll(() => vue.getAttribute('aria-label')).toBe('color')
+    expect(await vue.locator('.item .name').allTextContents()).toEqual([
+      'color-badge-background',
+      'color-neutral',
+      'color-text',
+      'color-warning',
+    ])
+    expect(await vue.locator('.swatch').count()).toBe(4)
   })
 })
 
@@ -1479,12 +1486,6 @@ describe('the components, on screen', () => {
         .locator('.component-page tr')
         .evaluateAll((rows) => rows.slice(0, 2).map((one) => one.getBoundingClientRect().height)),
     ).toEqual([24, 32])
-    await ecran.page.goto(new URL('?id=tokens--space', ecran.page.url()).href)
-    expect(
-      await ecran.page
-        .locator('.tokens-page tr')
-        .evaluateAll((rows) => rows.slice(0, 2).map((one) => one.getBoundingClientRect().height)),
-    ).toEqual([24, 32])
   })
 })
 
@@ -1525,7 +1526,7 @@ const axe = createRequire(import.meta.url).resolve('axe-core')
 const ecrans = [
   ['a story', '?id=badge--par-defaut', 'iframe[title="preview"]:visible'],
   ['a component page', '?component=badge', '.component-page'],
-  ['a token family', '?id=tokens--color', '.tokens-page'],
+  ['a token category', '?tokens=color', '.tokens-view'],
   ['the changes', '?changes', '.changes-page'],
   ['the command palette', '?id=badge--par-defaut', '[role="dialog"]'],
   ['the zoom menu', '?id=badge--par-defaut', '[role="menu"]'],
