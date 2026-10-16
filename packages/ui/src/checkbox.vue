@@ -23,15 +23,24 @@
   box-shadow: inset 0 0 0 var(--stroke-hairline) var(--accent-base);
 }
 
+/* An outline rather than a shadow: forced colors drop shadows. */
 .checkbox:focus-visible {
   outline: var(--stroke-focus) solid var(--accent-focus);
-  outline-offset: var(--stroke-hairline);
+  outline-offset: calc(-1 * var(--stroke-focus));
 }
 
 .checkbox:checked,
 .checkbox:indeterminate {
   box-shadow: none;
   background: var(--accent-base);
+}
+
+/* The thicker inner stroke of Figma would vanish on the accent fill, the same
+   color as the focus: a checked box keeps a ring outside instead. */
+.checkbox:checked:focus-visible,
+.checkbox:indeterminate:focus-visible {
+  outline: var(--stroke-focus) solid var(--accent-focus);
+  outline-offset: var(--stroke-hairline);
 }
 
 .checkbox:checked:hover,
