@@ -61,6 +61,9 @@ export interface ComponentRef {
   name: string
   file: string
   export: string
+  // The custom properties the component reads, without their dashes, sorted.
+  // Absent when its file could not be read. Section 4.2 of docs/contracts.md.
+  tokens?: string[]
 }
 
 // One entry is a family shown as a page, not a single token. No `options`:

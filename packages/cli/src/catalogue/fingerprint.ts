@@ -68,6 +68,12 @@ function digestOf(entry: StoryEntry): string {
     if (!SHOWN.has(key)) rest[key] = entry[key as keyof StoryEntry]
   }
 
+  // The custom properties a component reads are its code, not the catalogue:
+  // folded in, every committed fingerprint went stale the day the field came, and
+  // a colour swapped in a component read as a changed story.
+  const { tokens: _read, ...component } = entry.component
+  rest['component'] = component
+
   rest['source'] = comparable(entry.source)
 
   return createHash('sha256').update(stable(rest)).digest('hex').slice(0, 16)

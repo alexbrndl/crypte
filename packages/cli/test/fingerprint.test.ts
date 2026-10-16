@@ -37,6 +37,19 @@ const one = (over: Partial<StoryEntry> = {}): Manifest => ({
 })
 
 describe('reduced fingerprint', () => {
+  // Le code du composant, pas le catalogue : compté, chaque empreinte commitée
+  // devenait périmée le jour où le champ est arrivé.
+  it('ignores the custom properties a component reads, and only them', () => {
+    const lit = (tokens?: string[]) =>
+      fingerprintOf(one({ component: { ...entry.component, ...(tokens ? { tokens } : {}) } }))
+
+    expect(same(lit(), lit(['color-text']))).toBe(true)
+    expect(same(lit(['color-text']), lit(['color-warning']))).toBe(true)
+    expect(
+      same(lit(), fingerprintOf(one({ component: { ...entry.component, name: 'Autre' } }))),
+    ).toBe(false)
+  })
+
   // Le producteur trie déjà. Ce tri-ci tient la règle du condensé, qui dépend de
   // ce qu'une entrée porte et jamais de l'ordre où c'est écrit : `stable` fait
   // la même chose des clés d'objet. Réordonner un bloc de props dans un fichier

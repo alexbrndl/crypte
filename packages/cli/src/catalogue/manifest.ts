@@ -15,6 +15,7 @@ import { ConfigError, reason } from '../errors'
 import { best, isBareSpecifier, ordered, substituted } from '../config/paths'
 import { propsOf, type PropsRead } from './props'
 import { entriesOf, posix, STORY_EXTENSIONS } from './stories'
+import { tokensOf } from './tokens'
 import { surfacesOf } from '../server/surfaces'
 import type { Project } from '../config/project'
 
@@ -112,8 +113,12 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
         ? { details: {} }
         : propsOf(join(project.root, resolved), read.entries[0]!.component.export)
 
+    // Once per file as well: the custom properties of the one component.
+    const tokens = resolved === undefined ? undefined : tokensOf(join(project.root, resolved))
+
     for (const entry of read.entries) {
       if (resolved !== undefined) entry.component = { ...entry.component, file: resolved }
+      if (tokens !== undefined) entry.component = { ...entry.component, tokens }
       entry.details = completed(inferred.details, read.details)
       if (inferred.unread !== undefined) entry.propsUnread = inferred.unread
       entries.push(entry)

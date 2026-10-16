@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.37, reference document. A project brief points here instead of restating these shapes.
+> Version 1.38, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -474,6 +474,7 @@ interface ComponentRef {
   name: string
   file: string
   export: string
+  tokens?: string[]
 }
 
 interface TokensEntry {
@@ -525,6 +526,8 @@ With no `children`, the tag stays self-closing — and so it does when a spread 
 **A prop spread with `...` is in neither field**, and neither is a key computed at runtime. Their names cannot be read without running the file, and guessing them would put wrong names in a coverage figure.
 
 **A story key computed at runtime produces no entry at all.** A story name is a URL, a baseline key and the anchor of a comment, so a wrong one costs more than a missing one. The CLI reports what it dropped.
+
+**`component.tokens` names the custom properties the component reads**, without their dashes and sorted, so a reader can tell which components a token reaches. The CLI reads them from the component file and from the style sheets it imports by a relative path, one level deep: every `var(--name`, and in the component file a quoted `'--name'` too, since `var(${tone ? '--a' : '--b'})` picks its property in a string. A name the project declares as no token is listed all the same: matching it to a family is the reader's business. The field is absent when the component file cannot be read, and an empty list means it reads none. It is not folded into the fingerprint (4.6): it is the component's code, and a colour swapped in a component is not a changed story.
 
 **A tokens entry is a family, not one token.** `path` places it under folders and `name` is its leaf, as for a story, except that a family has no component: every segment of its `path` is a folder. `tokens` is keyed by token name, so the value carries no `name` of its own. That is the same shape as `details` inside a story entry, and it is what keeps a catalogue of three hundred tokens from becoming three hundred entries.
 
@@ -974,7 +977,7 @@ This document is a contract. This section is the only place that says what exist
 
 **`dev`, `check` and `init` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled in the project by the CLI's own Vite, with the plugins the project declares in `vite.plugins`. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte init` writes the configuration of 1.5 into a project that already has its components, and has no section of its own because the file it writes is 1.5 itself.
 
-Eight known gaps between this document and the code:
+Nine known gaps between this document and the code:
 
 - **A plugin's peer range checks the copies npm installs, never the ones its panel runs on.** `vue` and `@crypte/ui` reach a panel from the installed CLI's shell, through its import map (6.1). A plugin newer than that CLI, which imports a component its `@crypte/ui` does not have yet, fails to load, and the frame shows the import error in the panel's place. Pinning `@crypte/cli` instead would move the whole `fixed` group to a major version at every minor one, measured with `changeset status` (DCJ-352).
 - **The preview is compiled by the CLI's Vite, and nothing checks the project's plugins against it.** A project on another major keeps its own Vite for its build, and its `vite.plugins` run in the CLI's anyway. Measured on a project on Vite 6: its React plugin warned about deprecated options and every story rendered. Resolving the project's own Vite instead would be a rework, not a fix.
@@ -982,12 +985,19 @@ Eight known gaps between this document and the code:
 - **Inference reads what a file declares, never what a type it cannot resolve holds.** A type alias, an interface and a `cva(…)` call declared in the component file are followed. An imported type, a generic, a DOM part of an intersection, and an `extends` clause other than `VariantProps` of a local `cva` each leave only what the component file writes by hand, which for a DOM pass-through is the names in its destructuring pattern. Enumerating the rest needs the type checker, and inventing names is what 4.2 forbids.
 - **`ShellContribution` is declared opaque by the core**, which knows no Vue and cannot name a component. The shell mounts a shell module's export without checking more than that it is an object or a function.
 - The serialisation of 4.5 is guaranteed on **contributed** entries and merely true of the others. A plugin's entry is checked and refused with what offends named; everything the CLI reads itself comes from source text and is serialisable by construction, so nothing exercises the guarantee there.
+- **`component.tokens` misses what a global style sheet gives a component.** A class written in a sheet the component does not import ties no custom property to it, since nothing in the component file names it. Reading which rules reach a component needs it rendered, which the producer never does. An imported sheet edited alone is not watched either, so its names follow at the next component change or restart.
 - **Editing the declared style sheet does not refresh the `tokens` served.** `crypte dev` rebuilds the catalogue when a story or component file changes, not when the `css` of 1.5 does, so a family follows its style sheet only at the next story change or restart. Measured on the demonstration, tracked in DCJ-340.
 - `component.file` is resolved without Vite. The producer runs before any server exists, so it applies the project's `paths` and tries the usual extensions, with no plugin and no `exports` field. A component reached through a plugin keeps the identifier the story wrote. `crypte check` calls such an entry an orphan only when the project could have reached it itself, that is a relative path or an alias it declares; anything else it leaves alone.
 
 ---
 
 ## 9. Version log
+
+**v1.38.** Which components a token reaches (4.2).
+
+| Before | After |
+| --- | --- |
+| nothing tied a token to the components that read it | `component.tokens` lists the custom properties each component reads, from its file and the style sheets it imports |
 
 **v1.37.** Where a story sits in the stage (2.4).
 
