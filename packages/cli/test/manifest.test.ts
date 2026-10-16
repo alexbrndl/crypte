@@ -221,6 +221,31 @@ describe('props that could not be read', () => {
 
     return entry ? { details: entry.details, propsUnread: entry.propsUnread } : undefined
   }
+  const tokensOfEntry = async (component: Record<string, string>, imported: string) => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      ...component,
+      'stories/Card.ts': `import { Card } from '${imported}'\nexport default defineStories(Card, {})\n`,
+    })
+    return storiesOf(buildCatalogue(await loadProject(root)).manifest)[0]?.component
+  }
+
+  // La moitié « absent » du contrat : sans fichier lisible, aucun champ, et pas
+  // une liste vide, qui dirait que le composant n'en lit aucune.
+  it('carries no tokens for a component whose file cannot be found, and its list otherwise', async () => {
+    expect(await tokensOfEntry({}, '@acme/ui')).not.toHaveProperty('tokens')
+    expect(
+      (
+        await tokensOfEntry(
+          {
+            'src/Card.tsx':
+              "export function Card() { return <i style={{ color: 'var(--ink)' }} /> }\n",
+          },
+          '../src/Card',
+        )
+      )?.tokens,
+    ).toEqual(['ink'])
+  })
 
   it('carries the reason the reader gave', async () => {
     expect(
@@ -331,7 +356,7 @@ const EXPECTED: Manifest = {
       id: 'badge--default',
       path: ['Badge'],
       name: 'Default',
-      component: { name: 'Badge', file: 'src/components/Badge.jsx', export: 'Badge' },
+      component: { name: 'Badge', file: 'src/components/Badge.jsx', export: 'Badge', tokens: [] },
       storyFile: 'stories/Badge.js',
       options: {},
       details: {},
@@ -347,6 +372,7 @@ const EXPECTED: Manifest = {
         name: 'OrderSummary',
         file: 'src/components/checkout/OrderSummary.jsx',
         export: 'default',
+        tokens: [],
       },
       storyFile: 'stories/checkout/OrderSummary.jsx',
       options: {},
@@ -365,6 +391,7 @@ const EXPECTED: Manifest = {
         name: 'OrderSummary',
         file: 'src/components/checkout/OrderSummary.jsx',
         export: 'default',
+        tokens: [],
       },
       storyFile: 'stories/checkout/OrderSummary.jsx',
       options: {},
@@ -383,6 +410,7 @@ const EXPECTED: Manifest = {
         name: 'OrderSummary',
         file: 'src/components/checkout/OrderSummary.jsx',
         export: 'default',
+        tokens: [],
       },
       storyFile: 'stories/checkout/OrderSummary.jsx',
       options: { responsive: 'mobile' },
