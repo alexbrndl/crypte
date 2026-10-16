@@ -2063,9 +2063,12 @@ describe('an empty catalogue', () => {
 
     expect(guide.find('h2').text()).toBe('No story in src/stories/')
     expect(guide.find('.path').text()).toBe('src/stories/')
+    expect(guide.find('.mapping').text()).toBe(
+      'src/components/ui/Badge.tsx  >  src/stories/ui/Badge.ts',
+    )
     expect(guide.find('pre').text()).toMatchInlineSnapshot(`
       "import { defineStories } from '@crypte/react'
-      import { Badge } from '../../src/components/ui/Badge'
+      import { Badge } from '../../../src/components/ui/Badge'
 
       export default defineStories(Badge)"
     `)
@@ -2085,7 +2088,22 @@ describe('an empty catalogue', () => {
     await copie.trigger('click')
     await vide(écran.wrapper)
     expect(écrit).toHaveBeenCalledWith(écran.wrapper.find('.empty pre').text())
+    expect(écran.wrapper.find('.empty pre').text()).toContain(
+      "import { Badge } from '../../src/components/ui/Badge'",
+    )
     expect(copie.text()).toBe('Copied')
+    écran.wrapper.unmount()
+  })
+
+  test('says when the file could not be copied', async () => {
+    vi.stubGlobal('navigator', {
+      clipboard: { writeText: vi.fn(async () => Promise.reject(new Error('denied'))) },
+    })
+    const écran = await monte([])
+
+    await écran.wrapper.find('.empty .copy').trigger('click')
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('.empty .copy').text()).toBe('Copy failed')
     écran.wrapper.unmount()
   })
 
@@ -2435,6 +2453,26 @@ describe('the panels toggle', () => {
 
     await bascule(écran).trigger('click')
     expect(colonne(écran).attributes('data-open')).toBeUndefined()
+  })
+
+  // Repliée, la colonne cache l'encadré des plugins en échec : le bouton le marque.
+  test('marks a plugin that failed or was refused', async ({ écran }) => {
+    const marque = () => bascule(écran).find('.trouble')
+    expect(marque().exists()).toBe(false)
+
+    écran.wrapper.findComponent(Panels).vm.$emit('count', 1, 1)
+    await vide(écran.wrapper)
+    expect(marque().attributes('aria-label')).toBe('a plugin failed')
+
+    écran.wrapper.findComponent(Panels).vm.$emit('count', 2, 0)
+    await vide(écran.wrapper)
+    expect(marque().exists()).toBe(false)
+    await écran.répond({
+      type: 'plugin-error',
+      plugin: 'a11y',
+      message: 'boom',
+    } as PreviewMessage)
+    expect(marque().exists()).toBe(true)
   })
 
   test('closes on Escape', async ({ écran }) => {

@@ -240,7 +240,7 @@ const storyMode = computed(
 const fullScreen = computed(() => full.value && storyMode.value)
 
 // La vue stories sans story : un guide à la place du canvas. Pas quand un fichier
-// a été écarté, que l'encadré au-dessus nomme : le dossier n'est alors pas en cause.
+// a été écarté, que son encadré nomme : le dossier n'est alors pas en cause.
 const noStory = computed(
   () =>
     read.value &&
@@ -248,15 +248,23 @@ const noStory = computed(
     entries.value.length === 0 &&
     skipped.value.length === 0,
 )
-const SNIPPET = `import { defineStories } from '@crypte/react'
-import { Badge } from '../../src/components/ui/Badge'
+// L'exemple suit la racine déclarée : `src/stories` remonte d'un dossier de plus
+// que `stories`, et un import écrit pour l'une ne résout pas depuis l'autre.
+const storiesRoot = computed(() => (project.value?.stories ?? 'stories').replace(/^\.\/|\/$/g, ''))
+const snippet = computed(
+  () => `import { defineStories } from '@crypte/react'
+import { Badge } from '${'../'.repeat(storiesRoot.value.split('/').length + 1)}src/components/ui/Badge'
 
-export default defineStories(Badge)`
+export default defineStories(Badge)`,
+)
 
 // Sous 1180 px, la colonne des panneaux sort de la grille et s'ouvre par-dessus
 // le canvas, depuis un bouton de la barre d'outils qui en dit le nombre.
 const panelsOpen = ref(false)
 const panelCount = ref(0)
+// Les plugins en échec ou refusés : repliée, la colonne cache leur encadré, et le
+// bouton le dit à sa place.
+const panelTroubles = ref(0)
 
 // Un réglage de vue, pas un lieu qu'on partage : hors de l'adresse.
 const ZOOMS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]
@@ -732,6 +740,12 @@ onMounted(() => {
           >
             Panels
             <span v-if="panelCount > 0" class="count">{{ panelCount }}</span>
+            <span
+              v-if="panelTroubles + pluginErrors.length > 0"
+              class="trouble"
+              role="img"
+              aria-label="a plugin failed"
+            />
           </Button>
           <Button variant="secondary" class="copy" @click="copyLink">
             <Icon :icon="Copy01Icon" />
@@ -757,15 +771,13 @@ onMounted(() => {
             Showing the first story instead.
           </Alert>
 
-          <!-- Pas quand un fichier a été écarté : l'encadré d'en dessous le nomme, et
-           le dossier n'est alors pas en cause. -->
           <div v-if="noStory" class="empty">
             <EmptyGuide
               :title="project ? `No story in ${project.stories}/` : 'No story found'"
               :path="project ? `${project.stories}/` : null"
               rule="A story file carries the exact name of its component, and the tree follows its path. The folder is the stories of crypte.config.ts."
-              mapping="src/components/ui/Badge.tsx  >  stories/ui/Badge.ts"
-              :snippet="SNIPPET"
+              :mapping="`src/components/ui/Badge.tsx  >  ${storiesRoot}/ui/Badge.ts`"
+              :snippet="snippet"
               note="When every prop is optional, a story named Default is generated. Name the file .tsx when a children prop needs markup."
               outcome="The file appears and its story renders, without a restart."
             />
@@ -907,7 +919,7 @@ onMounted(() => {
             @overrides="edit"
             @send="sendToPreview"
             @weights="(measured) => (weights = measured)"
-            @count="(count) => (panelCount = count)"
+            @count="(count, troubles) => ((panelCount = count), (panelTroubles = troubles))"
           />
         </aside>
       </div>
@@ -1069,6 +1081,13 @@ main.full {
   box-shadow: inset 0 0 0 var(--stroke-hairline) var(--accent-base);
   background: var(--background-current);
   color: var(--text-current);
+}
+
+.panels-toggle .trouble {
+  width: var(--size-dot);
+  height: var(--size-dot);
+  border-radius: var(--radius-full);
+  background: var(--error-solid);
 }
 
 .panels-toggle .count {
