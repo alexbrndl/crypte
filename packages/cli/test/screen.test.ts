@@ -1254,7 +1254,8 @@ describe('the component page', () => {
 describe('the tokens page', () => {
   test('lists the four families, and opens one from its address', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
-    const familles = ecran.page.locator('nav [role="treeitem"].tokens .name')
+    await ecran.page.locator('.activity-bar .item', { hasText: 'tokens' }).click()
+    const familles = ecran.page.locator('.sidebar [role="treeitem"].tokens .name')
     await expect
       .poll(() => familles.allTextContents())
       .toEqual(['color', 'radius', 'size', 'space'])
@@ -1277,13 +1278,13 @@ describe('the changes mode', () => {
   }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
 
-    await ecran.page.locator('nav .changes-entry').click()
+    await ecran.page.locator('.activity-bar .item', { hasText: 'versions' }).click()
 
     await expect
       .poll(async () => (await ecran.page.locator('.changes-page .note').textContent())?.trim())
       .toBe('The changes cannot be read: .crypte/fingerprint.json has never been committed.')
     expect(new URL(ecran.page.url()).search).toBe('?changes')
-    expect(await ecran.page.locator('nav .changes-entry .counter').count()).toBe(0)
+    expect(await ecran.page.locator('.activity-bar .count').count()).toBe(0)
   })
 })
 
@@ -1293,9 +1294,9 @@ describe('the shortcuts', () => {
     await expect.poll(ecran.vu).toBe('Nouveau')
 
     await ecran.page.locator('main').press('f')
-    await expect.poll(() => ecran.page.locator('main > nav').isVisible()).toBe(false)
+    await expect.poll(() => ecran.page.locator('.nav-column').isVisible()).toBe(false)
     await ecran.page.locator('main').press('Escape')
-    await expect.poll(() => ecran.page.locator('main > nav').isVisible()).toBe(true)
+    await expect.poll(() => ecran.page.locator('.nav-column').isVisible()).toBe(true)
   })
 })
 
@@ -1423,8 +1424,8 @@ describe('the components, on screen', () => {
         .evaluate((e) => e.getBoundingClientRect().height)
 
     expect({
-      'input/text': await hauteur('.commands'),
-      keycap: await hauteur('.commands kbd'),
+      'activity-bar/item': await hauteur('.activity-bar .item'),
+      'button lg icon': await hauteur('.activity-bar .icon-button'),
       tab: await hauteur('.tabs button'),
       row: await hauteur('[role=treeitem]'),
       'button md': await hauteur('.actions .copy'),
@@ -1433,8 +1434,8 @@ describe('the components, on screen', () => {
         `getComputedStyle(document.querySelector('[data-plugin="controls"] .body')).padding`,
       ),
     }).toEqual({
-      'input/text': 32,
-      keycap: 20,
+      'activity-bar/item': 48,
+      'button lg icon': 32,
       tab: 24,
       row: 24,
       'button md': 28,
@@ -1473,14 +1474,14 @@ describe('the command palette, on screen', () => {
     await expect.poll(() => new URL(ecran.page.url()).search).toBe('?id=badge--avertissement')
     await expect.poll(() => dialogue.count()).toBe(0)
 
-    // Le champ de la colonne ouvre la palette, qui affiche les raccourcis.
+    // Le bouton de recherche de l'activity bar ouvre la palette, qui affiche les raccourcis.
     await ecran.page.getByRole('button', { name: /^Search or run/ }).click()
     await expect
       .poll(() => dialogue.getByRole('option', { name: 'Full screen F' }).isVisible())
       .toBe(true)
     await dialogue.locator('input').fill('full')
     await dialogue.locator('input').press('Enter')
-    await expect.poll(() => ecran.page.locator('main > nav').isVisible()).toBe(false)
+    await expect.poll(() => ecran.page.locator('.nav-column').isVisible()).toBe(false)
   })
 })
 

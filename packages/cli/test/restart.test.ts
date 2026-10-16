@@ -564,7 +564,7 @@ export default defineStories(Badge, { props: { label: 'Seule' } })
 
     const page = await browser.newPage()
 
-    const arbre = () => page.locator('nav [role="treeitem"].story .name').allTextContents()
+    const arbre = () => page.locator('.sidebar [role="treeitem"].story .name').allTextContents()
     const rendu = () =>
       page
         .frameLocator('iframe[title="preview"]')
