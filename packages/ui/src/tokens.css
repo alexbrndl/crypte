@@ -157,8 +157,8 @@
   --background-inverse-hover: light-dark(var(--stone-800), var(--stone-200));
   --text-primary: light-dark(var(--stone-900), var(--stone-50));
   --text-muted: light-dark(var(--stone-600), var(--stone-300));
-  /* 4.5:1 on base and raised only, under it on subtle and current: text there
-     takes `--text-muted`. */
+  /* 4.5:1 on base and raised only: text on any other background takes
+     `--text-muted`. */
   --text-subtle: light-dark(var(--stone-500), var(--stone-400));
   --text-current: light-dark(var(--teal-700), var(--teal-400));
   --text-current-hover: light-dark(var(--teal-800), var(--teal-200));
