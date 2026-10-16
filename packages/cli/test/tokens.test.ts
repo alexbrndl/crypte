@@ -41,6 +41,12 @@ describe('the custom properties a component reads', () => {
     expect(tokensOf(join(root, 'Badge.tsx'))).toEqual(['color-neutral', 'color-warning'])
   })
 
+  it('reads a quoted name in a var() template that carries a fallback', () => {
+    const root = project({ 'Badge.tsx': "const v = `var(${tone ? '--a' : '--b'}, #000)`" })
+
+    expect(tokensOf(join(root, 'Badge.tsx'))).toEqual(['a', 'b'])
+  })
+
   it('reads the style sheets the file imports by a relative path, one level deep', () => {
     const root = project({
       'ui/Badge.tsx': `import './badge.css'\nimport styles from '../shared/badge.module.scss'\nimport 'library/theme.css'`,

@@ -45,7 +45,7 @@ export function tokensOf(file: string): string[] | undefined {
 }
 
 function quotedIn(text: string): string[] {
-  return [...text.matchAll(/var\(\$\{([^}]*)\}\)/g)].flatMap((one) =>
+  return [...text.matchAll(/var\(\$\{([^}]*)\}/g)].flatMap((one) =>
     [...one[1]!.matchAll(/['"]--([\w-]+)['"]/g)].map((quoted) => quoted[1]!),
   )
 }
