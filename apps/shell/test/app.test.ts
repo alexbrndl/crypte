@@ -2168,6 +2168,20 @@ describe('the zoom', () => {
     expect(écran.wrapper.find('.stage-tools .level').attributes('aria-label')).toBe('Zoom, 100 %')
   })
 
+  // Non modal, il laisse passer Tab, et se ferme alors : sinon le focus filait
+  // dans la preview, le menu ouvert par-dessus. Revue de #156.
+  test('closes its menu on Tab', async ({ écran }) => {
+    await ouvre(écran)
+    expect(document.querySelector('[role="menu"]')).not.toBeNull()
+
+    document
+      .querySelector('[role="menu"]')!
+      .dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
+    await vide(écran.wrapper)
+
+    expect(document.querySelector('[role="menu"]')).toBeNull()
+  })
+
   // Ouvert, le menu se pose sur le niveau courant : un lecteur d'écran annonce
   // ce qui est choisi, pas le premier article.
   test('opens its menu on the level in use', async ({ écran }) => {

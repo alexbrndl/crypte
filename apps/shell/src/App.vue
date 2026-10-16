@@ -240,7 +240,10 @@ const fullScreen = computed(() => full.value && storyMode.value)
 // Un réglage de vue, pas un lieu qu'on partage : hors de l'adresse.
 const ZOOMS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]
 const zoom = ref(1)
+const zoomMenu = ref(false)
 
+// Non modal, le menu laisse passer Tab : fermé à ce moment, sinon le focus filait
+// dans l'iframe de la preview et le menu restait ouvert par-dessus. Revue de #156.
 // Ouvert, le menu se pose sur le niveau courant plutôt que sur le premier : un
 // lecteur d'écran annonce ce qui est choisi. Après le focus que Reka pose
 // lui-même sur le premier article.
@@ -752,7 +755,11 @@ onMounted(() => {
               <!-- Non modal, et téléporté dans les outils de la scène : modal, Reka
                    masquait tout le shell aux lecteurs d'écran, et dans le corps de la page
                    le menu était hors de tout repère. Mesuré par le cas axe. -->
-              <DropdownMenuRoot :modal="false" @update:open="(open) => open && focusLevel()">
+              <DropdownMenuRoot
+                v-model:open="zoomMenu"
+                :modal="false"
+                @update:open="(open) => open && focusLevel()"
+              >
                 <!-- Pas de tooltip : le menu rend le focus à son bouton, en focus visible,
                      et le tooltip revenait après chaque choix. Ses touches sont dites au
                      pied du menu. -->
@@ -768,6 +775,7 @@ onMounted(() => {
                     align="end"
                     :side-offset="4"
                     aria-describedby="zoom-keys"
+                    @keydown.tab="zoomMenu = false"
                   >
                     <DropdownMenuRadioGroup
                       :model-value="String(zoom)"
@@ -1241,8 +1249,9 @@ iframe {
 }
 </style>
 
-<!-- Not scoped: the zoom menu is teleported to the body, out of reach of the scope
-     attribute, so a scoped rule never matched it. Measured in Chromium. -->
+<!-- Not scoped: the zoom menu is teleported out of this template, into the stage
+     tools, through components whose root the scope attribute does not reach, so a
+     scoped rule never matched it. Measured in Chromium. -->
 <style>
 .shell-menu {
   z-index: 10;
