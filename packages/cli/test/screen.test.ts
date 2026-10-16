@@ -1474,7 +1474,7 @@ describe('the command palette, on screen', () => {
     await expect.poll(() => new URL(ecran.page.url()).search).toBe('?id=badge--avertissement')
     await expect.poll(() => dialogue.count()).toBe(0)
 
-    // Le champ de la colonne ouvre la palette, qui affiche les raccourcis.
+    // Le bouton de recherche de l'activity bar ouvre la palette, qui affiche les raccourcis.
     await ecran.page.getByRole('button', { name: /^Search or run/ }).click()
     await expect
       .poll(() => dialogue.getByRole('option', { name: 'Full screen F' }).isVisible())

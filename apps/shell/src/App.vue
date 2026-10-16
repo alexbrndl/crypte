@@ -52,7 +52,7 @@ const MANIFEST = '/@crypte/manifest.json'
 
 const frame = useTemplateRef<HTMLIFrameElement>('frame')
 const entries = ref<StoryEntry[]>([])
-// Les familles de tokens, que l'arbre range avec les stories et qu'une page dessine.
+// Les familles de tokens, que la vue tokens range et qu'une page dessine.
 const families = ref<TokensEntry[]>([])
 const skipped = ref<SkippedFile[]>([])
 const current = ref<string | null>(null)
@@ -123,7 +123,7 @@ const componentStories = computed(() =>
 const family = ref<string | null>(null)
 const shownFamily = computed(() => families.value.find((one) => one.id === family.value) ?? null)
 
-// Ce que l'arbre range, dans l'ordre du manifeste : les familles y suivent les
+// Ce que la palette cherche, dans l'ordre du manifeste : les familles y suivent les
 // stories, les contributions des plugins passant après elles (§6.3).
 const listed = computed(() => [...entries.value, ...families.value])
 
@@ -444,7 +444,7 @@ function shortcut(event: KeyboardEvent) {
     return
   // Alt+F ouvre le menu Fichier sous Windows : `f` et `/` se tapent sans modification.
   const plain = !event.altKey
-  // La palette est la recherche : `/` l'ouvre, comme le champ de la colonne.
+  // La palette est la recherche : `/` l'ouvre, comme le bouton de l'activity bar.
   if (event.key === '/' && plain) {
     event.preventDefault()
     palette.value = true

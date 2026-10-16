@@ -1564,6 +1564,18 @@ describe('the activity bar', () => {
     expect(window.location.search).toBe('?id=badge--defaut')
   })
 
+  test('switches the theme from its button, which names the other theme', async ({ écran }) => {
+    const infobulles = () =>
+      écran.wrapper.findAllComponents(Tooltip).map((one) => one.props('content'))
+    expect(infobulles()).toContain('Dark theme: T')
+
+    await écran.wrapper.find('[aria-label="Dark theme"]').trigger('click')
+    await vide(écran.wrapper)
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(écran.wrapper.find('[aria-label="Light theme"]').exists()).toBe(true)
+    expect(infobulles()).toContain('Light theme: T')
+  })
+
   test('has no tokens entry without a family', async ({ écran }) => {
     expect(écran.wrapper.findAll('.activity-bar .label').map((one) => one.text())).toEqual([
       'stories',
