@@ -46,7 +46,7 @@ const groups = computed(() =>
 <template>
   <nav class="activity-bar" aria-label="Views">
     <h1 class="logo"><Logo /></h1>
-    <Tooltip :content="`Search or run: ${searchKeys}`">
+    <Tooltip content="Search or run" :keys="searchKeys">
       <Button
         variant="ghost"
         class="icon-button"
@@ -77,7 +77,7 @@ const groups = computed(() =>
       </a>
     </template>
     <span class="spacer" />
-    <Tooltip :content="`${themeLabel}: T`">
+    <Tooltip :content="themeLabel" keys="T">
       <Button
         variant="ghost"
         class="icon-button"

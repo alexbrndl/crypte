@@ -209,7 +209,7 @@ kbd {
   border: 0;
   box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
   border-radius: var(--radius-xs);
-  background: var(--background-raised);
+  background: var(--background-subtle);
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
