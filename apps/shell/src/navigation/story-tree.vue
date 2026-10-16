@@ -170,6 +170,7 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
         {{ one }}
       </ToggleGroupItem>
     </ToggleGroupRoot>
+    <p v-if="entries.length === 0" class="none">{{ none }}</p>
     <TreeRoot
       v-slot="{ flattenItems }"
       :items="shown"
@@ -218,7 +219,6 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
         <span v-if="item.value.kind === 'folder'" class="meta">{{ count(item.value) }}</span>
       </TreeItem>
     </TreeRoot>
-    <p v-if="entries.length === 0" class="none">{{ none }}</p>
   </div>
 </template>
 

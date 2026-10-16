@@ -36,6 +36,7 @@ import { CHANGES, type Changes } from './pages/changes'
 import ChangesPage from './pages/changes-page.vue'
 import CommandPalette, { type Action } from './navigation/command-palette.vue'
 import ComponentPage from './pages/component-page.vue'
+import EmptyGuide from './pages/empty-guide.vue'
 import { ArrowDown01Icon, Copy01Icon, FullScreenIcon, Tick02Icon } from '@hugeicons/core-free-icons'
 import ActivityBar, { type View } from './navigation/activity-bar.vue'
 import Icon from './ui/icon.vue'
@@ -238,6 +239,33 @@ const storyMode = computed(
 )
 const fullScreen = computed(() => full.value && storyMode.value)
 
+// La vue stories sans story : un guide à la place du canvas. Pas quand un fichier
+// a été écarté, que son encadré nomme : le dossier n'est alors pas en cause.
+const noStory = computed(
+  () =>
+    read.value &&
+    view.value === 'stories' &&
+    entries.value.length === 0 &&
+    skipped.value.length === 0,
+)
+// L'exemple suit la racine déclarée : `src/stories` remonte d'un dossier de plus
+// que `stories`, et un import écrit pour l'une ne résout pas depuis l'autre.
+const storiesRoot = computed(() => (project.value?.stories ?? 'stories').replace(/^\.\/|\/$/g, ''))
+const snippet = computed(
+  () => `import { defineStories } from '@crypte/react'
+import { Badge } from '${'../'.repeat(storiesRoot.value.split('/').length + 1)}src/components/ui/Badge'
+
+export default defineStories(Badge)`,
+)
+
+// Sous 1180 px, la colonne des panneaux sort de la grille et s'ouvre par-dessus
+// le canvas, depuis un bouton de la barre d'outils qui en dit le nombre.
+const panelsOpen = ref(false)
+const panelCount = ref(0)
+// Les plugins en échec ou refusés : repliée, la colonne cache leur encadré, et le
+// bouton le dit à sa place.
+const panelTroubles = ref(0)
+
 // Un réglage de vue, pas un lieu qu'on partage : hors de l'adresse.
 const ZOOMS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]
 const zoom = ref(1)
@@ -435,6 +463,7 @@ function shortcut(event: KeyboardEvent) {
   }
   if (event.key === 'Escape') {
     full.value = false
+    panelsOpen.value = false
     return
   }
   if (event.metaKey) return
@@ -703,6 +732,21 @@ onMounted(() => {
           <span aria-current="page">{{ displayed.name }}</span>
         </nav>
         <div class="actions">
+          <Button
+            class="panels-toggle"
+            aria-controls="panels"
+            :aria-expanded="panelsOpen"
+            @click="panelsOpen = !panelsOpen"
+          >
+            Panels
+            <span v-if="panelCount > 0" class="count">{{ panelCount }}</span>
+            <span
+              v-if="panelTroubles + pluginErrors.length > 0"
+              class="trouble"
+              role="img"
+              aria-label="a plugin failed"
+            />
+          </Button>
           <Button variant="secondary" class="copy" @click="copyLink">
             <Icon :icon="Copy01Icon" />
             {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
@@ -727,23 +771,17 @@ onMounted(() => {
             Showing the first story instead.
           </Alert>
 
-          <!-- Pas quand un fichier a été écarté : l'encadré d'en dessous le nomme, et
-           le dossier n'est alors pas en cause. -->
-          <Alert
-            v-if="read && listed.length === 0 && skipped.length === 0"
-            color="warning"
-            class="empty"
-            role="status"
-          >
-            <h2 v-if="project">
-              No story found in <code>{{ project.stories }}/</code>
-            </h2>
-            <h2 v-else>No story found</h2>
-            <p>
-              Check that <code>stories</code> in <code>crypte.config.ts</code> names the folder of
-              your story files, and that each one exports <code>defineStories(…)</code> by default.
-            </p>
-          </Alert>
+          <div v-if="noStory" class="empty">
+            <EmptyGuide
+              :title="project ? `No story in ${project.stories}/` : 'No story found'"
+              :path="project ? `${project.stories}/` : null"
+              rule="A story file carries the exact name of its component, and the tree follows its path. The folder is the stories of crypte.config.ts."
+              :mapping="`src/components/ui/Badge.tsx  >  ${storiesRoot}/ui/Badge.ts`"
+              :snippet="snippet"
+              note="When every prop is optional, a story named Default is generated. Name the file .tsx when a children prop needs markup."
+              outcome="The file appears and its story renders, without a restart."
+            />
+          </div>
 
           <!-- Au-dessus de la preview et jamais bloquant : une story écartée est
            absente de l'arbre, donc rien d'autre ne la nomme. -->
@@ -775,7 +813,10 @@ onMounted(() => {
 
           <!-- Masqué et non retiré : la preview et les panneaux gardent leur état
            pendant qu'une page composant ou une famille est ouverte. -->
-          <div v-show="component === null && family === null && !changesOpen" class="canvas">
+          <div
+            v-show="component === null && family === null && !changesOpen && !noStory"
+            class="canvas"
+          >
             <!-- Sur la scène, ce qui agit sur elle : l'échelle et le plein écran,
                  qu'on quitte d'ici puisque la barre d'outils part avec lui. -->
             <div v-if="displayed" class="stage-tools">
@@ -860,7 +901,13 @@ onMounted(() => {
         <!-- Un élément autour : la racine de Panels est un fragment, où v-show ne
              s'applique pas. Masqués et non retirés sous une page : ils gardent leur
              état. -->
-        <aside v-show="!fullScreen && storyMode" class="panel-column" aria-label="Panels">
+        <aside
+          v-show="!fullScreen && storyMode && !noStory"
+          id="panels"
+          class="panel-column"
+          :data-open="panelsOpen || undefined"
+          aria-label="Panels"
+        >
           <h2 class="column-title">Panels</h2>
           <Panels
             :entry="displayed"
@@ -872,6 +919,7 @@ onMounted(() => {
             @overrides="edit"
             @send="sendToPreview"
             @weights="(measured) => (weights = measured)"
+            @count="(count, troubles) => ((panelCount = count), (panelTroubles = troubles))"
           />
         </aside>
       </div>
@@ -1018,9 +1066,59 @@ main.full {
 }
 
 .body {
+  position: relative;
   display: flex;
   flex: 1;
   min-height: 0;
+}
+
+/* Le bouton des panneaux n'existe que sous le seuil où ils sortent de la grille. */
+.actions .panels-toggle {
+  display: none;
+}
+
+.actions .panels-toggle[aria-expanded='true'] {
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--accent-base);
+  background: var(--background-current);
+  color: var(--text-current);
+}
+
+.panels-toggle .trouble {
+  width: var(--size-dot);
+  height: var(--size-dot);
+  border-radius: var(--radius-full);
+  background: var(--error-solid);
+}
+
+.panels-toggle .count {
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-xs);
+  background: var(--accent-base);
+  color: var(--text-inverse);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+}
+
+/* Sous 1180 px, la colonne quitte la grille : le canvas garde sa largeur, et elle
+   s'ouvre par-dessus, à droite, sans voile. 1280 tient encore en entier. */
+@media (max-width: 1179px) {
+  .actions .panels-toggle {
+    display: inline-flex;
+  }
+
+  .panel-column {
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    z-index: 1;
+    display: none;
+    box-shadow: 0 0 24px rgb(0 0 0 / 0.16);
+  }
+
+  .panel-column[data-open] {
+    display: block;
+  }
 }
 
 .stage-tools {
@@ -1086,9 +1184,15 @@ main.full {
 }
 
 .config,
-.stale,
-.empty {
+.stale {
   margin-bottom: var(--space-3);
+}
+
+/* Le guide au centre de la scène, à la place du canvas. */
+.empty {
+  display: flex;
+  flex: 1;
+  padding: var(--space-6) var(--space-3);
 }
 
 /* Le canvas : la story sur une trame de points, comme dans les maquettes. */

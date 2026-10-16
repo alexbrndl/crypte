@@ -2054,26 +2054,69 @@ describe('a configuration the server could not read', () => {
 })
 
 describe('an empty catalogue', () => {
-  test('says where Crypte looked, and what to check', async () => {
+  test('guides to the first story, where Crypte looked, in place of the canvas', async () => {
     const écran = await monte([], false, undefined, undefined, () => ({
       stories: 'src/stories',
       config: null,
     }))
-    const encadré = écran.wrapper.find('.empty')
+    const guide = écran.wrapper.find('.empty')
 
-    expect(encadré.find('h2').text()).toBe('No story found in src/stories/')
-    expect(encadré.find('p').text().replace(/\s+/g, ' ')).toBe(
-      'Check that stories in crypte.config.ts names the folder of your story files, and that each one exports defineStories(…) by default.',
+    expect(guide.find('h2').text()).toBe('No story in src/stories/')
+    expect(guide.find('.path').text()).toBe('src/stories/')
+    expect(guide.find('.mapping').text()).toBe(
+      'src/components/ui/Badge.tsx  >  src/stories/ui/Badge.ts',
     )
+    expect(guide.find('pre').text()).toMatchInlineSnapshot(`
+      "import { defineStories } from '@crypte/react'
+      import { Badge } from '../../../src/components/ui/Badge'
+
+      export default defineStories(Badge)"
+    `)
+    expect(guide.find('.outcome').text()).toBe(
+      'The file appears and its story renders, without a restart.',
+    )
+    expect(écran.wrapper.find('.canvas').isVisible()).toBe(false)
     écran.wrapper.unmount()
   })
 
-  test('says nothing before the catalogue is read, nor with only tokens', async () => {
+  test('copies the shortest story file', async () => {
+    const écrit = vi.fn(async () => undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText: écrit } })
+    const écran = await monte([])
+    const copie = écran.wrapper.find('.empty .copy')
+
+    await copie.trigger('click')
+    await vide(écran.wrapper)
+    expect(écrit).toHaveBeenCalledWith(écran.wrapper.find('.empty pre').text())
+    expect(écran.wrapper.find('.empty pre').text()).toContain(
+      "import { Badge } from '../../src/components/ui/Badge'",
+    )
+    expect(copie.text()).toBe('Copied')
+    écran.wrapper.unmount()
+  })
+
+  test('says when the file could not be copied', async () => {
+    vi.stubGlobal('navigator', {
+      clipboard: { writeText: vi.fn(async () => Promise.reject(new Error('denied'))) },
+    })
+    const écran = await monte([])
+
+    await écran.wrapper.find('.empty .copy').trigger('click')
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('.empty .copy').text()).toBe('Copy failed')
+    écran.wrapper.unmount()
+  })
+
+  // Les familles sont de la vue tokens : la vue stories reste vide, et le dit.
+  test('says nothing before the catalogue is read, and guides the stories view beside tokens', async () => {
     const illisible = await monte([badge], true)
     expect(illisible.wrapper.find('.empty').exists()).toBe(false)
     illisible.wrapper.unmount()
 
     const jetonsSeuls = await monte([jetons])
+    expect(jetonsSeuls.wrapper.find('.empty').exists()).toBe(true)
+    await jetonsSeuls.vue('tokens').trigger('click', { button: 0 })
+    await vide(jetonsSeuls.wrapper)
     expect(jetonsSeuls.wrapper.find('.empty').exists()).toBe(false)
     jetonsSeuls.wrapper.unmount()
   })
@@ -2386,6 +2429,57 @@ describe('the shortcuts on other keyboards', () => {
     await frappe(écran, 'f', { altKey: true })
 
     expect(écran.wrapper.find('main').classes()).not.toContain('full')
+  })
+})
+
+// Sous 1180 px, ce que la feuille cache ou montre ; jsdom ne lit pas les media
+// queries, le cas navigateur de `screen.test.ts` tient les largeurs.
+describe('the panels toggle', () => {
+  const bascule = (écran: Ecran) => écran.wrapper.find('.panels-toggle')
+  const colonne = (écran: Ecran) => écran.wrapper.find('#panels')
+
+  test('opens the panel column over the canvas, and counts its panels', async ({ écran }) => {
+    expect(bascule(écran).attributes('aria-controls')).toBe('panels')
+    expect(bascule(écran).attributes('aria-expanded')).toBe('false')
+    expect(bascule(écran).find('.count').exists()).toBe(false)
+
+    écran.wrapper.findComponent(Panels).vm.$emit('count', 2)
+    await vide(écran.wrapper)
+    expect(bascule(écran).find('.count').text()).toBe('2')
+
+    await bascule(écran).trigger('click')
+    expect(bascule(écran).attributes('aria-expanded')).toBe('true')
+    expect(colonne(écran).attributes('data-open')).toBe('true')
+
+    await bascule(écran).trigger('click')
+    expect(colonne(écran).attributes('data-open')).toBeUndefined()
+  })
+
+  // Repliée, la colonne cache l'encadré des plugins en échec : le bouton le marque.
+  test('marks a plugin that failed or was refused', async ({ écran }) => {
+    const marque = () => bascule(écran).find('.trouble')
+    expect(marque().exists()).toBe(false)
+
+    écran.wrapper.findComponent(Panels).vm.$emit('count', 1, 1)
+    await vide(écran.wrapper)
+    expect(marque().attributes('aria-label')).toBe('a plugin failed')
+
+    écran.wrapper.findComponent(Panels).vm.$emit('count', 2, 0)
+    await vide(écran.wrapper)
+    expect(marque().exists()).toBe(false)
+    await écran.répond({
+      type: 'plugin-error',
+      plugin: 'a11y',
+      message: 'boom',
+    } as PreviewMessage)
+    expect(marque().exists()).toBe(true)
+  })
+
+  test('closes on Escape', async ({ écran }) => {
+    await bascule(écran).trigger('click')
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await vide(écran.wrapper)
+    expect(bascule(écran).attributes('aria-expanded')).toBe('false')
   })
 })
 

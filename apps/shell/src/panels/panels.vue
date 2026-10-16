@@ -32,6 +32,9 @@ const emit = defineEmits<{
   send: [message: PanelMessage]
   // Ce que chaque plugin coûte au navigateur, mesuré par le CLI, pour la barre d'état.
   weights: [weights: { plugin: string; bytes: number }[]]
+  // Le nombre de panneaux montés, et de plugins en échec ou refusés, que porte le
+  // bouton des panneaux repliés.
+  count: [count: number, troubles: number]
 }>()
 
 const PLUGINS = '/@crypte/plugins.json'
@@ -84,7 +87,9 @@ async function load() {
   try {
     listed = (await fetch(PLUGINS).then((answer) => answer.json())) as typeof listed
   } catch (error) {
-    if (run === reading) failures.value = [{ name: 'the list of plugins', message: said(error) }]
+    if (run !== reading) return
+    failures.value = [{ name: 'the list of plugins', message: said(error) }]
+    emit('count', panels.value.length, 1)
     return
   }
 
@@ -119,6 +124,7 @@ async function load() {
   emit('weights', listed.weights)
   panels.value = found
   failures.value = failed
+  emit('count', found.length, failed.length + listed.refused.length)
 
   // Un plugin qui n'est plus listé emporte ses valeurs : gardées, elles
   // restaient dans le rendu sans panneau pour les montrer, et revenaient quand on
