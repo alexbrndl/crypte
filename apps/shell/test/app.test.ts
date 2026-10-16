@@ -9,7 +9,7 @@ import type {
 import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test as base, vi } from 'vitest'
 import App from '../src/App.vue'
-import { Tooltip } from '@crypte/ui'
+import { Select, Tooltip } from '@crypte/ui'
 import Panels from '../src/panels/panels.vue'
 import StoryTree from '../src/navigation/story-tree.vue'
 
@@ -84,8 +84,8 @@ const monte = async (
   entries: ManifestEntry[],
   échoue = false,
   skipped?: { file: string; reason: string }[],
-  // Ce que répond la route des changements, ou ce qu'elle lève.
-  changements: () => unknown = () => ({
+  // Ce que répond la route des changements, ou ce qu'elle lève, selon sa requête.
+  changements: (url: string) => unknown = () => ({
     from: { ref: 'HEAD', commit: 'abcdef0' },
     changes: [],
     tokens: [],
@@ -106,8 +106,17 @@ const monte = async (
       // Les panneaux de plugins lisent leur propre route : aucun plugin ici.
       if (url === '/@crypte/plugins.json')
         return { json: async () => ({ panels: [], refused: [], weights: [] }) } as Response
-      // Le mode changements lit sa propre route : rien n'a changé ici.
-      if (url === '/@crypte/changes.json') return { json: async () => changements() } as Response
+      // La vue versions lit sa propre route : rien n'a changé ici. Et les points de
+      // départ que le CLI propose.
+      if (url.startsWith('/@crypte/changes.json'))
+        return { json: async () => changements(url) } as Response
+      if (url === '/@crypte/versions.json')
+        return {
+          json: async () => ({
+            branch: 'main',
+            tags: [{ name: 'v1.0.0', date: '2026-01-01T00:00:00.000Z' }],
+          }),
+        } as Response
       if (url === '/@crypte/project.json') return { json: async () => projet() } as Response
       if (échoue) throw new Error('Unexpected end of JSON input')
 
@@ -1894,9 +1903,11 @@ describe('the status line under a page', () => {
   })
 })
 
-// Ce qui a changé depuis le dernier commit, lu par le CLI dans Git.
-describe('the changes mode', () => {
+// Ce qui a changé depuis un commit, lu par le CLI dans Git : les écarts dans la
+// sidebar, le détail de celui qu'on choisit dans le canvas.
+describe('the versions view', () => {
   const lus = {
+    from: { ref: 'HEAD', commit: 'abcdef0' },
     changes: [
       { kind: 'appeared', id: 'badge--alerte' },
       {
@@ -1908,96 +1919,274 @@ describe('the changes mode', () => {
       { kind: 'disappeared', id: 'badge--ancienne' },
       { kind: 'disappeared', id: 'parti--defaut' },
     ],
+    tokens: [
+      {
+        kind: 'changed',
+        family: 'color--brand',
+        key: 'primary',
+        before: { light: '#000000' },
+        after: { light: '#4fe0a0' },
+      },
+    ],
+  }
+  const lecteur: StoryEntry = {
+    ...badge,
+    component: { ...badge.component, tokens: ['Brand-primary'] },
   }
   const entrée = (écran: Ecran) => écran.vue('versions')
-  const page = (écran: Ecran) => écran.wrapper.find('.changes-page')
-  const ouvre = async (écran: Ecran) => {
-    await entrée(écran).trigger('click', { button: 0 })
+  const vue = (écran: Ecran) => écran.wrapper.find('.versions-view')
+  const lignes = (écran: Ecran) =>
+    écran.wrapper
+      .findAll('.sidebar li a')
+      .map((one) =>
+        [
+          one.find('.sign').text().charAt(0),
+          one.find('.label').text(),
+          one.find('.detail').text(),
+        ].join(' '),
+      )
+  const ligne = (écran: Ecran, label: string) =>
+    écran.wrapper.findAll('.sidebar li a').find((one) => one.find('.label').text() === label)!
+  const clique = async (écran: Ecran, cible: DOMWrapper<Element>) => {
+    await cible.trigger('click', { button: 0 })
     await vide(écran.wrapper)
   }
 
-  test('opens from the activity bar, which counts the changes', async () => {
-    const écran = await monte([badge, alerte, bouton], false, undefined, () => lus)
+  test('opens from the activity bar, which counts the differences', async () => {
+    const écran = await monte([lecteur, alerte, bouton, jetons], false, undefined, () => lus)
     const avant = window.history.length
 
-    expect(entrée(écran).find('.count').text()).toBe('4')
-    await ouvre(écran)
+    expect(entrée(écran).find('.count').text()).toBe('5')
+    await clique(écran, entrée(écran))
 
-    expect(page(écran).find('h2').text()).toBe('Changes since the last commit')
+    expect(vue(écran).find('h2').text()).toBe('What changed since the last commit')
     expect(window.location.search).toBe('?changes')
     expect(window.history.length).toBe(avant + 1)
     expect(entrée(écran).attributes('aria-current')).toBe('page')
     expect(écran.wrapper.find('iframe').isVisible()).toBe(false)
-    expect(écran.wrapper.find('[role="treeitem"][aria-selected="true"]').exists()).toBe(false)
+    expect(écran.statut()).toBe('5 differences since the last commit')
     écran.wrapper.unmount()
   })
 
-  test('groups what appeared, changed and disappeared, each row leading somewhere', async () => {
-    const écran = await monte([badge, alerte, bouton], false, undefined, () => lus)
-    await ouvre(écran)
+  // Les tokens d'abord, chaque ligne signée + ~ −, le libellé et ce qui a bougé.
+  test('lists the differences in the sidebar, signed, the tokens first', async () => {
+    window.history.replaceState(null, '', '/?changes')
+    const écran = await monte([lecteur, alerte, bouton, jetons], false, undefined, () => lus)
 
-    expect(
-      page(écran)
-        .findAll('h3')
-        .map((one) => one.text()),
-    ).toEqual(['Appeared · 1', 'Changed · 1', 'Disappeared · 2'])
-    const lignes = page(écran)
-      .findAll('li')
-      .map((one) => [
-        one.find('a, code').text(),
-        ...one.findAll('.added, .removed, .status').map((part) => part.text()),
-      ])
-    expect(lignes).toEqual([
-      ['Badge / Alerte'],
-      ['Bouton / Par défaut', '+tone', '−label', 'draft → stable'],
-      ['badge--ancienne'],
-      ['parti--defaut'],
+    expect(écran.wrapper.findAll('.sidebar h3').map((one) => one.text())).toEqual([
+      'Tokens1',
+      'Stories4',
     ])
-
-    expect(
-      page(écran)
-        .findAll('li a')
-        .map((one) => one.attributes('href')),
-    ).toEqual(['?id=badge--alerte', '?id=bouton--defaut', '?component=badge'])
+    expect(lignes(écran)).toEqual([
+      '~ Brand-primary light',
+      '+ Alerte Badge',
+      '~ Par défaut props · draft → stable',
+      '− badge--ancienne story',
+      '− parti--defaut story',
+    ])
     écran.wrapper.unmount()
   })
 
-  test('shows a story from its row, and the component of a story that disappeared', async () => {
-    const écran = await monte([badge, alerte, bouton], false, undefined, () => lus)
-    await ouvre(écran)
+  test('details a story under its own address, and leads to it', async () => {
+    window.history.replaceState(null, '', '/?changes')
+    const écran = await monte([lecteur, alerte, bouton, jetons], false, undefined, () => lus)
 
-    await page(écran).findAll('li a')[0]!.trigger('click', { button: 0 })
-    await vide(écran.wrapper)
-    expect(page(écran).exists()).toBe(false)
-    expect(window.location.search).toBe('?id=badge--alerte')
+    await clique(écran, ligne(écran, 'Par défaut'))
+    expect(window.location.search).toBe('?changes&change=story:bouton--defaut')
+    expect(ligne(écran, 'Par défaut').attributes('aria-current')).toBe('true')
+    const détail = vue(écran).find('.change')
+    expect(détail.text().replace(/\s+/g, ' ')).toContain('Status: draft → stable')
+    expect(détail.find('.added').text()).toBe('tone')
+    expect(détail.find('.removed').text()).toBe('label')
 
-    await ouvre(écran)
-    await page(écran).findAll('li a')[2]!.trigger('click', { button: 0 })
-    await vide(écran.wrapper)
-    expect(écran.wrapper.find('.component-page h2').text()).toBe('Badge')
+    await clique(écran, détail.find('h3 a'))
+    expect(window.location.search).toBe('?id=bouton--defaut')
+    écran.wrapper.unmount()
+  })
+
+  test('details a token before and after, and the components that read it', async () => {
+    window.history.replaceState(null, '', '/?changes&change=token:color--brand/primary')
+    const écran = await monte([lecteur, alerte, bouton, jetons], false, undefined, () => lus)
+    const détail = vue(écran).find('.change')
+
+    expect(détail.find('h3').text()).toBe('Brand-primary')
+    expect(
+      détail.findAll('tbody tr').map((one) =>
+        one
+          .findAll('th, td')
+          .map((cell) => cell.text().trim())
+          .join(' '),
+      ),
+    ).toEqual(['light #000000 #4fe0a0'])
+    expect(détail.find('h4').text()).toBe('Read by 1 component')
+    await clique(écran, détail.find('.readers a'))
     expect(window.location.search).toBe('?component=badge')
     écran.wrapper.unmount()
   })
 
-  test('says when nothing changed, and counts zero', async () => {
-    const écran = await monte([badge], false, undefined, () => ({ changes: [] }))
-    await ouvre(écran)
+  // Une story partie mène à la page de son composant, s'il en reste une.
+  test('leads a story that disappeared to its component, when one remains', async () => {
+    window.history.replaceState(null, '', '/?changes&change=story:badge--ancienne')
+    const écran = await monte([lecteur, alerte, bouton, jetons], false, undefined, () => lus)
 
-    expect(entrée(écran).find('.count').text()).toBe('0')
-    expect(page(écran).find('.note').text()).toBe('Nothing changed in the catalogue.')
+    expect(vue(écran).find('.change h3 a').attributes('href')).toBe('?component=badge')
+    await clique(écran, ligne(écran, 'parti--defaut'))
+    expect(vue(écran).find('.change h3 a').exists()).toBe(false)
+    expect(vue(écran).find('.change').text()).toContain('This story is gone.')
     écran.wrapper.unmount()
   })
 
-  // Le mode reste accessible et dit pourquoi, sinon rien ne distingue « aucun
+  // Le point de départ se tape : une date part du dernier commit avant elle, le
+  // reste se lit comme une révision. Il entre dans l'adresse et dans la requête.
+  test('starts from a commit, a tag or a date typed in', async () => {
+    const lues: string[] = []
+    const écran = await monte([badge], false, undefined, (url) => {
+      lues.push(url)
+      return { ...lus, from: { ref: 'v1.0.0', commit: '1234567' } }
+    })
+    await clique(écran, entrée(écran))
+    const champ = écran.wrapper.find('.sidebar input')
+
+    await champ.setValue('v1.0.0')
+    await champ.trigger('keydown', { key: 'Enter' })
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?changes&from=v1.0.0')
+    expect(lues.at(-1)).toBe('/@crypte/changes.json?from=v1.0.0')
+    expect(vue(écran).find('h2').text()).toBe('What changed since v1.0.0')
+
+    await champ.setValue('2026-09-16')
+    await champ.trigger('keydown', { key: 'Enter' })
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?changes&before=2026-09-16')
+    expect(lues.at(-1)).toBe('/@crypte/changes.json?before=2026-09-16')
+    écran.wrapper.unmount()
+  })
+
+  // Le menu : le dernier commit, la branche par défaut, deux périodes et chaque tag
+  // que le CLI liste. Un choix entre dans l'adresse et dans la requête.
+  test('starts from a point of its menu, the default branch, a period or a tag', async () => {
+    const lues: string[] = []
+    const écran = await monte([badge], false, undefined, (url) => (lues.push(url), lus))
+    await clique(écran, entrée(écran))
+    const menu = écran.wrapper.find('.sidebar').findComponent(Select)
+
+    expect(menu.props('options').map((one: { label: string }) => one.label)).toEqual([
+      'Last commit',
+      'main',
+      'Last 7 days',
+      'Last 30 days',
+      'v1.0.0 · 2026-01-01',
+    ])
+    menu.vm.$emit('update:modelValue', 'ref:v1.0.0')
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?changes&from=v1.0.0')
+    expect(lues.at(-1)).toBe('/@crypte/changes.json?from=v1.0.0')
+
+    const semaine = menu.props('options')[2]!.value as string
+    menu.vm.$emit('update:modelValue', semaine)
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe(`?changes&before=${semaine.slice(7)}`)
+
+    menu.vm.$emit('update:modelValue', 'ref:HEAD')
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?changes')
+    expect(lues.at(-1)).toBe('/@crypte/changes.json')
+    écran.wrapper.unmount()
+  })
+
+  // Quittée, la vue oublie son point : l'entrée mène au dernier commit, et son
+  // compteur compte depuis lui.
+  test('forgets where it started once left, the counter counting from the last commit', async () => {
+    const écran = await monte([badge, alerte, bouton, jetons], false, undefined, (url) =>
+      url.includes('from=') ? lus : { ...lus, changes: [], tokens: [] },
+    )
+    await clique(écran, entrée(écran))
+    const champ = écran.wrapper.find('.sidebar input')
+    await champ.setValue('v1')
+    await champ.trigger('keydown', { key: 'Enter' })
+    await vide(écran.wrapper)
+    expect(entrée(écran).find('.count').text()).toBe('5')
+
+    await clique(écran, écran.vue('stories'))
+    expect(entrée(écran).attributes('href')).toBe('?changes')
+    expect(entrée(écran).find('.count').text()).toBe('0')
+    écran.wrapper.unmount()
+  })
+
+  // Une date dite « before 2026-09-16 » par le CLI se lit comme la date seule, et un
+  // tag qui commence comme une date reste un tag.
+  test('says a date as itself, and reads a tag that starts like one as a revision', async () => {
+    const lues: string[] = []
+    const écran = await monte([badge], false, undefined, (url) => {
+      lues.push(url)
+      return {
+        ...lus,
+        changes: [],
+        tokens: [],
+        from: { ref: 'before 2026-09-16', commit: '1234567' },
+      }
+    })
+    await clique(écran, entrée(écran))
+
+    expect(vue(écran).find('h2').text()).toBe('What changed since 2026-09-16')
+    expect(écran.statut()).toBe('0 differences since 2026-09-16')
+    const champ = écran.wrapper.find('.sidebar input')
+    await champ.setValue('2026-09-16-hotfix')
+    await champ.trigger('keydown', { key: 'Enter' })
+    await vide(écran.wrapper)
+    expect(lues.at(-1)).toBe('/@crypte/changes.json?from=2026-09-16-hotfix')
+    écran.wrapper.unmount()
+  })
+
+  // Un token apparu n'a pas d'avant, un token parti pas d'après.
+  test('details a token that appeared or disappeared, a side with no value', async () => {
+    const deux = {
+      ...lus,
+      changes: [],
+      tokens: [
+        { kind: 'appeared', family: 'color--brand', key: 'primary', after: { light: '#4fe0a0' } },
+        { kind: 'disappeared', family: 'color--old', key: 'base', before: { light: '#111111' } },
+      ],
+    }
+    window.history.replaceState(null, '', '/?changes&change=token:color--brand/primary')
+    const écran = await monte([badge, jetons], false, undefined, () => deux)
+    const cellules = () =>
+      vue(écran)
+        .findAll('tbody tr')
+        .map((one) =>
+          one
+            .findAll('th, td')
+            .map((cell) => cell.text().trim())
+            .join(' '),
+        )
+
+    expect(cellules()).toEqual(['light none #4fe0a0'])
+    await clique(écran, ligne(écran, 'base'))
+    expect(cellules()).toEqual(['light #111111 none'])
+    expect(lignes(écran)).toEqual(['+ Brand-primary token', '− base token'])
+    écran.wrapper.unmount()
+  })
+
+  test('says when nothing changed, and counts zero', async () => {
+    const écran = await monte([badge])
+    await clique(écran, entrée(écran))
+
+    expect(entrée(écran).find('.count').text()).toBe('0')
+    expect(vue(écran).find('.note').text()).toBe('Nothing changed in the catalogue.')
+    expect(écran.wrapper.find('.sidebar .none').text()).toBe('no difference')
+    écran.wrapper.unmount()
+  })
+
+  // La vue reste accessible et dit pourquoi, sinon rien ne distingue « aucun
   // changement » d'une fonction cassée.
   test('says why the changes cannot be read, and counts nothing', async () => {
     const écran = await monte([badge], false, undefined, () => ({
       reason: 'the project is not in a Git repository',
     }))
-    await ouvre(écran)
+    await clique(écran, entrée(écran))
 
     expect(entrée(écran).find('.count').exists()).toBe(false)
-    expect(page(écran).find('.note').text()).toBe(
+    expect(vue(écran).find('.note').text()).toBe(
       'The changes cannot be read: the project is not in a Git repository.',
     )
     écran.wrapper.unmount()
@@ -2007,38 +2196,56 @@ describe('the changes mode', () => {
     const écran = await monte([badge], false, undefined, () => {
       throw new Error('Unexpected token')
     })
-    await ouvre(écran)
+    await clique(écran, entrée(écran))
 
-    expect(page(écran).find('.note').text()).toBe(
+    expect(vue(écran).find('.note').text()).toBe(
       'The changes cannot be read: its route could not be read: Unexpected token.',
     )
     écran.wrapper.unmount()
   })
 
+  // Une empreinte commise avant les tokens : leur historique commence après elle.
+  test('says the tokens have no history before a fingerprint that lacks them', async () => {
+    const écran = await monte([badge], false, undefined, () => ({
+      ...lus,
+      changes: [],
+      tokens: null,
+    }))
+    await clique(écran, entrée(écran))
+
+    expect(vue(écran).find('.note').text()).toContain(
+      'The tokens have no history before this commit',
+    )
+    écran.wrapper.unmount()
+  })
+
   test('opens from its address, with the first story loaded underneath', async () => {
-    window.history.replaceState(null, '', '/?changes')
-    const écran = await monte([badge, alerte], false, undefined, () => lus)
+    window.history.replaceState(null, '', '/?changes&from=main')
+    const lues: string[] = []
+    const écran = await monte([badge, alerte], false, undefined, (url) => (lues.push(url), lus))
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
 
-    expect(page(écran).exists()).toBe(true)
-    expect(window.location.search).toBe('?changes')
-    expect(écran.statut()).toBe('2 stories')
+    expect(vue(écran).exists()).toBe(true)
+    expect(window.location.search).toBe('?changes&from=main')
+    expect(lues.at(-1)).toBe('/@crypte/changes.json?from=main')
     await expect
       .poll(() => écran.envoyés.at(-1))
       .toEqual({ type: 'render', id: 'badge--defaut', overrides: {} })
     écran.wrapper.unmount()
   })
 
-  test('follows back and forward to the changes', async ({ écran }) => {
-    window.history.replaceState(null, '', '/?changes')
+  test('follows back and forward to a difference', async () => {
+    const écran = await monte([lecteur, alerte, bouton, jetons], false, undefined, () => lus)
+    window.history.replaceState(null, '', '/?changes&change=story:badge--alerte')
     window.dispatchEvent(new PopStateEvent('popstate'))
     await vide(écran.wrapper)
 
-    expect(page(écran).exists()).toBe(true)
+    expect(vue(écran).find('.change').text()).toContain('A new story.')
+    écran.wrapper.unmount()
   })
 
   test('reads the changes again with the catalogue', async () => {
-    const réponses = [{ changes: [] }, lus]
+    const réponses = [{ ...lus, changes: [], tokens: [] }, lus]
     const écran = await monte([badge, alerte, bouton], false, undefined, () =>
       réponses.length > 1 ? réponses.shift() : réponses[0],
     )
@@ -2046,13 +2253,14 @@ describe('the changes mode', () => {
 
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
 
-    expect(entrée(écran).find('.count').text()).toBe('4')
+    expect(entrée(écran).find('.count').text()).toBe('5')
     écran.wrapper.unmount()
   })
 
   // Un commit ne touche aucun fichier que Vite surveille : aucun `ready` ne suit.
-  test('reads the changes again when the window regains focus, and when the mode opens', async () => {
-    const réponses: unknown[] = [{ changes: [] }, lus, { changes: [] }]
+  test('reads the changes again when the window regains focus, and when the view opens', async () => {
+    const vides = { ...lus, changes: [], tokens: [] }
+    const réponses: unknown[] = [vides, lus, vides]
     const écran = await monte([badge, alerte, bouton], false, undefined, () =>
       réponses.length > 1 ? réponses.shift() : réponses[0],
     )
@@ -2060,11 +2268,11 @@ describe('the changes mode', () => {
 
     window.dispatchEvent(new Event('focus'))
     await vide(écran.wrapper)
-    expect(entrée(écran).find('.count').text()).toBe('4')
+    expect(entrée(écran).find('.count').text()).toBe('5')
 
-    await ouvre(écran)
+    await clique(écran, entrée(écran))
     expect(entrée(écran).find('.count').text()).toBe('0')
-    expect(page(écran).find('.note').text()).toBe('Nothing changed in the catalogue.')
+    expect(vue(écran).find('.note').text()).toBe('Nothing changed in the catalogue.')
     écran.wrapper.unmount()
   })
 
@@ -2073,7 +2281,7 @@ describe('the changes mode', () => {
     let lente!: (value: unknown) => void
     const réponses: (() => unknown)[] = [
       () => new Promise((resolve) => (lente = resolve)),
-      () => ({ changes: [] }),
+      () => ({ ...lus, changes: [], tokens: [] }),
     ]
     const écran = await monte([badge], false, undefined, () => (réponses.shift() ?? (() => ({})))())
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
@@ -2869,7 +3077,7 @@ describe('the command palette', () => {
     await ouvre(écran)
     await choisit(écran, 'Changes since the last commit')
     expect(window.location.search).toBe('?changes')
-    expect(écran.wrapper.find('.changes-page').exists()).toBe(true)
+    expect(écran.wrapper.find('.versions-view').exists()).toBe(true)
   })
 
   test('goes to a family of tokens', async () => {

@@ -16,6 +16,11 @@ describe('reading an address', () => {
     ['?component=checkout/ordersummary', { mode: 'component', id: 'checkout/ordersummary' }],
     ['?changes', { mode: 'changes' }],
     ['?changes=', { mode: 'changes' }],
+    [
+      '?changes&from=v1.0.0&change=story:badge--x',
+      { mode: 'changes', from: 'v1.0.0', change: 'story:badge--x' },
+    ],
+    ['?changes&before=2026-09-16&from=', { mode: 'changes', before: '2026-09-16' }],
     ['?tokens=color', { mode: 'tokens', category: 'color' }],
     [
       '?tokens=color&token=accent-base',
@@ -71,6 +76,10 @@ describe('writing an address', () => {
     ],
     [{ mode: 'component', id: 'checkout/ordersummary' }, '?component=checkout/ordersummary'],
     [{ mode: 'changes' }, '?changes'],
+    [
+      { mode: 'changes', from: 'main', change: 'token:tokens--color/text' },
+      '?changes&from=main&change=token:tokens--color/text',
+    ],
     [{ mode: 'tokens', category: 'color' }, '?tokens=color'],
     [
       { mode: 'tokens', category: 'color', token: 'accent-base' },
@@ -96,6 +105,7 @@ describe('writing an address', () => {
       { mode: 'entry', id: 'a&b=c#d e+f' },
       { mode: 'component', id: 'checkout/ordersummary' },
       { mode: 'changes' },
+      { mode: 'changes', from: 'a&b', before: '2026-01-01', change: 'story:x y' },
       { mode: 'tokens', category: 'color' },
       { mode: 'tokens', category: 'a&b', token: 'c#d e' },
     ]

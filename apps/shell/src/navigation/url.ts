@@ -13,7 +13,9 @@ export type Place =
   | { mode: 'entry'; id: string }
   // `storyId(path, '')`, le préfixe que partagent toutes les stories du composant.
   | { mode: 'component'; id: string }
-  | { mode: 'changes' }
+  // La vue versions : son point de départ, une révision ou une date, et l'écart
+  // choisi, `story:<id>` ou `token:<famille>/<clé>`.
+  | { mode: 'changes'; from?: string; before?: string; change?: string }
   // Une catégorie de la vue tokens, et le token choisi dedans. Les catégories
   // viennent du shell et non du manifeste : elles n'entrent pas dans `id`.
   | { mode: 'tokens'; category: string; token?: string }
@@ -30,7 +32,16 @@ export function readPlace(search: string): Place {
   const category = query.get('tokens')
   const token = query.get('token')
   if (category) return token ? { mode: 'tokens', category, token } : { mode: 'tokens', category }
-  if (query.has('changes')) return { mode: 'changes' }
+  if (query.has('changes')) {
+    const at: { mode: 'changes'; from?: string; before?: string; change?: string } = {
+      mode: 'changes',
+    }
+    for (const key of ['from', 'before', 'change'] as const) {
+      const value = query.get(key)
+      if (value) at[key] = value
+    }
+    return at
+  }
   return { mode: 'home' }
 }
 
@@ -39,13 +50,17 @@ export function placeSearch(place: Place): string {
   if (place.mode === 'component') return `?component=${encoded(place.id)}`
   if (place.mode === 'tokens')
     return `?tokens=${encoded(place.category)}${place.token ? `&token=${encoded(place.token)}` : ''}`
-  if (place.mode === 'changes') return '?changes'
+  if (place.mode === 'changes')
+    return `?changes${(['from', 'before', 'change'] as const)
+      .filter((key) => place[key])
+      .map((key) => `&${key}=${encoded(place[key]!)}`)
+      .join('')}`
   return ''
 }
 
-// La barre oblique reste lisible : une requête l'admet telle quelle, et
-// `checkout%2Fordersummary` dans un lien collé ne se lit plus.
-const encoded = (id: string) => encodeURIComponent(id).replaceAll('%2F', '/')
+// La barre oblique et les deux-points restent lisibles : une requête les admet
+// tels quels, et `checkout%2Fordersummary` dans un lien collé ne se lit plus.
+const encoded = (id: string) => encodeURIComponent(id).replaceAll('%2F', '/').replaceAll('%3A', ':')
 
 // Un clic simple sur un lien du shell navigue sans recharger ; un clic du milieu
 // ou avec une touche de modification laisse le navigateur l'ouvrir ailleurs.
