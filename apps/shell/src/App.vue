@@ -519,6 +519,11 @@ function reload() {
   frame.value?.contentWindow?.location.reload()
 }
 
+// Les tokens arrivent avec le manifeste : les relire, c'est recharger le shell.
+function reloadTokens() {
+  location.reload()
+}
+
 const copied = ref<'yes' | 'failed' | null>(null)
 let clearing: ReturnType<typeof setTimeout> | undefined
 
@@ -922,7 +927,7 @@ onMounted(() => {
           <span v-else aria-current="page">{{ shownCategory.name }}</span>
         </nav>
         <div class="actions">
-          <Button class="reload" @click="reload">Reload</Button>
+          <Button class="reload" @click="reloadTokens">Reload</Button>
           <Button variant="secondary" class="copy" @click="copyLink">
             <Icon :icon="Copy01Icon" />
             {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
