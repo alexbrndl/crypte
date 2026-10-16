@@ -870,7 +870,7 @@ onMounted(() => {
                   </DropdownMenuContent>
                 </DropdownMenuPortal>
               </DropdownMenuRoot>
-              <Tooltip :content="full ? 'Leave full screen, or Escape' : 'Full screen'" keys="F">
+              <Tooltip :content="full ? 'Leave full screen' : 'Full screen'" keys="F">
                 <Button
                   class="square"
                   :aria-label="full ? 'Leave full screen' : 'Full screen'"

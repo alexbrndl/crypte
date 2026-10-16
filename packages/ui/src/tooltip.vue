@@ -11,6 +11,9 @@ import {
   TooltipTrigger,
 } from 'reka-ui'
 
+// `keys` has one consumer, the shell, against the placement rule: kept by the
+// owner on 16 October 2026, the shortcut being part of the Figma tooltip
+// (`showShortcut`). Reopened if the design system drops it from the tooltip.
 defineProps<{ content: string; keys?: string }>()
 </script>
 
