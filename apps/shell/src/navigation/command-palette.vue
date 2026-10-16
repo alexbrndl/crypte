@@ -15,7 +15,7 @@ import {
   ListboxItem,
   ListboxRoot,
 } from 'reka-ui'
-import { computed, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import Icon from '../ui/icon.vue'
 import { complete, FILTERS, readQuery, type Key } from './filters'
 import { ago, type Visit } from './recent'
@@ -172,6 +172,7 @@ watch(open, (now) => {
   if (!now) return
   query.value = ''
   installing.value = false
+  name.value = ''
   copied.value = false
 })
 
@@ -198,6 +199,15 @@ function tab(event: KeyboardEvent) {
 // ajouter à la configuration.
 const name = ref('')
 const copied = ref(false)
+const field = useTemplateRef<{ $el: HTMLInputElement }>('field')
+
+// Le champ arrive après l'ouverture : `autofocus` ne vaut qu'à l'insertion de la
+// page, et le focus resterait sur le champ de recherche disparu.
+watch(installing, async (now) => {
+  if (!now) return
+  await nextTick()
+  field.value?.$el.focus()
+})
 const command = computed(() => `npm install -D ${name.value.trim() || '<package>'}`)
 
 async function copy() {
@@ -225,8 +235,8 @@ async function copy() {
           <Field v-slot="{ id }" label="Package">
             <Input
               :id="id"
+              ref="field"
               :value="name"
-              autofocus
               placeholder="crypte-plugin-figma"
               @input="(event: Event) => (name = (event.target as HTMLInputElement).value)"
             />

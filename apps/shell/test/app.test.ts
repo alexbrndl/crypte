@@ -3366,6 +3366,7 @@ describe('the command palette', () => {
     expect(copie().disabled).toBe(true)
 
     const champ = document.querySelector<HTMLInputElement>('[role="dialog"] .install input')!
+    expect(document.activeElement).toBe(champ)
     champ.value = '@acme/crypte-figma'
     champ.dispatchEvent(new Event('input', { bubbles: true }))
     await vide(écran.wrapper)
@@ -3379,6 +3380,11 @@ describe('the command palette', () => {
     await ouvre(écran)
     await ouvre(écran)
     expect(document.querySelector('[role="dialog"] .install')).toBeNull()
+    await choisit(écran, 'Install a plugin…')
+    expect(document.querySelector<HTMLInputElement>('[role="dialog"] .install input')!.value).toBe(
+      '',
+    )
+    expect(copie().textContent?.trim()).toBe('Copy')
   })
 })
 
