@@ -67,5 +67,70 @@
       ],
       "rest": "083db53c3d032419"
     }
+  ],
+  "tokens": [
+    {
+      "family": "tokens--color",
+      "key": "badge-background",
+      "type": "color",
+      "themes": {
+        "dark": "#374151",
+        "default": "#e5e7eb"
+      }
+    },
+    {
+      "family": "tokens--color",
+      "key": "neutral",
+      "type": "color",
+      "themes": {
+        "dark": "#374151",
+        "default": "#e5e7eb"
+      }
+    },
+    {
+      "family": "tokens--color",
+      "key": "text",
+      "type": "color",
+      "themes": {
+        "dark": "#f9fafb",
+        "default": "#111827"
+      }
+    },
+    {
+      "family": "tokens--color",
+      "key": "warning",
+      "type": "color",
+      "themes": {
+        "dark": "#78350f",
+        "default": "#fde68a"
+      }
+    },
+    {
+      "family": "tokens--radius",
+      "key": "pill",
+      "type": "dimension",
+      "themes": {
+        "dark": "999px",
+        "default": "999px"
+      }
+    },
+    {
+      "family": "tokens--size",
+      "key": "label",
+      "type": "dimension",
+      "themes": {
+        "dark": "13px",
+        "default": "13px"
+      }
+    },
+    {
+      "family": "tokens--space",
+      "key": "badge",
+      "type": "unknown",
+      "themes": {
+        "dark": "2px 10px",
+        "default": "2px 10px"
+      }
+    }
   ]
 }

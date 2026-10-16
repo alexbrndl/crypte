@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import sirv from 'sirv'
 import { transformWithOxc, type Plugin, type ViteDevServer } from 'vite'
 import { changesSince } from '../catalogue/changes'
+import { versionsOf } from '../catalogue/versions'
 import { ConfigError } from '../errors'
 import { fingerprintOf } from '../catalogue/fingerprint'
 import { storyFilesOf, type Catalogue } from '../catalogue/manifest'
@@ -62,7 +63,12 @@ export const PLUGINS_ROUTE = '/@crypte/plugins.json'
 
 // What changed in the catalogue since the last commit, or why it cannot be said.
 // Read from Git at each request: a commit made while the server runs moves it.
+// `?from=` names another point, a branch, a tag or a commit; `?before=` a date.
 export const CHANGES_ROUTE = '/@crypte/changes.json'
+
+// The points the versions view offers to start from: the default branch and the
+// tags. Read from Git at each request too.
+export const VERSIONS_ROUTE = '/@crypte/versions.json'
 
 // What the shell says of the project itself: the story root it declares, where an
 // empty catalogue was looked for, and why the last reread of the configuration
@@ -191,10 +197,24 @@ export function servePlugin(
         }
 
         if (url === CHANGES_ROUTE) {
+          const query = new URLSearchParams((request.url ?? '').split('?')[1] ?? '')
+          const from = query.get('from')
+          const before = query.get('before')
           response.setHeader('Content-Type', 'application/json')
           response.end(
-            JSON.stringify(changesSince(project.root, fingerprintOf(current().manifest))),
+            JSON.stringify(
+              changesSince(project.root, fingerprintOf(current().manifest), {
+                ...(from ? { ref: from } : {}),
+                ...(before ? { before } : {}),
+              }),
+            ),
           )
+          return
+        }
+
+        if (url === VERSIONS_ROUTE) {
+          response.setHeader('Content-Type', 'application/json')
+          response.end(JSON.stringify(versionsOf(project.root)))
           return
         }
 

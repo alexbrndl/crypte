@@ -37,6 +37,52 @@ const one = (over: Partial<StoryEntry> = {}): Manifest => ({
 })
 
 describe('reduced fingerprint', () => {
+  // Les tokens dans une section à part, triés par famille et clé, les thèmes par
+  // nom : l'ordre qu'un plugin a écrit ne change rien.
+  it('records each token by family and key, with the literal of each theme', () => {
+    const famille = (id: string, tokens: TokensEntry['tokens']): TokensEntry => ({
+      type: 'tokens',
+      id,
+      path: ['Tokens'],
+      name: id,
+      tokens,
+    })
+    const lu = fingerprintOf({
+      version: 1,
+      entries: [
+        entry,
+        famille('tokens--space', {
+          '2': { type: 'dimension', themes: { default: { value: '8px' } } },
+        }),
+        famille('tokens--color', {
+          text: {
+            type: 'color',
+            themes: {
+              light: { value: '#111', alias: ['stone-900'] },
+              dark: { value: '#eee', alias: ['stone-50'] },
+            },
+          },
+          accent: { type: 'color', themes: { default: { value: '#00776e' } } },
+        }),
+      ],
+    })
+
+    expect(lu.entries.map((one) => one.id)).toEqual(['badge--default'])
+    expect(JSON.stringify(lu.tokens)).toBe(
+      JSON.stringify([
+        { family: 'tokens--color', key: 'accent', type: 'color', themes: { default: '#00776e' } },
+        {
+          family: 'tokens--color',
+          key: 'text',
+          type: 'color',
+          themes: { dark: '#eee', light: '#111' },
+        },
+        { family: 'tokens--space', key: '2', type: 'dimension', themes: { default: '8px' } },
+      ]),
+    )
+    expect(fingerprintOf({ version: 1, entries: [entry] }).tokens).toEqual([])
+  })
+
   // Le code du composant, pas le catalogue : compté, chaque empreinte commitée
   // devenait périmée le jour où le champ est arrivé.
   it('ignores the custom properties a component reads, and only them', () => {

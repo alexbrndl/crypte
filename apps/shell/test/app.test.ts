@@ -85,7 +85,11 @@ const monte = async (
   échoue = false,
   skipped?: { file: string; reason: string }[],
   // Ce que répond la route des changements, ou ce qu'elle lève.
-  changements: () => unknown = () => ({ changes: [] }),
+  changements: () => unknown = () => ({
+    from: { ref: 'HEAD', commit: 'abcdef0' },
+    changes: [],
+    tokens: [],
+  }),
   // Ce que dit la route du projet.
   projet: () => unknown = () => ({
     stories: 'stories',

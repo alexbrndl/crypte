@@ -129,6 +129,10 @@ function shape(catalogue: Catalogue): string {
   ])
 }
 
+// The tokens a catalogue holds, as one string to compare.
+const tokensIn = (catalogue: Catalogue) =>
+  JSON.stringify(catalogue.manifest.entries.filter((entry) => entry.type === 'tokens'))
+
 // The component files the catalogue cites, each once, absolute. Watching these
 // and not the project is the whole point: a keystroke in any other file would
 // otherwise read the tree again. Exported for the case that holds that limit.
@@ -183,7 +187,10 @@ function watchStories(
 
     // Held before the `same` return: the shape decides whether the frame reloads,
     // never whether the catalogue is current, and editing props leaves it untouched.
-    const same = shape(next) === shape(held.catalogue)
+    // Tokens that moved reload it too: the shell reads the manifest again on the
+    // `ready` that follows, and nothing else would tell it.
+    const same =
+      shape(next) === shape(held.catalogue) && tokensIn(next) === tokensIn(held.catalogue)
     held.catalogue = next
 
     // The manifest on disk follows the catalogue served, or a tool reading it saw
@@ -257,8 +264,13 @@ function watchStories(
     unwatchable.set(file, line)
   })
 
+  // The declared style sheet too: `@crypte/tokens` reads it and the fingerprint
+  // holds its tokens, so a session that only edited it left the fingerprint behind
+  // and `crypte check` failed on the commit.
+  const sheet = project.config.css === undefined ? [] : [join(project.root, project.config.css)]
+
   const syncComponents = (catalogue: Catalogue): void => {
-    const wanted = new Set(componentFiles(project.root, catalogue))
+    const wanted = new Set([...componentFiles(project.root, catalogue), ...sheet])
     for (const file of unwatchable.keys()) if (!wanted.has(file)) unwatchable.delete(file)
     components.sync(wanted)
   }

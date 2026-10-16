@@ -7,7 +7,7 @@
 import { createHash } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { Manifest, StoryEntry } from '@crypte/core/protocol'
+import type { Manifest, StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { parseSync } from 'vite'
 import type { Node } from './ast'
 import { storiesOf } from './manifest'
@@ -28,9 +28,22 @@ export interface FingerprintEntry {
   rest: string
 }
 
+// One token: its family by identifier, its key, its kind, and the literal of
+// each theme. The values themselves and not a digest: the versions view shows a
+// token before and after.
+export interface FingerprintToken {
+  family: string
+  key: string
+  type: string
+  themes: Record<string, string>
+}
+
 export interface Fingerprint {
   version: number
   entries: FingerprintEntry[]
+  // Absent from a fingerprint committed before tokens had a history: its tokens
+  // are unknown, not empty.
+  tokens?: FingerprintToken[]
 }
 
 // The fields shown on their own; everything else goes into `rest`, so a field
@@ -55,7 +68,35 @@ export function fingerprintOf(manifest: Manifest): Fingerprint {
       props: [...entry.props].sort(),
       rest: digestOf(entry),
     })),
+    tokens: tokensOf(manifest),
   }
+}
+
+// Sorted by family and key, so the order a plugin wrote them in changes nothing.
+function tokensOf(manifest: Manifest): FingerprintToken[] {
+  const families = manifest.entries.filter((entry): entry is TokensEntry => entry.type === 'tokens')
+  return families
+    .flatMap((family) =>
+      Object.entries(family.tokens).map(([key, value]) => ({
+        family: family.id,
+        key,
+        type: value.type,
+        themes: Object.fromEntries(
+          Object.entries(value.themes)
+            .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+            .map(([theme, held]) => [theme, held.value]),
+        ),
+      })),
+    )
+    .sort((one, other) =>
+      one.family === other.family
+        ? one.key < other.key
+          ? -1
+          : 1
+        : one.family < other.family
+          ? -1
+          : 1,
+    )
 }
 
 // Everything the fingerprint does not show, folded into one value. The order the

@@ -3,7 +3,12 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { changesOf, changesSince, committedFingerprint } from '../src/catalogue/changes'
+import {
+  changesOf,
+  changesSince,
+  committedFingerprint,
+  tokenChangesOf,
+} from '../src/catalogue/changes'
 import type { Fingerprint, FingerprintEntry } from '../src/catalogue/fingerprint'
 
 // Ce qui a changé depuis le dernier commit : l'empreinte que `HEAD` porte,
@@ -234,15 +239,229 @@ describe('the committed fingerprint', () => {
     )
   })
 
+  // Une résolution de conflit à la main suffit : la section `tokens` se lit comme
+  // les entrées, et ce qui manque se nomme au lieu de lever.
+  test.each([
+    [null, '`tokens` is not a list'],
+    [{}, '`tokens` is not a list'],
+    [
+      [{ family: 'f', key: 'k', type: 'color' }],
+      'token 0 lacks a string `family`, `key` or `type`, or `themes` of strings',
+    ],
+    [
+      [{ family: 'f', key: 'k', type: 'color', themes: { light: 1 } }],
+      'token 0 lacks a string `family`, `key` or `type`, or `themes` of strings',
+    ],
+  ])('names a committed tokens section that does not read: %j', (tokens, manque) => {
+    const root = dossier()
+    commis(root, JSON.stringify({ ...empreinte(), tokens }))
+
+    expect(committedFingerprint(root)).toBe(
+      `the committed .crypte/fingerprint.json is not a fingerprint: ${manque}`,
+    )
+    expect(changesSince(root, empreinte())).toEqual({
+      reason: `the committed .crypte/fingerprint.json is not a fingerprint: ${manque}`,
+    })
+  })
+
   test('gives the changes, or the reason there are none to read', () => {
     const root = dossier()
     commis(root, JSON.stringify(empreinte(entrée('a--x', []))))
 
+    // Une empreinte commise avant les tokens : leur historique commence après elle.
     expect(changesSince(root, empreinte(entrée('a--x', []), entrée('a--y', [])))).toEqual({
+      from: { ref: 'HEAD', commit: expect.stringMatching(/^[0-9a-f]{7}$/) },
       changes: [{ kind: 'appeared', id: 'a--y' }],
+      tokens: null,
     })
     expect(changesSince(dossier(), empreinte())).toEqual({
       reason: 'the project is not in a Git repository',
     })
+  })
+})
+
+describe('the changes of the tokens', () => {
+  const jeton = (key: string, themes: Record<string, string>, family = 'tokens--color') => ({
+    family,
+    key,
+    type: 'color',
+    themes,
+  })
+
+  test('names what appeared, changed and disappeared, theme by theme', () => {
+    expect(
+      tokenChangesOf(
+        [
+          jeton('garde', { light: '#111' }),
+          jeton('teinte', { light: '#111', dark: '#eee' }),
+          jeton('partie', { light: '#000' }),
+        ],
+        [
+          jeton('neuve', { light: '#fff' }),
+          jeton('garde', { light: '#111' }),
+          jeton('teinte', { light: '#111', dark: '#ddd' }),
+        ],
+      ),
+    ).toEqual([
+      { kind: 'appeared', family: 'tokens--color', key: 'neuve', after: { light: '#fff' } },
+      {
+        kind: 'changed',
+        family: 'tokens--color',
+        key: 'teinte',
+        before: { light: '#111', dark: '#eee' },
+        after: { light: '#111', dark: '#ddd' },
+      },
+      { kind: 'disappeared', family: 'tokens--color', key: 'partie', before: { light: '#000' } },
+    ])
+  })
+
+  // Une même clé dans deux familles : deux tokens.
+  test('keeps two families apart', () => {
+    expect(
+      tokenChangesOf(
+        [jeton('base', { light: '#111' }, 'a')],
+        [jeton('base', { light: '#111' }, 'b')],
+      ),
+    ).toEqual([
+      { kind: 'appeared', family: 'b', key: 'base', after: { light: '#111' } },
+      { kind: 'disappeared', family: 'a', key: 'base', before: { light: '#111' } },
+    ])
+  })
+})
+
+// Le point de départ : une révision que Git connaît, ou le dernier commit avant
+// une date. Des dépôts jetables, aux dates de commit posées.
+describe('the point a comparison starts from', () => {
+  const dossiers: string[] = []
+  afterEach(() => {
+    for (const root of dossiers.splice(0)) rmSync(root, { recursive: true, force: true })
+  })
+  const git = (root: string, date: string, ...args: string[]) =>
+    execFileSync(
+      'git',
+      ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', ...args],
+      {
+        cwd: root,
+        stdio: 'ignore',
+        env: { ...process.env, GIT_COMMITTER_DATE: date, GIT_AUTHOR_DATE: date },
+      },
+    )
+  // Trois commits datés : a le 1er janvier, b le 1er février, c le 1er mars.
+  const dépôt = () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'crypte-since-')))
+    dossiers.push(root)
+    git(root, '2026-01-01T00:00:00Z', 'init', '-q', '-b', 'main')
+    for (const [id, date] of [
+      ['a', '2026-01-01T12:00:00Z'],
+      ['b', '2026-02-01T12:00:00Z'],
+      ['c', '2026-03-01T12:00:00Z'],
+    ] as const) {
+      mkdirSync(join(root, '.crypte'), { recursive: true })
+      writeFileSync(
+        join(root, '.crypte', 'fingerprint.json'),
+        JSON.stringify({ ...empreinte(entrée(`x--${id}`, [])), tokens: [] }),
+      )
+      git(root, date, 'add', '-A')
+      git(root, date, 'commit', '-qm', id)
+      if (id === 'a') git(root, date, 'tag', 'v1.0.0')
+    }
+    return root
+  }
+  const maintenant = empreinte(entrée('x--c', []))
+  const depuis = (root: string, since: Parameters<typeof changesSince>[2]) => {
+    const changes = changesSince(root, maintenant, since)
+    return 'reason' in changes ? changes.reason : [changes.from.ref, changes.changes]
+  }
+
+  test('starts from HEAD, a tag, a branch or a commit', () => {
+    const root = dépôt()
+
+    expect(depuis(root, {})).toEqual(['HEAD', []])
+    expect(depuis(root, { ref: 'v1.0.0' })).toEqual([
+      'v1.0.0',
+      [
+        { kind: 'appeared', id: 'x--c' },
+        { kind: 'disappeared', id: 'x--a' },
+      ],
+    ])
+    expect(depuis(root, { ref: 'main~1' })).toEqual([
+      'main~1',
+      [
+        { kind: 'appeared', id: 'x--c' },
+        { kind: 'disappeared', id: 'x--b' },
+      ],
+    ])
+  })
+
+  // Une date seule, Git la complète à l'heure courante : le commit trouvé
+  // changeait avec l'heure de la requête. Minuit UTC, quelle que soit l'heure.
+  test('reads a date alone as its midnight, whatever the time of the request', () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'crypte-since-')))
+    dossiers.push(root)
+    git(root, '2026-02-14T00:00:00Z', 'init', '-q', '-b', 'main')
+    for (const [id, date] of [
+      ['veille', '2026-02-14T12:00:00Z'],
+      ['jour', '2026-02-15T01:00:00Z'],
+    ] as const) {
+      mkdirSync(join(root, '.crypte'), { recursive: true })
+      writeFileSync(
+        join(root, '.crypte', 'fingerprint.json'),
+        JSON.stringify({ ...empreinte(entrée(`x--${id}`, [])), tokens: [] }),
+      )
+      git(root, date, 'add', '-A')
+      git(root, date, 'commit', '-qm', id)
+    }
+
+    expect(depuis(root, { before: '2026-02-15' })).toEqual([
+      'before 2026-02-15',
+      [
+        { kind: 'appeared', id: 'x--c' },
+        { kind: 'disappeared', id: 'x--veille' },
+      ],
+    ])
+  })
+
+  test('starts from the last commit before a date', () => {
+    const root = dépôt()
+
+    expect(depuis(root, { before: '2026-02-15' })).toEqual([
+      'before 2026-02-15',
+      [
+        { kind: 'appeared', id: 'x--c' },
+        { kind: 'disappeared', id: 'x--b' },
+      ],
+    ])
+    expect(depuis(root, { before: '2025-12-01' })).toBe('no commit before 2025-12-01')
+    expect(depuis(root, { before: 'hier soir' })).toBe('"hier soir" is not a date')
+  })
+
+  // Un nom qui commence par un tiret serait lu comme une option de Git.
+  test('refuses what Git does not know, and a name it would read as an option', () => {
+    const root = dépôt()
+
+    expect(depuis(root, { ref: 'v9' })).toBe('"v9" is not a commit Git knows')
+    expect(depuis(root, { ref: '--output=/tmp/x' })).toBe('"--output=/tmp/x" is not a revision')
+    expect(depuis(root, { ref: '' })).toBe('"" is not a revision')
+  })
+
+  test('says a repository has no commit yet, from HEAD as from a date', () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'crypte-since-')))
+    dossiers.push(root)
+    git(root, '2026-01-01T00:00:00Z', 'init', '-q')
+
+    expect(depuis(root, {})).toBe('the repository has no commit yet')
+    expect(depuis(root, { before: '2026-02-01' })).toBe('the repository has no commit yet')
+  })
+
+  test('gives the token changes since a commit that held tokens', () => {
+    const root = dépôt()
+    const changes = changesSince(root, {
+      ...maintenant,
+      tokens: [{ family: 'f', key: 'k', type: 'color', themes: { default: '#fff' } }],
+    })
+
+    expect('tokens' in changes && changes.tokens).toEqual([
+      { kind: 'appeared', family: 'f', key: 'k', after: { default: '#fff' } },
+    ])
   })
 })

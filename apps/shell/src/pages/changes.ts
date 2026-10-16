@@ -13,7 +13,24 @@ export type Change =
     }
   | { kind: 'disappeared'; id: string }
 
-export type Changes = { changes: Change[] } | { reason: string }
+export type TokenChange =
+  | { kind: 'appeared'; family: string; key: string; after: Record<string, string> }
+  | {
+      kind: 'changed'
+      family: string
+      key: string
+      before: Record<string, string>
+      after: Record<string, string>
+    }
+  | { kind: 'disappeared'; family: string; key: string; before: Record<string, string> }
+
+export type Changes =
+  | {
+      from: { ref: string; commit: string }
+      changes: Change[]
+      tokens: TokenChange[] | null
+    }
+  | { reason: string }
 
 export const CHANGES = '/@crypte/changes.json'
 
