@@ -2850,12 +2850,16 @@ describe('the panels toggle', () => {
 
   test('shows the panels on a wide window, and hides them on demand', async ({ écran }) => {
     expect(bascule(écran).attributes('aria-controls')).toBe('panels')
+    // Ouverte, l'icône remplit sa colonne : un tracé plein s'ajoute aux deux traits.
+    const pleins = () => bascule(écran).findAll('path[fill="currentColor"]').length
     expect(bascule(écran).attributes('aria-expanded')).toBe('true')
     expect(colonne(écran).isVisible()).toBe(true)
+    expect(pleins()).toBe(1)
 
     await clique(écran)
     expect(bascule(écran).attributes('aria-expanded')).toBe('false')
     expect(colonne(écran).isVisible()).toBe(false)
+    expect(pleins()).toBe(0)
 
     // Dans la grille, Échap n'a rien à fermer.
     await clique(écran)

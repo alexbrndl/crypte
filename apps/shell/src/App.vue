@@ -369,6 +369,20 @@ const TOKENS_SNIPPET = `:root {
 // Passer le seuil rend l'état de son côté ; le bouton de la barre d'outils la
 // bascule à toute largeur.
 const wide = window.matchMedia('(min-width: 1180px)')
+
+// Ouverte, l'icône remplit sa colonne de droite : le jeu gratuit d'Hugeicons n'a
+// pas de variante pleine, ce tracé s'ajoute aux deux de panel-right.
+const PanelRightOpenIcon = [
+  ...PanelRightIcon,
+  [
+    'path',
+    {
+      d: 'M15 3H13C16.7712 3 18.6569 3 19.8284 4.17157C21 5.34315 21 7.22876 21 11V13C21 16.7712 21 18.6569 19.8284 19.8284C18.6569 21 16.7712 21 13 21H15Z',
+      fill: 'currentColor',
+      key: 'open',
+    },
+  ],
+] as typeof PanelRightIcon
 const panelsOpen = ref(wide.matches)
 const fit = (event: MediaQueryListEvent) => (panelsOpen.value = event.matches)
 wide.addEventListener('change', fit)
@@ -936,7 +950,7 @@ onMounted(() => {
               :aria-expanded="panelsOpen"
               @click="panelsOpen = !panelsOpen"
             >
-              <Icon :icon="PanelRightIcon" />
+              <Icon :icon="panelsOpen ? PanelRightOpenIcon : PanelRightIcon" />
               <span
                 v-if="!panelsOpen && panelTroubles + pluginErrors.length > 0"
                 class="trouble"
@@ -978,7 +992,7 @@ onMounted(() => {
               :aria-expanded="panelsOpen"
               @click="panelsOpen = !panelsOpen"
             >
-              <Icon :icon="PanelRightIcon" />
+              <Icon :icon="panelsOpen ? PanelRightOpenIcon : PanelRightIcon" />
             </Button>
           </Tooltip>
         </div>
@@ -1360,10 +1374,6 @@ main.full {
 .actions .panels-toggle {
   position: relative;
   padding: var(--space-1) var(--space-1-5);
-}
-
-.actions .panels-toggle[aria-expanded='true'] {
-  color: var(--text-current);
 }
 
 /* Fermée, la colonne cache l'encadré des plugins en échec : le bouton le marque. */
