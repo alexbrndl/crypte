@@ -3263,7 +3263,13 @@ describe('the command palette', () => {
     expect(options()).toEqual(['Badge / Alerte draft'])
 
     // Une valeur inconnue ne garde rien, et rien de ce qui ne porte pas de statut.
+    // Dans le filtre, aucune valeur ne commence par zz ; clos, il ne garde rien.
     await tape(écran, 'is:zz')
+    expect(options()).toEqual([])
+    expect(document.querySelector('[role="dialog"] .none')?.textContent?.trim()).toBe(
+      'Nothing matches.',
+    )
+    await tape(écran, 'is:zz ')
     expect(options()).toEqual(filtres)
     expect(document.querySelector('[role="dialog"] .count')?.textContent).toBe('0 results')
     écran.wrapper.unmount()
@@ -3291,16 +3297,59 @@ describe('the command palette', () => {
 
   test('writes a filter key from its row, and stays open', async ({ écran }) => {
     await ouvre(écran)
-    await tape(écran, 'is:draft')
+    await tape(écran, 'is:draft ')
     await choisit(écran, 'type: / story · component · token')
 
     expect(dialogue()).not.toBeNull()
     expect(document.querySelector<HTMLInputElement>('[role="dialog"] input')!.value).toBe(
       'is:draft type:',
     )
-    // Un nom tapé, les filtres ne se proposent plus.
+    // Un nom qui ne commence aucune clé : les filtres ne se proposent plus.
     await tape(écran, 'badge')
     expect(groupes()).not.toContain('Filters')
+  })
+
+  // `ty` est un nom cherché, et le début de `type:` : la ligne du filtre suit les
+  // résultats, et la choisir remplace le mot.
+  test('offers the filter a word begins, and writes it in place of the word', async ({ écran }) => {
+    await ouvre(écran)
+    await tape(écran, 'badge ty')
+    expect(groupes().at(-1)).toBe('Filters')
+    expect(options().at(-1)).toBe('type: / story · component · token')
+
+    await choisit(écran, 'type: / story · component · token')
+    expect(document.querySelector<HTMLInputElement>('[role="dialog"] input')!.value).toBe(
+      'badge type:',
+    )
+  })
+
+  // Dans un filtre, seules ses valeurs : en choisir une l'écrit, et les résultats
+  // reviennent.
+  test('offers only the values of the filter being written', async ({ écran }) => {
+    await ouvre(écran)
+    // Écrit par ⇥, et non tapé : la première valeur reste surlignée pour Entrée.
+    await tape(écran, 'badge typ')
+    document
+      .querySelector('[role="dialog"] input')!
+      .dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }))
+    await vide(écran.wrapper)
+    expect(groupes()).toEqual(['Values'])
+    expect(options()).toEqual(['type: / story', 'type: / component', 'type: / token'])
+    expect(ligne(document.querySelector('[role="option"][data-highlighted]')!)).toBe(
+      'type: / story',
+    )
+    expect(document.querySelector('[role="dialog"] .count')?.textContent).toBe('3 values')
+
+    await tape(écran, 'badge type:co')
+    expect(options()).toEqual(['type: / component'])
+    expect(document.querySelector('[role="dialog"] .count')?.textContent).toBe('1 value')
+    await choisit(écran, 'type: / component')
+
+    expect(dialogue()).not.toBeNull()
+    expect(document.querySelector<HTMLInputElement>('[role="dialog"] input')!.value).toBe(
+      'badge type:component ',
+    )
+    expect(options()).toEqual(['Badge'])
   })
 
   // Retenus d'une session à l'autre, le plus récent d'abord, et seulement ce qui
@@ -3377,6 +3426,10 @@ describe('the command palette', () => {
 
     expect(écrit).toHaveBeenCalledWith('npm install -D @acme/crypte-figma')
     expect(copie().textContent?.trim()).toBe('Copied')
+    // La configuration suit le paquet : l'import et l'appel.
+    expect(document.querySelector('[role="dialog"] .config')?.textContent).toBe(
+      "// crypte.config.ts\nimport figma from '@acme/crypte-figma'\n\nplugins: [figma()],",
+    )
 
     // Rouverte, elle revient à la recherche.
     await ouvre(écran)
@@ -3405,7 +3458,7 @@ describe('the theme', () => {
   // Le libellé de la bascule, lu dans la palette ouverte puis refermée.
   const bascule = async (écran: Ecran) => {
     await ctrlK(écran)
-    const libellé = [...document.querySelectorAll('[role="dialog"] [role="option"] span')]
+    const libellé = [...document.querySelectorAll('[role="dialog"] [role="option"] .label')]
       .map((one) => one.textContent)
       .find((one) => one?.endsWith('theme'))
     await ctrlK(écran)
@@ -3423,14 +3476,14 @@ describe('the theme', () => {
     expect(await bascule(écran)).toBe('Light theme')
   })
 
-  test('switches on t, and remembers the choice', async ({ écran }) => {
+  // Pour la page seulement : rien n'est retenu pour le lancement suivant.
+  test('switches on t, for the page only', async ({ écran }) => {
     await touche(écran, 't')
     expect(racine()).toBe('dark')
-    expect(localStorage.getItem('crypte:theme')).toBe('dark')
 
     await touche(écran, 't')
     expect(racine()).toBe('light')
-    expect(localStorage.getItem('crypte:theme')).toBe('light')
+    expect(localStorage.getItem('crypte:theme')).toBeNull()
   })
 
   // Alt+T est un raccourci du navigateur sous Windows, comme Alt+F.
@@ -3446,17 +3499,13 @@ describe('the theme', () => {
     expect(racine()).toBeUndefined()
   })
 
-  test('starts from the remembered choice, and ignores anything else', async () => {
+  // Un choix qu'une version d'avant avait retenu ne compte plus.
+  test('starts from the system at every launch, whatever an older version stored', async () => {
     localStorage.setItem('crypte:theme', 'dark')
     const écran = await monte([badge])
-    expect(racine()).toBe('dark')
-    écran.wrapper.unmount()
-
-    delete document.documentElement.dataset.theme
-    localStorage.setItem('crypte:theme', 'sepia')
-    const autre = await monte([badge])
     expect(racine()).toBeUndefined()
-    autre.wrapper.unmount()
+    expect(await bascule(écran)).toBe('Dark theme')
+    écran.wrapper.unmount()
   })
 
   // Navigation privée, données du site bloquées : le shell monte et bascule, sans

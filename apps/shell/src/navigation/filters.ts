@@ -62,3 +62,21 @@ function common(candidates: string[]): string | null {
   for (const one of candidates) while (!one.startsWith(prefix)) prefix = prefix.slice(0, -1)
   return prefix.trimEnd()
 }
+
+// Le dernier mot, s'il est une clé en cours de valeur : `type:`, `is:st`. Une
+// valeur entière, `is:draft`, filtre déjà, et une espace finale clôt le mot.
+export function editing(query: string): { key: Key; partial: string; start: number } | null {
+  const start = query.search(/\S*$/)
+  const [key, ...rest] = query.slice(start).split(':')
+  if (rest.length === 0 || !KEYS.includes(key as Key)) return null
+  const partial = rest.join(':')
+  const values: readonly string[] = FILTERS[key as Key]
+  return values.includes(partial) ? null : { key: key as Key, partial, start }
+}
+
+// Les clés que commence le dernier mot, `ty` pour `type:`. Aucune sans mot.
+export function keysStarted(query: string): Key[] {
+  const word = query.slice(query.search(/\S*$/))
+  if (word === '' || word.includes(':')) return []
+  return KEYS.filter((key) => key.startsWith(word))
+}
