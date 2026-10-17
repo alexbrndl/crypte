@@ -6,6 +6,7 @@ import type {
   ShellMessage,
   SkippedFile,
   StoryEntry,
+  Theme,
   TokensEntry,
 } from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/shell'
@@ -64,6 +65,8 @@ import { placeSearch, readPlace, sameTab } from './navigation/url'
 const MANIFEST = '/@crypte/manifest.json'
 
 const frame = useTemplateRef<HTMLIFrameElement>('frame')
+// La seconde preview de la comparaison light et dark, la première passant en light.
+const frameDark = useTemplateRef<HTMLIFrameElement>('frameDark')
 const entries = ref<StoryEntry[]>([])
 // Les familles de tokens, que la vue tokens range et qu'une page dessine.
 const families = ref<TokensEntry[]>([])
@@ -429,8 +432,10 @@ function zoomBy(step: number) {
 // taille et la story se met en page à l'échelle. Reposé à chaque `ready`, une
 // page rechargée repartant à 1.
 function applyZoom() {
-  const root = frame.value?.contentDocument?.documentElement
-  if (root) root.style.zoom = zoom.value === 1 ? '' : String(zoom.value)
+  for (const one of [frame.value, frameDark.value]) {
+    const root = one?.contentDocument?.documentElement
+    if (root) root.style.zoom = zoom.value === 1 ? '' : String(zoom.value)
+  }
 }
 watch(zoom, applyZoom)
 
@@ -458,7 +463,9 @@ function select(id: string) {
   failure.value = null
   // Rien ne part avant que la preview ait dit `ready` : un message envoyé à une
   // iframe qui n'écoute pas encore est perdu sans trace.
-  if (ready) channel?.send({ type: 'render', id, overrides: overrides.value, theme: theme.value })
+  if (ready)
+    channel?.send({ type: 'render', id, overrides: overrides.value, theme: mainTheme.value })
+  renderDark()
 }
 
 // Une story ou une famille de tokens : `?id=` les nomme toutes les deux (§4.3).
@@ -604,8 +611,38 @@ const paletteShortcuts = mac ? 'Meta+K /' : 'Control+K /'
 // raccourci : la palette est l'endroit où ils se lisent.
 const { theme, toggle: toggleTheme } = useTheme()
 
+// La comparaison light et dark : une seconde preview en dark, à côté de la
+// première passée en light. Un réglage de vue comme l'échelle : hors de l'adresse.
+// La seconde ne sert qu'à voir : ses messages autres que `ready` sont ignorés,
+// la première porte les erreurs, les valeurs et les panneaux.
+const compare = ref(false)
+const mainTheme = computed<Theme>(() => (compare.value ? 'light' : theme.value))
+let dark: { send: (message: ShellMessage) => void; ready: boolean; stop: () => void } | null = null
+
+function renderDark() {
+  if (dark?.ready && current.value !== null)
+    dark.send({ type: 'render', id: current.value, overrides: overrides.value, theme: 'dark' })
+}
+
+watch(frameDark, (element) => {
+  dark?.stop()
+  dark = null
+  if (!element) return
+  const opened = createShellChannel(element)
+  const one = { send: opened.send, ready: false, stop: () => {} }
+  one.stop = opened.onMessage((message) => {
+    if (message.type !== 'ready') return
+    one.ready = true
+    element.contentWindow?.addEventListener('pagehide', () => (one.ready = false), { once: true })
+    applyZoom()
+    renderDark()
+  })
+  dark = one
+})
+onBeforeUnmount(() => dark?.stop())
+
 // La preview suit le thème du shell : rendue à nouveau, sans remonter (5.2).
-watch(theme, () => {
+watch(mainTheme, () => {
   if (current.value !== null) select(current.value)
 })
 
@@ -1105,6 +1142,16 @@ onMounted(() => {
           >
             <!-- Sur la scène, ce qui agit sur elle : l'échelle et le plein écran,
                  qu'on quitte d'ici puisque la barre d'outils part avec lui. -->
+            <!-- Le segmented du fichier Figma, en haut de la scène : la story seule, ou
+                 en light et en dark côte à côte. -->
+            <div v-if="displayed" class="modes" role="group" aria-label="Themes">
+              <Button variant="ghost" :aria-pressed="!compare" @click="compare = false"
+                >single</Button
+              >
+              <Button variant="ghost" :aria-pressed="compare" @click="compare = true"
+                >light + dark</Button
+              >
+            </div>
             <div v-if="displayed" class="stage-tools">
               <!-- Non modal, et téléporté dans les outils de la scène : modal, Reka
                    masquait tout le shell aux lecteurs d'écran, et dans le corps de la page
@@ -1176,7 +1223,16 @@ onMounted(() => {
               <p>{{ failure.message }}</p>
               <pre v-if="failure.stack">{{ failure.stack }}</pre>
             </Alert>
-            <iframe v-show="!failure" ref="frame" src="/preview.html" title="preview"></iframe>
+            <div v-show="!failure" class="previews">
+              <figure class="preview">
+                <iframe ref="frame" src="/preview.html" title="preview"></iframe>
+                <figcaption v-if="compare">light</figcaption>
+              </figure>
+              <figure v-if="compare" class="preview dark">
+                <iframe ref="frameDark" src="/preview.html" title="preview, dark"></iframe>
+                <figcaption>dark</figcaption>
+              </figure>
+            </div>
 
             <!-- Sous la preview, pas dessus : la story rend, et l'avertissement ne dit
            que ce qui manque à sa fiche. Le ton dit ce que l'outil ne sait pas
@@ -1417,10 +1473,12 @@ main.full {
   }
 }
 
+/* Au-dessus des previews, dont le cadre positionné capterait le clic. */
 .stage-tools {
   position: absolute;
   top: var(--space-2);
   right: var(--space-2);
+  z-index: 1;
   display: flex;
   gap: var(--space-1);
 }
@@ -1496,6 +1554,68 @@ main.full {
 }
 
 /* Le canvas : la story sur une trame de points, comme dans les maquettes. */
+.previews {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.preview {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+}
+
+/* Le fond d'une preview en dark : celui du shell sombre, quel que soit le sien. */
+.preview.dark iframe {
+  background-color: var(--stone-950);
+  background-image: radial-gradient(var(--stone-800) 1px, transparent 1px);
+}
+
+.preview figcaption {
+  position: absolute;
+  bottom: var(--space-2);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--space-0-5) var(--space-1-5);
+  border-radius: var(--radius-xs);
+  background: var(--background-raised);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+}
+
+/* En haut et au centre de la scène, comme les outils le sont à droite. */
+.modes {
+  position: absolute;
+  top: var(--space-2);
+  left: 50%;
+  z-index: 1;
+  display: flex;
+  gap: var(--space-0-5);
+  padding: var(--space-0-5);
+  transform: translateX(-50%);
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
+  background: var(--background-raised);
+}
+
+.modes .button {
+  --button-height: 24px;
+  --button-padding: 0 var(--space-1-5);
+  font-size: var(--text-xs);
+}
+
+.modes [aria-pressed='true'] {
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--accent-base);
+  background: var(--background-current);
+  color: var(--text-current);
+}
+
 iframe {
   display: block;
   flex: 1;

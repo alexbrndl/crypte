@@ -1440,6 +1440,28 @@ describe('the zoom, on screen', () => {
   })
 })
 
+// Le thème demandé, posé sur la racine de chaque preview par le vrai navigateur :
+// la première en light, la seconde en dark, chacune rendant la story (5.2).
+describe('the light and dark comparison, on screen', () => {
+  test('renders the story in both themes, side by side', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    await ecran.page.getByRole('button', { name: 'light + dark' }).click()
+
+    const racine = (titre: string) =>
+      ecran.page
+        .frameLocator(`iframe[title="${titre}"]`)
+        .locator('html')
+        .evaluate((e) => [e.dataset.theme, e.style.colorScheme].join(' '))
+    await expect.poll(() => racine('preview, dark')).toBe('dark dark')
+    expect(await racine('preview')).toBe('light light')
+    await expect
+      .poll(() =>
+        ecran.page.frameLocator('iframe[title="preview, dark"]').getByText('Nouveau').count(),
+      )
+      .toBe(1)
+  })
+})
+
 // Les tokens de `@crypte/ui` et `light-dark()` jugés là où ils se calculent : jsdom
 // ne résout aucune couleur.
 describe('the theme, on screen', () => {

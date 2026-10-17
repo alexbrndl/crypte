@@ -577,7 +577,7 @@ describe('what the preview answers', () => {
       message: 'boum',
     } as PreviewMessage)
 
-    expect(écran.wrapper.find('iframe').attributes('style')).toContain('display: none')
+    expect(écran.wrapper.find('iframe').isVisible()).toBe(false)
   })
 
   // Les panneaux le reçoivent aussi : `a11y` attendait sinon une analyse qui ne
@@ -2968,6 +2968,66 @@ describe('the panels toggle', () => {
       message: 'boom',
     } as PreviewMessage)
     expect(marque().exists()).toBe(true)
+  })
+})
+
+// La comparaison : une seconde preview en dark, la première passée en light, et
+// seule la première parle au shell.
+describe('the light and dark comparison', () => {
+  const mode = (écran: Ecran, libellé: string) =>
+    écran.wrapper.findAll('.modes button').find((one) => one.text() === libellé)!
+  const sombre = (écran: Ecran) => écran.wrapper.find('iframe[title="preview, dark"]')
+
+  test('draws the story in light and in dark, side by side, until single again', async ({
+    écran,
+  }) => {
+    change(true)
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    await expect.poll(() => écran.envoyés.at(-1)).toMatchObject({ theme: 'dark' })
+    expect(sombre(écran).exists()).toBe(false)
+
+    await mode(écran, 'light + dark').trigger('click')
+    expect(mode(écran, 'light + dark').attributes('aria-pressed')).toBe('true')
+    expect(écran.wrapper.findAll('figcaption').map((one) => one.text())).toEqual(['light', 'dark'])
+    // La première passe en light, même sous un shell sombre.
+    await expect.poll(() => écran.envoyés.at(-1)).toMatchObject({ theme: 'light' })
+
+    const cadre = sombre(écran).element as HTMLIFrameElement
+    const reçus: ShellMessage[] = []
+    cadre.contentWindow!.addEventListener('message', (event) =>
+      reçus.push(event.data as ShellMessage),
+    )
+    const dit = async (message: PreviewMessage) => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: message,
+          origin: window.location.origin,
+          source: cadre.contentWindow,
+        }),
+      )
+      await vide(écran.wrapper)
+    }
+    await dit({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    await expect
+      .poll(() => reçus.at(-1))
+      .toEqual({ type: 'render', id: 'badge--defaut', overrides: {}, theme: 'dark' })
+
+    // Une valeur éditée rend les deux ; une erreur de la seconde ne couvre rien.
+    écran.wrapper.findComponent(Panels).vm.$emit('overrides', { label: 'Neuf' })
+    await vide(écran.wrapper)
+    await expect
+      .poll(() => reçus.at(-1))
+      .toMatchObject({ overrides: { label: 'Neuf' }, theme: 'dark' })
+    await expect
+      .poll(() => écran.envoyés.at(-1))
+      .toMatchObject({ overrides: { label: 'Neuf' }, theme: 'light' })
+    await dit({ type: 'error', id: 'badge--defaut', message: 'boum' } as PreviewMessage)
+    expect(écran.wrapper.find('.failure').exists()).toBe(false)
+
+    await mode(écran, 'single').trigger('click')
+    expect(sombre(écran).exists()).toBe(false)
+    expect(écran.wrapper.find('figcaption').exists()).toBe(false)
+    await expect.poll(() => écran.envoyés.at(-1)).toMatchObject({ theme: 'dark' })
   })
 })
 

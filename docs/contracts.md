@@ -686,7 +686,7 @@ type Theme = 'light' | 'dark'
 
 `render` mounts the entry that was asked for, with the shell's overrides applied on top of the story's props by 2.3's merge, shallow and prop by prop. A preview drops any message it does not know.
 
-`theme` is the theme to draw in. Before rendering, the preview sets it as `data-theme` and as the `color-scheme` of its root element: a sheet reads the first through a `[data-theme="dark"]` selector, which is what the tokens plugin reads too (4.2), and `light-dark()` follows the second. Without `theme`, the root is left as the project made it. The shell sends its own theme, and both in the light and dark comparison.
+`theme` is the theme to draw in. Before rendering, the preview sets it as `data-theme` and as the `color-scheme` of its root element: a sheet reads the first through a `[data-theme="dark"]` selector, which is what the tokens plugin reads too (4.2), and `light-dark()` follows the second. Without `theme`, the root is left as the project made it. The shell sends its own theme; to compare, it opens a second preview and sends `light` to one and `dark` to the other.
 
 **`update-overrides` and `set-globals` were here and are now in reserve**, section 7. Neither had a consumer, and `render` already carries overrides: what the first added was updating them *without remounting*. **`controls` settled it: nothing is remounted.** Measured in a browser, the node the React adapter rendered survives an edit, since the adapter renders again on the root it keeps.
 
