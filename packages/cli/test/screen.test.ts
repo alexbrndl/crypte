@@ -1445,7 +1445,7 @@ describe('the zoom, on screen', () => {
 describe('the light and dark comparison, on screen', () => {
   test('renders the story in both themes, side by side', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
-    await ecran.page.getByRole('button', { name: 'light + dark' }).click()
+    await ecran.page.getByRole('button', { name: 'Compare light and dark' }).click()
 
     const racine = (titre: string) =>
       ecran.page

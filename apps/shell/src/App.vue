@@ -43,6 +43,7 @@ import ComponentPage from './pages/component-page.vue'
 import EmptyGuide from './pages/empty-guide.vue'
 import {
   ArrowDown01Icon,
+  ContrastIcon,
   Copy01Icon,
   FullScreenIcon,
   PanelRightIcon,
@@ -1139,18 +1140,9 @@ onMounted(() => {
             v-show="component === null && tokensAt === null && !changesOpen && !noStory"
             class="canvas"
           >
-            <!-- Sur la scène, ce qui agit sur elle : l'échelle et le plein écran,
-                 qu'on quitte d'ici puisque la barre d'outils part avec lui. -->
-            <!-- Le segmented du fichier Figma, en haut de la scène : la story seule, ou
-                 en light et en dark côte à côte. -->
-            <div v-if="displayed" class="modes" role="group" aria-label="Themes">
-              <Button variant="ghost" :aria-pressed="!compare" @click="compare = false"
-                >single</Button
-              >
-              <Button variant="ghost" :aria-pressed="compare" @click="compare = true"
-                >light + dark</Button
-              >
-            </div>
+            <!-- Sur la scène, ce qui agit sur elle : l'échelle, la comparaison light et
+                 dark, et le plein écran, qu'on quitte d'ici puisque la barre d'outils
+                 part avec lui. -->
             <div v-if="displayed" class="stage-tools">
               <!-- Non modal, et téléporté dans les outils de la scène : modal, Reka
                    masquait tout le shell aux lecteurs d'écran, et dans le corps de la page
@@ -1202,6 +1194,16 @@ onMounted(() => {
                   </DropdownMenuContent>
                 </DropdownMenuPortal>
               </DropdownMenuRoot>
+              <Tooltip content="Compare light and dark">
+                <Button
+                  class="square"
+                  aria-label="Compare light and dark"
+                  :aria-pressed="compare"
+                  @click="compare = !compare"
+                >
+                  <Icon :icon="ContrastIcon" />
+                </Button>
+              </Tooltip>
               <Tooltip :content="full ? 'Leave full screen' : 'Full screen'" keys="F">
                 <Button
                   class="square"
@@ -1590,33 +1592,6 @@ main.full {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
-}
-
-/* En haut et au centre de la scène, comme les outils le sont à droite. */
-.modes {
-  position: absolute;
-  top: var(--space-2);
-  left: 50%;
-  z-index: 1;
-  display: flex;
-  gap: var(--space-0-5);
-  padding: var(--space-0-5);
-  transform: translateX(-50%);
-  border-radius: var(--radius-sm);
-  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
-  background: var(--background-raised);
-}
-
-.modes .button {
-  --button-height: 24px;
-  --button-padding: 0 var(--space-1-5);
-  font-size: var(--text-xs);
-}
-
-.modes [aria-pressed='true'] {
-  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--accent-base);
-  background: var(--background-current);
-  color: var(--text-current);
 }
 
 iframe {

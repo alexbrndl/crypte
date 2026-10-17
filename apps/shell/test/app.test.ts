@@ -2974,11 +2974,10 @@ describe('the panels toggle', () => {
 // La comparaison : une seconde preview en dark, la première passée en light, et
 // seule la première parle au shell.
 describe('the light and dark comparison', () => {
-  const mode = (écran: Ecran, libellé: string) =>
-    écran.wrapper.findAll('.modes button').find((one) => one.text() === libellé)!
+  const bouton = (écran: Ecran) => écran.wrapper.find('[aria-label="Compare light and dark"]')
   const sombre = (écran: Ecran) => écran.wrapper.find('iframe[title="preview, dark"]')
 
-  test('draws the story in light and in dark, side by side, until single again', async ({
+  test('draws the story in light and in dark, side by side, until pressed again', async ({
     écran,
   }) => {
     change(true)
@@ -2986,8 +2985,9 @@ describe('the light and dark comparison', () => {
     await expect.poll(() => écran.envoyés.at(-1)).toMatchObject({ theme: 'dark' })
     expect(sombre(écran).exists()).toBe(false)
 
-    await mode(écran, 'light + dark').trigger('click')
-    expect(mode(écran, 'light + dark').attributes('aria-pressed')).toBe('true')
+    expect(bouton(écran).attributes('aria-pressed')).toBe('false')
+    await bouton(écran).trigger('click')
+    expect(bouton(écran).attributes('aria-pressed')).toBe('true')
     expect(écran.wrapper.findAll('figcaption').map((one) => one.text())).toEqual(['light', 'dark'])
     // Chaque cadre porte le fond du thème qu'il dessine, et la première passe en
     // light, même sous un shell sombre.
@@ -3029,7 +3029,7 @@ describe('the light and dark comparison', () => {
     await dit({ type: 'error', id: 'badge--defaut', message: 'boum' } as PreviewMessage)
     expect(écran.wrapper.find('.failure').exists()).toBe(false)
 
-    await mode(écran, 'single').trigger('click')
+    await bouton(écran).trigger('click')
     expect(sombre(écran).exists()).toBe(false)
     expect(écran.wrapper.find('figcaption').exists()).toBe(false)
     await expect.poll(() => écran.envoyés.at(-1)).toMatchObject({ theme: 'dark' })
