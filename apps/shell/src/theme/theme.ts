@@ -1,7 +1,8 @@
 import { computed, onBeforeUnmount, ref, watchEffect } from 'vue'
 
 // Le thème du shell : celui du système à chaque lancement, puis la bascule, pour
-// la page seulement. Posé en `data-theme` sur la racine, que `tokens.css` de
+// la page seulement. Non retenu, à la demande du propriétaire (17 oct. 2026) :
+// on lance dans le thème de sa machine. Rouvert si l'on veut garder un choix. Posé en `data-theme` sur la racine, que `tokens.css` de
 // `@crypte/ui` lit ; absent, le système décide seul.
 
 export type Theme = 'light' | 'dark'

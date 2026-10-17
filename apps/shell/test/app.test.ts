@@ -3431,6 +3431,20 @@ describe('the command palette', () => {
       "// crypte.config.ts\nimport figma from '@acme/crypte-figma'\n\nplugins: [figma()],",
     )
 
+    // Sans sa version à l'import, et sans mot réservé pour nom.
+    for (const [paquet, attendu] of [
+      ['@acme/crypte-figma@2', "import figma from '@acme/crypte-figma'"],
+      ['crypte-plugin-default', "import defaultPlugin from 'crypte-plugin-default'"],
+      ['42', "import plugin from '42'"],
+    ]) {
+      champ.value = paquet!
+      champ.dispatchEvent(new Event('input', { bubbles: true }))
+      await vide(écran.wrapper)
+      expect(document.querySelector('[role="dialog"] .config')?.textContent?.split('\n')[1]).toBe(
+        attendu,
+      )
+    }
+
     // Rouverte, elle revient à la recherche.
     await ouvre(écran)
     await ouvre(écran)

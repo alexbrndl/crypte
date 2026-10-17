@@ -258,19 +258,27 @@ watch(installing, async (now) => {
 })
 const command = computed(() => `npm install -D ${name.value.trim() || '<package>'}`)
 
-// Le nom de l'import, tiré du paquet : `@acme/crypte-plugin-figma` donne `figma`.
+// Le paquet sans sa version, `@acme/x@2` s'importe `@acme/x`, et le nom de
+// l'import qu'il donne : `@acme/crypte-plugin-figma` donne `figma`. Un mot
+// réservé, `default`, ne se déclare pas : il prend `Plugin` en suffixe.
+const RESERVED = new Set(
+  'await break case catch class const continue debugger default delete do else enum export extends false finally for function if implements import in instanceof interface let new null package private protected public return static super switch this throw true try typeof var void while with yield'.split(
+    ' ',
+  ),
+)
+const bare = computed(() => name.value.trim().replace(/^(@?[^@]+)@.*$/, '$1'))
 const binding = computed(() => {
-  const last = name.value
-    .trim()
+  const last = bare.value
     .split('/')
     .at(-1)!
     .replace(/^crypte-(plugin-)?/, '')
   const camel = last.replace(/[^a-zA-Z0-9]+(.)?/g, (_, next?: string) => next?.toUpperCase() ?? '')
-  return /^[a-zA-Z]/.test(camel) ? camel : 'plugin'
+  if (!/^[a-zA-Z]/.test(camel)) return 'plugin'
+  return RESERVED.has(camel) ? `${camel}Plugin` : camel
 })
 const config = computed(
   () =>
-    `// crypte.config.ts\nimport ${binding.value} from '${name.value.trim() || '<package>'}'\n\nplugins: [${binding.value}()],`,
+    `// crypte.config.ts\nimport ${binding.value} from '${bare.value || '<package>'}'\n\nplugins: [${binding.value}()],`,
 )
 
 async function copy() {
