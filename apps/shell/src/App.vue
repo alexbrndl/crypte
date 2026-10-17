@@ -1629,10 +1629,10 @@ iframe {
 }
 
 /* Le fond à points du thème que la frame dessine, et son `color-scheme` : différent
-   de celui du document de la frame, Chromium peint par-dessus un aplat opaque
-   (revue de #176). Les valeurs de `--background-subtle` et `--border-light`,
-   écrites ici : `light-dark()` dans une propriété se résout sur la racine du
-   shell, pas sur la frame. */
+   de celui du document de la frame, Chromium peint par-dessus un aplat opaque.
+   Les valeurs de `--background-subtle` et `--border-light`, écrites ici :
+   `light-dark()` dans une propriété se résout sur la racine du shell, pas sur
+   la frame. */
 iframe[data-scheme='light'] {
   color-scheme: light;
   background-color: var(--stone-100);
