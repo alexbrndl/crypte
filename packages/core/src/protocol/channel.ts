@@ -6,7 +6,7 @@
 // measured with `controls`. That is why `update-overrides` stays in reserve,
 // section 7. Reopened by an adapter that remounts on every `render`.
 export type ShellMessage =
-  | { type: 'render'; id: string; overrides: Overrides }
+  | { type: 'render'; id: string; overrides: Overrides; theme?: Theme }
   | MessagesOf<PluginShellMessages>
 
 export type PreviewMessage =
@@ -33,6 +33,12 @@ type MessagesOf<T> = {
       : NonNullable<T[K]>
     : never
 }[keyof T]
+
+// The theme the preview draws in: set as `data-theme` and `color-scheme` on its
+// root, which a sheet reads through `[data-theme]` and `light-dark()`. Absent,
+// the root is left as the project made it. A sheet that switches only under
+// `@media (prefers-color-scheme)` does not follow: no page can force that query.
+export type Theme = 'light' | 'dark'
 
 // The channel never carries a story's props to the preview: the preview imports
 // the modules itself. It carries the values edited in a panel.

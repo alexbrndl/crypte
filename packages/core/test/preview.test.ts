@@ -86,6 +86,37 @@ describe('rendering', () => {
   })
 })
 
+// Le thème demandé se pose sur la racine avant le rendu ; sans thème, la racine
+// reste telle que le projet l'a faite.
+describe('the theme', () => {
+  it('sets the theme asked on the root, before the story renders', () => {
+    const racine = preview.document.documentElement
+    let pendant = ''
+    createPreviewChannel({ render: () => void (pendant = racine.dataset.theme ?? '') })
+
+    envoie({ ...RENDER, theme: 'dark' })
+    expect(pendant).toBe('dark')
+    expect(racine.style.colorScheme).toBe('dark')
+
+    envoie({ ...RENDER, theme: 'light' })
+    expect([racine.dataset.theme, racine.style.colorScheme]).toEqual(['light', 'light'])
+  })
+
+  it('leaves the root alone without a theme, and keeps it on a replay', () => {
+    const racine = preview.document.documentElement
+    racine.dataset.theme = 'sepia'
+    const canal = createPreviewChannel({ render: () => {} })
+
+    envoie(RENDER)
+    expect(racine.dataset.theme).toBe('sepia')
+
+    envoie({ ...RENDER, theme: 'dark' })
+    racine.dataset.theme = 'light'
+    canal.again()
+    expect(racine.dataset.theme).toBe('dark')
+  })
+})
+
 describe('what is ignored', () => {
   function monte(render: (id: string) => void = () => {}) {
     const rendus: unknown[] = []

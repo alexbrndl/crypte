@@ -458,7 +458,7 @@ function select(id: string) {
   failure.value = null
   // Rien ne part avant que la preview ait dit `ready` : un message envoyé à une
   // iframe qui n'écoute pas encore est perdu sans trace.
-  if (ready) channel?.send({ type: 'render', id, overrides: overrides.value })
+  if (ready) channel?.send({ type: 'render', id, overrides: overrides.value, theme: theme.value })
 }
 
 // Une story ou une famille de tokens : `?id=` les nomme toutes les deux (§4.3).
@@ -603,6 +603,11 @@ const paletteShortcuts = mac ? 'Meta+K /' : 'Control+K /'
 // Celles de la barre d'outils et la recherche, quand elles s'appliquent, avec leur
 // raccourci : la palette est l'endroit où ils se lisent.
 const { theme, toggle: toggleTheme } = useTheme()
+
+// La preview suit le thème du shell : rendue à nouveau, sans remonter (5.2).
+watch(theme, () => {
+  if (current.value !== null) select(current.value)
+})
 
 const themeLabel = computed(() => (theme.value === 'dark' ? 'Light theme' : 'Dark theme'))
 

@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.39, reference document. A project brief points here instead of restating these shapes.
+> Version 1.40, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -678,11 +678,15 @@ Each direction has its own type: `ShellMessage` goes to the iframe, `PreviewMess
 
 ```ts
 type ShellMessage =
-  | { type: 'render'; id: string; overrides: Overrides }
+  | { type: 'render'; id: string; overrides: Overrides; theme?: Theme }
   | MessagesOf<PluginShellMessages>
+
+type Theme = 'light' | 'dark'
 ```
 
 `render` mounts the entry that was asked for, with the shell's overrides applied on top of the story's props by 2.3's merge, shallow and prop by prop. A preview drops any message it does not know.
+
+`theme` is the theme to draw in. Before rendering, the preview sets it as `data-theme` and as the `color-scheme` of its root element: a sheet reads the first through a `[data-theme="dark"]` selector, which is what the tokens plugin reads too (4.2), and `light-dark()` follows the second. Without `theme`, the root is left as the project made it. The shell sends its own theme, and both in the light and dark comparison.
 
 **`update-overrides` and `set-globals` were here and are now in reserve**, section 7. Neither had a consumer, and `render` already carries overrides: what the first added was updating them *without remounting*. **`controls` settled it: nothing is remounted.** Measured in a browser, the node the React adapter rendered survives an edit, since the adapter renders again on the root it keeps.
 
@@ -951,7 +955,7 @@ The field carrying it already exists, so it is no manifest break. The reason it 
 **Held in reserve, to add when a real case asks for it:**
 
 - `update-overrides`, which would change a mounted entry's props without remounting it. `render` already does, measured with `controls` (5.2). Reopened by an adapter that remounts on every `render`, or a component that loses its state across an edit.
-- `set-globals`, which would apply a theme or a locale to the preview. No consumer, and no shape a case has demonstrated.
+- `set-globals`, which would apply a locale to the preview. No consumer, and no shape a case has demonstrated. The theme travels with `render` since v1.40 (5.2).
 - The preview hooks `beforeMount`, `onPropsChange` and `beforeUnmount` of 6.2. `beforeMount` returns with `actions`, which fills undeclared function props (6.4); the other two have no consumer.
 - A `render` escape hatch on a story, to make a controlled component truly interactive. Left out of v1 for lack of a demonstrated case, see 2.7. Adding it later breaks nothing; shipping it now would create a use we could not take back.
 - Documenting pass-through DOM attributes, see 3.4.
@@ -977,7 +981,7 @@ This document is a contract. This section is the only place that says what exist
 
 **`dev`, `check` and `init` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled in the project by the CLI's own Vite, with the plugins the project declares in `vite.plugins`. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte init` writes the configuration of 1.5 into a project that already has its components, and has no section of its own because the file it writes is 1.5 itself.
 
-Nine known gaps between this document and the code:
+Ten known gaps between this document and the code:
 
 - **A plugin's peer range checks the copies npm installs, never the ones its panel runs on.** `vue` and `@crypte/ui` reach a panel from the installed CLI's shell, through its import map (6.1). A plugin newer than that CLI, which imports a component its `@crypte/ui` does not have yet, fails to load, and the frame shows the import error in the panel's place. Pinning `@crypte/cli` instead would move the whole `fixed` group to a major version at every minor one, measured with `changeset status` (DCJ-352).
 - **The preview is compiled by the CLI's Vite, and nothing checks the project's plugins against it.** A project on another major keeps its own Vite for its build, and its `vite.plugins` run in the CLI's anyway. Measured on a project on Vite 6: its React plugin warned about deprecated options and every story rendered. Resolving the project's own Vite instead would be a rework, not a fix.
@@ -987,11 +991,18 @@ Nine known gaps between this document and the code:
 - The serialisation of 4.5 is guaranteed on **contributed** entries and merely true of the others. A plugin's entry is checked and refused with what offends named; everything the CLI reads itself comes from source text and is serialisable by construction, so nothing exercises the guarantee there.
 - **`component.tokens` misses what a global style sheet gives a component.** A class written in a sheet the component does not import ties no custom property to it, since nothing in the component file names it. Reading which rules reach a component needs it rendered, which the producer never does. An imported sheet edited alone is not watched either, so its names follow at the next component change or restart.
 - **A style sheet other than the declared one is not watched.** `crypte dev` rebuilds the catalogue when the `css` of 1.5 changes, as for a story or a component, and reloads the preview when its tokens moved. A sheet a plugin reads by its own option, `tokens({ files })` for one, is followed only at the next rebuild or restart.
+- **A sheet that switches theme only under `@media (prefers-color-scheme: dark)` does not follow the `theme` of 5.2.** No page can force that media query on itself, so such a preview keeps the system's theme whatever the shell asks. Rewriting the sheet's media rules into `[data-theme]` ones would mean editing the project's CSS.
 - `component.file` is resolved without Vite. The producer runs before any server exists, so it applies the project's `paths` and tries the usual extensions, with no plugin and no `exports` field. A component reached through a plugin keeps the identifier the story wrote. `crypte check` calls such an entry an orphan only when the project could have reached it itself, that is a relative path or an alias it declares; anything else it leaves alone.
 
 ---
 
 ## 9. Version log
+
+**v1.40.** The theme a story is drawn in (5.2).
+
+| Before | After |
+| --- | --- |
+| nothing told the preview which theme to draw in, and `set-globals` held that in reserve | `render` carries an optional `theme`, set as `data-theme` and `color-scheme` on the preview's root |
 
 **v1.39.** Tokens in the fingerprint, and a comparison from any commit (4.6).
 

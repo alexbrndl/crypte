@@ -10,6 +10,8 @@ const global = globalThis as unknown as { window?: unknown }
 
 export interface FakeWindow {
   location: { origin: string }
+  // La racine du document, réduite à ce que la preview y écrit : le thème.
+  document: { documentElement: { dataset: Record<string, string>; style: { colorScheme: string } } }
   parent: FakeWindow
   // Qui écrit dans ce contexte, donc ce que le destinataire lira dans
   // `event.origin` et `event.source`.
@@ -27,6 +29,7 @@ export function windowAt(origin: string): FakeWindow {
 
   const self: FakeWindow = {
     location: { origin },
+    document: { documentElement: { dataset: {}, style: { colorScheme: '' } } },
     // Une fenêtre sans parent est son propre parent, comme dans un navigateur.
     parent: undefined as unknown as FakeWindow,
     sender: undefined as unknown as FakeWindow,

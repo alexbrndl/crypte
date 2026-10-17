@@ -310,7 +310,7 @@ describe('the selection', () => {
 
     await expect
       .poll(() => écran.envoyés.at(-1))
-      .toEqual({ type: 'render', id: 'badge--alerte', overrides: {} })
+      .toEqual({ type: 'render', id: 'badge--alerte', overrides: {}, theme: 'light' })
   })
 
   // `ready` est aussi ce que dit une preview rechargée : il relit le catalogue,
@@ -325,7 +325,7 @@ describe('the selection', () => {
     expect(écran.statut()).toBe('3 stories')
     await expect
       .poll(() => écran.envoyés.at(-1))
-      .toEqual({ type: 'render', id: 'badge--defaut', overrides: {} })
+      .toEqual({ type: 'render', id: 'badge--defaut', overrides: {}, theme: 'light' })
   })
 })
 
@@ -442,7 +442,12 @@ describe('the values a panel edited', () => {
 
     await expect
       .poll(() => écran.envoyés.at(-1))
-      .toEqual({ type: 'render', id: 'badge--defaut', overrides: { label: 'Bonjour' } })
+      .toEqual({
+        type: 'render',
+        id: 'badge--defaut',
+        overrides: { label: 'Bonjour' },
+        theme: 'light',
+      })
   })
 
   test('drops them when another story is shown', async ({ écran }) => {
@@ -453,7 +458,7 @@ describe('the values a panel edited', () => {
 
     await expect
       .poll(() => écran.envoyés.at(-1))
-      .toEqual({ type: 'render', id: 'badge--alerte', overrides: {} })
+      .toEqual({ type: 'render', id: 'badge--alerte', overrides: {}, theme: 'light' })
   })
 
   // Sans story affichée, rien ne part : il n'y a rien à rendre.
@@ -472,7 +477,12 @@ describe('the values a panel edited', () => {
   // `ready` revient après une édition de fichier : la story reste affichée, et
   // ce qu'on vient de saisir aussi.
   test('keeps them when the preview says ready again on the same story', async ({ écran }) => {
-    const rendu = { type: 'render', id: 'badge--defaut', overrides: { label: 'Bonjour' } }
+    const rendu = {
+      type: 'render',
+      id: 'badge--defaut',
+      overrides: { label: 'Bonjour' },
+      theme: 'light',
+    }
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
     édite(écran, { label: 'Bonjour' })
     await expect.poll(() => écran.envoyés.at(-1)).toEqual(rendu)
@@ -753,7 +763,7 @@ describe('the address', () => {
     expect(écran.story(2).attributes('aria-selected')).toBe('true')
     await expect
       .poll(() => écran.envoyés.at(-1))
-      .toEqual({ type: 'render', id: 'bouton--defaut', overrides: {} })
+      .toEqual({ type: 'render', id: 'bouton--defaut', overrides: {}, theme: 'light' })
     écran.wrapper.unmount()
   })
 
@@ -776,7 +786,7 @@ describe('the address', () => {
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
     await expect
       .poll(() => écran.envoyés.at(-1))
-      .toEqual({ type: 'render', id: 'badge--alerte', overrides: {} })
+      .toEqual({ type: 'render', id: 'badge--alerte', overrides: {}, theme: 'light' })
     écran.wrapper.unmount()
   })
 
@@ -1233,7 +1243,7 @@ describe('the component page', () => {
     expect(window.location.search).toBe('?id=badge--alerte')
     await expect
       .poll(() => écran.envoyés.at(-1))
-      .toEqual({ type: 'render', id: 'badge--alerte', overrides: {} })
+      .toEqual({ type: 'render', id: 'badge--alerte', overrides: {}, theme: 'light' })
     écran.wrapper.unmount()
   })
 
@@ -1303,7 +1313,7 @@ describe('the component page', () => {
     expect(window.location.search).toBe('?component=badge')
     await expect
       .poll(() => écran.envoyés.at(-1))
-      .toEqual({ type: 'render', id: 'badge--defaut', overrides: {} })
+      .toEqual({ type: 'render', id: 'badge--defaut', overrides: {}, theme: 'light' })
     écran.wrapper.unmount()
   })
 
@@ -1317,7 +1327,7 @@ describe('the component page', () => {
 
     await expect
       .poll(() => écran.envoyés.at(-1))
-      .toEqual({ type: 'render', id: 'badge--defaut', overrides: {} })
+      .toEqual({ type: 'render', id: 'badge--defaut', overrides: {}, theme: 'light' })
     écran.wrapper.unmount()
   })
 
@@ -1328,7 +1338,7 @@ describe('the component page', () => {
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
     await expect
       .poll(() => écran.envoyés.at(-1))
-      .toEqual({ type: 'render', id: 'badge--alerte', overrides: {} })
+      .toEqual({ type: 'render', id: 'badge--alerte', overrides: {}, theme: 'light' })
     const avant = écran.envoyés.length
 
     await écran.wrapper.find('nav.trail a').trigger('click', { button: 0 })
@@ -1387,7 +1397,7 @@ describe('the component page', () => {
     expect(wrapper.findAll('p').at(-1)?.text()).toBe('1 story')
     await expect
       .poll(() => envoyés.at(-1))
-      .toEqual({ type: 'render', id: 'badge--autre', overrides: {} })
+      .toEqual({ type: 'render', id: 'badge--autre', overrides: {}, theme: 'light' })
     wrapper.unmount()
   })
 
@@ -1715,7 +1725,7 @@ describe('the tokens view', () => {
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
     await expect
       .poll(() => écran.envoyés.at(-1))
-      .toEqual({ type: 'render', id: 'badge--defaut', overrides: {} })
+      .toEqual({ type: 'render', id: 'badge--defaut', overrides: {}, theme: 'light' })
     const avant = écran.envoyés.length
 
     await clique(écran, écran.vue('tokens'))
@@ -2338,7 +2348,7 @@ describe('the versions view', () => {
     expect(lues.at(-1)).toBe('/@crypte/changes.json?from=main')
     await expect
       .poll(() => écran.envoyés.at(-1))
-      .toEqual({ type: 'render', id: 'badge--defaut', overrides: {} })
+      .toEqual({ type: 'render', id: 'badge--defaut', overrides: {}, theme: 'light' })
     écran.wrapper.unmount()
   })
 
@@ -3643,6 +3653,24 @@ describe('the theme', () => {
     await touche(écran, 't')
     expect(racine()).toBe('light')
     expect(localStorage.getItem('crypte:theme')).toBeNull()
+  })
+
+  // La preview suit le thème du shell, rendue à nouveau à chaque bascule (5.2).
+  test('draws the preview in the shell theme, again on each switch', async ({ écran }) => {
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    await expect
+      .poll(() => écran.envoyés.at(-1))
+      .toEqual({ type: 'render', id: 'badge--defaut', overrides: {}, theme: 'light' })
+
+    await touche(écran, 't')
+    await expect
+      .poll(() => écran.envoyés.at(-1))
+      .toEqual({
+        type: 'render',
+        id: 'badge--defaut',
+        overrides: {},
+        theme: 'dark',
+      })
   })
 
   // Alt+T est un raccourci du navigateur sous Windows, comme Alt+F.
