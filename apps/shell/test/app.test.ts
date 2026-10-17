@@ -2989,7 +2989,12 @@ describe('the light and dark comparison', () => {
     await mode(écran, 'light + dark').trigger('click')
     expect(mode(écran, 'light + dark').attributes('aria-pressed')).toBe('true')
     expect(écran.wrapper.findAll('figcaption').map((one) => one.text())).toEqual(['light', 'dark'])
-    // La première passe en light, même sous un shell sombre.
+    // Chaque cadre porte le fond du thème qu'il dessine, et la première passe en
+    // light, même sous un shell sombre.
+    expect(écran.wrapper.findAll('iframe').map((one) => one.attributes('data-scheme'))).toEqual([
+      'light',
+      'dark',
+    ])
     await expect.poll(() => écran.envoyés.at(-1)).toMatchObject({ theme: 'light' })
 
     const cadre = sombre(écran).element as HTMLIFrameElement

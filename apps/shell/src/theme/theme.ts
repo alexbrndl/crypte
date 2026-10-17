@@ -1,3 +1,4 @@
+import type { Theme } from '@crypte/core/protocol'
 import { computed, onBeforeUnmount, ref, watchEffect } from 'vue'
 
 // Le thème du shell : celui du système à chaque lancement, puis la bascule, pour
@@ -5,8 +6,6 @@ import { computed, onBeforeUnmount, ref, watchEffect } from 'vue'
 // on lance dans le thème de sa machine. Rouvert si l'on veut garder un choix.
 // Posé en `data-theme` sur la racine, que `tokens.css` de `@crypte/ui` lit ;
 // absent, le système décide seul.
-
-export type Theme = 'light' | 'dark'
 
 export function useTheme() {
   const query = window.matchMedia('(prefers-color-scheme: dark)')

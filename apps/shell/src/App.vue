@@ -633,7 +633,6 @@ watch(frameDark, (element) => {
   one.stop = opened.onMessage((message) => {
     if (message.type !== 'ready') return
     one.ready = true
-    element.contentWindow?.addEventListener('pagehide', () => (one.ready = false), { once: true })
     applyZoom()
     renderDark()
   })
@@ -1225,11 +1224,21 @@ onMounted(() => {
             </Alert>
             <div v-show="!failure" class="previews">
               <figure class="preview">
-                <iframe ref="frame" src="/preview.html" title="preview"></iframe>
+                <iframe
+                  ref="frame"
+                  src="/preview.html"
+                  title="preview"
+                  :data-scheme="mainTheme"
+                ></iframe>
                 <figcaption v-if="compare">light</figcaption>
               </figure>
               <figure v-if="compare" class="preview dark">
-                <iframe ref="frameDark" src="/preview.html" title="preview, dark"></iframe>
+                <iframe
+                  ref="frameDark"
+                  src="/preview.html"
+                  title="preview, dark"
+                  data-scheme="dark"
+                ></iframe>
                 <figcaption>dark</figcaption>
               </figure>
             </div>
@@ -1569,12 +1578,6 @@ main.full {
   margin: 0;
 }
 
-/* Le fond d'une preview en dark : celui du shell sombre, quel que soit le sien. */
-.preview.dark iframe {
-  background-color: var(--stone-950);
-  background-image: radial-gradient(var(--stone-800) 1px, transparent 1px);
-}
-
 .preview figcaption {
   position: absolute;
   bottom: var(--space-2);
@@ -1622,9 +1625,24 @@ iframe {
   width: 100%;
   min-height: 320px;
   border: 0;
-  background-color: var(--background-subtle);
-  background-image: radial-gradient(var(--border-light) 1px, transparent 1px);
   background-size: 12px 12px;
+}
+
+/* Le fond à points du thème que la frame dessine, et son `color-scheme` : différent
+   de celui du document de la frame, Chromium peint par-dessus un aplat opaque
+   (revue de #176). Les valeurs de `--background-subtle` et `--border-light`,
+   écrites ici : `light-dark()` dans une propriété se résout sur la racine du
+   shell, pas sur la frame. */
+iframe[data-scheme='light'] {
+  color-scheme: light;
+  background-color: var(--stone-100);
+  background-image: radial-gradient(var(--stone-200) 1px, transparent 1px);
+}
+
+iframe[data-scheme='dark'] {
+  color-scheme: dark;
+  background-color: var(--stone-700);
+  background-image: radial-gradient(var(--stone-950) 1px, transparent 1px);
 }
 
 .failure {

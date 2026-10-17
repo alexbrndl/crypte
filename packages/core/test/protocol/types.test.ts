@@ -31,6 +31,19 @@ describe('shell messages', () => {
     expect(message.width).toBe(320)
   })
 
+  // Le thème de 5.2 : les deux que le shell connaît, et rien d'autre.
+  it('carries a light or dark theme, and no other', () => {
+    const sombre = {
+      type: 'render',
+      id: 'a--b',
+      overrides: {},
+      theme: 'dark',
+    } satisfies ShellMessage
+    // @ts-expect-error `sepia` n'est pas un thème du protocole
+    const autre: ShellMessage = { type: 'render', id: 'a--b', overrides: {}, theme: 'sepia' }
+    expect([sombre.theme, autre.type]).toEqual(['dark', 'render'])
+  })
+
   // Sans `-?` sur le type mappé, `undefined` devenait un message valide et le
   // canal en postait un à travers la frontière.
   it('does not admit undefined as a message', () => {
