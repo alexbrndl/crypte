@@ -1295,8 +1295,9 @@ describe('the versions view', () => {
   })
 })
 
-// Sous 1180 px, la colonne des panneaux quitte la grille : un bouton l'ouvre
-// par-dessus le canvas, qui garde sa largeur. 1280 reste la mise en page entière.
+// À 1280, la colonne tient dans la grille et le bouton la retire, le canvas
+// prenant sa place. Sous 1180 px, elle part fermée et s'ouvre par-dessus le
+// canvas, qui garde sa largeur.
 describe('the panels below 1180', () => {
   test('fold behind a button, and open over the canvas', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
@@ -1305,7 +1306,12 @@ describe('the panels below 1180', () => {
     const large = () =>
       ecran.page.locator('.canvas').evaluate((e) => e.getBoundingClientRect().width)
     expect(await colonne.isVisible()).toBe(true)
-    expect(await bouton.isVisible()).toBe(false)
+    const entier = await large()
+    await bouton.click()
+    await expect.poll(() => colonne.isVisible()).toBe(false)
+    expect(await large()).toBeGreaterThan(entier)
+    await bouton.click()
+    await expect.poll(() => colonne.isVisible()).toBe(true)
 
     try {
       await ecran.page.setViewportSize({ width: 1024, height: 900 })

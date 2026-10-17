@@ -40,7 +40,13 @@ import CommandPalette, { type Action } from './navigation/command-palette.vue'
 import { useRecent } from './navigation/recent'
 import ComponentPage from './pages/component-page.vue'
 import EmptyGuide from './pages/empty-guide.vue'
-import { ArrowDown01Icon, Copy01Icon, FullScreenIcon, Tick02Icon } from '@hugeicons/core-free-icons'
+import {
+  ArrowDown01Icon,
+  Copy01Icon,
+  FullScreenIcon,
+  PanelRightIcon,
+  Tick02Icon,
+} from '@hugeicons/core-free-icons'
 import ActivityBar, { type View } from './navigation/activity-bar.vue'
 import Icon from './ui/icon.vue'
 import StoryTree from './navigation/story-tree.vue'
@@ -358,10 +364,15 @@ const TOKENS_SNIPPET = `:root {
   --space-2: 8px;
 }`
 
-// Sous 1180 px, la colonne des panneaux sort de la grille et s'ouvre par-dessus
-// le canvas, depuis un bouton de la barre d'outils qui en dit le nombre.
-const panelsOpen = ref(false)
-const panelCount = ref(0)
+// La colonne de droite, panneaux ou panneau du token : ouverte dans la grille
+// au-dessus de 1180 px, fermée en dessous, où elle s'ouvre par-dessus le canvas.
+// Passer le seuil rend l'état de son côté ; le bouton de la barre d'outils la
+// bascule à toute largeur.
+const wide = window.matchMedia('(min-width: 1180px)')
+const panelsOpen = ref(wide.matches)
+const fit = (event: MediaQueryListEvent) => (panelsOpen.value = event.matches)
+wide.addEventListener('change', fit)
+onBeforeUnmount(() => wide.removeEventListener('change', fit))
 // Les plugins en échec ou refusés : repliée, la colonne cache leur encadré, et le
 // bouton le dit à sa place.
 const panelTroubles = ref(0)
@@ -607,7 +618,8 @@ function shortcut(event: KeyboardEvent) {
   }
   if (event.key === 'Escape') {
     full.value = false
-    panelsOpen.value = false
+    // Par-dessus le canvas seulement : dans la grille, elle n'a rien à fermer.
+    if (!wide.matches) panelsOpen.value = false
     return
   }
   if (event.metaKey) return
@@ -897,6 +909,7 @@ onMounted(() => {
         <!-- Le dossier n'est pas une destination, le composant en est une : seul il
                porte l'accent. Le séparateur suit le segment qui le précède. -->
         <nav class="trail" aria-label="Breadcrumb">
+          <span class="folder">stories<span class="separator">/</span></span>
           <span v-for="(segment, at) of displayed.path.slice(0, -1)" :key="at" class="folder"
             >{{ segment }}<span class="separator">/</span></span
           >
@@ -908,35 +921,41 @@ onMounted(() => {
           <span aria-current="page">{{ displayed.name }}</span>
         </nav>
         <div class="actions">
-          <Button
-            class="panels-toggle"
-            aria-controls="panels"
-            :aria-expanded="panelsOpen"
-            @click="panelsOpen = !panelsOpen"
-          >
-            Panels
-            <span v-if="panelCount > 0" class="count">{{ panelCount }}</span>
-            <span
-              v-if="panelTroubles + pluginErrors.length > 0"
-              class="trouble"
-              role="img"
-              aria-label="a plugin failed"
-            />
-          </Button>
           <Button class="reload" @click="reload">Reload</Button>
           <Button variant="secondary" class="copy" @click="copyLink">
             <Icon :icon="Copy01Icon" />
             {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
           </Button>
+          <span class="divider" aria-hidden="true" />
+          <Tooltip :content="panelsOpen ? 'Hide panels' : 'Show panels'">
+            <Button
+              variant="ghost"
+              class="panels-toggle"
+              aria-label="Panels"
+              aria-controls="panels"
+              :aria-expanded="panelsOpen"
+              @click="panelsOpen = !panelsOpen"
+            >
+              <Icon :icon="PanelRightIcon" />
+              <span
+                v-if="!panelsOpen && panelTroubles + pluginErrors.length > 0"
+                class="trouble"
+                role="img"
+                aria-label="a plugin failed"
+              />
+            </Button>
+          </Tooltip>
         </div>
       </div>
-      <!-- La vue tokens a la sienne : la catégorie, la famille et la clé du token choisi. -->
+      <!-- La vue tokens a la sienne : la vue, la catégorie quand elle ne porte pas le
+           nom de la famille, la famille et la clé du token choisi. -->
       <div v-else-if="view === 'tokens' && shownCategory" class="toolbar">
         <nav class="trail" aria-label="Breadcrumb">
-          <span v-if="selectedToken" class="folder"
-            >{{ shownCategory.name }}<span class="separator">/</span></span
-          >
+          <span class="folder">tokens<span class="separator">/</span></span>
           <template v-if="selectedToken">
+            <span v-if="shownCategory.name !== selectedToken.family" class="folder"
+              >{{ shownCategory.name }}<span class="separator">/</span></span
+            >
             <span class="family">{{ selectedToken.family }}</span
             ><span class="separator">/</span>
             <span aria-current="page">{{ selectedToken.label }}</span>
@@ -949,6 +968,19 @@ onMounted(() => {
             <Icon :icon="Copy01Icon" />
             {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
           </Button>
+          <span class="divider" aria-hidden="true" />
+          <Tooltip :content="panelsOpen ? 'Hide panels' : 'Show panels'">
+            <Button
+              variant="ghost"
+              class="panels-toggle"
+              aria-label="Panels"
+              aria-controls="token-panel"
+              :aria-expanded="panelsOpen"
+              @click="panelsOpen = !panelsOpen"
+            >
+              <Icon :icon="PanelRightIcon" />
+            </Button>
+          </Tooltip>
         </div>
       </div>
 
@@ -1124,10 +1156,9 @@ onMounted(() => {
              s'applique pas. Masqués et non retirés sous une page : ils gardent leur
              état. -->
         <aside
-          v-show="!fullScreen && storyMode && !noStory"
+          v-show="!fullScreen && storyMode && !noStory && panelsOpen"
           id="panels"
           class="panel-column"
-          :data-open="panelsOpen || undefined"
           aria-label="Panels"
         >
           <h2 class="column-title">Panels</h2>
@@ -1141,13 +1172,12 @@ onMounted(() => {
             @overrides="edit"
             @send="sendToPreview"
             @weights="(measured) => (weights = measured)"
-            @count="(count, troubles) => ((panelCount = count), (panelTroubles = troubles))"
+            @count="(_, troubles) => (panelTroubles = troubles)"
           />
         </aside>
-        <!-- Toujours en place, même sous 1180 px : le canvas d'une catégorie se lit à
-             côté de son panneau, et aucune barre d'outils n'y porterait le bouton. -->
         <aside
-          v-if="view === 'tokens' && !noTokens && !fullScreen"
+          v-if="view === 'tokens' && !noTokens && !fullScreen && panelsOpen"
+          id="token-panel"
           class="panel-column"
           aria-label="Token panel"
         >
@@ -1318,52 +1348,44 @@ main.full {
   min-height: 0;
 }
 
-/* Le bouton des panneaux n'existe que sous le seuil où ils sortent de la grille. */
+/* Le séparateur vertical avant la bascule des panneaux. */
+.actions .divider {
+  align-self: center;
+  width: var(--stroke-hairline);
+  height: 16px;
+  background: var(--border-base);
+}
+
+/* Le bouton icône md de Figma : 28 × 28. */
 .actions .panels-toggle {
-  display: none;
+  position: relative;
+  padding: var(--space-1) var(--space-1-5);
 }
 
 .actions .panels-toggle[aria-expanded='true'] {
-  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--accent-base);
-  background: var(--background-current);
   color: var(--text-current);
 }
 
+/* Fermée, la colonne cache l'encadré des plugins en échec : le bouton le marque. */
 .panels-toggle .trouble {
+  position: absolute;
+  top: var(--space-0-5);
+  right: var(--space-0-5);
   width: var(--size-dot);
   height: var(--size-dot);
   border-radius: var(--radius-full);
   background: var(--error-solid);
 }
 
-.panels-toggle .count {
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-xs);
-  background: var(--accent-base);
-  color: var(--text-inverse);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
-}
-
 /* Sous 1180 px, la colonne quitte la grille : le canvas garde sa largeur, et elle
    s'ouvre par-dessus, à droite, sans voile. 1280 tient encore en entier. */
 @media (max-width: 1179px) {
-  .actions .panels-toggle {
-    display: inline-flex;
-  }
-
-  #panels {
+  .body > .panel-column {
     position: absolute;
     inset-block: 0;
     right: 0;
     z-index: 1;
-    display: none;
     box-shadow: 0 0 24px rgb(0 0 0 / 0.16);
-  }
-
-  #panels[data-open] {
-    display: block;
   }
 }
 

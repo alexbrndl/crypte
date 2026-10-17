@@ -10,6 +10,7 @@ import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test as base, vi } from 'vitest'
 import App from '../src/App.vue'
 import { Select, Tooltip } from '@crypte/ui'
+import ActivityBar from '../src/navigation/activity-bar.vue'
 import Panels from '../src/panels/panels.vue'
 import StoryTree from '../src/navigation/story-tree.vue'
 
@@ -85,12 +86,21 @@ async function rechargeAuClic(frame: HTMLIFrameElement, clic: () => Promise<void
   return reload
 }
 
-// Le thème du système, que jsdom ne connaît pas : clair au départ, et chaque
-// écouteur posé gardé pour simuler un changement.
-const système = { sombre: false, écouteurs: [] as ((event: MediaQueryListEvent) => void)[] }
+// Le thème du système et la largeur de la fenêtre, que jsdom ne connaît pas :
+// clair et large au départ, chaque écouteur gardé pour simuler un changement.
+const système = {
+  sombre: false,
+  étroit: false,
+  écouteurs: [] as ((event: MediaQueryListEvent) => void)[],
+  largeurs: [] as ((event: MediaQueryListEvent) => void)[],
+}
 const change = (sombre: boolean) => {
   système.sombre = sombre
   for (const one of système.écouteurs) one({ matches: sombre } as MediaQueryListEvent)
+}
+const rétrécit = (étroit: boolean) => {
+  système.étroit = étroit
+  for (const one of système.largeurs) one({ matches: !étroit } as MediaQueryListEvent)
 }
 
 const monte = async (
@@ -189,13 +199,17 @@ beforeEach(() => {
   // Reka fait défiler jusqu'à l'option surlignée de la palette ; jsdom n'a pas de
   // défilement.
   Element.prototype.scrollIntoView = () => {}
-  vi.stubGlobal('matchMedia', () => ({
-    matches: système.sombre,
-    addEventListener: (_: string, one: (event: MediaQueryListEvent) => void) =>
-      système.écouteurs.push(one),
-    removeEventListener: (_: string, one: (event: MediaQueryListEvent) => void) =>
-      (système.écouteurs = système.écouteurs.filter((other) => other !== one)),
-  }))
+  vi.stubGlobal('matchMedia', (query: string) => {
+    const largeur = query.includes('width')
+    const liste = largeur ? 'largeurs' : 'écouteurs'
+    return {
+      matches: largeur ? !système.étroit : système.sombre,
+      addEventListener: (_: string, one: (event: MediaQueryListEvent) => void) =>
+        système[liste].push(one),
+      removeEventListener: (_: string, one: (event: MediaQueryListEvent) => void) =>
+        (système[liste] = système[liste].filter((other) => other !== one)),
+    }
+  })
 })
 
 afterEach(() => {
@@ -206,6 +220,7 @@ afterEach(() => {
   window.history.replaceState(null, '', '/')
   localStorage.clear()
   système.sombre = false
+  système.étroit = false
   delete document.documentElement.dataset.theme
 })
 
@@ -1241,7 +1256,9 @@ describe('the component page', () => {
     const fil = écran.wrapper.find('nav.trail')
 
     // Les séparateurs sont des éléments, espacés par la mise en page.
+    // La vue d'abord, puis le composant et la story.
     expect(fil.findAll('a, [aria-current], .folder').map((one) => one.text())).toEqual([
+      'stories/',
       'Badge',
       'Alerte',
     ])
@@ -1259,7 +1276,7 @@ describe('the component page', () => {
     const profond = entry('checkout/ordersummary--x', 'X', ['checkout', 'OrderSummary'], 's.tsx')
     const écran = await monte([profond])
 
-    expect(écran.wrapper.find('nav.trail').text()).toBe('checkout/OrderSummary/X')
+    expect(écran.wrapper.find('nav.trail').text()).toBe('stories/checkout/OrderSummary/X')
     expect(écran.wrapper.find('nav.trail a').attributes('href')).toBe(
       '?component=checkout/ordersummary',
     )
@@ -1717,26 +1734,45 @@ describe('the tokens view', () => {
     écran.wrapper.unmount()
   })
 
-  // La barre d'outils de la vue : la catégorie, puis la famille et la clé du token
-  // choisi, et les deux actions de la maquette.
-  test('names the category, then the family and key of the token, in its toolbar', async () => {
+  // La barre d'outils de la vue : la vue, la catégorie, puis la famille et la clé du
+  // token choisi, et les actions de la maquette.
+  test('names the view, the category, then the family and key of the token, in its toolbar', async () => {
     window.history.replaceState(null, '', '/?tokens=color')
     const écran = await monte([badge, famille])
     const fil = () =>
       écran.wrapper.findAll('.toolbar .trail > span').map((one) => one.text().replace(/\s+/g, ''))
 
-    expect(fil()).toEqual(['color'])
+    expect(fil()).toEqual(['tokens/', 'color'])
     const recharge = await rechargeAuClic(écran.wrapper.find('iframe').element, () =>
       écran.wrapper.find('.toolbar .reload').trigger('click'),
     )
     expect(recharge).toHaveBeenCalledOnce()
-    expect(écran.wrapper.findAll('.toolbar .actions button').map((one) => one.text())).toEqual([
-      'Reload',
-      'Copy link',
-    ])
+    expect(
+      écran.wrapper
+        .findAll('.toolbar .actions button')
+        .map((one) => one.attributes('aria-label') ?? one.text()),
+    ).toEqual(['Reload', 'Copy link', 'Panels'])
     await clique(écran, vue(écran).find('.item'))
-    expect(fil()).toEqual(['color/', 'Brand', '/', 'primary'])
+    expect(fil()).toEqual(['tokens/', 'color/', 'Brand', '/', 'primary'])
     expect(écran.wrapper.find('.toolbar [aria-current="page"]').text()).toBe('primary')
+    écran.wrapper.unmount()
+  })
+
+  // `space` est à la fois la catégorie et la famille : nommée une fois.
+  test('names a category once when its family bears its name', async () => {
+    window.history.replaceState(null, '', '/?tokens=space&token=space-4')
+    const espace: TokensEntry = {
+      type: 'tokens',
+      id: 'tokens--space',
+      path: ['Tokens'],
+      name: 'space',
+      tokens: { '4': { type: 'dimension', themes: { default: { value: '16px' } } } },
+    }
+    const écran = await monte([badge, espace])
+
+    expect(
+      écran.wrapper.findAll('.toolbar .trail > span').map((one) => one.text().replace(/\s+/g, '')),
+    ).toEqual(['tokens/', 'space', '/', '4'])
     écran.wrapper.unmount()
   })
 
@@ -1993,6 +2029,21 @@ describe('the versions view', () => {
     const avant = window.history.length
 
     expect(entrée(écran).find('.count').text()).toBe('5')
+    // Chaque entrée a son tooltip, à droite de la barre ; versions dit son compte.
+    expect(
+      écran.wrapper
+        .findComponent(ActivityBar)
+        .findAllComponents(Tooltip)
+        .map((one) =>
+          [one.props('side'), one.props('content'), one.props('detail')].filter(Boolean).join(' '),
+        ),
+    ).toEqual([
+      'right Search or run',
+      'right tokens',
+      'right stories',
+      'right versions 5 differences',
+      'right Dark theme',
+    ])
     await clique(écran, entrée(écran))
 
     expect(vue(écran).find('h2').text()).toBe('What changed since the last commit')
@@ -2765,36 +2816,75 @@ describe('the shortcuts on other keyboards', () => {
   })
 })
 
-// Sous 1180 px, ce que la feuille cache ou montre ; jsdom ne lit pas les media
-// queries, le cas navigateur de `screen.test.ts` tient les largeurs.
+// La colonne de droite suit la largeur, et le bouton la bascule à toute largeur.
+// jsdom ne lit pas les media queries : le stub de `matchMedia` tient la largeur,
+// et le cas navigateur de `screen.test.ts` la mise en page par-dessus le canvas.
 describe('the panels toggle', () => {
   const bascule = (écran: Ecran) => écran.wrapper.find('.panels-toggle')
   const colonne = (écran: Ecran) => écran.wrapper.find('#panels')
-
-  test('opens the panel column over the canvas, and counts its panels', async ({ écran }) => {
-    expect(bascule(écran).attributes('aria-controls')).toBe('panels')
-    expect(bascule(écran).attributes('aria-expanded')).toBe('false')
-    expect(bascule(écran).find('.count').exists()).toBe(false)
-
-    écran.wrapper.findComponent(Panels).vm.$emit('count', 2)
+  const clique = async (écran: Ecran) => {
+    await bascule(écran).trigger('click')
     await vide(écran.wrapper)
-    expect(bascule(écran).find('.count').text()).toBe('2')
+  }
 
-    await bascule(écran).trigger('click')
+  test('shows the panels on a wide window, and hides them on demand', async ({ écran }) => {
+    expect(bascule(écran).attributes('aria-controls')).toBe('panels')
     expect(bascule(écran).attributes('aria-expanded')).toBe('true')
-    expect(colonne(écran).attributes('data-open')).toBe('true')
+    expect(colonne(écran).isVisible()).toBe(true)
 
-    await bascule(écran).trigger('click')
-    expect(colonne(écran).attributes('data-open')).toBeUndefined()
+    await clique(écran)
+    expect(bascule(écran).attributes('aria-expanded')).toBe('false')
+    expect(colonne(écran).isVisible()).toBe(false)
+
+    // Dans la grille, Échap n'a rien à fermer.
+    await clique(écran)
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await vide(écran.wrapper)
+    expect(colonne(écran).isVisible()).toBe(true)
   })
 
-  // Repliée, la colonne cache l'encadré des plugins en échec : le bouton le marque.
-  test('marks a plugin that failed or was refused', async ({ écran }) => {
-    const marque = () => bascule(écran).find('.trouble')
-    expect(marque().exists()).toBe(false)
+  // Passer le seuil rend l'état de son côté : fermée en dessous, ouverte au-dessus.
+  test('starts closed on a narrow window, and follows the threshold', async () => {
+    système.étroit = true
+    const écran = await monte([badge])
+    expect(colonne(écran).isVisible()).toBe(false)
 
+    await clique(écran)
+    expect(colonne(écran).isVisible()).toBe(true)
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await vide(écran.wrapper)
+    expect(colonne(écran).isVisible()).toBe(false)
+
+    rétrécit(false)
+    await vide(écran.wrapper)
+    expect(colonne(écran).isVisible()).toBe(true)
+    rétrécit(true)
+    await vide(écran.wrapper)
+    expect(colonne(écran).isVisible()).toBe(false)
+    écran.wrapper.unmount()
+  })
+
+  test('hides the token panel too', async () => {
+    window.history.replaceState(null, '', '/?tokens=palette')
+    const écran = await monte([badge, jetons])
+    expect(bascule(écran).attributes('aria-controls')).toBe('token-panel')
+    expect(écran.wrapper.find('#token-panel').exists()).toBe(true)
+
+    await clique(écran)
+    expect(écran.wrapper.find('#token-panel').exists()).toBe(false)
+    écran.wrapper.unmount()
+  })
+
+  // Fermée, la colonne cache l'encadré des plugins en échec : le bouton le marque.
+  test('marks a plugin that failed or was refused, while the panels are hidden', async ({
+    écran,
+  }) => {
+    const marque = () => bascule(écran).find('.trouble')
     écran.wrapper.findComponent(Panels).vm.$emit('count', 1, 1)
     await vide(écran.wrapper)
+    expect(marque().exists()).toBe(false)
+
+    await clique(écran)
     expect(marque().attributes('aria-label')).toBe('a plugin failed')
 
     écran.wrapper.findComponent(Panels).vm.$emit('count', 2, 0)
@@ -2806,13 +2896,6 @@ describe('the panels toggle', () => {
       message: 'boom',
     } as PreviewMessage)
     expect(marque().exists()).toBe(true)
-  })
-
-  test('closes on Escape', async ({ écran }) => {
-    await bascule(écran).trigger('click')
-    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
-    await vide(écran.wrapper)
-    expect(bascule(écran).attributes('aria-expanded')).toBe('false')
   })
 })
 
