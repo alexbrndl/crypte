@@ -51,6 +51,7 @@ export { CONTRIBUTABLE } from './plugin'
 export type {
   ShellMessage,
   PreviewMessage,
+  Theme,
   Overrides,
   RenderedValues,
   PluginShellMessages,

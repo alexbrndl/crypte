@@ -5,6 +5,7 @@ import {
   type PreviewMessage,
   type RenderedValues,
   type ShellMessage,
+  type Theme,
 } from '../protocol/channel'
 import type { PreviewContext, PreviewHooks } from '../protocol/plugin'
 
@@ -40,9 +41,23 @@ export function createPreviewChannel(handlers: PreviewHandlers): PreviewChannel 
 
   // What the shell last asked for. Held here rather than by the caller: the
   // reporting belongs to the same place, and two owners would drift.
-  let asked: { id: string; overrides: Record<string, unknown> } | undefined
+  let asked: { id: string; overrides: Record<string, unknown>; theme?: Theme } | undefined
 
-  const draw = ({ id, overrides }: { id: string; overrides: Record<string, unknown> }) => {
+  const draw = ({
+    id,
+    overrides,
+    theme,
+  }: {
+    id: string
+    overrides: Record<string, unknown>
+    theme?: Theme
+  }) => {
+    // Before the render, so the story mounts in its theme rather than repainting.
+    if (theme) {
+      const root = window.document.documentElement
+      root.dataset.theme = theme
+      root.style.colorScheme = theme
+    }
     const startedAt = performance.now()
     let drawn: unknown
     try {
@@ -76,7 +91,11 @@ export function createPreviewChannel(handlers: PreviewHandlers): PreviewChannel 
 
     if (type === 'render') {
       const message = event.data as Extract<ShellMessage, { type: 'render' }>
-      asked = { id: message.id, overrides: message.overrides }
+      asked = {
+        id: message.id,
+        overrides: message.overrides,
+        ...(message.theme ? { theme: message.theme } : {}),
+      }
       draw(asked)
     } else if (type.includes(':')) handlers.message?.(event.data as { type: string })
   }
