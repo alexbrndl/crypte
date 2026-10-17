@@ -1,7 +1,7 @@
 <!-- A tooltip on hover and focus, drawn rather than left to the system's `title`.
      The trigger is the one element of the default slot; `content` keeps its line
-     breaks, and `keys` is the shortcut, drawn as the inverse keycap of the Figma
-     file. Reka's, its own provider so that a lone tooltip needs nothing around it. -->
+     breaks, `detail` follows it in a quieter ink, and `keys` is the shortcut, drawn
+     as the inverse keycap of the Figma file. `side` places it, above by default. Reka's, its own provider so that a lone tooltip needs nothing around it. -->
 <script setup lang="ts">
 import {
   TooltipContent,
@@ -11,10 +11,19 @@ import {
   TooltipTrigger,
 } from 'reka-ui'
 
-// `keys` has one consumer, the shell, against the placement rule: kept by the
-// owner on 16 October 2026, the shortcut being part of the Figma tooltip
-// (`showShortcut`). Reopened if the design system drops it from the tooltip.
-defineProps<{ content: string; keys?: string }>()
+// `keys`, `detail` and `side` have one consumer, the shell, against the placement
+// rule: kept by the owner on 16 and 17 October 2026, all three being part of the
+// Figma tooltip (label, optional detail, optional shortcut), which the activity
+// bar places to its right. Reopened if the design system drops them.
+withDefaults(
+  defineProps<{
+    content: string
+    detail?: string
+    keys?: string
+    side?: 'top' | 'right' | 'bottom' | 'left'
+  }>(),
+  { side: 'top' },
+)
 </script>
 
 <template>
@@ -24,10 +33,13 @@ defineProps<{ content: string; keys?: string }>()
     <TooltipRoot ignore-non-keyboard-focus>
       <TooltipTrigger as-child><slot /></TooltipTrigger>
       <TooltipPortal>
-        <TooltipContent class="crypte-tooltip" :side-offset="4">
+        <TooltipContent class="crypte-tooltip" :side="side" :side-offset="4">
           <!-- The space is what a screen reader reads between the two: the gap
                draws it, and the flex box ignores it. -->
           <span class="crypte-tooltip-label">{{ content }}</span>
+          <template v-if="detail"
+            >{{ ' ' }}<span class="crypte-tooltip-detail">{{ detail }}</span></template
+          >
           <template v-if="keys"
             >{{ ' ' }}<kbd class="crypte-tooltip-keys">{{ keys }}</kbd></template
           >
@@ -59,6 +71,12 @@ defineProps<{ content: string; keys?: string }>()
 
 .crypte-tooltip-label {
   white-space: pre-line;
+}
+
+/* The detail of the Figma tooltip: regular weight, the inverse ink dimmed. */
+.crypte-tooltip-detail {
+  color: color-mix(in srgb, var(--text-inverse) 60%, transparent);
+  font-weight: var(--weight-normal);
 }
 
 .crypte-tooltip-keys {

@@ -176,6 +176,30 @@ describe('Tooltip', () => {
     wrapper.unmount()
   })
 
+  // Le détail suit le libellé, lu après une espace ; le côté se choisit, le haut
+  // sinon.
+  it('adds its detail after the content, on the side asked', async () => {
+    const wrapper = mount(Tooltip, {
+      props: { content: 'versions', detail: '3 differences', side: 'right' },
+      slots: { default: '<button>versions</button>' },
+      attachTo: document.body,
+    })
+    wrapper
+      .get('button')
+      .element.dispatchEvent(
+        new PointerEvent('pointermove', { bubbles: true, pointerType: 'mouse' }),
+      )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    await nextTick()
+
+    expect(
+      document.querySelector('[role="tooltip"]')?.textContent?.replace(/\s+/g, ' ').trim(),
+    ).toBe('versions 3 differences')
+    expect(document.querySelector('.crypte-tooltip-detail')?.textContent).toBe('3 differences')
+    expect(document.querySelector('.crypte-tooltip')?.getAttribute('data-side')).toBe('right')
+    wrapper.unmount()
+  })
+
   // Sans raccourci, ni touche ni espace : le texte lu est le contenu seul.
   it('draws no key and adds nothing to its content without keys', async () => {
     const wrapper = mount(Tooltip, {
@@ -193,6 +217,8 @@ describe('Tooltip', () => {
 
     expect(document.querySelector('[role="tooltip"]')?.textContent).toBe('The shell, gzipped')
     expect(document.querySelector('.crypte-tooltip-keys')).toBeNull()
+    expect(document.querySelector('.crypte-tooltip-detail')).toBeNull()
+    expect(document.querySelector('.crypte-tooltip')?.getAttribute('data-side')).toBe('top')
     wrapper.unmount()
   })
 })

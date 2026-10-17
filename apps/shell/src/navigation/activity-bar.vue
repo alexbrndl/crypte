@@ -36,6 +36,12 @@ const GROUPS: { view: View; label: string; icon: typeof Search01Icon }[][] = [
   [{ view: 'versions', label: 'versions', icon: GitCompareArrowsIcon }],
 ]
 
+// Le détail du tooltip de chaque vue : ce que son badge compte.
+const detailOf = (view: View) =>
+  view === 'versions' && props.counter !== null
+    ? `${props.counter} ${props.counter === 1 ? 'difference' : 'differences'}`
+    : undefined
+
 const groups = computed(() =>
   GROUPS.map((group) => group.filter((item) => props.hrefs[item.view] !== null)).filter(
     (group) => group.length > 0,
@@ -46,7 +52,7 @@ const groups = computed(() =>
 <template>
   <nav class="activity-bar" aria-label="Views">
     <h1 class="logo"><Logo /></h1>
-    <Tooltip content="Search or run" :keys="searchKeys">
+    <Tooltip content="Search or run" :keys="searchKeys" side="right">
       <Button
         variant="ghost"
         class="icon-button"
@@ -59,25 +65,31 @@ const groups = computed(() =>
     </Tooltip>
     <template v-for="(group, at) of groups" :key="at">
       <span class="separator" aria-hidden="true" />
-      <a
+      <Tooltip
         v-for="item of group"
         :key="item.view"
-        class="item"
-        :href="hrefs[item.view]!"
-        :aria-current="current === item.view ? 'page' : undefined"
-        @click="emit('go', item.view, $event)"
+        :content="item.label"
+        :detail="detailOf(item.view)"
+        side="right"
       >
-        <span class="glyph">
-          <Icon :icon="item.icon" />
-          <span v-if="item.view === 'versions' && counter !== null" class="count">{{
-            counter
-          }}</span>
-        </span>
-        <span class="label">{{ item.label }}</span>
-      </a>
+        <a
+          class="item"
+          :href="hrefs[item.view]!"
+          :aria-current="current === item.view ? 'page' : undefined"
+          @click="emit('go', item.view, $event)"
+        >
+          <span class="glyph">
+            <Icon :icon="item.icon" />
+            <span v-if="item.view === 'versions' && counter !== null" class="count">{{
+              counter
+            }}</span>
+          </span>
+          <span class="label">{{ item.label }}</span>
+        </a>
+      </Tooltip>
     </template>
     <span class="spacer" />
-    <Tooltip :content="themeLabel" keys="T">
+    <Tooltip :content="themeLabel" keys="T" side="right">
       <Button
         variant="ghost"
         class="icon-button"
