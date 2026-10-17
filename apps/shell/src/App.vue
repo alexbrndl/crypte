@@ -1172,7 +1172,7 @@ onMounted(() => {
             @overrides="edit"
             @send="sendToPreview"
             @weights="(measured) => (weights = measured)"
-            @count="(_, troubles) => (panelTroubles = troubles)"
+            @troubles="(troubles) => (panelTroubles = troubles)"
           />
         </aside>
         <aside

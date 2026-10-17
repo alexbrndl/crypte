@@ -86,9 +86,8 @@ describe('the plugin panels', () => {
     expect(wrapper.emitted('weights')).toEqual([[poids]])
   })
 
-  // Le compte des panneaux montés, et des plugins en échec ou refusés, que porte le
-  // bouton des panneaux repliés.
-  test('counts the panels mounted, and the plugins that failed or were refused', async () => {
+  // Le compte des plugins en échec ou refusés, que marque le bouton des panneaux.
+  test('counts the plugins that failed or were refused', async () => {
     const wrapper = await monte(
       [
         { name: 'a', shell: module('un.ts') },
@@ -96,10 +95,10 @@ describe('the plugin panels', () => {
       ],
       [{ plugin: 'r', reason: 'no surface' }],
     )
-    expect(wrapper.emitted('count')).toEqual([[1, 2]])
+    expect(wrapper.emitted('troubles')).toEqual([[2]])
 
     const illisible = await monte(new Error('offline'))
-    expect(illisible.emitted('count')).toEqual([[0, 1]])
+    expect(illisible.emitted('troubles')).toEqual([[1]])
   })
 
   // Ce qu'un panneau envoie à sa partie preview remonte, par son cadre qui en

@@ -1571,6 +1571,27 @@ describe('the tree around a component', () => {
 
 // La page d'une famille de tokens : chaque token dans chaque thème déclaré.
 describe('the activity bar', () => {
+  // Le détail du tooltip de versions, au singulier comme au pluriel.
+  test('says one difference in the singular', () => {
+    const barre = mount(ActivityBar, {
+      props: {
+        current: 'stories',
+        hrefs: { tokens: '?tokens=color', stories: '/', versions: '?changes' },
+        counter: 1,
+        searchKeys: 'Ctrl K',
+        searchShortcuts: 'Control+K /',
+        themeLabel: 'Dark theme',
+      },
+    })
+    expect(
+      barre
+        .findAllComponents(Tooltip)
+        .map((one) => one.props('detail'))
+        .filter(Boolean),
+    ).toEqual(['1 difference'])
+    barre.unmount()
+  })
+
   const marquée = (écran: Ecran) =>
     écran.wrapper.find('.activity-bar [aria-current="page"] .label').text()
   const clique = async (écran: Ecran, label: string) => {
@@ -2880,14 +2901,14 @@ describe('the panels toggle', () => {
     écran,
   }) => {
     const marque = () => bascule(écran).find('.trouble')
-    écran.wrapper.findComponent(Panels).vm.$emit('count', 1, 1)
+    écran.wrapper.findComponent(Panels).vm.$emit('troubles', 1)
     await vide(écran.wrapper)
     expect(marque().exists()).toBe(false)
 
     await clique(écran)
     expect(marque().attributes('aria-label')).toBe('a plugin failed')
 
-    écran.wrapper.findComponent(Panels).vm.$emit('count', 2, 0)
+    écran.wrapper.findComponent(Panels).vm.$emit('troubles', 0)
     await vide(écran.wrapper)
     expect(marque().exists()).toBe(false)
     await écran.répond({
