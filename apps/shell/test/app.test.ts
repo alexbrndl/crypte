@@ -2621,6 +2621,19 @@ describe('the toolbar of a story', () => {
     await écran.wrapper.find('[aria-label="Leave full screen"]').trigger('click')
     expect(panneaux().isVisible()).toBe(true)
 
+    // Le seuil passé en plein écran ne rouvre rien, et décide de l'état rendu.
+    await écran.wrapper.find('[aria-label="Full screen"]').trigger('click')
+    rétrécit(true)
+    await vide(écran.wrapper)
+    await écran.wrapper.find('[aria-label="Leave full screen"]').trigger('click')
+    expect(panneaux().isVisible()).toBe(false)
+    await écran.wrapper.find('[aria-label="Full screen"]').trigger('click')
+    rétrécit(false)
+    await vide(écran.wrapper)
+    expect(panneaux().isVisible()).toBe(false)
+    await écran.wrapper.find('[aria-label="Leave full screen"]').trigger('click')
+    expect(panneaux().isVisible()).toBe(true)
+
     // Fermés avant le plein écran, ils le restent en sortant.
     await bascule().trigger('click')
     await écran.wrapper.find('[aria-label="Full screen"]').trigger('click')

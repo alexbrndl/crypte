@@ -384,13 +384,16 @@ const PanelRightOpenIcon = [
   ],
 ] as typeof PanelRightIcon
 const panelsOpen = ref(wide.matches)
-const fit = (event: MediaQueryListEvent) => (panelsOpen.value = event.matches)
-wide.addEventListener('change', fit)
-onBeforeUnmount(() => wide.removeEventListener('change', fit))
 
 // Le plein écran part sans panneaux, que la bascule rouvre ; le quitter rend
-// l'état d'avant.
+// l'état d'avant, que le seuil met à jour en attendant.
 let beforeFull = panelsOpen.value
+const fit = (event: MediaQueryListEvent) => {
+  if (fullScreen.value) beforeFull = event.matches
+  else panelsOpen.value = event.matches
+}
+wide.addEventListener('change', fit)
+onBeforeUnmount(() => wide.removeEventListener('change', fit))
 watch(fullScreen, (now) => {
   if (now) {
     beforeFull = panelsOpen.value
