@@ -17,7 +17,7 @@ import {
 } from 'reka-ui'
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import Icon from '../ui/icon.vue'
-import { complete, FILTERS, readQuery, type Key } from './filters'
+import { complete, editing, FILTERS, keysStarted, readQuery, type Key } from './filters'
 import { ago, type Visit } from './recent'
 import { componentIdOf, fold } from './tree'
 
@@ -137,7 +137,18 @@ const commands = computed<Command[]>(() => {
 const query = ref('')
 
 // Un `is:` ne garde que ce qui porte un statut, un `type:` que ce qui en est un.
+// Dans un filtre, `type:` ou `is:st`, la liste ne propose que ses valeurs.
+const inFilter = computed(() => editing(query.value))
+const valueRows = computed(() => {
+  const at = inFilter.value
+  if (at === null) return []
+  return FILTERS[at.key]
+    .filter((value) => value.startsWith(at.partial))
+    .map((value) => ({ key: at.key, value }))
+})
+
 const kept = computed(() => {
+  if (inFilter.value !== null) return []
   const { is, type, text } = readQuery(query.value)
   const wanted = fold(text)
   return commands.value.filter(
@@ -165,20 +176,36 @@ const groups = computed(() =>
   ),
 )
 
-// Proposés tant qu'aucun nom n'est tapé : choisir une clé l'écrit dans le champ.
-const filterRows = computed(() =>
-  readQuery(query.value).text === ''
-    ? (Object.keys(FILTERS) as Key[]).map((key) => ({ key, values: FILTERS[key].join(' · ') }))
-    : [],
-)
+// Sous les résultats : toutes les clés sans nom tapé, sinon celles que le dernier
+// mot commence, `ty` pour `type:`. Choisir une clé l'écrit dans le champ.
+const filterRows = computed(() => {
+  if (inFilter.value !== null) return []
+  const keys =
+    readQuery(query.value).text === '' ? (Object.keys(FILTERS) as Key[]) : keysStarted(query.value)
+  return keys.map((key) => ({ key, values: FILTERS[key].join(' · ') }))
+})
 
 const count = computed(() => {
   if (query.value.trim() === '') return 'is: type: to filter'
+  if (inFilter.value !== null) {
+    const values = valueRows.value.length
+    return `${values} ${values === 1 ? 'value' : 'values'}`
+  }
   const found = kept.value.length
   return `${found} ${found === 1 ? 'result' : 'results'}`
 })
 
 const filter = useTemplateRef<{ $el: HTMLInputElement }>('filter')
+const listbox = useTemplateRef<{ highlightFirstItem: () => void }>('listbox')
+
+// Une requête écrite par la palette, et non tapée : Reka ne surligne la première
+// ligne qu'à la frappe, et Entrée resterait sans effet.
+async function write(next: string) {
+  query.value = next
+  filter.value?.$el.focus()
+  await nextTick()
+  listbox.value?.highlightFirstItem()
+}
 
 watch(open, (now) => {
   if (!now) return
@@ -194,9 +221,18 @@ function choose(command: Command) {
   command.run()
 }
 
+// La clé remplace le mot qui la commençait, ou s'ajoute après les autres.
 function addFilter(key: Key) {
-  query.value = `${query.value.trimEnd()} ${key}:`.trimStart()
-  filter.value?.$el.focus()
+  const start = query.value.search(/\S*$/)
+  const word = query.value.slice(start)
+  const before = key.startsWith(word) ? query.value.slice(0, start) : `${query.value.trimEnd()} `
+  void write(`${before.trimStart()}${key}:`)
+}
+
+function addValue(value: string) {
+  const at = inFilter.value
+  if (at === null) return
+  void write(`${query.value.slice(0, at.start)}${at.key}:${value} `)
 }
 
 // ⇥ complète un filtre ; sans rien à compléter, il garde son rôle.
@@ -204,7 +240,7 @@ function tab(event: KeyboardEvent) {
   const done = complete(query.value)
   if (done === null) return
   event.preventDefault()
-  query.value = done
+  void write(done)
 }
 
 // Ni catalogue ni installation à chaud : la commande à copier, et la ligne à
@@ -221,6 +257,29 @@ watch(installing, async (now) => {
   field.value?.$el.focus()
 })
 const command = computed(() => `npm install -D ${name.value.trim() || '<package>'}`)
+
+// Le paquet sans sa version, `@acme/x@2` s'importe `@acme/x`, et le nom de
+// l'import qu'il donne : `@acme/crypte-plugin-figma` donne `figma`. Un mot
+// réservé, `default`, ne se déclare pas : il prend `Plugin` en suffixe.
+const RESERVED = new Set(
+  'arguments await break case catch class const continue debugger default delete do else enum eval export extends false finally for function if implements import in instanceof interface let new null package private protected public return static super switch this throw true try typeof var void while with yield'.split(
+    ' ',
+  ),
+)
+const bare = computed(() => name.value.trim().replace(/^(@?[^@]+)@.*$/, '$1'))
+const binding = computed(() => {
+  const last = bare.value
+    .split('/')
+    .at(-1)!
+    .replace(/^crypte-(plugin-)?/, '')
+  const camel = last.replace(/[^a-zA-Z0-9]+(.)?/g, (_, next?: string) => next?.toUpperCase() ?? '')
+  if (!/^[a-zA-Z]/.test(camel)) return 'plugin'
+  return RESERVED.has(camel) ? `${camel}Plugin` : camel
+})
+const config = computed(
+  () =>
+    `// crypte.config.ts\nimport ${binding.value} from '${bare.value || '<package>'}'\n\nplugins: [${binding.value}()],`,
+)
 
 async function copy() {
   try {
@@ -259,10 +318,9 @@ async function copy() {
               {{ copied ? 'Copied' : 'Copy' }}
             </Button>
           </div>
-          <pre><code>// crypte.config.ts
-plugins: [plugin()],</code></pre>
+          <pre class="config"><code>{{ config }}</code></pre>
         </section>
-        <ListboxRoot v-else highlight-on-hover>
+        <ListboxRoot v-else ref="listbox" highlight-on-hover>
           <div class="query">
             <Icon :icon="Search01Icon" />
             <ListboxFilter
@@ -277,7 +335,10 @@ plugins: [plugin()],</code></pre>
             <span class="count">{{ count }}</span>
           </div>
           <ListboxContent class="results" aria-label="Results">
-            <p v-if="groups.length === 0 && filterRows.length === 0" class="none">
+            <p
+              v-if="groups.length === 0 && filterRows.length === 0 && valueRows.length === 0"
+              class="none"
+            >
               Nothing matches.
             </p>
             <ListboxGroup v-if="recentRows.length > 0">
@@ -311,6 +372,20 @@ plugins: [plugin()],</code></pre>
                   <kbd v-if="one.keys">{{ one.keys }}</kbd>
                   <template v-else-if="one.status">{{ one.status }}</template>
                 </span>
+              </ListboxItem>
+            </ListboxGroup>
+            <ListboxGroup v-if="valueRows.length > 0">
+              <ListboxGroupLabel class="group">Values</ListboxGroupLabel>
+              <ListboxItem
+                v-for="one of valueRows"
+                :key="one.value"
+                :value="`value:${one.value}`"
+                class="item"
+                @select.prevent="addValue(one.value)"
+              >
+                <span class="context">{{ one.key }}:</span>
+                <span class="label">{{ one.value }}</span>
+                <span class="trailing" />
               </ListboxItem>
             </ListboxGroup>
             <ListboxGroup v-if="filterRows.length > 0">
