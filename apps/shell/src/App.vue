@@ -384,9 +384,22 @@ const PanelRightOpenIcon = [
   ],
 ] as typeof PanelRightIcon
 const panelsOpen = ref(wide.matches)
-const fit = (event: MediaQueryListEvent) => (panelsOpen.value = event.matches)
+
+// Le plein écran part sans panneaux, que la bascule rouvre ; le quitter rend
+// l'état d'avant, que le seuil met à jour en attendant.
+let beforeFull = panelsOpen.value
+const fit = (event: MediaQueryListEvent) => {
+  if (fullScreen.value) beforeFull = event.matches
+  else panelsOpen.value = event.matches
+}
 wide.addEventListener('change', fit)
 onBeforeUnmount(() => wide.removeEventListener('change', fit))
+watch(fullScreen, (now) => {
+  if (now) {
+    beforeFull = panelsOpen.value
+    panelsOpen.value = false
+  } else panelsOpen.value = beforeFull
+})
 // Les plugins en échec ou refusés : repliée, la colonne cache leur encadré, et le
 // bouton le dit à sa place.
 const panelTroubles = ref(0)
@@ -1170,7 +1183,7 @@ onMounted(() => {
              s'applique pas. Masqués et non retirés sous une page : ils gardent leur
              état. -->
         <aside
-          v-show="!fullScreen && storyMode && !noStory && panelsOpen"
+          v-show="storyMode && !noStory && panelsOpen"
           id="panels"
           class="panel-column"
           aria-label="Panels"

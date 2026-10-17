@@ -2605,6 +2605,43 @@ describe('the toolbar of a story', () => {
     expect(écran.wrapper.find('.nav-column').isVisible()).toBe(true)
   })
 
+  // La bascule rouvre les panneaux en plein écran ; le quitter rend l'état d'avant.
+  test('lets the panels toggle work in full screen, and restores them on leaving', async ({
+    écran,
+  }) => {
+    const panneaux = () => écran.wrapper.find('#panels')
+    const bascule = () => écran.wrapper.find('.panels-toggle')
+    await écran.wrapper.find('[aria-label="Full screen"]').trigger('click')
+    expect(bascule().attributes('aria-expanded')).toBe('false')
+
+    await bascule().trigger('click')
+    expect(panneaux().isVisible()).toBe(true)
+    expect(bascule().attributes('aria-expanded')).toBe('true')
+    await bascule().trigger('click')
+    await écran.wrapper.find('[aria-label="Leave full screen"]').trigger('click')
+    expect(panneaux().isVisible()).toBe(true)
+
+    // Le seuil passé en plein écran ne rouvre rien, et décide de l'état rendu.
+    await écran.wrapper.find('[aria-label="Full screen"]').trigger('click')
+    rétrécit(true)
+    await vide(écran.wrapper)
+    await écran.wrapper.find('[aria-label="Leave full screen"]').trigger('click')
+    expect(panneaux().isVisible()).toBe(false)
+    await écran.wrapper.find('[aria-label="Full screen"]').trigger('click')
+    rétrécit(false)
+    await vide(écran.wrapper)
+    expect(panneaux().isVisible()).toBe(false)
+    await écran.wrapper.find('[aria-label="Leave full screen"]').trigger('click')
+    expect(panneaux().isVisible()).toBe(true)
+
+    // Fermés avant le plein écran, ils le restent en sortant.
+    await bascule().trigger('click')
+    await écran.wrapper.find('[aria-label="Full screen"]').trigger('click')
+    await bascule().trigger('click')
+    await écran.wrapper.find('[aria-label="Leave full screen"]').trigger('click')
+    expect(panneaux().isVisible()).toBe(false)
+  })
+
   test('names its shortcuts on its buttons', async ({ écran }) => {
     expect(
       écran.wrapper
