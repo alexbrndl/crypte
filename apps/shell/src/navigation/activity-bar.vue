@@ -6,6 +6,7 @@
 import {
   ComponentIcon,
   GitCompareArrowsIcon,
+  HeartAddIcon,
   Hexagon01Icon,
   Search01Icon,
   Sun02Icon,
@@ -15,7 +16,7 @@ import { computed } from 'vue'
 import Icon from '../ui/icon.vue'
 import Logo from '../ui/logo.vue'
 
-export type View = 'tokens' | 'stories' | 'versions'
+export type View = 'tokens' | 'stories' | 'health' | 'versions'
 
 const props = defineProps<{
   current: View
@@ -33,7 +34,10 @@ const GROUPS: { view: View; label: string; icon: typeof Search01Icon }[][] = [
     { view: 'tokens', label: 'tokens', icon: Hexagon01Icon },
     { view: 'stories', label: 'stories', icon: ComponentIcon },
   ],
-  [{ view: 'versions', label: 'versions', icon: GitCompareArrowsIcon }],
+  [
+    { view: 'health', label: 'health', icon: HeartAddIcon },
+    { view: 'versions', label: 'versions', icon: GitCompareArrowsIcon },
+  ],
 ]
 
 // Le détail du tooltip de chaque vue : ce que son badge compte.

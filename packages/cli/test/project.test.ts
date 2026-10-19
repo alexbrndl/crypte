@@ -173,6 +173,11 @@ describe('config loading', () => {
       /css/,
     ],
     [
+      'with a components that is not a path',
+      'export default { stories: "s", adapter: {}, components: ["src"] }',
+      /components/,
+    ],
+    [
       'with plugins that are not an array',
       'export default { stories: "s", adapter: {}, plugins: {} }',
       /plugins/,

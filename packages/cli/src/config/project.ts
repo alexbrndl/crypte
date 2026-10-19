@@ -75,8 +75,13 @@ function assertUsable(config: CrypteConfig): void {
 
   // The optional fields too: badly typed, they throw further down on a spread
   // or a `resolve`, with an error naming neither the file nor the field.
-  if (config.css !== undefined && typeof config.css !== 'string') {
-    throw new ConfigError(`${CONFIG_FILE}: \`css\` must be a path.`)
+  for (const [field, value] of [
+    ['css', config.css],
+    ['components', config.components],
+  ] as const) {
+    if (value !== undefined && typeof value !== 'string') {
+      throw new ConfigError(`${CONFIG_FILE}: \`${field}\` must be a path.`)
+    }
   }
 
   for (const [field, value] of [

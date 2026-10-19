@@ -26,7 +26,7 @@ describe('the required config', () => {
   // qu'on a pensé à nommer : six aujourd'hui, deux exigées et quatre non.
   it('covers only the six keys the type declares', () => {
     expectTypeOf<keyof CrypteConfig>().toEqualTypeOf<
-      'stories' | 'adapter' | 'css' | 'wrap' | 'plugins' | 'vite'
+      'stories' | 'adapter' | 'css' | 'components' | 'wrap' | 'plugins' | 'vite'
     >()
   })
 })

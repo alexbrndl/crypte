@@ -1556,6 +1556,7 @@ const ecrans = [
   ['a component page', '?component=badge', '.component-page'],
   ['a token category', '?tokens=color', '.tokens-view'],
   ['the versions', '?changes', '.versions-view'],
+  ['the health', '?health=overview', '.health-view'],
   ['the command palette', '?id=badge--par-defaut', '[role="dialog"]'],
   ['the zoom menu', '?id=badge--par-defaut', '[role="menu"]'],
 ] as const

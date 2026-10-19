@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.40, reference document. A project brief points here instead of restating these shapes.
+> Version 1.41, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -119,11 +119,14 @@ export default defineConfig({
 | `stories` | root of the story files | yes |
 | `adapter` | framework adapter | yes |
 | `css` | style sheet loaded in the preview | no |
+| `components` | root of the component files, which the health view counts | no |
 | `wrap` | global wrapper, applied to every story | no |
 | `plugins` | Crypte plugins to enable | no |
 | `vite` | Vite plugins the project declares | no |
 
 Two keys are required, and an error names the one that is missing.
+
+`components` is what the health view counts the components with a story against: every component a file under it exports, at any depth. Without it, the shell draws no stories gauge, since nothing says how many components there are.
 
 `vite.plugins` exists for the cases where a framework needs an extra transform, such as Nuxt auto-imports. The project declares it. Crypte never guesses it.
 
@@ -981,7 +984,7 @@ This document is a contract. This section is the only place that says what exist
 
 **`dev`, `check` and `init` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled in the project by the CLI's own Vite, with the plugins the project declares in `vite.plugins`. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte init` writes the configuration of 1.5 into a project that already has its components, and has no section of its own because the file it writes is 1.5 itself.
 
-Ten known gaps between this document and the code:
+Eleven known gaps between this document and the code:
 
 - **A plugin's peer range checks the copies npm installs, never the ones its panel runs on.** `vue` and `@crypte/ui` reach a panel from the installed CLI's shell, through its import map (6.1). A plugin newer than that CLI, which imports a component its `@crypte/ui` does not have yet, fails to load, and the frame shows the import error in the panel's place. Pinning `@crypte/cli` instead would move the whole `fixed` group to a major version at every minor one, measured with `changeset status` (DCJ-352).
 - **The preview is compiled by the CLI's Vite, and nothing checks the project's plugins against it.** A project on another major keeps its own Vite for its build, and its `vite.plugins` run in the CLI's anyway. Measured on a project on Vite 6: its React plugin warned about deprecated options and every story rendered. Resolving the project's own Vite instead would be a rework, not a fix.
@@ -992,11 +995,18 @@ Ten known gaps between this document and the code:
 - **`component.tokens` misses what a global style sheet gives a component.** A class written in a sheet the component does not import ties no custom property to it, since nothing in the component file names it. Reading which rules reach a component needs it rendered, which the producer never does. An imported sheet edited alone is not watched either, so its names follow at the next component change or restart.
 - **A style sheet other than the declared one is not watched.** `crypte dev` rebuilds the catalogue when the `css` of 1.5 changes, as for a story or a component, and reloads the preview when its tokens moved. A sheet a plugin reads by its own option, `tokens({ files })` for one, is followed only at the next rebuild or restart.
 - **A sheet that switches theme only under `@media (prefers-color-scheme: dark)` does not follow the `theme` of 5.2.** No page can force that media query on itself, so such a preview keeps the system's theme whatever the shell asks. Rewriting the sheet's media rules into `[data-theme]` ones would mean editing the project's CSS.
+- **The health view counts what a JavaScript or TypeScript file exports, never a `.vue` file.** Under the `components` of 1.5, a component is a capitalised export returning an element, the reading `crypte check` makes; a Vue project's stories gauge has nothing to count yet.
 - `component.file` is resolved without Vite. The producer runs before any server exists, so it applies the project's `paths` and tries the usual extensions, with no plugin and no `exports` field. A component reached through a plugin keeps the identifier the story wrote. `crypte check` calls such an entry an orphan only when the project could have reached it itself, that is a relative path or an alias it declares; anything else it leaves alone.
 
 ---
 
 ## 9. Version log
+
+**v1.41.** The components folder the health view counts (1.5).
+
+| Before | After |
+| --- | --- |
+| nothing said how many components a project has, only which ones its stories reach | `components` names their folder, and the health view counts the components with a story against it |
 
 **v1.40.** The theme a story is drawn in (5.2).
 

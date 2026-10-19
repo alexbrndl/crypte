@@ -20,6 +20,7 @@ import { buildCatalogue } from '../src/catalogue/manifest'
 import { loadProject } from '../src/config/project'
 import {
   CHANGES_ROUTE,
+  HEALTH_ROUTE,
   MANIFEST_ROUTE,
   PLUGINS_ROUTE,
   PROJECT_ROUTE,
@@ -132,6 +133,15 @@ describe('crypte dev', () => {
     expect(status).toBe(200)
     expect(Object.keys(read)).toEqual(['branch', 'tags'])
     expect(Array.isArray(read.tags)).toBe(true)
+  })
+
+  // Sans dossier `components` déclaré, rien à compter : la jauge stories ne se
+  // dessine pas.
+  it('serves the health of the components, none without a components folder', async () => {
+    const { status, body } = await get(HEALTH_ROUTE)
+
+    expect(status).toBe(200)
+    expect(JSON.parse(body)).toEqual({ components: null })
   })
 
   // Les modules shell des plugins, section 6.1 : listés dans l'ordre de la

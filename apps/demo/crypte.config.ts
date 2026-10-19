@@ -12,6 +12,7 @@ import status from './plugins/status'
 export default defineConfig({
   stories: 'stories',
   css: 'src/styles.css',
+  components: 'src/components',
   adapter: crypte(),
   wrap: Panel,
   plugins: [tokens(), controls(), a11y(), hello(), status()],

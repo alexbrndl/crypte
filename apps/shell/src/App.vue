@@ -37,6 +37,10 @@ import { CHANGES, type Changes } from './pages/changes'
 import { differencesOf, sinceLabel } from './versions/differences'
 import VersionsSidebar, { type Since, type Versions } from './versions/versions-sidebar.vue'
 import VersionsView from './versions/versions-view.vue'
+import HealthSidebar from './health/health-sidebar.vue'
+import HealthView from './health/health-view.vue'
+import HealthPanel from './health/health-panel.vue'
+import { keyOf, PAGES, type Health, type HealthPage } from './health/health'
 import CommandPalette, { type Action } from './navigation/command-palette.vue'
 import { useRecent } from './navigation/recent'
 import ComponentPage from './pages/component-page.vue'
@@ -139,6 +143,27 @@ const componentStories = computed(() =>
 // page composant, elle laisse la preview et les panneaux chargés dessous.
 const tokensAt = ref<{ category: string; token?: string } | null>(null)
 const categories = computed(() => categoriesOf(families.value))
+
+// La vue santé : la page ouverte, et le composant choisi dedans, ou `null`. Comme
+// une page composant, elle laisse la preview et les panneaux chargés dessous.
+// Ses données sont relues à l'ouverture et à chaque `ready`, qui suit un
+// catalogue changé.
+const healthAt = ref<{ page: HealthPage; item?: string } | null>(null)
+const HEALTH = '/@crypte/health.json'
+const health = ref<Health | null>(null)
+async function readHealth() {
+  try {
+    health.value = (await fetch(HEALTH).then((answer) => answer.json())) as Health
+  } catch {
+    health.value = { components: null }
+  }
+}
+const healthItem = computed(
+  () => health.value?.components?.find((one) => keyOf(one) === healthAt.value?.item) ?? null,
+)
+// Une page que l'adresse nomme et que la vue n'a pas mène à la vue d'ensemble.
+const pageOf = (page: string): HealthPage =>
+  PAGES.find((one) => one.page === page)?.page ?? 'overview'
 const shownCategory = computed(
   () => categories.value.find((one) => one.name === tokensAt.value?.category) ?? null,
 )
@@ -179,6 +204,7 @@ let reading = 0
 // choisi entre.
 const { visits, remember } = useRecent()
 const here = computed(() => {
+  if (healthAt.value !== null) return null
   if (changesOpen.value) return 'changes'
   if (tokensAt.value !== null) {
     const name = tokensAt.value.token
@@ -262,6 +288,12 @@ const line = computed(() => {
     return changes.value !== null && 'from' in changes.value
       ? `${counter.value} ${counter.value === 1 ? 'difference' : 'differences'} since ${sinceLabel(changes.value.from.ref)}`
       : counted(entries.value.length)
+  if (healthAt.value !== null) {
+    const listed = health.value?.components
+    if (!listed) return 'no components folder declared'
+    const covered = listed.filter((one) => one.stories.length > 0).length
+    return `${listed.length} ${listed.length === 1 ? 'component' : 'components'}, ${covered} with a story`
+  }
   if (noTokens.value) return 'no tokens found'
   if (tokensAt.value !== null)
     return shownCategory.value
@@ -340,7 +372,11 @@ const stale = ref<string | null>(null)
 // Le plein écran : la preview seule, sans navigation ni panneaux.
 const full = ref(false)
 const storyMode = computed(
-  () => component.value === null && tokensAt.value === null && !changesOpen.value,
+  () =>
+    component.value === null &&
+    tokensAt.value === null &&
+    healthAt.value === null &&
+    !changesOpen.value,
 )
 const fullScreen = computed(() => full.value && storyMode.value)
 
@@ -362,6 +398,11 @@ import { Badge } from '${'../'.repeat(storiesRoot.value.split('/').length + 1)}s
 
 export default defineStories(Badge)`,
 )
+
+const COMPONENTS_SNIPPET = `export default defineConfig({
+  stories: 'stories',
+  components: 'src/components',
+})`
 
 const TOKENS_SNIPPET = `:root {
   --color-accent: #009488;
@@ -478,6 +519,7 @@ function show(id: string, trace: Trace = 'replace') {
   closeChanges()
   component.value = null
   tokensAt.value = null
+  healthAt.value = null
   select(id)
   write(placeSearch({ mode: 'entry', id }), trace)
 }
@@ -487,11 +529,26 @@ function openTokens(category: string, token?: string, trace: Trace = 'push') {
   full.value = false
   closeChanges()
   component.value = null
+  healthAt.value = null
   tokensAt.value = token === undefined ? { category } : { category, token }
   write(
     placeSearch(
       token === undefined ? { mode: 'tokens', category } : { mode: 'tokens', category, token },
     ),
+    trace,
+  )
+}
+
+function openHealth(page: HealthPage, item?: string, trace: Trace = 'push') {
+  if (trace === 'push') stale.value = null
+  full.value = false
+  closeChanges()
+  component.value = null
+  tokensAt.value = null
+  if (healthAt.value === null) void readHealth()
+  healthAt.value = item === undefined ? { page } : { page, item }
+  write(
+    placeSearch(item === undefined ? { mode: 'health', page } : { mode: 'health', page, item }),
     trace,
   )
 }
@@ -505,6 +562,7 @@ function open(id: string, trace: Trace = 'push') {
   closeChanges()
   component.value = id
   tokensAt.value = null
+  healthAt.value = null
   const stories = ofComponent(id, entries.value)
   if (stories[0] && !stories.some((entry) => entry.id === current.value)) select(stories[0].id)
   write(placeSearch({ mode: 'component', id }), trace)
@@ -521,6 +579,7 @@ function openChanges(trace: Trace = 'push', at: Since & { change?: string } = {}
   changesOpen.value = true
   component.value = null
   tokensAt.value = null
+  healthAt.value = null
   write(placeSearch({ mode: 'changes', ...at }), trace)
 }
 
@@ -543,7 +602,13 @@ function selectChange(key: string) {
 // La vue de l'activity bar, déduite de ce qui est affiché : une page composant est
 // de la vue stories, une famille de la vue tokens, les changements de la vue versions.
 const view = computed<View>(() =>
-  changesOpen.value ? 'versions' : tokensAt.value !== null ? 'tokens' : 'stories',
+  healthAt.value !== null
+    ? 'health'
+    : changesOpen.value
+      ? 'versions'
+      : tokensAt.value !== null
+        ? 'tokens'
+        : 'stories',
 )
 
 // Où mène chaque entrée : la story chargée, la catégorie ouverte ou la première,
@@ -561,6 +626,7 @@ const hrefs = computed<Record<View, string | null>>(() => {
         ? window.location.pathname
         : placeSearch({ mode: 'entry', id: current.value }),
     tokens: placeSearch({ mode: 'tokens', category: tokens }),
+    health: placeSearch({ mode: 'health', page: healthAt.value?.page ?? 'overview' }),
     versions: placeSearch({ mode: 'changes' }),
   }
 })
@@ -570,11 +636,13 @@ function go(to: View, event: MouseEvent) {
     if (to === 'versions') openChanges()
     const tokens = firstCategory()
     if (to === 'tokens') openTokens(tokens)
+    if (to === 'health') openHealth(healthAt.value?.page ?? 'overview')
     if (to !== 'stories') return
     if (current.value !== null) show(current.value, 'push')
     else {
       closeChanges()
       tokensAt.value = null
+      healthAt.value = null
       component.value = null
       // Le chemin seul : une adresse vide laisserait la requête en place.
       write(window.location.pathname, 'push')
@@ -798,6 +866,7 @@ async function refresh() {
     const [first] = ofComponent(arrival.id, stories)
     if (first) [opening, shown] = [arrival.id, first]
   }
+  if (arrival.mode === 'health') openHealth(pageOf(arrival.page), arrival.item, 'none')
   if (arrival.mode === 'changes') {
     const { mode: _, ...at } = arrival
     if (!changesOpen.value) openChanges('none', at)
@@ -836,7 +905,8 @@ async function refresh() {
     const id = next.id
     const followed = componentIdOf(stories.find((entry) => entry.id === id)?.path ?? [])
     if (followed !== component.value) open(followed, 'replace')
-  } else if (tokensAt.value !== null || changesOpen.value) select(next.id)
+  } else if (tokensAt.value !== null || changesOpen.value || healthAt.value !== null)
+    select(next.id)
   else show(next.id)
 }
 
@@ -849,6 +919,7 @@ function travel() {
   if (place.mode === 'component' && ofComponent(place.id, entries.value).length > 0)
     open(place.id, 'none')
   if (place.mode === 'tokens') openTokens(place.category, place.token, 'none')
+  if (place.mode === 'health') openHealth(pageOf(place.page), place.item, 'none')
   if (place.mode === 'changes') {
     const { mode: _, ...at } = place
     openChanges('none', at)
@@ -885,6 +956,7 @@ onMounted(() => {
           { once: true },
         )
         status.value = `preview ready, protocol v${message.protocolVersion}`
+        if (healthAt.value !== null) void readHealth()
         applyZoom()
         void refresh()
       }
@@ -948,6 +1020,13 @@ onMounted(() => {
           :current="tokensAt?.category ?? null"
           :href-of="(category) => placeSearch({ mode: 'tokens', category })"
           @pick="(category, event) => follow(event, () => openTokens(category))"
+        />
+        <HealthSidebar
+          v-else-if="view === 'health'"
+          :components="health ? health.components : []"
+          :page="healthAt?.page ?? 'overview'"
+          :href-of="(page) => placeSearch({ mode: 'health', page })"
+          @pick="(page, event) => follow(event, () => openHealth(page))"
         />
         <VersionsSidebar
           v-else-if="view === 'versions'"
@@ -1053,6 +1132,43 @@ onMounted(() => {
         </div>
       </div>
 
+      <!-- La vue santé a la sienne : la vue, la page, et le composant choisi. -->
+      <div v-else-if="view === 'health' && healthAt" class="toolbar">
+        <nav class="trail" aria-label="Breadcrumb">
+          <span class="folder">health<span class="separator">/</span></span>
+          <template v-if="healthItem">
+            <a
+              :href="placeSearch({ mode: 'health', page: healthAt.page })"
+              @click="follow($event, () => openHealth(healthAt!.page))"
+              >{{ PAGES.find((one) => one.page === healthAt!.page)!.label }}</a
+            ><span class="separator">/</span>
+            <span aria-current="page">{{ healthItem.name }}</span>
+          </template>
+          <span v-else aria-current="page">{{
+            PAGES.find((one) => one.page === healthAt!.page)!.label
+          }}</span>
+        </nav>
+        <div class="actions">
+          <Button variant="secondary" class="copy" @click="copyLink">
+            <Icon :icon="Copy01Icon" />
+            {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
+          </Button>
+          <span class="divider" aria-hidden="true" />
+          <Tooltip :content="panelsOpen ? 'Hide panels' : 'Show panels'">
+            <Button
+              variant="ghost"
+              class="panels-toggle"
+              aria-label="Panels"
+              aria-controls="health-panel"
+              :aria-expanded="panelsOpen"
+              @click="panelsOpen = !panelsOpen"
+            >
+              <Icon :icon="panelsOpen ? PanelRightOpenIcon : PanelRightIcon" />
+            </Button>
+          </Tooltip>
+        </div>
+      </div>
+
       <div class="body">
         <div class="stage">
           <!-- Dit sur toutes les pages : ce qui est servi n'est plus ce que le fichier
@@ -1116,6 +1232,25 @@ onMounted(() => {
             @select="(token, event) => follow(event, () => openTokens(shownCategory!.name, token))"
           />
 
+          <HealthView
+            v-if="healthAt && health?.components"
+            :components="health.components"
+            :page="healthAt.page"
+            :selected="healthAt.item ?? null"
+            :href-of="(key) => placeSearch({ mode: 'health', page: healthAt!.page, item: key })"
+            @select="(key, event) => follow(event, () => openHealth(healthAt!.page, key))"
+          />
+          <div v-else-if="healthAt && health && health.components === null" class="empty">
+            <EmptyGuide
+              title="No components folder"
+              :path="null"
+              rule="The health view counts the components of the folder declared as components in crypte.config.ts, and the stories that cover them."
+              mapping="src/components  >  health / stories"
+              :snippet="COMPONENTS_SNIPPET"
+              note="Every component a file under it exports counts, at any depth. A wrapper declared as wrap does not."
+              outcome="The stories gauge and the health pages appear."
+            />
+          </div>
           <VersionsView
             v-if="changesOpen"
             :changes="changes"
@@ -1137,7 +1272,13 @@ onMounted(() => {
           <!-- Masqué et non retiré : la preview et les panneaux gardent leur état
            pendant qu'une page composant ou une famille est ouverte. -->
           <div
-            v-show="component === null && tokensAt === null && !changesOpen && !noStory"
+            v-show="
+              component === null &&
+              tokensAt === null &&
+              healthAt === null &&
+              !changesOpen &&
+              !noStory
+            "
             class="canvas"
           >
             <!-- Sur la scène, ce qui agit sur elle : l'échelle, la comparaison light et
@@ -1289,6 +1430,22 @@ onMounted(() => {
             :href-of-component="(id) => placeSearch({ mode: 'component', id })"
             @token="(category, token, event) => follow(event, () => openTokens(category, token))"
             @component="(id, event) => follow(event, () => open(id))"
+          />
+        </aside>
+        <aside
+          v-if="view === 'health' && health?.components && !fullScreen && panelsOpen"
+          id="health-panel"
+          class="panel-column"
+          aria-label="Health panel"
+        >
+          <h2 class="column-title">Panels</h2>
+          <HealthPanel
+            :component="healthItem"
+            :stories="entries"
+            :href-of-story="(id) => placeSearch({ mode: 'entry', id })"
+            :href-of-component="(id) => placeSearch({ mode: 'component', id })"
+            @story="(id, event) => follow(event, () => show(id, 'push'))"
+            @page="(id, event) => follow(event, () => open(id))"
           />
         </aside>
       </div>
@@ -1519,7 +1676,8 @@ main.full {
   margin: var(--space-3);
 }
 
-.stage > .tokens-view {
+.stage > .tokens-view,
+.stage > .health-view {
   margin: 0;
 }
 
