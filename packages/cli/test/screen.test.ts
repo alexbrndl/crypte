@@ -1440,6 +1440,43 @@ describe('the zoom, on screen', () => {
   })
 })
 
+// L'audit de la vue santé dans le vrai navigateur : chaque story de la démo rendue
+// en light puis en dark dans la preview cachée, et le vrai plugin a11y qui répond.
+describe('the accessibility audit, on screen', () => {
+  test('audits every story in both themes with the a11y plugin', async ({ ecran }) => {
+    await ecran.page.goto(new URL('?health=accessibility', ecran.page.url()).href)
+    await ecran.page.getByRole('button', { name: 'Run the audit' }).click()
+
+    await expect.poll(() => ecran.page.locator('.cards li').count(), { timeout: 60_000 }).toBe(3)
+    expect(await ecran.page.locator('.audit-frame').count()).toBe(0)
+    expect(await ecran.page.locator('.status-bar p').first().textContent()).toMatch(
+      /^audit of \d+ stories in \d+\.\d s$/,
+    )
+    // Les valeurs réelles de la démo : la story au rôle inconnu enfreint aria-roles,
+    // celle qui lève ne s'audite pas. Elles tiennent la forme de `a11y:results`, que
+    // le shell lit : un champ renommé dans le plugin fait tomber ces lignes.
+    expect(
+      (await ecran.page.locator('.cards li').allTextContents()).map((one) =>
+        one.replace(/\s+/g, ' ').trim(),
+      ),
+    ).toEqual(['5 stories without violation', '0 serious violations', '1 critical violation'])
+    expect(await ecran.page.locator('.unaudited').textContent()).toContain('Boom / Échoue au rendu')
+    const ligne = ecran.page.locator('.health-view tbody tr')
+    expect(await ligne.count()).toBe(1)
+    expect((await ligne.locator('th, td').allTextContents()).map((one) => one.trim())).toEqual([
+      'Tag / Rôle inconnu',
+      'aria-roles',
+      'ARIA roles used must conform to valid values, in light and dark',
+      'critical',
+    ])
+    await ligne.click()
+    await expect
+      .poll(() => ecran.page.locator('#health-panel code.label').allTextContents())
+      .toEqual(['span'])
+    expect(await ecran.page.locator('.gauge').allTextContents()).toHaveLength(2)
+  })
+})
+
 // Le thème demandé, posé sur la racine de chaque preview par le vrai navigateur :
 // la première en light, la seconde en dark, chacune rendant la story (5.2).
 describe('the light and dark comparison, on screen', () => {
@@ -1557,6 +1594,7 @@ const ecrans = [
   ['a token category', '?tokens=color', '.tokens-view'],
   ['the versions', '?changes', '.versions-view'],
   ['the health', '?health=overview', '.health-view'],
+  ['the accessibility audit', '?health=accessibility', '.health-view'],
   ['the command palette', '?id=badge--par-defaut', '[role="dialog"]'],
   ['the zoom menu', '?id=badge--par-defaut', '[role="menu"]'],
 ] as const

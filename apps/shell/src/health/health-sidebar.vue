@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  AccessibilityIcon,
   ComponentIcon,
   DashboardSquare01Icon,
   Flag01Icon,
@@ -7,6 +8,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { computed } from 'vue'
 import Icon from '../ui/icon.vue'
+import type { AuditResult } from './audit'
 import { gaugesOf, PAGES, rowsOf, scoreOf, type HealthComponent, type HealthPage } from './health'
 
 // La sidebar de la vue santé : le score et ses jauges, puis les pages, chacune
@@ -15,6 +17,10 @@ const props = defineProps<{
   components: HealthComponent[] | null
   // Ce qui se dit avant une lecture, ou après son échec, à la place du score.
   unread?: string
+  // L'audit passé, ou `null` avant : sa jauge n'apparaît qu'ensuite.
+  audit: AuditResult[] | null
+  // Les violations trouvées, le compte de la page accessibilité.
+  findings: number | null
   page: HealthPage
   hrefOf: (page: HealthPage) => string
 }>()
@@ -23,10 +29,13 @@ const emit = defineEmits<{ pick: [page: HealthPage, event: MouseEvent] }>()
 const ICONS: Record<HealthPage, typeof Search01Icon> = {
   overview: DashboardSquare01Icon,
   unstoried: ComponentIcon,
+  accessibility: AccessibilityIcon,
   statuses: Flag01Icon,
 }
 
-const gauges = computed(() => (props.components ? gaugesOf(props.components) : []))
+const gauges = computed(() => (props.components ? gaugesOf(props.components, props.audit) : []))
+const countOf = (page: HealthPage) =>
+  page === 'accessibility' ? (props.findings ?? '') : rowsOf(page, props.components ?? []).length
 const score = computed(() => scoreOf(gauges.value))
 </script>
 
@@ -77,7 +86,7 @@ const score = computed(() => scoreOf(gauges.value))
           >
             <Icon :icon="ICONS[one.page]" />
             <span class="name">{{ one.label }}</span>
-            <span class="meta">{{ rowsOf(one.page, components ?? []).length }}</span>
+            <span class="meta">{{ countOf(one.page) }}</span>
           </a>
         </li>
       </ul>

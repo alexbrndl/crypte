@@ -3054,14 +3054,15 @@ describe('the health view', () => {
       écran.wrapper
         .findAll('.health a')
         .map((one) => `${one.find('.name').text()} ${one.find('.meta').text()}`),
-    ).toEqual(['overview 4', 'without story 2', 'statuses 2'])
+      // L'accessibilité ne compte rien avant l'audit.
+    ).toEqual(['overview 4', 'without story 2', 'accessibility ', 'statuses 2'])
     // Ce qui pose problème d'abord, un point chacun : sans story, ou déprécié
     // encore utilisé ; le nom départage.
     expect(lignes(écran)).toEqual([
-      'Avatar | 0 |  | ',
-      'Badge | 2 | deprecated | 3 days ago',
-      'Select | 0 | draft | ',
-      'Bouton | 1 | stable | ',
+      'Avatar | 0 | not tested |  | ',
+      'Badge | 2 | not tested | deprecated | 3 days ago',
+      'Select | 0 | not tested | draft | ',
+      'Bouton | 1 | not tested | stable | ',
     ])
     expect(écran.wrapper.find('.toolbar .trail').text().replace(/\s+/g, '')).toBe('health/overview')
     expect(écran.statut()).toBe('4 components, 2 with a story')
@@ -3135,6 +3136,176 @@ describe('the health view', () => {
     await page(écran, 'without story')
     expect(window.location.search).toBe('?health=unstoried')
     expect(écran.wrapper.find('.health-view h2').text()).toBe('without story')
+    écran.wrapper.unmount()
+  })
+
+  // L'audit : chaque story en light puis en dark dans une preview cachée, et ce
+  // que le plugin a11y en dit, une ligne par story et par règle.
+  test('audits every story in both themes, and lists what the a11y plugin finds', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health=accessibility')
+    const écran = await monte([badge, alerte, bouton])
+    const vue = () => écran.wrapper.find('[aria-label="Health, accessibility"]')
+
+    expect(vue().find('.empty').text()).toContain('Install @crypte/a11y')
+    écran.wrapper.findComponent(Panels).vm.$emit('weights', [{ plugin: 'a11y', bytes: 1 }])
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('.gauge:nth-of-type(3)').exists()).toBe(false)
+
+    const contraste = {
+      rule: 'color-contrast',
+      impact: 'serious',
+      help: 'Elements must meet minimum color contrast',
+      helpUrl: 'https://dequeuniversity.com/rules/axe/color-contrast',
+      targets: ['.badge'],
+    }
+    const nom = {
+      ...contraste,
+      rule: 'button-name',
+      impact: 'critical',
+      help: 'Buttons must have discernible text',
+      targets: ['button'],
+    }
+    const demandés: unknown[] = []
+    await vue().find('.run').trigger('click')
+    await vide(écran.wrapper)
+    const cadre = écran.wrapper.find('.audit-frame').element as HTMLIFrameElement
+    const dit = (data: unknown) =>
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data,
+          origin: window.location.origin,
+          source: cadre.contentWindow,
+        }),
+      )
+    cadre.contentWindow!.addEventListener('message', (event) => {
+      const { id, theme } = event.data as { id: string; theme: string }
+      demandés.push(`${id} ${theme}`)
+      const violations =
+        id === 'badge--alerte' && theme === 'dark'
+          ? [contraste]
+          : id === 'bouton--defaut'
+            ? [nom]
+            : []
+      setTimeout(() => dit({ type: 'a11y:results', id, passes: 3, violations }))
+    })
+    dit({ type: 'ready', protocolVersion: 1 })
+    await expect.poll(() => écran.wrapper.find('.audit-frame').exists()).toBe(false)
+    await vide(écran.wrapper)
+
+    expect(demandés).toEqual([
+      'badge--defaut light',
+      'badge--defaut dark',
+      'badge--alerte light',
+      'badge--alerte dark',
+      'bouton--defaut light',
+      'bouton--defaut dark',
+    ])
+    expect(
+      vue()
+        .findAll('.cards li')
+        .map((one) => one.text().replace(/\s+/g, ' ')),
+    ).toEqual(['1 story without violation', '1 serious violation', '1 critical violation'])
+    expect(
+      vue()
+        .findAll('tbody tr')
+        .map((one) =>
+          one
+            .findAll('th, td')
+            .map((cell) => cell.text())
+            .join(' | '),
+        ),
+    ).toEqual([
+      'Bouton / Par défaut | button-name | Buttons must have discernible text, in light and dark | critical',
+      'Badge / Alerte | color-contrast | Elements must meet minimum color contrast, in dark | serious',
+    ])
+    // La jauge a11y apparaît, et le score en fait la moyenne avec les stories.
+    expect(écran.wrapper.findAll('.gauge').map((one) => one.text().replace(/\s+/g, ' '))).toEqual([
+      'stories 2/4',
+      'a11y 1/3',
+    ])
+    expect(écran.wrapper.find('.score .top strong').text()).toBe('42 %')
+    expect(écran.statut()).toMatch(/^audit of 3 stories in \d+\.\d s$/)
+
+    // Une violation choisie remplit le panneau : la story, les éléments, la règle.
+    await vue().find('tbody tr').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?health=accessibility&item=bouton--defaut:button-name')
+    expect(écran.wrapper.find('#health-panel h3').text()).toBe('button-name · to fix')
+    expect(écran.wrapper.find('#health-panel code.label').text()).toBe('button')
+
+    // La vue d'ensemble compte les violations par composant.
+    await page(écran, 'overview')
+    expect(lignes(écran).map((one) => one.split(' | ').slice(0, 3).join(' | '))).toEqual([
+      'Avatar | 0 | not tested',
+      'Badge | 2 | 1 violation',
+      'Select | 0 | not tested',
+      'Bouton | 1 | 1 violation',
+    ])
+    écran.wrapper.unmount()
+  })
+
+  // Une preview qui ne dit jamais `ready` : l'audit s'arrête, et la page dit pourquoi.
+  test('says why the audit could not run', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health=accessibility')
+    const écran = await monte([badge])
+    écran.wrapper.findComponent(Panels).vm.$emit('weights', [{ plugin: 'a11y', bytes: 1 }])
+    await vide(écran.wrapper)
+
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      await écran.wrapper.find('[aria-label="Health, accessibility"] .run').trigger('click')
+      await vi.advanceTimersByTimeAsync(9000)
+    } finally {
+      vi.useRealTimers()
+    }
+    await vide(écran.wrapper)
+
+    expect(écran.wrapper.find('.audit-frame').exists()).toBe(false)
+    expect(écran.wrapper.find('.failed').text()).toBe(
+      'The audit could not run: the preview never said it was ready.',
+    )
+    écran.wrapper.unmount()
+  })
+
+  // Une story qui ne rend pas n'est pas propre, et l'audit la nomme.
+  test('names the stories the audit could not judge', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health=accessibility')
+    const écran = await monte([badge, alerte])
+    écran.wrapper.findComponent(Panels).vm.$emit('weights', [{ plugin: 'a11y', bytes: 1 }])
+    await vide(écran.wrapper)
+
+    await écran.wrapper.find('[aria-label="Health, accessibility"] .run').trigger('click')
+    await vide(écran.wrapper)
+    const cadre = écran.wrapper.find('.audit-frame').element as HTMLIFrameElement
+    const dit = (data: unknown) =>
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data,
+          origin: window.location.origin,
+          source: cadre.contentWindow,
+        }),
+      )
+    cadre.contentWindow!.addEventListener('message', (event) => {
+      const { id } = event.data as { id: string }
+      setTimeout(() =>
+        dit(
+          id === 'badge--alerte'
+            ? { type: 'error', id, message: 'boum' }
+            : { type: 'a11y:results', id, passes: 1, violations: [] },
+        ),
+      )
+    })
+    dit({ type: 'ready', protocolVersion: 1 })
+    await expect.poll(() => écran.wrapper.find('.audit-frame').exists()).toBe(false)
+    await vide(écran.wrapper)
+
+    expect(écran.wrapper.find('.unaudited').text()).toBe('Could not be audited: Badge / Alerte.')
+    expect(écran.wrapper.find('.cards li').text().replace(/\s+/g, ' ')).toBe(
+      '1 story without violation',
+    )
     écran.wrapper.unmount()
   })
 

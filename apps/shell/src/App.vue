@@ -40,6 +40,8 @@ import VersionsView from './versions/versions-view.vue'
 import HealthSidebar from './health/health-sidebar.vue'
 import HealthView from './health/health-view.vue'
 import HealthPanel from './health/health-panel.vue'
+import HealthAccessibility from './health/health-accessibility.vue'
+import { audit, findingsOf, type AuditResult } from './health/audit'
 import { keyOf, PAGES, type Health, type HealthPage } from './health/health'
 import CommandPalette, { type Action } from './navigation/command-palette.vue'
 import { useRecent } from './navigation/recent'
@@ -299,6 +301,10 @@ const line = computed(() => {
     if (health.value === 'failed') return 'the health of the components could not be read'
     const listed = health.value.components
     if (!listed) return 'no components folder declared'
+    if (auditing.value)
+      return `auditing the stories, ${auditing.value.done} of ${auditing.value.total} renders`
+    if (healthAt.value.page === 'accessibility' && auditResults.value && auditTook.value !== null)
+      return `audit of ${auditResults.value.length / 2} stories in ${(auditTook.value / 1000).toFixed(1)} s`
     const covered = listed.filter((one) => one.stories.length > 0).length
     return `${listed.length} ${listed.length === 1 ? 'component' : 'components'}, ${covered} with a story`
   }
@@ -333,6 +339,42 @@ const counted = (n: number) => (n === 1 ? '1 story' : `${n} stories`)
 // court de l'ouverture de la page à la première story rendue : au premier
 // chargement après `crypte dev`, il comprend la compilation de Vite.
 const weights = shallowRef<{ plugin: string; bytes: number }[]>([])
+
+// L'audit d'accessibilité de la vue santé, dans une preview cachée montée le
+// temps de l'audit. Ses résultats durent la session : relancé à la demande, il
+// rend chaque story deux fois.
+const auditFrame = useTemplateRef<HTMLIFrameElement>('auditFrame')
+const auditing = ref<{ done: number; total: number } | null>(null)
+const auditResults = shallowRef<AuditResult[] | null>(null)
+const auditTook = ref<number | null>(null)
+// Pourquoi le dernier audit n'a pas tourné, dit sur sa page : un clic sans suite
+// ne dirait rien.
+const auditFailed = ref<string | null>(null)
+const findings = computed(() => (auditResults.value ? findingsOf(auditResults.value) : null))
+const a11yPlugin = computed(() => weights.value.some((one) => one.plugin === 'a11y'))
+const selectedFinding = computed(
+  () => findings.value?.find((one) => one.key === healthAt.value?.item) ?? null,
+)
+
+async function runAudit() {
+  if (auditing.value !== null) return
+  const ids = entries.value.map((entry) => entry.id)
+  auditing.value = { done: 0, total: ids.length * 2 }
+  auditFailed.value = null
+  await nextTick()
+  const started = performance.now()
+  try {
+    auditResults.value = await audit(auditFrame.value!, ids, (done) => {
+      auditing.value = { done, total: ids.length * 2 }
+    })
+    auditTook.value = performance.now() - started
+  } catch (error) {
+    auditTook.value = null
+    auditFailed.value = error instanceof Error ? error.message : String(error)
+  } finally {
+    auditing.value = null
+  }
+}
 const firstRender = ref<number | null>(null)
 
 // Ce que la dernière story rendue a reçu, sous son identifiant : les panneaux ne
@@ -1036,6 +1078,8 @@ onMounted(() => {
           :unread="
             health === null ? 'reading…' : health === 'failed' ? 'could not be read' : undefined
           "
+          :audit="auditResults"
+          :findings="findings?.length ?? null"
           :page="healthAt?.page ?? 'overview'"
           :href-of="(page) => placeSearch({ mode: 'health', page })"
           @pick="(page, event) => follow(event, () => openHealth(page))"
@@ -1244,11 +1288,24 @@ onMounted(() => {
             @select="(token, event) => follow(event, () => openTokens(shownCategory!.name, token))"
           />
 
+          <HealthAccessibility
+            v-if="healthAt?.page === 'accessibility' && listedHealth"
+            :plugin="a11yPlugin"
+            :audit="auditResults"
+            :running="auditing"
+            :failed="auditFailed"
+            :stories="entries"
+            :selected="healthAt.item ?? null"
+            :href-of="(key) => placeSearch({ mode: 'health', page: 'accessibility', item: key })"
+            @run="runAudit"
+            @select="(key, event) => follow(event, () => openHealth('accessibility', key))"
+          />
           <HealthView
-            v-if="healthAt && listedHealth"
+            v-else-if="healthAt && listedHealth"
             :components="listedHealth"
             :page="healthAt.page"
             :selected="healthAt.item ?? null"
+            :findings="findings"
             :href-of="(key) => placeSearch({ mode: 'health', page: healthAt!.page, item: key })"
             @select="(key, event) => follow(event, () => openHealth(healthAt!.page, key))"
           />
@@ -1453,6 +1510,7 @@ onMounted(() => {
           <h2 class="column-title">Panels</h2>
           <HealthPanel
             :component="healthItem"
+            :finding="healthAt?.page === 'accessibility' ? selectedFinding : undefined"
             :stories="entries"
             :href-of-story="(id) => placeSearch({ mode: 'entry', id })"
             :href-of-component="(id) => placeSearch({ mode: 'component', id })"
@@ -1498,6 +1556,17 @@ onMounted(() => {
       @open="(id) => open(id)"
       @changes="openChanges()"
     />
+    <!-- La preview de l'audit, hors de l'écran mais à une vraie taille : axe juge
+         les contrastes sur ce qui est mis en page. -->
+    <iframe
+      v-if="auditing"
+      ref="auditFrame"
+      class="audit-frame"
+      src="/preview.html"
+      title="accessibility audit"
+      aria-hidden="true"
+      tabindex="-1"
+    ></iframe>
   </main>
 </template>
 
@@ -1762,6 +1831,14 @@ main.full {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
+}
+
+.audit-frame {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  width: 1024px;
+  height: 768px;
 }
 
 iframe {
