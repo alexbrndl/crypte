@@ -83,7 +83,7 @@ function storied(project: Project, entries: ReturnType<typeof storiesOf>): Set<s
 // The components the project already declares as frames, by the `wrap` of its
 // configuration or of a story file. They are context, not a component missing
 // its story.
-function wrappers(project: Project, entries: ReturnType<typeof storiesOf>): Set<string> {
+export function wrappers(project: Project, entries: ReturnType<typeof storiesOf>): Set<string> {
   const config = join(project.root, 'crypte.config.ts')
   const declared = [
     ...configWrappers(project).map((one) => ({ ...one, from: config })),

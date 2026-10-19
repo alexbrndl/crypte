@@ -28,6 +28,12 @@ describe('reading an address', () => {
     ],
     // Un token vide ne nomme rien : la catégorie seule reste.
     ['?tokens=color&token=', { mode: 'tokens', category: 'color' }],
+    ['?health=overview', { mode: 'health', page: 'overview' }],
+    [
+      '?health=statuses&item=src/components/Badge.tsx:Badge',
+      { mode: 'health', page: 'statuses', item: 'src/components/Badge.tsx:Badge' },
+    ],
+    ['?health=overview&item=', { mode: 'health', page: 'overview' }],
   ])('reads %j', (search, place) => {
     expect(readPlace(search)).toEqual(place)
   })
@@ -38,6 +44,8 @@ describe('reading an address', () => {
     '?id=',
     '?component=',
     '?tokens=',
+    '?health=',
+    '?item=src/components/Badge.tsx:Badge',
     '?token=accent-base',
     '?story=badge--defaut',
     '?ID=badge--defaut',
@@ -93,6 +101,11 @@ describe('writing an address', () => {
       '?id=button--%D0%B0%D0%BA%D1%82%D0%B8%D0%B2%D0%BD%D0%B0%D1%8F',
     ],
     [{ mode: 'entry', id: 'a&b=c#d e+f' }, '?id=a%26b%3Dc%23d%20e%2Bf'],
+    [{ mode: 'health', page: 'overview' }, '?health=overview'],
+    [
+      { mode: 'health', page: 'unstoried', item: 'src/components/form/Select.tsx:default' },
+      '?health=unstoried&item=src/components/form/Select.tsx:default',
+    ],
   ])('writes %j', (place, search) => {
     expect(placeSearch(place)).toBe(search)
   })

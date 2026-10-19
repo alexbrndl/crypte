@@ -7,9 +7,10 @@ import sirv from 'sirv'
 import { transformWithOxc, type Plugin, type ViteDevServer } from 'vite'
 import { changesSince } from '../catalogue/changes'
 import { versionsOf } from '../catalogue/versions'
+import { healthOf } from '../catalogue/health'
 import { ConfigError } from '../errors'
 import { fingerprintOf } from '../catalogue/fingerprint'
-import { storyFilesOf, type Catalogue } from '../catalogue/manifest'
+import { storiesOf, storyFilesOf, type Catalogue } from '../catalogue/manifest'
 import { cssEntryOf, type Project } from '../config/project'
 import { ONLY_STORY } from '../catalogue/stories'
 import { configSources, required } from '../config/config-source'
@@ -69,6 +70,10 @@ export const CHANGES_ROUTE = '/@crypte/changes.json'
 // The points the versions view offers to start from: the default branch and the
 // tags. Read from Git at each request too.
 export const VERSIONS_ROUTE = '/@crypte/versions.json'
+
+// What the health view reads: the components of the declared folder, their
+// stories, and Git's dates. Computed at each request, from the catalogue served.
+export const HEALTH_ROUTE = '/@crypte/health.json'
 
 // What the shell says of the project itself: the story root it declares, where an
 // empty catalogue was looked for, and why the last reread of the configuration
@@ -209,6 +214,12 @@ export function servePlugin(
               }),
             ),
           )
+          return
+        }
+
+        if (url === HEALTH_ROUTE) {
+          response.setHeader('Content-Type', 'application/json')
+          response.end(JSON.stringify(healthOf(project, storiesOf(current().manifest))))
           return
         }
 

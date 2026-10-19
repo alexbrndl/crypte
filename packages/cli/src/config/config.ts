@@ -15,6 +15,9 @@ export interface CrypteConfig {
   adapter: Adapter
   // Style sheet loaded in the preview, the project's own.
   css?: string
+  // Root of the component files, relative to the project root: what the health
+  // view counts the components with a story against.
+  components?: string
   // Wrapper applied to every story, outside the file's own. Opaque like the
   // adapter: `Wrap<unknown>` would collapse to `unknown`, and the field would
   // look typed while constraining nothing.

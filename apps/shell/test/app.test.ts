@@ -103,6 +103,9 @@ const rétrécit = (étroit: boolean) => {
   for (const one of système.largeurs) one({ matches: !étroit } as MediaQueryListEvent)
 }
 
+// Ce que répond la route de la vue santé, rendu à son défaut après chaque cas.
+let santé: () => unknown = () => ({ components: null })
+
 const monte = async (
   entries: ManifestEntry[],
   échoue = false,
@@ -141,6 +144,7 @@ const monte = async (
           }),
         } as Response
       if (url === '/@crypte/project.json') return { json: async () => projet() } as Response
+      if (url === '/@crypte/health.json') return { json: async () => santé() } as Response
       if (échoue) throw new Error('Unexpected end of JSON input')
 
       return { json: async () => manifest } as Response
@@ -221,6 +225,7 @@ afterEach(() => {
   localStorage.clear()
   système.sombre = false
   système.étroit = false
+  santé = () => ({ components: null })
   delete document.documentElement.dataset.theme
 })
 
@@ -1586,7 +1591,12 @@ describe('the activity bar', () => {
     const barre = mount(ActivityBar, {
       props: {
         current: 'stories',
-        hrefs: { tokens: '?tokens=color', stories: '/', versions: '?changes' },
+        hrefs: {
+          tokens: '?tokens=color',
+          stories: '/',
+          health: '?health=overview',
+          versions: '?changes',
+        },
         counter: 1,
         searchKeys: 'Ctrl K',
         searchShortcuts: 'Control+K /',
@@ -1658,6 +1668,7 @@ describe('the activity bar', () => {
     expect(écran.wrapper.findAll('.activity-bar .label').map((one) => one.text())).toEqual([
       'tokens',
       'stories',
+      'health',
       'versions',
     ])
 
@@ -2072,6 +2083,7 @@ describe('the versions view', () => {
       'right Search or run',
       'right tokens',
       'right stories',
+      'right health',
       'right versions 5 differences',
       'right Dark theme',
     ])
@@ -2973,6 +2985,201 @@ describe('the panels toggle', () => {
 
 // La comparaison : une seconde preview en dark, la première passée en light, et
 // seule la première parle au shell.
+// La vue santé : les composants du dossier déclaré, ce qu'il leur manque, et la
+// story à créer pour qui n'en a pas.
+describe('the health view', () => {
+  const composants = [
+    {
+      name: 'Badge',
+      file: 'src/components/Badge.tsx',
+      export: 'Badge',
+      stories: ['badge--defaut', 'badge--alerte'],
+      props: 2,
+      status: 'deprecated',
+      changed: new Date(Date.now() - 3 * 86_400_000).toISOString(),
+      statusSince: '2026-10-14T10:00:00.000Z',
+    },
+    {
+      name: 'Select',
+      file: 'src/components/form/Select.tsx',
+      export: 'default',
+      stories: [],
+      props: 9,
+      status: 'draft',
+      skeleton: { file: 'stories/form/Select.tsx', source: 'squelette' },
+    },
+    {
+      name: 'Avatar',
+      file: 'src/components/Avatar.tsx',
+      export: 'Avatar',
+      stories: [],
+      props: 2,
+      skeleton: { file: 'stories/Avatar.tsx', source: 'autre' },
+    },
+    {
+      name: 'Bouton',
+      file: 'src/components/Bouton.tsx',
+      export: 'Bouton',
+      stories: ['bouton--defaut'],
+      props: 1,
+      status: 'stable',
+    },
+  ]
+  const lignes = (écran: Ecran) =>
+    écran.wrapper.findAll('.health-view tbody tr').map((one) =>
+      one
+        .findAll('th, td')
+        .map((cell) => cell.text())
+        .join(' | '),
+    )
+  const page = async (écran: Ecran, libellé: string) => {
+    await écran.wrapper
+      .findAll('.health a')
+      .find((one) => one.find('.name').text() === libellé)!
+      .trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+  }
+
+  test('opens on its overview from the activity bar, with the score of its gauges', async () => {
+    santé = () => ({ components: composants })
+    const écran = await monte([badge, alerte, bouton])
+
+    await écran.vue('health').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+
+    expect(window.location.search).toBe('?health=overview')
+    expect(écran.wrapper.find('.score .top').text()).toBe('50 % overall health')
+    expect(écran.wrapper.find('.gauge').text().replace(/\s+/g, ' ')).toBe('stories 2/4')
+    expect(
+      écran.wrapper
+        .findAll('.health a')
+        .map((one) => `${one.find('.name').text()} ${one.find('.meta').text()}`),
+    ).toEqual(['overview 4', 'without story 2', 'statuses 2'])
+    // Ce qui pose problème d'abord, un point chacun : sans story, ou déprécié
+    // encore utilisé ; le nom départage.
+    expect(lignes(écran)).toEqual([
+      'Avatar | 0 |  | ',
+      'Badge | 2 | deprecated | 3 days ago',
+      'Select | 0 | draft | ',
+      'Bouton | 1 | stable | ',
+    ])
+    expect(écran.wrapper.find('.toolbar .trail').text().replace(/\s+/g, '')).toBe('health/overview')
+    expect(écran.statut()).toBe('4 components, 2 with a story')
+    écran.wrapper.unmount()
+  })
+
+  test('fills the panel with what the chosen component needs, under its own address', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health=unstoried')
+    const écran = await monte([badge, alerte, bouton])
+    const écrit = vi.fn(async () => {})
+    vi.stubGlobal('navigator', { clipboard: { writeText: écrit } })
+
+    expect(lignes(écran)).toEqual([
+      'Select | src/components/form/Select.tsx | 9 | copy the skeleton',
+      'Avatar | src/components/Avatar.tsx | 2 | copy the skeleton',
+    ])
+    expect(écran.wrapper.find('#health-panel .caption').text()).toBe(
+      'Select a component to see what it needs.',
+    )
+
+    await écran.wrapper.find('.health-view tbody tr').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe(
+      '?health=unstoried&item=src/components/form/Select.tsx:default',
+    )
+    expect(écran.wrapper.find('#health-panel h3').text()).toBe('Select · to do')
+    expect(écran.wrapper.find('#health-panel code.label').text()).toBe('stories/form/Select.tsx')
+    await écran.wrapper.find('#health-panel .copy').trigger('click')
+    await vide(écran.wrapper)
+    expect(écrit).toHaveBeenCalledWith('squelette')
+    expect(écran.wrapper.find('#health-panel .copy').text()).toBe('Skeleton copied')
+
+    // Le bouton de la ligne copie aussi, sans la choisir.
+    await écran.wrapper.findAll('.health-view .link').at(1)!.trigger('click')
+    await vide(écran.wrapper)
+    expect(écran.wrapper.findAll('.health-view .link').map((one) => one.text())).toEqual([
+      'copy the skeleton',
+      'copied',
+    ])
+    écran.wrapper.unmount()
+  })
+
+  test('lists the statuses, deprecated first, and leads to the stories still using one', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health=statuses&item=src/components/Badge.tsx:Badge')
+    const écran = await monte([badge, alerte, bouton])
+
+    expect(lignes(écran)).toEqual([
+      'Badge | deprecated | 14 Oct | 2 stories',
+      'Select | draft |  | no story',
+    ])
+    expect(écran.wrapper.find('.health-view [data-ink="error"]').text()).toBe('2 stories')
+    expect(écran.wrapper.find('#health-panel .caption').text()).toBe('still used in 2 stories')
+    expect(écran.wrapper.find('.toolbar [aria-current="page"]').text()).toBe('Badge')
+
+    await écran.wrapper.find('#health-panel a.link').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?id=badge--defaut')
+    expect(écran.wrapper.find('.health-view').exists()).toBe(false)
+    écran.wrapper.unmount()
+  })
+
+  // Une page que la vue n'a pas mène à la vue d'ensemble.
+  test('opens an unknown page on the overview, and changes page from the sidebar', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health=nope')
+    const écran = await monte([badge, alerte, bouton])
+
+    expect(écran.wrapper.find('.health [aria-current="page"] .name').text()).toBe('overview')
+    await page(écran, 'without story')
+    expect(window.location.search).toBe('?health=unstoried')
+    expect(écran.wrapper.find('.health-view h2').text()).toBe('without story')
+    écran.wrapper.unmount()
+  })
+
+  // Un composant sans story est hors du catalogue : rien ne surveille son fichier,
+  // et la vue relit ses données au retour sur la fenêtre.
+  test('reads its data again when the window regains focus', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health=unstoried')
+    const écran = await monte([badge, alerte, bouton])
+    expect(lignes(écran)).toHaveLength(2)
+
+    santé = () => ({ components: composants.filter((one) => one.name !== 'Avatar') })
+    window.dispatchEvent(new Event('focus'))
+    await vide(écran.wrapper)
+    await vide(écran.wrapper)
+    expect(lignes(écran)).toHaveLength(1)
+    écran.wrapper.unmount()
+  })
+
+  // Une route qui ne répond pas n'est pas un dossier absent : aucun guide à copier.
+  test('says the data could not be read, rather than asking for a folder', async () => {
+    santé = () => {
+      throw new Error('500')
+    }
+    window.history.replaceState(null, '', '/?health=overview')
+    const écran = await monte([badge])
+
+    expect(écran.wrapper.find('.health .none').text()).toBe('could not be read')
+    expect(écran.wrapper.find('.empty').exists()).toBe(false)
+    expect(écran.statut()).toBe('the health of the components could not be read')
+    écran.wrapper.unmount()
+  })
+
+  test('says how to declare a components folder when the project has none', async () => {
+    window.history.replaceState(null, '', '/?health=overview')
+    const écran = await monte([badge])
+
+    expect(écran.wrapper.find('.health .none').text()).toBe('no components folder')
+    expect(écran.wrapper.find('.empty h2').text()).toBe('No components folder')
+    expect(écran.wrapper.find('#health-panel').exists()).toBe(false)
+    expect(écran.statut()).toBe('no components folder declared')
+    écran.wrapper.unmount()
+  })
+})
+
 describe('the light and dark comparison', () => {
   const bouton = (écran: Ecran) => écran.wrapper.find('[aria-label="Compare light and dark"]')
   const sombre = (écran: Ecran) => écran.wrapper.find('iframe[title="preview, dark"]')
