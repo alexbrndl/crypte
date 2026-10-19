@@ -106,7 +106,7 @@ describe('the audit', () => {
       () => {},
       () => {},
     )
-    const refus = expect(fini).rejects.toThrow('the preview never said it was ready')
+    const refus = expect(fini).rejects.toThrow('the preview never came back after a reload')
     dit({ type: 'ready', protocolVersion: 1 })
     await vi.runAllTimersAsync()
     await refus
