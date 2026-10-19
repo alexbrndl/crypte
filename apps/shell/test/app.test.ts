@@ -1591,7 +1591,12 @@ describe('the activity bar', () => {
     const barre = mount(ActivityBar, {
       props: {
         current: 'stories',
-        hrefs: { tokens: '?tokens=color', stories: '/', versions: '?changes' },
+        hrefs: {
+          tokens: '?tokens=color',
+          stories: '/',
+          health: '?health=overview',
+          versions: '?changes',
+        },
         counter: 1,
         searchKeys: 'Ctrl K',
         searchShortcuts: 'Control+K /',
