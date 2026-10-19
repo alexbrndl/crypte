@@ -72,13 +72,12 @@ export async function audit(
         resolve(message)
       }
     })
-  const ready = async () => {
-    if ((await next((message) => message.type === 'ready')) === null)
-      throw new Error('the preview never said it was ready')
+  const ready = async (reason: string) => {
+    if ((await next((message) => message.type === 'ready')) === null) throw new Error(reason)
   }
 
   try {
-    await ready()
+    await ready('the preview never said it was ready')
     const results: AuditResult[] = []
     for (const id of stories) {
       for (const theme of THEMES) {
@@ -95,7 +94,7 @@ export async function audit(
           // Une réponse qui arriverait après l'attente passerait pour celle du
           // rendu suivant, d'un autre thème ou d'une autre story : la preview
           // rechargée jette tout ce qu'elle avait en cours.
-          const reloaded = ready()
+          const reloaded = ready('the preview never came back after a reload')
           reload()
           await reloaded
         } else if (message.type === 'error' || message.type === 'plugin-error')
