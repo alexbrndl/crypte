@@ -61,18 +61,20 @@ export async function audit(
   // ensuite sont celles de rendus passés. Écartées, jamais prises pour la suivante,
   // même un échec, qui ne dit pas de quelle story il vient.
   let owed = 0
-  const next = (accept: (message: PreviewMessage) => boolean, analysed = false) =>
+  const next = (accept: (message: PreviewMessage) => boolean, id?: string) =>
     new Promise<PreviewMessage | null>((resolve) => {
       const timer = setTimeout(() => {
-        if (analysed) owed += 1
+        if (id !== undefined) owed += 1
         answer = null
         resolve(null)
       }, WAIT)
       answer = (message) => {
-        // Une analyse en retard finit par un résultat, ou par l'échec de son hook.
+        // Un rendu en retard finit par son analyse, l'échec de son hook, ou sa propre
+        // erreur, celle d'une autre story que la story demandée.
         const ending =
           (message.type as string) === 'a11y:results' ||
-          (message.type === 'plugin-error' && message.plugin === 'a11y')
+          (message.type === 'plugin-error' && message.plugin === 'a11y') ||
+          (message.type === 'error' && message.id !== id)
         if (owed > 0 && ending) {
           owed -= 1
           return
@@ -95,7 +97,7 @@ export async function audit(
             (message.type === 'error' && message.id === id) ||
             (message.type === 'plugin-error' && message.plugin === 'a11y') ||
             ((message.type as string) === 'a11y:results' && (message as { id?: string }).id === id),
-          true,
+          id,
         )
         channel.send({ type: 'render', id, overrides: {}, theme })
         const message = await said
