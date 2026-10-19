@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.41, reference document. A project brief points here instead of restating these shapes.
+> Version 1.42, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -717,7 +717,7 @@ type RenderedValues = Record<string, string | number | boolean>
 - Every payload must survive a JSON round trip. No function, no class instance, no DOM node. `postMessage` enforces this by cloning: a function throws at send time.
 - Both sides send to an exact origin, never `'*'`, and both drop a message that comes from another origin or another window.
 - A render error comes back as `error` and must never take the shell down.
-- **A plugin message's `type` starts with the plugin's name and a colon**, `a11y:run`, and a core message never carries one. That prefix is the whole routing: the preview hands the message to that plugin's `onMessage` (6.2), the shell to that plugin's panel (6.1). The names come from the project's configuration, never from a list in the core.
+- **A plugin message's `type` starts with the plugin's name and a colon**, `a11y:run`, and a core message never carries one. That prefix is the whole routing: the preview hands the message to that plugin's `onMessage` (6.2), the shell to that plugin's panel (6.1). The names come from the project's configuration, never from a list in the core. One exception, in the shell and not the core: the health view's audit reads `a11y:results` itself, from the plugin named `a11y`, because an accessibility audit runs only in a browser. Its fields are therefore a promise of `@crypte/a11y` to the shell, and a second analysing plugin would reopen this through a contract.
 - A plugin declares its messages from its own package, the same way it declares options and prop details:
 
 ```ts
@@ -1001,6 +1001,12 @@ Eleven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.42.** The health view reads the a11y plugin's results (5.4).
+
+| Before | After |
+| --- | --- |
+| a plugin message went only to that plugin's panel | the shell's accessibility audit reads `a11y:results` too |
 
 **v1.41.** The components folder the health view counts (1.5).
 

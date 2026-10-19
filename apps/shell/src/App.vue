@@ -347,6 +347,9 @@ const auditFrame = useTemplateRef<HTMLIFrameElement>('auditFrame')
 const auditing = ref<{ done: number; total: number } | null>(null)
 const auditResults = shallowRef<AuditResult[] | null>(null)
 const auditTook = ref<number | null>(null)
+// Pourquoi le dernier audit n'a pas tourné, dit sur sa page : un clic sans suite
+// ne dirait rien.
+const auditFailed = ref<string | null>(null)
 const findings = computed(() => (auditResults.value ? findingsOf(auditResults.value) : null))
 const a11yPlugin = computed(() => weights.value.some((one) => one.plugin === 'a11y'))
 const selectedFinding = computed(
@@ -357,6 +360,7 @@ async function runAudit() {
   if (auditing.value !== null) return
   const ids = entries.value.map((entry) => entry.id)
   auditing.value = { done: 0, total: ids.length * 2 }
+  auditFailed.value = null
   await nextTick()
   const started = performance.now()
   try {
@@ -364,8 +368,9 @@ async function runAudit() {
       auditing.value = { done, total: ids.length * 2 }
     })
     auditTook.value = performance.now() - started
-  } catch {
+  } catch (error) {
     auditTook.value = null
+    auditFailed.value = error instanceof Error ? error.message : String(error)
   } finally {
     auditing.value = null
   }
@@ -1288,6 +1293,7 @@ onMounted(() => {
             :plugin="a11yPlugin"
             :audit="auditResults"
             :running="auditing"
+            :failed="auditFailed"
             :stories="entries"
             :selected="healthAt.item ?? null"
             :href-of="(key) => placeSearch({ mode: 'health', page: 'accessibility', item: key })"

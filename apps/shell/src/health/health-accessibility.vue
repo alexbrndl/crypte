@@ -12,6 +12,8 @@ const props = defineProps<{
   audit: AuditResult[] | null
   // Le nombre de rendus faits et à faire pendant l'audit, `null` hors audit.
   running: { done: number; total: number } | null
+  // Pourquoi le dernier audit n'a pas tourné.
+  failed: string | null
   stories: StoryEntry[]
   selected: string | null
   hrefOf: (key: string) => string
@@ -50,6 +52,9 @@ const themesOf = (themes: string[]) =>
       <Button v-if="plugin && audit && !running" class="run" @click="emit('run')">Run again</Button>
     </header>
 
+    <p v-if="failed && !running" class="empty failed" role="alert">
+      The audit could not run: {{ failed }}.
+    </p>
     <p v-if="!plugin" class="empty">
       Install <code>@crypte/a11y</code> and add it to <code>plugins</code> to audit every story.
     </p>

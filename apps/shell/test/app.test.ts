@@ -3245,6 +3245,30 @@ describe('the health view', () => {
     écran.wrapper.unmount()
   })
 
+  // Une preview qui ne dit jamais `ready` : l'audit s'arrête, et la page dit pourquoi.
+  test('says why the audit could not run', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health=accessibility')
+    const écran = await monte([badge])
+    écran.wrapper.findComponent(Panels).vm.$emit('weights', [{ plugin: 'a11y', bytes: 1 }])
+    await vide(écran.wrapper)
+
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      await écran.wrapper.find('[aria-label="Health, accessibility"] .run').trigger('click')
+      await vi.advanceTimersByTimeAsync(9000)
+    } finally {
+      vi.useRealTimers()
+    }
+    await vide(écran.wrapper)
+
+    expect(écran.wrapper.find('.audit-frame').exists()).toBe(false)
+    expect(écran.wrapper.find('.failed').text()).toBe(
+      'The audit could not run: the preview never said it was ready.',
+    )
+    écran.wrapper.unmount()
+  })
+
   // Une story qui ne rend pas n'est pas propre, et l'audit la nomme.
   test('names the stories the audit could not judge', async () => {
     santé = () => ({ components: composants })

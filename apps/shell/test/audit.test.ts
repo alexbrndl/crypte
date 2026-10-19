@@ -47,11 +47,55 @@ describe('the audit', () => {
     ])
   })
 
+  // L'analyse light arrive après l'attente, avant celle du dark : écartée, elle ne
+  // passe pas pour la mesure dark.
+  test('drops an analysis that comes back after the wait, rather than take it for the next', async () => {
+    vi.useFakeTimers()
+    const { frame, dit } = cadre()
+    const x = { rule: 'x', impact: 'minor', help: 'X', helpUrl: '', targets: [] }
+    let rendus = 0
+    frame.contentWindow!.addEventListener('message', (event) => {
+      const { id } = event.data as { id: string }
+      rendus += 1
+      if (rendus === 1)
+        setTimeout(() => dit({ type: 'a11y:results', id, passes: 1, violations: [] }), 8050)
+      else setTimeout(() => dit({ type: 'a11y:results', id, passes: 1, violations: [x] }), 500)
+    })
+    const fini = audit(frame, ['a--b'], () => {})
+    dit({ type: 'ready', protocolVersion: 1 })
+    await vi.runAllTimersAsync()
+
+    expect(await fini).toEqual([
+      { id: 'a--b', theme: 'light', error: 'no answer from the a11y plugin' },
+      { id: 'a--b', theme: 'dark', passes: 1, violations: [x] },
+    ])
+  })
+
+  // Une forme que le shell ne lit pas est nommée, story par story.
+  test('names an answer in a shape it does not read', async () => {
+    vi.useFakeTimers()
+    const { frame, dit } = cadre()
+    frame.contentWindow!.addEventListener('message', (event) => {
+      const { id } = event.data as { id: string }
+      setTimeout(() =>
+        dit({ type: 'a11y:results', id, passes: 1, violations: [{ name: 'x', level: 'minor' }] }),
+      )
+    })
+    const fini = audit(frame, ['a--b'], () => {})
+    dit({ type: 'ready', protocolVersion: 1 })
+    await vi.runAllTimersAsync()
+
+    expect((await fini).map((one) => ('error' in one ? one.error : 'read'))).toEqual([
+      'the a11y plugin answered in a shape the shell does not read',
+      'the a11y plugin answered in a shape the shell does not read',
+    ])
+  })
+
   test('gives up when the preview never says ready', async () => {
     vi.useFakeTimers()
     const { frame } = cadre()
     const fini = audit(frame, ['a--b'], () => {})
-    const refus = expect(fini).rejects.toThrow('no preview')
+    const refus = expect(fini).rejects.toThrow('the preview never said it was ready')
     await vi.runAllTimersAsync()
     await refus
   })

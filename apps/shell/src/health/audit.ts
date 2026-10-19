@@ -26,6 +26,26 @@ export const THEMES: Theme[] = ['light', 'dark']
 // Une story qui ne rend pas, ou un plugin muet, n'arrête pas l'audit.
 const WAIT = 8000
 
+const IMPACTS = ['critical', 'serious', 'moderate', 'minor']
+
+// Une réponse qui n'a pas la forme lue ici est une erreur de la story, nommée,
+// plutôt que des clés `undefined` et un panneau qui lève.
+function shaped(message: unknown): message is { passes: number; violations: Violation[] } {
+  const { passes, violations } = message as { passes?: unknown; violations?: unknown }
+  return (
+    typeof passes === 'number' &&
+    Array.isArray(violations) &&
+    violations.every(
+      (one: Partial<Violation>) =>
+        typeof one.rule === 'string' &&
+        IMPACTS.includes(one.impact as string) &&
+        typeof one.help === 'string' &&
+        typeof one.helpUrl === 'string' &&
+        Array.isArray(one.targets),
+    )
+  )
+}
+
 // Les stories une à une : axe refuse deux analyses à la fois, et un résultat se
 // rattache à la story qui vient d'être demandée.
 export async function audit(
@@ -36,10 +56,23 @@ export async function audit(
   const channel = createShellChannel(frame)
   let answer: ((message: PreviewMessage) => void) | null = null
   const stop = channel.onMessage((message) => answer?.(message))
-  const next = (accept: (message: PreviewMessage) => boolean) =>
+  // Les analyses restées sans réponse dans le temps, par story : axe les rend
+  // dans l'ordre, et la première qui arrive ensuite est celle d'un rendu passé,
+  // d'un autre thème peut-être. Écartée, jamais prise pour la suivante.
+  const owed = new Map<string, number>()
+  const next = (accept: (message: PreviewMessage) => boolean, id?: string) =>
     new Promise<PreviewMessage | null>((resolve) => {
-      const timer = setTimeout(() => resolve(null), WAIT)
+      const timer = setTimeout(() => {
+        if (id !== undefined) owed.set(id, (owed.get(id) ?? 0) + 1)
+        answer = null
+        resolve(null)
+      }, WAIT)
       answer = (message) => {
+        const late = owed.get(id ?? '') ?? 0
+        if (late > 0 && (message.type as string) === 'a11y:results' && accept(message)) {
+          owed.set(id!, late - 1)
+          return
+        }
         if (!accept(message)) return
         clearTimeout(timer)
         answer = null
@@ -48,7 +81,8 @@ export async function audit(
     })
 
   try {
-    if ((await next((message) => message.type === 'ready')) === null) throw new Error('no preview')
+    if ((await next((message) => message.type === 'ready')) === null)
+      throw new Error('the preview never said it was ready')
     const results: AuditResult[] = []
     for (const id of stories) {
       for (const theme of THEMES) {
@@ -56,15 +90,19 @@ export async function audit(
           (message) =>
             (message.type === 'error' && message.id === id) ||
             ((message.type as string) === 'a11y:results' && (message as { id?: string }).id === id),
+          id,
         )
         channel.send({ type: 'render', id, overrides: {}, theme })
         const message = await said
         if (message === null) results.push({ id, theme, error: 'no answer from the a11y plugin' })
         else if (message.type === 'error') results.push({ id, theme, error: message.message })
-        else {
-          const found = message as unknown as { passes: number; violations: Violation[] }
-          results.push({ id, theme, passes: found.passes, violations: found.violations })
-        }
+        else if (!shaped(message))
+          results.push({
+            id,
+            theme,
+            error: 'the a11y plugin answered in a shape the shell does not read',
+          })
+        else results.push({ id, theme, passes: message.passes, violations: message.violations })
         progress(results.length)
       }
     }

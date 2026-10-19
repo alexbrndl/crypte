@@ -1452,6 +1452,27 @@ describe('the accessibility audit, on screen', () => {
     expect(await ecran.page.locator('.status-bar p').first().textContent()).toMatch(
       /^audit of \d+ stories in \d+\.\d s$/,
     )
+    // Les valeurs réelles de la démo : la story au rôle inconnu enfreint aria-roles,
+    // celle qui lève ne s'audite pas. Elles tiennent la forme de `a11y:results`, que
+    // le shell lit : un champ renommé dans le plugin fait tomber ces lignes.
+    expect(
+      (await ecran.page.locator('.cards li').allTextContents()).map((one) =>
+        one.replace(/\s+/g, ' ').trim(),
+      ),
+    ).toEqual(['5 stories without violation', '0 serious violations', '1 critical violation'])
+    expect(await ecran.page.locator('.unaudited').textContent()).toContain('Boom / Échoue au rendu')
+    const ligne = ecran.page.locator('.health-view tbody tr')
+    expect(await ligne.count()).toBe(1)
+    expect((await ligne.locator('th, td').allTextContents()).map((one) => one.trim())).toEqual([
+      'Tag / Rôle inconnu',
+      'aria-roles',
+      'ARIA roles used must conform to valid values, in light and dark',
+      'critical',
+    ])
+    await ligne.click()
+    await expect
+      .poll(() => ecran.page.locator('#health-panel code.label').allTextContents())
+      .toEqual(['span'])
     expect(await ecran.page.locator('.gauge').allTextContents()).toHaveLength(2)
   })
 })
