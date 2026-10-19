@@ -52,43 +52,33 @@ export async function audit(
   frame: HTMLIFrameElement,
   stories: string[],
   progress: (done: number) => void,
+  // Ce qui recharge la preview cachée ; remplacé par les tests, que jsdom ne
+  // laisse pas recharger une frame.
+  reload: () => void = () => frame.contentWindow?.location.reload(),
 ): Promise<AuditResult[]> {
   const channel = createShellChannel(frame)
   let answer: ((message: PreviewMessage) => void) | null = null
   const stop = channel.onMessage((message) => answer?.(message))
-  // Les analyses restées sans réponse dans le temps, pour toute la preview : axe
-  // les rend dans l'ordre, quelle que soit la story, et les premières qui arrivent
-  // ensuite sont celles de rendus passés. Écartées, jamais prises pour la suivante,
-  // même un échec, qui ne dit pas de quelle story il vient.
-  let owed = 0
-  const next = (accept: (message: PreviewMessage) => boolean, id?: string) =>
+  const next = (accept: (message: PreviewMessage) => boolean) =>
     new Promise<PreviewMessage | null>((resolve) => {
       const timer = setTimeout(() => {
-        if (id !== undefined) owed += 1
         answer = null
         resolve(null)
       }, WAIT)
       answer = (message) => {
-        // Un rendu en retard finit par son analyse, l'échec de son hook, ou sa propre
-        // erreur, celle d'une autre story que la story demandée.
-        const ending =
-          (message.type as string) === 'a11y:results' ||
-          (message.type === 'plugin-error' && message.plugin === 'a11y') ||
-          (message.type === 'error' && message.id !== id)
-        if (owed > 0 && ending) {
-          owed -= 1
-          return
-        }
         if (!accept(message)) return
         clearTimeout(timer)
         answer = null
         resolve(message)
       }
     })
-
-  try {
+  const ready = async () => {
     if ((await next((message) => message.type === 'ready')) === null)
       throw new Error('the preview never said it was ready')
+  }
+
+  try {
+    await ready()
     const results: AuditResult[] = []
     for (const id of stories) {
       for (const theme of THEMES) {
@@ -97,12 +87,18 @@ export async function audit(
             (message.type === 'error' && message.id === id) ||
             (message.type === 'plugin-error' && message.plugin === 'a11y') ||
             ((message.type as string) === 'a11y:results' && (message as { id?: string }).id === id),
-          id,
         )
         channel.send({ type: 'render', id, overrides: {}, theme })
         const message = await said
-        if (message === null) results.push({ id, theme, error: 'no answer from the a11y plugin' })
-        else if (message.type === 'error' || message.type === 'plugin-error')
+        if (message === null) {
+          results.push({ id, theme, error: 'no answer from the a11y plugin' })
+          // Une réponse qui arriverait après l'attente passerait pour celle du
+          // rendu suivant, d'un autre thème ou d'une autre story : la preview
+          // rechargée jette tout ce qu'elle avait en cours.
+          const reloaded = ready()
+          reload()
+          await reloaded
+        } else if (message.type === 'error' || message.type === 'plugin-error')
           results.push({ id, theme, error: message.message })
         else if (!shaped(message))
           results.push({

@@ -35,7 +35,12 @@ describe('the audit', () => {
       if (id === 'c--d')
         setTimeout(() => dit({ type: 'a11y:results', id: 'autre--x', passes: 0, violations: [] }))
     })
-    const fini = audit(frame, ['a--b', 'c--d'], () => {})
+    const fini = audit(
+      frame,
+      ['a--b', 'c--d'],
+      () => {},
+      () => setTimeout(() => dit({ type: 'ready', protocolVersion: 1 })),
+    )
     dit({ type: 'ready', protocolVersion: 1 })
     await vi.runAllTimersAsync()
 
@@ -47,108 +52,64 @@ describe('the audit', () => {
     ])
   })
 
-  // L'analyse light arrive après l'attente, avant celle du dark : écartée, elle ne
-  // passe pas pour la mesure dark.
-  test('drops an analysis that comes back after the wait, rather than take it for the next', async () => {
+  // Une réponse arrivée après l'attente passerait pour celle du rendu suivant :
+  // la preview est rechargée, ce qu'elle avait en cours part avec sa page, et
+  // l'audit reprend une fois qu'elle a redit `ready`. Ici la page d'avant répond
+  // trop tard, et la nouvelle à temps.
+  test('reloads the preview after a render left unanswered, and goes on', async () => {
     vi.useFakeTimers()
     const { frame, dit } = cadre()
     const x = { rule: 'x', impact: 'minor', help: 'X', helpUrl: '', targets: [] }
-    let rendus = 0
-    frame.contentWindow!.addEventListener('message', (event) => {
-      const { id } = event.data as { id: string }
-      rendus += 1
-      if (rendus === 1)
-        setTimeout(() => dit({ type: 'a11y:results', id, passes: 1, violations: [] }), 8050)
-      else setTimeout(() => dit({ type: 'a11y:results', id, passes: 1, violations: [x] }), 500)
+    let page = 0
+    const recharge = vi.fn(() => {
+      page += 1
+      setTimeout(() => dit({ type: 'ready', protocolVersion: 1 }), 100)
     })
-    const fini = audit(frame, ['a--b'], () => {})
+    frame.contentWindow!.addEventListener('message', (event) => {
+      const { id, theme } = event.data as { id: string; theme: string }
+      const mienne = page
+      if (page === 0 && theme === 'light') {
+        // La page d'avant : sa réponse tardive n'arrive jamais, elle est partie.
+        setTimeout(
+          () => mienne === page && dit({ type: 'a11y:results', id, passes: 1, violations: [] }),
+          8050,
+        )
+        return
+      }
+      setTimeout(() =>
+        dit({ type: 'a11y:results', id, passes: 1, violations: theme === 'dark' ? [x] : [] }),
+      )
+    })
+    const fini = audit(frame, ['a--b', 'c--d'], () => {}, recharge)
     dit({ type: 'ready', protocolVersion: 1 })
     await vi.runAllTimersAsync()
 
-    expect(await fini).toEqual([
-      { id: 'a--b', theme: 'light', error: 'no answer from the a11y plugin' },
-      { id: 'a--b', theme: 'dark', passes: 1, violations: [x] },
-    ])
-  })
-
-  // L'analyse light dépasse l'attente puis échoue : son échec la solde, et la
-  // mesure dark qui suit est gardée.
-  test('counts a late analysis that fails as answered, and keeps the next one', async () => {
-    vi.useFakeTimers()
-    const { frame, dit } = cadre()
-    let rendus = 0
-    frame.contentWindow!.addEventListener('message', (event) => {
-      const { id } = event.data as { id: string }
-      rendus += 1
-      if (rendus === 1)
-        setTimeout(() => dit({ type: 'plugin-error', plugin: 'a11y', message: 'axe threw' }), 8050)
-      else setTimeout(() => dit({ type: 'a11y:results', id, passes: 1, violations: [] }), 500)
-    })
-    const fini = audit(frame, ['a--b'], () => {})
-    dit({ type: 'ready', protocolVersion: 1 })
-    await vi.runAllTimersAsync()
-
-    expect(await fini).toEqual([
-      { id: 'a--b', theme: 'light', error: 'no answer from the a11y plugin' },
-      { id: 'a--b', theme: 'dark', passes: 1, violations: [] },
-    ])
-  })
-
-  // L'analyse dark de la première story échoue en retard, pendant que la seconde
-  // est mesurée : l'échec sans id ne passe pas pour celui de la seconde.
-  test('keeps a late failure of one story from landing on the next', async () => {
-    vi.useFakeTimers()
-    const { frame, dit } = cadre()
-    let rendus = 0
-    frame.contentWindow!.addEventListener('message', (event) => {
-      const { id } = event.data as { id: string }
-      rendus += 1
-      if (rendus === 2)
-        setTimeout(() => dit({ type: 'plugin-error', plugin: 'a11y', message: 'axe threw' }), 8050)
-      else if (rendus === 3)
-        setTimeout(() => dit({ type: 'a11y:results', id, passes: 1, violations: [] }), 500)
-      else setTimeout(() => dit({ type: 'a11y:results', id, passes: 1, violations: [] }))
-    })
-    const fini = audit(frame, ['a--b', 'c--d'], () => {})
-    dit({ type: 'ready', protocolVersion: 1 })
-    await vi.runAllTimersAsync()
-
+    expect(recharge).toHaveBeenCalledOnce()
     expect(
-      (await fini).map((one) => `${one.id} ${one.theme} ${'error' in one ? one.error : 'read'}`),
+      (await fini).map(
+        (one) => `${one.id} ${one.theme} ${'error' in one ? one.error : one.violations.length}`,
+      ),
     ).toEqual([
-      'a--b light read',
-      'a--b dark no answer from the a11y plugin',
-      'c--d light read',
-      'c--d dark read',
+      'a--b light no answer from the a11y plugin',
+      'a--b dark 1',
+      'c--d light 0',
+      'c--d dark 1',
     ])
   })
 
-  // Le rendu dark de la première story échoue après l'attente : son erreur solde
-  // le retard, et la seconde story se mesure normalement.
-  test('counts a late render error as answered, and audits the rest', async () => {
+  test('gives up when the reloaded preview never says ready', async () => {
     vi.useFakeTimers()
     const { frame, dit } = cadre()
-    let rendus = 0
-    frame.contentWindow!.addEventListener('message', (event) => {
-      const { id } = event.data as { id: string }
-      rendus += 1
-      if (rendus === 2) setTimeout(() => dit({ type: 'error', id, message: 'boum' }), 8050)
-      else if (rendus === 3)
-        setTimeout(() => dit({ type: 'a11y:results', id, passes: 1, violations: [] }), 500)
-      else setTimeout(() => dit({ type: 'a11y:results', id, passes: 1, violations: [] }))
-    })
-    const fini = audit(frame, ['a--b', 'c--d'], () => {})
+    const fini = audit(
+      frame,
+      ['a--b'],
+      () => {},
+      () => {},
+    )
+    const refus = expect(fini).rejects.toThrow('the preview never said it was ready')
     dit({ type: 'ready', protocolVersion: 1 })
     await vi.runAllTimersAsync()
-
-    expect(
-      (await fini).map((one) => `${one.id} ${one.theme} ${'error' in one ? one.error : 'read'}`),
-    ).toEqual([
-      'a--b light read',
-      'a--b dark no answer from the a11y plugin',
-      'c--d light read',
-      'c--d dark read',
-    ])
+    await refus
   })
 
   // Sans retard en cours, l'échec du hook est l'erreur de la story demandée.
