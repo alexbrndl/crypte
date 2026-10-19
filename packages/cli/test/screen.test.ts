@@ -1440,6 +1440,22 @@ describe('the zoom, on screen', () => {
   })
 })
 
+// L'audit de la vue santé dans le vrai navigateur : chaque story de la démo rendue
+// en light puis en dark dans la preview cachée, et le vrai plugin a11y qui répond.
+describe('the accessibility audit, on screen', () => {
+  test('audits every story in both themes with the a11y plugin', async ({ ecran }) => {
+    await ecran.page.goto(new URL('?health=accessibility', ecran.page.url()).href)
+    await ecran.page.getByRole('button', { name: 'Run the audit' }).click()
+
+    await expect.poll(() => ecran.page.locator('.cards li').count(), { timeout: 60_000 }).toBe(3)
+    expect(await ecran.page.locator('.audit-frame').count()).toBe(0)
+    expect(await ecran.page.locator('.status-bar p').first().textContent()).toMatch(
+      /^audit of \d+ stories in \d+\.\d s$/,
+    )
+    expect(await ecran.page.locator('.gauge').allTextContents()).toHaveLength(2)
+  })
+})
+
 // Le thème demandé, posé sur la racine de chaque preview par le vrai navigateur :
 // la première en light, la seconde en dark, chacune rendant la story (5.2).
 describe('the light and dark comparison, on screen', () => {
@@ -1557,6 +1573,7 @@ const ecrans = [
   ['a token category', '?tokens=color', '.tokens-view'],
   ['the versions', '?changes', '.versions-view'],
   ['the health', '?health=overview', '.health-view'],
+  ['the accessibility audit', '?health=accessibility', '.health-view'],
   ['the command palette', '?id=badge--par-defaut', '[role="dialog"]'],
   ['the zoom menu', '?id=badge--par-defaut', '[role="menu"]'],
 ] as const

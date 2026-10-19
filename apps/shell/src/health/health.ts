@@ -2,6 +2,8 @@
 // score qui en sort. Les données viennent de `/@crypte/health.json`, la forme de
 // `packages/cli/src/catalogue/health.ts`, que le shell ne peut pas importer.
 
+import { cleanOf, type AuditResult } from './audit'
+
 export interface HealthComponent {
   name: string
   file: string
@@ -18,11 +20,12 @@ export interface Health {
   components: HealthComponent[] | null
 }
 
-export type HealthPage = 'overview' | 'unstoried' | 'statuses'
+export type HealthPage = 'overview' | 'unstoried' | 'accessibility' | 'statuses'
 
 export const PAGES: { page: HealthPage; label: string }[] = [
   { page: 'overview', label: 'overview' },
   { page: 'unstoried', label: 'without story' },
+  { page: 'accessibility', label: 'accessibility' },
   { page: 'statuses', label: 'statuses' },
 ]
 
@@ -36,16 +39,21 @@ export interface Gauge {
   total: number
 }
 
-// Une jauge par ce qui se mesure aujourd'hui : les stories. La doc et l'a11y
-// s'ajoutent avec leurs données. Le score est leur moyenne, sans pondération.
-export function gaugesOf(components: HealthComponent[]): Gauge[] {
-  return [
-    {
-      label: 'stories',
-      done: components.filter((one) => one.stories.length > 0).length,
-      total: components.length,
-    },
-  ]
+// Une jauge par ce qui se mesure : les stories, et l'a11y une fois l'audit
+// passé. La doc s'ajoute avec ses données. Le score est leur moyenne, sans
+// pondération.
+export function gaugesOf(
+  components: HealthComponent[],
+  audit: AuditResult[] | null = null,
+): Gauge[] {
+  const stories = {
+    label: 'stories',
+    done: components.filter((one) => one.stories.length > 0).length,
+    total: components.length,
+  }
+  if (audit === null) return [stories]
+  const { clean, audited } = cleanOf(audit)
+  return [stories, { label: 'a11y', done: clean, total: audited }]
 }
 
 export function scoreOf(gauges: Gauge[]): number {
@@ -69,6 +77,7 @@ export function rowsOf(page: HealthPage, components: HealthComponent[]): HealthC
     return components
       .filter((one) => one.stories.length === 0)
       .sort((one, other) => other.props - one.props || byName(one, other))
+  if (page === 'accessibility') return []
   if (page === 'statuses') {
     const rank = { deprecated: 0, draft: 1 } as const
     return components

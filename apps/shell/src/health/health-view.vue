@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ago } from '../navigation/recent'
+import type { Finding } from './audit'
 import { dayOf, keyOf, PAGES, rowsOf, type HealthComponent, type HealthPage } from './health'
 
 // Le canvas de la vue santé : le tableau de la page choisie, une ligne par
@@ -9,6 +10,9 @@ const props = defineProps<{
   components: HealthComponent[]
   page: HealthPage
   selected: string | null
+  // Les violations de l'audit passé, ou `null` avant : la colonne a11y dit alors
+  // que rien n'est testé.
+  findings: Finding[] | null
   hrefOf: (key: string) => string
 }>()
 const emit = defineEmits<{ select: [key: string, event: MouseEvent] }>()
@@ -16,9 +20,16 @@ const emit = defineEmits<{ select: [key: string, event: MouseEvent] }>()
 const rows = computed(() => rowsOf(props.page, props.components))
 const title = computed(() => PAGES.find((one) => one.page === props.page)!.label)
 
+// Les violations des stories d'un composant, ou rien à dire sans audit ni story.
+const a11yOf = (one: HealthComponent) => {
+  if (props.findings === null || one.stories.length === 0) return null
+  return props.findings.filter((found) => one.stories.includes(found.id)).length
+}
+
 const NOTES: Record<HealthPage, string> = {
   overview: 'sorted by problems',
   unstoried: 'sorted by props',
+  accessibility: '',
   statuses: 'deprecated first',
 }
 
@@ -48,6 +59,7 @@ async function copy(one: HealthComponent) {
         <tr v-if="page === 'overview'">
           <th scope="col" class="grow">component</th>
           <th scope="col">stories</th>
+          <th scope="col">a11y</th>
           <th scope="col">status</th>
           <th scope="col">changed</th>
         </tr>
@@ -82,6 +94,15 @@ async function copy(one: HealthComponent) {
           <template v-if="page === 'overview'">
             <td class="code" :data-ink="one.stories.length === 0 ? 'error' : undefined">
               {{ one.stories.length }}
+            </td>
+            <td class="code" :data-ink="(a11yOf(one) ?? 0) > 0 ? 'error' : undefined">
+              {{
+                a11yOf(one) === null
+                  ? 'not tested'
+                  : a11yOf(one) === 0
+                    ? '0'
+                    : `${a11yOf(one)} ${a11yOf(one) === 1 ? 'violation' : 'violations'}`
+              }}
             </td>
             <td class="code">{{ one.status ?? '' }}</td>
             <td class="code">{{ one.changed ? ago(Date.parse(one.changed)) : '' }}</td>

@@ -9,6 +9,7 @@ import {
 import { computed, ref, watch } from 'vue'
 import Icon from '../ui/icon.vue'
 import { componentIdOf } from '../navigation/tree'
+import type { Finding } from './audit'
 import type { HealthComponent } from './health'
 
 // Le panneau « à faire » de la maquette, pour le composant choisi : ce qui mène
@@ -16,6 +17,8 @@ import type { HealthComponent } from './health'
 // sa page ; déprécié, les stories qui l'utilisent encore.
 const props = defineProps<{
   component: HealthComponent | null
+  // Sur la page accessibilité, la violation choisie, à la place d'un composant.
+  finding?: Finding | null
   stories: StoryEntry[]
   hrefOfStory: (id: string) => string
   hrefOfComponent: (id: string) => string
@@ -52,10 +55,49 @@ async function copy() {
 <template>
   <section class="panel" aria-label="To do">
     <header class="head">
-      <h3>{{ component ? `${component.name} · to do` : 'To do' }}</h3>
-      <span class="source">health</span>
+      <h3>
+        {{
+          finding !== undefined
+            ? finding
+              ? `${finding.violation.rule} · to fix`
+              : 'To fix'
+            : component
+              ? `${component.name} · to do`
+              : 'To do'
+        }}
+      </h3>
+      <span class="source">{{ finding !== undefined ? 'a11y' : 'health' }}</span>
     </header>
-    <div class="body">
+    <div v-if="finding !== undefined" class="body">
+      <p v-if="finding === null" class="caption">Select a violation to see where it is.</p>
+      <template v-else>
+        <p class="caption">story</p>
+        <a
+          class="row link"
+          :href="hrefOfStory(finding.id)"
+          @click="emit('story', finding.id, $event)"
+        >
+          <Icon :icon="ComponentIcon" />
+          <span class="label">{{
+            stories.find((one) => one.id === finding!.id)?.name ?? finding.id
+          }}</span>
+          <Icon :icon="LinkSquare02Icon" />
+        </a>
+        <p class="caption">
+          {{ finding.violation.targets.length }}
+          {{ finding.violation.targets.length === 1 ? 'element' : 'elements' }} at fault
+        </p>
+        <p v-for="one of finding.violation.targets" :key="one" class="row">
+          <code class="label">{{ one }}</code>
+        </p>
+        <p class="caption">rule</p>
+        <a class="row link" :href="finding.violation.helpUrl" target="_blank" rel="noreferrer">
+          <span class="label">How to fix {{ finding.violation.rule }}</span>
+          <Icon :icon="LinkSquare02Icon" />
+        </a>
+      </template>
+    </div>
+    <div v-else class="body">
       <p v-if="component === null" class="caption">Select a component to see what it needs.</p>
       <template v-else-if="component.skeleton">
         <p class="caption">create its story</p>
