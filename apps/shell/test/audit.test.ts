@@ -94,6 +94,35 @@ describe('the audit', () => {
     ])
   })
 
+  // L'analyse dark de la première story échoue en retard, pendant que la seconde
+  // est mesurée : l'échec sans id ne passe pas pour celui de la seconde.
+  test('keeps a late failure of one story from landing on the next', async () => {
+    vi.useFakeTimers()
+    const { frame, dit } = cadre()
+    let rendus = 0
+    frame.contentWindow!.addEventListener('message', (event) => {
+      const { id } = event.data as { id: string }
+      rendus += 1
+      if (rendus === 2)
+        setTimeout(() => dit({ type: 'plugin-error', plugin: 'a11y', message: 'axe threw' }), 8050)
+      else if (rendus === 3)
+        setTimeout(() => dit({ type: 'a11y:results', id, passes: 1, violations: [] }), 500)
+      else setTimeout(() => dit({ type: 'a11y:results', id, passes: 1, violations: [] }))
+    })
+    const fini = audit(frame, ['a--b', 'c--d'], () => {})
+    dit({ type: 'ready', protocolVersion: 1 })
+    await vi.runAllTimersAsync()
+
+    expect(
+      (await fini).map((one) => `${one.id} ${one.theme} ${'error' in one ? one.error : 'read'}`),
+    ).toEqual([
+      'a--b light read',
+      'a--b dark no answer from the a11y plugin',
+      'c--d light read',
+      'c--d dark read',
+    ])
+  })
+
   // Sans retard en cours, l'échec du hook est l'erreur de la story demandée.
   test('notes the a11y hook failing as the error of the story asked', async () => {
     vi.useFakeTimers()

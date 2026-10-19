@@ -56,26 +56,25 @@ export async function audit(
   const channel = createShellChannel(frame)
   let answer: ((message: PreviewMessage) => void) | null = null
   const stop = channel.onMessage((message) => answer?.(message))
-  // Les analyses restées sans réponse dans le temps, par story : axe les rend
-  // dans l'ordre, et la première qui arrive ensuite est celle d'un rendu passé,
-  // d'un autre thème peut-être. Écartée, jamais prise pour la suivante.
-  const owed = new Map<string, number>()
-  const next = (accept: (message: PreviewMessage) => boolean, id?: string) =>
+  // Les analyses restées sans réponse dans le temps, pour toute la preview : axe
+  // les rend dans l'ordre, quelle que soit la story, et les premières qui arrivent
+  // ensuite sont celles de rendus passés. Écartées, jamais prises pour la suivante,
+  // même un échec, qui ne dit pas de quelle story il vient.
+  let owed = 0
+  const next = (accept: (message: PreviewMessage) => boolean, analysed = false) =>
     new Promise<PreviewMessage | null>((resolve) => {
       const timer = setTimeout(() => {
-        if (id !== undefined) owed.set(id, (owed.get(id) ?? 0) + 1)
+        if (analysed) owed += 1
         answer = null
         resolve(null)
       }, WAIT)
       answer = (message) => {
-        const late = owed.get(id ?? '') ?? 0
         // Une analyse en retard finit par un résultat, ou par l'échec de son hook.
-        const failed = message.type === 'plugin-error' && message.plugin === 'a11y'
-        if (
-          late > 0 &&
-          (failed || ((message.type as string) === 'a11y:results' && accept(message)))
-        ) {
-          owed.set(id!, late - 1)
+        const ending =
+          (message.type as string) === 'a11y:results' ||
+          (message.type === 'plugin-error' && message.plugin === 'a11y')
+        if (owed > 0 && ending) {
+          owed -= 1
           return
         }
         if (!accept(message)) return
@@ -96,7 +95,7 @@ export async function audit(
             (message.type === 'error' && message.id === id) ||
             (message.type === 'plugin-error' && message.plugin === 'a11y') ||
             ((message.type as string) === 'a11y:results' && (message as { id?: string }).id === id),
-          id,
+          true,
         )
         channel.send({ type: 'render', id, overrides: {}, theme })
         const message = await said
