@@ -126,7 +126,7 @@ export default defineConfig({
 
 Two keys are required, and an error names the one that is missing.
 
-`components` is what the health view counts the components with a story against: every component a file under it exports, at any depth. Without it, the shell draws no stories gauge, since nothing says how many components there are.
+`components` is what the health view counts the components with a story against: every component a `.js`, `.jsx`, `.ts` or `.tsx` file under it exports, at any depth, except under `node_modules`, `.git` and `dist`, in a `.d.ts`, or declared as a `wrap` (2.5), which is context rather than a component. Without it, the shell draws no stories gauge, since nothing says how many components there are.
 
 `vite.plugins` exists for the cases where a framework needs an extra transform, such as Nuxt auto-imports. The project declares it. Crypte never guesses it.
 

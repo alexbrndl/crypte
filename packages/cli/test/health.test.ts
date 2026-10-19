@@ -115,6 +115,9 @@ describe('the components the health view counts', () => {
     git(root, '2026-09-12T10:00:00Z', 'commit', '-qam', 'b')
     writeFileSync(join(root, 'src/components/Badge.tsx'), `${BADGE}// touched\n`)
     git(root, '2026-10-14T10:00:00Z', 'commit', '-qam', 'c')
+    // Une story renommée sans toucher au statut : la date du statut ne bouge pas.
+    writeFileSync(join(root, 'stories/Badge.tsx'), HISTOIRE('stable').replace('Long', 'Longue'))
+    git(root, '2026-10-15T10:00:00Z', 'commit', '-qam', 'd')
 
     expect(santé(project)?.[0]).toMatchObject({
       status: 'stable',

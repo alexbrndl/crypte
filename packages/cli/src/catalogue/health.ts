@@ -54,6 +54,15 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
   // A frame the project declares as `wrap` is context, not a component missing
   // its story, as for `crypte check`.
   const frames = wrappers(project, stories)
+  // Two walks of the history for the whole folder, never one per file: a call
+  // costs about 11 ms on a short history, and the dev server waits for them.
+  const changes = lastCommits(project.root, ['--', folder])
+  const statuses = lastCommits(project.root, [
+    `-Gstatus:[[:space:]]*['"](draft|stable|deprecated)['"]`,
+    '-E',
+    '--',
+    project.config.stories,
+  ])
   const found: HealthComponent[] = []
   for (const file of filesIn(join(project.root, folder))) {
     for (const names of componentsIn(file)) {
@@ -61,15 +70,8 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
       const covered = names.flatMap((one) => covering.get(`${file}#${one}`) ?? [])
       const exported = names[0]!
       const status = covered[0]?.meta?.status
-      const changed = lastCommit(project.root, ['--', file])
-      const since =
-        status && covered[0]
-          ? lastCommit(project.root, [
-              `-Gstatus:[[:space:]]*['"]${status}['"]`,
-              '--',
-              join(project.root, covered[0].storyFile),
-            ])
-          : undefined
+      const changed = changes.get(named(project.root, file))
+      const since = status && covered[0] ? statuses.get(covered[0].storyFile) : undefined
       found.push({
         name: exported === 'default' ? basename(file, extname(file)) : exported,
         file: named(project.root, file),
@@ -119,20 +121,31 @@ function skeletonOf(project: Project, folder: string, file: string, exported: st
   }
 }
 
-// The commit date Git gives, or nothing: outside Git, or for what was never
-// committed, the column stays empty.
-function lastCommit(root: string, args: string[]): string | undefined {
+// The date of the last commit that touched each file the arguments select, by
+// project-relative path, newest first so the first seen wins. A status line
+// changed last is the one that set the status a file holds. Nothing outside Git,
+// or for what was never committed: the column stays empty.
+function lastCommits(root: string, args: string[]): Map<string, string> {
+  const dates = new Map<string, string>()
+  let log: string
   try {
-    const date = execFileSync('git', ['log', '-1', '--format=%cI', ...args], {
+    log = execFileSync('git', ['log', '--relative', '--format=%x00%cI', '--name-only', ...args], {
       cwd: root,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim()
-    const at = Date.parse(date)
-    return Number.isNaN(at) ? undefined : new Date(at).toISOString()
+      maxBuffer: 64 * 1024 * 1024,
+    })
   } catch {
-    return undefined
+    return dates
   }
+  for (const commit of log.split('\0').slice(1)) {
+    const [date = '', ...files] = commit.trim().split('\n')
+    const at = Date.parse(date)
+    if (Number.isNaN(at)) continue
+    for (const file of files)
+      if (file && !dates.has(file)) dates.set(file, new Date(at).toISOString())
+  }
+  return dates
 }
 
 function named(root: string, file: string): string {

@@ -13,6 +13,8 @@ import { gaugesOf, PAGES, rowsOf, scoreOf, type HealthComponent, type HealthPage
 // avec ce qu'elle liste. Sans dossier `components` déclaré, rien à compter.
 const props = defineProps<{
   components: HealthComponent[] | null
+  // Ce qui se dit avant une lecture, ou après son échec, à la place du score.
+  unread?: string
   page: HealthPage
   hrefOf: (page: HealthPage) => string
 }>()
@@ -32,11 +34,12 @@ const score = computed(() => scoreOf(gauges.value))
   <div class="health">
     <div class="title">
       <h2>Health</h2>
-      <span v-if="components" class="meta"
+      <span v-if="components && !unread" class="meta"
         >{{ components.length }} {{ components.length === 1 ? 'component' : 'components' }}</span
       >
     </div>
-    <p v-if="components === null" class="none">no components folder</p>
+    <p v-if="unread" class="none">{{ unread }}</p>
+    <p v-else-if="components === null" class="none">no components folder</p>
     <template v-else>
       <section class="score" aria-label="Score">
         <p class="top">

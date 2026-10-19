@@ -146,20 +146,26 @@ const categories = computed(() => categoriesOf(families.value))
 
 // La vue santé : la page ouverte, et le composant choisi dedans, ou `null`. Comme
 // une page composant, elle laisse la preview et les panneaux chargés dessous.
-// Ses données sont relues à l'ouverture et à chaque `ready`, qui suit un
-// catalogue changé.
+// Ses données sont relues à l'ouverture, à chaque `ready`, qui suit un catalogue
+// changé, et au retour sur la fenêtre : un composant sans story est hors du
+// catalogue, et rien ne surveille son fichier. `null` avant la première lecture,
+// `failed` quand la route ne répond pas, ce qui n'est pas un dossier absent.
 const healthAt = ref<{ page: HealthPage; item?: string } | null>(null)
 const HEALTH = '/@crypte/health.json'
-const health = ref<Health | null>(null)
+const health = ref<Health | 'failed' | null>(null)
 async function readHealth() {
   try {
     health.value = (await fetch(HEALTH).then((answer) => answer.json())) as Health
   } catch {
-    health.value = { components: null }
+    health.value = 'failed'
   }
 }
+// Les composants lus, ou `null` sans dossier déclaré, ou `undefined` sans lecture.
+const listedHealth = computed(() =>
+  health.value === null || health.value === 'failed' ? undefined : health.value.components,
+)
 const healthItem = computed(
-  () => health.value?.components?.find((one) => keyOf(one) === healthAt.value?.item) ?? null,
+  () => listedHealth.value?.find((one) => keyOf(one) === healthAt.value?.item) ?? null,
 )
 // Une page que l'adresse nomme et que la vue n'a pas mène à la vue d'ensemble.
 const pageOf = (page: string): HealthPage =>
@@ -289,7 +295,9 @@ const line = computed(() => {
       ? `${counter.value} ${counter.value === 1 ? 'difference' : 'differences'} since ${sinceLabel(changes.value.from.ref)}`
       : counted(entries.value.length)
   if (healthAt.value !== null) {
-    const listed = health.value?.components
+    if (health.value === null) return 'reading the health of the components'
+    if (health.value === 'failed') return 'the health of the components could not be read'
+    const listed = health.value.components
     if (!listed) return 'no components folder declared'
     const covered = listed.filter((one) => one.stories.length > 0).length
     return `${listed.length} ${listed.length === 1 ? 'component' : 'components'}, ${covered} with a story`
@@ -360,6 +368,7 @@ async function readProject() {
 function reread() {
   void readChanges()
   void readProject()
+  if (healthAt.value !== null) void readHealth()
 }
 
 // Le catalogue lu au moins une fois, pour ne pas dire « aucune story » avant.
@@ -1023,7 +1032,10 @@ onMounted(() => {
         />
         <HealthSidebar
           v-else-if="view === 'health'"
-          :components="health ? health.components : []"
+          :components="listedHealth ?? null"
+          :unread="
+            health === null ? 'reading…' : health === 'failed' ? 'could not be read' : undefined
+          "
           :page="healthAt?.page ?? 'overview'"
           :href-of="(page) => placeSearch({ mode: 'health', page })"
           @pick="(page, event) => follow(event, () => openHealth(page))"
@@ -1233,14 +1245,14 @@ onMounted(() => {
           />
 
           <HealthView
-            v-if="healthAt && health?.components"
-            :components="health.components"
+            v-if="healthAt && listedHealth"
+            :components="listedHealth"
             :page="healthAt.page"
             :selected="healthAt.item ?? null"
             :href-of="(key) => placeSearch({ mode: 'health', page: healthAt!.page, item: key })"
             @select="(key, event) => follow(event, () => openHealth(healthAt!.page, key))"
           />
-          <div v-else-if="healthAt && health && health.components === null" class="empty">
+          <div v-else-if="healthAt && listedHealth === null" class="empty">
             <EmptyGuide
               title="No components folder"
               :path="null"
@@ -1433,7 +1445,7 @@ onMounted(() => {
           />
         </aside>
         <aside
-          v-if="view === 'health' && health?.components && !fullScreen && panelsOpen"
+          v-if="view === 'health' && listedHealth && !fullScreen && panelsOpen"
           id="health-panel"
           class="panel-column"
           aria-label="Health panel"

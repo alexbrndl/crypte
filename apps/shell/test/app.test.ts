@@ -3133,6 +3133,36 @@ describe('the health view', () => {
     écran.wrapper.unmount()
   })
 
+  // Un composant sans story est hors du catalogue : rien ne surveille son fichier,
+  // et la vue relit ses données au retour sur la fenêtre.
+  test('reads its data again when the window regains focus', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health=unstoried')
+    const écran = await monte([badge, alerte, bouton])
+    expect(lignes(écran)).toHaveLength(2)
+
+    santé = () => ({ components: composants.filter((one) => one.name !== 'Avatar') })
+    window.dispatchEvent(new Event('focus'))
+    await vide(écran.wrapper)
+    await vide(écran.wrapper)
+    expect(lignes(écran)).toHaveLength(1)
+    écran.wrapper.unmount()
+  })
+
+  // Une route qui ne répond pas n'est pas un dossier absent : aucun guide à copier.
+  test('says the data could not be read, rather than asking for a folder', async () => {
+    santé = () => {
+      throw new Error('500')
+    }
+    window.history.replaceState(null, '', '/?health=overview')
+    const écran = await monte([badge])
+
+    expect(écran.wrapper.find('.health .none').text()).toBe('could not be read')
+    expect(écran.wrapper.find('.empty').exists()).toBe(false)
+    expect(écran.statut()).toBe('the health of the components could not be read')
+    écran.wrapper.unmount()
+  })
+
   test('says how to declare a components folder when the project has none', async () => {
     window.history.replaceState(null, '', '/?health=overview')
     const écran = await monte([badge])
