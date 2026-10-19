@@ -71,6 +71,46 @@ describe('the audit', () => {
     ])
   })
 
+  // L'analyse light dépasse l'attente puis échoue : son échec la solde, et la
+  // mesure dark qui suit est gardée.
+  test('counts a late analysis that fails as answered, and keeps the next one', async () => {
+    vi.useFakeTimers()
+    const { frame, dit } = cadre()
+    let rendus = 0
+    frame.contentWindow!.addEventListener('message', (event) => {
+      const { id } = event.data as { id: string }
+      rendus += 1
+      if (rendus === 1)
+        setTimeout(() => dit({ type: 'plugin-error', plugin: 'a11y', message: 'axe threw' }), 8050)
+      else setTimeout(() => dit({ type: 'a11y:results', id, passes: 1, violations: [] }), 500)
+    })
+    const fini = audit(frame, ['a--b'], () => {})
+    dit({ type: 'ready', protocolVersion: 1 })
+    await vi.runAllTimersAsync()
+
+    expect(await fini).toEqual([
+      { id: 'a--b', theme: 'light', error: 'no answer from the a11y plugin' },
+      { id: 'a--b', theme: 'dark', passes: 1, violations: [] },
+    ])
+  })
+
+  // Sans retard en cours, l'échec du hook est l'erreur de la story demandée.
+  test('notes the a11y hook failing as the error of the story asked', async () => {
+    vi.useFakeTimers()
+    const { frame, dit } = cadre()
+    frame.contentWindow!.addEventListener('message', () => {
+      setTimeout(() => dit({ type: 'plugin-error', plugin: 'a11y', message: 'axe threw' }))
+    })
+    const fini = audit(frame, ['a--b'], () => {})
+    dit({ type: 'ready', protocolVersion: 1 })
+    await vi.runAllTimersAsync()
+
+    expect((await fini).map((one) => ('error' in one ? one.error : 'read'))).toEqual([
+      'axe threw',
+      'axe threw',
+    ])
+  })
+
   // Une forme que le shell ne lit pas est nommée, story par story.
   test('names an answer in a shape it does not read', async () => {
     vi.useFakeTimers()

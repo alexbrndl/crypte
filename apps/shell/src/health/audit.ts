@@ -69,7 +69,12 @@ export async function audit(
       }, WAIT)
       answer = (message) => {
         const late = owed.get(id ?? '') ?? 0
-        if (late > 0 && (message.type as string) === 'a11y:results' && accept(message)) {
+        // Une analyse en retard finit par un résultat, ou par l'échec de son hook.
+        const failed = message.type === 'plugin-error' && message.plugin === 'a11y'
+        if (
+          late > 0 &&
+          (failed || ((message.type as string) === 'a11y:results' && accept(message)))
+        ) {
           owed.set(id!, late - 1)
           return
         }
@@ -89,13 +94,15 @@ export async function audit(
         const said = next(
           (message) =>
             (message.type === 'error' && message.id === id) ||
+            (message.type === 'plugin-error' && message.plugin === 'a11y') ||
             ((message.type as string) === 'a11y:results' && (message as { id?: string }).id === id),
           id,
         )
         channel.send({ type: 'render', id, overrides: {}, theme })
         const message = await said
         if (message === null) results.push({ id, theme, error: 'no answer from the a11y plugin' })
-        else if (message.type === 'error') results.push({ id, theme, error: message.message })
+        else if (message.type === 'error' || message.type === 'plugin-error')
+          results.push({ id, theme, error: message.message })
         else if (!shaped(message))
           results.push({
             id,
