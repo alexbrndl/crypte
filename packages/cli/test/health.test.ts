@@ -104,7 +104,12 @@ describe('the components the health view counts', () => {
   // écrit son statut dans le fichier de stories.
   test('dates the last change of a component and the setting of its status', () => {
     const project = projet(
-      { 'src/components/Badge.tsx': BADGE, 'stories/Badge.tsx': HISTOIRE('draft') },
+      {
+        'src/components/Badge.tsx': BADGE,
+        'stories/Badge.tsx': HISTOIRE('draft'),
+        // Un nom hors ASCII, que Git écrirait entre guillemets.
+        'src/components/Étiquette.tsx': 'export function Étiquette() { return <i /> }\n',
+      },
       'src/components',
     )
     const root = project.root
@@ -119,6 +124,9 @@ describe('the components the health view counts', () => {
     writeFileSync(join(root, 'stories/Badge.tsx'), HISTOIRE('stable').replace('Long', 'Longue'))
     git(root, '2026-10-15T10:00:00Z', 'commit', '-qam', 'd')
 
+    expect(santé(project)?.find((one) => one.name === 'Étiquette')?.changed).toBe(
+      '2026-08-03T10:00:00.000Z',
+    )
     expect(santé(project)?.[0]).toMatchObject({
       status: 'stable',
       changed: '2026-10-14T10:00:00.000Z',

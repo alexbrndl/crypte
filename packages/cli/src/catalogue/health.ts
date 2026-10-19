@@ -129,12 +129,26 @@ function lastCommits(root: string, args: string[]): Map<string, string> {
   const dates = new Map<string, string>()
   let log: string
   try {
-    log = execFileSync('git', ['log', '--relative', '--format=%x00%cI', '--name-only', ...args], {
-      cwd: root,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-      maxBuffer: 64 * 1024 * 1024,
-    })
+    // Unquoted: Git writes a path holding anything but ASCII between quotes, escaped,
+    // and `Bouté.tsx` would match no file.
+    log = execFileSync(
+      'git',
+      [
+        '-c',
+        'core.quotePath=false',
+        'log',
+        '--relative',
+        '--format=%x00%cI',
+        '--name-only',
+        ...args,
+      ],
+      {
+        cwd: root,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        maxBuffer: 64 * 1024 * 1024,
+      },
+    )
   } catch {
     return dates
   }
