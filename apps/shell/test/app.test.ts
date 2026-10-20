@@ -3410,6 +3410,21 @@ describe('the health view', () => {
     écran.wrapper.unmount()
   })
 
+  // Sans rien à corriger, le bouton du prompt reste à sa place, désactivé.
+  test('keeps its prompt button disabled with nothing to fix', async () => {
+    santé = () => ({ components: composants.filter((one) => one.stories.length > 0) })
+    window.history.replaceState(null, '', '/?health=overview')
+    const écran = await monte([badge, alerte, bouton])
+    const prompt = () => écran.wrapper.find('.toolbar .prompt')
+    expect(prompt().attributes('disabled')).toBeDefined()
+
+    santé = () => ({ components: composants })
+    window.dispatchEvent(new Event('focus'))
+    await vide(écran.wrapper)
+    expect(prompt().attributes('disabled')).toBeUndefined()
+    écran.wrapper.unmount()
+  })
+
   // Le panneau To do mène à ce qu'il nomme : le rendu en échec d'une story, les
   // violations d'un composant ; Links, à sa page.
   test('leads from the to do of a component to its render errors and violations', async () => {
@@ -3483,7 +3498,7 @@ describe('the health view', () => {
     vi.stubGlobal('navigator', { clipboard: { writeText: écrit } })
     const titres = () =>
       écrit.mock.lastCall![0].split('\n').filter((ligne) => ligne.startsWith('### '))
-    await liste().find('.prompt').trigger('click')
+    await écran.wrapper.find('.toolbar .prompt').trigger('click')
     await vide(écran.wrapper)
     expect(titres()).toEqual([
       '### Badge / Alerte',
@@ -3492,12 +3507,12 @@ describe('the health view', () => {
       '### Select',
       '### Avatar',
     ])
-    expect(liste().find('.prompt').text()).toBe('Prompt copied')
+    expect(écran.wrapper.find('.toolbar .prompt').text()).toBe('Prompt copied')
     // Une liste qui change oublie la copie : le texte copié n'est plus celui-là.
     santé = () => ({ components: composants.filter((one) => one.name !== 'Avatar') })
     window.dispatchEvent(new Event('focus'))
     await vide(écran.wrapper)
-    expect(liste().find('.prompt').text()).toBe('Copy the prompt for your agent')
+    expect(écran.wrapper.find('.toolbar .prompt').text()).toBe('Copy the prompt for your agent')
     santé = () => ({ components: composants })
     window.dispatchEvent(new Event('focus'))
     await vide(écran.wrapper)
