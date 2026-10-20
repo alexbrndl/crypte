@@ -118,7 +118,11 @@ h3 {
   cursor: pointer;
 }
 
+/* The sm button of the Figma panel header, 24 px high, by the button's custom
+   properties, which its children inherit. */
 .action {
+  --button-height: 24px;
+  --button-padding: var(--space-0-5) var(--space-2);
   display: flex;
   padding-right: var(--space-3);
 }

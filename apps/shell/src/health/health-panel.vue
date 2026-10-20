@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { plural } from '../plural'
 import type { StoryEntry } from '@crypte/core/protocol'
+import { Button } from '@crypte/ui'
 import {
   AiContentGenerator01Icon,
   Alert02Icon,
@@ -150,6 +151,12 @@ watch(
     aria-label="To do"
     @toggle="toggle('todo')"
   >
+    <template v-if="prompt" #action>
+      <Button variant="ghost" class="prompt" @click="copy(prompt, 'prompt')">
+        <Icon :icon="AiContentGenerator01Icon" />
+        {{ copied === 'prompt' ? 'Fix prompt copied' : 'Copy fix prompt' }}
+      </Button>
+    </template>
     <div class="rows">
       <EmptyNote v-if="!chosen">Select a row to see what it needs.</EmptyNote>
 
@@ -236,13 +243,6 @@ watch(
         </p>
         <EmptyNote v-if="nothing">Nothing to do.</EmptyNote>
       </template>
-
-      <button v-if="prompt" type="button" class="row link copy" @click="copy(prompt, 'prompt')">
-        <Icon :icon="AiContentGenerator01Icon" />
-        <span class="label">{{
-          copied === 'prompt' ? 'Fix prompt copied' : 'Copy fix prompt'
-        }}</span>
-      </button>
     </div>
   </PanelSection>
 
