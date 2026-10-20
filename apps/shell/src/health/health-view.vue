@@ -4,7 +4,7 @@ import type { StoryEntry } from '@crypte/core/protocol'
 import { Button } from '@crypte/ui'
 import { Alert02Icon } from '@hugeicons/core-free-icons'
 import { VisuallyHidden } from 'reka-ui'
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useCopy } from '../clipboard'
 import CardTable from '../ui/card-table.vue'
 import Badge from '../ui/badge.vue'
@@ -101,18 +101,21 @@ const prompt = computed(() =>
     props.stories,
   ),
 )
+watch(prompt, () => (copied.value = null))
 </script>
 
 <template>
   <ViewCanvas class="health-view" :aria-label="`Health, ${title}`">
     <SectionHeader :title="title" :count="rows.length" :note="NOTES[page]" />
     <section v-if="todo.length > 0" class="todo" aria-label="Everything to do">
-      <h3>
-        to do <Badge tone="inverse">{{ todo.length }}</Badge>
+      <div class="band">
+        <h3>
+          to do <Badge tone="inverse">{{ todo.length }}</Badge>
+        </h3>
         <Button variant="ghost" class="prompt" @click="copy(prompt, 'prompt')">{{
           copied === 'prompt' ? 'Prompt copied' : 'Copy the prompt for your agent'
         }}</Button>
-      </h3>
+      </div>
       <ul>
         <li v-for="one of todo" :key="`${one.page}:${one.key}`">
           <a
@@ -223,13 +226,18 @@ const prompt = computed(() =>
   background: var(--background-raised);
 }
 
-.todo h3 {
+.band {
+  display: flex;
+  align-items: center;
+  padding: var(--space-1-5) var(--space-3);
+  background: var(--background-subtle);
+}
+
+.band h3 {
   display: flex;
   gap: var(--space-2);
   align-items: center;
   margin: 0;
-  padding: var(--space-1-5) var(--space-3);
-  background: var(--background-subtle);
   color: var(--text-muted);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
@@ -243,8 +251,6 @@ const prompt = computed(() =>
   --button-height: 24px;
   --button-padding: var(--space-0-5) var(--space-2);
   margin-left: auto;
-  letter-spacing: 0;
-  text-transform: none;
 }
 
 .todo ul {
