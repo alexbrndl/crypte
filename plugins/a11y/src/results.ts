@@ -1,5 +1,6 @@
-// What the preview sends after each analysis: only what the panel shows, since an
-// axe result carries the HTML of every node it looked at. The shell's health
+// What the preview sends after each analysis: what the panel shows, and the
+// colours the shell's health audit reads, never the HTML of every node an axe
+// result carries. The shell's health
 // audit reads it too (section 5.4): renaming or removing a field breaks the
 // audit, which then names every story as unread.
 export type Results = {

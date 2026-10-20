@@ -40,6 +40,7 @@ const finding: Finding = {
     targets: ['span[role="nope"]', '.tag'],
   },
   themes: ['dark'],
+  colors: {},
 }
 const select: HealthComponent = {
   name: 'Select',

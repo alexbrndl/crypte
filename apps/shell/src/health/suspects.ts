@@ -3,7 +3,8 @@ import { valueIn, type Category, type Token } from '../tokens/categories'
 import type { Finding } from './audit'
 
 // Les tokens probablement en cause d'un défaut de contraste : ceux dont la
-// valeur, dans un thème de la violation, est une couleur qu'axe a mesurée.
+// valeur dans un thème de la violation est une couleur qu'axe a mesurée dans ce
+// thème-là.
 // Rapprochés par la valeur seule, deux tokens de même valeur le sont tous les
 // deux : d'où « probable ». Les plus lus d'abord, avec le nombre de composants
 // qui les lisent.
@@ -18,8 +19,9 @@ export function suspectsOf(
   categories: Category[],
   stories: StoryEntry[],
 ): Suspect[] {
-  const measured = new Set((finding.violation.colors ?? []).map(colorOf))
-  if (measured.size === 0) return []
+  const measured = (theme: string) =>
+    new Set((finding.colors[theme as keyof Finding['colors']] ?? []).map(colorOf))
+  if (finding.themes.every((theme) => measured(theme).size === 0)) return []
   const readers = (name: string) =>
     new Set(
       stories
@@ -33,7 +35,7 @@ export function suspectsOf(
           .filter((token) =>
             finding.themes.some((theme) => {
               const value = valueIn(token.value, theme)
-              return value !== undefined && measured.has(colorOf(value))
+              return value !== undefined && measured(theme).has(colorOf(value))
             }),
           )
           .map((token) => ({ category: category.name, token, readers: readers(token.name) })),

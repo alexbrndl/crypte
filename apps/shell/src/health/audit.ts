@@ -161,8 +161,12 @@ export async function audit(
 export interface Finding {
   key: string
   id: string
+  // Celle du premier thème : la règle, l'aide et la gravité ne changent pas d'un
+  // thème à l'autre, les couleurs mesurées si.
   violation: Violation
   themes: Theme[]
+  // Les couleurs mesurées dans chaque thème, quand axe en a mesuré.
+  colors: Partial<Record<Theme, string[]>>
 }
 
 export function findingsOf(results: AuditResult[]): Finding[] {
@@ -172,8 +176,11 @@ export function findingsOf(results: AuditResult[]): Finding[] {
     for (const violation of result.violations) {
       const key = `${result.id}:${violation.rule}`
       const held = found.get(key)
-      if (held) held.themes.push(result.theme)
-      else found.set(key, { key, id: result.id, violation, themes: [result.theme] })
+      const colors = violation.colors ? { [result.theme]: violation.colors } : {}
+      if (held) {
+        held.themes.push(result.theme)
+        Object.assign(held.colors, colors)
+      } else found.set(key, { key, id: result.id, violation, themes: [result.theme], colors })
     }
   }
   const rank = { critical: 0, serious: 1, moderate: 2, minor: 3 }

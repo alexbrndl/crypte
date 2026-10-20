@@ -111,9 +111,9 @@ describe('an analysis', () => {
     expect(envoyes()[0]?.violations[0]?.colors).toEqual(['#777777', '#ffffff', '#eeeeee'])
   })
 
-  // Seul ce que le panneau montre traverse : le HTML de chaque nœud que axe
-  // joint à son résultat n'en fait pas partie.
-  it('sends nothing the panel does not show', async () => {
+  // Ce que le panneau montre et les couleurs que la santé lit traversent, jamais
+  // le HTML de chaque nœud que axe joint à son résultat.
+  it('sends no HTML of the nodes axe looked at', async () => {
     const { ctx, envoyes } = contexte('<img src="photo.png">')
 
     await hooks.afterMount?.(ctx)

@@ -1,6 +1,6 @@
 import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { describe, expect, test } from 'vitest'
-import type { Finding } from '../src/health/audit'
+import { findingsOf, type Finding } from '../src/health/audit'
 import { colorOf, suspectsOf } from '../src/health/suspects'
 import { categoriesOf } from '../src/tokens/categories'
 
@@ -59,9 +59,9 @@ const violation = (colors: string[] | undefined, themes: Finding['themes']): Fin
     help: 'contraste',
     helpUrl: 'u',
     targets: ['.a'],
-    ...(colors ? { colors } : {}),
   },
   themes,
+  colors: colors ? Object.fromEntries(themes.map((theme) => [theme, colors])) : {},
 })
 
 describe('the tokens probably behind a contrast violation', () => {
@@ -93,6 +93,39 @@ describe('the tokens probably behind a contrast violation', () => {
         (one) => one.token.name,
       ),
     ).toEqual(['gris-100'])
+  })
+
+  // Une violation des deux thèmes, mesurée autrement dans chacun : chaque thème
+  // se compare à ses propres couleurs. Le texte doux vaut #eeeeee en dark, ce
+  // que seul le light a mesuré : il n'est pas en cause.
+  test('compare each theme with the colours measured in it', () => {
+    const contraste = (theme: 'light' | 'dark', colors: string[]) => ({
+      id: 'a--x',
+      theme,
+      passes: 0,
+      violations: [
+        {
+          rule: 'color-contrast',
+          impact: 'serious' as const,
+          help: 'c',
+          helpUrl: 'u',
+          targets: ['.a'],
+          colors,
+        },
+      ],
+    })
+    const [finding] = findingsOf([
+      contraste('light', ['#777777', '#eeeeee']),
+      contraste('dark', ['#123456']),
+    ])
+    expect(finding!.themes).toEqual(['light', 'dark'])
+    expect(
+      suspectsOf(finding!, categoriesOf(families), stories).map((one) => one.token.name),
+    ).toEqual(['texte-doux', 'gris-500', 'gris-100'])
+    const [sombre] = findingsOf([contraste('light', ['#123456']), contraste('dark', ['#777777'])])
+    expect(
+      suspectsOf(sombre!, categoriesOf(families), stories).map((one) => one.token.name),
+    ).toEqual(['gris-500'])
   })
 
   test('name nobody without measured colours', () => {
