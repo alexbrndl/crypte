@@ -2,7 +2,7 @@
 import type { StoryEntry } from '@crypte/core/protocol'
 import { Button } from '@crypte/ui'
 import { computed } from 'vue'
-import { cleanOf, findingsOf, type AuditResult } from './audit'
+import { cleanOf, findingsOf, unjudgedOf, type AuditResult } from './audit'
 
 // La page accessibilité de la vue santé : l'audit de chaque story, en light et en
 // dark, lancé à la demande, puis ses violations, une ligne par story et par règle.
@@ -29,9 +29,7 @@ const counts = computed(() => ({
 
 // Les stories que l'audit n'a pas pu juger, une fois chacune : la jauge les compte
 // comme non propres, et rien d'autre ne les nommerait.
-const unaudited = computed(() => [
-  ...new Set((props.audit ?? []).filter((one) => 'error' in one).map((one) => one.id)),
-])
+const unaudited = computed(() => [...unjudgedOf(props.audit ?? [])])
 
 const nameOf = (id: string) => {
   const story = props.stories.find((one) => one.id === id)

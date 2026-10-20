@@ -3,6 +3,7 @@ import {
   audit,
   cleanOf,
   drawnOf,
+  unjudgedOf,
   failuresOf,
   findingsOf,
   type AuditResult,
@@ -51,8 +52,8 @@ describe('the audit', () => {
     expect(await fini).toEqual([
       { id: 'a--b', theme: 'light', broken: 'boum' },
       { id: 'a--b', theme: 'dark', broken: 'boum' },
-      { id: 'c--d', theme: 'light', error: 'no answer from the preview' },
-      { id: 'c--d', theme: 'dark', error: 'no answer from the preview' },
+      { id: 'c--d', theme: 'light', silent: true },
+      { id: 'c--d', theme: 'dark', silent: true },
     ])
   })
 
@@ -92,14 +93,9 @@ describe('the audit', () => {
     expect(
       (await fini).map(
         (one) =>
-          `${one.id} ${one.theme} ${'violations' in one ? one.violations.length : 'error' in one ? one.error : '?'}`,
+          `${one.id} ${one.theme} ${'violations' in one ? one.violations.length : 'silent' in one ? 'silent' : '?'}`,
       ),
-    ).toEqual([
-      'a--b light no answer from the preview',
-      'a--b dark 1',
-      'c--d light 0',
-      'c--d dark 1',
-    ])
+    ).toEqual(['a--b light silent', 'a--b dark 1', 'c--d light 0', 'c--d dark 1'])
   })
 
   test('gives up when the reloaded preview never says ready', async () => {
@@ -217,21 +213,25 @@ describe('what the audit says', () => {
       violations: [{ rule: 'x', impact: 'minor', help: 'X', helpUrl: '', targets: [] }],
     },
     { id: 'c--d', theme: 'dark', passes: 1, violations: [] },
-    { id: 'e--f', theme: 'light', error: 'no answer from the preview' },
-    { id: 'e--f', theme: 'dark', error: 'no answer from the preview' },
+    { id: 'e--f', theme: 'light', silent: true },
+    { id: 'e--f', theme: 'dark', silent: true },
     { id: 'g--h', theme: 'light', broken: 'boum' },
     { id: 'g--h', theme: 'dark', drawn: true },
+    { id: 'i--j', theme: 'light', error: 'axe threw' },
+    { id: 'i--j', theme: 'dark', passes: 1, violations: [] },
   ]
 
-  // Une erreur n'est pas une story propre : rien ne dit qu'elle est accessible.
-  test('counts as clean only a story without violation or error in both themes', () => {
-    expect(cleanOf(résultats)).toEqual({ clean: 1, audited: 3 })
+  // Seul ce qu'axe a jugé compte : une story muette, qui lève, ou dont l'analyse a
+  // échoué n'entre pas dans la jauge a11y, et la page la nomme à part.
+  test('counts as clean only what axe judged without violation', () => {
+    expect(cleanOf(résultats)).toEqual({ clean: 2, audited: 3 })
+    expect(unjudgedOf(résultats)).toEqual(['e--f', 'i--j'])
   })
 
-  // Une story qui lève dans un thème au moins ne rend pas ; une story sans réponse
-  // non plus, rien ne dit qu'elle a rendu.
-  test('counts as drawn only a story that rendered in both themes', () => {
-    expect(drawnOf(résultats)).toEqual({ drawn: 2, audited: 4 })
+  // Une story qui lève dans un thème au moins ne rend pas, et c'est ce que liste sa
+  // page ; une story muette n'entre pas dans le compte ; une analyse échouée a rendu.
+  test('counts as drawn every story but those the failures page lists', () => {
+    expect(drawnOf(résultats)).toEqual({ drawn: 3, audited: 4 })
     expect(failuresOf(résultats).map((one) => [one.id, one.themes])).toEqual([['g--h', ['light']]])
   })
 

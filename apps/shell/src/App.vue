@@ -381,14 +381,16 @@ const todo = computed(() => todoOf(listedHealth.value ?? null, auditResults.valu
 
 const firstRender = ref<number | null>(null)
 
-// Lancé une fois, en arrière-plan, quand la première story a rendu et que la
-// liste des plugins est lue : sans elle, l'audit ne saurait pas s'il doit
-// attendre le plugin a11y. Arrêté si le shell est démonté.
+// Lancé une fois, en arrière-plan, quand la preview a répondu à son premier rendu,
+// qu'il ait abouti ou levé, et que la liste des plugins est lue ou a échoué :
+// sans elle, l'audit ne saurait pas s'il doit attendre le plugin a11y. Arrêté si
+// le shell est démonté.
 const pluginsRead = ref(false)
+const previewAnswered = ref(false)
 let auditStarted = false
 let auditStop: AbortController | null = null
 watch(
-  () => firstRender.value !== null && pluginsRead.value && entries.value.length > 0,
+  () => previewAnswered.value && pluginsRead.value && entries.value.length > 0,
   (ready) => {
     if (!ready || auditStarted) return
     auditStarted = true
@@ -456,7 +458,7 @@ async function readProject() {
 function reread() {
   void readChanges()
   void readProject()
-  if (healthAt.value !== null) void readHealth()
+  void readHealth()
 }
 
 // Le catalogue lu au moins une fois, pour ne pas dire « aucune story » avant.
@@ -1055,18 +1057,21 @@ onMounted(() => {
           { once: true },
         )
         status.value = `preview ready, protocol v${message.protocolVersion}`
-        if (healthAt.value !== null) void readHealth()
+        // Toujours : le badge de Santé compte les composants sans story.
+        void readHealth()
         applyZoom()
         void refresh()
       }
       if (message.type === 'rendered') {
         failure.value = null
         firstRender.value ??= performance.now()
+        previewAnswered.value = true
         rendered.value = { id: message.id, values: message.values }
         status.value = `${message.id} rendered`
       }
       // Rattachée à la story affichée : cliquer B pendant que A rend laissait
       // l'erreur de A couvrir B, et masquer la note partielle de B.
+      if (message.type === 'error') previewAnswered.value = true
       if (message.type === 'error' && message.id === current.value) {
         failure.value = { id: message.id, message: message.message, stack: message.stack }
         status.value = 'render error'
@@ -1342,9 +1347,11 @@ onMounted(() => {
             v-if="healthAt?.page === 'failures' && listedHealth"
             :failures="failures"
             :running="auditing"
+            :failed="auditFailed"
             :stories="entries"
             :selected="healthAt.item ?? null"
             :href-of="(key) => placeSearch({ mode: 'health', page: 'failures', item: key })"
+            @run="runAudit"
             @select="(key, event) => follow(event, () => openHealth('failures', key))"
           />
           <HealthAccessibility
@@ -1540,7 +1547,7 @@ onMounted(() => {
             @overrides="edit"
             @send="sendToPreview"
             @weights="(measured) => ((weights = measured), (pluginsRead = true))"
-            @troubles="(troubles) => (panelTroubles = troubles)"
+            @troubles="(troubles) => ((panelTroubles = troubles), (pluginsRead = true))"
           />
         </aside>
         <aside

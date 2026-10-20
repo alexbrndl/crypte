@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { StoryEntry } from '@crypte/core/protocol'
+import { Button } from '@crypte/ui'
 import type { Failure } from './audit'
 
 // La page des rendus en échec : les stories qui lèvent quand on les rend, une
@@ -7,11 +8,13 @@ import type { Failure } from './audit'
 const props = defineProps<{
   failures: Failure[] | null
   running: { done: number; total: number } | null
+  // Pourquoi le dernier audit n'a pas tourné.
+  failed: string | null
   stories: StoryEntry[]
   selected: string | null
   hrefOf: (key: string) => string
 }>()
-const emit = defineEmits<{ select: [key: string, event: MouseEvent] }>()
+const emit = defineEmits<{ run: []; select: [key: string, event: MouseEvent] }>()
 
 const nameOf = (id: string) => {
   const story = props.stories.find((one) => one.id === id)
@@ -26,7 +29,13 @@ const themesOf = (themes: string[]) => (themes.length === 2 ? 'light and dark' :
       <h2>render errors</h2>
       <span v-if="failures" class="badge">{{ failures.length }}</span>
       <span class="note">every story, light and dark</span>
+      <Button v-if="!running" class="run" @click="emit('run')">{{
+        failures ? 'Run again' : 'Run the audit'
+      }}</Button>
     </header>
+    <p v-if="failed && !running" class="empty failed" role="alert">
+      The audit could not run: {{ failed }}.
+    </p>
     <p v-if="running" class="empty" role="status">
       Rendering every story, {{ running.done }} of {{ running.total }} renders.
     </p>

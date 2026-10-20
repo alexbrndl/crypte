@@ -18,13 +18,15 @@ export interface Violation {
   targets: string[]
 }
 
-// Une story analysée par axe, rendue sans analyse faute de plugin, en échec de
-// rendu, ou restée sans réponse du plugin.
+// Une story analysée par axe ; rendue sans analyse, faute de plugin ou parce que
+// son analyse a échoué (`error`) ; en échec de rendu ; ou restée sans réponse,
+// dont on ne sait rien.
 export type AuditResult =
   | { id: string; theme: Theme; passes: number; violations: Violation[] }
   | { id: string; theme: Theme; drawn: true }
-  | { id: string; theme: Theme; broken: string; stack?: string }
   | { id: string; theme: Theme; error: string }
+  | { id: string; theme: Theme; broken: string; stack?: string }
+  | { id: string; theme: Theme; silent: true }
 
 export const THEMES: Theme[] = ['light', 'dark']
 
@@ -116,7 +118,7 @@ export async function audit(
         const message = await said
         if (signal?.aborted) return results
         if (message === null) {
-          results.push({ id, theme, error: 'no answer from the preview' })
+          results.push({ id, theme, silent: true })
           // Une réponse qui arriverait après l'attente passerait pour celle du
           // rendu suivant, d'un autre thème ou d'une autre story : la preview
           // rechargée jette tout ce qu'elle avait en cours.
@@ -204,20 +206,34 @@ export function failuresOf(results: AuditResult[]): Failure[] {
   return [...found.values()].sort((one, other) => one.key.localeCompare(other.key))
 }
 
-// Les stories qui rendent dans les deux thèmes, sur les stories auditées.
+// Les stories qui rendent dans les deux thèmes, sur celles dont on sait quelque
+// chose : une story muette dans les deux n'entre pas dans le compte. Ce qui ne
+// rend pas est exactement ce que liste la page des rendus en échec.
 export function drawnOf(results: AuditResult[]): { drawn: number; audited: number } {
-  return countOf(results, (result) => !('broken' in result) && !('error' in result))
+  const known = results.filter((result) => !('silent' in result))
+  const { drawn, audited } = countOf(known, (result) => !('broken' in result))
+  return { drawn, audited }
 }
 
-// Les stories analysées par axe sans violation dans aucun des deux thèmes, sur
-// celles que le plugin a pu juger : une story qui ne rend pas a sa propre jauge.
+// Les stories qu'axe a jugées sans violation, sur celles qu'il a jugées : une
+// story qui ne rend pas, muette, ou dont l'analyse a échoué n'est pas jugée.
 export function cleanOf(results: AuditResult[]): { clean: number; audited: number } {
-  const judged = results.filter((result) => !('broken' in result) && !('drawn' in result))
+  const judged = results.filter((result) => 'violations' in result)
   const { drawn, audited } = countOf(
     judged,
     (result) => 'violations' in result && result.violations.length === 0,
   )
   return { clean: drawn, audited }
+}
+
+// Les stories que l'audit n'a pas pu juger sans qu'elles lèvent : muettes, ou
+// dont l'analyse a échoué. Nommées sur la page accessibilité.
+export function unjudgedOf(results: AuditResult[]): string[] {
+  return [
+    ...new Set(
+      results.filter((result) => 'silent' in result || 'error' in result).map((one) => one.id),
+    ),
+  ]
 }
 
 function countOf(results: AuditResult[], good: (result: AuditResult) => boolean) {

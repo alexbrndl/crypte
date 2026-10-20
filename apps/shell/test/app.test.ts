@@ -3497,6 +3497,79 @@ describe('the health view', () => {
     écran.wrapper.unmount()
   })
 
+  // La première story lève : l'audit part quand même, la liste des plugins ayant
+  // échoué ; et la page des rendus le relance, ou dit pourquoi il n'a pas tourné.
+  test('starts after a first render that throws, and runs again from its page', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health=failures')
+    const écran = await monte([badge, alerte, bouton])
+    const vue = () => écran.wrapper.find('[aria-label="Health, render errors"]')
+    expect(vue().find('.empty').text()).toBe('The audit has not run yet.')
+
+    écran.wrapper.findComponent(Panels).vm.$emit('troubles', 1)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      const principale = écran.wrapper.find('iframe').element as HTMLIFrameElement
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { type: 'error', id: 'badge--defaut', message: 'boum' },
+          origin: window.location.origin,
+          source: principale.contentWindow,
+        }),
+      )
+      await vi.advanceTimersByTimeAsync(10)
+      expect(écran.wrapper.find('.audit-frame').exists()).toBe(true)
+      expect(vue().find('[role="status"]').text()).toBe('Rendering every story, 0 of 6 renders.')
+      await vi.advanceTimersByTimeAsync(9000)
+    } finally {
+      vi.useRealTimers()
+    }
+    await vide(écran.wrapper)
+    expect(vue().find('.failed').text()).toBe(
+      'The audit could not run: the preview never said it was ready.',
+    )
+
+    // Relancé d'ici, sans plugin a11y : chaque story rend.
+    await vue().find('.run').trigger('click')
+    await vide(écran.wrapper)
+    const cadre = écran.wrapper.find('.audit-frame').element as HTMLIFrameElement
+    const dit = (data: unknown) =>
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data,
+          origin: window.location.origin,
+          source: cadre.contentWindow,
+        }),
+      )
+    cadre.contentWindow!.addEventListener('message', (event) => {
+      const { id } = event.data as { id: string }
+      setTimeout(() => dit({ type: 'rendered', id, durationMs: 1, values: {} }))
+    })
+    dit({ type: 'ready', protocolVersion: 1 })
+    await expect.poll(() => écran.wrapper.find('.audit-frame').exists()).toBe(false)
+    await vide(écran.wrapper)
+    expect(vue().find('.empty').text()).toBe('Every story renders.')
+    expect(vue().find('.failed').exists()).toBe(false)
+    expect(vue().find('.run').text()).toBe('Run again')
+    écran.wrapper.unmount()
+  })
+
+  // Hors de la vue aussi : le badge suit les composants sans story.
+  test('reads the health again on focus for the badge, outside its view', async () => {
+    santé = () => ({ components: composants })
+    const écran = await monte([badge, alerte, bouton])
+    const badgeSanté = () => écran.vue('health').find('.count')
+    await expect.poll(() => badgeSanté().exists()).toBe(true)
+    expect(badgeSanté().text()).toBe('2')
+
+    santé = () => ({ components: composants.filter((one) => one.name !== 'Avatar') })
+    window.dispatchEvent(new Event('focus'))
+    await vide(écran.wrapper)
+    await vide(écran.wrapper)
+    expect(badgeSanté().text()).toBe('1')
+    écran.wrapper.unmount()
+  })
+
   // Les tokens que lisent ses stories, menant à leur catégorie quand elle existe.
   test('links the tokens its stories read', async () => {
     santé = () => ({ components: composants })
