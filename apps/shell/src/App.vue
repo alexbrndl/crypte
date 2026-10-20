@@ -1293,15 +1293,26 @@ onMounted(() => {
           }}</span>
         </nav>
         <div class="actions">
-          <Button
-            variant="outline"
-            class="prompt"
-            :disabled="!healthPrompt"
-            @click="copyPrompt(healthPrompt, 'prompt')"
+          <Tooltip
+            v-if="healthPrompt"
+            content="Paste it to your coding agent: it fixes the render errors, violations and missing stories listed here."
           >
-            <Icon :icon="AiMagicIcon" />
-            {{ promptCopied === 'prompt' ? 'Prompt copied' : 'Copy the prompt for your agent' }}
-          </Button>
+            <Button variant="outline" class="prompt" @click="copyPrompt(healthPrompt, 'prompt')">
+              <Icon :icon="AiMagicIcon" />
+              {{ promptCopied === 'prompt' ? 'Fix prompt copied' : 'Copy fix prompt' }}
+            </Button>
+          </Tooltip>
+          <!-- Désactivé, l'infobulle passe par une enveloppe : un bouton désactivé ne
+               reçoit pas le pointeur, et « Nothing to fix » ne se lirait jamais. Actif,
+               elle reste sur le bouton, qui seul reçoit le focus clavier. -->
+          <Tooltip v-else content="Nothing to fix">
+            <span class="prompt-hold">
+              <Button variant="outline" class="prompt" disabled>
+                <Icon :icon="AiMagicIcon" />
+                Copy fix prompt
+              </Button>
+            </span>
+          </Tooltip>
           <Button variant="secondary" class="copy" @click="copyLink">
             <Icon :icon="Copy01Icon" />
             {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
@@ -1896,6 +1907,14 @@ main.full {
      its children would cover it. */
   border-left: var(--stroke-hairline) solid var(--border-base);
   background: var(--background-raised);
+}
+
+.prompt-hold {
+  display: inline-flex;
+}
+
+.prompt:disabled {
+  pointer-events: none;
 }
 
 .config,
