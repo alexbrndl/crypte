@@ -87,7 +87,7 @@ interface Ecran {
   vu: () => Promise<string>
   // Le nombre de fois que le cadre a navigué, pour distinguer une mise à jour à
   // chaud d'un rechargement.
-  navigations: () => number
+  navigations: () => Promise<number>
   // Ce que la page a écrit en erreur dans la console, depuis son ouverture.
   plaintes: () => string[]
 }
@@ -116,10 +116,20 @@ const test = base.extend<{ ecran: Ecran }>({
 
     const page = await browser.newPage()
     const plaintes: string[] = []
-    let navigations = 0
+    // La preview visible seule, par le titre de son cadre : la preview cachée de
+    // l'audit, lancé au démarrage, charge la même page, et sa navigation tombait
+    // parfois après la photo du compteur. Mesuré : « expected 2 to be 1 » sur un
+    // runner, et toujours une navigation « accessibility audit » vers 240 ms.
+    const navigations: Promise<string | null>[] = []
 
     page.on('framenavigated', (frame: Frame) => {
-      if (frame.url().includes('/preview.html')) navigations += 1
+      if (frame.url().includes('/preview.html'))
+        navigations.push(
+          frame
+            .frameElement()
+            .then((element) => element.getAttribute('title'))
+            .catch(() => null),
+        )
     })
     page.on('console', (message) => {
       if (message.type() === 'error') plaintes.push(`console: ${message.text()}`)
@@ -134,7 +144,8 @@ const test = base.extend<{ ecran: Ecran }>({
         root,
         server: started.server,
         held: started.held,
-        navigations: () => navigations,
+        navigations: async () =>
+          (await Promise.all(navigations)).filter((title) => title === 'preview').length,
         plaintes: () => plaintes,
         vu: async () => {
           const rendu = await page
@@ -570,7 +581,7 @@ describe('the screen', () => {
     const file = join(ecran.root, 'src', 'components', 'Badge.tsx')
     writeFileSync(file, readFileSync(file, 'utf8').replace('{label}', '{`${label} !`}'))
 
-    const avant = ecran.navigations()
+    const avant = await ecran.navigations()
 
     await expect.poll(ecran.vu).toBe('Vérification en cours !')
 
@@ -582,7 +593,7 @@ describe('the screen', () => {
       )
       .toBe('true')
 
-    expect(ecran.navigations()).toBe(avant)
+    expect(await ecran.navigations()).toBe(avant)
   })
 
   // Le fichier de story n'exporte aucun composant, donc Fast Refresh ne s'en
@@ -592,14 +603,14 @@ describe('the screen', () => {
   test('refreshes a story’s props without reloading the frame', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
 
-    const avant = ecran.navigations()
+    const avant = await ecran.navigations()
     const file = join(ecran.root, 'stories', 'Badge.tsx')
 
     writeFileSync(file, readFileSync(file, 'utf8').replace("'Nouveau'", "'Renouvelé'"))
 
     await expect.poll(ecran.vu).toContain('Renouvelé')
 
-    expect(ecran.navigations()).toBe(avant)
+    expect(await ecran.navigations()).toBe(avant)
     // Une sauvegarde réexécute l'entrée. Sans le `dispose` de l'entrée, l'ancienne
     // racine React restait accrochée au conteneur, et la console le disait :
     // « createRoot() on a container that has already been passed ». DCJ-290.
@@ -1147,7 +1158,7 @@ describe('the a11y panel', () => {
     await ecran.page.getByRole('treeitem', { name: 'Rôle inconnu', exact: true }).click()
     const corps = panneau(ecran.page).locator('.body')
     await expect.poll(() => corps.locator('section').count()).toBe(1)
-    const navigations = ecran.navigations()
+    const navigations = await ecran.navigations()
 
     await cadre(ecran.page)
       .locator('#root [role="etiquette"]')
@@ -1155,7 +1166,7 @@ describe('the a11y panel', () => {
     await corps.getByRole('button', { name: 'Run the analysis again', exact: true }).click()
 
     await expect.poll(() => raison(ecran.page)).toMatch(/no violation$/)
-    expect(ecran.navigations()).toBe(navigations)
+    expect(await ecran.navigations()).toBe(navigations)
   })
 
   // Une story qui lève ne sera jamais analysée : le panneau attendait sans fin.
@@ -1173,7 +1184,7 @@ describe('the a11y panel', () => {
   test('runs the analysis again from a folded panel', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
     await expect.poll(() => raison(ecran.page)).toMatch(/no violation$/)
-    const navigations = ecran.navigations()
+    const navigations = await ecran.navigations()
 
     await panneau(ecran.page).locator('.head button').click()
     const corps = panneau(ecran.page).locator('.body')
@@ -1188,7 +1199,7 @@ describe('the a11y panel', () => {
       .poll(() => corps.locator('section code').allTextContents())
       .toEqual(['aria-roles', 'span'])
     expect(await raison(ecran.page)).toBeNull()
-    expect(ecran.navigations()).toBe(navigations)
+    expect(await ecran.navigations()).toBe(navigations)
   })
 })
 

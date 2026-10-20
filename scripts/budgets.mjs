@@ -418,8 +418,11 @@ async function chronométrer(arbres) {
         dire(`rendu en ${Math.round(pris.at(-1))} ms`)
       } finally {
         clearInterval(battement)
-        enfant.kill('SIGTERM')
-        await page.close()
+        try {
+          await page.close()
+        } finally {
+          await arrêter(enfant)
+        }
       }
     }
   } finally {
@@ -427,6 +430,19 @@ async function chronométrer(arbres) {
   }
 
   return pris
+}
+
+// Attendu jusqu'à sa sortie : le serveur écrit encore son cache d'optimisation
+// après le rendu, et le lancement suivant du même arbre le supprimait pendant ce
+// temps. Mesuré sur un runner : ENOTEMPTY au 7e lancement, juste après le 6e sur
+// le même arbre. Borné : un serveur qui ignore SIGTERM est tué au bout de 5 s.
+async function arrêter(enfant) {
+  if (enfant.exitCode !== null || enfant.signalCode !== null) return
+  const sorti = new Promise((ok) => enfant.once('exit', ok))
+  enfant.kill('SIGTERM')
+  const tué = setTimeout(() => enfant.kill('SIGKILL'), 5000)
+  await sorti
+  clearTimeout(tué)
 }
 
 export function médiane(valeurs) {
