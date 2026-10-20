@@ -1257,7 +1257,7 @@ describe('the tokens page', () => {
   }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
     await ecran.page.locator('.activity-bar .item', { hasText: 'tokens' }).click()
-    const categories = ecran.page.locator('.sidebar li .name')
+    const categories = ecran.page.locator('.sidebar li .label')
     await expect
       .poll(() => categories.allTextContents())
       .toEqual(['color', 'space', 'radius', 'size'])
@@ -1288,7 +1288,9 @@ describe('the versions view', () => {
     await ecran.page.locator('.activity-bar .item', { hasText: 'versions' }).click()
 
     await expect
-      .poll(async () => (await ecran.page.locator('.versions-view .note').textContent())?.trim())
+      .poll(async () =>
+        (await ecran.page.locator('.versions-view .empty-note').textContent())?.trim(),
+      )
       .toBe('The changes cannot be read: .crypte/fingerprint.json has never been committed.')
     expect(new URL(ecran.page.url()).search).toBe('?changes')
     expect(await ecran.page.locator('.activity-bar .count').count()).toBe(0)

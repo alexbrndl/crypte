@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { plural } from './plural'
 import type {
   Manifest,
   Overrides,
@@ -319,7 +320,7 @@ const line = computed(() => {
   if (unread.value !== null) return unread.value
   if (changesOpen.value)
     return changes.value !== null && 'from' in changes.value
-      ? `${counter.value} ${counter.value === 1 ? 'difference' : 'differences'} since ${sinceLabel(changes.value.from.ref)}`
+      ? `${plural(counter.value ?? 0, 'difference')} since ${sinceLabel(changes.value.from.ref)}`
       : counted(entries.value.length)
   if (healthAt.value !== null) {
     if (health.value === null) return 'reading the health of the components'
@@ -331,12 +332,12 @@ const line = computed(() => {
     if (healthAt.value.page === 'accessibility' && auditResults.value && auditTook.value !== null)
       return `audit of ${auditResults.value.length / 2} stories in ${(auditTook.value / 1000).toFixed(1)} s`
     const covered = listed.filter((one) => one.stories.length > 0).length
-    return `${listed.length} ${listed.length === 1 ? 'component' : 'components'}, ${covered} with a story`
+    return `${plural(listed.length, 'component')}, ${covered} with a story`
   }
   if (noTokens.value) return 'no tokens found'
   if (tokensAt.value !== null)
     return shownCategory.value
-      ? `${shownCategory.value.count} ${shownCategory.value.count === 1 ? 'token' : 'tokens'} ${shownCategory.value.name}, ${theme.value} theme`
+      ? `${plural(shownCategory.value.count, 'token')} ${shownCategory.value.name}, ${theme.value} theme`
       : 'the tokens on display are gone'
   if (component.value !== null)
     return componentStories.value.length > 0
@@ -358,7 +359,7 @@ const trouble = computed(() => unread.value !== null || (storyMode.value && fail
 // panneau peut émettre le sien.
 const overrides = shallowRef<Overrides>({})
 
-const counted = (n: number) => (n === 1 ? '1 story' : `${n} stories`)
+const counted = (n: number) => plural(n, 'story', 'stories')
 
 // Les chiffres de la barre d'état, mesurés et jamais estimés. Le premier rendu
 // court de l'ouverture de la page à la première story rendue : au premier
@@ -1170,7 +1171,7 @@ onMounted(() => {
           :current="changesOpen ? null : current"
           :component="component"
           label="Stories"
-          none="no story"
+          none="No story."
           @show="(id) => show(id, 'push')"
           @open="(id) => open(id)"
         />
@@ -1631,7 +1632,7 @@ onMounted(() => {
         <li v-if="weights.length > 0">
           <Tooltip :content="weights.map((one) => `${one.plugin} ${kB(one.bytes)}`).join('\n')">
             <span tabindex="0">
-              {{ weights.length }} {{ weights.length === 1 ? 'plugin' : 'plugins' }}
+              {{ plural(weights.length, 'plugin') }}
             </span>
           </Tooltip>
         </li>
@@ -1848,8 +1849,7 @@ main.full {
   margin: var(--space-3);
 }
 
-.stage > .tokens-view,
-.stage > .health-view {
+.stage > .view-canvas {
   margin: 0;
 }
 

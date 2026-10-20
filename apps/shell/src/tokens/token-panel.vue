@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { plural } from '../plural'
 import type { StoryEntry } from '@crypte/core/protocol'
 import { ComponentIcon, Hexagon01Icon, LinkSquare02Icon } from '@hugeicons/core-free-icons'
 import { computed, ref } from 'vue'
 import Icon from '../ui/icon.vue'
 import PanelSection from '../panels/panel-section.vue'
+import ColorSwatch from '../ui/color-swatch.vue'
+import EmptyNote from '../ui/empty-note.vue'
 import { keep, kept } from '../storage'
 import { componentIdOf } from '../navigation/tree'
 import { shown, type Category, type Token } from './categories'
@@ -98,18 +101,14 @@ const users = computed(() => {
     :aria-label="token ? token.name : 'Token'"
     @toggle="toggle"
   >
-    <div class="content">
-      <p v-if="token === null" class="caption">Select a token to see its values and its uses.</p>
+    <div class="rows">
+      <EmptyNote v-if="token === null">Select a token to see its values and its uses.</EmptyNote>
       <template v-else>
         <p class="caption">value</p>
         <p v-for="one of themes" :key="one.theme" class="row value">
           <code class="key">{{ one.theme }}</code
           >{{ ' ' }}
-          <span
-            v-if="token.value.type === 'color'"
-            class="swatch"
-            :style="{ backgroundColor: one.value }"
-          />
+          <ColorSwatch v-if="token.value.type === 'color'" :color="one.value" />
           <code>{{
             one.end ? `${figmaOf(one.end)} · ${shown(one.value)}` : shown(one.value)
           }}</code>
@@ -135,10 +134,8 @@ const users = computed(() => {
           </a>
         </template>
 
-        <p class="caption">
-          used by · {{ users.length }} {{ users.length === 1 ? 'component' : 'components' }}
-        </p>
-        <p v-if="users.length === 0" class="row empty">No component reads it.</p>
+        <p class="caption">used by · {{ plural(users.length, 'component') }}</p>
+        <EmptyNote v-if="users.length === 0">No component reads it.</EmptyNote>
         <a
           v-for="one of users"
           :key="one.key"
@@ -158,37 +155,6 @@ const users = computed(() => {
 </template>
 
 <style scoped>
-.swatch {
-  width: 12px;
-  height: 12px;
-  flex: none;
-  border-radius: var(--radius-xs);
-  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
-}
-
-/* Le corps du panneau Figma : les lignes portent leur propre padding de 12. */
-.content {
-  padding: var(--space-1) 0 var(--space-2-5);
-}
-
-.row {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  margin: 0;
-  padding: var(--space-1) var(--space-3);
-  font-size: var(--text-sm);
-  line-height: var(--leading-sm);
-}
-
-.caption {
-  margin: 0;
-  padding: var(--space-2-5) var(--space-3) var(--space-1);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
-}
-
 .value code {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
@@ -198,44 +164,6 @@ const users = computed(() => {
 .value .key {
   width: 48px;
   flex: none;
-  color: var(--text-muted);
-}
-
-.link {
-  min-height: 28px;
-  box-sizing: border-box;
-  color: var(--text-primary);
-  text-decoration: none;
-}
-
-.link:hover {
-  background: var(--background-hover);
-}
-
-.link:focus-visible {
-  outline: var(--stroke-focus) solid var(--accent-focus);
-  outline-offset: calc(-1 * var(--stroke-focus));
-}
-
-.label {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.meta {
-  overflow: hidden;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.empty {
   color: var(--text-muted);
 }
 </style>

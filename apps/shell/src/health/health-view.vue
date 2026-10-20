@@ -1,11 +1,26 @@
 <script setup lang="ts">
+import { plural } from '../plural'
 import type { StoryEntry } from '@crypte/core/protocol'
 import { Alert02Icon } from '@hugeicons/core-free-icons'
+import { VisuallyHidden } from 'reka-ui'
 import { computed, ref } from 'vue'
+import CardTable from '../ui/card-table.vue'
+import Badge from '../ui/badge.vue'
+import EmptyNote from '../ui/empty-note.vue'
 import Icon from '../ui/icon.vue'
+import SectionHeader from '../ui/section-header.vue'
+import ViewCanvas from '../ui/view-canvas.vue'
 import { ago } from '../navigation/recent'
 import type { Failure, Finding } from './audit'
-import { dayOf, keyOf, PAGES, rowsOf, type HealthComponent, type HealthPage } from './health'
+import {
+  dayOf,
+  keyOf,
+  PAGES,
+  rowsOf,
+  storyName,
+  type HealthComponent,
+  type HealthPage,
+} from './health'
 
 // Le canvas de la vue santé : le tableau de la page choisie, une ligne par
 // composant. Choisir une ligne remplit le panneau de droite.
@@ -35,13 +50,11 @@ const a11yOf = (one: HealthComponent) => {
   return props.findings.filter((found) => one.stories.includes(found.id)).length
 }
 
+const nameOf = (id: string) => storyName(props.stories, id)
+
 // Ce que compte le badge de Santé, une ligne chacun avec où le faire : une story
 // qui ne rend pas peut appartenir à un composant hors du dossier, absent du
 // tableau, et ne se lirait nulle part ailleurs ici.
-const nameOf = (id: string) => {
-  const story = props.stories.find((one) => one.id === id)
-  return story ? `${story.path.at(-1)} / ${story.name}` : id
-}
 const todo = computed(() =>
   props.page !== 'overview'
     ? []
@@ -86,15 +99,11 @@ async function copy(one: HealthComponent) {
 </script>
 
 <template>
-  <section class="health-view" :aria-label="`Health, ${title}`">
-    <header class="section">
-      <h2>{{ title }}</h2>
-      <span class="badge">{{ rows.length }}</span>
-      <span class="note">{{ NOTES[page] }}</span>
-    </header>
+  <ViewCanvas class="health-view" :aria-label="`Health, ${title}`">
+    <SectionHeader :title="title" :count="rows.length" :note="NOTES[page]" />
     <section v-if="todo.length > 0" class="todo" aria-label="Everything to do">
       <h3>
-        to do <span class="badge">{{ todo.length }}</span>
+        to do <Badge tone="inverse">{{ todo.length }}</Badge>
       </h3>
       <ul>
         <li v-for="one of todo" :key="`${one.page}:${one.key}`">
@@ -108,8 +117,8 @@ async function copy(one: HealthComponent) {
         </li>
       </ul>
     </section>
-    <p v-if="rows.length === 0" class="empty">Nothing to list here.</p>
-    <table v-else>
+    <EmptyNote v-if="rows.length === 0">Nothing to list here.</EmptyNote>
+    <CardTable v-else>
       <thead>
         <tr v-if="page === 'overview'">
           <th scope="col" class="grow">component</th>
@@ -122,7 +131,7 @@ async function copy(one: HealthComponent) {
           <th scope="col" class="grow">component</th>
           <th scope="col">source file</th>
           <th scope="col">props</th>
-          <th scope="col"><span class="hidden">skeleton</span></th>
+          <th scope="col"><VisuallyHidden>skeleton</VisuallyHidden></th>
         </tr>
         <tr v-else>
           <th scope="col" class="grow">component</th>
@@ -156,7 +165,7 @@ async function copy(one: HealthComponent) {
                   ? 'not tested'
                   : a11yOf(one) === 0
                     ? '0'
-                    : `${a11yOf(one)} ${a11yOf(one) === 1 ? 'violation' : 'violations'}`
+                    : `${plural(a11yOf(one) ?? 0, 'violation')}`
               }}
             </td>
             <td class="code">{{ one.status ?? '' }}</td>
@@ -165,7 +174,7 @@ async function copy(one: HealthComponent) {
           <template v-else-if="page === 'unstoried'">
             <td class="code">{{ one.file }}</td>
             <td class="code">{{ one.props }}</td>
-            <td>
+            <td class="action">
               <button type="button" class="link" @click.stop="copy(one)">
                 {{ copied === keyOf(one) ? 'copied' : 'copy the skeleton' }}
               </button>
@@ -183,62 +192,17 @@ async function copy(one: HealthComponent) {
               {{
                 one.stories.length === 0
                   ? 'no story'
-                  : `${one.stories.length} ${one.stories.length === 1 ? 'story' : 'stories'}`
+                  : `${plural(one.stories.length, 'story', 'stories')}`
               }}
             </td>
           </template>
         </tr>
       </tbody>
-    </table>
-  </section>
+    </CardTable>
+  </ViewCanvas>
 </template>
 
 <style scoped>
-/* Le canvas de la maquette : padding 20/24, gap 16, sur le fond subtil. */
-.health-view {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-5) var(--space-6);
-  background: var(--background-subtle);
-}
-
-/* Le section-header : intitulé, le compte en badge, une note à droite. */
-.section {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  padding-bottom: var(--space-1);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
-}
-
-/* Muted, not the subtle of the Figma file, here and in the table head: subtle
-   falls under 4.5:1 on the subtle background. */
-.section h2 {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: inherit;
-  font-weight: var(--weight-medium);
-  letter-spacing: var(--tracking-wider);
-  text-transform: uppercase;
-}
-
-.badge {
-  padding: var(--space-0-5) var(--space-1);
-  border-radius: var(--radius-xs);
-  background: var(--background-raised);
-  color: var(--text-current);
-  font-family: var(--font-mono);
-}
-
-.note {
-  flex: 1;
-  color: var(--text-muted);
-  text-align: right;
-}
-
 /* La liste à faire : la même carte que la table, une action par ligne. */
 .todo {
   border: var(--stroke-hairline) solid var(--border-base);
@@ -287,87 +251,8 @@ async function copy(one: HealthComponent) {
   color: var(--error-text);
 }
 
-.empty {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-}
-
-/* La table de la maquette : un cadre arrondi, l'en-tête sur le fond subtil, des
-   lignes de 38 px séparées d'un filet clair. */
-table {
-  width: 100%;
-  border: var(--stroke-hairline) solid var(--border-base);
-  border-radius: var(--radius-md);
-  border-collapse: separate;
-  border-spacing: 0;
-  overflow: hidden;
-  background: var(--background-raised);
-}
-
-th,
-td {
-  padding: 9px var(--space-3);
-  text-align: left;
+.action {
   white-space: nowrap;
-}
-
-thead th {
-  padding-block: var(--space-1-5);
-  background: var(--background-subtle);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-normal);
-  line-height: var(--leading-xs);
-}
-
-tbody tr {
-  cursor: pointer;
-}
-
-tbody th,
-tbody td {
-  box-shadow: inset 0 var(--stroke-hairline) 0 var(--border-light);
-}
-
-tbody tr:hover {
-  background: var(--background-hover);
-}
-
-tbody tr[data-selected] {
-  background: var(--background-current);
-}
-
-.grow {
-  width: 100%;
-}
-
-tbody th {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-normal);
-  line-height: var(--leading-sm);
-}
-
-tbody th a {
-  color: var(--text-primary);
-  text-decoration: none;
-}
-
-tbody th a:focus-visible {
-  border-radius: var(--radius-xs);
-  outline: var(--stroke-focus) solid var(--accent-focus);
-}
-
-.code,
-.link {
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
-}
-
-[data-ink='error'] {
-  color: var(--error-text);
 }
 
 .link {
@@ -375,15 +260,9 @@ tbody th a:focus-visible {
   border: 0;
   background: none;
   color: var(--text-current);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
   cursor: pointer;
-}
-
-.hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 </style>

@@ -62,6 +62,12 @@ withDefaults(defineProps<{ variant?: 'outline' | 'secondary' | 'ghost' }>(), {
   color: var(--text-current);
 }
 
+.button[data-variant='outline'][aria-pressed='true']:hover:not(:disabled) {
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--accent-hover);
+  background: var(--background-current-hover);
+  color: var(--text-current-hover);
+}
+
 .button[data-variant='secondary'] {
   background: var(--background-inverse);
   color: var(--text-inverse);

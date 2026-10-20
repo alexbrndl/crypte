@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import EmptyNote from '../ui/empty-note.vue'
+import SidebarLink from '../ui/sidebar-link.vue'
+import { plural } from '../plural'
 import ColumnTitle from '../ui/column-title.vue'
 import {
   AccessibilityIcon,
@@ -52,14 +55,10 @@ const score = computed(() => scoreOf(gauges.value))
   <div class="health">
     <ColumnTitle
       title="Health"
-      :count="
-        components && !unread
-          ? `${components.length} ${components.length === 1 ? 'component' : 'components'}`
-          : undefined
-      "
+      :count="components && !unread ? `${plural(components.length, 'component')}` : undefined"
     />
-    <p v-if="unread" class="none">{{ unread }}</p>
-    <p v-else-if="components === null" class="none">no components folder</p>
+    <EmptyNote v-if="unread">{{ unread }}</EmptyNote>
+    <EmptyNote v-else-if="components === null">No components folder.</EmptyNote>
     <template v-else>
       <section class="score" aria-label="Score">
         <p class="top">
@@ -87,15 +86,15 @@ const score = computed(() => scoreOf(gauges.value))
       <ColumnTitle class="pages" title="Pages" :count="PAGES.length" />
       <ul aria-label="Pages">
         <li v-for="one of PAGES" :key="one.page">
-          <a
+          <SidebarLink
             :href="hrefOf(one.page)"
-            :aria-current="one.page === page ? 'page' : undefined"
-            @click="emit('pick', one.page, $event)"
+            :current="one.page === page"
+            :count="countOf(one.page)"
+            @click="(event) => emit('pick', one.page, event)"
           >
-            <Icon :icon="ICONS[one.page]" />
-            <span class="name">{{ one.label }}</span>
-            <span class="meta">{{ countOf(one.page) }}</span>
-          </a>
+            <template #icon><Icon :icon="ICONS[one.page]" /></template>
+            {{ one.label }}
+          </SidebarLink>
         </li>
       </ul>
     </template>
@@ -109,6 +108,7 @@ const score = computed(() => scoreOf(gauges.value))
   flex-direction: column;
   min-height: 0;
   overflow-y: auto;
+  --empty-note-padding: var(--space-0-5) var(--space-3);
 }
 
 .pages {
@@ -193,45 +193,5 @@ ul {
   margin: 0;
   padding: 0 0 var(--space-2);
   list-style: none;
-}
-
-/* La ligne `page` : padding 2/12, gap 6, l'icône puis le libellé et le compte. */
-a {
-  display: flex;
-  gap: var(--space-1-5);
-  align-items: center;
-  padding: var(--space-0-5) var(--space-3);
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  line-height: var(--leading-sm);
-  text-decoration: none;
-}
-
-a:hover {
-  background: var(--background-hover);
-  color: var(--text-primary);
-}
-
-a:focus-visible {
-  outline: var(--stroke-focus) solid var(--accent-focus);
-  outline-offset: calc(-1 * var(--stroke-focus));
-}
-
-a[aria-current='page'] {
-  box-shadow: inset var(--stroke-marker) 0 0 var(--accent-base);
-  background: var(--background-current);
-  color: var(--text-current);
-  font-weight: var(--weight-medium);
-}
-
-.name {
-  flex: 1;
-}
-
-.none {
-  margin: 0;
-  padding: var(--space-0-5) var(--space-3);
-  color: var(--text-muted);
-  font-size: var(--text-sm);
 }
 </style>

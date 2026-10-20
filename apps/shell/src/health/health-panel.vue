@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { plural } from '../plural'
 import type { StoryEntry } from '@crypte/core/protocol'
 import {
   Alert02Icon,
@@ -11,6 +12,7 @@ import {
 import { computed, ref, watch } from 'vue'
 import Icon from '../ui/icon.vue'
 import PanelSection from '../panels/panel-section.vue'
+import EmptyNote from '../ui/empty-note.vue'
 import { keep, kept } from '../storage'
 import { ago } from '../navigation/recent'
 import { componentIdOf } from '../navigation/tree'
@@ -106,9 +108,6 @@ const nothing = computed(
     !replace.value,
 )
 
-const plural = (count: number, one: string, many = `${one}s`) =>
-  `${count} ${count === 1 ? one : many}`
-
 // Ouverts au départ, retenus comme les panneaux des stories.
 const KEYS = { todo: 'crypte:panel:shell:todo', links: 'crypte:panel:shell:links' }
 const open = ref({ todo: kept(KEYS.todo) !== false, links: kept(KEYS.links) !== false })
@@ -140,8 +139,8 @@ async function copy() {
     aria-label="To do"
     @toggle="toggle('todo')"
   >
-    <div class="content">
-      <p v-if="!chosen" class="caption">Select a row to see what it needs.</p>
+    <div class="rows">
+      <EmptyNote v-if="!chosen">Select a row to see what it needs.</EmptyNote>
 
       <template v-else-if="finding">
         <p class="caption">{{ finding.violation.help }}</p>
@@ -181,7 +180,7 @@ async function copy() {
             <Icon :icon="Copy01Icon" />
             <span class="label">{{ copied ? 'Skeleton copied' : 'Copy the skeleton' }}</span>
           </button>
-          <p class="note">
+          <p class="caption required">
             {{
               component.required === 0
                 ? 'No required prop: its Default story is enough.'
@@ -218,7 +217,7 @@ async function copy() {
             {{ plural(component.stories.length, 'story', 'stories') }}</span
           >
         </p>
-        <p v-if="nothing" class="note">Nothing to do.</p>
+        <EmptyNote v-if="nothing">Nothing to do.</EmptyNote>
       </template>
     </div>
   </PanelSection>
@@ -230,7 +229,7 @@ async function copy() {
     aria-label="Links"
     @toggle="toggle('links')"
   >
-    <div class="content">
+    <div class="rows">
       <template v-if="own.length > 0">
         <p class="caption">{{ plural(own.length, 'story', 'stories') }}</p>
         <a
@@ -283,45 +282,6 @@ async function copy() {
 </template>
 
 <style scoped>
-.content {
-  padding: var(--space-1) 0 var(--space-2-5);
-}
-
-.row {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  margin: 0;
-  padding: var(--space-1) var(--space-3);
-  font-size: var(--text-sm);
-  line-height: var(--leading-sm);
-}
-
-.caption,
-.note {
-  margin: 0;
-  padding: var(--space-2-5) var(--space-3) var(--space-1);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
-}
-
-.link {
-  min-height: 28px;
-  box-sizing: border-box;
-  color: var(--text-primary);
-  text-decoration: none;
-}
-
-.link:hover {
-  background: var(--background-hover);
-}
-
-.link:focus-visible {
-  outline: var(--stroke-focus) solid var(--accent-focus);
-  outline-offset: calc(-1 * var(--stroke-focus));
-}
-
 .copy {
   width: 100%;
   border: 0;
@@ -331,26 +291,12 @@ async function copy() {
   cursor: pointer;
 }
 
-.label {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 code.label {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
 }
 
-.meta {
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
-}
 .message {
   color: var(--error-text);
 }

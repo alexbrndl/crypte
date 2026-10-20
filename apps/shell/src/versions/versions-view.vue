@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import ColorSwatch from '../ui/color-swatch.vue'
+import EmptyNote from '../ui/empty-note.vue'
+import NoneValue from '../ui/none-value.vue'
+import PlainTable from '../ui/plain-table.vue'
+import { plural } from '../plural'
 import type { StoryEntry } from '@crypte/core/protocol'
 import { computed } from 'vue'
 import { componentIdOf } from '../navigation/tree'
@@ -79,27 +84,27 @@ const isColor = (value: string | undefined) =>
 <template>
   <section class="versions-view" aria-label="Versions">
     <h2>{{ since ? `What changed since ${since}` : 'What changed' }}</h2>
-    <p v-if="changes === null" class="note">Reading the changes…</p>
-    <p v-else-if="'reason' in changes" class="note">
+    <EmptyNote v-if="changes === null">Reading the changes…</EmptyNote>
+    <EmptyNote v-else-if="'reason' in changes">
       The changes cannot be read: {{ changes.reason }}.
-    </p>
+    </EmptyNote>
     <template v-else>
-      <p class="note">
+      <EmptyNote>
         {{
           count === 0
             ? 'Nothing changed in the catalogue.'
-            : `${count} ${count === 1 ? 'difference' : 'differences'} from ${changes.from.commit}.`
+            : `${plural(count, 'difference')} from ${changes.from.commit}.`
         }}
         <template v-if="changes.tokens === null">
           The tokens have no history before this commit: its fingerprint predates them.
         </template>
-      </p>
+      </EmptyNote>
 
       <article v-if="difference?.nature === 'token'" class="change">
         <h3>
           <code>{{ difference.name }}</code>
         </h3>
-        <table>
+        <PlainTable>
           <thead>
             <tr>
               <th scope="col">Theme</th>
@@ -118,17 +123,15 @@ const isColor = (value: string | undefined) =>
               </th>
               <td v-for="side of [one.before, one.after]" :key="String(side)">
                 <template v-if="side !== undefined">
-                  <span v-if="isColor(side)" class="swatch" :style="{ backgroundColor: side }" />
+                  <ColorSwatch v-if="isColor(side)" :color="side" />
                   <code>{{ side }}</code>
                 </template>
-                <span v-else class="absent">none</span>
+                <NoneValue v-else />
               </td>
             </tr>
           </tbody>
-        </table>
-        <h4>
-          Read by {{ readers.length }} {{ readers.length === 1 ? 'component' : 'components' }}
-        </h4>
+        </PlainTable>
+        <h4>Read by {{ plural(readers.length, 'component') }}</h4>
         <ul v-if="readers.length > 0" class="readers">
           <li v-for="one of readers" :key="one.id">
             <a :href="hrefOfComponent(one.id)" @click="emit('component', one.id, $event)">{{
@@ -168,7 +171,7 @@ const isColor = (value: string | undefined) =>
         </p>
       </article>
 
-      <p v-else-if="count > 0" class="note">Select a difference to see what moved.</p>
+      <EmptyNote v-else-if="count > 0">Select a difference to see what moved.</EmptyNote>
     </template>
   </section>
 </template>
@@ -188,13 +191,6 @@ h2 {
   font-weight: var(--weight-normal);
   line-height: var(--leading-xl);
   letter-spacing: var(--tracking-tight);
-}
-
-.note {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  line-height: var(--leading-sm);
 }
 
 /* Le bloc `changement` de la maquette : padding 14/16, gap 16. */
@@ -246,25 +242,6 @@ code {
   line-height: var(--leading-xs);
 }
 
-table {
-  border-collapse: collapse;
-}
-
-th,
-td {
-  padding: var(--space-1-5) var(--space-3) var(--space-1-5) 0;
-  text-align: left;
-  vertical-align: top;
-}
-
-thead th {
-  padding-block: var(--space-1);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  line-height: var(--leading-xs);
-}
-
 td {
   display: table-cell;
 }
@@ -275,19 +252,6 @@ td > * + * {
 
 tr[data-moved] th code {
   color: var(--text-current);
-}
-
-.swatch {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border-radius: var(--radius-xs);
-  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
-  vertical-align: middle;
-}
-
-.absent {
-  color: var(--text-muted);
 }
 
 .readers {

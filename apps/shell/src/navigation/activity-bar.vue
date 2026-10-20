@@ -3,6 +3,7 @@
      panneaux ensemble. Une entrée sans `href` n'a pas de vue à montrer et n'est pas
      dessinée. -->
 <script setup lang="ts">
+import { plural } from '../plural'
 import {
   ComponentIcon,
   GitCompareArrowsIcon,
@@ -13,18 +14,23 @@ import {
 } from '@hugeicons/core-free-icons'
 import { Button, Tooltip } from '@crypte/ui'
 import { computed } from 'vue'
+import Badge from '../ui/badge.vue'
 import Icon from '../ui/icon.vue'
 import HealthIcon from './health-icon.vue'
 import Logo from '../ui/logo.vue'
 
 export type View = 'tokens' | 'stories' | 'health' | 'versions'
 
+// Le badge `sm` tient deux caractères au plus, plafonné à 9+ comme la maquette :
+// le compte exact reste dans le détail de l'infobulle.
+const capped = (count: number) => (count > 9 ? '9+' : String(count))
+
 const props = defineProps<{
   current: View
   hrefs: Record<View, string | null>
   // Le compte des écarts de la vue versions, `null` quand il ne se lit pas.
   counter: number | null
-  // Ce qu'il reste à faire, le badge de Santé, plafonné à 9+ comme la maquette.
+  // Ce qu'il reste à faire, le badge de Santé.
   todo?: number
   // Le score de santé, de 0 à 100, qui remplit le cœur ; `null` sans mesure.
   score?: number | null
@@ -49,7 +55,7 @@ const GROUPS: { view: View; label: string; icon: typeof Search01Icon }[][] = [
 // Le détail du tooltip de chaque vue : ce que son badge compte.
 const detailOf = (view: View) =>
   view === 'versions' && props.counter !== null
-    ? `${props.counter} ${props.counter === 1 ? 'difference' : 'differences'}`
+    ? `${plural(props.counter, 'difference')}`
     : view === 'health' && (props.score != null || props.todo)
       ? [props.score != null ? `${props.score} %` : null, props.todo ? `${props.todo} to do` : null]
           .filter(Boolean)
@@ -95,12 +101,12 @@ const groups = computed(() =>
           <span class="glyph">
             <HealthIcon v-if="item.view === 'health'" :score="score ?? null" />
             <Icon v-else :icon="item.icon" />
-            <span v-if="item.view === 'versions' && counter !== null" class="count">{{
-              counter
-            }}</span>
-            <span v-if="item.view === 'health' && todo" class="count">{{
-              todo > 9 ? '9+' : todo
-            }}</span>
+            <Badge v-if="item.view === 'versions' && counter !== null" size="sm" class="count">{{
+              capped(counter)
+            }}</Badge>
+            <Badge v-if="item.view === 'health' && todo" size="sm" class="count">{{
+              capped(todo)
+            }}</Badge>
           </span>
           <span class="label">{{ item.label }}</span>
         </a>
@@ -187,6 +193,11 @@ const groups = computed(() =>
   color: var(--accent-base);
 }
 
+.item[aria-current='page']:hover .glyph {
+  background: var(--background-current-hover);
+  color: var(--accent-hover);
+}
+
 .item:focus-visible {
   outline: none;
 }
@@ -200,13 +211,6 @@ const groups = computed(() =>
   position: absolute;
   right: calc(-1 * var(--space-0-5));
   bottom: calc(-1 * var(--space-0-5));
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-xs);
-  background: var(--accent-base);
-  color: var(--text-inverse);
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  line-height: var(--leading-2xs);
 }
 
 /* role/bar-label : 10 px annoncés, 9 dans le fichier Figma, hors de l'échelle. */
