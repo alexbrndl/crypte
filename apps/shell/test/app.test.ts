@@ -3608,7 +3608,7 @@ describe('the health view', () => {
     ).toBe('50 % · 2 to do')
 
     const liste = () => écran.wrapper.find('[aria-label="Everything to do"]')
-    expect(liste().find('.count-badge').text()).toBe('2')
+    expect(liste().find('.badge').text()).toBe('2')
     expect(
       liste()
         .findAll('a')

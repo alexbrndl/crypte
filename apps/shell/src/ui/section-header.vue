@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import CountBadge from './count-badge.vue'
+import Badge from './badge.vue'
 
 // Le `section-header` de la maquette : l'intitulé, le compte en badge, une note
 // à droite, puis l'action.
@@ -10,7 +10,7 @@ defineSlots<{ action?(): unknown }>()
 <template>
   <header class="section-header">
     <h2>{{ title }}</h2>
-    <CountBadge v-if="count !== undefined">{{ count }}</CountBadge>
+    <Badge v-if="count !== undefined" tone="inverse">{{ count }}</Badge>
     <span class="note">{{ note }}</span>
     <slot name="action" />
   </header>

@@ -14,6 +14,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { Button, Tooltip } from '@crypte/ui'
 import { computed } from 'vue'
+import Badge from '../ui/badge.vue'
 import Icon from '../ui/icon.vue'
 import HealthIcon from './health-icon.vue'
 import Logo from '../ui/logo.vue'
@@ -96,12 +97,12 @@ const groups = computed(() =>
           <span class="glyph">
             <HealthIcon v-if="item.view === 'health'" :score="score ?? null" />
             <Icon v-else :icon="item.icon" />
-            <span v-if="item.view === 'versions' && counter !== null" class="count">{{
+            <Badge v-if="item.view === 'versions' && counter !== null" size="sm" class="count">{{
               counter
-            }}</span>
-            <span v-if="item.view === 'health' && todo" class="count">{{
+            }}</Badge>
+            <Badge v-if="item.view === 'health' && todo" size="sm" class="count">{{
               todo > 9 ? '9+' : todo
-            }}</span>
+            }}</Badge>
           </span>
           <span class="label">{{ item.label }}</span>
         </a>
@@ -206,13 +207,6 @@ const groups = computed(() =>
   position: absolute;
   right: calc(-1 * var(--space-0-5));
   bottom: calc(-1 * var(--space-0-5));
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-xs);
-  background: var(--accent-base);
-  color: var(--text-inverse);
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  line-height: var(--leading-2xs);
 }
 
 /* role/bar-label : 10 px annoncés, 9 dans le fichier Figma, hors de l'échelle. */

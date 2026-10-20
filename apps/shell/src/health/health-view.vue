@@ -5,7 +5,7 @@ import { Alert02Icon } from '@hugeicons/core-free-icons'
 import { VisuallyHidden } from 'reka-ui'
 import { computed, ref } from 'vue'
 import CardTable from '../ui/card-table.vue'
-import CountBadge from '../ui/count-badge.vue'
+import Badge from '../ui/badge.vue'
 import EmptyNote from '../ui/empty-note.vue'
 import Icon from '../ui/icon.vue'
 import SectionHeader from '../ui/section-header.vue'
@@ -103,7 +103,7 @@ async function copy(one: HealthComponent) {
     <SectionHeader :title="title" :count="rows.length" :note="NOTES[page]" />
     <section v-if="todo.length > 0" class="todo" aria-label="Everything to do">
       <h3>
-        to do <CountBadge>{{ todo.length }}</CountBadge>
+        to do <Badge tone="inverse">{{ todo.length }}</Badge>
       </h3>
       <ul>
         <li v-for="one of todo" :key="`${one.page}:${one.key}`">
