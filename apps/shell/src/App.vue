@@ -41,8 +41,9 @@ import HealthSidebar from './health/health-sidebar.vue'
 import HealthView from './health/health-view.vue'
 import HealthPanel from './health/health-panel.vue'
 import HealthAccessibility from './health/health-accessibility.vue'
-import { audit, findingsOf, type AuditResult } from './health/audit'
-import { keyOf, PAGES, type Health, type HealthPage } from './health/health'
+import HealthFailures from './health/health-failures.vue'
+import { audit, failuresOf, findingsOf, type AuditResult } from './health/audit'
+import { keyOf, PAGES, todoOf, type Health, type HealthPage } from './health/health'
 import CommandPalette, { type Action } from './navigation/command-palette.vue'
 import { useRecent } from './navigation/recent'
 import ComponentPage from './pages/component-page.vue'
@@ -175,6 +176,21 @@ const pageOf = (page: string): HealthPage =>
 const shownCategory = computed(
   () => categories.value.find((one) => one.name === tokensAt.value?.category) ?? null,
 )
+
+// Où mène un token par son nom, depuis un autre panneau : la catégorie qui le
+// porte, ou rien s'il n'est dans aucune.
+const categoryOfToken = (name: string) =>
+  categories.value.find((one) =>
+    one.groups.some((group) => group.tokens.some((token) => token.name === name)),
+  )?.name
+const tokenHref = (name: string) => {
+  const category = categoryOfToken(name)
+  return category ? placeSearch({ mode: 'tokens', category, token: name }) : null
+}
+function openToken(name: string) {
+  const category = categoryOfToken(name)
+  if (category) openTokens(category, name)
+}
 
 // Le token choisi dans la catégorie affichée, que son panneau décrit.
 const selectedToken = computed(() => {
@@ -356,17 +372,50 @@ const selectedFinding = computed(
   () => findings.value?.find((one) => one.key === healthAt.value?.item) ?? null,
 )
 
+const failures = computed(() => (auditResults.value ? failuresOf(auditResults.value) : null))
+const selectedFailure = computed(
+  () => failures.value?.find((one) => one.key === healthAt.value?.item) ?? null,
+)
+// Le nombre de choses à faire, le badge de Santé dans l'activity bar.
+const todo = computed(() => todoOf(listedHealth.value ?? null, auditResults.value))
+
+const firstRender = ref<number | null>(null)
+
+// Lancé une fois, en arrière-plan, quand la preview a répondu à son premier rendu,
+// qu'il ait abouti ou levé, et que la liste des plugins est lue ou a échoué :
+// sans elle, l'audit ne saurait pas s'il doit attendre le plugin a11y. Arrêté si
+// le shell est démonté.
+const pluginsRead = ref(false)
+const previewAnswered = ref(false)
+let auditStarted = false
+let auditStop: AbortController | null = null
+watch(
+  () => previewAnswered.value && pluginsRead.value && entries.value.length > 0,
+  (ready) => {
+    if (!ready || auditStarted) return
+    auditStarted = true
+    void runAudit()
+  },
+)
+onBeforeUnmount(() => auditStop?.abort())
+
 async function runAudit() {
   if (auditing.value !== null) return
   const ids = entries.value.map((entry) => entry.id)
   auditing.value = { done: 0, total: ids.length * 2 }
   auditFailed.value = null
+  auditStop = new AbortController()
+  const { signal } = auditStop
   await nextTick()
   const started = performance.now()
   try {
-    auditResults.value = await audit(auditFrame.value!, ids, (done) => {
-      auditing.value = { done, total: ids.length * 2 }
+    const results = await audit(auditFrame.value!, ids, {
+      a11y: a11yPlugin.value,
+      signal,
+      progress: (done) => (auditing.value = { done, total: ids.length * 2 }),
     })
+    if (signal.aborted) return
+    auditResults.value = results
     auditTook.value = performance.now() - started
   } catch (error) {
     auditTook.value = null
@@ -375,7 +424,6 @@ async function runAudit() {
     auditing.value = null
   }
 }
-const firstRender = ref<number | null>(null)
 
 // Ce que la dernière story rendue a reçu, sous son identifiant : les panneaux ne
 // le lisent que pour la story affichée, une autre ayant pu répondre entre-temps.
@@ -410,7 +458,7 @@ async function readProject() {
 function reread() {
   void readChanges()
   void readProject()
-  if (healthAt.value !== null) void readHealth()
+  void readHealth()
 }
 
 // Le catalogue lu au moins une fois, pour ne pas dire « aucune story » avant.
@@ -987,6 +1035,8 @@ onMounted(() => {
   window.addEventListener('popstate', travel)
   window.addEventListener('focus', reread)
   window.addEventListener('keydown', shortcut)
+  // Lu dès le montage : le badge de Santé compte les composants sans story.
+  void readHealth()
 
   if (frame.value) {
     channel = createShellChannel(frame.value)
@@ -1007,18 +1057,21 @@ onMounted(() => {
           { once: true },
         )
         status.value = `preview ready, protocol v${message.protocolVersion}`
-        if (healthAt.value !== null) void readHealth()
+        // Toujours : le badge de Santé compte les composants sans story.
+        void readHealth()
         applyZoom()
         void refresh()
       }
       if (message.type === 'rendered') {
         failure.value = null
         firstRender.value ??= performance.now()
+        previewAnswered.value = true
         rendered.value = { id: message.id, values: message.values }
         status.value = `${message.id} rendered`
       }
       // Rattachée à la story affichée : cliquer B pendant que A rend laissait
       // l'erreur de A couvrir B, et masquer la note partielle de B.
+      if (message.type === 'error') previewAnswered.value = true
       if (message.type === 'error' && message.id === current.value) {
         failure.value = { id: message.id, message: message.message, stack: message.stack }
         status.value = 'render error'
@@ -1053,6 +1106,7 @@ onMounted(() => {
     <div v-show="!fullScreen" class="activity-column">
       <ActivityBar
         :current="view"
+        :todo="todo"
         :hrefs="hrefs"
         :counter="counter"
         :search-keys="paletteKeys"
@@ -1080,6 +1134,7 @@ onMounted(() => {
           "
           :audit="auditResults"
           :findings="findings?.length ?? null"
+          :failures="failures?.length ?? null"
           :page="healthAt?.page ?? 'overview'"
           :href-of="(page) => placeSearch({ mode: 'health', page })"
           @pick="(page, event) => follow(event, () => openHealth(page))"
@@ -1288,8 +1343,19 @@ onMounted(() => {
             @select="(token, event) => follow(event, () => openTokens(shownCategory!.name, token))"
           />
 
+          <HealthFailures
+            v-if="healthAt?.page === 'failures' && listedHealth"
+            :failures="failures"
+            :running="auditing"
+            :failed="auditFailed"
+            :stories="entries"
+            :selected="healthAt.item ?? null"
+            :href-of="(key) => placeSearch({ mode: 'health', page: 'failures', item: key })"
+            @run="runAudit"
+            @select="(key, event) => follow(event, () => openHealth('failures', key))"
+          />
           <HealthAccessibility
-            v-if="healthAt?.page === 'accessibility' && listedHealth"
+            v-else-if="healthAt?.page === 'accessibility' && listedHealth"
             :plugin="a11yPlugin"
             :audit="auditResults"
             :running="auditing"
@@ -1480,8 +1546,8 @@ onMounted(() => {
             :errors="pluginErrors"
             @overrides="edit"
             @send="sendToPreview"
-            @weights="(measured) => (weights = measured)"
-            @troubles="(troubles) => (panelTroubles = troubles)"
+            @weights="(measured) => ((weights = measured), (pluginsRead = true))"
+            @troubles="(troubles) => ((panelTroubles = troubles), (pluginsRead = true))"
           />
         </aside>
         <aside
@@ -1510,12 +1576,19 @@ onMounted(() => {
           <h2 class="column-title">Panels</h2>
           <HealthPanel
             :component="healthItem"
-            :finding="healthAt?.page === 'accessibility' ? selectedFinding : undefined"
+            :finding="healthAt?.page === 'accessibility' ? selectedFinding : null"
+            :failure="healthAt?.page === 'failures' ? selectedFailure : null"
+            :findings="findings ?? []"
+            :failures="failures ?? []"
             :stories="entries"
             :href-of-story="(id) => placeSearch({ mode: 'entry', id })"
             :href-of-component="(id) => placeSearch({ mode: 'component', id })"
+            :href-of-health="(page, key) => placeSearch({ mode: 'health', page, item: key })"
+            :href-of-token="tokenHref"
             @story="(id, event) => follow(event, () => show(id, 'push'))"
             @page="(id, event) => follow(event, () => open(id))"
+            @health="(page, key, event) => follow(event, () => openHealth(page, key))"
+            @token="(name, event) => follow(event, () => openToken(name))"
           />
         </aside>
       </div>

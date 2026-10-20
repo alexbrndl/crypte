@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   AccessibilityIcon,
+  Alert02Icon,
   ComponentIcon,
   DashboardSquare01Icon,
   Flag01Icon,
@@ -21,6 +22,8 @@ const props = defineProps<{
   audit: AuditResult[] | null
   // Les violations trouvées, le compte de la page accessibilité.
   findings: number | null
+  // Les stories qui ne rendent pas, le compte de leur page.
+  failures: number | null
   page: HealthPage
   hrefOf: (page: HealthPage) => string
 }>()
@@ -29,13 +32,18 @@ const emit = defineEmits<{ pick: [page: HealthPage, event: MouseEvent] }>()
 const ICONS: Record<HealthPage, typeof Search01Icon> = {
   overview: DashboardSquare01Icon,
   unstoried: ComponentIcon,
+  failures: Alert02Icon,
   accessibility: AccessibilityIcon,
   statuses: Flag01Icon,
 }
 
 const gauges = computed(() => (props.components ? gaugesOf(props.components, props.audit) : []))
 const countOf = (page: HealthPage) =>
-  page === 'accessibility' ? (props.findings ?? '') : rowsOf(page, props.components ?? []).length
+  page === 'accessibility'
+    ? (props.findings ?? '')
+    : page === 'failures'
+      ? (props.failures ?? '')
+      : rowsOf(page, props.components ?? []).length
 const score = computed(() => scoreOf(gauges.value))
 </script>
 

@@ -23,6 +23,8 @@ const props = defineProps<{
   hrefs: Record<View, string | null>
   // Le compte des écarts de la vue versions, `null` quand il ne se lit pas.
   counter: number | null
+  // Ce qu'il reste à faire, le badge de Santé, plafonné à 9+ comme la maquette.
+  todo?: number
   searchKeys: string
   searchShortcuts: string
   themeLabel: string
@@ -44,7 +46,9 @@ const GROUPS: { view: View; label: string; icon: typeof Search01Icon }[][] = [
 const detailOf = (view: View) =>
   view === 'versions' && props.counter !== null
     ? `${props.counter} ${props.counter === 1 ? 'difference' : 'differences'}`
-    : undefined
+    : view === 'health' && props.todo
+      ? `${props.todo} to do`
+      : undefined
 
 const groups = computed(() =>
   GROUPS.map((group) => group.filter((item) => props.hrefs[item.view] !== null)).filter(
@@ -86,6 +90,9 @@ const groups = computed(() =>
             <Icon :icon="item.icon" />
             <span v-if="item.view === 'versions' && counter !== null" class="count">{{
               counter
+            }}</span>
+            <span v-if="item.view === 'health' && todo" class="count">{{
+              todo > 9 ? '9+' : todo
             }}</span>
           </span>
           <span class="label">{{ item.label }}</span>

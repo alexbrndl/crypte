@@ -29,6 +29,7 @@ const a11yOf = (one: HealthComponent) => {
 const NOTES: Record<HealthPage, string> = {
   overview: 'sorted by problems',
   unstoried: 'sorted by props',
+  failures: '',
   accessibility: '',
   statuses: 'deprecated first',
 }
