@@ -3461,6 +3461,26 @@ describe('the health view', () => {
       await écran.wrapper.find(`a[href="${lien}"]`).trigger('click', { button: 0 })
       await vide(écran.wrapper)
     }
+    // La vue d'ensemble liste tout ce que compte le badge, l'audit compris, chaque
+    // ligne menant à sa page.
+    await page(écran, 'overview')
+    const liste = () => écran.wrapper.find('[aria-label="Everything to do"]')
+    expect(
+      liste()
+        .findAll('a')
+        .map((one) => `${one.text()} → ${one.attributes('href')}`),
+    ).toEqual([
+      'Fix the render of Badge / Alerte → ?health=failures&item=badge--alerte',
+      'Fix the render of Badge / Par défaut → ?health=failures&item=badge--defaut',
+      'Fix button-name in Bouton / Par défaut → ?health=accessibility&item=bouton--defaut:button-name',
+      'Write the story of Select → ?health=unstoried&item=src/components/form/Select.tsx:default',
+      'Write the story of Avatar → ?health=unstoried&item=src/components/Avatar.tsx:Avatar',
+    ])
+    expect(écran.vue('health').find('.count').text()).toBe('5')
+    await liste().find('a').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?health=failures&item=badge--alerte')
+
     await choisit('?health=overview&item=src/components/Badge.tsx:Badge')
     const àFaire = () => écran.wrapper.find('[aria-label="To do"]')
     expect(
