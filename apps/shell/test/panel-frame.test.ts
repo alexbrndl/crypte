@@ -236,6 +236,12 @@ describe('whether a panel is open', () => {
     await wrapper.find('.head button').trigger('click')
     expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'aucun statut déclaré', corps: false })
 
+    // Sa raison plie aussi : tout l'en-tête, sauf l'action.
+    await wrapper.find('.head .note').trigger('click')
+    expect(état(wrapper).ouvert).toBe('true')
+    await wrapper.find('.head .note').trigger('click')
+    expect(état(wrapper).ouvert).toBe('false')
+
     // Refermer un panneau replié ne dit rien des stories suivantes.
     expect(localStorage.getItem('crypte:panel:status')).toBeNull()
   })
