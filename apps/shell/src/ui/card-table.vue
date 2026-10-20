@@ -65,7 +65,7 @@
   background: var(--background-hover);
 }
 
-:slotted(tr[data-selected]) {
+:slotted(tbody tr[data-selected]) {
   background: var(--background-current);
 }
 

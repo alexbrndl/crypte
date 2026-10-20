@@ -174,7 +174,7 @@ async function copy(one: HealthComponent) {
           <template v-else-if="page === 'unstoried'">
             <td class="code">{{ one.file }}</td>
             <td class="code">{{ one.props }}</td>
-            <td>
+            <td class="action">
               <button type="button" class="link" @click.stop="copy(one)">
                 {{ copied === keyOf(one) ? 'copied' : 'copy the skeleton' }}
               </button>
@@ -249,6 +249,10 @@ async function copy(one: HealthComponent) {
 
 .todo .icon {
   color: var(--error-text);
+}
+
+.action {
+  white-space: nowrap;
 }
 
 .link {

@@ -164,18 +164,6 @@ const themesOf = (themes: string[]) =>
 }
 
 code {
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
-  white-space: nowrap;
-}
-
-[data-ink='error'] {
-  color: var(--error-text);
-}
-
-code {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
 }
