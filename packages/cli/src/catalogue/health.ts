@@ -4,11 +4,13 @@
 // build writes it as a file as `crypte dev` serves it.
 
 import { execFileSync } from 'node:child_process'
-import { readdirSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { basename, dirname, extname, join, relative, sep } from 'node:path'
 import type { StoryEntry, StoryMeta } from '@crypte/core/protocol'
+import { parseSync } from 'vite'
 import { componentsIn, wrappers } from '../commands/check'
 import type { Project } from '../config/project'
+import { componentFile } from './manifest'
 import { propsOf } from './props'
 
 export interface Health {
@@ -36,6 +38,9 @@ export interface HealthComponent {
   statusSince?: string
   // What a story file for it would hold, when it has none.
   skeleton?: { file: string; source: string }
+  // The components of the folder that import it, `file:export` as the shell
+  // keys them: where a deprecated one is still used. Absent when none does.
+  usedBy?: string[]
 }
 
 // Opened, not counted: `componentsIn` keeps only what returns an element. A Vue
@@ -65,8 +70,10 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
     '--',
     project.config.stories,
   ])
+  const files = filesIn(join(project.root, folder))
+  const importers = importersOf(project, files)
   const found: HealthComponent[] = []
-  for (const file of filesIn(join(project.root, folder))) {
+  for (const file of files) {
     for (const names of componentsIn(file)) {
       if (names.some((one) => frames.has(`${file}#${one}`))) continue
       const covered = names.flatMap((one) => covering.get(`${file}#${one}`) ?? [])
@@ -75,6 +82,11 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
       const { details } = propsOf(file, exported)
       const changed = changes.get(named(project.root, file))
       const since = status && covered[0] ? statuses.get(covered[0].storyFile) : undefined
+      const usedBy = [
+        ...new Set(
+          names.flatMap((one) => importers.get(`${named(project.root, file)}#${one}`) ?? []),
+        ),
+      ].sort()
       found.push({
         name: exported === 'default' ? basename(file, extname(file)) : exported,
         file: named(project.root, file),
@@ -86,10 +98,47 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
         ...(changed ? { changed } : {}),
         ...(since ? { statusSince: since } : {}),
         ...(covered.length === 0 ? { skeleton: skeletonOf(project, folder, file, exported) } : {}),
+        ...(usedBy.length > 0 ? { usedBy } : {}),
       })
     }
   }
   return { components: found }
+}
+
+// Who imports what, among the files of the folder: for the `file#export` an
+// import names, the components of the importing file, `file:export`. Resolved as
+// a story's import is, so an alias reads the same here. A file importing itself,
+// a namespace import and a file that does not parse name nobody.
+function importersOf(project: Project, files: string[]): Map<string, string[]> {
+  const found = new Map<string, string[]>()
+  for (const file of files) {
+    let parsed: ReturnType<typeof parseSync>
+    try {
+      parsed = parseSync(file, readFileSync(file, 'utf8'))
+    } catch {
+      continue
+    }
+    if (parsed.errors.length > 0) continue
+    const self = named(project.root, file)
+    const own = componentsIn(file).map((names) => `${self}:${names[0]}`)
+    if (own.length === 0) continue
+    for (const one of parsed.module.staticImports) {
+      const target = componentFile(one.moduleRequest.value, file, project)
+      if (target === self) continue
+      for (const entry of one.entries) {
+        const imported =
+          entry.importName.kind === 'Default'
+            ? 'default'
+            : entry.importName.kind === 'Name'
+              ? entry.importName.name
+              : undefined
+        if (imported === undefined) continue
+        const key = `${target}#${imported}`
+        found.set(key, [...(found.get(key) ?? []), ...own])
+      }
+    }
+  }
+  return found
 }
 
 // Sorted, so two machines write the same file.

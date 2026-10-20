@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { gaugesOf, rowsOf, scoreOf, type HealthComponent } from '../src/health/health'
+import { gaugesOf, problemsOf, rowsOf, scoreOf, type HealthComponent } from '../src/health/health'
 
 // Le score et les pages de la vue santé, tirés des composants.
 
@@ -50,5 +50,17 @@ describe('the pages', () => {
       un('D'),
     ])
     expect(rows.map((one) => one.name)).toEqual(['C', 'A'])
+  })
+})
+
+// Un composant déprécié documenté par ses stories n'a rien à faire ; il en a
+// tant qu'un autre composant l'importe.
+describe('the problems of a component', () => {
+  test('count a deprecated one only while another imports it', () => {
+    expect(problemsOf(un('A', { status: 'deprecated', stories: ['a--x'] }))).toBe(0)
+    expect(
+      problemsOf(un('A', { status: 'deprecated', stories: ['a--x'], usedBy: ['src/B.tsx:B'] })),
+    ).toBe(1)
+    expect(problemsOf(un('A', { usedBy: ['src/B.tsx:B'], stories: ['a--x'] }))).toBe(0)
   })
 })

@@ -36,10 +36,13 @@ const props = defineProps<{
   stories: StoryEntry[]
   hrefOf: (key: string) => string
   hrefOfHealth: (page: HealthPage, key: string) => string
+  // La vue versions depuis le dernier commit avant cette date.
+  hrefOfChanges: (before: string) => string
 }>()
 const emit = defineEmits<{
   select: [key: string, event: MouseEvent]
   health: [page: HealthPage, key: string, event: MouseEvent]
+  changes: [before: string, event: MouseEvent]
 }>()
 
 const rows = computed(() => rowsOf(props.page, props.components))
@@ -129,7 +132,7 @@ const { copied, copy } = useCopy()
           <th scope="col" class="grow">component</th>
           <th scope="col">status</th>
           <th scope="col">since</th>
-          <th scope="col">used in</th>
+          <th scope="col">used by</th>
         </tr>
       </thead>
       <tbody>
@@ -179,18 +182,23 @@ const { copied, copy } = useCopy()
           </template>
           <template v-else>
             <td class="code">{{ one.status }}</td>
-            <td class="code">{{ one.statusSince ? dayOf(one.statusSince) : '' }}</td>
+            <!-- Ce qui a changé depuis, le statut compris. -->
+            <td class="code">
+              <a
+                v-if="one.statusSince"
+                class="since"
+                :href="hrefOfChanges(one.statusSince)"
+                @click.stop="emit('changes', one.statusSince, $event)"
+                >{{ dayOf(one.statusSince) }}</a
+              >
+            </td>
             <td
               class="code"
               :data-ink="
-                one.status === 'deprecated' && one.stories.length > 0 ? 'error' : undefined
+                one.status === 'deprecated' && (one.usedBy?.length ?? 0) > 0 ? 'error' : undefined
               "
             >
-              {{
-                one.stories.length === 0
-                  ? 'no story'
-                  : `${plural(one.stories.length, 'story', 'stories')}`
-              }}
+              {{ one.usedBy ? plural(one.usedBy.length, 'component') : 'no component' }}
             </td>
           </template>
         </tr>
@@ -250,6 +258,15 @@ const { copied, copy } = useCopy()
 
 .action {
   white-space: nowrap;
+}
+
+.since {
+  color: var(--text-current);
+  text-decoration: none;
+}
+
+.since:hover {
+  color: var(--text-current-hover);
 }
 
 .link {

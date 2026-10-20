@@ -1429,7 +1429,9 @@ onMounted(() => {
             :stories="entries"
             :href-of="(key) => placeSearch({ mode: 'health', page: healthAt!.page, item: key })"
             :href-of-health="(page, key) => placeSearch({ mode: 'health', page, item: key })"
+            :href-of-changes="(before) => placeSearch({ mode: 'changes', before })"
             @select="(key, event) => follow(event, () => openHealth(healthAt!.page, key))"
+            @changes="(before, event) => follow(event, () => openChanges('push', { before }))"
             @health="(page, key, event) => follow(event, () => openHealth(page, key))"
           />
           <div v-else-if="healthAt && listedHealth === null" class="empty">
@@ -1633,6 +1635,7 @@ onMounted(() => {
           <ColumnTitle title="Panels" />
           <HealthPanel
             :component="healthItem"
+            :components="listedHealth ?? []"
             :finding="healthAt?.page === 'accessibility' ? selectedFinding : null"
             :failure="healthAt?.page === 'failures' ? selectedFailure : null"
             :findings="findings ?? []"
