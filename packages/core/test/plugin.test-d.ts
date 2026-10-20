@@ -5,7 +5,10 @@ import {
   type CryptePlugin,
   type PanelEvents,
   type PanelProps,
+  type PluginView,
   type StoryEntry,
+  type ViewEvents,
+  type ViewProps,
 } from '../src/protocol'
 
 // Ce qui lie la liste d'exécution au type. Rien ne le faisait : une nature
@@ -72,4 +75,19 @@ test('a plugin has no surface other than shell, preview and node', () => {
   // @ts-expect-error `toolbar` n'est pas une surface
   const plugin: CryptePlugin = { name: 'x', toolbar: './toolbar.js' }
   expectTypeOf(plugin).toEqualTypeOf<CryptePlugin>()
+})
+
+// Une vue tient un libellé et l'objet Hugeicons que le plugin importe, une liste
+// de paires `[balise, attributs]` ; un nom d'icône ne se dessine pas.
+test('a view holds a label and a Hugeicons object', () => {
+  const icon = [['path', { d: 'M0 0', strokeWidth: 1.5 }]] as const
+  const plugin: CryptePlugin = { name: 'i18n', shell: './shell.js', view: { label: 'i18n', icon } }
+  expectTypeOf(plugin.view).toEqualTypeOf<PluginView | undefined>()
+  // @ts-expect-error une icône se donne en objet, jamais par son nom
+  const nommée: PluginView = { label: 'i18n', icon: 'TranslateIcon' }
+  // @ts-expect-error une vue a un libellé
+  const muette: PluginView = { icon }
+  expectTypeOf([nommée, muette]).toBeArray()
+  expectTypeOf<ViewEvents['item']>().toEqualTypeOf<[key: string | null]>()
+  expectTypeOf<ViewProps['item']>().toEqualTypeOf<string | null>()
 })

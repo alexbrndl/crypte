@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.42, reference document. A project brief points here instead of restating these shapes.
+> Version 1.43, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -749,7 +749,7 @@ type PluginMessage<T extends { type: LiteralOnly<T['type']> }> = T
 
 ### 6.1 Shape
 
-A plugin is an object with a name and three optional surfaces.
+A plugin is an object with a name, three optional surfaces, and an optional view.
 
 ```ts
 interface CryptePlugin {
@@ -757,12 +757,13 @@ interface CryptePlugin {
   shell?: string
   preview?: string
   node?: NodeHooks
+  view?: PluginView
 }
 ```
 
 | Surface | Runs in | Role |
 | --- | --- | --- |
-| `shell` | shell | panel |
+| `shell` | shell | panel, and the parts of a view |
 | `preview` | iframe | lifecycle around a render |
 | `node` | CLI | entries for the manifest, 6.3 |
 
@@ -782,7 +783,7 @@ The shell module exports a `ShellContribution` by default, the preview module a 
 
 **A preview module goes through the project's Vite**, like a story file, so it imports what it needs. Once the plugin is installed, Vite pre-bundles nothing it imports: a CommonJS dependency has no default export there. `@crypte/a11y` imports axe-core's script for its side effect, which sets `window.axe`. **A shell module is served as is, never compiled**, since the shell is prebuilt. Its bare imports are `vue` and `@crypte/ui`, which the shell provides through an import map, so every panel runs on the shell's own Vue and draws with the shell's own components: `Field`, `Button`, `Input`, `Select`, `Checkbox`, `Tooltip`, `Alert`. Their styles are already in the shell's page. That Vue carries its template compiler: a module written by hand may use `template` rather than `h()`. A plugin declares `vue` and `@crypte/ui` as peer dependencies and keeps them out of its bundle: a panel running on a second copy of Vue never redraws its own state, and nothing warns.
 
-**A surface that points nowhere is refused, with its reason**, the way 6.3 refuses a contribution: a pointer that is not a `file:` URL, or one that leads to no file. So are the browser surfaces of a plugin with no `name`, with a name an earlier plugin already has, or with a name that holds a colon, which ends the prefix of its messages (5.4): the shell keys a panel by its plugin's name. So is a key other than `name`, `shell`, `preview` and `node`, `toolbar` or the old `ui`: a plugin is installed compiled, and nothing else would say the key is ignored. So is a function, the factory written `plugins: [controls]` rather than called: it compiles, since a function has a `name`. Each refusal is said in the terminal, and in the shell beside the panels. A module that throws on import costs nothing else. The shell names it, or a shell module whose default export is neither an object nor a function, and shows the other panels; the preview renders its stories and names the module in the frame's console. Nor does a preview module that never finishes loading: the stories do not wait for it, and its hooks attach when it arrives, `afterMount` catching up on the story last drawn.
+**A surface that points nowhere is refused, with its reason**, the way 6.3 refuses a contribution: a pointer that is not a `file:` URL, or one that leads to no file. So are the browser surfaces of a plugin with no `name`, with a name an earlier plugin already has, or with a name that holds a colon, which ends the prefix of its messages (5.4): the shell keys a panel by its plugin's name. So is a key other than `name`, `shell`, `preview`, `node` and `view`, `toolbar` or the old `ui`: a plugin is installed compiled, and nothing else would say the key is ignored. So is a function, the factory written `plugins: [controls]` rather than called: it compiles, since a function has a `name`. Each refusal is said in the terminal, and in the shell beside the panels. A module that throws on import costs nothing else. The shell names it, or a shell module whose default export is neither an object nor a function, and shows the other panels; the preview renders its stories and names the module in the frame's console. Nor does a preview module that never finishes loading: the stories do not wait for it, and its hooks attach when it arrives, `afterMount` catching up on the story last drawn.
 
 **A `ShellContribution` is a Vue component, which the shell mounts in a frame**, one per plugin, in the order `plugins` declares them. It receives the story on display as its `entry` prop, a `StoryEntry` or `null`. A panel with nothing to say about that story emits `inapplicable` with its reason, and the frame folds to one line holding it, rather than showing an empty panel or a greyed one. A click still opens it for that story, the reason kept above, and the panel shows what it renders, which may be nothing: what it offers once folded stays within reach, `a11y` analysing again what changed in the iframe without a render, a menu opened by hand. The last click on a story holds whatever the panel says after it, and is forgotten at the next one; only a click on a panel that is not folded is remembered.
 
@@ -812,6 +813,35 @@ export default {
 **A panel that edits the story emits `overrides`**, the values to render it with, primitives only (5.1). The shell sends them in `render`, keeps them while that story stays on display, a preview that says `ready` again included, and drops them when another story is shown. Anything but `null`, a boolean, a finite number or a string is refused, `undefined` included, named with its plugin and prop, and the whole edit dropped. Several panels may edit: each keeps its own values, and the render merges them in the order `plugins` declares, the later panel winning a prop both edit. A panel the CLI no longer lists, removed from `plugins` or its `shell` refused, takes its values with it. `@crypte/controls` is the panel that does. **A panel that edits reads its values back from its `overrides` prop**, what the shell holds for it, rather than keeping its own copy: the frame shows a **Reset all** in its head while they are not empty, and clears them there as it does when another story is shown. A panel that kept a copy would send it whole at its next edit, and the values cleared would come back.
 
 **Only the module is loaded.** A style sheet built beside it never reaches the page, so a panel styles itself inline.
+
+**A plugin may have a view of its own**, an entry in the activity bar under a separator after the shell's views, which changes the whole workspace: its sidebar, its canvas and its panel. The plugin object declares its label and icon, the shell module draws it from its `view` export:
+
+```ts
+interface PluginView {
+  label: string
+  icon: ReadonlyArray<readonly [string, Readonly<Record<string, string | number>>]>
+}
+
+interface ShellView {
+  canvas: ShellContribution
+  sidebar?: ShellContribution
+  panel?: ShellContribution
+}
+```
+
+The label is 1 to 8 characters, the activity bar being 48 px wide; the icon is the Hugeicons object the plugin imports from `@hugeicons/core-free-icons`, a name would make the shell carry the whole set. No shortcut: ⌘1 to ⌘9 belong to the browser's tabs, a view opens by its entry and from ⌘K. **A view the CLI cannot draw is refused, with its reason**: a label too long, empty or not a string, an icon that is not a list of `[tag, attributes]` pairs, or a plugin with no `shell` module to draw it. **The shell module exports `view`**, the components of the view, beside a default export that stays the story panel and may be absent: a plugin that has only a view adds no panel to the stories. A `view` export whose canvas, or whose sidebar or panel when given, is not a component is named beside the panels, and the view is not drawn.
+
+Each part receives the item chosen in the view and emits `item` to choose another, `null` for none. The shell keeps it in the address, `?view=<plugin>&item=<key>`, so a link reopens the view on it. The shell writes the view's label as the sidebar's title, draws the canvas on the workspace's background, and the panel in a frame folded and remembered like the other panels, under a key of its own:
+
+```ts
+interface ViewProps {
+  item: string | null
+}
+
+interface ViewEvents {
+  item: [key: string | null]
+}
+```
 
 **Whether a panel is open is the shell's to remember**, under the plugin's name, never the plugin's. A panel that throws shows the error in its frame, and is mounted again at its next `entry`.
 
@@ -1001,6 +1031,12 @@ Eleven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.43.** A plugin may have a view of its own in the activity bar (6.1).
+
+| Before | After |
+| --- | --- |
+| a plugin drew a panel beside the stories, nothing else | a plugin's `view` puts an entry in the activity bar, and its shell module's `view` export draws the sidebar, canvas and panel |
 
 **v1.42.** The health view reads the a11y plugin's results (5.4).
 

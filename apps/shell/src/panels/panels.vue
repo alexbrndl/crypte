@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Overrides, RenderedValues, StoryEntry } from '@crypte/core/protocol'
+import type { Overrides, PluginView, RenderedValues, StoryEntry } from '@crypte/core/protocol'
 import { Alert } from '@crypte/ui'
 import { onMounted, shallowRef, watch, type Component } from 'vue'
 import PanelFrame from './panel-frame.vue'
@@ -10,6 +10,15 @@ import PanelFrame from './panel-frame.vue'
 // refuse les surfaces d'un second plugin du même nom.
 
 type PanelMessage = { type: string; [key: string]: unknown }
+
+// La vue d'un plugin, section 6.1 : son libellé et son icône, que le CLI a
+// vérifiés, et les composants que son module exporte en `view`.
+export interface LoadedView extends PluginView {
+  name: string
+  canvas: Component
+  sidebar?: Component
+  panel?: Component
+}
 
 const props = defineProps<{
   entry: StoryEntry | null
@@ -35,6 +44,8 @@ const emit = defineEmits<{
   // Le nombre de plugins en échec ou refusés, que le bouton des panneaux marque
   // quand la colonne est fermée.
   troubles: [troubles: number]
+  // Les vues des plugins, dans l'ordre de `plugins`, pour l'activity bar.
+  views: [views: LoadedView[]]
 }>()
 
 const PLUGINS = '/@crypte/plugins.json'
@@ -44,6 +55,9 @@ const failures = shallowRef<{ name: string; message: string }[]>([])
 // Ce que le CLI a écarté d'un plugin, avec sa raison : une surface qui ne mène
 // nulle part, une clé inconnue, une contribution refusée.
 const refused = shallowRef<{ plugin: string; reason: string }[]>([])
+
+const isComponent = (value: unknown) =>
+  (typeof value === 'object' && value !== null) || typeof value === 'function'
 
 const said = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
@@ -80,7 +94,7 @@ async function load() {
   const run = (reading += 1)
 
   let listed: {
-    panels: { name: string; shell: string }[]
+    panels: { name: string; shell: string; view?: PluginView }[]
     refused: { plugin: string; reason: string }[]
     weights: { plugin: string; bytes: number }[]
   }
@@ -97,7 +111,8 @@ async function load() {
   // nom s'affiche plutôt que son panneau manque sans rien dire.
   const loaded = await Promise.allSettled(
     listed.panels.map(
-      (one) => import(/* @vite-ignore */ one.shell) as Promise<{ default?: unknown }>,
+      (one) =>
+        import(/* @vite-ignore */ one.shell) as Promise<{ default?: unknown; view?: unknown }>,
     ),
   )
 
@@ -107,16 +122,39 @@ async function load() {
   // son état. Seul un panneau qui a changé est monté de nouveau.
   const found: typeof panels.value = []
   const failed: typeof failures.value = []
+  const views: LoadedView[] = []
 
   loaded.forEach((result, at) => {
-    const name = listed.panels[at]!.name
-    const panel = result.status === 'fulfilled' ? result.value.default : undefined
+    const { name, view } = listed.panels[at]!
+    if (result.status === 'rejected') {
+      failed.push({ name, message: said(result.reason) })
+      return
+    }
+    const panel = result.value.default
+
+    // Une vue lit l'export `view` : son canvas est requis, sa sidebar et son
+    // panneau ne le sont pas. Un plugin qui n'a qu'une vue n'exporte pas de
+    // panneau des stories.
+    if (view) {
+      const parts = (result.value.view ?? {}) as Record<string, unknown>
+      const bad = (['canvas', 'sidebar', 'panel'] as const).find(
+        (part) => (part === 'canvas' || parts[part] !== undefined) && !isComponent(parts[part]),
+      )
+      if (bad) failed.push({ name, message: `its \`view.${bad}\` export is not a component` })
+      else
+        views.push({
+          name,
+          ...view,
+          canvas: parts['canvas'] as Component,
+          ...(parts['sidebar'] ? { sidebar: parts['sidebar'] as Component } : {}),
+          ...(parts['panel'] ? { panel: parts['panel'] as Component } : {}),
+        })
+      if (panel === undefined) return
+    }
 
     // Un objet ou une fonction, ce que Vue monte. Autre chose, `42` par exemple,
     // ne rendait rien et ne disait rien. Mesuré.
-    if (result.status === 'rejected') failed.push({ name, message: said(result.reason) })
-    else if ((typeof panel !== 'object' || panel === null) && typeof panel !== 'function')
-      failed.push({ name, message: 'its default export is not a component' })
+    if (!isComponent(panel)) failed.push({ name, message: 'its default export is not a component' })
     else found.push({ name, panel: panel as Component })
   })
 
@@ -125,6 +163,7 @@ async function load() {
   panels.value = found
   failures.value = failed
   emit('troubles', failed.length + listed.refused.length)
+  emit('views', views)
 
   // Un plugin qui n'est plus listé emporte ses valeurs : gardées, elles
   // restaient dans le rendu sans panneau pour les montrer, et revenaient quand on

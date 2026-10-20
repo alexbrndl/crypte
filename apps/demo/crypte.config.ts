@@ -7,6 +7,7 @@ import crypte from '@crypte/react'
 import tokens from '@crypte/tokens'
 import { Panel } from './src/components/Frame'
 import hello from './plugins/hello'
+import i18n from './plugins/i18n'
 import status from './plugins/status'
 
 export default defineConfig({
@@ -15,7 +16,7 @@ export default defineConfig({
   components: 'src/components',
   adapter: crypte(),
   wrap: Panel,
-  plugins: [tokens(), controls(), a11y(), hello(), status()],
+  plugins: [tokens(), controls(), a11y(), hello(), status(), i18n()],
   // Le compilateur React est actif, comme sur le projet cible : c'est le risque
   // que `DCJ-170` demandait de lever ici, sur les cas navigateur plutôt que plus
   // tard sur un vrai projet.

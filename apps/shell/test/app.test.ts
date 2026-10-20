@@ -8,6 +8,7 @@ import type {
 } from '@crypte/core/protocol'
 import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test as base, vi } from 'vitest'
+import { defineComponent, h } from 'vue'
 import App from '../src/App.vue'
 import { Select, Tooltip } from '@crypte/ui'
 import ActivityBar from '../src/navigation/activity-bar.vue'
@@ -3880,6 +3881,83 @@ describe('the light and dark comparison', () => {
     expect(sombre(écran).exists()).toBe(false)
     expect(écran.wrapper.find('figcaption').exists()).toBe(false)
     await expect.poll(() => écran.envoyés.at(-1)).toMatchObject({ theme: 'dark' })
+  })
+})
+
+// La vue d'un plugin, section 6.1 : son entrée sous un séparateur, sa sidebar,
+// son canvas et son panneau, l'élément choisi dans l'adresse.
+describe('the view of a plugin', () => {
+  const partie = (nom: string, choix?: string) =>
+    defineComponent({
+      props: { item: { type: String, default: null } },
+      emits: ['item'],
+      setup:
+        (props, { emit }) =>
+        () =>
+          h('div', { class: nom }, [
+            `${nom}:${props.item ?? 'none'}`,
+            ...(choix ? [h('button', { onClick: () => emit('item', choix) }, choix)] : []),
+          ]),
+    })
+  const i18n = {
+    name: 'i18n',
+    label: 'i18n',
+    icon: [['path', { d: 'M0 0' }]] as [string, Record<string, string>][],
+    canvas: partie('canvas'),
+    sidebar: partie('side', 'fr'),
+    panel: partie('detail'),
+  }
+  const clique = async (écran: Ecran, cible: DOMWrapper<Element>) => {
+    await cible.trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+  }
+  const vues = async (écran: Ecran, liste: unknown[]) => {
+    écran.wrapper.findComponent(Panels).vm.$emit('views', liste)
+    écran.wrapper.findComponent(Panels).vm.$emit('troubles', 0)
+    await vide(écran.wrapper)
+  }
+
+  test('opens from its entry, chooses an item from its sidebar, and keeps it in the address', async () => {
+    const écran = await monte([badge, alerte])
+    await vues(écran, [i18n])
+    await clique(écran, écran.vue('i18n'))
+    expect(window.location.search).toBe('?view=i18n')
+    expect(écran.wrapper.find('.sidebar .column-title').text()).toBe('i18n')
+    expect(écran.wrapper.find('.plugin-view .canvas').text()).toBe('canvas:none')
+    expect(écran.wrapper.find('iframe').isVisible()).toBe(false)
+
+    await clique(écran, écran.wrapper.find('.sidebar .side button'))
+    expect(window.location.search).toBe('?view=i18n&item=fr')
+    expect(écran.wrapper.find('.plugin-view .canvas').text()).toBe('canvas:fr')
+    expect(écran.wrapper.find('#view-panel .detail').text()).toBe('detail:fr')
+    expect(écran.wrapper.find('.toolbar .trail').text().replace(/\s+/g, '')).toBe('i18n/fr')
+
+    // Son panneau se replie comme les autres, retenu sous sa propre clé.
+    await écran.wrapper.find('#view-panel .toggle').trigger('click')
+    expect(localStorage.getItem('crypte:panel:view:i18n')).toBe('false')
+
+    await clique(écran, écran.vue('stories'))
+    expect(écran.wrapper.find('.plugin-view').exists()).toBe(false)
+    expect(écran.wrapper.find('iframe').isVisible()).toBe(true)
+    écran.wrapper.unmount()
+  })
+
+  // L'adresse d'arrivée ouvre la vue dès que ses composants arrivent ; une vue
+  // qu'aucun plugin ne dessine le dit, une fois la liste lue.
+  test('opens from its address, and says when no plugin draws it', async () => {
+    window.history.replaceState(null, '', '/?view=i18n&item=de')
+    const écran = await monte([badge, alerte])
+    await vues(écran, [i18n])
+    expect(écran.wrapper.find('.plugin-view .canvas').text()).toBe('canvas:de')
+    écran.wrapper.unmount()
+
+    window.history.replaceState(null, '', '/?view=absente')
+    const autre = await monte([badge, alerte])
+    await vues(autre, [i18n])
+    expect(autre.wrapper.find('.stage .empty-note').text()).toBe(
+      'No plugin draws a view named absente.',
+    )
+    autre.wrapper.unmount()
   })
 })
 

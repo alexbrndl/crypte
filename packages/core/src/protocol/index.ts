@@ -36,6 +36,10 @@ export { normalizeSegment, storyId } from './id'
 // What a plugin is, and what its node surface may contribute
 export type {
   CryptePlugin,
+  PluginView,
+  ShellView,
+  ViewProps,
+  ViewEvents,
   ShellContribution,
   PanelProps,
   PanelEvents,

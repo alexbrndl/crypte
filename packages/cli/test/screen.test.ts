@@ -791,7 +791,7 @@ describe('a plugin in the browser', () => {
 
     expect(await chiffres.allInnerTexts()).toEqual([
       expect.stringMatching(/^Shell \d+\.\d kB$/),
-      '5 plugins',
+      '6 plugins',
     ])
     expect(await ecran.page.locator('.status-bar .render').innerText()).toMatch(
       /^First render \d+ ms$/,
@@ -808,7 +808,22 @@ describe('a plugin in the browser', () => {
       expect.stringMatching(/^a11y 1\d\d\.\d kB$/),
       expect.stringMatching(/^hello \d\.\d kB$/),
       expect.stringMatching(/^status \d\.\d kB$/),
+      expect.stringMatching(/^i18n \d\.\d kB$/),
     ])
+  })
+
+  // La vue d'un plugin, servie telle quelle par l'import map du shell : son
+  // entrée dans l'activity bar, son canvas, et l'élément choisi dans sa sidebar,
+  // que l'adresse et le panneau suivent.
+  test('opens the view of a plugin from the activity bar', async ({ ecran }) => {
+    await ecran.page.locator('.activity-bar a', { hasText: 'i18n' }).click()
+    await expect
+      .poll(() => ecran.page.locator('.plugin-view td').first().textContent())
+      .toBe('Panier')
+    await ecran.page.locator('.sidebar button', { hasText: 'Deutsch' }).click()
+    await expect.poll(() => new URL(ecran.page.url()).search).toBe('?view=i18n&item=de')
+    expect(await ecran.page.locator('#view-panel').innerText()).toContain('Deutsch: 1 missing')
+    expect(ecran.plaintes()).toEqual([])
   })
 
   // Deux copies de Vue ne se voient pas : `inject` passe encore, et seul l'état

@@ -185,7 +185,8 @@ describe('crypte dev', () => {
           { plugin: 'n', reason: 'the hook returned no array of entries' },
           {
             plugin: 'b',
-            reason: '`toolbar` is not a key of a plugin, which are name, shell, preview and node',
+            reason:
+              '`toolbar` is not a key of a plugin, which are name, shell, preview, node and view',
           },
         ],
         weights: [

@@ -13,13 +13,16 @@ import {
   Sun02Icon,
 } from '@hugeicons/core-free-icons'
 import { Button, Tooltip } from '@crypte/ui'
+import type { PluginView } from '@crypte/core/protocol'
 import { computed } from 'vue'
 import Badge from '../ui/badge.vue'
 import Icon from '../ui/icon.vue'
 import HealthIcon from './health-icon.vue'
 import Logo from '../ui/logo.vue'
 
-export type View = 'tokens' | 'stories' | 'health' | 'versions'
+export type BuiltIn = 'tokens' | 'stories' | 'health' | 'versions'
+// Une vue de plugin, `view:<nom>`, section 6.1.
+export type View = BuiltIn | `view:${string}`
 
 // Le badge `sm` tient deux caractères au plus, plafonné à 9+ comme la maquette :
 // le compte exact reste dans le détail de l'infobulle.
@@ -27,7 +30,11 @@ const capped = (count: number) => (count > 9 ? '9+' : String(count))
 
 const props = defineProps<{
   current: View
-  hrefs: Record<View, string | null>
+  hrefs: Record<BuiltIn, string | null>
+  // Les vues des plugins, sous un séparateur après versions. Toutes à la suite :
+  // le menu « plus » que la maquette ouvre au-delà de trois attend un quatrième
+  // plugin qui ait une vue, un seul en a une aujourd'hui.
+  plugins?: { name: string; label: string; icon: PluginView['icon']; href: string }[]
   // Le compte des écarts de la vue versions, `null` quand il ne se lit pas.
   counter: number | null
   // Ce qu'il reste à faire, le badge de Santé.
@@ -40,7 +47,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ go: [view: View, event: MouseEvent]; search: []; theme: [] }>()
 
-const GROUPS: { view: View; label: string; icon: typeof Search01Icon }[][] = [
+const GROUPS: { view: BuiltIn; label: string; icon: typeof Search01Icon }[][] = [
   [
     { view: 'tokens', label: 'tokens', icon: Hexagon01Icon },
     { view: 'stories', label: 'stories', icon: ComponentIcon },
@@ -53,7 +60,7 @@ const GROUPS: { view: View; label: string; icon: typeof Search01Icon }[][] = [
 ]
 
 // Le détail du tooltip de chaque vue : ce que son badge compte.
-const detailOf = (view: View) =>
+const detailOf = (view: BuiltIn) =>
   view === 'versions' && props.counter !== null
     ? `${plural(props.counter, 'difference')}`
     : view === 'health' && (props.score != null || props.todo)
@@ -109,6 +116,20 @@ const groups = computed(() =>
             }}</Badge>
           </span>
           <span class="label">{{ item.label }}</span>
+        </a>
+      </Tooltip>
+    </template>
+    <template v-if="plugins && plugins.length > 0">
+      <span class="separator" aria-hidden="true" />
+      <Tooltip v-for="one of plugins" :key="one.name" :content="one.label" side="right">
+        <a
+          class="item"
+          :href="one.href"
+          :aria-current="current === `view:${one.name}` ? 'page' : undefined"
+          @click="emit('go', `view:${one.name}`, $event)"
+        >
+          <span class="glyph"><Icon :icon="one.icon as typeof Search01Icon" /></span>
+          <span class="label">{{ one.label }}</span>
         </a>
       </Tooltip>
     </template>

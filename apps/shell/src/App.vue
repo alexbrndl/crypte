@@ -32,7 +32,7 @@ import {
   useTemplateRef,
   watch,
 } from 'vue'
-import Panels from './panels/panels.vue'
+import Panels, { type LoadedView } from './panels/panels.vue'
 import { landing, unreadable, type Shown } from './navigation/recover'
 import { CHANGES, type Changes } from './pages/changes'
 import { differencesOf, sinceLabel } from './versions/differences'
@@ -70,9 +70,13 @@ import {
   PanelRightIcon,
   Tick02Icon,
 } from '@hugeicons/core-free-icons'
-import ActivityBar, { type View } from './navigation/activity-bar.vue'
+import ActivityBar, { type BuiltIn, type View } from './navigation/activity-bar.vue'
 import Icon from './ui/icon.vue'
 import ColumnTitle from './ui/column-title.vue'
+import EmptyNote from './ui/empty-note.vue'
+import ViewCanvas from './ui/view-canvas.vue'
+import PanelSection from './panels/panel-section.vue'
+import { keep, kept } from './storage'
 import StoryTree from './navigation/story-tree.vue'
 import CategoryList from './tokens/category-list.vue'
 import { categoriesOf } from './tokens/categories'
@@ -169,6 +173,27 @@ const categories = computed(() => categoriesOf(families.value))
 // catalogue, et rien ne surveille son fichier. `null` avant la première lecture,
 // `failed` quand la route ne répond pas, ce qui n'est pas un dossier absent.
 const healthAt = ref<{ page: HealthPage; item?: string } | null>(null)
+
+// La vue d'un plugin ouverte, son nom et l'élément choisi, ou `null`. Ses
+// composants arrivent avec la liste des plugins : avant, la vue ouverte ne
+// dessine rien.
+const viewAt = ref<{ plugin: string; item?: string } | null>(null)
+const views = shallowRef<LoadedView[]>([])
+const shownView = computed(
+  () => views.value.find((one) => one.name === viewAt.value?.plugin) ?? null,
+)
+// Le repli du panneau d'une vue, retenu par plugin sous sa propre clé : celle
+// de son panneau des stories est `crypte:panel:<nom>`.
+const viewFolds = ref<Record<string, boolean>>({})
+const viewPanelKey = () => `crypte:panel:view:${viewAt.value?.plugin}`
+const viewPanelOpen = computed(
+  () => viewFolds.value[viewAt.value?.plugin ?? ''] ?? kept(viewPanelKey()) !== false,
+)
+function toggleViewPanel() {
+  const next = !viewPanelOpen.value
+  viewFolds.value = { ...viewFolds.value, [viewAt.value?.plugin ?? '']: next }
+  keep(viewPanelKey(), next ? undefined : false)
+}
 const HEALTH = '/@crypte/health.json'
 const health = ref<Health | 'failed' | null>(null)
 async function readHealth() {
@@ -513,6 +538,7 @@ const storyMode = computed(
     component.value === null &&
     tokensAt.value === null &&
     healthAt.value === null &&
+    viewAt.value === null &&
     !changesOpen.value,
 )
 const fullScreen = computed(() => full.value && storyMode.value)
@@ -657,6 +683,7 @@ function show(id: string, trace: Trace = 'replace') {
   component.value = null
   tokensAt.value = null
   healthAt.value = null
+  viewAt.value = null
   select(id)
   write(placeSearch({ mode: 'entry', id }), trace)
 }
@@ -667,6 +694,7 @@ function openTokens(category: string, token?: string, trace: Trace = 'push') {
   closeChanges()
   component.value = null
   healthAt.value = null
+  viewAt.value = null
   tokensAt.value = token === undefined ? { category } : { category, token }
   write(
     placeSearch(
@@ -682,10 +710,25 @@ function openHealth(page: HealthPage, item?: string, trace: Trace = 'push') {
   closeChanges()
   component.value = null
   tokensAt.value = null
+  viewAt.value = null
   if (healthAt.value === null) void readHealth()
   healthAt.value = item === undefined ? { page } : { page, item }
   write(
     placeSearch(item === undefined ? { mode: 'health', page } : { mode: 'health', page, item }),
+    trace,
+  )
+}
+
+function openView(plugin: string, item?: string, trace: Trace = 'push') {
+  if (trace === 'push') stale.value = null
+  full.value = false
+  closeChanges()
+  component.value = null
+  tokensAt.value = null
+  healthAt.value = null
+  viewAt.value = item === undefined ? { plugin } : { plugin, item }
+  write(
+    placeSearch(item === undefined ? { mode: 'view', plugin } : { mode: 'view', plugin, item }),
     trace,
   )
 }
@@ -700,6 +743,7 @@ function open(id: string, trace: Trace = 'push') {
   component.value = id
   tokensAt.value = null
   healthAt.value = null
+  viewAt.value = null
   const stories = ofComponent(id, entries.value)
   if (stories[0] && !stories.some((entry) => entry.id === current.value)) select(stories[0].id)
   write(placeSearch({ mode: 'component', id }), trace)
@@ -717,6 +761,7 @@ function openChanges(trace: Trace = 'push', at: Since & { change?: string } = {}
   component.value = null
   tokensAt.value = null
   healthAt.value = null
+  viewAt.value = null
   write(placeSearch({ mode: 'changes', ...at }), trace)
 }
 
@@ -739,13 +784,15 @@ function selectChange(key: string) {
 // La vue de l'activity bar, déduite de ce qui est affiché : une page composant est
 // de la vue stories, une famille de la vue tokens, les changements de la vue versions.
 const view = computed<View>(() =>
-  healthAt.value !== null
-    ? 'health'
-    : changesOpen.value
-      ? 'versions'
-      : tokensAt.value !== null
-        ? 'tokens'
-        : 'stories',
+  viewAt.value !== null
+    ? `view:${viewAt.value.plugin}`
+    : healthAt.value !== null
+      ? 'health'
+      : changesOpen.value
+        ? 'versions'
+        : tokensAt.value !== null
+          ? 'tokens'
+          : 'stories',
 )
 
 // Où mène chaque entrée : la story chargée, la catégorie ouverte ou la première,
@@ -755,7 +802,7 @@ const firstCategory = () => tokensAt.value?.category ?? categories.value[0]?.nam
 const noTokens = computed(
   () => read.value && tokensAt.value !== null && categories.value.length === 0,
 )
-const hrefs = computed<Record<View, string | null>>(() => {
+const hrefs = computed<Record<BuiltIn, string | null>>(() => {
   const tokens = firstCategory()
   return {
     stories:
@@ -768,8 +815,19 @@ const hrefs = computed<Record<View, string | null>>(() => {
   }
 })
 
+// Les vues des plugins, sous un séparateur après versions.
+const pluginViews = computed(() =>
+  views.value.map((one) => ({
+    name: one.name,
+    label: one.label,
+    icon: one.icon,
+    href: placeSearch({ mode: 'view', plugin: one.name }),
+  })),
+)
+
 function go(to: View, event: MouseEvent) {
   follow(event, () => {
+    if (to.startsWith('view:')) return openView(to.slice('view:'.length))
     if (to === 'versions') openChanges()
     const tokens = firstCategory()
     if (to === 'tokens') openTokens(tokens)
@@ -780,6 +838,8 @@ function go(to: View, event: MouseEvent) {
       closeChanges()
       tokensAt.value = null
       healthAt.value = null
+      viewAt.value = null
+      viewAt.value = null
       component.value = null
       // Le chemin seul : une adresse vide laisserait la requête en place.
       write(window.location.pathname, 'push')
@@ -1004,6 +1064,7 @@ async function refresh() {
     if (first) [opening, shown] = [arrival.id, first]
   }
   if (arrival.mode === 'health') openHealth(pageOf(arrival.page), arrival.item, 'none')
+  if (arrival.mode === 'view') openView(arrival.plugin, arrival.item, 'none')
   if (arrival.mode === 'changes') {
     const { mode: _, ...at } = arrival
     if (!changesOpen.value) openChanges('none', at)
@@ -1042,7 +1103,12 @@ async function refresh() {
     const id = next.id
     const followed = componentIdOf(stories.find((entry) => entry.id === id)?.path ?? [])
     if (followed !== component.value) open(followed, 'replace')
-  } else if (tokensAt.value !== null || changesOpen.value || healthAt.value !== null)
+  } else if (
+    tokensAt.value !== null ||
+    changesOpen.value ||
+    healthAt.value !== null ||
+    viewAt.value !== null
+  )
     select(next.id)
   else show(next.id)
 }
@@ -1057,6 +1123,7 @@ function travel() {
     open(place.id, 'none')
   if (place.mode === 'tokens') openTokens(place.category, place.token, 'none')
   if (place.mode === 'health') openHealth(pageOf(place.page), place.item, 'none')
+  if (place.mode === 'view') openView(place.plugin, place.item, 'none')
   if (place.mode === 'changes') {
     const { mode: _, ...at } = place
     openChanges('none', at)
@@ -1147,6 +1214,7 @@ onMounted(() => {
         :todo="todo"
         :score="healthScore"
         :hrefs="hrefs"
+        :plugins="pluginViews"
         :counter="counter"
         :search-keys="paletteKeys"
         :search-shortcuts="paletteShortcuts"
@@ -1189,6 +1257,15 @@ onMounted(() => {
           @since="(since) => openChanges('push', since)"
           @select="(key, event) => follow(event, () => selectChange(key))"
         />
+        <template v-else-if="viewAt">
+          <ColumnTitle :title="shownView?.label ?? viewAt.plugin" />
+          <component
+            :is="shownView.sidebar"
+            v-if="shownView?.sidebar"
+            :item="viewAt.item ?? null"
+            @item="(key: string | null) => openView(viewAt!.plugin, key ?? undefined)"
+          />
+        </template>
         <StoryTree
           v-else
           :entries="entries"
@@ -1338,6 +1415,40 @@ onMounted(() => {
           </Tooltip>
         </div>
       </div>
+      <div v-else-if="viewAt" class="toolbar">
+        <nav class="trail" aria-label="Breadcrumb">
+          <template v-if="viewAt.item">
+            <a
+              :href="placeSearch({ mode: 'view', plugin: viewAt.plugin })"
+              @click="follow($event, () => openView(viewAt!.plugin))"
+              >{{ shownView?.label ?? viewAt.plugin }}</a
+            ><span class="separator">/</span>
+            <span aria-current="page">{{ viewAt.item }}</span>
+          </template>
+          <span v-else aria-current="page">{{ shownView?.label ?? viewAt.plugin }}</span>
+        </nav>
+        <div class="actions">
+          <Button variant="secondary" class="copy" @click="copyLink">
+            <Icon :icon="Copy01Icon" />
+            {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
+          </Button>
+          <template v-if="shownView?.panel">
+            <span class="divider" aria-hidden="true" />
+            <Tooltip :content="panelsOpen ? 'Hide panels' : 'Show panels'">
+              <Button
+                variant="ghost"
+                class="panels-toggle"
+                aria-label="Panels"
+                aria-controls="view-panel"
+                :aria-expanded="panelsOpen"
+                @click="panelsOpen = !panelsOpen"
+              >
+                <Icon :icon="panelsOpen ? PanelRightOpenIcon : PanelRightIcon" />
+              </Button>
+            </Tooltip>
+          </template>
+        </div>
+      </div>
 
       <div class="body">
         <div class="stage">
@@ -1463,6 +1574,19 @@ onMounted(() => {
             @component="(id, event) => follow(event, () => open(id))"
           />
 
+          <template v-if="viewAt">
+            <ViewCanvas v-if="shownView" class="plugin-view" :aria-label="shownView.label">
+              <component
+                :is="shownView.canvas"
+                :item="viewAt.item ?? null"
+                @item="(key: string | null) => openView(viewAt!.plugin, key ?? undefined)"
+              />
+            </ViewCanvas>
+            <EmptyNote v-else-if="pluginsRead">
+              No plugin draws a view named {{ viewAt.plugin }}.
+            </EmptyNote>
+          </template>
+
           <ComponentPage
             v-if="component !== null"
             :stories="componentStories"
@@ -1476,6 +1600,7 @@ onMounted(() => {
               component === null &&
               tokensAt === null &&
               healthAt === null &&
+              viewAt === null &&
               !changesOpen &&
               !noStory
             "
@@ -1613,6 +1738,7 @@ onMounted(() => {
             @send="sendToPreview"
             @weights="(measured) => ((weights = measured), (pluginsRead = true))"
             @troubles="(troubles) => ((panelTroubles = troubles), (pluginsRead = true))"
+            @views="(found) => (views = found)"
           />
         </aside>
         <aside
@@ -1631,6 +1757,23 @@ onMounted(() => {
             @token="(category, token, event) => follow(event, () => openTokens(category, token))"
             @component="(id, event) => follow(event, () => open(id))"
           />
+        </aside>
+        <aside
+          v-if="viewAt && shownView?.panel && !fullScreen && panelsOpen"
+          id="view-panel"
+          class="panel-column"
+          :aria-label="`${shownView.label} panel`"
+        >
+          <ColumnTitle title="Panels" />
+          <PanelSection :title="shownView.label" :open="viewPanelOpen" @toggle="toggleViewPanel">
+            <div class="view-panel-body">
+              <component
+                :is="shownView.panel"
+                :item="viewAt.item ?? null"
+                @item="(key: string | null) => openView(viewAt!.plugin, key ?? undefined)"
+              />
+            </div>
+          </PanelSection>
         </aside>
         <aside
           v-if="view === 'health' && listedHealth && !fullScreen && panelsOpen"
@@ -1925,6 +2068,12 @@ main.full {
 
 .prompt:disabled {
   pointer-events: none;
+}
+
+/* As the body of a plugin panel: padding 12, the text at 14 px. */
+.view-panel-body {
+  padding: var(--space-3);
+  font-size: var(--text-sm);
 }
 
 .config,

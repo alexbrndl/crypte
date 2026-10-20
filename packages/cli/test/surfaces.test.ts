@@ -242,15 +242,17 @@ describe('what a surface is refused', () => {
       refused: [
         {
           plugin: 'p',
-          reason: '`toolbar` is not a key of a plugin, which are name, shell, preview and node',
+          reason:
+            '`toolbar` is not a key of a plugin, which are name, shell, preview, node and view',
         },
         {
           plugin: 'p',
-          reason: '`ui` is not a key of a plugin, which are name, shell, preview and node',
+          reason: '`ui` is not a key of a plugin, which are name, shell, preview, node and view',
         },
         {
           plugin: 'plugins[1]',
-          reason: '`toolbar` is not a key of a plugin, which are name, shell, preview and node',
+          reason:
+            '`toolbar` is not a key of a plugin, which are name, shell, preview, node and view',
         },
       ],
     })
@@ -281,7 +283,8 @@ describe('what a surface is refused', () => {
     expect(avec({ name: 'p', toString: 'x' } as unknown as CryptePlugin).refused).toEqual([
       {
         plugin: 'p',
-        reason: '`toString` is not a key of a plugin, which are name, shell, preview and node',
+        reason:
+          '`toString` is not a key of a plugin, which are name, shell, preview, node and view',
       },
     ])
   })
@@ -296,6 +299,52 @@ describe('what a surface is refused', () => {
         plugin: 'p',
         reason: `\`shell\` points at ${join(dossier, 'absent.mjs')}, which is not a file`,
       },
+    ])
+  })
+})
+
+// Une vue à soi dans l'activity bar : son libellé et son icône passent au shell
+// avec le module qui la dessine ; ce qui ne se dessine pas est refusé, dit.
+describe('the view of a plugin', () => {
+  const ICONE = [['path', { d: 'M0 0', stroke: 'currentColor' }]] as const
+
+  it('passes its label and icon with the shell module that draws it', () => {
+    const lues = avec({
+      name: 'i18n',
+      shell: url('shell.mjs'),
+      view: { label: 'i18n', icon: ICONE },
+    })
+    expect(lues.shell).toEqual([
+      { plugin: 'i18n', file: join(dossier, 'shell.mjs'), view: { label: 'i18n', icon: ICONE } },
+    ])
+    expect(lues.refused).toEqual([])
+  })
+
+  it('refuses a label it cannot fit, an icon it cannot draw, and a view with no shell module', () => {
+    const vue = (view: unknown, shell: string | undefined = url('shell.mjs')) =>
+      avec({ name: 'v', ...(shell ? { shell } : {}), view } as CryptePlugin)
+    const raison = (view: unknown, shell?: string) => {
+      const lues = vue(view, shell)
+      return [lues.refused.map((one) => one.reason), lues.shell.map((one) => one.view)]
+    }
+    const LIBELLE =
+      '`view.label` must be a string of 1 to 8 characters, the activity bar is 48 px wide'
+    const ICONE_REFUS =
+      '`view.icon` must be a Hugeicons object, imported from `@hugeicons/core-free-icons`'
+    expect(raison({ label: 'neuf-char', icon: ICONE })).toEqual([[LIBELLE], [undefined]])
+    expect(raison({ label: '', icon: ICONE })).toEqual([[LIBELLE], [undefined]])
+    expect(raison({ label: 8, icon: ICONE })).toEqual([[LIBELLE], [undefined]])
+    expect(raison({ label: 'éèàùçôîï', icon: ICONE })).toEqual([
+      [],
+      [{ label: 'éèàùçôîï', icon: ICONE }],
+    ])
+    expect(raison({ label: 'i18n', icon: 'TranslateIcon' })).toEqual([[ICONE_REFUS], [undefined]])
+    expect(raison({ label: 'i18n', icon: [] })).toEqual([[ICONE_REFUS], [undefined]])
+    expect(raison({ label: 'i18n', icon: [['path', null]] })).toEqual([[ICONE_REFUS], [undefined]])
+    expect(raison(null)).toEqual([[LIBELLE], [undefined]])
+    expect(raison({ label: 'i18n', icon: ICONE }, '')).toEqual([
+      ['`view` needs a `shell` module, which draws it'],
+      [],
     ])
   })
 })

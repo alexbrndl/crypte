@@ -234,6 +234,7 @@ export function servePlugin(
           const panels = surfaces.shell.map((one) => ({
             name: one.plugin,
             shell: `${PLUGIN_FILES}${segmentOf(one.plugin)}/${basename(one.file)}`,
+            ...(one.view ? { view: one.view } : {}),
           }))
 
           // What was refused of each plugin, so the shell names it beside the
