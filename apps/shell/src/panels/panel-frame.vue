@@ -225,13 +225,6 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
 </template>
 
 <style scoped>
-/* The sm button of the Figma panel header, 24 px high, by the button's custom
-   properties. */
-.reset {
-  --button-height: 24px;
-  --button-padding: var(--space-0-5) var(--space-2);
-}
-
 /* 32 px without object, as its inapplicable state: no band, a subtle title. */
 .panel[data-inapplicable] :deep(.head) {
   background: none;

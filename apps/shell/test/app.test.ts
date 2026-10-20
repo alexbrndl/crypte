@@ -3528,10 +3528,10 @@ describe('the health view', () => {
         .map((one) => one.text()),
     ).toEqual(['Fix the render of Alerte', 'Fix the render of Par défaut'])
     // Le prompt de ce que le composant demande, ses deux rendus.
-    await àFaire().findAll('button.copy').at(-1)!.trigger('click')
+    await àFaire().find('.head .prompt').trigger('click')
     await vide(écran.wrapper)
     expect(titres()).toEqual(['### Badge / Alerte', '### Badge / Par défaut'])
-    expect(àFaire().findAll('button.copy').at(-1)!.text()).toBe('Fix prompt copied')
+    expect(àFaire().find('.head .prompt').text()).toBe('Fix prompt copied')
     await àFaire().find('a.link').trigger('click', { button: 0 })
     await vide(écran.wrapper)
     expect(window.location.search).toBe('?health=failures&item=badge--alerte')
