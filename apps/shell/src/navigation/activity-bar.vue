@@ -21,12 +21,16 @@ import Logo from '../ui/logo.vue'
 
 export type View = 'tokens' | 'stories' | 'health' | 'versions'
 
+// Le badge `sm` tient deux caractères au plus, plafonné à 9+ comme la maquette :
+// le libellé accessible garde le compte exact.
+const capped = (count: number) => (count > 9 ? '9+' : String(count))
+
 const props = defineProps<{
   current: View
   hrefs: Record<View, string | null>
   // Le compte des écarts de la vue versions, `null` quand il ne se lit pas.
   counter: number | null
-  // Ce qu'il reste à faire, le badge de Santé, plafonné à 9+ comme la maquette.
+  // Ce qu'il reste à faire, le badge de Santé.
   todo?: number
   // Le score de santé, de 0 à 100, qui remplit le cœur ; `null` sans mesure.
   score?: number | null
@@ -98,10 +102,10 @@ const groups = computed(() =>
             <HealthIcon v-if="item.view === 'health'" :score="score ?? null" />
             <Icon v-else :icon="item.icon" />
             <Badge v-if="item.view === 'versions' && counter !== null" size="sm" class="count">{{
-              counter
+              capped(counter)
             }}</Badge>
             <Badge v-if="item.view === 'health' && todo" size="sm" class="count">{{
-              todo > 9 ? '9+' : todo
+              capped(todo)
             }}</Badge>
           </span>
           <span class="label">{{ item.label }}</span>
