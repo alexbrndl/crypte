@@ -170,6 +170,10 @@ const themesOf = (themes: string[]) =>
   line-height: var(--leading-sm);
 }
 
+.failed {
+  color: var(--error-text);
+}
+
 .start {
   display: flex;
   flex-direction: column;
@@ -261,6 +265,11 @@ tbody th {
 tbody th a {
   color: var(--text-primary);
   text-decoration: none;
+}
+
+tbody th a:focus-visible {
+  border-radius: var(--radius-xs);
+  outline: var(--stroke-focus) solid var(--accent-focus);
 }
 
 .grow {

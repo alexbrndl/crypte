@@ -66,6 +66,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import ActivityBar, { type View } from './navigation/activity-bar.vue'
 import Icon from './ui/icon.vue'
+import ColumnTitle from './ui/column-title.vue'
 import StoryTree from './navigation/story-tree.vue'
 import CategoryList from './tokens/category-list.vue'
 import { categoriesOf } from './tokens/categories'
@@ -1553,7 +1554,7 @@ onMounted(() => {
           class="panel-column"
           aria-label="Panels"
         >
-          <h2 class="column-title">Panels</h2>
+          <ColumnTitle title="Panels" />
           <Panels
             :entry="displayed"
             :received="received"
@@ -1573,7 +1574,7 @@ onMounted(() => {
           class="panel-column"
           aria-label="Token panel"
         >
-          <h2 class="column-title">Panels</h2>
+          <ColumnTitle title="Panels" />
           <TokenPanel
             :token="selectedToken"
             :categories="categories"
@@ -1590,7 +1591,7 @@ onMounted(() => {
           class="panel-column"
           aria-label="Health panel"
         >
-          <h2 class="column-title">Panels</h2>
+          <ColumnTitle title="Panels" />
           <HealthPanel
             :component="healthItem"
             :finding="healthAt?.page === 'accessibility' ? selectedFinding : null"
@@ -1868,17 +1869,6 @@ main.full {
      its children would cover it. */
   border-left: var(--stroke-hairline) solid var(--border-base);
   background: var(--background-raised);
-}
-
-.column-title {
-  margin: 0;
-  padding: var(--space-1-5) var(--space-3);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  line-height: var(--leading-xs);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 
 .config,

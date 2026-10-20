@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { keep, kept } from '../storage'
 
 // Les derniers endroits ouverts, que la palette propose quand rien n'est tapé :
 // une story, une page composant, une famille de tokens ou la vue versions, sous la
@@ -19,12 +20,8 @@ const isVisit = (one: unknown): one is Visit =>
   typeof (one as Visit).at === 'number'
 
 const read = (): Visit[] => {
-  try {
-    const kept: unknown = JSON.parse(localStorage.getItem(KEY) ?? '[]')
-    return Array.isArray(kept) ? kept.filter(isVisit).slice(0, KEPT) : []
-  } catch {
-    return []
-  }
+  const stored = kept(KEY)
+  return Array.isArray(stored) ? stored.filter(isVisit).slice(0, KEPT) : []
 }
 
 export function useRecent() {
@@ -35,11 +32,7 @@ export function useRecent() {
       { key, at: Date.now() },
       ...visits.value.filter((one) => one.key !== key),
     ].slice(0, KEPT)
-    try {
-      localStorage.setItem(KEY, JSON.stringify(visits.value))
-    } catch {
-      // Stockage refusé : les récents durent le temps de la session.
-    }
+    keep(KEY, visits.value)
   }
 
   return { visits, remember }

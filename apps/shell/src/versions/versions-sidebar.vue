@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ColumnTitle from '../ui/column-title.vue'
 import { ComponentIcon, Hexagon01Icon } from '@hugeicons/core-free-icons'
 import { Field, Input, Select } from '@crypte/ui'
 import { computed, ref } from 'vue'
@@ -88,10 +89,7 @@ const total = computed(() => props.tokens.length + props.stories.length)
 
 <template>
   <div class="versions">
-    <div class="title">
-      <h2>Versions</h2>
-      <span class="meta">{{ total }}</span>
-    </div>
+    <ColumnTitle title="Versions" :count="total" />
     <div class="since">
       <Field v-slot="{ id }" label="From">
         <Select :id="id" :model-value="chosen" :options="options" @update:model-value="choose" />
@@ -108,9 +106,7 @@ const total = computed(() => props.tokens.length + props.stories.length)
     </div>
     <p v-if="total === 0" class="none">no difference</p>
     <section v-for="group of groups" :key="group.title" class="group">
-      <h3>
-        {{ group.title }}<span class="meta">{{ group.rows.length }}</span>
-      </h3>
+      <ColumnTitle :title="group.title" :count="group.rows.length" />
       <ul>
         <li v-for="row of group.rows" :key="row.key">
           <a
@@ -139,37 +135,6 @@ const total = computed(() => props.tokens.length + props.stories.length)
   flex-direction: column;
   min-height: 0;
   overflow-y: auto;
-}
-
-/* The column-title of the Figma sidebar, 32 px with its taller top. */
-.title,
-h3 {
-  display: flex;
-  align-items: center;
-  margin: 0;
-  padding: var(--space-2-5) var(--space-3) var(--space-1-5);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  line-height: var(--leading-xs);
-  letter-spacing: var(--tracking-wider);
-  text-transform: uppercase;
-}
-
-.title h2 {
-  flex: 1;
-  margin: 0;
-  font: inherit;
-}
-
-h3 .meta {
-  margin-left: var(--space-2);
-}
-
-.meta {
-  color: var(--text-subtle);
-  font-weight: var(--weight-normal);
-  letter-spacing: 0;
 }
 
 /* Les versions comparées : padding 4/12/10/12, gap 6. */

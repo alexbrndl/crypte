@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ColumnTitle from '../ui/column-title.vue'
 import {
   AccessibilityIcon,
   Alert02Icon,
@@ -49,12 +50,14 @@ const score = computed(() => scoreOf(gauges.value))
 
 <template>
   <div class="health">
-    <div class="title">
-      <h2>Health</h2>
-      <span v-if="components && !unread" class="meta"
-        >{{ components.length }} {{ components.length === 1 ? 'component' : 'components' }}</span
-      >
-    </div>
+    <ColumnTitle
+      title="Health"
+      :count="
+        components && !unread
+          ? `${components.length} ${components.length === 1 ? 'component' : 'components'}`
+          : undefined
+      "
+    />
     <p v-if="unread" class="none">{{ unread }}</p>
     <p v-else-if="components === null" class="none">no components folder</p>
     <template v-else>
@@ -81,10 +84,7 @@ const score = computed(() => scoreOf(gauges.value))
           {{ ' ' }}<span class="ratio">{{ gauge.done }}/{{ gauge.total }}</span>
         </p>
       </section>
-      <div class="title pages">
-        <h2>Pages</h2>
-        <span class="meta">{{ PAGES.length }}</span>
-      </div>
+      <ColumnTitle class="pages" title="Pages" :count="PAGES.length" />
       <ul aria-label="Pages">
         <li v-for="one of PAGES" :key="one.page">
           <a
@@ -111,28 +111,9 @@ const score = computed(() => scoreOf(gauges.value))
   overflow-y: auto;
 }
 
-/* The column-title of the Figma sidebar, 32 px with its taller top. */
-.title {
-  display: flex;
-  align-items: center;
-  padding: var(--space-2-5) var(--space-3) var(--space-1-5);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
-}
-
-.title.pages {
+.pages {
   padding-top: var(--space-3);
   box-shadow: inset 0 var(--stroke-hairline) 0 var(--border-base);
-}
-
-.title h2 {
-  flex: 1;
-  margin: 0;
-  color: var(--text-muted);
-  font-size: inherit;
-  font-weight: var(--weight-medium);
-  letter-spacing: var(--tracking-wider);
-  text-transform: uppercase;
 }
 
 .meta {

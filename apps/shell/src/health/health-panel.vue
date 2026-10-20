@@ -2,8 +2,6 @@
 import type { StoryEntry } from '@crypte/core/protocol'
 import {
   Alert02Icon,
-  ArrowDown01Icon,
-  ArrowRight01Icon,
   ComponentIcon,
   Copy01Icon,
   FileAddIcon,
@@ -12,6 +10,8 @@ import {
 } from '@hugeicons/core-free-icons'
 import { computed, ref, watch } from 'vue'
 import Icon from '../ui/icon.vue'
+import PanelSection from '../panels/panel-section.vue'
+import { keep, kept } from '../storage'
 import { ago } from '../navigation/recent'
 import { componentIdOf } from '../navigation/tree'
 import type { Failure, Finding } from './audit'
@@ -109,8 +109,13 @@ const nothing = computed(
 const plural = (count: number, one: string, many = `${one}s`) =>
   `${count} ${count === 1 ? one : many}`
 
-// Ouverts au départ, repliables comme les panneaux des stories.
-const open = ref({ todo: true, links: true })
+// Ouverts au départ, retenus comme les panneaux des stories.
+const KEYS = { todo: 'crypte:panel:shell:todo', links: 'crypte:panel:shell:links' }
+const open = ref({ todo: kept(KEYS.todo) !== false, links: kept(KEYS.links) !== false })
+const toggle = (which: 'todo' | 'links') => {
+  open.value[which] = !open.value[which]
+  keep(KEYS[which], open.value[which] ? undefined : false)
+}
 
 const copied = ref(false)
 watch(
@@ -129,20 +134,13 @@ async function copy() {
 </script>
 
 <template>
-  <section class="panel" aria-label="To do">
-    <h3 class="head">
-      <button
-        type="button"
-        class="toggle"
-        :aria-expanded="open.todo"
-        aria-controls="health-todo"
-        @click="open.todo = !open.todo"
-      >
-        <Icon :icon="open.todo ? ArrowDown01Icon : ArrowRight01Icon" />
-        <span class="title">{{ chosen ? `${title} · to do` : 'To do' }}</span>
-      </button>
-    </h3>
-    <div v-show="open.todo" id="health-todo" class="body">
+  <PanelSection
+    :title="chosen ? `${title} · to do` : 'To do'"
+    :open="open.todo"
+    aria-label="To do"
+    @toggle="toggle('todo')"
+  >
+    <div class="content">
       <p v-if="!chosen" class="caption">Select a row to see what it needs.</p>
 
       <template v-else-if="finding">
@@ -223,22 +221,16 @@ async function copy() {
         <p v-if="nothing" class="note">Nothing to do.</p>
       </template>
     </div>
-  </section>
+  </PanelSection>
 
-  <section v-if="chosen" class="panel" aria-label="Links">
-    <h3 class="head">
-      <button
-        type="button"
-        class="toggle"
-        :aria-expanded="open.links"
-        aria-controls="health-links"
-        @click="open.links = !open.links"
-      >
-        <Icon :icon="open.links ? ArrowDown01Icon : ArrowRight01Icon" />
-        <span class="title">Links</span>
-      </button>
-    </h3>
-    <div v-show="open.links" id="health-links" class="body">
+  <PanelSection
+    v-if="chosen"
+    title="Links"
+    :open="open.links"
+    aria-label="Links"
+    @toggle="toggle('links')"
+  >
+    <div class="content">
       <template v-if="own.length > 0">
         <p class="caption">{{ plural(own.length, 'story', 'stories') }}</p>
         <a
@@ -287,61 +279,11 @@ async function copy() {
         </template>
       </template>
     </div>
-  </section>
+  </PanelSection>
 </template>
 
 <style scoped>
-.panel {
-  /* A border: the opaque head would cover an inset one. */
-  border-bottom: var(--stroke-hairline) solid var(--border-base);
-}
-
-.head {
-  margin: 0;
-  background: var(--background-subtle);
-}
-
-/* Tout l'en-tête plie le panneau : le bouton en couvre la surface, 40 px comme
-   l'en-tête des panneaux des stories. */
-.toggle {
-  display: flex;
-  box-sizing: border-box;
-  gap: var(--space-2);
-  align-items: center;
-  width: 100%;
-  min-height: 40px;
-  padding: var(--space-2) var(--space-3);
-  border: 0;
-  background: none;
-  color: var(--text-primary);
-  font: inherit;
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  line-height: var(--leading-xs);
-  letter-spacing: var(--tracking-wider);
-  text-align: left;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.toggle:focus-visible {
-  outline: var(--stroke-focus) solid var(--accent-focus);
-  outline-offset: calc(-1 * var(--stroke-focus));
-}
-
-.toggle .icon {
-  flex: none;
-  color: var(--text-subtle);
-}
-
-.title {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.body {
+.content {
   padding: var(--space-1) 0 var(--space-2-5);
 }
 

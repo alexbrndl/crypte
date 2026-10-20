@@ -1538,7 +1538,7 @@ describe('the components, on screen', () => {
       'button md': await hauteur('.actions .copy'),
       'panel/header': await hauteur('[data-plugin="controls"] .head'),
       'panel/body padding': await ecran.page.evaluate<string>(
-        `getComputedStyle(document.querySelector('[data-plugin="controls"] .body')).padding`,
+        `getComputedStyle(document.querySelector('[data-plugin="controls"] .content')).padding`,
       ),
     }).toEqual({
       'activity-bar/item': 48,
