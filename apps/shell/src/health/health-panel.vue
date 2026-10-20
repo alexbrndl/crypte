@@ -2,7 +2,7 @@
 import { plural } from '../plural'
 import type { StoryEntry } from '@crypte/core/protocol'
 import {
-  AiMagicIcon,
+  AiContentGenerator01Icon,
   Alert02Icon,
   ComponentIcon,
   Copy01Icon,
@@ -238,7 +238,7 @@ watch(
       </template>
 
       <button v-if="prompt" type="button" class="row link copy" @click="copy(prompt, 'prompt')">
-        <Icon :icon="AiMagicIcon" />
+        <Icon :icon="AiContentGenerator01Icon" />
         <span class="label">{{
           copied === 'prompt' ? 'Fix prompt copied' : 'Copy fix prompt'
         }}</span>
