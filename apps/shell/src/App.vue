@@ -1293,24 +1293,23 @@ onMounted(() => {
           }}</span>
         </nav>
         <div class="actions">
-          <!-- L'infobulle sur une enveloppe : un bouton désactivé ne reçoit pas le
-               pointeur, et « Nothing to fix » ne se lirait jamais. -->
           <Tooltip
-            :content="
-              healthPrompt
-                ? 'Paste it to your coding agent: it fixes the render errors, violations and missing stories listed here.'
-                : 'Nothing to fix'
-            "
+            v-if="healthPrompt"
+            content="Paste it to your coding agent: it fixes the render errors, violations and missing stories listed here."
           >
+            <Button variant="outline" class="prompt" @click="copyPrompt(healthPrompt, 'prompt')">
+              <Icon :icon="AiMagicIcon" />
+              {{ promptCopied === 'prompt' ? 'Fix prompt copied' : 'Copy fix prompt' }}
+            </Button>
+          </Tooltip>
+          <!-- Désactivé, l'infobulle passe par une enveloppe : un bouton désactivé ne
+               reçoit pas le pointeur, et « Nothing to fix » ne se lirait jamais. Actif,
+               elle reste sur le bouton, qui seul reçoit le focus clavier. -->
+          <Tooltip v-else content="Nothing to fix">
             <span class="prompt-hold">
-              <Button
-                variant="outline"
-                class="prompt"
-                :disabled="!healthPrompt"
-                @click="copyPrompt(healthPrompt, 'prompt')"
-              >
+              <Button variant="outline" class="prompt" disabled>
                 <Icon :icon="AiMagicIcon" />
-                {{ promptCopied === 'prompt' ? 'Fix prompt copied' : 'Copy fix prompt' }}
+                Copy fix prompt
               </Button>
             </span>
           </Tooltip>
