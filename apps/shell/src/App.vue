@@ -1668,7 +1668,7 @@ onMounted(() => {
 .activity-column {
   box-sizing: border-box;
   min-height: 0;
-  padding: var(--space-1) 0 var(--space-1) var(--space-1);
+  padding: var(--space-1) 0 0 var(--space-1);
 }
 
 .nav-column {
@@ -1982,8 +1982,6 @@ iframe[data-scheme='dark'] {
   align-items: center;
   height: 28px;
   padding: 0 var(--space-3);
-  box-shadow: inset 0 var(--stroke-hairline) 0 var(--border-base);
-  background: var(--background-subtle);
   color: var(--text-muted);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
