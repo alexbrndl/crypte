@@ -2,6 +2,7 @@
 import { plural } from '../plural'
 import type { StoryEntry } from '@crypte/core/protocol'
 import {
+  AiMagicIcon,
   Alert02Icon,
   ComponentIcon,
   Copy01Icon,
@@ -10,6 +11,7 @@ import {
   LinkSquare02Icon,
 } from '@hugeicons/core-free-icons'
 import { computed, ref, watch } from 'vue'
+import { useCopy } from '../clipboard'
 import Icon from '../ui/icon.vue'
 import PanelSection from '../panels/panel-section.vue'
 import EmptyNote from '../ui/empty-note.vue'
@@ -18,6 +20,7 @@ import { ago } from '../navigation/recent'
 import { componentIdOf } from '../navigation/tree'
 import type { Failure, Finding } from './audit'
 import { dayOf, type HealthComponent, type HealthPage } from './health'
+import { promptOf } from './prompt'
 
 // Les deux panneaux de la vue santé, pour ce qui est choisi : « To do », ce qu'il
 // reste à faire, et « Links », ce qui s'y rattache. Ce qui est choisi est un
@@ -116,20 +119,28 @@ const toggle = (which: 'todo' | 'links') => {
   keep(KEYS[which], open.value[which] ? undefined : false)
 }
 
-const copied = ref(false)
-watch(
-  () => props.component,
-  () => (copied.value = false),
+// Le prompt de ce qui est choisi : la violation, le rendu, ou tout ce que le
+// composant demande.
+const prompt = computed(() =>
+  promptOf(
+    props.finding
+      ? { failures: [], findings: [props.finding], unstoried: [] }
+      : props.failure
+        ? { failures: [props.failure], findings: [], unstoried: [] }
+        : {
+            ...mine.value,
+            unstoried:
+              props.component && props.component.stories.length === 0 ? [props.component] : [],
+          },
+    props.stories,
+  ),
 )
-async function copy() {
-  if (!props.component?.skeleton) return
-  try {
-    await navigator.clipboard.writeText(props.component.skeleton.source)
-    copied.value = true
-  } catch {
-    copied.value = false
-  }
-}
+
+const { copied, copy } = useCopy()
+watch(
+  [() => props.component, () => props.finding, () => props.failure],
+  () => (copied.value = null),
+)
 </script>
 
 <template>
@@ -176,9 +187,15 @@ async function copy() {
             <code class="label">{{ component.skeleton.file }}</code>
             <span class="meta">to create</span>
           </p>
-          <button type="button" class="row link copy" @click="copy">
+          <button
+            type="button"
+            class="row link copy"
+            @click="copy(component.skeleton.source, 'skeleton')"
+          >
             <Icon :icon="Copy01Icon" />
-            <span class="label">{{ copied ? 'Skeleton copied' : 'Copy the skeleton' }}</span>
+            <span class="label">{{
+              copied === 'skeleton' ? 'Skeleton copied' : 'Copy the skeleton'
+            }}</span>
           </button>
           <p class="caption required">
             {{
@@ -219,6 +236,13 @@ async function copy() {
         </p>
         <EmptyNote v-if="nothing">Nothing to do.</EmptyNote>
       </template>
+
+      <button v-if="prompt" type="button" class="row link copy" @click="copy(prompt, 'prompt')">
+        <Icon :icon="AiMagicIcon" />
+        <span class="label">{{
+          copied === 'prompt' ? 'Prompt copied' : 'Copy the prompt for your agent'
+        }}</span>
+      </button>
     </div>
   </PanelSection>
 

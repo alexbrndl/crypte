@@ -3476,6 +3476,31 @@ describe('the health view', () => {
       'Write the story of Avatar → ?health=unstoried&item=src/components/Avatar.tsx:Avatar',
     ])
     expect(écran.vue('health').find('.count').text()).toBe('5')
+
+    // Tout ce qui reste, en un prompt : un titre par point, dans l'ordre de la
+    // liste. Le texte même est tenu par prompt.test.ts.
+    const écrit = vi.fn(async (_texte: string) => {})
+    vi.stubGlobal('navigator', { clipboard: { writeText: écrit } })
+    const titres = () =>
+      écrit.mock.lastCall![0].split('\n').filter((ligne) => ligne.startsWith('### '))
+    await liste().find('.prompt').trigger('click')
+    await vide(écran.wrapper)
+    expect(titres()).toEqual([
+      '### Badge / Alerte',
+      '### Badge / Par défaut',
+      '### button-name in Bouton / Par défaut (critical)',
+      '### Select',
+      '### Avatar',
+    ])
+    expect(liste().find('.prompt').text()).toBe('Prompt copied')
+    // Une liste qui change oublie la copie : le texte copié n'est plus celui-là.
+    santé = () => ({ components: composants.filter((one) => one.name !== 'Avatar') })
+    window.dispatchEvent(new Event('focus'))
+    await vide(écran.wrapper)
+    expect(liste().find('.prompt').text()).toBe('Copy the prompt for your agent')
+    santé = () => ({ components: composants })
+    window.dispatchEvent(new Event('focus'))
+    await vide(écran.wrapper)
     await liste().find('a').trigger('click', { button: 0 })
     await vide(écran.wrapper)
     expect(window.location.search).toBe('?health=failures&item=badge--alerte')
@@ -3487,6 +3512,11 @@ describe('the health view', () => {
         .findAll('a.link')
         .map((one) => one.text()),
     ).toEqual(['Fix the render of Alerte', 'Fix the render of Par défaut'])
+    // Le prompt de ce que le composant demande, ses deux rendus.
+    await àFaire().findAll('button.copy').at(-1)!.trigger('click')
+    await vide(écran.wrapper)
+    expect(titres()).toEqual(['### Badge / Alerte', '### Badge / Par défaut'])
+    expect(àFaire().findAll('button.copy').at(-1)!.text()).toBe('Prompt copied')
     await àFaire().find('a.link').trigger('click', { button: 0 })
     await vide(écran.wrapper)
     expect(window.location.search).toBe('?health=failures&item=badge--alerte')
