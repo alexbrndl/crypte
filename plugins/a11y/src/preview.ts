@@ -33,20 +33,36 @@ function analyse(ctx: PreviewContext): Promise<void> {
       type: 'a11y:results',
       id: ctx.id,
       passes: found.passes.length,
-      violations: found.violations.map((one) => ({
-        rule: one.id,
-        // Always set on a violation; the type allows none for a pass.
-        impact: one.impact ?? 'minor',
-        help: one.help,
-        helpUrl: one.helpUrl,
-        targets: one.nodes.map((node) => node.target.flat().join(' ')),
-      })),
+      violations: found.violations.map((one) => {
+        const colors = colorsOf(one.nodes)
+        return {
+          rule: one.id,
+          // Always set on a violation; the type allows none for a pass.
+          impact: one.impact ?? 'minor',
+          help: one.help,
+          helpUrl: one.helpUrl,
+          targets: one.nodes.map((node) => node.target.flat().join(' ')),
+          ...(colors.length > 0 ? { colors } : {}),
+        }
+      }),
     }
     ctx.send(results)
   })
 
   last = run.catch(() => {})
   return run
+}
+
+// What the checks of a contrast rule measured, `fgColor` and `bgColor` in their
+// data; nothing for another rule.
+function colorsOf(nodes: axe.NodeResult[]): string[] {
+  const measured = nodes.flatMap((node) =>
+    [...node.any, ...node.all, ...node.none].flatMap((check) => {
+      const data = check.data as { fgColor?: unknown; bgColor?: unknown } | null
+      return [data?.fgColor, data?.bgColor].filter((one): one is string => typeof one === 'string')
+    }),
+  )
+  return [...new Set(measured)]
 }
 
 const hooks: PreviewHooks = {

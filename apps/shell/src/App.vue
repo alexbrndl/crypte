@@ -55,6 +55,7 @@ import {
   type HealthPage,
 } from './health/health'
 import { promptOf } from './health/prompt'
+import { suspectsOf } from './health/suspects'
 import { useCopy } from './clipboard'
 import CommandPalette, { type Action } from './navigation/command-palette.vue'
 import { useRecent } from './navigation/recent'
@@ -384,6 +385,11 @@ const findings = computed(() => (auditResults.value ? findingsOf(auditResults.va
 const a11yPlugin = computed(() => weights.value.some((one) => one.plugin === 'a11y'))
 const selectedFinding = computed(
   () => findings.value?.find((one) => one.key === healthAt.value?.item) ?? null,
+)
+
+// Les tokens dont la valeur est une couleur que la violation choisie a mesurée.
+const suspects = computed(() =>
+  selectedFinding.value ? suspectsOf(selectedFinding.value, categories.value, entries.value) : [],
 )
 
 const failures = computed(() => (auditResults.value ? failuresOf(auditResults.value) : null))
@@ -1645,6 +1651,7 @@ onMounted(() => {
             :href-of-component="(id) => placeSearch({ mode: 'component', id })"
             :href-of-health="(page, key) => placeSearch({ mode: 'health', page, item: key })"
             :href-of-token="tokenHref"
+            :suspects="healthAt?.page === 'accessibility' ? suspects : []"
             @story="(id, event) => follow(event, () => show(id, 'push'))"
             @page="(id, event) => follow(event, () => open(id))"
             @health="(page, key, event) => follow(event, () => openHealth(page, key))"

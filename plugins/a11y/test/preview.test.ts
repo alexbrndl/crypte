@@ -62,7 +62,13 @@ describe('an analysis', () => {
     vi.spyOn(window.axe, 'run').mockResolvedValueOnce({
       passes: [],
       violations: [
-        { id: 'regle', impact: null, help: 'aide', helpUrl: 'u', nodes: [{ target: ['div'] }] },
+        {
+          id: 'regle',
+          impact: null,
+          help: 'aide',
+          helpUrl: 'u',
+          nodes: [{ target: ['div'], any: [], all: [], none: [] }],
+        },
       ],
     } as unknown as Awaited<ReturnType<Window['axe']['run']>>)
     const { ctx, envoyes } = contexte('<div></div>')
@@ -74,9 +80,40 @@ describe('an analysis', () => {
     ])
   })
 
-  // Seul ce que le panneau montre traverse : le HTML de chaque nœud que axe
-  // joint à son résultat n'en fait pas partie.
-  it('sends nothing the panel does not show', async () => {
+  // Un défaut de contraste dit les couleurs mesurées, une fois chacune : la vue
+  // santé en tire les tokens probablement en cause. jsdom ne mesure pas de
+  // contraste, d'où le résultat d'axe simulé.
+  it('sends the colours a contrast check measured, once each', async () => {
+    const mesure = (fgColor: string, bgColor: string) => ({
+      any: [{ data: { fgColor, bgColor, contrastRatio: 2.1 } }],
+      all: [],
+      none: [],
+    })
+    vi.spyOn(window.axe, 'run').mockResolvedValueOnce({
+      passes: [],
+      violations: [
+        {
+          id: 'color-contrast',
+          impact: 'serious',
+          help: 'contraste',
+          helpUrl: 'u',
+          nodes: [
+            { target: ['.a'], ...mesure('#777777', '#ffffff') },
+            { target: ['.b'], ...mesure('#777777', '#eeeeee') },
+          ],
+        },
+      ],
+    } as unknown as Awaited<ReturnType<Window['axe']['run']>>)
+    const { ctx, envoyes } = contexte('<div></div>')
+
+    await hooks.afterMount?.(ctx)
+
+    expect(envoyes()[0]?.violations[0]?.colors).toEqual(['#777777', '#ffffff', '#eeeeee'])
+  })
+
+  // Ce que le panneau montre et les couleurs que la santé lit traversent, jamais
+  // le HTML de chaque nœud que axe joint à son résultat.
+  it('sends no HTML of the nodes axe looked at', async () => {
     const { ctx, envoyes } = contexte('<img src="photo.png">')
 
     await hooks.afterMount?.(ctx)

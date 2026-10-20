@@ -3422,6 +3422,67 @@ describe('the health view', () => {
     écran.wrapper.unmount()
   })
 
+  // Un défaut de contraste nomme les tokens dont la valeur est une couleur
+  // mesurée, avec le nombre de composants qui les lisent, chacun menant au token.
+  test('names the tokens probably behind a contrast violation', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health=accessibility')
+    const lecteur = { ...bouton, component: { ...bouton.component, tokens: ['Brand-primary'] } }
+    const écran = await monte([badge, alerte, lecteur, jetons])
+    écran.wrapper.findComponent(Panels).vm.$emit('weights', [{ plugin: 'a11y', bytes: 1 }])
+    await vide(écran.wrapper)
+    const contraste = {
+      rule: 'color-contrast',
+      impact: 'serious',
+      help: 'Elements must meet minimum color contrast ratio thresholds',
+      helpUrl: 'u',
+      targets: ['button'],
+      colors: ['#4FE0A0', '#ffffff'],
+    }
+    await écran.wrapper.find('[aria-label="Health, accessibility"] .run').trigger('click')
+    await vide(écran.wrapper)
+    const cadre = écran.wrapper.find('.audit-frame').element as HTMLIFrameElement
+    const dit = (data: unknown) =>
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data,
+          origin: window.location.origin,
+          source: cadre.contentWindow,
+        }),
+      )
+    cadre.contentWindow!.addEventListener('message', (event) => {
+      const { id } = event.data as { id: string }
+      setTimeout(() =>
+        dit({
+          type: 'a11y:results',
+          id,
+          passes: 1,
+          violations: id === 'bouton--defaut' ? [contraste] : [],
+        }),
+      )
+    })
+    dit({ type: 'ready', protocolVersion: 1 })
+    await expect.poll(() => écran.wrapper.find('.audit-frame').exists()).toBe(false)
+    await vide(écran.wrapper)
+
+    await écran.wrapper
+      .find('[aria-label="Health, accessibility"] tbody tr')
+      .trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    const liens = écran.wrapper.find('[aria-label="Links"]')
+    expect(liens.findAll('.caption').map((one) => one.text())).toContain(
+      'tokens probably at fault · 1',
+    )
+    const suspect = liens
+      .findAll('a.link')
+      .find((one) => one.find('code').exists() && one.find('code').text() === 'Brand-primary')!
+    expect(suspect.find('.meta').text()).toBe('1 component')
+    await suspect.trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(window.location.search).toContain('token=Brand-primary')
+    écran.wrapper.unmount()
+  })
+
   // Sans rien à corriger, le bouton du prompt reste à sa place, désactivé.
   test('keeps its prompt button disabled with nothing to fix', async () => {
     santé = () => ({ components: composants.filter((one) => one.stories.length > 0) })

@@ -22,6 +22,7 @@ import { componentIdOf } from '../navigation/tree'
 import type { Failure, Finding } from './audit'
 import { dayOf, keyOf, type HealthComponent, type HealthPage } from './health'
 import { promptOf } from './prompt'
+import type { Suspect } from './suspects'
 
 // Les deux panneaux de la vue santé, pour ce qui est choisi : « To do », ce qu'il
 // reste à faire, et « Links », ce qui s'y rattache. Ce qui est choisi est un
@@ -40,6 +41,8 @@ const props = defineProps<{
   hrefOfStory: (id: string) => string
   hrefOfComponent: (id: string) => string
   hrefOfHealth: (page: HealthPage, key: string) => string
+  // Les tokens probablement en cause de la violation choisie.
+  suspects: Suspect[]
   // Où mène un token qu'une story lit, `null` s'il n'est dans aucune catégorie.
   hrefOfToken: (name: string) => string | null
 }>()
@@ -292,6 +295,20 @@ watch(
         <p v-if="file" class="row">
           <code class="label">{{ file }}</code>
         </p>
+      </template>
+      <template v-if="suspects.length > 0">
+        <p class="caption">tokens probably at fault · {{ suspects.length }}</p>
+        <a
+          v-for="one of suspects"
+          :key="one.token.key"
+          class="row link"
+          :href="hrefOfToken(one.token.name) ?? undefined"
+          @click="emit('token', one.token.name, $event)"
+        >
+          <Icon :icon="Hexagon01Icon" />
+          <code class="label">{{ one.token.name }}</code>
+          <span class="meta">{{ plural(one.readers, 'component') }}</span>
+        </a>
       </template>
       <template v-if="tokens.length > 0">
         <p class="caption">tokens read · {{ tokens.length }}</p>
