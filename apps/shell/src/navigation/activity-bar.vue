@@ -22,7 +22,7 @@ import Logo from '../ui/logo.vue'
 export type View = 'tokens' | 'stories' | 'health' | 'versions'
 
 // Le badge `sm` tient deux caractères au plus, plafonné à 9+ comme la maquette :
-// le libellé accessible garde le compte exact.
+// le compte exact reste dans le détail de l'infobulle.
 const capped = (count: number) => (count > 9 ? '9+' : String(count))
 
 const props = defineProps<{
