@@ -79,6 +79,7 @@ describe('the components the health view counts', () => {
         export: 'Badge',
         stories: ['badge--default', 'badge--long'],
         props: 2,
+        required: 1,
         status: 'draft',
       },
       {
@@ -87,6 +88,7 @@ describe('the components the health view counts', () => {
         export: 'default',
         stories: [],
         props: 0,
+        required: 0,
         skeleton: {
           file: 'stories/form/Select.tsx',
           source:

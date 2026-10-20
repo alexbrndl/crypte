@@ -706,9 +706,11 @@ describe('what the catalog left out', () => {
                 ? { panels: [], refused: [], weights: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
-                  : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
-                    : (manifests.shift() ?? manifests[0]),
+                  : url === '/@crypte/health.json'
+                    ? { components: null }
+                    : url === '/@crypte/project.json'
+                      ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
+                      : (manifests.shift() ?? manifests[0]),
           }) as Response,
       ),
     )
@@ -1373,11 +1375,13 @@ describe('the component page', () => {
                 ? { panels: [], refused: [], weights: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
-                  : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
-                    : manifests.length > 1
-                      ? manifests.shift()
-                      : manifests[0],
+                  : url === '/@crypte/health.json'
+                    ? { components: null }
+                    : url === '/@crypte/project.json'
+                      ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
+                      : manifests.length > 1
+                        ? manifests.shift()
+                        : manifests[0],
           }) as Response,
       ),
     )
@@ -1428,11 +1432,13 @@ describe('the component page', () => {
                 ? { panels: [], refused: [], weights: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
-                  : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
-                    : manifests.length > 1
-                      ? manifests.shift()
-                      : manifests[0],
+                  : url === '/@crypte/health.json'
+                    ? { components: null }
+                    : url === '/@crypte/project.json'
+                      ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
+                      : manifests.length > 1
+                        ? manifests.shift()
+                        : manifests[0],
           }) as Response,
       ),
     )
@@ -1496,11 +1502,13 @@ describe('the component page', () => {
                 ? { panels: [], refused: [], weights: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
-                  : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
-                    : manifests.length > 1
-                      ? manifests.shift()
-                      : manifests[0],
+                  : url === '/@crypte/health.json'
+                    ? { components: null }
+                    : url === '/@crypte/project.json'
+                      ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
+                      : manifests.length > 1
+                        ? manifests.shift()
+                        : manifests[0],
           }) as Response,
       ),
     )
@@ -1920,11 +1928,13 @@ describe('the tokens view', () => {
                 ? { panels: [], refused: [], weights: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
-                  : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
-                    : manifests.length > 1
-                      ? manifests.shift()
-                      : manifests[0],
+                  : url === '/@crypte/health.json'
+                    ? { components: null }
+                    : url === '/@crypte/project.json'
+                      ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
+                      : manifests.length > 1
+                        ? manifests.shift()
+                        : manifests[0],
           }) as Response,
       ),
     )
@@ -1991,11 +2001,13 @@ describe('the status line under a page', () => {
                 ? { panels: [], refused: [], weights: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
-                  : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
-                    : manifests.length > 1
-                      ? manifests.shift()
-                      : manifests[0],
+                  : url === '/@crypte/health.json'
+                    ? { components: null }
+                    : url === '/@crypte/project.json'
+                      ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
+                      : manifests.length > 1
+                        ? manifests.shift()
+                        : manifests[0],
           }) as Response,
       ),
     )
@@ -3005,6 +3017,7 @@ describe('the health view', () => {
       export: 'default',
       stories: [],
       props: 9,
+      required: 2,
       status: 'draft',
       skeleton: { file: 'stories/form/Select.tsx', source: 'squelette' },
     },
@@ -3014,6 +3027,7 @@ describe('the health view', () => {
       export: 'Avatar',
       stories: [],
       props: 2,
+      required: 0,
       skeleton: { file: 'stories/Avatar.tsx', source: 'autre' },
     },
     {
@@ -3055,7 +3069,7 @@ describe('the health view', () => {
         .findAll('.health a')
         .map((one) => `${one.find('.name').text()} ${one.find('.meta').text()}`),
       // L'accessibilité ne compte rien avant l'audit.
-    ).toEqual(['overview 4', 'without story 2', 'accessibility ', 'statuses 2'])
+    ).toEqual(['overview 4', 'without story 2', 'render errors ', 'accessibility ', 'statuses 2'])
     // Ce qui pose problème d'abord, un point chacun : sans story, ou déprécié
     // encore utilisé ; le nom départage.
     expect(lignes(écran)).toEqual([
@@ -3081,7 +3095,7 @@ describe('the health view', () => {
       'Avatar | src/components/Avatar.tsx | 2 | copy the skeleton',
     ])
     expect(écran.wrapper.find('#health-panel .caption').text()).toBe(
-      'Select a component to see what it needs.',
+      'Select a row to see what it needs.',
     )
 
     await écran.wrapper.find('.health-view tbody tr').trigger('click', { button: 0 })
@@ -3095,6 +3109,13 @@ describe('the health view', () => {
     await vide(écran.wrapper)
     expect(écrit).toHaveBeenCalledWith('squelette')
     expect(écran.wrapper.find('#health-panel .copy').text()).toBe('Skeleton copied')
+    // Ses props requises, à donner à sa story ; et son fichier, dans les liens.
+    expect(écran.wrapper.find('[aria-label="To do"] .note').text()).toBe(
+      '2 required props to fill in its Default story.',
+    )
+    expect(écran.wrapper.find('[aria-label="Links"] code.label').text()).toBe(
+      'src/components/form/Select.tsx',
+    )
 
     // Le bouton de la ligne copie aussi, sans la choisir.
     await écran.wrapper.findAll('.health-view .link').at(1)!.trigger('click')
@@ -3116,7 +3137,13 @@ describe('the health view', () => {
       'Select | draft |  | no story',
     ])
     expect(écran.wrapper.find('.health-view [data-ink="error"]').text()).toBe('2 stories')
-    expect(écran.wrapper.find('#health-panel .caption').text()).toBe('still used in 2 stories')
+    // Son état, et ce qu'il demande ; ses stories, dans les liens.
+    expect(écran.wrapper.find('#health-panel .caption').text()).toBe(
+      'deprecated since 14 Oct · changed 3 days ago',
+    )
+    expect(écran.wrapper.find('[aria-label="To do"] p.row').text()).toBe(
+      'Deprecated: replace it in 2 stories',
+    )
     expect(écran.wrapper.find('.toolbar [aria-current="page"]').text()).toBe('Badge')
 
     await écran.wrapper.find('#health-panel a.link').trigger('click', { button: 0 })
@@ -3222,16 +3249,17 @@ describe('the health view', () => {
     // La jauge a11y apparaît, et le score en fait la moyenne avec les stories.
     expect(écran.wrapper.findAll('.gauge').map((one) => one.text().replace(/\s+/g, ' '))).toEqual([
       'stories 2/4',
+      'render 3/3',
       'a11y 1/3',
     ])
-    expect(écran.wrapper.find('.score .top strong').text()).toBe('42 %')
+    expect(écran.wrapper.find('.score .top strong').text()).toBe('61 %')
     expect(écran.statut()).toMatch(/^audit of 3 stories in \d+\.\d s$/)
 
     // Une violation choisie remplit le panneau : la story, les éléments, la règle.
     await vue().find('tbody tr').trigger('click', { button: 0 })
     await vide(écran.wrapper)
     expect(window.location.search).toBe('?health=accessibility&item=bouton--defaut:button-name')
-    expect(écran.wrapper.find('#health-panel h3').text()).toBe('button-name · to fix')
+    expect(écran.wrapper.find('#health-panel h3').text()).toBe('button-name · to do')
     expect(écran.wrapper.find('#health-panel code.label').text()).toBe('button')
 
     // La vue d'ensemble compte les violations par composant.
@@ -3270,7 +3298,7 @@ describe('the health view', () => {
   })
 
   // Une story qui ne rend pas n'est pas propre, et l'audit la nomme.
-  test('names the stories the audit could not judge', async () => {
+  test('lists the stories that fail to render on their own page', async () => {
     santé = () => ({ components: composants })
     window.history.replaceState(null, '', '/?health=accessibility')
     const écran = await monte([badge, alerte])
@@ -3302,10 +3330,192 @@ describe('the health view', () => {
     await expect.poll(() => écran.wrapper.find('.audit-frame').exists()).toBe(false)
     await vide(écran.wrapper)
 
-    expect(écran.wrapper.find('.unaudited').text()).toBe('Could not be audited: Badge / Alerte.')
+    // Un rendu en échec n'est pas une story non auditée : il a sa page.
+    expect(écran.wrapper.find('.unaudited').exists()).toBe(false)
     expect(écran.wrapper.find('.cards li').text().replace(/\s+/g, ' ')).toBe(
       '1 story without violation',
     )
+    await page(écran, 'render errors')
+    expect(écran.wrapper.find('.health [aria-current="page"] .meta').text()).toBe('1')
+    expect(
+      écran.wrapper.findAll('[aria-label="Health, render errors"] tbody tr').map((one) =>
+        one
+          .findAll('th, td')
+          .map((cell) => cell.text())
+          .join(' | '),
+      ),
+    ).toEqual(['Badge / Alerte | boum | light and dark'])
+    await écran.wrapper
+      .find('[aria-label="Health, render errors"] tbody tr')
+      .trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('[aria-label="To do"] .message').text()).toBe('boum')
+    expect(écran.wrapper.findAll('.gauge').map((one) => one.text().replace(/\s+/g, ' '))).toContain(
+      'render 1/2',
+    )
+    écran.wrapper.unmount()
+  })
+
+  // L'audit part seul, une fois la première story rendue et les plugins lus, et
+  // le badge de Santé compte ce qu'il reste à faire.
+  test('runs the audit at start, and counts what is left to do on its badge', async () => {
+    santé = () => ({ components: composants })
+    const écran = await monte([badge, alerte, bouton])
+    const badgeSanté = () => écran.vue('health').find('.count')
+    await expect.poll(() => badgeSanté().exists()).toBe(true)
+    expect(badgeSanté().text()).toBe('2')
+    expect(écran.wrapper.find('.audit-frame').exists()).toBe(false)
+
+    écran.wrapper.findComponent(Panels).vm.$emit('weights', [])
+    await écran.répond({
+      type: 'rendered',
+      id: 'badge--defaut',
+      durationMs: 1,
+      values: {},
+    } as PreviewMessage)
+    expect(écran.wrapper.find('.audit-frame').exists()).toBe(true)
+
+    // Sans le plugin a11y, l'audit attend le rendu seul.
+    const cadre = écran.wrapper.find('.audit-frame').element as HTMLIFrameElement
+    const dit = (data: unknown) =>
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data,
+          origin: window.location.origin,
+          source: cadre.contentWindow,
+        }),
+      )
+    cadre.contentWindow!.addEventListener('message', (event) => {
+      const { id } = event.data as { id: string }
+      setTimeout(() =>
+        dit(
+          id === 'bouton--defaut'
+            ? { type: 'error', id, message: 'boum' }
+            : { type: 'rendered', id, durationMs: 1, values: {} },
+        ),
+      )
+    })
+    dit({ type: 'ready', protocolVersion: 1 })
+    await expect.poll(() => écran.wrapper.find('.audit-frame').exists()).toBe(false)
+    await vide(écran.wrapper)
+    expect(badgeSanté().text()).toBe('3')
+
+    // Le rendu ne part qu'une fois : une autre story rendue ne le relance pas.
+    await écran.répond({
+      type: 'rendered',
+      id: 'badge--alerte',
+      durationMs: 1,
+      values: {},
+    } as PreviewMessage)
+    expect(écran.wrapper.find('.audit-frame').exists()).toBe(false)
+    écran.wrapper.unmount()
+  })
+
+  // Le panneau To do mène à ce qu'il nomme : le rendu en échec d'une story, les
+  // violations d'un composant ; Links, à sa page.
+  test('leads from the to do of a component to its render errors and violations', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health=accessibility')
+    const écran = await monte([badge, alerte, bouton])
+    écran.wrapper.findComponent(Panels).vm.$emit('weights', [{ plugin: 'a11y', bytes: 1 }])
+    await vide(écran.wrapper)
+    const nom = {
+      rule: 'button-name',
+      impact: 'critical',
+      help: 'Buttons must have discernible text',
+      helpUrl: 'u',
+      targets: ['button'],
+    }
+    const lance = async () => {
+      await écran.wrapper.find('[aria-label="Health, accessibility"] .run').trigger('click')
+      await vide(écran.wrapper)
+      const cadre = écran.wrapper.find('.audit-frame').element as HTMLIFrameElement
+      const dit = (data: unknown) =>
+        window.dispatchEvent(
+          new MessageEvent('message', {
+            data,
+            origin: window.location.origin,
+            source: cadre.contentWindow,
+          }),
+        )
+      cadre.contentWindow!.addEventListener('message', (event) => {
+        const { id } = event.data as { id: string }
+        setTimeout(() =>
+          dit(
+            id === 'bouton--defaut'
+              ? { type: 'a11y:results', id, passes: 1, violations: [nom] }
+              : { type: 'error', id, message: `boum ${id}` },
+          ),
+        )
+      })
+      dit({ type: 'ready', protocolVersion: 1 })
+      await expect.poll(() => écran.wrapper.find('.audit-frame').exists()).toBe(false)
+      await vide(écran.wrapper)
+    }
+    await lance()
+    // Relancé à la demande : les mêmes résultats.
+    await lance()
+
+    const choisit = async (lien: string) => {
+      await page(écran, 'overview')
+      await écran.wrapper.find(`a[href="${lien}"]`).trigger('click', { button: 0 })
+      await vide(écran.wrapper)
+    }
+    await choisit('?health=overview&item=src/components/Badge.tsx:Badge')
+    const àFaire = () => écran.wrapper.find('[aria-label="To do"]')
+    expect(
+      àFaire()
+        .findAll('a.link')
+        .map((one) => one.text()),
+    ).toEqual(['Fix the render of Alerte', 'Fix the render of Par défaut'])
+    await àFaire().find('a.link').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?health=failures&item=badge--alerte')
+    expect(
+      écran.wrapper
+        .findAll('[aria-label="Health, render errors"] tbody th')
+        .map((one) => one.text()),
+    ).toEqual(['Badge / Alerte', 'Badge / Par défaut'])
+
+    // Le fil d'Ariane ramène à la page, la ligne choisie oubliée.
+    await choisit('?health=overview&item=src/components/Bouton.tsx:Bouton')
+    await àFaire().find('a.link').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?health=accessibility&item=bouton--defaut:button-name')
+
+    await choisit('?health=overview&item=src/components/Bouton.tsx:Bouton')
+    await écran.wrapper.find('.toolbar .trail a').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?health=overview')
+
+    await choisit('?health=overview&item=src/components/Bouton.tsx:Bouton')
+    await écran.wrapper
+      .find('[aria-label="Links"] a[href="?component=bouton"]')
+      .trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?component=bouton')
+    écran.wrapper.unmount()
+  })
+
+  // Les tokens que lisent ses stories, menant à leur catégorie quand elle existe.
+  test('links the tokens its stories read', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health=overview&item=src/components/Bouton.tsx:Bouton')
+    const lecteur = {
+      ...bouton,
+      component: { ...bouton.component, tokens: ['Brand-primary', 'absent-x'] },
+    }
+    const écran = await monte([badge, alerte, lecteur, jetons])
+    const liens = écran.wrapper.find('[aria-label="Links"]')
+
+    expect(liens.findAll('a.link code.label').map((one) => one.text())).toEqual(['Brand-primary'])
+    expect(liens.find('a.link[href*="tokens"]').attributes('href')).toBe(
+      '?tokens=palette&token=Brand-primary',
+    )
+    expect(liens.findAll('p.row code.label').map((one) => one.text())).toContain('absent-x')
+    await liens.find('a.link[href*="tokens"]').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?tokens=palette&token=Brand-primary')
     écran.wrapper.unmount()
   })
 
@@ -3460,11 +3670,13 @@ describe('leaving full screen without Escape', () => {
                 ? { panels: [], refused: [], weights: [] }
                 : url === '/@crypte/changes.json'
                   ? { changes: [] }
-                  : url === '/@crypte/project.json'
-                    ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
-                    : manifests.length > 1
-                      ? manifests.shift()
-                      : manifests[0],
+                  : url === '/@crypte/health.json'
+                    ? { components: null }
+                    : url === '/@crypte/project.json'
+                      ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
+                      : manifests.length > 1
+                        ? manifests.shift()
+                        : manifests[0],
           }) as Response,
       ),
     )

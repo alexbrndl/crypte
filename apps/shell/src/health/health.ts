@@ -2,7 +2,7 @@
 // score qui en sort. Les données viennent de `/@crypte/health.json`, la forme de
 // `packages/cli/src/catalogue/health.ts`, que le shell ne peut pas importer.
 
-import { cleanOf, type AuditResult } from './audit'
+import { cleanOf, drawnOf, failuresOf, findingsOf, type AuditResult } from './audit'
 
 export interface HealthComponent {
   name: string
@@ -10,6 +10,8 @@ export interface HealthComponent {
   export: string
   stories: string[]
   props: number
+  // Celles qu'une story doit donner : sans aucune, `Default` suffit.
+  required: number
   status?: 'draft' | 'stable' | 'deprecated'
   changed?: string
   statusSince?: string
@@ -20,11 +22,12 @@ export interface Health {
   components: HealthComponent[] | null
 }
 
-export type HealthPage = 'overview' | 'unstoried' | 'accessibility' | 'statuses'
+export type HealthPage = 'overview' | 'unstoried' | 'failures' | 'accessibility' | 'statuses'
 
 export const PAGES: { page: HealthPage; label: string }[] = [
   { page: 'overview', label: 'overview' },
   { page: 'unstoried', label: 'without story' },
+  { page: 'failures', label: 'render errors' },
   { page: 'accessibility', label: 'accessibility' },
   { page: 'statuses', label: 'statuses' },
 ]
@@ -39,9 +42,9 @@ export interface Gauge {
   total: number
 }
 
-// Une jauge par ce qui se mesure : les stories, et l'a11y une fois l'audit
-// passé. La doc s'ajoute avec ses données. Le score est leur moyenne, sans
-// pondération.
+// Une jauge par ce qui se mesure : les stories, puis, l'audit passé, le rendu et
+// l'a11y quand le plugin a jugé. La doc s'ajoute avec ses données. Le score est
+// leur moyenne, sans pondération.
 export function gaugesOf(
   components: HealthComponent[],
   audit: AuditResult[] | null = null,
@@ -52,8 +55,12 @@ export function gaugesOf(
     total: components.length,
   }
   if (audit === null) return [stories]
-  const { clean, audited } = cleanOf(audit)
-  return [stories, { label: 'a11y', done: clean, total: audited }]
+  const { drawn, audited } = drawnOf(audit)
+  const render = { label: 'render', done: drawn, total: audited }
+  const { clean, audited: judged } = cleanOf(audit)
+  return judged === 0
+    ? [stories, render]
+    : [stories, render, { label: 'a11y', done: clean, total: judged }]
 }
 
 export function scoreOf(gauges: Gauge[]): number {
@@ -77,7 +84,7 @@ export function rowsOf(page: HealthPage, components: HealthComponent[]): HealthC
     return components
       .filter((one) => one.stories.length === 0)
       .sort((one, other) => other.props - one.props || byName(one, other))
-  if (page === 'accessibility') return []
+  if (page === 'accessibility' || page === 'failures') return []
   if (page === 'statuses') {
     const rank = { deprecated: 0, draft: 1 } as const
     return components
@@ -92,6 +99,14 @@ export function rowsOf(page: HealthPage, components: HealthComponent[]): HealthC
   return [...components].sort(
     (one, other) => problemsOf(other) - problemsOf(one) || byName(one, other),
   )
+}
+
+// Ce qu'il reste à faire, le badge de l'activity bar : les composants sans story,
+// les stories qui ne rendent pas, et les violations trouvées.
+export function todoOf(components: HealthComponent[] | null, audit: AuditResult[] | null): number {
+  const unstoried = components?.filter((one) => one.stories.length === 0).length ?? 0
+  if (audit === null) return unstoried
+  return unstoried + failuresOf(audit).length + findingsOf(audit).length
 }
 
 // Un jour court, `14 Oct`, pour les dates d'un tableau.

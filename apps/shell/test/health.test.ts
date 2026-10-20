@@ -9,6 +9,7 @@ const un = (name: string, more: Partial<HealthComponent> = {}): HealthComponent 
   export: name,
   stories: [],
   props: 0,
+  required: 0,
   ...more,
 })
 

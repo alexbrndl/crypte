@@ -25,6 +25,8 @@ export interface HealthComponent {
   // The ids of the stories that render it.
   stories: string[]
   props: number
+  // Those a story must give: with none, `defineStories(Component)` is enough.
+  required: number
   // Its first story's, as the sidebar filter reads it.
   status?: NonNullable<StoryMeta['status']>
   // The last commit that touched its file, ISO. Absent outside Git, or for a file
@@ -70,6 +72,7 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
       const covered = names.flatMap((one) => covering.get(`${file}#${one}`) ?? [])
       const exported = names[0]!
       const status = covered[0]?.meta?.status
+      const { details } = propsOf(file, exported)
       const changed = changes.get(named(project.root, file))
       const since = status && covered[0] ? statuses.get(covered[0].storyFile) : undefined
       found.push({
@@ -77,7 +80,8 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
         file: named(project.root, file),
         export: exported,
         stories: covered.map((entry) => entry.id),
-        props: Object.keys(propsOf(file, exported).details).length,
+        props: Object.keys(details).length,
+        required: Object.values(details).filter((one) => one.required).length,
         ...(status ? { status } : {}),
         ...(changed ? { changed } : {}),
         ...(since ? { statusSince: since } : {}),

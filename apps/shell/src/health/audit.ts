@@ -1,11 +1,12 @@
 import type { PreviewMessage, Theme } from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/shell'
 
-// L'audit d'accessibilité de la vue santé : chaque story rendue dans une preview
-// cachée, en light puis en dark, et ce que le plugin a11y en dit. Le shell lit
-// donc le message d'un plugin précis, `a11y:results`, décision du 19 oct. 2026 :
-// l'audit ne peut tourner que dans un navigateur. Rouvert si un second plugin
-// d'analyse demande la même chose, alors par un contrat.
+// L'audit de la vue santé : chaque story rendue dans une preview cachée, en
+// light puis en dark. Il dit lesquelles ne rendent pas et, avec le plugin a11y,
+// ce qu'elles enfreignent. Le shell lit donc le message d'un plugin précis,
+// `a11y:results`, décision du 19 oct. 2026 : l'audit ne peut tourner que dans un
+// navigateur. Rouvert si un second plugin d'analyse demande la même chose, alors
+// par un contrat.
 
 // La forme de `a11y:results`, `plugins/a11y/src/results.ts`, que le shell ne
 // peut pas importer : tenue par le cas qui audite.
@@ -17,8 +18,12 @@ export interface Violation {
   targets: string[]
 }
 
+// Une story analysée par axe, rendue sans analyse faute de plugin, en échec de
+// rendu, ou restée sans réponse du plugin.
 export type AuditResult =
   | { id: string; theme: Theme; passes: number; violations: Violation[] }
+  | { id: string; theme: Theme; drawn: true }
+  | { id: string; theme: Theme; broken: string; stack?: string }
   | { id: string; theme: Theme; error: string }
 
 export const THEMES: Theme[] = ['light', 'dark']
@@ -46,19 +51,34 @@ function shaped(message: unknown): message is { passes: number; violations: Viol
   )
 }
 
+export interface AuditOptions {
+  progress?: (done: number) => void
+  // Sans le plugin, l'audit attend le rendu seul.
+  a11y?: boolean
+  // Arrête l'audit, le shell démonté : ce qui est déjà rendu est rendu.
+  signal?: AbortSignal
+  // Ce qui recharge la preview cachée ; remplacé par les tests, que jsdom ne
+  // laisse pas recharger une frame.
+  reload?: () => void
+}
+
 // Les stories une à une : axe refuse deux analyses à la fois, et un résultat se
 // rattache à la story qui vient d'être demandée.
 export async function audit(
   frame: HTMLIFrameElement,
   stories: string[],
-  progress: (done: number) => void,
-  // Ce qui recharge la preview cachée ; remplacé par les tests, que jsdom ne
-  // laisse pas recharger une frame.
-  reload: () => void = () => frame.contentWindow?.location.reload(),
+  {
+    progress = () => {},
+    a11y = true,
+    signal,
+    reload = () => frame.contentWindow?.location.reload(),
+  }: AuditOptions = {},
 ): Promise<AuditResult[]> {
   const channel = createShellChannel(frame)
-  let answer: ((message: PreviewMessage) => void) | null = null
+  let answer: ((message: PreviewMessage | null) => void) | null = null
   const stop = channel.onMessage((message) => answer?.(message))
+  const abort = () => answer?.(null)
+  signal?.addEventListener('abort', abort)
   const next = (accept: (message: PreviewMessage) => boolean) =>
     new Promise<PreviewMessage | null>((resolve) => {
       const timer = setTimeout(() => {
@@ -66,39 +86,53 @@ export async function audit(
         resolve(null)
       }, WAIT)
       answer = (message) => {
-        if (!accept(message)) return
+        if (message !== null && !accept(message)) return
         clearTimeout(timer)
         answer = null
         resolve(message)
       }
     })
   const ready = async (reason: string) => {
-    if ((await next((message) => message.type === 'ready')) === null) throw new Error(reason)
+    const message = await next((one) => one.type === 'ready')
+    if (message === null && !signal?.aborted) throw new Error(reason)
   }
 
+  const results: AuditResult[] = []
   try {
     await ready('the preview never said it was ready')
-    const results: AuditResult[] = []
     for (const id of stories) {
       for (const theme of THEMES) {
+        if (signal?.aborted) return results
         const said = next(
           (message) =>
             (message.type === 'error' && message.id === id) ||
-            (message.type === 'plugin-error' && message.plugin === 'a11y') ||
-            ((message.type as string) === 'a11y:results' && (message as { id?: string }).id === id),
+            (a11y
+              ? (message.type === 'plugin-error' && message.plugin === 'a11y') ||
+                ((message.type as string) === 'a11y:results' &&
+                  (message as { id?: string }).id === id)
+              : message.type === 'rendered' && message.id === id),
         )
         channel.send({ type: 'render', id, overrides: {}, theme })
         const message = await said
+        if (signal?.aborted) return results
         if (message === null) {
-          results.push({ id, theme, error: 'no answer from the a11y plugin' })
+          results.push({ id, theme, error: 'no answer from the preview' })
           // Une réponse qui arriverait après l'attente passerait pour celle du
           // rendu suivant, d'un autre thème ou d'une autre story : la preview
           // rechargée jette tout ce qu'elle avait en cours.
           const reloaded = ready('the preview never came back after a reload')
           reload()
           await reloaded
-        } else if (message.type === 'error' || message.type === 'plugin-error')
+        } else if (message.type === 'error')
+          results.push({
+            id,
+            theme,
+            broken: message.message,
+            ...(message.stack ? { stack: message.stack } : {}),
+          })
+        else if (message.type === 'plugin-error')
           results.push({ id, theme, error: message.message })
+        else if (message.type === 'rendered') results.push({ id, theme, drawn: true })
         else if (!shaped(message))
           results.push({
             id,
@@ -111,6 +145,7 @@ export async function audit(
     }
     return results
   } finally {
+    signal?.removeEventListener('abort', abort)
     stop()
   }
 }
@@ -142,12 +177,52 @@ export function findingsOf(results: AuditResult[]): Finding[] {
   )
 }
 
-// Les stories auditées sans violation ni erreur, dans aucun des deux thèmes.
-export function cleanOf(results: AuditResult[]): { clean: number; audited: number } {
-  const stories = new Map<string, boolean>()
+// Une story qui ne rend pas, une ligne, ses thèmes ensemble.
+export interface Failure {
+  key: string
+  id: string
+  message: string
+  stack?: string
+  themes: Theme[]
+}
+
+export function failuresOf(results: AuditResult[]): Failure[] {
+  const found = new Map<string, Failure>()
   for (const result of results) {
-    const clean = 'violations' in result && result.violations.length === 0
-    stories.set(result.id, (stories.get(result.id) ?? true) && clean)
+    if (!('broken' in result)) continue
+    const held = found.get(result.id)
+    if (held) held.themes.push(result.theme)
+    else
+      found.set(result.id, {
+        key: result.id,
+        id: result.id,
+        message: result.broken,
+        ...(result.stack ? { stack: result.stack } : {}),
+        themes: [result.theme],
+      })
   }
-  return { clean: [...stories.values()].filter(Boolean).length, audited: stories.size }
+  return [...found.values()].sort((one, other) => one.key.localeCompare(other.key))
+}
+
+// Les stories qui rendent dans les deux thèmes, sur les stories auditées.
+export function drawnOf(results: AuditResult[]): { drawn: number; audited: number } {
+  return countOf(results, (result) => !('broken' in result) && !('error' in result))
+}
+
+// Les stories analysées par axe sans violation dans aucun des deux thèmes, sur
+// celles que le plugin a pu juger : une story qui ne rend pas a sa propre jauge.
+export function cleanOf(results: AuditResult[]): { clean: number; audited: number } {
+  const judged = results.filter((result) => !('broken' in result) && !('drawn' in result))
+  const { drawn, audited } = countOf(
+    judged,
+    (result) => 'violations' in result && result.violations.length === 0,
+  )
+  return { clean: drawn, audited }
+}
+
+function countOf(results: AuditResult[], good: (result: AuditResult) => boolean) {
+  const stories = new Map<string, boolean>()
+  for (const result of results)
+    stories.set(result.id, (stories.get(result.id) ?? true) && good(result))
+  return { drawn: [...stories.values()].filter(Boolean).length, audited: stories.size }
 }
