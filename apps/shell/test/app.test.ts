@@ -3410,8 +3410,6 @@ describe('the health view', () => {
     écran.wrapper.unmount()
   })
 
-  // Le panneau To do mène à ce qu'il nomme : le rendu en échec d'une story, les
-  // violations d'un composant ; Links, à sa page.
   // Sans rien à corriger, le bouton du prompt reste à sa place, désactivé.
   test('keeps its prompt button disabled with nothing to fix', async () => {
     santé = () => ({ components: composants.filter((one) => one.stories.length > 0) })
@@ -3427,6 +3425,8 @@ describe('the health view', () => {
     écran.wrapper.unmount()
   })
 
+  // Le panneau To do mène à ce qu'il nomme : le rendu en échec d'une story, les
+  // violations d'un composant ; Links, à sa page.
   test('leads from the to do of a component to its render errors and violations', async () => {
     santé = () => ({ components: composants })
     window.history.replaceState(null, '', '/?health=accessibility')
