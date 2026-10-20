@@ -1293,15 +1293,27 @@ onMounted(() => {
           }}</span>
         </nav>
         <div class="actions">
-          <Button
-            variant="outline"
-            class="prompt"
-            :disabled="!healthPrompt"
-            @click="copyPrompt(healthPrompt, 'prompt')"
+          <!-- L'infobulle sur une enveloppe : un bouton désactivé ne reçoit pas le
+               pointeur, et « Nothing to fix » ne se lirait jamais. -->
+          <Tooltip
+            :content="
+              healthPrompt
+                ? 'Paste it to your coding agent: it fixes the render errors, violations and missing stories listed here.'
+                : 'Nothing to fix'
+            "
           >
-            <Icon :icon="AiMagicIcon" />
-            {{ promptCopied === 'prompt' ? 'Prompt copied' : 'Copy the prompt for your agent' }}
-          </Button>
+            <span class="prompt-hold">
+              <Button
+                variant="outline"
+                class="prompt"
+                :disabled="!healthPrompt"
+                @click="copyPrompt(healthPrompt, 'prompt')"
+              >
+                <Icon :icon="AiMagicIcon" />
+                {{ promptCopied === 'prompt' ? 'Fix prompt copied' : 'Copy fix prompt' }}
+              </Button>
+            </span>
+          </Tooltip>
           <Button variant="secondary" class="copy" @click="copyLink">
             <Icon :icon="Copy01Icon" />
             {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
@@ -1896,6 +1908,14 @@ main.full {
      its children would cover it. */
   border-left: var(--stroke-hairline) solid var(--border-base);
   background: var(--background-raised);
+}
+
+.prompt-hold {
+  display: inline-flex;
+}
+
+.prompt:disabled {
+  pointer-events: none;
 }
 
 .config,

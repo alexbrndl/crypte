@@ -240,7 +240,7 @@ watch(
       <button v-if="prompt" type="button" class="row link copy" @click="copy(prompt, 'prompt')">
         <Icon :icon="AiMagicIcon" />
         <span class="label">{{
-          copied === 'prompt' ? 'Prompt copied' : 'Copy the prompt for your agent'
+          copied === 'prompt' ? 'Fix prompt copied' : 'Copy fix prompt'
         }}</span>
       </button>
     </div>

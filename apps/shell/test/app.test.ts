@@ -3507,12 +3507,12 @@ describe('the health view', () => {
       '### Select',
       '### Avatar',
     ])
-    expect(écran.wrapper.find('.toolbar .prompt').text()).toBe('Prompt copied')
+    expect(écran.wrapper.find('.toolbar .prompt').text()).toBe('Fix prompt copied')
     // Une liste qui change oublie la copie : le texte copié n'est plus celui-là.
     santé = () => ({ components: composants.filter((one) => one.name !== 'Avatar') })
     window.dispatchEvent(new Event('focus'))
     await vide(écran.wrapper)
-    expect(écran.wrapper.find('.toolbar .prompt').text()).toBe('Copy the prompt for your agent')
+    expect(écran.wrapper.find('.toolbar .prompt').text()).toBe('Copy fix prompt')
     santé = () => ({ components: composants })
     window.dispatchEvent(new Event('focus'))
     await vide(écran.wrapper)
@@ -3531,7 +3531,7 @@ describe('the health view', () => {
     await àFaire().findAll('button.copy').at(-1)!.trigger('click')
     await vide(écran.wrapper)
     expect(titres()).toEqual(['### Badge / Alerte', '### Badge / Par défaut'])
-    expect(àFaire().findAll('button.copy').at(-1)!.text()).toBe('Prompt copied')
+    expect(àFaire().findAll('button.copy').at(-1)!.text()).toBe('Fix prompt copied')
     await àFaire().find('a.link').trigger('click', { button: 0 })
     await vide(écran.wrapper)
     expect(window.location.search).toBe('?health=failures&item=badge--alerte')
