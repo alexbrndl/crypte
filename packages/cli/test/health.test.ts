@@ -98,6 +98,63 @@ describe('the components the health view counts', () => {
     ])
   })
 
+  // Où un composant est encore utilisé : les composants du dossier qui
+  // l'importent, par défaut ou par son nom. Un import d'espace de noms ne nomme
+  // aucun export, un fichier qui s'importe lui-même ne s'utilise pas.
+  test('names the components of the folder that import one', () => {
+    const composants = santé(
+      projet(
+        {
+          'src/components/Badge.tsx': BADGE,
+          'src/components/form/Select.tsx': SELECT,
+          'src/components/Card.tsx':
+            "import { Badge } from './Badge'\nimport Select from './form/Select'\nexport function Card() { return <div><Badge label='a' /><Select /></div> }\n",
+          'src/components/Tout.tsx':
+            "import * as tout from './Badge'\nimport { Tout as Moi } from './Tout'\nexport function Tout() { return <tout.Badge label='a' /> }\n",
+          'src/components/Casse.tsx': "import { Badge } from './Badge'\nexport function {\n",
+        },
+        'src/components',
+      ),
+    )!
+    expect(composants.map((one) => [one.name, one.usedBy])).toEqual([
+      ['Badge', ['src/components/Card.tsx:Card']],
+      ['Card', undefined],
+      ['Select', ['src/components/Card.tsx:Card']],
+      ['Tout', undefined],
+    ])
+  })
+
+  // Le cas courant d'une bibliothèque : un index qui réexporte, par son nom ou
+  // en bloc. Un frame déclaré en `wrap` n'est pas un composant à reprendre ;
+  // dans un fichier à deux composants, seul celui qui nomme l'import l'utilise,
+  // un nom local en $ compris.
+  test('follows an index, leaves a frame out, and names the component that uses the import', () => {
+    const composants = santé(
+      projet(
+        {
+          'src/components/Badge.tsx': BADGE,
+          'src/components/Tag.tsx': 'export function Tag() { return <i /> }\n',
+          'src/components/Frame.tsx':
+            "import { Badge } from './Badge'\nexport function Frame({ children }: { children: unknown }) { return <div><Badge label='f' />{children}</div> }\n",
+          'src/components/index.ts': "export { Badge } from './Badge'\nexport * from './Tag'\n",
+          'src/components/Card.tsx':
+            "import { Badge as $B, Tag } from '.'\nexport function Card() { return <div><$B label='a' /><Tag /></div> }\n",
+          'src/components/Multi.tsx':
+            "import { Badge } from './index'\nexport function A() { return <Badge label='a' /> }\nexport function B() { return <p /> }\n",
+          'stories/Badge.tsx': HISTOIRE('deprecated'),
+        },
+        'src/components',
+      ),
+    )!
+    expect(composants.map((one) => [one.name, one.usedBy])).toEqual([
+      ['Badge', ['src/components/Card.tsx:Card', 'src/components/Multi.tsx:A']],
+      ['Card', undefined],
+      ['A', undefined],
+      ['B', undefined],
+      ['Tag', ['src/components/Card.tsx:Card']],
+    ])
+  })
+
   test('names a folder that is not there as empty', () => {
     expect(santé(projet({}, 'src/missing'))).toEqual([])
   })

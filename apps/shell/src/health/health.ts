@@ -24,6 +24,9 @@ export interface HealthComponent {
   changed?: string
   statusSince?: string
   skeleton?: { file: string; source: string }
+  // Les composants du dossier qui l'importent, par leur clé : où un composant
+  // déprécié sert encore.
+  usedBy?: string[]
 }
 
 export interface Health {
@@ -79,10 +82,10 @@ export function scoreOf(gauges: Gauge[]): number {
 }
 
 // Ce qu'il reste à faire sur un composant : pas de story, ou un statut déprécié
-// qu'une story utilise encore.
+// qu'un autre composant importe encore.
 export const problemsOf = (one: HealthComponent) =>
   (one.stories.length === 0 ? 1 : 0) +
-  (one.status === 'deprecated' && one.stories.length > 0 ? 1 : 0)
+  (one.status === 'deprecated' && (one.usedBy?.length ?? 0) > 0 ? 1 : 0)
 
 // Les composants de chaque page, dans l'ordre que la maquette annonce.
 export function rowsOf(page: HealthPage, components: HealthComponent[]): HealthComponent[] {
@@ -100,7 +103,7 @@ export function rowsOf(page: HealthPage, components: HealthComponent[]): HealthC
       .sort(
         (one, other) =>
           rank[one.status as keyof typeof rank] - rank[other.status as keyof typeof rank] ||
-          other.stories.length - one.stories.length ||
+          (other.usedBy?.length ?? 0) - (one.usedBy?.length ?? 0) ||
           byName(one, other),
       )
   }

@@ -3009,6 +3009,7 @@ describe('the health view', () => {
       status: 'deprecated',
       changed: new Date(Date.now() - 3 * 86_400_000).toISOString(),
       statusSince: '2026-10-14T10:00:00.000Z',
+      usedBy: ['src/components/Bouton.tsx:Bouton'],
     },
     {
       name: 'Select',
@@ -3126,30 +3127,41 @@ describe('the health view', () => {
     écran.wrapper.unmount()
   })
 
-  test('lists the statuses, deprecated first, and leads to the stories still using one', async () => {
+  // Un composant déprécié reste un problème tant qu'un autre l'importe ; sa date
+  // ouvre ce qui a changé depuis, le statut compris.
+  test('lists the statuses, deprecated first, and leads to the components still using one', async () => {
     santé = () => ({ components: composants })
     window.history.replaceState(null, '', '/?health=statuses&item=src/components/Badge.tsx:Badge')
     const écran = await monte([badge, alerte, bouton])
 
     expect(lignes(écran)).toEqual([
-      'Badge | deprecated | 14 Oct | 2 stories',
-      'Select | draft |  | no story',
+      'Badge | deprecated | 14 Oct | 1 component',
+      'Select | draft |  | no component',
     ])
-    expect(écran.wrapper.find('.health-view [data-ink="error"]').text()).toBe('2 stories')
+    expect(écran.wrapper.find('.health-view [data-ink="error"]').text()).toBe('1 component')
     // Son état, et ce qu'il demande ; ses stories, dans les liens.
     expect(écran.wrapper.find('#health-panel .caption').text()).toBe(
       'deprecated since 14 Oct · changed 3 days ago',
     )
-    expect(écran.wrapper.find('[aria-label="To do"] p.row').text()).toBe(
-      'Deprecated: replace it in 2 stories',
+    const àReprendre = () => écran.wrapper.find('[aria-label="To do"] a.link')
+    expect(àReprendre().text()).toBe('Deprecated: replace it in Bouton')
+    expect(àReprendre().attributes('href')).toBe(
+      '?health=overview&item=src/components/Bouton.tsx:Bouton',
     )
     expect(écran.wrapper.find('.toolbar [aria-current="page"]').text()).toBe('Badge')
 
-    await écran.wrapper.find('#health-panel a.link').trigger('click', { button: 0 })
+    await écran.wrapper.find('[aria-label="Links"] a.link').trigger('click', { button: 0 })
     await vide(écran.wrapper)
     expect(window.location.search).toBe('?id=badge--defaut')
     expect(écran.wrapper.find('.health-view').exists()).toBe(false)
     écran.wrapper.unmount()
+
+    window.history.replaceState(null, '', '/?health=statuses')
+    const autre = await monte([badge, alerte, bouton])
+    await autre.wrapper.find('.health-view .since').trigger('click', { button: 0 })
+    await vide(autre.wrapper)
+    expect(window.location.search).toBe('?changes&before=2026-10-14T10:00:00.000Z')
+    autre.wrapper.unmount()
   })
 
   // Une page que la vue n'a pas mène à la vue d'ensemble.
@@ -3526,7 +3538,11 @@ describe('the health view', () => {
       àFaire()
         .findAll('a.link')
         .map((one) => one.text()),
-    ).toEqual(['Fix the render of Alerte', 'Fix the render of Par défaut'])
+    ).toEqual([
+      'Fix the render of Alerte',
+      'Fix the render of Par défaut',
+      'Deprecated: replace it in Bouton',
+    ])
     // Le prompt de ce que le composant demande, ses deux rendus.
     await àFaire().find('.head .prompt').trigger('click')
     await vide(écran.wrapper)

@@ -4,11 +4,13 @@
 // build writes it as a file as `crypte dev` serves it.
 
 import { execFileSync } from 'node:child_process'
-import { readdirSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { basename, dirname, extname, join, relative, sep } from 'node:path'
 import type { StoryEntry, StoryMeta } from '@crypte/core/protocol'
+import { parseSync } from 'vite'
 import { componentsIn, wrappers } from '../commands/check'
 import type { Project } from '../config/project'
+import { componentFile } from './manifest'
 import { propsOf } from './props'
 
 export interface Health {
@@ -36,6 +38,10 @@ export interface HealthComponent {
   statusSince?: string
   // What a story file for it would hold, when it has none.
   skeleton?: { file: string; source: string }
+  // The components of the folder that import it, `file:export` as the shell
+  // keys them, an index re-exporting it followed: where a deprecated one is
+  // still used. Absent when none does.
+  usedBy?: string[]
 }
 
 // Opened, not counted: `componentsIn` keeps only what returns an element. A Vue
@@ -65,8 +71,10 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
     '--',
     project.config.stories,
   ])
+  const files = filesIn(join(project.root, folder))
+  const importers = importersOf(project, files, frames)
   const found: HealthComponent[] = []
-  for (const file of filesIn(join(project.root, folder))) {
+  for (const file of files) {
     for (const names of componentsIn(file)) {
       if (names.some((one) => frames.has(`${file}#${one}`))) continue
       const covered = names.flatMap((one) => covering.get(`${file}#${one}`) ?? [])
@@ -75,6 +83,11 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
       const { details } = propsOf(file, exported)
       const changed = changes.get(named(project.root, file))
       const since = status && covered[0] ? statuses.get(covered[0].storyFile) : undefined
+      const usedBy = [
+        ...new Set(
+          names.flatMap((one) => importers.get(`${named(project.root, file)}#${one}`) ?? []),
+        ),
+      ].sort()
       found.push({
         name: exported === 'default' ? basename(file, extname(file)) : exported,
         file: named(project.root, file),
@@ -86,10 +99,134 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
         ...(changed ? { changed } : {}),
         ...(since ? { statusSince: since } : {}),
         ...(covered.length === 0 ? { skeleton: skeletonOf(project, folder, file, exported) } : {}),
+        ...(usedBy.length > 0 ? { usedBy } : {}),
       })
     }
   }
   return { components: found }
+}
+
+// Who imports what, among the files of the folder: for the `file#export` a
+// component file declares, the components using it, `file:export`. An import is
+// resolved as a story's is, then followed through the re-exports of an index,
+// named or `export *`, to the file declaring it. It goes to the components of
+// the importing file whose declaration names it; to all of them when none can
+// be read, an `export { Card }` of a value built elsewhere for instance. A frame
+// declared as `wrap`, a namespace import and a file importing itself name nobody.
+function importersOf(
+  project: Project,
+  files: string[],
+  frames: Set<string>,
+): Map<string, string[]> {
+  const read = files.flatMap((file) => {
+    try {
+      const source = readFileSync(file, 'utf8')
+      const parsed = parseSync(file, source)
+      return parsed.errors.length > 0
+        ? []
+        : [{ file, self: named(project.root, file), source, parsed }]
+    } catch {
+      return []
+    }
+  })
+
+  const declared = new Set<string>()
+  const forward = new Map<string, string>()
+  const star = new Map<string, string[]>()
+  for (const { file, self, parsed } of read) {
+    for (const names of componentsIn(file)) for (const one of names) declared.add(`${self}#${one}`)
+    for (const one of parsed.module.staticExports) {
+      for (const entry of one.entries) {
+        if (!entry.moduleRequest) continue
+        const target = componentFile(entry.moduleRequest.value, file, project)
+        if (entry.importName.kind === 'Name' && entry.exportName.kind === 'Name')
+          forward.set(`${self}#${entry.exportName.name}`, `${target}#${entry.importName.name}`)
+        else if (entry.exportName.kind === 'None')
+          star.set(self, [...(star.get(self) ?? []), target])
+      }
+    }
+  }
+  // Bounded: two indexes re-exporting each other would otherwise loop.
+  const origin = (key: string, depth = 0): string | undefined => {
+    if (declared.has(key)) return key
+    if (depth > 8) return undefined
+    const next = forward.get(key)
+    if (next) return origin(next, depth + 1)
+    const at = key.lastIndexOf('#')
+    for (const target of star.get(key.slice(0, at)) ?? []) {
+      const found = origin(`${target}${key.slice(at)}`, depth + 1)
+      if (found) return found
+    }
+    return undefined
+  }
+
+  const found = new Map<string, string[]>()
+  for (const { file, self, source, parsed } of read) {
+    const spans = spansOf(parsed.program.body as unknown as Statement[])
+    const own = componentsIn(file)
+      .filter((names) => !names.some((one) => frames.has(`${file}#${one}`)))
+      .map((names) => ({
+        key: `${self}:${names[0]}`,
+        span: names.map((one) => spans.get(one)).find((one) => one !== undefined),
+      }))
+    if (own.length === 0) continue
+    for (const one of parsed.module.staticImports) {
+      const target = componentFile(one.moduleRequest.value, file, project)
+      if (target === self) continue
+      for (const entry of one.entries) {
+        const imported =
+          entry.importName.kind === 'Default'
+            ? 'default'
+            : entry.importName.kind === 'Name'
+              ? entry.importName.name
+              : undefined
+        const key = imported === undefined ? undefined : origin(`${target}#${imported}`)
+        if (key === undefined) continue
+        const word = new RegExp(
+          `(?<![\\w$])${entry.localName.value.replaceAll('$', '\\$')}(?![\\w$])`,
+        )
+        const users = own.some((component) => component.span)
+          ? own.filter(({ span }) => span && word.test(source.slice(span[0], span[1])))
+          : own
+        found.set(key, [...(found.get(key) ?? []), ...users.map((user) => user.key)])
+      }
+    }
+  }
+  return found
+}
+
+interface Statement {
+  type: string
+  start: number
+  end: number
+  id?: { name: string } | null
+  declarations?: { id: { name?: string }; start: number; end: number }[]
+  declaration?: Statement | null
+  name?: string
+}
+
+// Where each top-level function or constant is declared, by name, and the
+// default export under `default`.
+function spansOf(body: Statement[]): Map<string, [number, number]> {
+  const spans = new Map<string, [number, number]>()
+  const declare = (one: Statement | null | undefined) => {
+    if (!one) return
+    if (one.type === 'FunctionDeclaration' && one.id) spans.set(one.id.name, [one.start, one.end])
+    for (const declarator of one.declarations ?? [])
+      if (declarator.id.name) spans.set(declarator.id.name, [declarator.start, declarator.end])
+  }
+  for (const one of body) {
+    declare(one)
+    if (one.type === 'ExportNamedDeclaration') declare(one.declaration)
+  }
+  for (const one of body) {
+    if (one.type !== 'ExportDefaultDeclaration' || !one.declaration) continue
+    const value = one.declaration
+    const span =
+      value.type === 'Identifier' && value.name ? spans.get(value.name) : [value.start, value.end]
+    if (span) spans.set('default', span as [number, number])
+  }
+  return spans
 }
 
 // Sorted, so two machines write the same file.

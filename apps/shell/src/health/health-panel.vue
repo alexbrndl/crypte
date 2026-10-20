@@ -20,7 +20,7 @@ import { keep, kept } from '../storage'
 import { ago } from '../navigation/recent'
 import { componentIdOf } from '../navigation/tree'
 import type { Failure, Finding } from './audit'
-import { dayOf, type HealthComponent, type HealthPage } from './health'
+import { dayOf, keyOf, type HealthComponent, type HealthPage } from './health'
 import { promptOf } from './prompt'
 
 // Les deux panneaux de la vue santé, pour ce qui est choisi : « To do », ce qu'il
@@ -29,6 +29,8 @@ import { promptOf } from './prompt'
 // composant de leur story.
 const props = defineProps<{
   component: HealthComponent | null
+  // Tous les composants, pour nommer ceux qui en importent un.
+  components: HealthComponent[]
   finding: Finding | null
   failure: Failure | null
   // Ce que l'audit a trouvé, pour les actions d'un composant.
@@ -88,8 +90,13 @@ const mine = computed(() => {
     findings: props.findings.filter((one) => stories.has(one.id)),
   }
 })
-const replace = computed(
-  () => props.component?.status === 'deprecated' && props.component.stories.length > 0,
+// Déprécié, les composants qui l'importent encore : chacun est à reprendre.
+const still = computed(() =>
+  props.component?.status === 'deprecated'
+    ? (props.component.usedBy ?? []).flatMap((key) =>
+        props.components.filter((one) => keyOf(one) === key),
+      )
+    : [],
 )
 const state = computed(() => {
   const one = props.component
@@ -109,7 +116,7 @@ const nothing = computed(
     !props.component.skeleton &&
     mine.value.failures.length === 0 &&
     mine.value.findings.length === 0 &&
-    !replace.value,
+    still.value.length === 0,
 )
 
 // Ouverts au départ, retenus comme les panneaux des stories.
@@ -234,13 +241,16 @@ watch(
           <Icon :icon="Alert02Icon" />
           <span class="label">Fix {{ plural(mine.findings.length, 'violation') }}</span>
         </a>
-        <p v-if="replace" class="row">
+        <a
+          v-for="one of still"
+          :key="keyOf(one)"
+          class="row link"
+          :href="hrefOfHealth('overview', keyOf(one))"
+          @click="emit('health', 'overview', keyOf(one), $event)"
+        >
           <Icon :icon="Alert02Icon" />
-          <span class="label"
-            >Deprecated: replace it in
-            {{ plural(component.stories.length, 'story', 'stories') }}</span
-          >
-        </p>
+          <span class="label">Deprecated: replace it in {{ one.name }}</span>
+        </a>
         <EmptyNote v-if="nothing">Nothing to do.</EmptyNote>
       </template>
     </div>

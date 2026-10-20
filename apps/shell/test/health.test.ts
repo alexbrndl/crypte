@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { gaugesOf, rowsOf, scoreOf, type HealthComponent } from '../src/health/health'
+import { gaugesOf, problemsOf, rowsOf, scoreOf, type HealthComponent } from '../src/health/health'
 
 // Le score et les pages de la vue santé, tirés des composants.
 
@@ -42,13 +42,26 @@ describe('the pages', () => {
   })
 
   // Un composant stable ou sans statut n'a rien à suivre.
-  test('keep only draft and deprecated statuses, deprecated first', () => {
+  test('keep only draft and deprecated statuses, deprecated first, the most imported first', () => {
     const rows = rowsOf('statuses', [
       un('A', { status: 'draft' }),
       un('B', { status: 'stable' }),
-      un('C', { status: 'deprecated' }),
+      un('C', { status: 'deprecated', stories: ['c--x', 'c--y'] }),
       un('D'),
+      un('E', { status: 'deprecated', usedBy: ['src/F.tsx:F'] }),
     ])
-    expect(rows.map((one) => one.name)).toEqual(['C', 'A'])
+    expect(rows.map((one) => one.name)).toEqual(['E', 'C', 'A'])
+  })
+})
+
+// Un composant déprécié documenté par ses stories n'a rien à faire ; il en a
+// tant qu'un autre composant l'importe.
+describe('the problems of a component', () => {
+  test('count a deprecated one only while another imports it', () => {
+    expect(problemsOf(un('A', { status: 'deprecated', stories: ['a--x'] }))).toBe(0)
+    expect(
+      problemsOf(un('A', { status: 'deprecated', stories: ['a--x'], usedBy: ['src/B.tsx:B'] })),
+    ).toBe(1)
+    expect(problemsOf(un('A', { usedBy: ['src/B.tsx:B'], stories: ['a--x'] }))).toBe(0)
   })
 })
