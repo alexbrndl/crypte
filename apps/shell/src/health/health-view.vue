@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { plural } from '../plural'
 import type { StoryEntry } from '@crypte/core/protocol'
+import { Button } from '@crypte/ui'
 import { Alert02Icon } from '@hugeicons/core-free-icons'
 import { VisuallyHidden } from 'reka-ui'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import { useCopy } from '../clipboard'
 import CardTable from '../ui/card-table.vue'
 import Badge from '../ui/badge.vue'
 import EmptyNote from '../ui/empty-note.vue'
@@ -12,6 +14,7 @@ import SectionHeader from '../ui/section-header.vue'
 import ViewCanvas from '../ui/view-canvas.vue'
 import { ago } from '../navigation/recent'
 import type { Failure, Finding } from './audit'
+import { promptOf } from './prompt'
 import {
   dayOf,
   keyOf,
@@ -85,17 +88,19 @@ const NOTES: Record<HealthPage, string> = {
   statuses: 'deprecated first',
 }
 
-// Le squelette copié, dit sur sa ligne le temps de le lire.
-const copied = ref<string | null>(null)
-async function copy(one: HealthComponent) {
-  if (!one.skeleton) return
-  try {
-    await navigator.clipboard.writeText(one.skeleton.source)
-    copied.value = keyOf(one)
-  } catch {
-    copied.value = null
-  }
-}
+// Le squelette copié, dit sur sa ligne ; le prompt de tout ce qui reste, sur
+// la liste à faire.
+const { copied, copy } = useCopy()
+const prompt = computed(() =>
+  promptOf(
+    {
+      failures: props.failures ?? [],
+      findings: props.findings ?? [],
+      unstoried: rowsOf('unstoried', props.components),
+    },
+    props.stories,
+  ),
+)
 </script>
 
 <template>
@@ -104,6 +109,9 @@ async function copy(one: HealthComponent) {
     <section v-if="todo.length > 0" class="todo" aria-label="Everything to do">
       <h3>
         to do <Badge tone="inverse">{{ todo.length }}</Badge>
+        <Button variant="ghost" class="prompt" @click="copy(prompt, 'prompt')">{{
+          copied === 'prompt' ? 'Prompt copied' : 'Copy the prompt for your agent'
+        }}</Button>
       </h3>
       <ul>
         <li v-for="one of todo" :key="`${one.page}:${one.key}`">
@@ -175,7 +183,12 @@ async function copy(one: HealthComponent) {
             <td class="code">{{ one.file }}</td>
             <td class="code">{{ one.props }}</td>
             <td class="action">
-              <button type="button" class="link" @click.stop="copy(one)">
+              <button
+                v-if="one.skeleton"
+                type="button"
+                class="link"
+                @click.stop="copy(one.skeleton.source, keyOf(one))"
+              >
                 {{ copied === keyOf(one) ? 'copied' : 'copy the skeleton' }}
               </button>
             </td>
@@ -223,6 +236,15 @@ async function copy(one: HealthComponent) {
   line-height: var(--leading-xs);
   letter-spacing: var(--tracking-wider);
   text-transform: uppercase;
+}
+
+/* The sm button of the Figma header, 24 px high, at the right of the band. */
+.prompt {
+  --button-height: 24px;
+  --button-padding: var(--space-0-5) var(--space-2);
+  margin-left: auto;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .todo ul {
