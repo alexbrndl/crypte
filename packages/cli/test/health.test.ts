@@ -126,7 +126,8 @@ describe('the components the health view counts', () => {
 
   // Le cas courant d'une bibliothèque : un index qui réexporte, par son nom ou
   // en bloc. Un frame déclaré en `wrap` n'est pas un composant à reprendre ;
-  // dans un fichier à deux composants, seul celui qui nomme l'import l'utilise.
+  // dans un fichier à deux composants, seul celui qui nomme l'import l'utilise,
+  // un nom local en $ compris.
   test('follows an index, leaves a frame out, and names the component that uses the import', () => {
     const composants = santé(
       projet(
@@ -137,7 +138,7 @@ describe('the components the health view counts', () => {
             "import { Badge } from './Badge'\nexport function Frame({ children }: { children: unknown }) { return <div><Badge label='f' />{children}</div> }\n",
           'src/components/index.ts': "export { Badge } from './Badge'\nexport * from './Tag'\n",
           'src/components/Card.tsx':
-            "import { Badge, Tag } from '.'\nexport function Card() { return <div><Badge label='a' /><Tag /></div> }\n",
+            "import { Badge as $B, Tag } from '.'\nexport function Card() { return <div><$B label='a' /><Tag /></div> }\n",
           'src/components/Multi.tsx':
             "import { Badge } from './index'\nexport function A() { return <Badge label='a' /> }\nexport function B() { return <p /> }\n",
           'stories/Badge.tsx': HISTOIRE('deprecated'),

@@ -182,7 +182,9 @@ function importersOf(
               : undefined
         const key = imported === undefined ? undefined : origin(`${target}#${imported}`)
         if (key === undefined) continue
-        const word = new RegExp(`(?<![\\w$])${entry.localName.value}(?![\\w$])`)
+        const word = new RegExp(
+          `(?<![\\w$])${entry.localName.value.replaceAll('$', '\\$')}(?![\\w$])`,
+        )
         const users = own.some((component) => component.span)
           ? own.filter(({ span }) => span && word.test(source.slice(span[0], span[1])))
           : own
