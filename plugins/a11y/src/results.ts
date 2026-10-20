@@ -1,8 +1,7 @@
 // What the preview sends after each analysis: what the panel shows, and the
 // colours the shell's health audit reads, never the HTML of every node an axe
-// result carries. The shell's health
-// audit reads it too (section 5.4): renaming or removing a field breaks the
-// audit, which then names every story as unread.
+// result carries. Renaming or removing a field breaks the shell's health audit
+// (section 5.4), which then names every story as unread.
 export type Results = {
   type: 'a11y:results'
   // The story analysed. The panel shows nothing for another one: an analysis

@@ -1,4 +1,4 @@
-import type { StoryEntry } from '@crypte/core/protocol'
+import type { StoryEntry, Theme } from '@crypte/core/protocol'
 import { valueIn, type Category, type Token } from '../tokens/categories'
 import type { Finding } from './audit'
 
@@ -19,8 +19,7 @@ export function suspectsOf(
   categories: Category[],
   stories: StoryEntry[],
 ): Suspect[] {
-  const measured = (theme: string) =>
-    new Set((finding.colors[theme as keyof Finding['colors']] ?? []).map(colorOf))
+  const measured = (theme: Theme) => new Set((finding.colors[theme] ?? []).map(colorOf))
   if (finding.themes.every((theme) => measured(theme).size === 0)) return []
   const readers = (name: string) =>
     new Set(

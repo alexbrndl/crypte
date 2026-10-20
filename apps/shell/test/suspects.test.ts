@@ -96,8 +96,7 @@ describe('the tokens probably behind a contrast violation', () => {
   })
 
   // Une violation des deux thèmes, mesurée autrement dans chacun : chaque thème
-  // se compare à ses propres couleurs. Le texte doux vaut #eeeeee en dark, ce
-  // que seul le light a mesuré : il n'est pas en cause.
+  // se compare à ses propres couleurs.
   test('compare each theme with the colours measured in it', () => {
     const contraste = (theme: 'light' | 'dark', colors: string[]) => ({
       id: 'a--x',
@@ -122,6 +121,8 @@ describe('the tokens probably behind a contrast violation', () => {
     expect(
       suspectsOf(finding!, categoriesOf(families), stories).map((one) => one.token.name),
     ).toEqual(['texte-doux', 'gris-500', 'gris-100'])
+    // Le texte doux vaut #777777 en light, ce que seul le dark a mesuré : il
+    // n'est pas en cause.
     const [sombre] = findingsOf([contraste('light', ['#123456']), contraste('dark', ['#777777'])])
     expect(
       suspectsOf(sombre!, categoriesOf(families), stories).map((one) => one.token.name),
