@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { Overrides, RenderedValues, StoryEntry } from '@crypte/core/protocol'
 import { Alert, Button } from '@crypte/ui'
-import { computed, onErrorCaptured, ref, useId, watch, type Component } from 'vue'
-import { ArrowDown01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons'
-import Icon from '../ui/icon.vue'
+import { computed, onErrorCaptured, ref, watch, type Component } from 'vue'
+import { keep, kept } from '../storage'
+import PanelSection from './panel-section.vue'
 
 // Le cadre d'un panneau de plugin, section 6.1 des contrats. Local au shell,
 // son seul consommateur : les panneaux sont montés dedans, ils ne le dessinent
@@ -27,9 +27,6 @@ const props = defineProps<{
 // Ce qu'un panneau a édité, que le shell envoie dans `render`, et ce qu'il
 // envoie à sa partie preview.
 const emit = defineEmits<{ overrides: [values: Overrides]; send: [message: PanelMessage] }>()
-
-const bodyId = useId()
-const reasonId = useId()
 
 // Ce qu'un panneau envoie à sa partie preview, sous son propre nom, section 5.4.
 // Un autre préfixe atteindrait un autre plugin, ou personne : refusé, et dit.
@@ -125,19 +122,9 @@ function described(raw: unknown): string {
 }
 
 // Ouvert par défaut, retenu par le shell sous le nom du plugin, jamais par le
-// plugin. `localStorage` peut lever, en navigation privée par exemple : le
-// cadre reste alors ouvert, sans rien retenir.
+// plugin.
 const KEY = `crypte:panel:${props.name}`
-
-const read = () => {
-  try {
-    return localStorage.getItem(KEY) !== 'closed'
-  } catch {
-    return true
-  }
-}
-
-const open = ref(read())
+const open = ref(kept(KEY) !== false)
 
 // Le dernier clic sur la story affichée, qui l'emporte sur tout le reste : un
 // panneau replié s'ouvre quand même, sa raison gardée en tête, pour que ce qu'il
@@ -157,12 +144,7 @@ function toggle() {
   if (inapplicable.value !== null) return
 
   open.value = next
-  try {
-    if (open.value) localStorage.removeItem(KEY)
-    else localStorage.setItem(KEY, 'closed')
-  } catch {
-    // Rien à retenir : le cadre suit le clic, jusqu'au prochain chargement.
-  }
+  keep(KEY, next ? undefined : false)
 }
 
 // Sans objet, story par story, jamais déclaré une fois : le panneau le dit avec
@@ -205,77 +187,44 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
 </script>
 
 <template>
-  <section
-    class="panel"
+  <!-- Sans objet, le panneau perd la bande de son en-tête : il se plie toujours, mais
+       rien ne l'y invite. -->
+  <PanelSection
+    :title="name"
+    :open="expanded"
     :data-plugin="name"
     :data-inapplicable="inapplicable !== null || undefined"
+    @toggle="toggle"
   >
-    <!-- Sans objet, le panneau perd la bande de son en-tête : il se plie toujours, mais
-         rien ne l'y invite. -->
-    <div class="head">
-      <!-- La bande dit « ceci se plie » par un fond : le bouton le dit au lecteur
-           d'écran, ce qu'il plie et, sans objet, pourquoi. -->
-      <button
-        type="button"
-        class="toggle"
-        :aria-expanded="expanded"
-        :aria-controls="failure === null ? bodyId : undefined"
-        :aria-describedby="inapplicable !== null ? reasonId : undefined"
-        @click="toggle"
-      >
-        <Icon :icon="expanded ? ArrowDown01Icon : ArrowRight01Icon" />
-        {{ name }}
-      </button>
-      <span v-if="inapplicable !== null" :id="reasonId" class="inapplicable">{{
-        inapplicable
-      }}</span>
-      <!-- Tout panneau qui édite l'a, sans rien écrire : le shell tient ses valeurs. -->
-      <Button
-        v-if="Object.keys(overrides).length > 0"
-        variant="ghost"
-        class="reset"
-        @click="emit('overrides', {})"
-      >
-        Reset all
-      </Button>
-    </div>
-    <Alert v-if="failure !== null" color="error" class="panel-failed" role="alert">
-      This panel threw: {{ failure }}
-    </Alert>
-    <div v-else v-show="expanded" :id="bodyId" class="body">
-      <component
-        :is="panel"
-        :entry="entry"
-        :received="received"
-        :failed="failed"
-        :values="values"
-        :overrides="overrides"
-        @inapplicable="declare"
-        @overrides="edit"
-        @send="send"
-      />
-    </div>
-  </section>
+    <template v-if="inapplicable !== null" #note
+      ><span class="inapplicable">{{ inapplicable }}</span></template
+    >
+    <!-- Tout panneau qui édite l'a, sans rien écrire : le shell tient ses valeurs. -->
+    <template v-if="Object.keys(overrides).length > 0" #action>
+      <Button variant="ghost" class="reset" @click="emit('overrides', {})">Reset all</Button>
+    </template>
+    <template v-if="failure !== null" #alert>
+      <Alert color="error" class="panel-failed" role="alert">This panel threw: {{ failure }}</Alert>
+    </template>
+    <template v-else #default>
+      <div class="content">
+        <component
+          :is="panel"
+          :entry="entry"
+          :received="received"
+          :failed="failed"
+          :values="values"
+          :overrides="overrides"
+          @inapplicable="declare"
+          @overrides="edit"
+          @send="send"
+        />
+      </div>
+    </template>
+  </PanelSection>
 </template>
 
 <style scoped>
-.panel {
-  /* A border: folded, the opaque head would cover an inset one. */
-  border-bottom: var(--stroke-hairline) solid var(--border-base);
-}
-
-/* 40 px open or folded, as the Figma header with its action; 32 px without
-   object, as its inapplicable state. */
-.head {
-  display: flex;
-  box-sizing: border-box;
-  gap: var(--space-2);
-  align-items: center;
-  min-height: 40px;
-  padding: var(--space-2) var(--space-3);
-  background: var(--background-subtle);
-}
-
 /* The sm button of the Figma panel header, 24 px high, by the button's custom
    properties. */
 .reset {
@@ -283,50 +232,17 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
   --button-padding: var(--space-0-5) var(--space-2);
 }
 
-.head .toggle {
-  display: flex;
-  flex: 1;
-  gap: var(--space-2);
-  align-items: center;
-  padding: 0;
-  border: 0;
+/* 32 px without object, as its inapplicable state: no band, a subtle title. */
+.panel[data-inapplicable] :deep(.head) {
   background: none;
-  color: var(--text-primary);
-  font: inherit;
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  line-height: var(--leading-xs);
-  letter-spacing: 0.05em;
-  text-align: left;
-  text-transform: uppercase;
-  cursor: pointer;
 }
 
-.head .toggle:focus-visible {
-  outline: var(--stroke-focus) solid var(--accent-focus);
-}
-
-.head .icon {
-  color: var(--text-subtle);
-}
-
-.panel[data-inapplicable] .head {
+.panel[data-inapplicable] :deep(.toggle) {
   min-height: 0;
-  background: none;
-}
-
-.panel[data-inapplicable] .head .toggle {
   color: var(--text-subtle);
 }
 
-.inapplicable {
-  color: var(--text-subtle);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
-  text-align: right;
-}
-
-.body {
+.content {
   padding: var(--space-3);
   font-size: var(--text-sm);
 }

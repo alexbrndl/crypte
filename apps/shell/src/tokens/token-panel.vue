@@ -1,18 +1,14 @@
 <script setup lang="ts">
 import type { StoryEntry } from '@crypte/core/protocol'
-import {
-  ArrowDown01Icon,
-  ArrowRight01Icon,
-  ComponentIcon,
-  Hexagon01Icon,
-  LinkSquare02Icon,
-} from '@hugeicons/core-free-icons'
+import { ComponentIcon, Hexagon01Icon, LinkSquare02Icon } from '@hugeicons/core-free-icons'
 import { computed, ref } from 'vue'
 import Icon from '../ui/icon.vue'
+import PanelSection from '../panels/panel-section.vue'
+import { keep, kept } from '../storage'
 import { componentIdOf } from '../navigation/tree'
 import { shown, type Category, type Token } from './categories'
 
-// Le panneau d'un token, source « token » de la maquette : sa valeur dans chaque
+// Le panneau d'un token : sa valeur dans chaque
 // thème, son nom CSS, les tokens qui pointent vers lui et les composants qui le
 // lisent. Natif au shell : ses lignes, le `panel/row` du fichier Figma, restent
 // ici tant qu'aucun panneau de plugin ne les dessine. Les `{{ ' ' }}` séparent ce
@@ -29,7 +25,12 @@ const emit = defineEmits<{
   component: [id: string, event: MouseEvent]
 }>()
 
-const open = ref(true)
+const KEY = 'crypte:panel:shell:token'
+const open = ref(kept(KEY) !== false)
+const toggle = () => {
+  open.value = !open.value
+  keep(KEY, open.value ? undefined : false)
+}
 
 // Un token au format des variables Figma, `accent/base` ; un nom qu'aucun token
 // ne porte reste tel quel.
@@ -91,23 +92,13 @@ const users = computed(() => {
 </script>
 
 <template>
-  <section class="panel" :aria-label="token ? token.name : 'Token'">
-    <header class="head">
-      <h3>
-        <button
-          type="button"
-          class="toggle"
-          :aria-expanded="open"
-          aria-controls="token-panel-body"
-          @click="open = !open"
-        >
-          <Icon :icon="open ? ArrowDown01Icon : ArrowRight01Icon" />
-          {{ token ? figma(token) : 'Token' }}
-        </button>
-      </h3>
-      <span class="source">token</span>
-    </header>
-    <div v-show="open" id="token-panel-body" class="body">
+  <PanelSection
+    :title="token ? figma(token) : 'Token'"
+    :open="open"
+    :aria-label="token ? token.name : 'Token'"
+    @toggle="toggle"
+  >
+    <div class="content">
       <p v-if="token === null" class="caption">Select a token to see its values and its uses.</p>
       <template v-else>
         <p class="caption">value</p>
@@ -163,68 +154,10 @@ const users = computed(() => {
         </a>
       </template>
     </div>
-  </section>
+  </PanelSection>
 </template>
 
 <style scoped>
-.panel {
-  /* A border: the opaque head would cover an inset one. */
-  border-bottom: var(--stroke-hairline) solid var(--border-base);
-}
-
-.head {
-  display: flex;
-  box-sizing: border-box;
-  gap: var(--space-2);
-  align-items: center;
-  min-height: 40px;
-  padding: var(--space-2) var(--space-3);
-  background: var(--background-subtle);
-}
-
-h3 {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  line-height: var(--leading-xs);
-  letter-spacing: var(--tracking-wider);
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-/* Muted, not the subtle of the Figma header: subtle falls to 4.39:1 on its
-   background. */
-.toggle {
-  display: flex;
-  flex: 1;
-  gap: var(--space-2);
-  align-items: center;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  letter-spacing: inherit;
-  text-align: left;
-  text-transform: inherit;
-  cursor: pointer;
-}
-
-.toggle:focus-visible {
-  outline: var(--stroke-focus) solid var(--accent-focus);
-}
-
-.toggle .icon {
-  color: var(--text-subtle);
-}
-
 .swatch {
   width: 12px;
   height: 12px;
@@ -233,14 +166,8 @@ h3 {
   box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
 }
 
-.source {
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
-}
-
 /* Le corps du panneau Figma : les lignes portent leur propre padding de 12. */
-.body {
+.content {
   padding: var(--space-1) 0 var(--space-2-5);
 }
 

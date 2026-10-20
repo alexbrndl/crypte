@@ -353,6 +353,11 @@ tbody th a {
   text-decoration: none;
 }
 
+tbody th a:focus-visible {
+  border-radius: var(--radius-xs);
+  outline: var(--stroke-focus) solid var(--accent-focus);
+}
+
 .code,
 .link {
   color: var(--text-muted);

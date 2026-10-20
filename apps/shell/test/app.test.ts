@@ -1633,7 +1633,7 @@ describe('the activity bar', () => {
 
     await clique(écran, 'tokens')
     expect(marquée(écran)).toBe('tokens')
-    expect(écran.wrapper.find('.sidebar .title').text()).toBe('Tokens1')
+    expect(écran.wrapper.find('.sidebar .column-title').text()).toBe('Tokens1')
     await clique(écran, 'versions')
     expect(marquée(écran)).toBe('versions')
     expect(window.location.search).toBe('?changes')
@@ -1642,7 +1642,7 @@ describe('the activity bar', () => {
     expect(marquée(écran)).toBe('stories')
     expect(window.location.search).toBe('?id=badge--defaut')
     expect(écran.wrapper.find('iframe').isVisible()).toBe(true)
-    expect(écran.wrapper.find('.sidebar .title').text()).toBe('Stories2')
+    expect(écran.wrapper.find('.sidebar .column-title').text()).toBe('Stories2')
     écran.wrapper.unmount()
   })
 
@@ -2115,10 +2115,9 @@ describe('the versions view', () => {
     window.history.replaceState(null, '', '/?changes')
     const écran = await monte([lecteur, alerte, bouton, jetons], false, undefined, () => lus)
 
-    expect(écran.wrapper.findAll('.sidebar h3').map((one) => one.text())).toEqual([
-      'Tokens1',
-      'Stories4',
-    ])
+    expect(écran.wrapper.findAll('.sidebar .group .column-title').map((one) => one.text())).toEqual(
+      ['Tokens1', 'Stories4'],
+    )
     expect(lignes(écran)).toEqual([
       '~ Brand-primary light',
       '+ Alerte Badge',
@@ -3621,14 +3620,17 @@ describe('the health view', () => {
       '?health=unstoried&item=src/components/form/Select.tsx:default',
     )
 
-    // Tout l'en-tête plie son panneau ; ouverts au départ, sans source.
+    // Tout l'en-tête plie son panneau ; ouverts au départ, sans source, le repli
+    // retenu comme celui des panneaux des stories.
     const entête = (nom: string) => écran.wrapper.find(`[aria-label="${nom}"] .toggle`)
+    const corps = (nom: string) => écran.wrapper.find(`[aria-label="${nom}"] .body`)
     expect(entête('To do').attributes('aria-expanded')).toBe('true')
-    expect(écran.wrapper.find('#health-panel .source').exists()).toBe(false)
+    expect(écran.wrapper.find('#health-panel .head .note').exists()).toBe(false)
     await entête('Links').trigger('click')
     expect(entête('Links').attributes('aria-expanded')).toBe('false')
-    expect(écran.wrapper.find('#health-links').isVisible()).toBe(false)
-    expect(écran.wrapper.find('#health-todo').isVisible()).toBe(true)
+    expect(corps('Links').isVisible()).toBe(false)
+    expect(corps('To do').isVisible()).toBe(true)
+    expect(localStorage.getItem('crypte:panel:shell:links')).toBe('false')
     écran.wrapper.unmount()
   })
 

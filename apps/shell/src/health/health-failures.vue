@@ -122,6 +122,10 @@ const themesOf = (themes: string[]) => (themes.length === 2 ? 'light and dark' :
   line-height: var(--leading-sm);
 }
 
+.failed {
+  color: var(--error-text);
+}
+
 table {
   width: 100%;
   border: var(--stroke-hairline) solid var(--border-base);
@@ -176,6 +180,11 @@ tbody th {
 tbody th a {
   color: var(--text-primary);
   text-decoration: none;
+}
+
+tbody th a:focus-visible {
+  border-radius: var(--radius-xs);
+  outline: var(--stroke-focus) solid var(--accent-focus);
 }
 
 .grow {

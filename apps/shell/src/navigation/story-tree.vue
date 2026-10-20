@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import ColumnTitle from '../ui/column-title.vue'
 import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { ToggleGroupItem, ToggleGroupRoot, TreeItem, TreeRoot } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
 import { ArrowDown01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons'
 import Icon from '../ui/icon.vue'
+import { keep, kept } from '../storage'
 import {
   STATUSES,
   branchKeys,
@@ -53,24 +55,14 @@ const grey = computed(() => dimmed(shown.value, chosen.value))
 // le shell, comme l'ouverture d'un panneau.
 const KEY = 'crypte:tree:folded'
 
-const read = (): string[] => {
-  try {
-    const kept: unknown = JSON.parse(localStorage.getItem(KEY) ?? '[]')
-    return Array.isArray(kept) ? kept.filter((one) => typeof one === 'string') : []
-  } catch {
-    return []
-  }
-}
+const stored = kept(KEY)
+const folded = ref<string[]>(
+  Array.isArray(stored) ? stored.filter((one): one is string => typeof one === 'string') : [],
+)
 
-const folded = ref<string[]>(read())
-
-const keep = (keys: string[]) => {
+const fold = (keys: string[]) => {
   folded.value = keys
-  try {
-    localStorage.setItem(KEY, JSON.stringify(keys))
-  } catch {
-    // Stockage refusé : l'arbre se replie le temps de la session.
-  }
+  keep(KEY, keys)
 }
 
 const expanded = computed(() =>
@@ -82,7 +74,7 @@ const expanded = computed(() =>
 function unfold(next: string[]) {
   const visible = branchKeys(shown.value)
   const closed = visible.filter((key) => !next.includes(key))
-  keep([...folded.value.filter((key) => !visible.includes(key)), ...closed])
+  fold([...folded.value.filter((key) => !visible.includes(key)), ...closed])
 }
 
 // Ce qu'on regarde reste atteignable : y arriver rouvre ce qui le contient, les
@@ -98,7 +90,7 @@ watch(
     if (!entry) return
     const above = component === null ? keysAbove(entry) : keysAbove(entry).slice(0, -1)
     if (folded.value.some((key) => above.includes(key)))
-      keep(folded.value.filter((key) => !above.includes(key)))
+      fold(folded.value.filter((key) => !above.includes(key)))
   },
   { immediate: true },
 )
@@ -153,10 +145,7 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
 
 <template>
   <div class="tree">
-    <div class="title">
-      <h2>{{ label }}</h2>
-      <span class="meta">{{ entries.length }}</span>
-    </div>
+    <ColumnTitle :title="label" :count="entries.length" />
     <ToggleGroupRoot
       v-if="declared.length > 0"
       :model-value="chosen ?? 'all'"
@@ -228,25 +217,6 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
   flex: 1;
   flex-direction: column;
   min-height: 0;
-}
-
-/* The column-title of the Figma sidebar, 32 px with its taller top. */
-.title {
-  display: flex;
-  align-items: center;
-  padding: var(--space-2-5) var(--space-3) var(--space-1-5);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
-}
-
-.title h2 {
-  flex: 1;
-  margin: 0;
-  color: var(--text-muted);
-  font-size: inherit;
-  font-weight: var(--weight-medium);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 
 .meta {

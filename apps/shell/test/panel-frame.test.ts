@@ -196,7 +196,7 @@ describe('whether a panel is open', () => {
     await wrapper.find('.head button').trigger('click')
 
     expect(état(wrapper).corps).toBe(false)
-    expect(localStorage.getItem('crypte:panel:status')).toBe('closed')
+    expect(localStorage.getItem('crypte:panel:status')).toBe('false')
 
     // Un autre montage, comme après un rechargement : fermé. Un autre plugin
     // garde sa propre clé, donc reste ouvert.
@@ -281,7 +281,7 @@ describe('whether a panel is open', () => {
       })
 
     test('keeps open a folded panel the user opened, when it unfolds', async () => {
-      localStorage.setItem('crypte:panel:a11y', 'closed')
+      localStorage.setItem('crypte:panel:a11y', 'false')
       const wrapper = monteAnalyse(true)
       await wrapper.vm.$nextTick()
       await wrapper.find('.head button').trigger('click')
@@ -356,7 +356,7 @@ describe('a panel that throws', () => {
     await wrapper.vm.$nextTick()
 
     await wrapper.find('.head button').trigger('click')
-    expect(localStorage.getItem('crypte:panel:fragile')).toBe('closed')
+    expect(localStorage.getItem('crypte:panel:fragile')).toBe('false')
     expect(état(wrapper).ouvert).toBe('false')
 
     await wrapper.find('.head button').trigger('click')

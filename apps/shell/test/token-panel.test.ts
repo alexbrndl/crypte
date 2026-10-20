@@ -1,6 +1,6 @@
 import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { mount } from '@vue/test-utils'
-import { describe, expect, test } from 'vitest'
+import { beforeEach, describe, expect, test } from 'vitest'
 import { categoriesOf } from '../src/tokens/categories'
 import TokenPanel from '../src/tokens/token-panel.vue'
 
@@ -72,14 +72,18 @@ const monte = (name: string | null) =>
     },
   })
 const lignes = (wrapper: ReturnType<typeof monte>) =>
-  wrapper.findAll('.body > *').map((one) => one.text().replace(/\s+/g, ' ').trim())
+  wrapper.findAll('.content > *').map((one) => one.text().replace(/\s+/g, ' ').trim())
+
+beforeEach(() => {
+  localStorage.clear()
+})
 
 describe('the token panel', () => {
   test('gives each theme with the end of its chain, the CSS name, what points here and what reads it', () => {
     const wrapper = monte('accent-base')
 
     expect(wrapper.find('h3').text()).toBe('accent/base')
-    expect(wrapper.find('.source').text()).toBe('token')
+    expect(wrapper.find('.head .note').exists()).toBe(false)
     expect(lignes(wrapper)).toEqual([
       'value',
       'light teal/700 · #00776E',
@@ -118,14 +122,19 @@ describe('the token panel', () => {
     ])
   })
 
-  test('folds its body from its head', async () => {
+  // Retenu d'un montage à l'autre, comme les panneaux des stories.
+  test('folds its body from its head, and remembers it', async () => {
     const wrapper = monte('accent-base')
     const bouton = wrapper.find('.toggle')
 
     expect(bouton.attributes('aria-expanded')).toBe('true')
     await bouton.trigger('click')
     expect(bouton.attributes('aria-expanded')).toBe('false')
-    expect((wrapper.find('#token-panel-body').element as HTMLElement).style.display).toBe('none')
+    expect((wrapper.find('.body').element as HTMLElement).style.display).toBe('none')
+    expect(monte('accent-base').find('.toggle').attributes('aria-expanded')).toBe('false')
+
+    await bouton.trigger('click')
+    expect(localStorage.getItem('crypte:panel:shell:token')).toBeNull()
   })
 
   test('asks for a token when none is selected', () => {

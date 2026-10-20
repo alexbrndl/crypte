@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ColumnTitle from '../ui/column-title.vue'
 import type { Category } from './categories'
 
 // La sidebar de la vue tokens : une ligne par catégorie, avec son compte, comme
@@ -13,10 +14,7 @@ const emit = defineEmits<{ pick: [category: string, event: MouseEvent] }>()
 
 <template>
   <div class="categories">
-    <div class="title">
-      <h2>Tokens</h2>
-      <span class="meta">{{ categories.reduce((sum, one) => sum + one.count, 0) }}</span>
-    </div>
+    <ColumnTitle title="Tokens" :count="categories.reduce((sum, one) => sum + one.count, 0)" />
     <p v-if="categories.length === 0" class="none">no tokens</p>
     <ul aria-label="Tokens">
       <li v-for="category of categories" :key="category.name">
@@ -39,25 +37,6 @@ const emit = defineEmits<{ pick: [category: string, event: MouseEvent] }>()
   flex: 1;
   flex-direction: column;
   min-height: 0;
-}
-
-/* The column-title of the Figma sidebar, 32 px with its taller top. */
-.title {
-  display: flex;
-  align-items: center;
-  padding: var(--space-2-5) var(--space-3) var(--space-1-5);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
-}
-
-.title h2 {
-  flex: 1;
-  margin: 0;
-  color: var(--text-muted);
-  font-size: inherit;
-  font-weight: var(--weight-medium);
-  letter-spacing: var(--tracking-wider);
-  text-transform: uppercase;
 }
 
 .meta {
