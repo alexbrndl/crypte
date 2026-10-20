@@ -2,7 +2,7 @@
 // Une ligne de sidebar, `row` de la maquette : 24 px, padding 2/12, gap 6, le
 // libellé coupé, le compte à droite. La ligne courante porte la bande et le
 // marqueur au bord de la colonne, comme le premier niveau de l'arbre.
-defineProps<{ href: string; current: boolean; count?: number }>()
+defineProps<{ href: string; current: boolean; count?: number | string }>()
 const emit = defineEmits<{ click: [event: MouseEvent] }>()
 defineSlots<{ default(): unknown; icon?(): unknown; detail?(): unknown }>()
 </script>

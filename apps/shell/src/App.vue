@@ -320,7 +320,7 @@ const line = computed(() => {
   if (unread.value !== null) return unread.value
   if (changesOpen.value)
     return changes.value !== null && 'from' in changes.value
-      ? `${plural(counter.value, 'difference')} since ${sinceLabel(changes.value.from.ref)}`
+      ? `${plural(counter.value ?? 0, 'difference')} since ${sinceLabel(changes.value.from.ref)}`
       : counted(entries.value.length)
   if (healthAt.value !== null) {
     if (health.value === null) return 'reading the health of the components'

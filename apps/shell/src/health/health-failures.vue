@@ -46,7 +46,7 @@ const themesOf = (themes: string[]) => (themes.length === 2 ? 'light and dark' :
     </EmptyNote>
     <EmptyNote v-else-if="failures === null">The audit has not run yet.</EmptyNote>
     <EmptyNote v-else-if="failures.length === 0">Every story renders.</EmptyNote>
-    <CardTable v-else selectable>
+    <CardTable v-else>
       <thead>
         <tr>
           <th scope="col">story</th>

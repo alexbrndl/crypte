@@ -1,14 +1,13 @@
 <script setup lang="ts">
 // La table de la maquette : un cadre arrondi, l'en-tête sur le fond subtil, des
-// lignes de 38 px séparées d'un filet clair. `selectable`, chaque ligne se
-// choisit, son lien dans la première cellule, et `data-selected` marque la
-// choisie. `.grow` prend la place qui reste, `.code` est une valeur,
-// `data-ink="error"` un problème.
-defineProps<{ selectable?: boolean }>()
+// lignes de 38 px séparées d'un filet clair. Chaque ligne se choisit, son lien
+// dans la première cellule, et `data-selected` marque la choisie. `.grow`
+// prend la place qui reste, `.code` est une valeur, `data-ink="error"` un
+// problème.
 </script>
 
 <template>
-  <table class="card-table" :data-selectable="selectable || undefined">
+  <table class="card-table">
     <slot />
   </table>
 </template>
@@ -58,11 +57,11 @@ defineProps<{ selectable?: boolean }>()
   line-height: var(--leading-sm);
 }
 
-.card-table[data-selectable] :slotted(tbody tr) {
+:slotted(tbody tr) {
   cursor: pointer;
 }
 
-.card-table[data-selectable] :slotted(tbody tr:hover) {
+:slotted(tbody tr:hover) {
   background: var(--background-hover);
 }
 

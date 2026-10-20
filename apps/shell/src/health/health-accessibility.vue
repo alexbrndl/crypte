@@ -89,7 +89,7 @@ const themesOf = (themes: string[]) =>
         Could not be audited: {{ unaudited.map(nameOf).join(', ') }}.
       </EmptyNote>
       <EmptyNote v-if="findings.length === 0">No violation found.</EmptyNote>
-      <CardTable v-else selectable>
+      <CardTable v-else>
         <thead>
           <tr>
             <th scope="col">story</th>

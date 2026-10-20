@@ -118,7 +118,7 @@ async function copy(one: HealthComponent) {
       </ul>
     </section>
     <EmptyNote v-if="rows.length === 0">Nothing to list here.</EmptyNote>
-    <CardTable v-else selectable>
+    <CardTable v-else>
       <thead>
         <tr v-if="page === 'overview'">
           <th scope="col" class="grow">component</th>
@@ -165,7 +165,7 @@ async function copy(one: HealthComponent) {
                   ? 'not tested'
                   : a11yOf(one) === 0
                     ? '0'
-                    : `${plural(a11yOf(one), 'violation')}`
+                    : `${plural(a11yOf(one) ?? 0, 'violation')}`
               }}
             </td>
             <td class="code">{{ one.status ?? '' }}</td>
