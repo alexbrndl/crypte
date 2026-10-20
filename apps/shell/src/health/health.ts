@@ -2,7 +2,15 @@
 // score qui en sort. Les données viennent de `/@crypte/health.json`, la forme de
 // `packages/cli/src/catalogue/health.ts`, que le shell ne peut pas importer.
 
+import type { StoryEntry } from '@crypte/core/protocol'
 import { cleanOf, drawnOf, failuresOf, findingsOf, type AuditResult } from './audit'
+
+// Une story nommée « Composant / Story » ; une story absent du catalogue garde
+// son identifiant.
+export function storyName(stories: StoryEntry[], id: string): string {
+  const story = stories.find((one) => one.id === id)
+  return story ? `${story.path.at(-1)} / ${story.name}` : id
+}
 
 export interface HealthComponent {
   name: string

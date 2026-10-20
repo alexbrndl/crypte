@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import NoneValue from '../ui/none-value.vue'
+import PlainTable from '../ui/plain-table.vue'
 import type { StoryEntry } from '@crypte/core/protocol'
 import { computed } from 'vue'
 import { placeSearch, sameTab } from '../navigation/url'
@@ -58,7 +60,7 @@ function follow(event: MouseEvent, id: string) {
       </dd>
     </dl>
 
-    <table>
+    <PlainTable>
       <thead>
         <tr>
           <th scope="col">Story</th>
@@ -77,11 +79,11 @@ function follow(event: MouseEvent, id: string) {
           </td>
           <td>
             <code v-for="prop of story.props" :key="prop" class="prop">{{ prop }}</code>
-            <span v-if="story.props.length === 0" class="none">none</span>
+            <NoneValue v-if="story.props.length === 0" />
           </td>
         </tr>
       </tbody>
-    </table>
+    </PlainTable>
   </section>
 </template>
 
@@ -96,36 +98,6 @@ h2 {
   font-weight: var(--weight-semibold);
   line-height: var(--leading-3xl);
   letter-spacing: var(--tracking-tight);
-}
-
-table {
-  border-collapse: collapse;
-  font-size: var(--text-sm);
-  line-height: var(--leading-sm);
-}
-
-/* The rows of the Figma tables: a 24 px header, 32 px items, 12 px between cells. */
-thead th {
-  padding-block: var(--space-1);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  line-height: var(--leading-xs);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-th,
-td {
-  text-align: left;
-  vertical-align: top;
-  padding: var(--space-1-5) var(--space-3) var(--space-1-5) 0;
-  box-shadow: inset 0 calc(-1 * var(--stroke-hairline)) 0 var(--border-light);
-}
-
-/* Mono text on a 14 px line: aligned on the baseline, it grew each row by 1 px. */
-td code {
-  vertical-align: top;
 }
 
 a {
@@ -171,9 +143,5 @@ dd {
 
 .prop + .prop {
   margin-left: var(--space-1-5);
-}
-
-.none {
-  color: var(--text-muted);
 }
 </style>

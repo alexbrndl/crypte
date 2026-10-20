@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import EmptyNote from '../ui/empty-note.vue'
+import { plural } from '../plural'
 import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { Clock01Icon, Search01Icon } from '@hugeicons/core-free-icons'
 import { Button, Field, Input } from '@crypte/ui'
@@ -14,6 +16,7 @@ import {
   ListboxGroupLabel,
   ListboxItem,
   ListboxRoot,
+  VisuallyHidden,
 } from 'reka-ui'
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import Icon from '../ui/icon.vue'
@@ -189,10 +192,10 @@ const count = computed(() => {
   if (query.value.trim() === '') return 'is: type: to filter'
   if (inFilter.value !== null) {
     const values = valueRows.value.length
-    return `${values} ${values === 1 ? 'value' : 'values'}`
+    return `${plural(values, 'value')}`
   }
   const found = kept.value.length
-  return `${found} ${found === 1 ? 'result' : 'results'}`
+  return `${plural(found, 'result')}`
 })
 
 const filter = useTemplateRef<{ $el: HTMLInputElement }>('filter')
@@ -296,7 +299,11 @@ async function copy() {
     <DialogPortal>
       <DialogOverlay class="overlay" />
       <DialogContent class="palette" :aria-describedby="undefined">
-        <DialogTitle class="title">{{ installing ? 'Install a plugin' : 'Commands' }}</DialogTitle>
+        <VisuallyHidden as-child
+          ><DialogTitle>{{
+            installing ? 'Install a plugin' : 'Commands'
+          }}</DialogTitle></VisuallyHidden
+        >
         <section v-if="installing" class="install">
           <h2>Install a plugin</h2>
           <p>
@@ -335,12 +342,11 @@ async function copy() {
             <span class="count">{{ count }}</span>
           </div>
           <ListboxContent class="results" aria-label="Results">
-            <p
+            <EmptyNote
               v-if="groups.length === 0 && filterRows.length === 0 && valueRows.length === 0"
-              class="none"
             >
               Nothing matches.
-            </p>
+            </EmptyNote>
             <ListboxGroup v-if="recentRows.length > 0">
               <ListboxGroupLabel class="group"
                 ><Icon :icon="Clock01Icon" />Recent</ListboxGroupLabel
@@ -440,14 +446,6 @@ async function copy() {
   line-height: var(--leading-sm);
 }
 
-.title {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-}
-
 /* La ligne `query` : padding 12/16, gap 8, le compte à droite. */
 .query {
   display: flex;
@@ -485,6 +483,7 @@ async function copy() {
 .results {
   max-height: 50vh;
   overflow-y: auto;
+  --empty-note-padding: var(--space-3) var(--space-4);
 }
 
 [role='group'] + [role='group'] {
@@ -501,7 +500,7 @@ async function copy() {
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   line-height: var(--leading-xs);
-  letter-spacing: 0.05em;
+  letter-spacing: var(--tracking-wider);
   text-transform: uppercase;
 }
 
@@ -562,12 +561,6 @@ kbd {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
-}
-
-.none {
-  margin: 0;
-  padding: var(--space-3) var(--space-4);
-  color: var(--text-muted);
 }
 
 /* Le pied : padding 8/16, gap 12, sur le fond de base. */

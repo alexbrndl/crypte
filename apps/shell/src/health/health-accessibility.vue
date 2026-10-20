@@ -3,6 +3,11 @@ import type { StoryEntry } from '@crypte/core/protocol'
 import { Button } from '@crypte/ui'
 import { computed } from 'vue'
 import { cleanOf, findingsOf, unjudgedOf, type AuditResult } from './audit'
+import CardTable from '../ui/card-table.vue'
+import EmptyNote from '../ui/empty-note.vue'
+import SectionHeader from '../ui/section-header.vue'
+import ViewCanvas from '../ui/view-canvas.vue'
+import { storyName } from './health'
 
 // La page accessibilité de la vue santé : l'audit de chaque story, en light et en
 // dark, lancé à la demande, puis ses violations, une ligne par story et par règle.
@@ -31,38 +36,38 @@ const counts = computed(() => ({
 // compte pas, et rien d'autre ne les nommerait.
 const unaudited = computed(() => unjudgedOf(props.audit ?? []))
 
-const nameOf = (id: string) => {
-  const story = props.stories.find((one) => one.id === id)
-  return story ? `${story.path.at(-1)} / ${story.name}` : id
-}
+const nameOf = (id: string) => storyName(props.stories, id)
 const themesOf = (themes: string[]) =>
   themes.length === 2 ? 'in light and dark' : `in ${themes[0]}`
 </script>
 
 <template>
-  <section class="health-view" aria-label="Health, accessibility">
-    <header class="section">
-      <h2>accessibility</h2>
-      <span class="badge">axe</span>
-      <span class="note">{{
+  <ViewCanvas class="health-view" aria-label="Health, accessibility">
+    <SectionHeader
+      title="accessibility"
+      count="axe"
+      :note="
         audit ? `${counts.audited} stories · light and dark themes` : 'every story, light and dark'
-      }}</span>
-      <Button v-if="plugin && audit && !running" class="run" @click="emit('run')">Run again</Button>
-    </header>
+      "
+    >
+      <template v-if="plugin && audit && !running" #action>
+        <Button class="run" @click="emit('run')">Run again</Button>
+      </template>
+    </SectionHeader>
 
-    <p v-if="failed && !running" class="empty failed" role="alert">
+    <EmptyNote v-if="failed && !running" failed role="alert">
       The audit could not run: {{ failed }}.
-    </p>
-    <p v-if="!plugin" class="empty">
+    </EmptyNote>
+    <EmptyNote v-if="!plugin">
       Install <code>@crypte/a11y</code> and add it to <code>plugins</code> to audit every story.
-    </p>
-    <p v-else-if="running" class="empty" role="status">
+    </EmptyNote>
+    <EmptyNote v-else-if="running" role="status">
       Auditing, {{ running.done }} of {{ running.total }} renders.
-    </p>
+    </EmptyNote>
     <div v-else-if="!audit" class="start">
-      <p class="empty">
+      <EmptyNote>
         The audit renders every story in light and in dark, out of sight, and lists what axe finds.
-      </p>
+      </EmptyNote>
       <Button class="run" @click="emit('run')">Run the audit</Button>
     </div>
     <template v-else>
@@ -80,11 +85,11 @@ const themesOf = (themes: string[]) =>
           >{{ ' ' }}<span>critical {{ counts.critical === 1 ? 'violation' : 'violations' }}</span>
         </li>
       </ul>
-      <p v-if="unaudited.length > 0" class="empty unaudited">
+      <EmptyNote v-if="unaudited.length > 0" class="unaudited">
         Could not be audited: {{ unaudited.map(nameOf).join(', ') }}.
-      </p>
-      <p v-if="findings.length === 0" class="empty">No violation found.</p>
-      <table v-else>
+      </EmptyNote>
+      <EmptyNote v-if="findings.length === 0">No violation found.</EmptyNote>
+      <CardTable v-else selectable>
         <thead>
           <tr>
             <th scope="col">story</th>
@@ -109,71 +114,18 @@ const themesOf = (themes: string[]) =>
               >
             </th>
             <td class="code">{{ one.violation.rule }}</td>
-            <td class="grow problem">{{ one.violation.help }}, {{ themesOf(one.themes) }}</td>
+            <td class="grow">{{ one.violation.help }}, {{ themesOf(one.themes) }}</td>
             <td class="code" :data-ink="one.violation.impact === 'critical' ? 'error' : undefined">
               {{ one.violation.impact }}
             </td>
           </tr>
         </tbody>
-      </table>
+      </CardTable>
     </template>
-  </section>
+  </ViewCanvas>
 </template>
 
 <style scoped>
-.health-view {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-5) var(--space-6);
-  background: var(--background-subtle);
-}
-
-.section {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  padding-bottom: var(--space-1);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
-}
-
-/* Muted, not the subtle of the Figma file: subtle falls under 4.5:1 here. */
-.section h2 {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: inherit;
-  font-weight: var(--weight-medium);
-  letter-spacing: var(--tracking-wider);
-  text-transform: uppercase;
-}
-
-.badge {
-  padding: var(--space-0-5) var(--space-1);
-  border-radius: var(--radius-xs);
-  background: var(--background-raised);
-  color: var(--text-current);
-  font-family: var(--font-mono);
-}
-
-.note {
-  flex: 1;
-  color: var(--text-muted);
-  text-align: right;
-}
-
-.empty {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  line-height: var(--leading-sm);
-}
-
-.failed {
-  color: var(--error-text);
-}
-
 .start {
   display: flex;
   flex-direction: column;
@@ -211,78 +163,7 @@ const themesOf = (themes: string[]) =>
   line-height: var(--leading-2xl);
 }
 
-table {
-  width: 100%;
-  border: var(--stroke-hairline) solid var(--border-base);
-  border-radius: var(--radius-md);
-  border-collapse: separate;
-  border-spacing: 0;
-  overflow: hidden;
-  background: var(--background-raised);
-}
-
-th,
-td {
-  padding: 9px var(--space-3);
-  text-align: left;
-  vertical-align: top;
-}
-
-thead th {
-  padding-block: var(--space-1-5);
-  background: var(--background-subtle);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-normal);
-  line-height: var(--leading-xs);
-  white-space: nowrap;
-}
-
-tbody tr {
-  cursor: pointer;
-}
-
-tbody th,
-tbody td {
-  box-shadow: inset 0 var(--stroke-hairline) 0 var(--border-light);
-}
-
-tbody tr:hover {
-  background: var(--background-hover);
-}
-
-tbody tr[data-selected] {
-  background: var(--background-current);
-}
-
-tbody th {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-normal);
-  line-height: var(--leading-sm);
-  white-space: nowrap;
-}
-
-tbody th a {
-  color: var(--text-primary);
-  text-decoration: none;
-}
-
-tbody th a:focus-visible {
-  border-radius: var(--radius-xs);
-  outline: var(--stroke-focus) solid var(--accent-focus);
-}
-
-.grow {
-  width: 100%;
-}
-
-.problem {
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-  line-height: var(--leading-sm);
-}
-
-.code {
+code {
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--text-xs);

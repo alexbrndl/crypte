@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { VisuallyHidden } from 'reka-ui'
+import EmptyNote from '../ui/empty-note.vue'
+import SidebarLink from '../ui/sidebar-link.vue'
 import ColumnTitle from '../ui/column-title.vue'
 import { ComponentIcon, Hexagon01Icon } from '@hugeicons/core-free-icons'
 import { Field, Input, Select } from '@crypte/ui'
@@ -104,24 +107,28 @@ const total = computed(() => props.tokens.length + props.stories.length)
         />
       </Field>
     </div>
-    <p v-if="total === 0" class="none">no difference</p>
+    <EmptyNote v-if="total === 0">No difference.</EmptyNote>
     <section v-for="group of groups" :key="group.title" class="group">
       <ColumnTitle :title="group.title" :count="group.rows.length" />
       <ul>
         <li v-for="row of group.rows" :key="row.key">
-          <a
+          <SidebarLink
             :href="hrefOf(row.key)"
             :data-kind="row.kind"
-            :aria-current="row.key === selected ? 'true' : undefined"
-            @click="emit('select', row.key, $event)"
+            :current="row.key === selected"
+            @click="(event) => emit('select', row.key, event)"
           >
-            <span class="sign" :title="WORDS[row.kind]"
-              >{{ SIGNS[row.kind] }}<span class="hidden"> {{ WORDS[row.kind] }}</span></span
+            <template #icon>
+              <span class="sign" :title="WORDS[row.kind]"
+                >{{ SIGNS[row.kind] }}<VisuallyHidden> {{ WORDS[row.kind] }}</VisuallyHidden></span
+              >
+              <Icon :icon="row.nature === 'token' ? Hexagon01Icon : ComponentIcon" />
+            </template>
+            {{ row.label }}
+            <template #detail
+              ><span class="detail">{{ row.detail }}</span></template
             >
-            <Icon :icon="row.nature === 'token' ? Hexagon01Icon : ComponentIcon" />
-            <span class="label">{{ row.label }}</span>
-            <span class="detail">{{ row.detail }}</span>
-          </a>
+          </SidebarLink>
         </li>
       </ul>
     </section>
@@ -135,6 +142,7 @@ const total = computed(() => props.tokens.length + props.stories.length)
   flex-direction: column;
   min-height: 0;
   overflow-y: auto;
+  --empty-note-padding: var(--space-0-5) var(--space-3);
 }
 
 /* Les versions comparées : padding 4/12/10/12, gap 6. */
@@ -149,34 +157,6 @@ ul {
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-/* La ligne `row` du fichier Figma : 24 px, gap 6, padding 2/12. */
-a {
-  display: flex;
-  gap: var(--space-1-5);
-  align-items: center;
-  padding: var(--space-0-5) var(--space-3);
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  line-height: var(--leading-sm);
-  text-decoration: none;
-}
-
-a:hover {
-  background: var(--background-hover);
-  color: var(--text-primary);
-}
-
-a[aria-current='true'] {
-  background: var(--background-current);
-  box-shadow: inset var(--stroke-marker) 0 0 var(--accent-base);
-  color: var(--text-current);
-}
-
-a:focus-visible {
-  outline: var(--stroke-focus) solid var(--accent-focus);
-  outline-offset: calc(-1 * var(--stroke-focus));
 }
 
 /* Le signe `row/sign` : + success, ~ info, − error, la ligne retirée barrée. */
@@ -199,28 +179,12 @@ a:focus-visible {
   color: var(--error-text);
 }
 
-[data-kind='disappeared'] .label {
+[data-kind='disappeared'] :deep(.label) {
   text-decoration: line-through;
 }
 
-.hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .detail {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   color: var(--text-subtle);
@@ -231,14 +195,7 @@ a:focus-visible {
   white-space: nowrap;
 }
 
-a[aria-current='true'] .detail {
+.sidebar-link[aria-current='page'] .detail {
   color: var(--text-current);
-}
-
-.none {
-  margin: 0;
-  padding: var(--space-0-5) var(--space-3);
-  color: var(--text-muted);
-  font-size: var(--text-sm);
 }
 </style>

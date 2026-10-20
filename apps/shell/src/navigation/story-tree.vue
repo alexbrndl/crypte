@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import EmptyNote from '../ui/empty-note.vue'
 import ColumnTitle from '../ui/column-title.vue'
 import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { ToggleGroupItem, ToggleGroupRoot, TreeItem, TreeRoot } from 'reka-ui'
@@ -140,7 +141,7 @@ const GUIDE = 20
 const STEP = 12
 const guides = (level: number, selected: boolean) =>
   Array.from({ length: level - 1 - (selected ? 1 : 0) }, (_, at) => GUIDE + at * STEP)
-const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
+const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 0)
 </script>
 
 <template>
@@ -159,7 +160,7 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
         {{ one }}
       </ToggleGroupItem>
     </ToggleGroupRoot>
-    <p v-if="entries.length === 0" class="none">{{ none }}</p>
+    <EmptyNote v-if="entries.length === 0">{{ none }}</EmptyNote>
     <TreeRoot
       v-slot="{ flattenItems }"
       :items="shown"
@@ -217,6 +218,7 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
   flex: 1;
   flex-direction: column;
   min-height: 0;
+  --empty-note-padding: var(--space-0-5) var(--space-3);
 }
 
 .meta {
@@ -344,12 +346,5 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 8)
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.none {
-  margin: 0;
-  padding: var(--space-0-5) var(--space-3);
-  color: var(--text-muted);
-  font-size: var(--text-sm);
 }
 </style>

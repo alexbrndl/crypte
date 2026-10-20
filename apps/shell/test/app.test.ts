@@ -250,7 +250,7 @@ describe('the shell tree', () => {
     expect(
       écran.wrapper
         .findAll('.sidebar li a')
-        .map((one) => `${one.find('.name').text()} ${one.find('.meta').text()}`),
+        .map((one) => `${one.find('.label').text()} ${one.find('.count').text()}`),
     ).toEqual(['palette 1'])
     écran.wrapper.unmount()
   })
@@ -279,7 +279,7 @@ describe('the shell tree', () => {
   test('says there is no story on an empty catalog', async () => {
     const écran = await monte([])
 
-    expect(écran.wrapper.find('.sidebar p').text()).toBe('no story')
+    expect(écran.wrapper.find('.sidebar p').text()).toBe('No story.')
     écran.wrapper.unmount()
   })
 
@@ -1173,7 +1173,7 @@ describe('the component page', () => {
         .map((one) => one.text()),
     ).toEqual(['Component', 'Stories'])
     expect(page(écran).find('.description').exists()).toBe(false)
-    expect(page(écran).find('tbody td .none').text()).toBe('none')
+    expect(page(écran).find('tbody td .none-value').text()).toBe('none')
     écran.wrapper.unmount()
   })
 
@@ -1684,7 +1684,7 @@ describe('the activity bar', () => {
     expect(window.location.search).toBe('?tokens=color')
     expect(écran.wrapper.find('.empty h2').text()).toBe('No token found')
     expect(écran.wrapper.find('.empty pre').text()).toContain('--color-accent: #009488;')
-    expect(écran.wrapper.find('.sidebar .none').text()).toBe('no tokens')
+    expect(écran.wrapper.find('.sidebar .empty-note').text()).toBe('No tokens.')
     expect(écran.wrapper.find('iframe').isVisible()).toBe(false)
     expect(écran.statut()).toBe('no tokens found')
   })
@@ -1699,7 +1699,7 @@ describe('the activity bar', () => {
     await clique(écran, 'stories')
     expect(window.location.search).toBe('')
     expect(marquée(écran)).toBe('stories')
-    expect(écran.wrapper.find('.sidebar p').text()).toBe('no story')
+    expect(écran.wrapper.find('.sidebar p').text()).toBe('No story.')
     écran.wrapper.unmount()
   })
 })
@@ -1727,9 +1727,9 @@ describe('the tokens view', () => {
   const catégories = (écran: Ecran) =>
     écran.wrapper
       .findAll('.sidebar li a')
-      .map((one) => `${one.find('.name').text()} ${one.find('.meta').text()}`)
+      .map((one) => `${one.find('.label').text()} ${one.find('.count').text()}`)
   const courante = (écran: Ecran) =>
-    écran.wrapper.find('.sidebar [aria-current="page"] .name').text()
+    écran.wrapper.find('.sidebar [aria-current="page"] .label').text()
   const valeurs = (écran: Ecran) =>
     vue(écran)
       .findAll('.item')
@@ -2134,7 +2134,7 @@ describe('the versions view', () => {
 
     await clique(écran, ligne(écran, 'Par défaut'))
     expect(window.location.search).toBe('?changes&change=story:bouton--defaut')
-    expect(ligne(écran, 'Par défaut').attributes('aria-current')).toBe('true')
+    expect(ligne(écran, 'Par défaut').attributes('aria-current')).toBe('page')
     const détail = vue(écran).find('.change')
     expect(détail.text().replace(/\s+/g, ' ')).toContain('Status: draft → stable')
     expect(détail.find('.added').text()).toBe('tone')
@@ -2313,8 +2313,8 @@ describe('the versions view', () => {
     await clique(écran, entrée(écran))
 
     expect(entrée(écran).find('.count').text()).toBe('0')
-    expect(vue(écran).find('.note').text()).toBe('Nothing changed in the catalogue.')
-    expect(écran.wrapper.find('.sidebar .none').text()).toBe('no difference')
+    expect(vue(écran).find('.empty-note').text()).toBe('Nothing changed in the catalogue.')
+    expect(écran.wrapper.find('.sidebar .empty-note').text()).toBe('No difference.')
     écran.wrapper.unmount()
   })
 
@@ -2327,7 +2327,7 @@ describe('the versions view', () => {
     await clique(écran, entrée(écran))
 
     expect(entrée(écran).find('.count').exists()).toBe(false)
-    expect(vue(écran).find('.note').text()).toBe(
+    expect(vue(écran).find('.empty-note').text()).toBe(
       'The changes cannot be read: the project is not in a Git repository.',
     )
     écran.wrapper.unmount()
@@ -2339,7 +2339,7 @@ describe('the versions view', () => {
     })
     await clique(écran, entrée(écran))
 
-    expect(vue(écran).find('.note').text()).toBe(
+    expect(vue(écran).find('.empty-note').text()).toBe(
       'The changes cannot be read: its route could not be read: Unexpected token.',
     )
     écran.wrapper.unmount()
@@ -2354,7 +2354,7 @@ describe('the versions view', () => {
     }))
     await clique(écran, entrée(écran))
 
-    expect(vue(écran).find('.note').text()).toContain(
+    expect(vue(écran).find('.empty-note').text()).toContain(
       'The tokens have no history before this commit',
     )
     écran.wrapper.unmount()
@@ -2413,7 +2413,7 @@ describe('the versions view', () => {
 
     await clique(écran, entrée(écran))
     expect(entrée(écran).find('.count').text()).toBe('0')
-    expect(vue(écran).find('.note').text()).toBe('Nothing changed in the catalogue.')
+    expect(vue(écran).find('.empty-note').text()).toBe('Nothing changed in the catalogue.')
     écran.wrapper.unmount()
   })
 
@@ -3048,7 +3048,7 @@ describe('the health view', () => {
   const page = async (écran: Ecran, libellé: string) => {
     await écran.wrapper
       .findAll('.health a')
-      .find((one) => one.find('.name').text() === libellé)!
+      .find((one) => one.find('.label').text() === libellé)!
       .trigger('click', { button: 0 })
     await vide(écran.wrapper)
   }
@@ -3066,7 +3066,7 @@ describe('the health view', () => {
     expect(
       écran.wrapper
         .findAll('.health a')
-        .map((one) => `${one.find('.name').text()} ${one.find('.meta').text()}`),
+        .map((one) => `${one.find('.label').text()} ${one.find('.count').text()}`),
       // L'accessibilité ne compte rien avant l'audit.
     ).toEqual(['overview 4', 'without story 2', 'render errors ', 'accessibility ', 'statuses 2'])
     // Ce qui pose problème d'abord, un point chacun : sans story, ou déprécié
@@ -3093,7 +3093,7 @@ describe('the health view', () => {
       'Select | src/components/form/Select.tsx | 9 | copy the skeleton',
       'Avatar | src/components/Avatar.tsx | 2 | copy the skeleton',
     ])
-    expect(écran.wrapper.find('#health-panel .caption').text()).toBe(
+    expect(écran.wrapper.find('#health-panel .empty-note').text()).toBe(
       'Select a row to see what it needs.',
     )
 
@@ -3109,7 +3109,7 @@ describe('the health view', () => {
     expect(écrit).toHaveBeenCalledWith('squelette')
     expect(écran.wrapper.find('#health-panel .copy').text()).toBe('Skeleton copied')
     // Ses props requises, à donner à sa story ; et son fichier, dans les liens.
-    expect(écran.wrapper.find('[aria-label="To do"] .note').text()).toBe(
+    expect(écran.wrapper.find('[aria-label="To do"] .required').text()).toBe(
       '2 required props to fill in its Default story.',
     )
     expect(écran.wrapper.find('[aria-label="Links"] code.label').text()).toBe(
@@ -3158,7 +3158,7 @@ describe('the health view', () => {
     window.history.replaceState(null, '', '/?health=nope')
     const écran = await monte([badge, alerte, bouton])
 
-    expect(écran.wrapper.find('.health [aria-current="page"] .name').text()).toBe('overview')
+    expect(écran.wrapper.find('.health [aria-current="page"] .label').text()).toBe('overview')
     await page(écran, 'without story')
     expect(window.location.search).toBe('?health=unstoried')
     expect(écran.wrapper.find('.health-view h2').text()).toBe('without story')
@@ -3173,7 +3173,7 @@ describe('the health view', () => {
     const écran = await monte([badge, alerte, bouton])
     const vue = () => écran.wrapper.find('[aria-label="Health, accessibility"]')
 
-    expect(vue().find('.empty').text()).toContain('Install @crypte/a11y')
+    expect(vue().find('.empty-note').text()).toContain('Install @crypte/a11y')
     écran.wrapper.findComponent(Panels).vm.$emit('weights', [{ plugin: 'a11y', bytes: 1 }])
     await vide(écran.wrapper)
     expect(écran.wrapper.find('.gauge:nth-of-type(3)').exists()).toBe(false)
@@ -3290,7 +3290,7 @@ describe('the health view', () => {
     await vide(écran.wrapper)
 
     expect(écran.wrapper.find('.audit-frame').exists()).toBe(false)
-    expect(écran.wrapper.find('.failed').text()).toBe(
+    expect(écran.wrapper.find('[data-failed]').text()).toBe(
       'The audit could not run: the preview never said it was ready.',
     )
     écran.wrapper.unmount()
@@ -3335,7 +3335,7 @@ describe('the health view', () => {
       '1 story without violation',
     )
     await page(écran, 'render errors')
-    expect(écran.wrapper.find('.health [aria-current="page"] .meta').text()).toBe('1')
+    expect(écran.wrapper.find('.health [aria-current="page"] .count').text()).toBe('1')
     expect(
       écran.wrapper.findAll('[aria-label="Health, render errors"] tbody tr').map((one) =>
         one
@@ -3523,7 +3523,7 @@ describe('the health view', () => {
     window.history.replaceState(null, '', '/?health=failures')
     const écran = await monte([badge, alerte, bouton])
     const vue = () => écran.wrapper.find('[aria-label="Health, render errors"]')
-    expect(vue().find('.empty').text()).toBe('The audit has not run yet.')
+    expect(vue().find('.empty-note').text()).toBe('The audit has not run yet.')
 
     écran.wrapper.findComponent(Panels).vm.$emit('troubles', 1)
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
@@ -3544,7 +3544,7 @@ describe('the health view', () => {
       vi.useRealTimers()
     }
     await vide(écran.wrapper)
-    expect(vue().find('.failed').text()).toBe(
+    expect(vue().find('[data-failed]').text()).toBe(
       'The audit could not run: the preview never said it was ready.',
     )
 
@@ -3567,8 +3567,8 @@ describe('the health view', () => {
     dit({ type: 'ready', protocolVersion: 1 })
     await expect.poll(() => écran.wrapper.find('.audit-frame').exists()).toBe(false)
     await vide(écran.wrapper)
-    expect(vue().find('.empty').text()).toBe('Every story renders.')
-    expect(vue().find('.failed').exists()).toBe(false)
+    expect(vue().find('.empty-note').text()).toBe('Every story renders.')
+    expect(vue().find('[data-failed]').exists()).toBe(false)
     expect(vue().find('.run').text()).toBe('Run again')
     écran.wrapper.unmount()
   })
@@ -3608,7 +3608,7 @@ describe('the health view', () => {
     ).toBe('50 % · 2 to do')
 
     const liste = () => écran.wrapper.find('[aria-label="Everything to do"]')
-    expect(liste().find('.badge').text()).toBe('2')
+    expect(liste().find('.count-badge').text()).toBe('2')
     expect(
       liste()
         .findAll('a')
@@ -3680,7 +3680,7 @@ describe('the health view', () => {
     window.history.replaceState(null, '', '/?health=overview')
     const écran = await monte([badge])
 
-    expect(écran.wrapper.find('.health .none').text()).toBe('could not be read')
+    expect(écran.wrapper.find('.health .empty-note').text()).toBe('could not be read')
     expect(écran.wrapper.find('.empty').exists()).toBe(false)
     expect(écran.statut()).toBe('the health of the components could not be read')
     écran.wrapper.unmount()
@@ -3690,7 +3690,7 @@ describe('the health view', () => {
     window.history.replaceState(null, '', '/?health=overview')
     const écran = await monte([badge])
 
-    expect(écran.wrapper.find('.health .none').text()).toBe('no components folder')
+    expect(écran.wrapper.find('.health .empty-note').text()).toBe('No components folder.')
     expect(écran.wrapper.find('.empty h2').text()).toBe('No components folder')
     expect(écran.wrapper.find('#health-panel').exists()).toBe(false)
     expect(écran.statut()).toBe('no components folder declared')
@@ -4062,7 +4062,7 @@ describe('the command palette', () => {
 
     await tape(écran, 'zzz')
     expect(options()).toEqual([])
-    expect(document.querySelector('[role="dialog"] .none')?.textContent?.trim()).toBe(
+    expect(document.querySelector('[role="dialog"] .empty-note')?.textContent?.trim()).toBe(
       'Nothing matches.',
     )
 
@@ -4213,7 +4213,7 @@ describe('the command palette', () => {
     // Dans le filtre, aucune valeur ne commence par zz ; clos, il ne garde rien.
     await tape(écran, 'is:zz')
     expect(options()).toEqual([])
-    expect(document.querySelector('[role="dialog"] .none')?.textContent?.trim()).toBe(
+    expect(document.querySelector('[role="dialog"] .empty-note')?.textContent?.trim()).toBe(
       'Nothing matches.',
     )
     await tape(écran, 'is:zz ')

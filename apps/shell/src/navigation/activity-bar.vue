@@ -3,6 +3,7 @@
      panneaux ensemble. Une entrée sans `href` n'a pas de vue à montrer et n'est pas
      dessinée. -->
 <script setup lang="ts">
+import { plural } from '../plural'
 import {
   ComponentIcon,
   GitCompareArrowsIcon,
@@ -49,7 +50,7 @@ const GROUPS: { view: View; label: string; icon: typeof Search01Icon }[][] = [
 // Le détail du tooltip de chaque vue : ce que son badge compte.
 const detailOf = (view: View) =>
   view === 'versions' && props.counter !== null
-    ? `${props.counter} ${props.counter === 1 ? 'difference' : 'differences'}`
+    ? `${plural(props.counter, 'difference')}`
     : view === 'health' && (props.score != null || props.todo)
       ? [props.score != null ? `${props.score} %` : null, props.todo ? `${props.todo} to do` : null]
           .filter(Boolean)

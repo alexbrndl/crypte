@@ -72,7 +72,7 @@ const monte = (name: string | null) =>
     },
   })
 const lignes = (wrapper: ReturnType<typeof monte>) =>
-  wrapper.findAll('.content > *').map((one) => one.text().replace(/\s+/g, ' ').trim())
+  wrapper.findAll('.rows > *').map((one) => one.text().replace(/\s+/g, ' ').trim())
 
 beforeEach(() => {
   localStorage.clear()

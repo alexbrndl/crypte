@@ -5,7 +5,10 @@ import Icon from '../ui/icon.vue'
 
 // L'en-tête repliable d'un panneau de la colonne de droite, dans toutes les
 // vues. Tout l'en-tête plie le panneau, sauf l'action. Le repli se retient chez
-// le parent, qui seul sait sous quelle clé.
+// le parent, qui seul sait sous quelle clé. Les lignes d'un panneau natif du
+// shell, `panel/row` de la maquette, sont dessinées ici : `.rows` les porte,
+// `.row`, `.caption`, `.link`, `.label` et `.meta` les composent. Un
+// panneau de plugin dessine les siennes avec `@crypte/ui`.
 defineProps<{ title: string; open: boolean }>()
 const emit = defineEmits<{ toggle: [] }>()
 const slots = defineSlots<{
@@ -118,5 +121,65 @@ h3 {
 .action {
   display: flex;
   padding-right: var(--space-3);
+}
+
+.body {
+  --empty-note-padding: var(--space-1) var(--space-3);
+}
+
+:slotted(.rows) {
+  padding: var(--space-1) 0 var(--space-2-5);
+}
+
+:slotted(.row) {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: 0;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+
+:slotted(.caption) {
+  margin: 0;
+  padding: var(--space-2-5) var(--space-3) var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+}
+
+:slotted(.link) {
+  min-height: 28px;
+  box-sizing: border-box;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+:slotted(.link:hover) {
+  background: var(--background-hover);
+}
+
+:slotted(.link:focus-visible) {
+  outline: var(--stroke-focus) solid var(--accent-focus);
+  outline-offset: calc(-1 * var(--stroke-focus));
+}
+
+:slotted(.label) {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:slotted(.meta) {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

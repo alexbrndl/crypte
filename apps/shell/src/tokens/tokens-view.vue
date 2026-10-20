@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import SectionHeader from '../ui/section-header.vue'
+import ViewCanvas from '../ui/view-canvas.vue'
 import { shown, valueIn, type Category, type Token } from './categories'
 
 // Une catégorie de tokens, dessinée selon ce qu'elle porte : des nuanciers pour
@@ -48,11 +50,9 @@ function specimen(token: Token): Record<string, string> {
 </script>
 
 <template>
-  <section class="tokens-view" :aria-label="category.name" :data-layout="layout">
+  <ViewCanvas class="tokens-view" :aria-label="category.name" :data-layout="layout">
     <section v-for="group of category.groups" :key="group.id" class="group">
-      <h2>
-        {{ group.family }}<span class="count">{{ group.tokens.length }}</span>
-      </h2>
+      <SectionHeader :title="group.family" :count="group.tokens.length" />
       <ul class="items">
         <li v-for="token of group.tokens" :key="token.key">
           <a
@@ -90,42 +90,14 @@ function specimen(token: Token): Record<string, string> {
         </li>
       </ul>
     </section>
-  </section>
+  </ViewCanvas>
 </template>
 
 <style scoped>
-/* Sur le fond du canvas de la maquette, sous toute la scène. */
-.tokens-view {
-  display: flex;
-  flex: 1;
-  background: var(--background-subtle);
-  flex-direction: column;
-  gap: var(--space-4-5);
-  padding: var(--space-5) var(--space-6);
-}
-
 .group {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-}
-
-h2 {
-  display: flex;
-  gap: var(--space-2);
-  margin: 0;
-  color: var(--text-primary);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  line-height: var(--leading-xs);
-  letter-spacing: var(--tracking-wider);
-  text-transform: uppercase;
-}
-
-.count {
-  color: var(--text-subtle);
-  font-weight: var(--weight-normal);
-  letter-spacing: 0;
 }
 
 .items {
