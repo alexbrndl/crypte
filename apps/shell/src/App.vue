@@ -43,7 +43,15 @@ import HealthPanel from './health/health-panel.vue'
 import HealthAccessibility from './health/health-accessibility.vue'
 import HealthFailures from './health/health-failures.vue'
 import { audit, failuresOf, findingsOf, type AuditResult } from './health/audit'
-import { keyOf, PAGES, todoOf, type Health, type HealthPage } from './health/health'
+import {
+  gaugesOf,
+  keyOf,
+  PAGES,
+  scoreOf,
+  todoOf,
+  type Health,
+  type HealthPage,
+} from './health/health'
 import CommandPalette, { type Action } from './navigation/command-palette.vue'
 import { useRecent } from './navigation/recent'
 import ComponentPage from './pages/component-page.vue'
@@ -378,6 +386,10 @@ const selectedFailure = computed(
 )
 // Le nombre de choses à faire, le badge de Santé dans l'activity bar.
 const todo = computed(() => todoOf(listedHealth.value ?? null, auditResults.value))
+// Le score qui remplit le cœur de Santé, `null` sans dossier de composants.
+const healthScore = computed(() =>
+  listedHealth.value ? scoreOf(gaugesOf(listedHealth.value, auditResults.value)) : null,
+)
 
 const firstRender = ref<number | null>(null)
 
@@ -1107,6 +1119,7 @@ onMounted(() => {
       <ActivityBar
         :current="view"
         :todo="todo"
+        :score="healthScore"
         :hrefs="hrefs"
         :counter="counter"
         :search-keys="paletteKeys"
@@ -1372,8 +1385,12 @@ onMounted(() => {
             :page="healthAt.page"
             :selected="healthAt.item ?? null"
             :findings="findings"
+            :failures="failures"
+            :stories="entries"
             :href-of="(key) => placeSearch({ mode: 'health', page: healthAt!.page, item: key })"
+            :href-of-health="(page, key) => placeSearch({ mode: 'health', page, item: key })"
             @select="(key, event) => follow(event, () => openHealth(healthAt!.page, key))"
+            @health="(page, key, event) => follow(event, () => openHealth(page, key))"
           />
           <div v-else-if="healthAt && listedHealth === null" class="empty">
             <EmptyGuide
