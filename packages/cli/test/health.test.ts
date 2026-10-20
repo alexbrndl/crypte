@@ -124,6 +124,36 @@ describe('the components the health view counts', () => {
     ])
   })
 
+  // Le cas courant d'une bibliothèque : un index qui réexporte, par son nom ou
+  // en bloc. Un frame déclaré en `wrap` n'est pas un composant à reprendre ;
+  // dans un fichier à deux composants, seul celui qui nomme l'import l'utilise.
+  test('follows an index, leaves a frame out, and names the component that uses the import', () => {
+    const composants = santé(
+      projet(
+        {
+          'src/components/Badge.tsx': BADGE,
+          'src/components/Tag.tsx': 'export function Tag() { return <i /> }\n',
+          'src/components/Frame.tsx':
+            "import { Badge } from './Badge'\nexport function Frame({ children }: { children: unknown }) { return <div><Badge label='f' />{children}</div> }\n",
+          'src/components/index.ts': "export { Badge } from './Badge'\nexport * from './Tag'\n",
+          'src/components/Card.tsx':
+            "import { Badge, Tag } from '.'\nexport function Card() { return <div><Badge label='a' /><Tag /></div> }\n",
+          'src/components/Multi.tsx':
+            "import { Badge } from './index'\nexport function A() { return <Badge label='a' /> }\nexport function B() { return <p /> }\n",
+          'stories/Badge.tsx': HISTOIRE('deprecated'),
+        },
+        'src/components',
+      ),
+    )!
+    expect(composants.map((one) => [one.name, one.usedBy])).toEqual([
+      ['Badge', ['src/components/Card.tsx:Card', 'src/components/Multi.tsx:A']],
+      ['Card', undefined],
+      ['A', undefined],
+      ['B', undefined],
+      ['Tag', ['src/components/Card.tsx:Card']],
+    ])
+  })
+
   test('names a folder that is not there as empty', () => {
     expect(santé(projet({}, 'src/missing'))).toEqual([])
   })

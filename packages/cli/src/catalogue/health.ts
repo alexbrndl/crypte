@@ -39,7 +39,8 @@ export interface HealthComponent {
   // What a story file for it would hold, when it has none.
   skeleton?: { file: string; source: string }
   // The components of the folder that import it, `file:export` as the shell
-  // keys them: where a deprecated one is still used. Absent when none does.
+  // keys them, an index re-exporting it followed: where a deprecated one is
+  // still used. Absent when none does.
   usedBy?: string[]
 }
 
@@ -71,7 +72,7 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
     project.config.stories,
   ])
   const files = filesIn(join(project.root, folder))
-  const importers = importersOf(project, files)
+  const importers = importersOf(project, files, frames)
   const found: HealthComponent[] = []
   for (const file of files) {
     for (const names of componentsIn(file)) {
@@ -105,22 +106,69 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
   return { components: found }
 }
 
-// Who imports what, among the files of the folder: for the `file#export` an
-// import names, the components of the importing file, `file:export`. Resolved as
-// a story's import is, so an alias reads the same here. A file importing itself,
-// a namespace import and a file that does not parse name nobody.
-function importersOf(project: Project, files: string[]): Map<string, string[]> {
-  const found = new Map<string, string[]>()
-  for (const file of files) {
-    let parsed: ReturnType<typeof parseSync>
+// Who imports what, among the files of the folder: for the `file#export` a
+// component file declares, the components using it, `file:export`. An import is
+// resolved as a story's is, then followed through the re-exports of an index,
+// named or `export *`, to the file declaring it. It goes to the components of
+// the importing file whose declaration names it; to all of them when none can
+// be read, an `export { Card }` of a value built elsewhere for instance. A frame
+// declared as `wrap`, a namespace import and a file importing itself name nobody.
+function importersOf(
+  project: Project,
+  files: string[],
+  frames: Set<string>,
+): Map<string, string[]> {
+  const read = files.flatMap((file) => {
     try {
-      parsed = parseSync(file, readFileSync(file, 'utf8'))
+      const source = readFileSync(file, 'utf8')
+      const parsed = parseSync(file, source)
+      return parsed.errors.length > 0
+        ? []
+        : [{ file, self: named(project.root, file), source, parsed }]
     } catch {
-      continue
+      return []
     }
-    if (parsed.errors.length > 0) continue
-    const self = named(project.root, file)
-    const own = componentsIn(file).map((names) => `${self}:${names[0]}`)
+  })
+
+  const declared = new Set<string>()
+  const forward = new Map<string, string>()
+  const star = new Map<string, string[]>()
+  for (const { file, self, parsed } of read) {
+    for (const names of componentsIn(file)) for (const one of names) declared.add(`${self}#${one}`)
+    for (const one of parsed.module.staticExports) {
+      for (const entry of one.entries) {
+        if (!entry.moduleRequest) continue
+        const target = componentFile(entry.moduleRequest.value, file, project)
+        if (entry.importName.kind === 'Name' && entry.exportName.kind === 'Name')
+          forward.set(`${self}#${entry.exportName.name}`, `${target}#${entry.importName.name}`)
+        else if (entry.exportName.kind === 'None')
+          star.set(self, [...(star.get(self) ?? []), target])
+      }
+    }
+  }
+  // Bounded: two indexes re-exporting each other would otherwise loop.
+  const origin = (key: string, depth = 0): string | undefined => {
+    if (declared.has(key)) return key
+    if (depth > 8) return undefined
+    const next = forward.get(key)
+    if (next) return origin(next, depth + 1)
+    const at = key.lastIndexOf('#')
+    for (const target of star.get(key.slice(0, at)) ?? []) {
+      const found = origin(`${target}${key.slice(at)}`, depth + 1)
+      if (found) return found
+    }
+    return undefined
+  }
+
+  const found = new Map<string, string[]>()
+  for (const { file, self, source, parsed } of read) {
+    const spans = spansOf(parsed.program.body as unknown as Statement[])
+    const own = componentsIn(file)
+      .filter((names) => !names.some((one) => frames.has(`${file}#${one}`)))
+      .map((names) => ({
+        key: `${self}:${names[0]}`,
+        span: names.map((one) => spans.get(one)).find((one) => one !== undefined),
+      }))
     if (own.length === 0) continue
     for (const one of parsed.module.staticImports) {
       const target = componentFile(one.moduleRequest.value, file, project)
@@ -132,13 +180,51 @@ function importersOf(project: Project, files: string[]): Map<string, string[]> {
             : entry.importName.kind === 'Name'
               ? entry.importName.name
               : undefined
-        if (imported === undefined) continue
-        const key = `${target}#${imported}`
-        found.set(key, [...(found.get(key) ?? []), ...own])
+        const key = imported === undefined ? undefined : origin(`${target}#${imported}`)
+        if (key === undefined) continue
+        const word = new RegExp(`(?<![\\w$])${entry.localName.value}(?![\\w$])`)
+        const users = own.some((component) => component.span)
+          ? own.filter(({ span }) => span && word.test(source.slice(span[0], span[1])))
+          : own
+        found.set(key, [...(found.get(key) ?? []), ...users.map((user) => user.key)])
       }
     }
   }
   return found
+}
+
+interface Statement {
+  type: string
+  start: number
+  end: number
+  id?: { name: string } | null
+  declarations?: { id: { name?: string }; start: number; end: number }[]
+  declaration?: Statement | null
+  name?: string
+}
+
+// Where each top-level function or constant is declared, by name, and the
+// default export under `default`.
+function spansOf(body: Statement[]): Map<string, [number, number]> {
+  const spans = new Map<string, [number, number]>()
+  const declare = (one: Statement | null | undefined) => {
+    if (!one) return
+    if (one.type === 'FunctionDeclaration' && one.id) spans.set(one.id.name, [one.start, one.end])
+    for (const declarator of one.declarations ?? [])
+      if (declarator.id.name) spans.set(declarator.id.name, [declarator.start, declarator.end])
+  }
+  for (const one of body) {
+    declare(one)
+    if (one.type === 'ExportNamedDeclaration') declare(one.declaration)
+  }
+  for (const one of body) {
+    if (one.type !== 'ExportDefaultDeclaration' || !one.declaration) continue
+    const value = one.declaration
+    const span =
+      value.type === 'Identifier' && value.name ? spans.get(value.name) : [value.start, value.end]
+    if (span) spans.set('default', span as [number, number])
+  }
+  return spans
 }
 
 // Sorted, so two machines write the same file.

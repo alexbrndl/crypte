@@ -42,14 +42,15 @@ describe('the pages', () => {
   })
 
   // Un composant stable ou sans statut n'a rien à suivre.
-  test('keep only draft and deprecated statuses, deprecated first', () => {
+  test('keep only draft and deprecated statuses, deprecated first, the most imported first', () => {
     const rows = rowsOf('statuses', [
       un('A', { status: 'draft' }),
       un('B', { status: 'stable' }),
-      un('C', { status: 'deprecated' }),
+      un('C', { status: 'deprecated', stories: ['c--x', 'c--y'] }),
       un('D'),
+      un('E', { status: 'deprecated', usedBy: ['src/F.tsx:F'] }),
     ])
-    expect(rows.map((one) => one.name)).toEqual(['C', 'A'])
+    expect(rows.map((one) => one.name)).toEqual(['E', 'C', 'A'])
   })
 })
 

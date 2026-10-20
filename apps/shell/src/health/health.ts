@@ -103,7 +103,7 @@ export function rowsOf(page: HealthPage, components: HealthComponent[]): HealthC
       .sort(
         (one, other) =>
           rank[one.status as keyof typeof rank] - rank[other.status as keyof typeof rank] ||
-          other.stories.length - one.stories.length ||
+          (other.usedBy?.length ?? 0) - (one.usedBy?.length ?? 0) ||
           byName(one, other),
       )
   }
