@@ -3493,6 +3493,14 @@ describe('the health view', () => {
       '### Avatar',
     ])
     expect(liste().find('.prompt').text()).toBe('Prompt copied')
+    // Une liste qui change oublie la copie : le texte copié n'est plus celui-là.
+    santé = () => ({ components: composants.filter((one) => one.name !== 'Avatar') })
+    window.dispatchEvent(new Event('focus'))
+    await vide(écran.wrapper)
+    expect(liste().find('.prompt').text()).toBe('Copy the prompt for your agent')
+    santé = () => ({ components: composants })
+    window.dispatchEvent(new Event('focus'))
+    await vide(écran.wrapper)
     await liste().find('a').trigger('click', { button: 0 })
     await vide(écran.wrapper)
     expect(window.location.search).toBe('?health=failures&item=badge--alerte')
