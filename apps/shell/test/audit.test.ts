@@ -145,6 +145,44 @@ describe('the audit', () => {
     ])
   })
 
+  // Les couleurs mesurées d'un défaut de contraste se lisent ; une couleur qui
+  // n'est pas une chaîne rend la réponse illisible, comme un autre champ.
+  test('reads the measured colours, and refuses a colour that is not a string', async () => {
+    vi.useFakeTimers()
+    const { frame, dit } = cadre()
+    const contraste = (colors: unknown[]) => ({
+      rule: 'color-contrast',
+      impact: 'serious',
+      help: 'C',
+      helpUrl: '',
+      targets: ['.a'],
+      colors,
+    })
+    frame.contentWindow!.addEventListener('message', (event) => {
+      const { id, theme } = event.data as { id: string; theme: string }
+      setTimeout(() =>
+        dit({
+          type: 'a11y:results',
+          id,
+          passes: 1,
+          violations: [contraste(theme === 'light' ? ['#777777', '#ffffff'] : [7])],
+        }),
+      )
+    })
+    const fini = audit(frame, ['a--b'])
+    dit({ type: 'ready', protocolVersion: 1 })
+    await vi.runAllTimersAsync()
+
+    expect(
+      (await fini).map((one) =>
+        'violations' in one ? one.violations[0]?.colors : 'error' in one ? one.error : '?',
+      ),
+    ).toEqual([
+      ['#777777', '#ffffff'],
+      'the a11y plugin answered in a shape the shell does not read',
+    ])
+  })
+
   // Sans le plugin a11y, l'audit attend le rendu seul : une story rendue est notée
   // comme telle, une story qui lève garde sa pile.
   test('waits for the render alone without the a11y plugin', async () => {

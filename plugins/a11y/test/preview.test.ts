@@ -62,7 +62,13 @@ describe('an analysis', () => {
     vi.spyOn(window.axe, 'run').mockResolvedValueOnce({
       passes: [],
       violations: [
-        { id: 'regle', impact: null, help: 'aide', helpUrl: 'u', nodes: [{ target: ['div'] }] },
+        {
+          id: 'regle',
+          impact: null,
+          help: 'aide',
+          helpUrl: 'u',
+          nodes: [{ target: ['div'], any: [], all: [], none: [] }],
+        },
       ],
     } as unknown as Awaited<ReturnType<Window['axe']['run']>>)
     const { ctx, envoyes } = contexte('<div></div>')
@@ -72,6 +78,37 @@ describe('an analysis', () => {
     expect(envoyes()[0]?.violations).toEqual([
       { rule: 'regle', impact: 'minor', help: 'aide', helpUrl: 'u', targets: ['div'] },
     ])
+  })
+
+  // Un défaut de contraste dit les couleurs mesurées, une fois chacune : la vue
+  // santé en tire les tokens probablement en cause. jsdom ne mesure pas de
+  // contraste, d'où le résultat d'axe simulé.
+  it('sends the colours a contrast check measured, once each', async () => {
+    const mesure = (fgColor: string, bgColor: string) => ({
+      any: [{ data: { fgColor, bgColor, contrastRatio: 2.1 } }],
+      all: [],
+      none: [],
+    })
+    vi.spyOn(window.axe, 'run').mockResolvedValueOnce({
+      passes: [],
+      violations: [
+        {
+          id: 'color-contrast',
+          impact: 'serious',
+          help: 'contraste',
+          helpUrl: 'u',
+          nodes: [
+            { target: ['.a'], ...mesure('#777777', '#ffffff') },
+            { target: ['.b'], ...mesure('#777777', '#eeeeee') },
+          ],
+        },
+      ],
+    } as unknown as Awaited<ReturnType<Window['axe']['run']>>)
+    const { ctx, envoyes } = contexte('<div></div>')
+
+    await hooks.afterMount?.(ctx)
+
+    expect(envoyes()[0]?.violations[0]?.colors).toEqual(['#777777', '#ffffff', '#eeeeee'])
   })
 
   // Seul ce que le panneau montre traverse : le HTML de chaque nœud que axe

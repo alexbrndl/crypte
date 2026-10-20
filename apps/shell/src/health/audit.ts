@@ -16,6 +16,8 @@ export interface Violation {
   help: string
   helpUrl: string
   targets: string[]
+  // Les couleurs mesurées d'un défaut de contraste.
+  colors?: string[]
 }
 
 // Une story analysée par axe ; rendue sans analyse, faute de plugin ou parce que
@@ -48,7 +50,9 @@ function shaped(message: unknown): message is { passes: number; violations: Viol
         IMPACTS.includes(one.impact as string) &&
         typeof one.help === 'string' &&
         typeof one.helpUrl === 'string' &&
-        Array.isArray(one.targets),
+        Array.isArray(one.targets) &&
+        (one.colors === undefined ||
+          (Array.isArray(one.colors) && one.colors.every((color) => typeof color === 'string'))),
     )
   )
 }

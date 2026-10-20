@@ -18,6 +18,10 @@ export type Violation = {
   helpUrl: string
   // One CSS selector per element at fault.
   targets: string[]
+  // The colours axe measured, foreground and background, once each: what a
+  // contrast violation is about. The shell matches them with the tokens of the
+  // theme. Absent when axe measured none.
+  colors?: string[]
 }
 
 export type Impact = 'critical' | 'serious' | 'moderate' | 'minor'
