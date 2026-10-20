@@ -152,6 +152,10 @@ async function load() {
       if (panel === undefined) return
     }
 
+    // Un module qui n'a qu'une vue, refusée par le CLI : le refus est déjà dit,
+    // et il n'a jamais voulu de panneau des stories.
+    if (panel === undefined && result.value.view !== undefined) return
+
     // Un objet ou une fonction, ce que Vue monte. Autre chose, `42` par exemple,
     // ne rendait rien et ne disait rien. Mesuré.
     if (!isComponent(panel)) failed.push({ name, message: 'its default export is not a component' })

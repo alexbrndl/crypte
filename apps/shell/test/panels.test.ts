@@ -443,4 +443,19 @@ describe('the view of a plugin', () => {
       'c could not load: its `view.canvas` export is not a component',
     ])
   })
+
+  // Sa vue refusée par le CLI, le module est listé sans elle : n'ayant pas de
+  // panneau des stories, il ne dit rien de plus que le refus déjà affiché.
+  test('stays quiet about a module whose view the CLI refused', async () => {
+    const wrapper = await monte(
+      [
+        { name: 'v', shell: module('vue.ts') },
+        { name: 'b', shell: module('un.ts') },
+      ],
+      [{ plugin: 'v', reason: 'trop long' }],
+    )
+    expect(montés(wrapper)).toEqual(['b=un'])
+    expect(échecs(wrapper)).toEqual(['Refused in v: trop long'])
+    expect(wrapper.emitted('troubles')!.at(-1)).toEqual([1])
+  })
 })

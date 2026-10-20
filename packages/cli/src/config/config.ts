@@ -4,8 +4,12 @@ import type {
   CryptePlugin,
   PanelEvents,
   PanelProps,
+  PluginView,
   PreviewContext,
   PreviewHooks,
+  ShellView,
+  ViewEvents,
+  ViewProps,
 } from '@crypte/core/protocol'
 import type { PluginOption } from 'vite'
 
@@ -42,4 +46,14 @@ export type GlobalWrap = unknown
 // surfaces, so it lives in the protocol and not in one consumer's config.
 // Here because a project installs this package and not the core, which it
 // cannot import: a plugin of its own types its panel and hooks from here.
-export type { CryptePlugin, PanelProps, PanelEvents, PreviewHooks, PreviewContext }
+export type {
+  CryptePlugin,
+  PanelProps,
+  PanelEvents,
+  PreviewHooks,
+  PreviewContext,
+  PluginView,
+  ShellView,
+  ViewProps,
+  ViewEvents,
+}

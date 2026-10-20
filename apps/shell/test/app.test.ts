@@ -3939,6 +3939,17 @@ describe('the view of a plugin', () => {
     await clique(écran, écran.vue('stories'))
     expect(écran.wrapper.find('.plugin-view').exists()).toBe(false)
     expect(écran.wrapper.find('iframe').isVisible()).toBe(true)
+
+    // Elle s'ouvre aussi depuis ⌘K, parmi les pages.
+    écran.wrapper.findComponent(ActivityBar).vm.$emit('search')
+    await vide(écran.wrapper)
+    const ligne = [...document.querySelectorAll('[role="dialog"] [role="option"]')].find((one) =>
+      one.textContent?.includes('i18n'),
+    ) as HTMLElement
+    expect(ligne.textContent?.replace(/\s+/g, '')).toBe('viewi18n')
+    ligne.click()
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?view=i18n')
     écran.wrapper.unmount()
   })
 

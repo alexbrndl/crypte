@@ -839,7 +839,6 @@ function go(to: View, event: MouseEvent) {
       tokensAt.value = null
       healthAt.value = null
       viewAt.value = null
-      viewAt.value = null
       component.value = null
       // Le chemin seul : une adresse vide laisserait la requête en place.
       write(window.location.pathname, 'push')
@@ -1837,7 +1836,9 @@ onMounted(() => {
       :here="here"
       @show="(id) => show(id, 'push')"
       @open="(id) => open(id)"
+      :views="views"
       @changes="openChanges()"
+      @view="(plugin) => openView(plugin)"
     />
     <!-- La preview de l'audit, hors de l'écran mais à une vraie taille : axe juge
          les contrastes sur ce qui est mis en page. -->

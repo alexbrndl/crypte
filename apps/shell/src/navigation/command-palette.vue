@@ -41,8 +41,15 @@ const props = defineProps<{
   recent: Visit[]
   // La clé de l'endroit affiché, que les récents taisent.
   here: string | null
+  // Les vues des plugins, qui s'ouvrent d'ici comme de l'activity bar.
+  views?: { name: string; label: string }[]
 }>()
-const emit = defineEmits<{ show: [id: string]; open: [component: string]; changes: [] }>()
+const emit = defineEmits<{
+  show: [id: string]
+  open: [component: string]
+  changes: []
+  view: [plugin: string]
+}>()
 const open = defineModel<boolean>('open', { required: true })
 
 // La ligne `palette/row` : le contexte en mono, le libellé, et en fin de ligne le
@@ -134,6 +141,14 @@ const commands = computed<Command[]>(() => {
       label: 'Changes since the last commit',
       run: () => emit('changes'),
     },
+    ...(props.views ?? []).map((one) => ({
+      key: `view:${one.name}`,
+      group: 'Pages',
+      type: 'page' as const,
+      context: 'view',
+      label: one.label,
+      run: () => emit('view', one.name),
+    })),
   ]
 })
 

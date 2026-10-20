@@ -5,8 +5,12 @@ import type {
   CryptePlugin,
   PanelEvents,
   PanelProps,
+  PluginView,
   PreviewContext,
   PreviewHooks,
+  ShellView,
+  ViewEvents,
+  ViewProps,
 } from '../src/config/config'
 
 // Le cinquième budget de `DCJ-176` : « configuration obligatoire, racine des
@@ -41,5 +45,9 @@ describe('the plugin types a project imports', () => {
     expectTypeOf<PanelEvents>().toEqualTypeOf<protocol.PanelEvents>()
     expectTypeOf<PreviewHooks>().toEqualTypeOf<protocol.PreviewHooks>()
     expectTypeOf<PreviewContext>().toEqualTypeOf<protocol.PreviewContext>()
+    expectTypeOf<PluginView>().toEqualTypeOf<protocol.PluginView>()
+    expectTypeOf<ShellView>().toEqualTypeOf<protocol.ShellView>()
+    expectTypeOf<ViewProps>().toEqualTypeOf<protocol.ViewProps>()
+    expectTypeOf<ViewEvents>().toEqualTypeOf<protocol.ViewEvents>()
   })
 })
