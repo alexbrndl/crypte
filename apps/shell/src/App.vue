@@ -61,7 +61,7 @@ import { useRecent } from './navigation/recent'
 import ComponentPage from './pages/component-page.vue'
 import EmptyGuide from './pages/empty-guide.vue'
 import {
-  AiMagicIcon,
+  AiContentGenerator01Icon,
   ArrowDown01Icon,
   ContrastIcon,
   Copy01Icon,
@@ -1298,7 +1298,7 @@ onMounted(() => {
             content="Paste it to your coding agent: it fixes the render errors, violations and missing stories listed here."
           >
             <Button variant="outline" class="prompt" @click="copyPrompt(healthPrompt, 'prompt')">
-              <Icon :icon="AiMagicIcon" />
+              <Icon :icon="AiContentGenerator01Icon" />
               {{ promptCopied === 'prompt' ? 'Fix prompt copied' : 'Copy fix prompt' }}
             </Button>
           </Tooltip>
@@ -1308,7 +1308,7 @@ onMounted(() => {
           <Tooltip v-else content="Nothing to fix">
             <span class="prompt-hold">
               <Button variant="outline" class="prompt" disabled>
-                <Icon :icon="AiMagicIcon" />
+                <Icon :icon="AiContentGenerator01Icon" />
                 Copy fix prompt
               </Button>
             </span>
