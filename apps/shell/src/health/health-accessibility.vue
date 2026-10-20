@@ -27,9 +27,9 @@ const counts = computed(() => ({
   critical: findings.value.filter((one) => one.violation.impact === 'critical').length,
 }))
 
-// Les stories que l'audit n'a pas pu juger, une fois chacune : la jauge les compte
-// comme non propres, et rien d'autre ne les nommerait.
-const unaudited = computed(() => [...unjudgedOf(props.audit ?? [])])
+// Les stories qu'axe n'a pas pu juger sans qu'elles lèvent : la jauge a11y ne les
+// compte pas, et rien d'autre ne les nommerait.
+const unaudited = computed(() => unjudgedOf(props.audit ?? []))
 
 const nameOf = (id: string) => {
   const story = props.stories.find((one) => one.id === id)
