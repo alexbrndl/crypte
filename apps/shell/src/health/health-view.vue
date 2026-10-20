@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { plural } from '../plural'
 import type { StoryEntry } from '@crypte/core/protocol'
-import { Button } from '@crypte/ui'
 import { Alert02Icon } from '@hugeicons/core-free-icons'
 import { VisuallyHidden } from 'reka-ui'
-import { computed, watch } from 'vue'
+import { computed } from 'vue'
 import { useCopy } from '../clipboard'
 import CardTable from '../ui/card-table.vue'
 import Badge from '../ui/badge.vue'
@@ -14,7 +13,6 @@ import SectionHeader from '../ui/section-header.vue'
 import ViewCanvas from '../ui/view-canvas.vue'
 import { ago } from '../navigation/recent'
 import type { Failure, Finding } from './audit'
-import { promptOf } from './prompt'
 import {
   dayOf,
   keyOf,
@@ -88,34 +86,17 @@ const NOTES: Record<HealthPage, string> = {
   statuses: 'deprecated first',
 }
 
-// Le squelette copié, dit sur sa ligne ; le prompt de tout ce qui reste, sur
-// la liste à faire.
+// Le squelette copié, dit sur sa ligne.
 const { copied, copy } = useCopy()
-const prompt = computed(() =>
-  promptOf(
-    {
-      failures: props.failures ?? [],
-      findings: props.findings ?? [],
-      unstoried: rowsOf('unstoried', props.components),
-    },
-    props.stories,
-  ),
-)
-watch(prompt, () => (copied.value = null))
 </script>
 
 <template>
   <ViewCanvas class="health-view" :aria-label="`Health, ${title}`">
     <SectionHeader :title="title" :count="rows.length" :note="NOTES[page]" />
     <section v-if="todo.length > 0" class="todo" aria-label="Everything to do">
-      <div class="band">
-        <h3>
-          to do <Badge tone="inverse">{{ todo.length }}</Badge>
-        </h3>
-        <Button variant="ghost" class="prompt" @click="copy(prompt, 'prompt')">{{
-          copied === 'prompt' ? 'Prompt copied' : 'Copy the prompt for your agent'
-        }}</Button>
-      </div>
+      <h3>
+        to do <Badge tone="inverse">{{ todo.length }}</Badge>
+      </h3>
       <ul>
         <li v-for="one of todo" :key="`${one.page}:${one.key}`">
           <a
@@ -226,31 +207,19 @@ watch(prompt, () => (copied.value = null))
   background: var(--background-raised);
 }
 
-.band {
-  display: flex;
-  align-items: center;
-  padding: var(--space-1-5) var(--space-3);
-  background: var(--background-subtle);
-}
-
-.band h3 {
+.todo h3 {
   display: flex;
   gap: var(--space-2);
   align-items: center;
   margin: 0;
+  padding: var(--space-1-5) var(--space-3);
+  background: var(--background-subtle);
   color: var(--text-muted);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   line-height: var(--leading-xs);
   letter-spacing: var(--tracking-wider);
   text-transform: uppercase;
-}
-
-/* The sm button of the Figma header, 24 px high, at the right of the band. */
-.prompt {
-  --button-height: 24px;
-  --button-padding: var(--space-0-5) var(--space-2);
-  margin-left: auto;
 }
 
 .todo ul {

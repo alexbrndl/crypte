@@ -48,16 +48,20 @@ import {
   gaugesOf,
   keyOf,
   PAGES,
+  rowsOf,
   scoreOf,
   todoOf,
   type Health,
   type HealthPage,
 } from './health/health'
+import { promptOf } from './health/prompt'
+import { useCopy } from './clipboard'
 import CommandPalette, { type Action } from './navigation/command-palette.vue'
 import { useRecent } from './navigation/recent'
 import ComponentPage from './pages/component-page.vue'
 import EmptyGuide from './pages/empty-guide.vue'
 import {
+  AiMagicIcon,
   ArrowDown01Icon,
   ContrastIcon,
   Copy01Icon,
@@ -388,6 +392,20 @@ const selectedFailure = computed(
 )
 // Le nombre de choses à faire, le badge de Santé dans l'activity bar.
 const todo = computed(() => todoOf(listedHealth.value ?? null, auditResults.value))
+// Le prompt de tout ce qui reste, copié depuis la barre d'outils de Santé ; vide,
+// le bouton se désactive. Une liste qui change oublie la copie.
+const healthPrompt = computed(() =>
+  promptOf(
+    {
+      failures: failures.value ?? [],
+      findings: findings.value ?? [],
+      unstoried: rowsOf('unstoried', listedHealth.value ?? []),
+    },
+    entries.value,
+  ),
+)
+const { copied: promptCopied, copy: copyPrompt } = useCopy()
+watch(healthPrompt, () => (promptCopied.value = null))
 // Le score qui remplit le cœur de Santé, `null` sans dossier de composants.
 const healthScore = computed(() =>
   listedHealth.value ? scoreOf(gaugesOf(listedHealth.value, auditResults.value)) : null,
@@ -1275,6 +1293,15 @@ onMounted(() => {
           }}</span>
         </nav>
         <div class="actions">
+          <Button
+            variant="outline"
+            class="prompt"
+            :disabled="!healthPrompt"
+            @click="copyPrompt(healthPrompt, 'prompt')"
+          >
+            <Icon :icon="AiMagicIcon" />
+            {{ promptCopied === 'prompt' ? 'Prompt copied' : 'Copy the prompt for your agent' }}
+          </Button>
           <Button variant="secondary" class="copy" @click="copyLink">
             <Icon :icon="Copy01Icon" />
             {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
