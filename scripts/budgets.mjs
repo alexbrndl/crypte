@@ -418,8 +418,11 @@ async function chronométrer(arbres) {
         dire(`rendu en ${Math.round(pris.at(-1))} ms`)
       } finally {
         clearInterval(battement)
-        await page.close()
-        await arrêter(enfant)
+        try {
+          await page.close()
+        } finally {
+          await arrêter(enfant)
+        }
       }
     }
   } finally {
