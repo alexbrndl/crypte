@@ -69,6 +69,10 @@
   background: var(--background-current);
 }
 
+:slotted(tbody tr[data-selected]:hover) {
+  background: var(--background-current-hover);
+}
+
 :slotted(tbody th a) {
   color: var(--text-primary);
   text-decoration: none;

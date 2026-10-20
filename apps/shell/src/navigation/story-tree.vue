@@ -256,6 +256,12 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 0)
   color: var(--text-current);
 }
 
+.tabs button[data-state='on']:hover {
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--accent-hover);
+  background: var(--background-current-hover);
+  color: var(--text-current-hover);
+}
+
 .nodes {
   flex: 1;
   overflow-y: auto;

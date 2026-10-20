@@ -188,6 +188,11 @@ const groups = computed(() =>
   color: var(--accent-base);
 }
 
+.item[aria-current='page']:hover .glyph {
+  background: var(--background-current-hover);
+  color: var(--accent-hover);
+}
+
 .item:focus-visible {
   outline: none;
 }

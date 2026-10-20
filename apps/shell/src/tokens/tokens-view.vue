@@ -127,6 +127,11 @@ function specimen(token: Token): Record<string, string> {
   color: var(--text-current);
 }
 
+.item[aria-current='true']:hover {
+  background: var(--background-current-hover);
+  color: var(--text-current-hover);
+}
+
 .item:focus-visible {
   outline: var(--stroke-focus) solid var(--accent-focus);
   outline-offset: calc(-1 * var(--stroke-focus));
@@ -196,6 +201,13 @@ function specimen(token: Token): Record<string, string> {
 [data-layout='radius'] .item[aria-current='true'],
 [data-layout='stroke'] .item[aria-current='true'] {
   box-shadow: inset 0 0 0 var(--stroke-marker) var(--accent-base);
+  background: var(--background-raised);
+}
+
+[data-layout='swatches'] .item[aria-current='true']:hover,
+[data-layout='radius'] .item[aria-current='true']:hover,
+[data-layout='stroke'] .item[aria-current='true']:hover {
+  box-shadow: inset 0 0 0 var(--stroke-marker) var(--accent-hover);
   background: var(--background-raised);
 }
 
