@@ -21,6 +21,8 @@ export type Place =
   | { mode: 'tokens'; category: string; token?: string }
   // Une page de la vue santé, et le composant choisi dedans, `fichier:export`.
   | { mode: 'health'; page: string; item?: string }
+  // La vue d'un plugin, sous son nom, et l'élément qu'elle a choisi.
+  | { mode: 'view'; plugin: string; item?: string }
 
 // Un mode par adresse, lu dans cet ordre. Une valeur vide ne nomme rien, et tout
 // autre paramètre est ignoré : les deux passent au suivant. L'adresse que le
@@ -38,6 +40,8 @@ export function readPlace(search: string): Place {
   const item = query.get('item')
   if (health)
     return item ? { mode: 'health', page: health, item } : { mode: 'health', page: health }
+  const plugin = query.get('view')
+  if (plugin) return item ? { mode: 'view', plugin, item } : { mode: 'view', plugin }
   if (query.has('changes')) {
     const at: { mode: 'changes'; from?: string; before?: string; change?: string } = {
       mode: 'changes',
@@ -58,6 +62,8 @@ export function placeSearch(place: Place): string {
     return `?tokens=${encoded(place.category)}${place.token ? `&token=${encoded(place.token)}` : ''}`
   if (place.mode === 'health')
     return `?health=${encoded(place.page)}${place.item ? `&item=${encoded(place.item)}` : ''}`
+  if (place.mode === 'view')
+    return `?view=${encoded(place.plugin)}${place.item ? `&item=${encoded(place.item)}` : ''}`
   if (place.mode === 'changes')
     return `?changes${(['from', 'before', 'change'] as const)
       .filter((key) => place[key])

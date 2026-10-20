@@ -4,12 +4,14 @@
 
 import { statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import type { CryptePlugin } from '@crypte/core/protocol'
+import type { CryptePlugin, PluginView } from '@crypte/core/protocol'
 import type { Project } from '../config/project'
 
 export interface Surface {
   plugin: string
   file: string
+  // A shell module's view in the activity bar, checked: section 6.1.
+  view?: PluginView
 }
 
 export interface Surfaces {
@@ -30,6 +32,7 @@ const KEYS: Record<keyof CryptePlugin, true> = {
   shell: true,
   preview: true,
   node: true,
+  view: true,
 }
 const LISTED = Object.keys(KEYS)
 const KNOWN = `${LISTED.slice(0, -1).join(', ')} and ${LISTED.at(-1)}`
@@ -117,9 +120,43 @@ export function surfacesOf(project: Project): Surfaces {
         })
       } else found[side].push({ plugin: name, file })
     }
+
+    const view: unknown = plugin?.view
+    if (view === undefined) continue
+    const why = refusalOf(view)
+    const shell = found.shell.find((one) => one.plugin === name)
+    if (why) found.refused.push({ plugin: name, reason: why })
+    else if (!shell)
+      found.refused.push({ plugin: name, reason: '`view` needs a `shell` module, which draws it' })
+    else shell.view = view as PluginView
   }
 
   return found
+}
+
+// What a view must be, said as the reason it is refused, or nothing when it is
+// fine. The label fits the activity bar's 48 px; the icon is a Hugeicons object,
+// a list of `[tag, attributes]` pairs, the shell drawing nothing else.
+function refusalOf(view: unknown): string | undefined {
+  const { label, icon } = (typeof view === 'object' && view !== null ? view : {}) as {
+    label?: unknown
+    icon?: unknown
+  }
+  if (typeof label !== 'string' || label === '' || [...label].length > 8)
+    return '`view.label` must be a string of 1 to 8 characters, the activity bar is 48 px wide'
+  const drawable =
+    Array.isArray(icon) &&
+    icon.length > 0 &&
+    icon.every(
+      (one) =>
+        Array.isArray(one) &&
+        typeof one[0] === 'string' &&
+        typeof one[1] === 'object' &&
+        one[1] !== null,
+    )
+  if (!drawable)
+    return '`view.icon` must be a Hugeicons object, imported from `@hugeicons/core-free-icons`'
+  return undefined
 }
 
 // A relative path, a plain path or an `https:` URL all throw here, and each

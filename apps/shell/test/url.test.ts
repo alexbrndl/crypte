@@ -34,6 +34,9 @@ describe('reading an address', () => {
       { mode: 'health', page: 'statuses', item: 'src/components/Badge.tsx:Badge' },
     ],
     ['?health=overview&item=', { mode: 'health', page: 'overview' }],
+    ['?view=i18n', { mode: 'view', plugin: 'i18n' }],
+    ['?view=i18n&item=fr', { mode: 'view', plugin: 'i18n', item: 'fr' }],
+    ['?view=i18n&item=', { mode: 'view', plugin: 'i18n' }],
   ])('reads %j', (search, place) => {
     expect(readPlace(search)).toEqual(place)
   })
@@ -45,6 +48,7 @@ describe('reading an address', () => {
     '?component=',
     '?tokens=',
     '?health=',
+    '?view=',
     '?item=src/components/Badge.tsx:Badge',
     '?token=accent-base',
     '?story=badge--defaut',
@@ -106,6 +110,8 @@ describe('writing an address', () => {
       { mode: 'health', page: 'unstoried', item: 'src/components/form/Select.tsx:default' },
       '?health=unstoried&item=src/components/form/Select.tsx:default',
     ],
+    [{ mode: 'view', plugin: 'i18n' }, '?view=i18n'],
+    [{ mode: 'view', plugin: 'i18n', item: 'fr' }, '?view=i18n&item=fr'],
   ])('writes %j', (place, search) => {
     expect(placeSearch(place)).toBe(search)
   })
@@ -121,6 +127,7 @@ describe('writing an address', () => {
       { mode: 'changes', from: 'a&b', before: '2026-01-01', change: 'story:x y' },
       { mode: 'tokens', category: 'color' },
       { mode: 'tokens', category: 'a&b', token: 'c#d e' },
+      { mode: 'view', plugin: 'a&b', item: 'c#d e' },
     ]
 
     for (const place of places) expect(readPlace(placeSearch(place))).toEqual(place)

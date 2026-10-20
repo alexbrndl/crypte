@@ -13,6 +13,37 @@ export interface CryptePlugin {
   shell?: string
   preview?: string
   node?: NodeHooks
+  // A view of its own in the activity bar, section 6.1: its label and icon here,
+  // its canvas, sidebar and panel from the `view` export of the shell module.
+  view?: PluginView
+}
+
+export interface PluginView {
+  // Eight characters at most: the activity bar is 48 px wide.
+  label: string
+  // The Hugeicons object the plugin imports from `@hugeicons/core-free-icons`:
+  // a name would make the shell carry the whole set.
+  icon: ReadonlyArray<readonly [string, Readonly<Record<string, string | number>>]>
+}
+
+// What the shell module exports as `view`, section 6.1: Vue components, opaque
+// like `ShellContribution`. The canvas is required, a view without one draws
+// nothing.
+export interface ShellView {
+  canvas: ShellContribution
+  sidebar?: ShellContribution
+  panel?: ShellContribution
+}
+
+// What the shell passes each part of a plugin's view: the item chosen, which the
+// address holds, `?view=<plugin>&item=<key>`, so a link reopens it. One part
+// emits `item` to choose another, `null` to choose none.
+export interface ViewProps {
+  item: string | null
+}
+
+export interface ViewEvents {
+  item: [key: string | null]
 }
 
 // What the shell module exports by default. Opaque like `Adapter`: a

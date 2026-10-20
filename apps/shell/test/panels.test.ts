@@ -420,3 +420,42 @@ describe('what several panels edit', () => {
     })
   })
 })
+
+// La vue d'un plugin, section 6.1 : son module l'exporte en `view`, le canvas
+// requis ; un plugin qui n'a qu'une vue n'ajoute pas de panneau aux stories.
+describe('the view of a plugin', () => {
+  const icon = [['path', { d: 'M0 0' }]]
+
+  test('loads the parts its module exports, and names a canvas that is not a component', async () => {
+    const wrapper = await monte([
+      { name: 'v', shell: module('vue.ts'), view: { label: 'v', icon } },
+      { name: 'c', shell: module('vue-casse.ts'), view: { label: 'c', icon } },
+      { name: 'b', shell: module('un.ts') },
+    ])
+    const [vues] = wrapper.emitted('views')!.at(-1) as [
+      { name: string; label: string; sidebar?: unknown; panel?: unknown }[],
+    ]
+    expect(
+      vues!.map((one) => [one.name, one.label, one.sidebar !== undefined, one.panel !== undefined]),
+    ).toEqual([['v', 'v', true, true]])
+    expect(montés(wrapper)).toEqual(['c=panneau', 'b=un'])
+    expect(échecs(wrapper)).toEqual([
+      'c could not load: its `view.canvas` export is not a component',
+    ])
+  })
+
+  // Sa vue refusée par le CLI, le module est listé sans elle : n'ayant pas de
+  // panneau des stories, il ne dit rien de plus que le refus déjà affiché.
+  test('stays quiet about a module whose view the CLI refused', async () => {
+    const wrapper = await monte(
+      [
+        { name: 'v', shell: module('vue.ts') },
+        { name: 'b', shell: module('un.ts') },
+      ],
+      [{ plugin: 'v', reason: 'trop long' }],
+    )
+    expect(montés(wrapper)).toEqual(['b=un'])
+    expect(échecs(wrapper)).toEqual(['Refused in v: trop long'])
+    expect(wrapper.emitted('troubles')!.at(-1)).toEqual([1])
+  })
+})
