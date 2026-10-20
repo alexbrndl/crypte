@@ -3570,6 +3570,48 @@ describe('the health view', () => {
     écran.wrapper.unmount()
   })
 
+  // Le cœur de Santé se remplit selon le score, que son tooltip dit en clair ; la
+  // vue d'ensemble liste ce que compte le badge ; ses panneaux se plient.
+  test('fills its heart with the score, lists what its badge counts, and folds its panels', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health=overview&item=src/components/Bouton.tsx:Bouton')
+    const écran = await monte([badge, alerte, bouton])
+    await expect.poll(() => écran.vue('health').find('.count').exists()).toBe(true)
+
+    // 50 % : la moitié du cœur, de 3,5 à 20,5 dans sa grille, part du bas.
+    expect(écran.vue('health').find('clipPath rect').attributes('y')).toBe('12')
+    expect(
+      écran.wrapper
+        .findComponent(ActivityBar)
+        .findAllComponents(Tooltip)
+        .find((one) => one.props('content') === 'health')
+        ?.props('detail'),
+    ).toBe('50 % · 2 to do')
+
+    const liste = () => écran.wrapper.find('[aria-label="Everything to do"]')
+    expect(liste().find('.badge').text()).toBe('2')
+    expect(
+      liste()
+        .findAll('a')
+        .map((one) => one.text()),
+    ).toEqual(['Write the story of Select', 'Write the story of Avatar'])
+    await liste().find('a').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe(
+      '?health=unstoried&item=src/components/form/Select.tsx:default',
+    )
+
+    // Tout l'en-tête plie son panneau ; ouverts au départ, sans source.
+    const entête = (nom: string) => écran.wrapper.find(`[aria-label="${nom}"] .toggle`)
+    expect(entête('To do').attributes('aria-expanded')).toBe('true')
+    expect(écran.wrapper.find('#health-panel .source').exists()).toBe(false)
+    await entête('Links').trigger('click')
+    expect(entête('Links').attributes('aria-expanded')).toBe('false')
+    expect(écran.wrapper.find('#health-links').isVisible()).toBe(false)
+    expect(écran.wrapper.find('#health-todo').isVisible()).toBe(true)
+    écran.wrapper.unmount()
+  })
+
   // Les tokens que lisent ses stories, menant à leur catégorie quand elle existe.
   test('links the tokens its stories read', async () => {
     santé = () => ({ components: composants })

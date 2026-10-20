@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import type { StoryEntry } from '@crypte/core/protocol'
+import { Alert02Icon } from '@hugeicons/core-free-icons'
 import { computed, ref } from 'vue'
+import Icon from '../ui/icon.vue'
 import { ago } from '../navigation/recent'
-import type { Finding } from './audit'
+import type { Failure, Finding } from './audit'
 import { dayOf, keyOf, PAGES, rowsOf, type HealthComponent, type HealthPage } from './health'
 
 // Le canvas de la vue santé : le tableau de la page choisie, une ligne par
@@ -13,9 +16,15 @@ const props = defineProps<{
   // Les violations de l'audit passé, ou `null` avant : la colonne a11y dit alors
   // que rien n'est testé.
   findings: Finding[] | null
+  failures: Failure[] | null
+  stories: StoryEntry[]
   hrefOf: (key: string) => string
+  hrefOfHealth: (page: HealthPage, key: string) => string
 }>()
-const emit = defineEmits<{ select: [key: string, event: MouseEvent] }>()
+const emit = defineEmits<{
+  select: [key: string, event: MouseEvent]
+  health: [page: HealthPage, key: string, event: MouseEvent]
+}>()
 
 const rows = computed(() => rowsOf(props.page, props.components))
 const title = computed(() => PAGES.find((one) => one.page === props.page)!.label)
@@ -25,6 +34,35 @@ const a11yOf = (one: HealthComponent) => {
   if (props.findings === null || one.stories.length === 0) return null
   return props.findings.filter((found) => one.stories.includes(found.id)).length
 }
+
+// Ce que compte le badge de Santé, une ligne chacun avec où le faire : une story
+// qui ne rend pas peut appartenir à un composant hors du dossier, absent du
+// tableau, et ne se lirait nulle part ailleurs ici.
+const nameOf = (id: string) => {
+  const story = props.stories.find((one) => one.id === id)
+  return story ? `${story.path.at(-1)} / ${story.name}` : id
+}
+const todo = computed(() =>
+  props.page !== 'overview'
+    ? []
+    : [
+        ...(props.failures ?? []).map((one) => ({
+          page: 'failures' as const,
+          key: one.key,
+          label: `Fix the render of ${nameOf(one.id)}`,
+        })),
+        ...(props.findings ?? []).map((one) => ({
+          page: 'accessibility' as const,
+          key: one.key,
+          label: `Fix ${one.violation.rule} in ${nameOf(one.id)}`,
+        })),
+        ...rowsOf('unstoried', props.components).map((one) => ({
+          page: 'unstoried' as const,
+          key: keyOf(one),
+          label: `Write the story of ${one.name}`,
+        })),
+      ],
+)
 
 const NOTES: Record<HealthPage, string> = {
   overview: 'sorted by problems',
@@ -54,6 +92,22 @@ async function copy(one: HealthComponent) {
       <span class="badge">{{ rows.length }}</span>
       <span class="note">{{ NOTES[page] }}</span>
     </header>
+    <section v-if="todo.length > 0" class="todo" aria-label="Everything to do">
+      <h3>
+        to do <span class="badge">{{ todo.length }}</span>
+      </h3>
+      <ul>
+        <li v-for="one of todo" :key="`${one.page}:${one.key}`">
+          <a
+            :href="hrefOfHealth(one.page, one.key)"
+            @click="emit('health', one.page, one.key, $event)"
+          >
+            <Icon :icon="Alert02Icon" />
+            {{ one.label }}
+          </a>
+        </li>
+      </ul>
+    </section>
     <p v-if="rows.length === 0" class="empty">Nothing to list here.</p>
     <table v-else>
       <thead>
@@ -183,6 +237,54 @@ async function copy(one: HealthComponent) {
   flex: 1;
   color: var(--text-muted);
   text-align: right;
+}
+
+/* La liste à faire : la même carte que la table, une action par ligne. */
+.todo {
+  border: var(--stroke-hairline) solid var(--border-base);
+  border-radius: var(--radius-md);
+  background: var(--background-raised);
+}
+
+.todo h3 {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: 0;
+  padding: var(--space-1-5) var(--space-3);
+  background: var(--background-subtle);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-xs);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+}
+
+.todo ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.todo a {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  box-shadow: inset 0 var(--stroke-hairline) 0 var(--border-light);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  text-decoration: none;
+}
+
+.todo a:hover {
+  background: var(--background-hover);
+}
+
+.todo .icon {
+  color: var(--error-text);
 }
 
 .empty {

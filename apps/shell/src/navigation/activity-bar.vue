@@ -6,7 +6,7 @@
 import {
   ComponentIcon,
   GitCompareArrowsIcon,
-  HeartAddIcon,
+  FavouriteIcon,
   Hexagon01Icon,
   Search01Icon,
   Sun02Icon,
@@ -14,6 +14,7 @@ import {
 import { Button, Tooltip } from '@crypte/ui'
 import { computed } from 'vue'
 import Icon from '../ui/icon.vue'
+import HealthIcon from './health-icon.vue'
 import Logo from '../ui/logo.vue'
 
 export type View = 'tokens' | 'stories' | 'health' | 'versions'
@@ -25,6 +26,8 @@ const props = defineProps<{
   counter: number | null
   // Ce qu'il reste à faire, le badge de Santé, plafonné à 9+ comme la maquette.
   todo?: number
+  // Le score de santé, de 0 à 100, qui remplit le cœur ; `null` sans mesure.
+  score?: number | null
   searchKeys: string
   searchShortcuts: string
   themeLabel: string
@@ -37,7 +40,8 @@ const GROUPS: { view: View; label: string; icon: typeof Search01Icon }[][] = [
     { view: 'stories', label: 'stories', icon: ComponentIcon },
   ],
   [
-    { view: 'health', label: 'health', icon: HeartAddIcon },
+    // Dessiné par `HealthIcon`, qui le remplit selon le score.
+    { view: 'health', label: 'health', icon: FavouriteIcon },
     { view: 'versions', label: 'versions', icon: GitCompareArrowsIcon },
   ],
 ]
@@ -46,8 +50,10 @@ const GROUPS: { view: View; label: string; icon: typeof Search01Icon }[][] = [
 const detailOf = (view: View) =>
   view === 'versions' && props.counter !== null
     ? `${props.counter} ${props.counter === 1 ? 'difference' : 'differences'}`
-    : view === 'health' && props.todo
-      ? `${props.todo} to do`
+    : view === 'health' && (props.score != null || props.todo)
+      ? [props.score != null ? `${props.score} %` : null, props.todo ? `${props.todo} to do` : null]
+          .filter(Boolean)
+          .join(' · ')
       : undefined
 
 const groups = computed(() =>
@@ -87,7 +93,8 @@ const groups = computed(() =>
           @click="emit('go', item.view, $event)"
         >
           <span class="glyph">
-            <Icon :icon="item.icon" />
+            <HealthIcon v-if="item.view === 'health'" :score="score ?? null" />
+            <Icon v-else :icon="item.icon" />
             <span v-if="item.view === 'versions' && counter !== null" class="count">{{
               counter
             }}</span>

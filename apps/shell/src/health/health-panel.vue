@@ -2,6 +2,8 @@
 import type { StoryEntry } from '@crypte/core/protocol'
 import {
   Alert02Icon,
+  ArrowDown01Icon,
+  ArrowRight01Icon,
   ComponentIcon,
   Copy01Icon,
   FileAddIcon,
@@ -107,6 +109,9 @@ const nothing = computed(
 const plural = (count: number, one: string, many = `${one}s`) =>
   `${count} ${count === 1 ? one : many}`
 
+// Ouverts au départ, repliables comme les panneaux des stories.
+const open = ref({ todo: true, links: true })
+
 const copied = ref(false)
 watch(
   () => props.component,
@@ -125,11 +130,19 @@ async function copy() {
 
 <template>
   <section class="panel" aria-label="To do">
-    <header class="head">
-      <h3>{{ chosen ? `${title} · to do` : 'To do' }}</h3>
-      <span class="source">health</span>
-    </header>
-    <div class="body">
+    <h3 class="head">
+      <button
+        type="button"
+        class="toggle"
+        :aria-expanded="open.todo"
+        aria-controls="health-todo"
+        @click="open.todo = !open.todo"
+      >
+        <Icon :icon="open.todo ? ArrowDown01Icon : ArrowRight01Icon" />
+        <span class="title">{{ chosen ? `${title} · to do` : 'To do' }}</span>
+      </button>
+    </h3>
+    <div v-show="open.todo" id="health-todo" class="body">
       <p v-if="!chosen" class="caption">Select a row to see what it needs.</p>
 
       <template v-else-if="finding">
@@ -213,11 +226,19 @@ async function copy() {
   </section>
 
   <section v-if="chosen" class="panel" aria-label="Links">
-    <header class="head">
-      <h3>Links</h3>
-      <span class="source">health</span>
-    </header>
-    <div class="body">
+    <h3 class="head">
+      <button
+        type="button"
+        class="toggle"
+        :aria-expanded="open.links"
+        aria-controls="health-links"
+        @click="open.links = !open.links"
+      >
+        <Icon :icon="open.links ? ArrowDown01Icon : ArrowRight01Icon" />
+        <span class="title">Links</span>
+      </button>
+    </h3>
+    <div v-show="open.links" id="health-links" class="body">
       <template v-if="own.length > 0">
         <p class="caption">{{ plural(own.length, 'story', 'stories') }}</p>
         <a
@@ -276,34 +297,48 @@ async function copy() {
 }
 
 .head {
+  margin: 0;
+  background: var(--background-subtle);
+}
+
+/* Tout l'en-tête plie le panneau : le bouton en couvre la surface, 40 px comme
+   l'en-tête des panneaux des stories. */
+.toggle {
   display: flex;
   box-sizing: border-box;
   gap: var(--space-2);
   align-items: center;
+  width: 100%;
   min-height: 40px;
   padding: var(--space-2) var(--space-3);
-  background: var(--background-subtle);
-}
-
-h3 {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
+  border: 0;
+  background: none;
   color: var(--text-primary);
+  font: inherit;
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   line-height: var(--leading-xs);
   letter-spacing: var(--tracking-wider);
-  text-overflow: ellipsis;
+  text-align: left;
   text-transform: uppercase;
-  white-space: nowrap;
+  cursor: pointer;
 }
 
-.source {
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
+.toggle:focus-visible {
+  outline: var(--stroke-focus) solid var(--accent-focus);
+  outline-offset: calc(-1 * var(--stroke-focus));
+}
+
+.toggle .icon {
+  flex: none;
+  color: var(--text-subtle);
+}
+
+.title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .body {

@@ -1,7 +1,7 @@
 <!-- A tooltip on hover and focus, drawn rather than left to the system's `title`.
      The trigger is the one element of the default slot; `content` keeps its line
      breaks, `detail` follows it in a quieter ink, and `keys` is the shortcut, drawn
-     as the inverse keycap of the Figma file. `side` places it, above by default. Reka's, its own provider so that a lone tooltip needs nothing around it. -->
+     as the default keycap of the Figma file. `side` places it, above by default. Reka's, its own provider so that a lone tooltip needs nothing around it. -->
 <script setup lang="ts">
 import {
   TooltipContent,
@@ -61,8 +61,14 @@ withDefaults(
   max-width: 280px;
   padding: calc(var(--space-1) + var(--stroke-hairline)) var(--space-2);
   border-radius: var(--radius-md);
-  background: var(--background-inverse);
-  color: var(--text-inverse);
+  /* The raised surface rather than the inverse one, in light as in dark: on a
+     dark fill the small text read poorly. The hairline and the shadow lift it
+     off a surface of the same colour. */
+  box-shadow:
+    inset 0 0 0 var(--stroke-hairline) var(--border-base),
+    0 4px 12px color-mix(in srgb, var(--stone-950) 12%, transparent);
+  background: var(--background-raised);
+  color: var(--text-primary);
   font-family: var(--font-sans);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
@@ -73,17 +79,18 @@ withDefaults(
   white-space: pre-line;
 }
 
-/* The detail of the Figma tooltip: regular weight, the inverse ink dimmed. */
+/* The detail of the Figma tooltip: regular weight, in the muted ink. */
 .crypte-tooltip-detail {
-  color: color-mix(in srgb, var(--text-inverse) 60%, transparent);
+  color: var(--text-muted);
   font-weight: var(--weight-normal);
 }
 
 .crypte-tooltip-keys {
   padding: var(--space-0-5) var(--space-1);
   border-radius: var(--radius-xs);
-  background: var(--background-inverse-hover);
-  color: var(--text-inverse);
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
+  background: var(--background-subtle);
+  color: var(--text-muted);
   font-family: var(--font-mono);
   font-weight: var(--weight-normal);
 }
