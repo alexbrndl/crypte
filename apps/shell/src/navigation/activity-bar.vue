@@ -5,6 +5,7 @@
 <script setup lang="ts">
 import { plural } from '../plural'
 import {
+  BookOpen01Icon,
   ComponentIcon,
   GitCompareArrowsIcon,
   FavouriteIcon,
@@ -19,7 +20,7 @@ import Icon from '../ui/icon.vue'
 import HealthIcon from './health-icon.vue'
 import Logo from '../ui/logo.vue'
 
-export type BuiltIn = 'tokens' | 'stories' | 'health' | 'versions'
+export type BuiltIn = 'tokens' | 'stories' | 'docs' | 'health' | 'versions'
 // Une vue de plugin, `view:<nom>`, section 6.1.
 export type View = BuiltIn | `view:${string}`
 
@@ -50,6 +51,7 @@ const GROUPS: { view: BuiltIn; label: string; icon: typeof Search01Icon }[][] = 
   [
     { view: 'tokens', label: 'tokens', icon: Hexagon01Icon },
     { view: 'stories', label: 'stories', icon: ComponentIcon },
+    { view: 'docs', label: 'docs', icon: BookOpen01Icon },
   ],
   [
     // Dessiné par `HealthIcon`, qui le remplit selon le score.

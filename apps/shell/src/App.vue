@@ -84,6 +84,8 @@ import ActivityBar, { type BuiltIn, type View } from './navigation/activity-bar.
 import Icon from './ui/icon.vue'
 import { keep, kept } from './storage'
 import StoryTree from './navigation/story-tree.vue'
+import DocsTree from './navigation/docs-tree.vue'
+import DocsPanel from './pages/docs-panel.vue'
 import CategoryList from './tokens/category-list.vue'
 import { categoriesOf } from './tokens/categories'
 import TokenPanel from './tokens/token-panel.vue'
@@ -178,6 +180,9 @@ const componentPage = computed(() => {
 // La page générale ouverte, ou `null`. Comme la page composant, elle laisse la
 // story chargée dessous.
 const pageAt = ref<string | null>(null)
+// La vue docs ouverte sans rien à y montrer : ni composant ni page.
+const docsOpen = ref(false)
+const docsEmpty = computed(() => entries.value.length === 0 && generalPages.value.length === 0)
 const shownPage = computed(() => generalPages.value.find((one) => one.id === pageAt.value) ?? null)
 
 // La catégorie de tokens ouverte, et le token choisi dedans, ou `null`. Comme une
@@ -558,6 +563,7 @@ const storyMode = computed(
   () =>
     component.value === null &&
     pageAt.value === null &&
+    !docsOpen.value &&
     tokensAt.value === null &&
     healthAt.value === null &&
     viewAt.value === null &&
@@ -705,6 +711,7 @@ function show(id: string, trace: Trace = 'replace') {
   closeChanges()
   component.value = null
   pageAt.value = null
+  docsOpen.value = false
   tokensAt.value = null
   healthAt.value = null
   viewAt.value = null
@@ -721,6 +728,7 @@ function openPage(id: string, trace: Trace = 'push') {
   healthAt.value = null
   viewAt.value = null
   pageAt.value = id
+  docsOpen.value = false
   write(placeSearch({ mode: 'entry', id }), trace)
 }
 
@@ -730,6 +738,7 @@ function openTokens(category: string, token?: string, trace: Trace = 'push') {
   closeChanges()
   component.value = null
   pageAt.value = null
+  docsOpen.value = false
   healthAt.value = null
   viewAt.value = null
   tokensAt.value = token === undefined ? { category } : { category, token }
@@ -747,6 +756,7 @@ function openHealth(page: HealthPage, item?: string, trace: Trace = 'push') {
   closeChanges()
   component.value = null
   pageAt.value = null
+  docsOpen.value = false
   tokensAt.value = null
   viewAt.value = null
   if (healthAt.value === null) void readHealth()
@@ -763,6 +773,7 @@ function openView(plugin: string, item?: string, trace: Trace = 'push') {
   closeChanges()
   component.value = null
   pageAt.value = null
+  docsOpen.value = false
   tokensAt.value = null
   healthAt.value = null
   viewAt.value = item === undefined ? { plugin } : { plugin, item }
@@ -781,6 +792,7 @@ function open(id: string, trace: Trace = 'push') {
   closeChanges()
   component.value = id
   pageAt.value = null
+  docsOpen.value = false
   tokensAt.value = null
   healthAt.value = null
   viewAt.value = null
@@ -800,6 +812,7 @@ function openChanges(trace: Trace = 'push', at: Since & { change?: string } = {}
   changesOpen.value = true
   component.value = null
   pageAt.value = null
+  docsOpen.value = false
   tokensAt.value = null
   healthAt.value = null
   viewAt.value = null
@@ -833,7 +846,9 @@ const view = computed<View>(() =>
         ? 'versions'
         : tokensAt.value !== null
           ? 'tokens'
-          : 'stories',
+          : component.value !== null || pageAt.value !== null || docsOpen.value
+            ? 'docs'
+            : 'stories',
 )
 
 // Où mène chaque entrée : la story chargée, la catégorie ouverte ou la première,
@@ -851,10 +866,71 @@ const hrefs = computed<Record<BuiltIn, string | null>>(() => {
         ? window.location.pathname
         : placeSearch({ mode: 'entry', id: current.value }),
     tokens: placeSearch({ mode: 'tokens', category: tokens }),
+    docs: docsHref(),
     health: placeSearch({ mode: 'health', page: healthAt.value?.page ?? 'overview' }),
     versions: placeSearch({ mode: 'changes' }),
   }
 })
+
+// La vue docs mène à ce qui y est ouvert, sinon au premier composant, sinon à la
+// première page. Sans l'un ni l'autre, elle n'a pas d'adresse : son guide le dit.
+const firstDoc = (): { component: string } | { page: string } | null => {
+  const [story] = entries.value
+  if (story) return { component: componentIdOf(story.path) }
+  const [page] = generalPages.value
+  return page ? { page: page.id } : null
+}
+function docsHref() {
+  if (component.value !== null) return placeSearch({ mode: 'component', id: component.value })
+  if (pageAt.value !== null) return placeSearch({ mode: 'entry', id: pageAt.value })
+  const first = firstDoc()
+  if (first === null) return window.location.pathname
+  return 'component' in first
+    ? placeSearch({ mode: 'component', id: first.component })
+    : placeSearch({ mode: 'entry', id: first.page })
+}
+function openDocs() {
+  if (component.value !== null || pageAt.value !== null) return
+  const first = firstDoc()
+  if (first === null) {
+    closeChanges()
+    tokensAt.value = null
+    healthAt.value = null
+    viewAt.value = null
+    docsOpen.value = true
+    write(window.location.pathname, 'push')
+  } else if ('component' in first) open(first.component)
+  else openPage(first.page)
+}
+
+// Le fil d'Ariane de la vue docs : un composant sous les dossiers de ses stories,
+// une page sous les siens.
+const docsTrail = computed(() => {
+  const [first] = componentStories.value
+  if (component.value !== null && first)
+    return { folders: first.path.slice(0, -1), name: first.path.at(-1) ?? '' }
+  return shownPage.value ? { folders: shownPage.value.path, name: shownPage.value.name } : null
+})
+
+// Une page citée mène à la page Docs de son composant, ou à elle-même.
+const componentOfPage = (id: string) => {
+  const file = pages.value.find((one) => one.id === id)?.storyFile
+  const story = file === undefined ? undefined : entries.value.find((one) => one.storyFile === file)
+  return story ? componentIdOf(story.path) : null
+}
+function docsPageHref(id: string) {
+  const owner = componentOfPage(id)
+  return owner === null
+    ? placeSearch({ mode: 'entry', id })
+    : placeSearch({ mode: 'component', id: owner })
+}
+function openDocsPage(id: string) {
+  const owner = componentOfPage(id)
+  if (owner === null) openPage(id)
+  else open(owner)
+}
+
+const DOCS_SNIPPET = '# Badge\n\nA short label for a status. It is never clickable.\n'
 
 // Les vues des plugins, sous un séparateur après versions.
 const pluginViews = computed(() =>
@@ -869,6 +945,7 @@ const pluginViews = computed(() =>
 function go(to: View, event: MouseEvent) {
   follow(event, () => {
     if (to.startsWith('view:')) return openView(to.slice('view:'.length))
+    if (to === 'docs') return openDocs()
     if (to === 'versions') openChanges()
     const tokens = firstCategory()
     if (to === 'tokens') openTokens(tokens)
@@ -882,6 +959,7 @@ function go(to: View, event: MouseEvent) {
       viewAt.value = null
       component.value = null
       pageAt.value = null
+      docsOpen.value = false
       // Le chemin seul : une adresse vide laisserait la requête en place.
       write(window.location.pathname, 'push')
     }
@@ -1310,11 +1388,19 @@ onMounted(() => {
             @item="(key: string | null) => openView(viewAt!.plugin, key ?? undefined)"
           />
         </template>
+        <DocsTree
+          v-else-if="view === 'docs'"
+          :stories="entries"
+          :pages="generalPages"
+          :component="component"
+          :page="pageAt"
+          @open="(id) => open(id)"
+          @show="(id) => openPage(id)"
+        />
         <StoryTree
           v-else
-          :entries="[...entries, ...generalPages]"
-          :current="changesOpen ? null : (pageAt ?? current)"
-          :component="component"
+          :entries="entries"
+          :current="changesOpen ? null : current"
           label="Stories"
           none="No story."
           @show="(id) => show(id, 'push')"
@@ -1394,6 +1480,36 @@ onMounted(() => {
               class="panels-toggle"
               aria-label="Panels"
               aria-controls="token-panel"
+              :aria-expanded="panelsOpen"
+              @click="panelsOpen = !panelsOpen"
+            >
+              <Icon :icon="panelsOpen ? PanelRightOpenIcon : PanelRightIcon" />
+            </Button>
+          </Tooltip>
+        </div>
+      </div>
+
+      <!-- La vue docs a la sienne : la vue, les dossiers, et ce qui est ouvert. -->
+      <div v-else-if="view === 'docs' && docsTrail" class="toolbar">
+        <nav class="trail" aria-label="Breadcrumb">
+          <span class="folder">docs<span class="separator">/</span></span>
+          <span v-for="(segment, at) of docsTrail.folders" :key="at" class="folder"
+            >{{ segment }}<span class="separator">/</span></span
+          >
+          <span aria-current="page">{{ docsTrail.name }}</span>
+        </nav>
+        <div class="actions">
+          <Button variant="secondary" class="copy" @click="copyLink">
+            <Icon :icon="Copy01Icon" />
+            {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
+          </Button>
+          <span class="divider" aria-hidden="true" />
+          <Tooltip :content="panelsOpen ? 'Hide panels' : 'Show panels'">
+            <Button
+              variant="ghost"
+              class="panels-toggle"
+              aria-label="Panels"
+              aria-controls="docs-panel"
               :aria-expanded="panelsOpen"
               @click="panelsOpen = !panelsOpen"
             >
@@ -1631,13 +1747,28 @@ onMounted(() => {
             </EmptyNote>
           </template>
 
-          <ComponentPage
-            v-if="component !== null"
-            :stories="componentStories"
-            :page="componentPage"
-            @show="(id) => show(id, 'push')"
-          />
-          <MarkdownPage v-if="shownPage" :page="shownPage" />
+          <!-- La carte de la maquette, sur le fond à points de la scène. -->
+          <div v-if="component !== null || shownPage" class="docs-canvas">
+            <ComponentPage
+              v-if="component !== null"
+              class="doc-page"
+              :stories="componentStories"
+              :page="componentPage"
+              @show="(id) => show(id, 'push')"
+            />
+            <MarkdownPage v-else-if="shownPage" class="doc-page" :page="shownPage" />
+          </div>
+          <div v-if="docsOpen && docsEmpty" class="empty">
+            <EmptyGuide
+              :title="project ? `No docs page in ${project.stories}/` : 'No docs page'"
+              :path="project ? `${project.stories}/` : null"
+              rule="A component gets its docs page from its stories. A markdown file beside its story file adds its guidelines; any other markdown file is a page of its own."
+              :mapping="`${storiesRoot}/ui/Badge.tsx  >  ${storiesRoot}/ui/Badge.md`"
+              :snippet="DOCS_SNIPPET"
+              note="Markdown only: the title is the first # heading, otherwise the file name."
+              outcome="The page appears, linked to its stories and its tokens."
+            />
+          </div>
 
           <!-- Masqué et non retiré : la preview et les panneaux gardent leur état
            pendant qu'une page composant ou une famille est ouverte. -->
@@ -1645,6 +1776,7 @@ onMounted(() => {
             v-show="
               component === null &&
               pageAt === null &&
+              !docsOpen &&
               tokensAt === null &&
               healthAt === null &&
               viewAt === null &&
@@ -1786,6 +1918,28 @@ onMounted(() => {
             @weights="(measured) => ((weights = measured), (pluginsRead = true))"
             @troubles="(troubles) => ((panelTroubles = troubles), (pluginsRead = true))"
             @views="(found) => (views = found)"
+          />
+        </aside>
+        <aside
+          v-if="view === 'docs' && (component !== null || shownPage) && !fullScreen && panelsOpen"
+          id="docs-panel"
+          class="panel-column"
+          aria-label="Docs panel"
+        >
+          <ColumnTitle title="Panels" />
+          <DocsPanel
+            :own="componentStories"
+            :page="component !== null ? (componentPage ?? null) : shownPage"
+            :stories="entries"
+            :pages="pages"
+            :href-of-story="(id) => placeSearch({ mode: 'entry', id })"
+            :href-of-component="(id) => placeSearch({ mode: 'component', id })"
+            :href-of-page="docsPageHref"
+            :href-of-token="tokenHref"
+            @story="(id, event) => follow(event, () => show(id, 'push'))"
+            @component="(id, event) => follow(event, () => open(id))"
+            @page="(id, event) => follow(event, () => openDocsPage(id))"
+            @token="(name, event) => follow(event, () => openToken(name))"
           />
         </aside>
         <aside
@@ -2089,8 +2243,28 @@ main.full {
   margin: var(--space-3);
 }
 
-.stage > .view-canvas {
+.stage > .view-canvas,
+.stage > .docs-canvas {
   margin: 0;
+}
+
+.docs-canvas {
+  flex: 1;
+  padding: var(--space-8) var(--space-6);
+  background-color: var(--background-subtle);
+  background-image: radial-gradient(var(--border-light) 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+
+.doc-page {
+  box-sizing: border-box;
+  max-width: 640px;
+  min-height: 0;
+  margin: 0 auto;
+  padding: var(--space-9) var(--space-10);
+  border: var(--stroke-hairline) solid var(--border-base);
+  border-radius: var(--radius-lg);
+  background: var(--background-raised);
 }
 
 .canvas {

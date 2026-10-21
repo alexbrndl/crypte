@@ -16,6 +16,7 @@ const emit = defineEmits<{ show: [id: string] }>()
 // `meta` se déclare par fichier de stories : la première story parle pour toutes.
 const first = computed(() => props.stories[0])
 const meta = computed(() => first.value?.meta ?? {})
+const suggested = computed(() => first.value?.storyFile.replace(/\.[jt]sx?$/, '.md'))
 
 // Un lien seulement en http ou https : `javascript:` s'exécuterait au clic, et
 // `meta` vient d'un dépôt qu'un build statique publie. Le reste s'affiche en texte.
@@ -73,6 +74,9 @@ function follow(event: MouseEvent, id: string) {
       <p v-if="page.name !== first.path.at(-1)" class="page-title">{{ page.name }}</p>
       <MarkdownBody class="page" :body="page.body" />
     </template>
+    <p v-else class="no-page">
+      No guidelines yet: write <code>{{ suggested }}</code> beside its stories.
+    </p>
 
     <PlainTable>
       <thead>
@@ -102,16 +106,12 @@ function follow(event: MouseEvent, id: string) {
 </template>
 
 <style scoped>
-.component-page {
-  min-height: 70vh;
-}
-
 h2 {
-  margin: 0 0 var(--space-2);
+  margin: 0 0 var(--space-3);
+  color: var(--text-primary);
   font-size: var(--text-3xl);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   line-height: var(--leading-3xl);
-  letter-spacing: var(--tracking-tight);
 }
 
 a {
@@ -130,8 +130,8 @@ code {
 .description {
   margin: 0 0 var(--space-3);
   color: var(--text-muted);
-  font-size: var(--text-base);
-  line-height: var(--leading-base);
+  font-size: var(--text-sm);
+  line-height: 1.6;
 }
 
 dl {
@@ -160,6 +160,13 @@ dd {
 
 .page {
   margin-bottom: var(--space-6);
+}
+
+.no-page {
+  margin: 0 0 var(--space-6);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
 }
 
 .prop {

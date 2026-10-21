@@ -128,3 +128,45 @@ export function keysAbove(entry: Listed): string[] {
       : folderKey(path)
   })
 }
+
+// L'arbre de la vue docs : chaque composant, qu'il ait une page ou non, sous les
+// dossiers de son chemin, et les pages générales sous les leurs. Un composant y est
+// une feuille : ses stories sont de la vue stories.
+export function docsOf(stories: readonly StoryEntry[], pages: readonly PageEntry[]): Node[] {
+  const roots: Node[] = []
+  const folders = new Map<string, Extract<Node, { kind: 'folder' }>>()
+
+  const under = (path: readonly string[]): Node[] => {
+    let siblings = roots
+    path.forEach((segment, at) => {
+      const key = folderKey(path.slice(0, at + 1))
+      let folder = folders.get(key)
+      if (!folder) {
+        folder = { kind: 'folder', key, name: segment, children: [] }
+        folders.set(key, folder)
+        siblings.push(folder)
+      }
+      siblings = folder.children
+    })
+    return siblings
+  }
+
+  const seen = new Set<string>()
+  for (const entry of stories) {
+    const id = componentIdOf(entry.path)
+    if (seen.has(id)) continue
+    seen.add(id)
+    under(entry.path.slice(0, -1)).push({
+      kind: 'component',
+      key: componentKey(entry.path),
+      id,
+      name: entry.path.at(-1) ?? '',
+      status: entry.meta?.status,
+      children: [],
+    })
+  }
+  for (const page of pages)
+    under(page.path).push({ kind: 'page', key: page.id, name: page.name, entry: page })
+
+  return roots
+}

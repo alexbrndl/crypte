@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ColumnTitle, EmptyNote, Tree, type TreeNode } from '@crypte/ui'
+import { ViewIcon } from '@hugeicons/core-free-icons'
 import { ToggleGroupItem, ToggleGroupRoot } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
 import { keep, kept } from '../storage'
+import Icon from '../ui/icon.vue'
 import {
   STATUSES,
   branchKeys,
@@ -15,13 +17,12 @@ import {
   type Status,
 } from './tree'
 
-// `component` : la page composant ouverte, par son identifiant ; sinon l'entrée
-// `current`, story, famille de tokens ou page, est celle qu'on regarde. `label` titre
-// la colonne et nomme l'arbre, `none` dit qu'il est vide.
+// `current` : l'entrée qu'on regarde. `label` titre la colonne et nomme l'arbre,
+// `none` dit qu'il est vide. Un composant se plie au clic ; son œil, en bout de
+// ligne, ouvre sa page dans la vue docs.
 const props = defineProps<{
   entries: Listed[]
   current: string | null
-  component: string | null
   label: string
   none: string
 }>()
@@ -79,17 +80,13 @@ function unfold(next: string[]) {
 }
 
 // Ce qu'on regarde reste atteignable : y arriver rouvre ce qui le contient, les
-// dossiers au-dessus d'un composant, et le composant d'une story. Pas le composant
-// d'une page : ouvrir sa page n'efface pas un repli choisi.
+// dossiers et le composant d'une story.
 watch(
-  () => [props.current, props.component] as const,
-  ([id, component]) => {
-    const entry =
-      component === null
-        ? props.entries.find((one) => one.id === id)
-        : props.entries.find((one) => one.type === 'story' && componentIdOf(one.path) === component)
+  () => props.current,
+  (id) => {
+    const entry = props.entries.find((one) => one.id === id)
     if (!entry) return
-    const above = component === null ? keysAbove(entry) : keysAbove(entry).slice(0, -1)
+    const above = keysAbove(entry)
     if (folded.value.some((key) => above.includes(key)))
       fold(folded.value.filter((key) => !above.includes(key)))
   },
@@ -105,15 +102,28 @@ const find = (nodes: readonly Node[], key: string): Node | undefined => {
   return undefined
 }
 
-const selected = computed(() => {
-  if (props.component !== null) return find(shown.value, `component:${props.component}`)
-  return props.current === null ? undefined : find(shown.value, props.current)
-})
+const selected = computed(() =>
+  props.current === null ? undefined : find(shown.value, props.current),
+)
 
-// Une entrée et un composant se choisissent, un dossier se plie seulement.
+// Une entrée se choisit, un dossier et un composant se plient.
 function pick(node: Node | undefined) {
   if (node !== undefined && 'entry' in node) emit('show', node.entry.id)
-  if (node?.kind === 'component') emit('open', node.id)
+}
+
+// Le composant dont l'œil se montre : celui de la ligne survolée, ou de la story
+// survolée. Les lignes de `Tree` sont sœurs, un sélecteur CSS n'atteint pas la
+// ligne du composant depuis celle d'une story.
+const lit = ref<string | null>(null)
+function hover(event: PointerEvent) {
+  const key = (event.target as Element).closest<HTMLElement>('[data-key]')?.dataset.key
+  const node = key === undefined ? undefined : find(shown.value, key)
+  lit.value =
+    node?.kind === 'component'
+      ? node.key
+      : node?.kind === 'story'
+        ? `component:${componentIdOf(node.entry.path)}`
+        : null
 }
 
 // Les entrées sous un dossier : le compte de la ligne.
@@ -129,13 +139,14 @@ const toItems = (nodes: readonly Node[]): TreeNode[] =>
     kind: node.kind,
     ...('children' in node ? { children: toItems(node.children) } : {}),
     ...(node.kind === 'folder' ? { count: count(node), selectable: false } : {}),
+    ...(node.kind === 'component' ? { selectable: false } : {}),
     ...(grey.value.has(node.key) ? { dimmed: true } : {}),
   }))
 const items = computed(() => toItems(shown.value))
 </script>
 
 <template>
-  <div class="story-tree">
+  <div class="story-tree" @pointerover="hover" @pointerleave="lit = null">
     <ColumnTitle :title="label" :count="stories" />
     <ToggleGroupRoot
       v-if="declared.length > 0"
@@ -158,7 +169,21 @@ const items = computed(() => toItems(shown.value))
       :expanded="expanded"
       @update:expanded="unfold"
       @select="(key) => pick(find(shown, key))"
-    />
+    >
+      <template #trailing="{ node }">
+        <button
+          v-if="node.kind === 'component'"
+          type="button"
+          class="eye"
+          :data-lit="node.key === lit || undefined"
+          :aria-label="`Open the docs page of ${node.label}`"
+          @click.stop="emit('open', node.key.slice('component:'.length))"
+          @keydown.stop
+        >
+          <Icon :icon="ViewIcon" />
+        </button>
+      </template>
+    </Tree>
   </div>
 </template>
 
@@ -169,6 +194,25 @@ const items = computed(() => toItems(shown.value))
   flex-direction: column;
   min-height: 0;
   --empty-note-padding: var(--space-0-5) var(--space-3);
+}
+
+.eye {
+  display: flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-subtle);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.eye[data-lit],
+.eye:focus-visible {
+  opacity: 1;
+}
+
+.eye:hover {
+  color: var(--text-primary);
 }
 
 .tabs {

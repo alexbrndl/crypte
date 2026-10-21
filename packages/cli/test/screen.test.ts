@@ -1276,6 +1276,27 @@ describe('the component page', () => {
   })
 })
 
+// L'œil de l'arbre des stories, dans le vrai navigateur : survoler une story le
+// montre en bout de la ligne de son composant. Le critère de DCJ-374.
+describe('the eye of a component', () => {
+  test('shows from a story row, and opens the docs page of its component', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    const oeil = ecran.page.getByRole('button', { name: 'Open the docs page of Badge' })
+    const opacite = () =>
+      ecran.page.evaluate<string>(
+        'getComputedStyle(document.querySelector(\'[aria-label="Open the docs page of Badge"]\')).opacity',
+      )
+    expect(await opacite()).toBe('0')
+
+    await ecran.page.getByRole('treeitem', { name: 'Libellé long', exact: true }).hover()
+    await expect.poll(opacite).toBe('1')
+    await oeil.click()
+
+    await expect.poll(() => ecran.page.locator('.component-page h2').textContent()).toBe('Badge')
+    expect(new URL(ecran.page.url()).search).toBe('?component=badge')
+  })
+})
+
 // Les pages markdown de la démonstration : le critère de DCJ-251.
 describe('the markdown pages', () => {
   test("shows a component's page on its component page, and a general one from the tree", async ({

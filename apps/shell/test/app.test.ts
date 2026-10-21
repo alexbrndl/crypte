@@ -292,74 +292,12 @@ describe('the shell tree', () => {
     écran.wrapper.unmount()
   })
 
-  // Une page générale se range par son chemin, comme une famille de tokens, et
-  // prend la place du canvas : la story reste chargée dessous.
-  test('draws a general page under its folders, and opens it in place of the canvas', async () => {
-    const écran = await monte([badge, guide])
-    const ligne = () => écran.wrapper.find('[role="treeitem"][data-kind="page"]')
-
-    expect(ligne().find('.name').text()).toBe('Guide')
-    expect(écran.wrapper.find('.story-tree .count').text()).toBe('1')
-    await ligne().trigger('click')
-    await vide(écran.wrapper)
-
-    const page = écran.wrapper.find('.markdown-page')
-    expect(page.find('h2').text()).toBe('Guide')
-    expect(page.find('h3').text()).toBe('Usage')
-    expect(page.find('strong').text()).toBe('gras')
-    expect(window.location.search).toBe('?id=guides/guide')
-    expect(ligne().attributes('aria-selected')).toBe('true')
-    expect(écran.wrapper.find('.canvas').isVisible()).toBe(false)
-    expect(écran.wrapper.find('.toolbar').exists()).toBe(false)
-
-    await écran.story(0).trigger('click')
-    await vide(écran.wrapper)
-    expect(écran.wrapper.find('.markdown-page').exists()).toBe(false)
-    expect(window.location.search).toBe('?id=badge--defaut')
-    écran.wrapper.unmount()
-  })
-
-  // Le manifeste servi partage ce tableau : le vider retire la page du suivant.
-  test('opens a page from its address, and says when it is gone', async () => {
-    window.history.replaceState(null, '', '/?id=guides/guide')
-    const catalogue: ManifestEntry[] = [badge, guide]
-    const écran = await monte(catalogue)
-
-    expect(écran.wrapper.find('.markdown-page h2').text()).toBe('Guide')
-    expect(écran.wrapper.find('.stale').exists()).toBe(false)
-    expect(écran.statut()).toBe('1 story')
-
-    catalogue.pop()
-    await écran.répond({ type: 'ready', protocolVersion: 1 })
-    expect(écran.wrapper.find('.markdown-page').exists()).toBe(false)
-    expect(écran.statut()).toBe('the page on display is gone')
-    expect(window.location.search).toBe('?id=guides/guide')
-    écran.wrapper.unmount()
-  })
-
-  // Rattachée, elle se lit sur la page de son composant, jamais dans l'arbre.
-  test("keeps a component's page out of the tree, for its component page", async () => {
-    const écran = await monte([badge, alerte, badgePage])
+  // Une page est de la vue docs : l'arbre des stories ne montre que des stories.
+  test('keeps the pages out of the tree', async () => {
+    const écran = await monte([badge, guide, badgePage])
 
     expect(écran.wrapper.find('[data-kind="page"]').exists()).toBe(false)
-    await écran.wrapper.find('[role="treeitem"][data-kind="component"]').trigger('click')
-    await vide(écran.wrapper)
-
-    const page = écran.wrapper.find('.component-page')
-    expect(page.find('.markdown-body').text()).toBe('Un badge annonce un état court.')
-    expect(page.findAll('dd').at(-1)?.text()).toBe('stories/Badge.md')
-    expect(page.find('.page-title').exists()).toBe(false)
-    écran.wrapper.unmount()
-  })
-
-  // Le corps arrive sans son titre : celui qui diffère du composant se dessine.
-  test('draws the title of a component page that is not the component name', async () => {
-    const écran = await monte([badge, { ...badgePage, name: "Badge : règles d'usage" }])
-
-    await écran.wrapper.find('[role="treeitem"][data-kind="component"]').trigger('click')
-    await vide(écran.wrapper)
-
-    expect(écran.wrapper.find('.component-page .page-title').text()).toBe("Badge : règles d'usage")
+    expect(écran.wrapper.find('.story-tree .count').text()).toBe('1')
     écran.wrapper.unmount()
   })
 
@@ -1197,33 +1135,39 @@ describe('the component page', () => {
       .findAll('[role="treeitem"]:not([data-kind="story"])')
       .find((one) => one.find('.name').text() === nom)!
   const page = (écran: Ecran) => écran.wrapper.find('.component-page')
+  const œil = (écran: Ecran, nom: string) => libellé(écran, nom).find('.eye')
 
-  test('opens from the label of its component, which stays open', async () => {
+  // Le libellé plie son composant ; l'œil, en bout de ligne, ouvre sa page.
+  test('opens from the eye of its component, whose label only folds', async () => {
     const écran = await monte(catalogue)
     const avant = window.history.length
 
     await libellé(écran, 'Badge').trigger('click')
     await vide(écran.wrapper)
+    expect(écran.noms()).toEqual(['Par défaut'])
+    expect(page(écran).exists()).toBe(false)
 
+    await œil(écran, 'Badge').trigger('click')
+    await vide(écran.wrapper)
     expect(page(écran).find('h2').text()).toBe('Badge')
     expect(window.location.search).toBe('?component=badge')
     expect(window.history.length).toBe(avant + 1)
-    expect(libellé(écran, 'Badge').attributes('aria-selected')).toBe('true')
-    expect(écran.noms()).toEqual(['Par défaut', 'Alerte', 'Par défaut'])
+    expect(écran.wrapper.find('.docs-tree [aria-selected="true"] .name').text()).toBe('Badge')
     écran.wrapper.unmount()
   })
 
-  // Le libellé mène quelque part, il ne plie jamais, même sur la page déjà ouverte.
-  test('does not fold its component when its label is clicked again', async () => {
+  // Les lignes sont sœurs : survoler une story allume l'œil de son composant.
+  test('lights the eye of a component from the row of one of its stories', async () => {
     const écran = await monte(catalogue)
 
-    await libellé(écran, 'Badge').trigger('click')
-    await vide(écran.wrapper)
-    await libellé(écran, 'Badge').trigger('click')
-    await vide(écran.wrapper)
-
-    expect(écran.noms()).toEqual(['Par défaut', 'Alerte', 'Par défaut'])
-    expect(page(écran).find('h2').text()).toBe('Badge')
+    expect(œil(écran, 'Badge').attributes('data-lit')).toBeUndefined()
+    await écran.story(1).trigger('pointerover')
+    expect(œil(écran, 'Badge').attributes('data-lit')).toBe('true')
+    expect(œil(écran, 'Bouton').attributes('data-lit')).toBeUndefined()
+    await libellé(écran, 'Bouton').trigger('pointerover')
+    expect(œil(écran, 'Bouton').attributes('data-lit')).toBe('true')
+    await écran.wrapper.find('.story-tree').trigger('pointerleave')
+    expect(œil(écran, 'Bouton').attributes('data-lit')).toBeUndefined()
     écran.wrapper.unmount()
   })
 
@@ -1285,44 +1229,17 @@ describe('the component page', () => {
     écran.wrapper.unmount()
   })
 
-  test('keeps its component folded when its page opens from the label', async () => {
+  test('keeps its component folded when its page opens from the eye', async () => {
     const écran = await monte(catalogue)
     await libellé(écran, 'Badge').find('.chevron').trigger('click')
 
-    await libellé(écran, 'Badge').trigger('click')
+    await œil(écran, 'Badge').trigger('click')
     await vide(écran.wrapper)
 
     expect(page(écran).find('h2').text()).toBe('Badge')
-    expect(écran.noms()).toEqual(['Par défaut'])
     expect(JSON.parse(localStorage.getItem('crypte:tree:folded') ?? '[]')).toEqual([
       'component:badge',
     ])
-    écran.wrapper.unmount()
-  })
-
-  test('unfolds the folders above a component page the history goes back to', async () => {
-    const profond = entry('checkout/ordersummary--x', 'X', ['checkout', 'OrderSummary'], 's.tsx')
-    window.history.replaceState(null, '', '/?id=bouton--defaut')
-    const écran = await monte([profond, bouton])
-    await libellé(écran, 'checkout').find('.chevron').trigger('click')
-    expect(écran.branches()).toEqual(['checkout', 'Bouton'])
-
-    window.history.replaceState(null, '', '/?component=checkout/ordersummary')
-    window.dispatchEvent(new PopStateEvent('popstate'))
-    await vide(écran.wrapper)
-
-    expect(écran.branches()).toEqual(['checkout', 'OrderSummary', 'Bouton'])
-    écran.wrapper.unmount()
-  })
-
-  test('unfolds the folders above the component its address names', async () => {
-    localStorage.setItem('crypte:tree:folded', JSON.stringify(['folder:checkout']))
-    const profond = entry('checkout/ordersummary--x', 'X', ['checkout', 'OrderSummary'], 's.tsx')
-    window.history.replaceState(null, '', '/?component=checkout/ordersummary')
-    const écran = await monte([profond, bouton])
-
-    expect(écran.branches()).toEqual(['checkout', 'OrderSummary', 'Bouton'])
-    expect(libellé(écran, 'OrderSummary').attributes('aria-selected')).toBe('true')
     écran.wrapper.unmount()
   })
 
@@ -1428,7 +1345,7 @@ describe('the component page', () => {
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
     await écran.story(2).trigger('click')
 
-    await libellé(écran, 'Badge').trigger('click')
+    await œil(écran, 'Badge').trigger('click')
 
     await expect
       .poll(() => écran.envoyés.at(-1))
@@ -1559,7 +1476,7 @@ describe('the component page', () => {
 
   test('follows back and forward between a story and a component page', async () => {
     const écran = await monte(catalogue)
-    await libellé(écran, 'Badge').trigger('click')
+    await œil(écran, 'Badge').trigger('click')
     await vide(écran.wrapper)
 
     window.history.replaceState(null, '', '/?id=bouton--defaut')
@@ -1643,6 +1560,124 @@ describe('the component page', () => {
   })
 })
 
+describe('the docs view', () => {
+  const docs = (écran: Ecran) =>
+    écran.wrapper.findAll('.docs-tree [role="treeitem"] .name').map((one) => one.text())
+  const ligne = (écran: Ecran, nom: string) =>
+    écran.wrapper
+      .findAll('.docs-tree [role="treeitem"]')
+      .find((one) => one.find('.name').text() === nom)!
+  const ouvre = async (écran: Ecran) => {
+    await écran.vue('docs').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+  }
+
+  // Chaque composant y a sa page, qu'il ait un `.md` ou non ; une page générale se
+  // range par son chemin et prend la place du canvas, la story restant chargée.
+  test('lists every component and the general pages, and opens one in place of the canvas', async () => {
+    const écran = await monte([badge, alerte, guide])
+
+    await ouvre(écran)
+    expect(window.location.search).toBe('?component=badge')
+    expect(écran.wrapper.find('.component-page h2').text()).toBe('Badge')
+    expect(docs(écran)).toEqual(['Badge', 'Guides', 'Guide'])
+    expect(écran.wrapper.find('.docs-tree .column-title').text()).toContain('2')
+
+    await ligne(écran, 'Guide').trigger('click')
+    await vide(écran.wrapper)
+    const page = écran.wrapper.find('.markdown-page')
+    expect(page.find('h2').text()).toBe('Guide')
+    expect(page.find('h3').text()).toBe('Usage')
+    expect(page.find('strong').text()).toBe('gras')
+    expect(window.location.search).toBe('?id=guides/guide')
+    expect(ligne(écran, 'Guide').attributes('aria-selected')).toBe('true')
+    expect(écran.wrapper.find('.canvas').isVisible()).toBe(false)
+    expect(écran.wrapper.find('nav.trail').text()).toBe('docs/Guides/Guide')
+
+    await écran.vue('stories').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('.markdown-page').exists()).toBe(false)
+    expect(window.location.search).toBe('?id=badge--defaut')
+    écran.wrapper.unmount()
+  })
+
+  // Le manifeste servi partage ce tableau : le vider retire la page du suivant.
+  test('opens a page from its address, and says when it is gone', async () => {
+    window.history.replaceState(null, '', '/?id=guides/guide')
+    const catalogue: ManifestEntry[] = [badge, guide]
+    const écran = await monte(catalogue)
+
+    expect(écran.wrapper.find('.markdown-page h2').text()).toBe('Guide')
+    expect(écran.wrapper.find('.stale').exists()).toBe(false)
+    expect(écran.statut()).toBe('1 story')
+
+    catalogue.pop()
+    await écran.répond({ type: 'ready', protocolVersion: 1 })
+    expect(écran.wrapper.find('.markdown-page').exists()).toBe(false)
+    expect(écran.statut()).toBe('the page on display is gone')
+    expect(window.location.search).toBe('?id=guides/guide')
+    écran.wrapper.unmount()
+  })
+
+  // Rattachée, une page se lit sur la page Docs de son composant, jamais seule.
+  test("shows a component's own page on its docs page, titled when the title differs", async () => {
+    window.history.replaceState(null, '', '/?component=badge')
+    const écran = await monte([badge, alerte, badgePage])
+
+    const page = écran.wrapper.find('.component-page')
+    expect(page.find('.markdown-body').text()).toBe('Un badge annonce un état court.')
+    expect(page.findAll('dd').at(-1)?.text()).toBe('stories/Badge.md')
+    expect(page.find('.page-title').exists()).toBe(false)
+    expect(docs(écran)).toEqual(['Badge'])
+    écran.wrapper.unmount()
+
+    const titrée = await monte([badge, { ...badgePage, name: "Badge : règles d'usage" }])
+    expect(titrée.wrapper.find('.component-page .page-title').text()).toBe("Badge : règles d'usage")
+    titrée.wrapper.unmount()
+  })
+
+  test('says where to write the guidelines of a component that has none', async () => {
+    window.history.replaceState(null, '', '/?component=badge')
+    const écran = await monte([badge])
+
+    expect(écran.wrapper.find('.component-page .no-page').text()).toBe(
+      'No guidelines yet: write stories/Badge.md beside its stories.',
+    )
+    écran.wrapper.unmount()
+  })
+
+  // E3 : sans composant ni page, la vue reste atteignable et dit comment en écrire.
+  test('guides when there is nothing to document', async () => {
+    const écran = await monte([])
+
+    await ouvre(écran)
+    expect(écran.wrapper.find('.empty h2').text()).toBe('No docs page in stories/')
+    expect(écran.wrapper.find('.sidebar .empty-note').text()).toBe('No page.')
+    expect(écran.wrapper.find('.activity-bar [aria-current="page"] .label').text()).toBe('docs')
+    écran.wrapper.unmount()
+  })
+
+  // Le panneau Links : ce qui relie la page au reste, dans les deux sens.
+  test('links a page to its stories, its tokens and the pages that cite it', async () => {
+    const lu = { ...badge, component: { ...badge.component, tokens: ['color-text'] } }
+    const citante = { ...guide, body: 'Prefer a Badge to a sentence.\n' }
+    window.history.replaceState(null, '', '/?component=badge')
+    const écran = await monte([lu, alerte, citante])
+    const légendes = () => écran.wrapper.findAll('#docs-panel .caption').map((one) => one.text())
+
+    expect(légendes()).toEqual(['2 stories', 'tokens read · 1', 'pages that cite Badge · 1'])
+    await écran.wrapper
+      .find('#docs-panel a[href="?id=guides/guide"]')
+      .trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+
+    expect(écran.wrapper.find('.markdown-page h2').text()).toBe('Guide')
+    expect(légendes()).toEqual(['1 component cited'])
+    expect(écran.wrapper.find('#docs-panel a').attributes('href')).toBe('?component=badge')
+    écran.wrapper.unmount()
+  })
+})
+
 describe('the tree around a component', () => {
   const nœud = (wrapper: VueWrapper, nom: string) =>
     wrapper
@@ -1665,11 +1700,11 @@ describe('the tree around a component', () => {
     wrapper.unmount()
   })
 
-  test('opens a component on Enter, and folds it with the arrows', async () => {
+  test('opens nothing on Enter, and folds a component with the arrows', async () => {
     const wrapper = arbre([badge, alerte, bouton])
 
     await nœud(wrapper, 'Badge').trigger('keydown', { key: 'Enter' })
-    expect(wrapper.emitted('open')).toEqual([['badge']])
+    expect(wrapper.emitted('open')).toBeUndefined()
 
     await nœud(wrapper, 'Badge').trigger('keydown', { key: 'ArrowLeft' })
     expect(stories(wrapper)).toEqual(['Par défaut'])
@@ -1700,6 +1735,7 @@ describe('the activity bar', () => {
         hrefs: {
           tokens: '?tokens=color',
           stories: '/',
+          docs: '?component=badge',
           health: '?health=overview',
           versions: '?changes',
         },
@@ -1744,11 +1780,11 @@ describe('the activity bar', () => {
     écran.wrapper.unmount()
   })
 
-  // Une page composant est de la vue stories : son entrée y ramène la story chargée.
-  test('counts a component page in the stories view', async ({ écran }) => {
+  // Une page composant est de la vue docs ; l'entrée stories ramène la story chargée.
+  test('counts a component page in the docs view', async ({ écran }) => {
     await écran.wrapper.find('nav.trail a').trigger('click', { button: 0 })
     await vide(écran.wrapper)
-    expect(marquée(écran)).toBe('stories')
+    expect(marquée(écran)).toBe('docs')
 
     await clique(écran, 'stories')
     expect(écran.wrapper.find('.component-page').exists()).toBe(false)
@@ -1774,6 +1810,7 @@ describe('the activity bar', () => {
     expect(écran.wrapper.findAll('.activity-bar .label').map((one) => one.text())).toEqual([
       'tokens',
       'stories',
+      'docs',
       'health',
       'versions',
     ])
@@ -2193,6 +2230,7 @@ describe('the versions view', () => {
       'right Search or run',
       'right tokens',
       'right stories',
+      'right docs',
       'right health',
       'right versions 5 differences',
       'right Dark theme',
@@ -4081,6 +4119,8 @@ describe('leaving full screen without Escape', () => {
     await vide(écran.wrapper)
     expect(écran.wrapper.find('.component-page').exists()).toBe(true)
 
+    await écran.vue('stories').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
     await écran.story(1).trigger('click')
     await vide(écran.wrapper)
     expect(plein()).toBe(false)

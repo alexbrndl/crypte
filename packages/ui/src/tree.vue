@@ -7,7 +7,8 @@ import type { TreeNode } from './tree'
 // A tree that folds, the `row` of the Figma sidebar at each level: a guide
 // under each ancestor, the chosen row's band starting from its parent's guide.
 // `expanded` lists the open branches; given, the parent keeps it, say to
-// remember it, and absent, every branch starts open.
+// remember it, and absent, every branch starts open. The `trailing` slot ends a
+// row, after its count: an action on that row.
 const props = defineProps<{
   items: TreeNode[]
   selected: string | null
@@ -79,6 +80,7 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 0)
       :key="item._id"
       v-slot="{ isExpanded, isSelected, handleToggle }"
       v-bind="item.bind"
+      :data-key="item.value.key"
       :data-kind="item.value.kind"
       :data-dimmed="item.value.dimmed || undefined"
       :style="{ paddingLeft: `${12 + (item.level - 1) * STEP}px` }"
@@ -106,6 +108,7 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 0)
       </span>
       <span class="name">{{ item.value.label }}</span>
       <span v-if="item.value.count !== undefined" class="count">{{ item.value.count }}</span>
+      <slot name="trailing" :node="item.value" />
     </TreeItem>
   </TreeRoot>
 </template>
