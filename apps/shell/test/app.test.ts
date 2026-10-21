@@ -174,7 +174,8 @@ const monte = async (
   const wrapper = mount(App, { attachTo: document.body })
   await vide(wrapper)
 
-  const frame = wrapper.find('iframe').element as HTMLIFrameElement
+  const frame = wrapper.find<HTMLIFrameElement>('iframe[title="preview"]')
+    .element as HTMLIFrameElement
   const envoyés: ShellMessage[] = []
 
   frame.contentWindow?.addEventListener('message', (event) =>
@@ -406,7 +407,8 @@ describe('what a plugin says between its halves', () => {
   test('drops and names a message sent while the preview reloads', async ({ écran }) => {
     const erreur = vi.spyOn(console, 'error').mockImplementation(() => {})
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
-    const frame = écran.wrapper.find('iframe').element as HTMLIFrameElement
+    const frame = écran.wrapper.find<HTMLIFrameElement>('iframe[title="preview"]')
+      .element as HTMLIFrameElement
 
     frame.contentWindow?.dispatchEvent(new Event('pagehide'))
     panneaux(écran).vm.$emit('send', { type: 'hello:ping' })
@@ -616,7 +618,7 @@ describe('what the preview answers', () => {
       message: 'boum',
     } as PreviewMessage)
 
-    expect(écran.wrapper.find('iframe').isVisible()).toBe(false)
+    expect(écran.wrapper.find<HTMLIFrameElement>('iframe[title="preview"]').isVisible()).toBe(false)
   })
 
   // Les panneaux le reçoivent aussi : `a11y` attendait sinon une analyse qui ne
@@ -755,7 +757,8 @@ describe('what the catalog left out', () => {
 
     expect(wrapper.findAll('.set-aside li')).toHaveLength(1)
 
-    const frame = wrapper.find('iframe').element as HTMLIFrameElement
+    const frame = wrapper.find<HTMLIFrameElement>('iframe[title="preview"]')
+      .element as HTMLIFrameElement
     window.dispatchEvent(
       new MessageEvent('message', {
         data: { type: 'ready', protocolVersion: 1 },
@@ -1195,13 +1198,13 @@ describe('the component page', () => {
     expect(page(écran).find('dd a').attributes('href')).toBe('https://figma.com/file/x')
     expect(
       page(écran)
-        .findAll('tbody tr')
+        .findAll('.stories tbody tr')
         .map((row) => row.findAll('td').map((cell) => cell.text())),
     ).toEqual([
       ['Par défaut', 'label'],
       ['Alerte', 'labeltone'],
     ])
-    expect(page(écran).find('tbody a').attributes('href')).toBe('?id=badge--defaut')
+    expect(page(écran).find('.stories tbody a').attributes('href')).toBe('?id=badge--defaut')
     écran.wrapper.unmount()
   })
 
@@ -1215,7 +1218,7 @@ describe('the component page', () => {
         .map((one) => one.text()),
     ).toEqual(['Component', 'Stories'])
     expect(page(écran).find('.description').exists()).toBe(false)
-    expect(page(écran).find('tbody td .none-value').text()).toBe('none')
+    expect(page(écran).find('.stories tbody td .none-value').text()).toBe('none')
     écran.wrapper.unmount()
   })
 
@@ -1247,7 +1250,7 @@ describe('the component page', () => {
     window.history.replaceState(null, '', '/?component=badge')
     const écran = await monte(catalogue)
 
-    expect(écran.wrapper.find('iframe').isVisible()).toBe(false)
+    expect(écran.wrapper.find<HTMLIFrameElement>('iframe[title="preview"]').isVisible()).toBe(false)
     expect(écran.wrapper.findComponent(Panels).isVisible()).toBe(false)
     écran.wrapper.unmount()
   })
@@ -1257,11 +1260,11 @@ describe('the component page', () => {
     const écran = await monte(catalogue)
     await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
 
-    await page(écran).findAll('tbody a')[1]!.trigger('click', { button: 0 })
+    await page(écran).findAll('.stories tbody a')[1]!.trigger('click', { button: 0 })
     await vide(écran.wrapper)
 
     expect(page(écran).exists()).toBe(false)
-    expect(écran.wrapper.find('iframe').isVisible()).toBe(true)
+    expect(écran.wrapper.find<HTMLIFrameElement>('iframe[title="preview"]').isVisible()).toBe(true)
     expect(window.location.search).toBe('?id=badge--alerte')
     await expect
       .poll(() => écran.envoyés.at(-1))
@@ -1274,7 +1277,7 @@ describe('the component page', () => {
     window.history.replaceState(null, '', '/?component=badge')
     const écran = await monte(catalogue)
 
-    await page(écran).findAll('tbody a')[1]!.trigger('click', { button: 0, metaKey: true })
+    await page(écran).findAll('.stories tbody a')[1]!.trigger('click', { button: 0, metaKey: true })
     await vide(écran.wrapper)
 
     expect(page(écran).exists()).toBe(true)
@@ -1402,7 +1405,8 @@ describe('the component page', () => {
     )
     const wrapper = mount(App, { attachTo: document.body })
     await vide(wrapper)
-    const frame = wrapper.find('iframe').element as HTMLIFrameElement
+    const frame = wrapper.find<HTMLIFrameElement>('iframe[title="preview"]')
+      .element as HTMLIFrameElement
     const envoyés: ShellMessage[] = []
     frame.contentWindow?.addEventListener('message', (event) =>
       envoyés.push(event.data as ShellMessage),
@@ -1417,7 +1421,7 @@ describe('the component page', () => {
     await vide(wrapper)
 
     expect(wrapper.find('.component-page h2').text()).toBe('Badge')
-    expect(wrapper.findAll('.component-page tbody tr')).toHaveLength(1)
+    expect(wrapper.findAll('.component-page .stories tbody tr')).toHaveLength(1)
     expect(wrapper.findAll('p').at(-1)?.text()).toBe('1 story')
     await expect
       .poll(() => envoyés.at(-1))
@@ -1459,7 +1463,8 @@ describe('the component page', () => {
     )
     const wrapper = mount(App, { attachTo: document.body })
     await vide(wrapper)
-    const frame = wrapper.find('iframe').element as HTMLIFrameElement
+    const frame = wrapper.find<HTMLIFrameElement>('iframe[title="preview"]')
+      .element as HTMLIFrameElement
     window.dispatchEvent(
       new MessageEvent('message', {
         data: { type: 'ready', protocolVersion: 1 },
@@ -1531,7 +1536,8 @@ describe('the component page', () => {
     await vide(wrapper)
     expect(wrapper.find('.component-page').exists()).toBe(true)
 
-    const frame = wrapper.find('iframe').element as HTMLIFrameElement
+    const frame = wrapper.find<HTMLIFrameElement>('iframe[title="preview"]')
+      .element as HTMLIFrameElement
     window.dispatchEvent(
       new MessageEvent('message', {
         data: { type: 'ready', protocolVersion: 1 },
@@ -1655,6 +1661,90 @@ describe('the docs view', () => {
     const titrée = await monte([badge, { ...badgePage, name: "Badge : règles d'usage" }])
     expect(titrée.wrapper.find('.component-page .page-title').text()).toBe("Badge : règles d'usage")
     titrée.wrapper.unmount()
+  })
+
+  // Les blocs générés, tirés du catalogue sans rien écrire dans le markdown.
+  test('generates its props, its tokens and a live example of its first story', async () => {
+    const décrit: StoryEntry = {
+      ...badge,
+      component: { ...badge.component, file: 'src/Badge.tsx', tokens: ['Brand-primary', 'gap'] },
+      details: {
+        label: { type: 'string', required: true },
+        tone: { type: 'enum', required: false, default: 'neutral' },
+        note: { type: 'string', required: false, default: 'a very long default value, cut short' },
+      },
+    }
+    window.history.replaceState(null, '', '/?component=badge')
+    const écran = await monte([décrit, alerte, jetons])
+    const page = écran.wrapper.find('.component-page')
+
+    expect(
+      page.findAll('.props tbody tr').map((row) => row.findAll('td').map((cell) => cell.text())),
+    ).toEqual([
+      ['labelrequired', 'string', 'none'],
+      ['tone', 'enum', '"neutral"'],
+      ['note', 'string', '"a very long default value, cut…'],
+    ])
+    expect(page.find('[aria-label="Props"] .source').text()).toBe('src/Badge.tsx')
+    const pastilles = page.findAll('.chip')
+    expect(pastilles.map((one) => one.text())).toEqual(['Brand-primary', 'gap'])
+    expect(pastilles[0]!.find('.swatch').attributes('style')).toContain(
+      'background: rgb(79, 224, 160)',
+    )
+    expect(pastilles[1]!.element.tagName).toBe('SPAN')
+
+    const exemple = page.find('.live-example iframe').element as HTMLIFrameElement
+    expect(exemple.title).toBe('example, Par défaut')
+    const reçus: ShellMessage[] = []
+    exemple.contentWindow?.addEventListener('message', (event) =>
+      reçus.push(event.data as ShellMessage),
+    )
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'ready', protocolVersion: 1 },
+        origin: window.location.origin,
+        source: exemple.contentWindow,
+      }),
+    )
+    await vide(écran.wrapper)
+    await expect
+      .poll(() => reçus.at(-1))
+      .toEqual({ type: 'render', id: 'badge--defaut', overrides: {}, theme: 'light' })
+    await écran.wrapper.find('[aria-label="Dark theme"]').trigger('click')
+    await vide(écran.wrapper)
+    expect(reçus.at(-1)).toEqual({
+      type: 'render',
+      id: 'badge--defaut',
+      overrides: {},
+      theme: 'dark',
+    })
+
+    // Un clic du milieu ouvre un onglet : le shell ne bouge pas.
+    await pastilles[0]!.trigger('click', { button: 1 })
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('.tokens-view').exists()).toBe(false)
+    await pastilles[0]!.trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('.tokens-view').exists()).toBe(true)
+    écran.wrapper.unmount()
+  })
+
+  test('opens its example in stories, and says why no prop could be read', async () => {
+    window.history.replaceState(null, '', '/?component=badge')
+    const écran = await monte([{ ...badge, propsUnread: 'the file could not be read' }, alerte])
+
+    expect(écran.wrapper.find('[aria-label="Props"] .none').text()).toBe(
+      'the file could not be read',
+    )
+    expect(écran.wrapper.find('[aria-label="Tokens"]').exists()).toBe(false)
+    await écran.wrapper.find('.live-example a').trigger('click', { button: 1 })
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('.component-page').exists()).toBe(true)
+    await écran.wrapper.find('.live-example a').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?id=badge--defaut')
+    expect(écran.wrapper.find('.component-page').exists()).toBe(false)
+    écran.wrapper.unmount()
   })
 
   test('says where to write the guidelines of a component that has none', async () => {
@@ -1869,7 +1959,7 @@ describe('the activity bar', () => {
     await clique(écran, 'stories')
     expect(marquée(écran)).toBe('stories')
     expect(window.location.search).toBe('?id=badge--defaut')
-    expect(écran.wrapper.find('iframe').isVisible()).toBe(true)
+    expect(écran.wrapper.find<HTMLIFrameElement>('iframe[title="preview"]').isVisible()).toBe(true)
     expect(écran.wrapper.find('.sidebar .column-title').text()).toBe('Stories2')
     écran.wrapper.unmount()
   })
@@ -1914,7 +2004,7 @@ describe('the activity bar', () => {
     expect(écran.wrapper.find('.empty h2').text()).toBe('No token found')
     expect(écran.wrapper.find('.empty pre').text()).toContain('--color-accent: #009488;')
     expect(écran.wrapper.find('.sidebar .empty-note').text()).toBe('No tokens.')
-    expect(écran.wrapper.find('iframe').isVisible()).toBe(false)
+    expect(écran.wrapper.find<HTMLIFrameElement>('iframe[title="preview"]').isVisible()).toBe(false)
     expect(écran.statut()).toBe('no tokens found')
   })
 
@@ -1985,7 +2075,7 @@ describe('the tokens view', () => {
     expect(courante(écran)).toBe('color')
     expect(vue(écran).attributes('aria-label')).toBe('color')
     expect(window.location.search).toBe('?tokens=color')
-    expect(écran.wrapper.find('iframe').isVisible()).toBe(false)
+    expect(écran.wrapper.find<HTMLIFrameElement>('iframe[title="preview"]').isVisible()).toBe(false)
     expect(écran.envoyés.length).toBe(avant)
     expect(écran.statut()).toBe('1 token color, light theme')
     écran.wrapper.unmount()
@@ -2022,8 +2112,9 @@ describe('the tokens view', () => {
       écran.wrapper.findAll('.toolbar .trail > span').map((one) => one.text().replace(/\s+/g, ''))
 
     expect(fil()).toEqual(['tokens/', 'color'])
-    const recharge = await rechargeAuClic(écran.wrapper.find('iframe').element, () =>
-      écran.wrapper.find('.toolbar .reload').trigger('click'),
+    const recharge = await rechargeAuClic(
+      écran.wrapper.find<HTMLIFrameElement>('iframe[title="preview"]').element,
+      () => écran.wrapper.find('.toolbar .reload').trigger('click'),
     )
     expect(recharge).toHaveBeenCalledOnce()
     expect(
@@ -2128,7 +2219,7 @@ describe('the tokens view', () => {
     window.dispatchEvent(new PopStateEvent('popstate'))
     await vide(écran.wrapper)
     expect(vue(écran).exists()).toBe(false)
-    expect(écran.wrapper.find('iframe').isVisible()).toBe(true)
+    expect(écran.wrapper.find<HTMLIFrameElement>('iframe[title="preview"]').isVisible()).toBe(true)
 
     window.history.replaceState(null, '', '/?tokens=Brand&token=Brand-night')
     window.dispatchEvent(new PopStateEvent('popstate'))
@@ -2169,7 +2260,8 @@ describe('the tokens view', () => {
     )
     const wrapper = mount(App, { attachTo: document.body })
     await vide(wrapper)
-    const frame = wrapper.find('iframe').element as HTMLIFrameElement
+    const frame = wrapper.find<HTMLIFrameElement>('iframe[title="preview"]')
+      .element as HTMLIFrameElement
     const ready = async () => {
       window.dispatchEvent(
         new MessageEvent('message', {
@@ -2242,7 +2334,8 @@ describe('the status line under a page', () => {
     )
     const wrapper = mount(App, { attachTo: document.body })
     await vide(wrapper)
-    const frame = wrapper.find('iframe').element as HTMLIFrameElement
+    const frame = wrapper.find<HTMLIFrameElement>('iframe[title="preview"]')
+      .element as HTMLIFrameElement
     window.dispatchEvent(
       new MessageEvent('message', {
         data: { type: 'ready', protocolVersion: 1 },
@@ -2335,7 +2428,7 @@ describe('the versions view', () => {
     expect(window.location.search).toBe('?changes')
     expect(window.history.length).toBe(avant + 1)
     expect(entrée(écran).attributes('aria-current')).toBe('page')
-    expect(écran.wrapper.find('iframe').isVisible()).toBe(false)
+    expect(écran.wrapper.find<HTMLIFrameElement>('iframe[title="preview"]').isVisible()).toBe(false)
     expect(écran.statut()).toBe('5 differences since the last commit')
     écran.wrapper.unmount()
   })
@@ -2825,8 +2918,9 @@ describe('the toolbar of a story', () => {
 
   // La preview relit le manifeste à son `ready` : la recharger suffit.
   test('reloads the preview', async ({ écran }) => {
-    const recharge = await rechargeAuClic(écran.wrapper.find('iframe').element, () =>
-      bouton(écran, 'Reload').trigger('click'),
+    const recharge = await rechargeAuClic(
+      écran.wrapper.find<HTMLIFrameElement>('iframe[title="preview"]').element,
+      () => bouton(écran, 'Reload').trigger('click'),
     )
 
     expect(recharge).toHaveBeenCalledOnce()
@@ -2923,7 +3017,11 @@ describe('the zoom', () => {
   // jsdom ne charge pas la page de la preview : un document à la place du sien.
   const racine = (écran: Ecran) => {
     const page = document.implementation.createHTMLDocument()
-    Object.defineProperty(écran.wrapper.find('iframe').element, 'contentDocument', { value: page })
+    Object.defineProperty(
+      écran.wrapper.find<HTMLIFrameElement>('iframe[title="preview"]').element,
+      'contentDocument',
+      { value: page },
+    )
     return page.documentElement.style
   }
   const niveau = (écran: Ecran) => écran.wrapper.find('.stage-tools .level').text()
@@ -3880,7 +3978,8 @@ describe('the health view', () => {
     écran.wrapper.findComponent(Panels).vm.$emit('troubles', 1)
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     try {
-      const principale = écran.wrapper.find('iframe').element as HTMLIFrameElement
+      const principale = écran.wrapper.find<HTMLIFrameElement>('iframe[title="preview"]')
+        .element as HTMLIFrameElement
       window.dispatchEvent(
         new MessageEvent('message', {
           data: { type: 'error', id: 'badge--defaut', message: 'boum' },
@@ -4153,7 +4252,7 @@ describe('the view of a plugin', () => {
     expect(window.location.search).toBe('?view=i18n')
     expect(écran.wrapper.find('.sidebar .column-title').text()).toBe('i18n')
     expect(écran.wrapper.find('.plugin-view .canvas').text()).toBe('canvas:none')
-    expect(écran.wrapper.find('iframe').isVisible()).toBe(false)
+    expect(écran.wrapper.find<HTMLIFrameElement>('iframe[title="preview"]').isVisible()).toBe(false)
 
     await clique(écran, écran.wrapper.find('.sidebar .side button'))
     expect(window.location.search).toBe('?view=i18n&item=fr')
@@ -4167,7 +4266,7 @@ describe('the view of a plugin', () => {
 
     await clique(écran, écran.vue('stories'))
     expect(écran.wrapper.find('.plugin-view').exists()).toBe(false)
-    expect(écran.wrapper.find('iframe').isVisible()).toBe(true)
+    expect(écran.wrapper.find<HTMLIFrameElement>('iframe[title="preview"]').isVisible()).toBe(true)
 
     // Elle s'ouvre aussi depuis ⌘K, parmi les pages.
     écran.wrapper.findComponent(ActivityBar).vm.$emit('search')
@@ -4265,7 +4364,8 @@ describe('leaving full screen without Escape', () => {
     await vide(wrapper)
     expect(wrapper.find('main').classes()).toContain('full')
 
-    const frame = wrapper.find('iframe').element as HTMLIFrameElement
+    const frame = wrapper.find<HTMLIFrameElement>('iframe[title="preview"]')
+      .element as HTMLIFrameElement
     window.dispatchEvent(
       new MessageEvent('message', {
         data: { type: 'ready', protocolVersion: 1 },

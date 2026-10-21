@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import GeneratedBlocks from './generated-blocks.vue'
 import MarkdownBody from './markdown-body.vue'
 import NoneValue from '../ui/none-value.vue'
 import PlainTable from '../ui/plain-table.vue'
-import type { PageEntry, StoryEntry } from '@crypte/core/protocol'
+import type { PageEntry, StoryEntry, Theme } from '@crypte/core/protocol'
+import type { Category } from '../tokens/categories'
 import { computed } from 'vue'
 import { placeSearch, sameTab } from '../navigation/url'
 
@@ -10,8 +12,14 @@ import { placeSearch, sameTab } from '../navigation/url'
 // toutes ses stories, sa page markdown s'il en a une, et la liste de ses stories.
 // Aucune zone de plugin : le contrat figé ne donne à un panneau que la story
 // affichée (§6.1).
-const props = defineProps<{ stories: StoryEntry[]; page?: PageEntry }>()
-const emit = defineEmits<{ show: [id: string] }>()
+const props = defineProps<{
+  stories: StoryEntry[]
+  page?: PageEntry
+  categories: Category[]
+  theme: Theme
+  hrefOfToken: (name: string) => string | null
+}>()
+const emit = defineEmits<{ show: [id: string]; token: [name: string] }>()
 
 // `meta` se déclare par fichier de stories : la première story parle pour toutes.
 const first = computed(() => props.stories[0])
@@ -69,6 +77,16 @@ function follow(event: MouseEvent, id: string) {
       </template>
     </dl>
 
+    <GeneratedBlocks
+      :stories="stories"
+      :categories="categories"
+      :theme="theme"
+      :href-of-story="(id) => placeSearch({ mode: 'entry', id })"
+      :href-of-token="hrefOfToken"
+      @story="(id) => emit('show', id)"
+      @token="(name) => emit('token', name)"
+    />
+
     <template v-if="page">
       <!-- Pas un titre : le corps descend ses `##` en `h3`, qui seraient ses sœurs. -->
       <p v-if="page.name !== first.path.at(-1)" class="page-title">{{ page.name }}</p>
@@ -78,7 +96,7 @@ function follow(event: MouseEvent, id: string) {
       No guidelines yet: write <code>{{ suggested }}</code> beside its stories.
     </p>
 
-    <PlainTable>
+    <PlainTable class="stories">
       <thead>
         <tr>
           <th scope="col">Story</th>

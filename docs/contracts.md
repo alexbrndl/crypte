@@ -1018,7 +1018,7 @@ This document is a contract. This section is the only place that says what exist
 
 | Section | State |
 | --- | --- |
-| 1.1, story files | discovered and read, in the four extensions. The tree, the identifiers and the call code come out of them. Markdown pages are discovered beside them. The shell's docs view lists every component, with its page when it has one, and the general pages by path |
+| 1.1, story files | discovered and read, in the four extensions. The tree, the identifiers and the call code come out of them. Markdown pages are discovered beside them. The shell's docs view lists every component, with its page when it has one, and the general pages by path. A component's page carries a live example of its first story, its props and the tokens it reads, generated from the catalogue |
 | 1.2, `crypte check` | built, all five problems. The component with no story is looked for in the folders the stories already point at, since no components root is declared anywhere |
 | 1.5, project configuration | the config is read, and the declared style sheet is loaded by the preview |
 | 1.5, path aliases | built |
