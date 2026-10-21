@@ -667,6 +667,12 @@ const tried = ref<Record<string, string>>({})
 const triedTokens = () =>
   Object.keys(tried.value).length > 0 ? { tokens: { ...tried.value } } : {}
 
+// Tous d'un coup, depuis la barre d'état, où qu'on soit.
+function resetTried() {
+  tried.value = {}
+  if (current.value !== null) select(current.value)
+}
+
 function tryToken(name: string, value: string | null) {
   const { [name]: _, ...rest } = tried.value
   tried.value = value ? { ...rest, [name]: value } : rest
@@ -1778,10 +1784,12 @@ onMounted(() => {
             :categories="categories"
             :stories="entries"
             :tried="tried"
+            :href-of-story="(id) => placeSearch({ mode: 'entry', id })"
             :href-of-token="(category, token) => placeSearch({ mode: 'tokens', category, token })"
             :href-of-component="(id) => placeSearch({ mode: 'component', id })"
             @token="(category, token, event) => follow(event, () => openTokens(category, token))"
             @component="(id, event) => follow(event, () => open(id))"
+            @story="(id, event) => follow(event, () => show(id, 'push'))"
             @try="tryToken"
           />
         </aside>
@@ -1844,6 +1852,7 @@ onMounted(() => {
       <ul class="figures">
         <li v-if="Object.keys(tried).length > 0" class="tried">
           {{ plural(Object.keys(tried).length, 'token') }} tried
+          <button type="button" class="reset-tried" @click="resetTried">Reset</button>
         </li>
         <li v-if="project">
           <Tooltip content="The shell, gzipped">
@@ -2100,6 +2109,19 @@ main.full {
 
 .prompt:disabled {
   pointer-events: none;
+}
+
+.reset-tried {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-current);
+  font: inherit;
+  cursor: pointer;
+}
+
+.reset-tried:hover {
+  color: var(--text-current-hover);
 }
 
 /* As the body of a plugin panel: padding 12, the text at 14 px. */

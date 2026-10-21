@@ -49,9 +49,10 @@ export function createPreviewChannel(handlers: PreviewHandlers): PreviewChannel 
         tokens?: Record<string, string>
       }
     | undefined
-  // The custom properties the last `render` tried, removed before the next one
-  // sets its own: a token no longer tried goes back to the sheet's value.
-  let tried: string[] = []
+  // What the root held inline before a token was tried, by name: put back once
+  // it is tried no more, so a token the project set inline keeps its value, and
+  // one it did not goes back to the sheet's.
+  let before: Record<string, string> = {}
 
   const draw = ({
     id,
@@ -70,9 +71,16 @@ export function createPreviewChannel(handlers: PreviewHandlers): PreviewChannel 
       root.dataset.theme = theme
       root.style.colorScheme = theme
     }
-    for (const name of tried) root.style.removeProperty(`--${name}`)
-    tried = Object.keys(tokens)
-    for (const name of tried) root.style.setProperty(`--${name}`, tokens[name]!)
+    for (const name of Object.keys(before)) {
+      if (name in tokens) continue
+      if (before[name]) root.style.setProperty(`--${name}`, before[name])
+      else root.style.removeProperty(`--${name}`)
+      delete before[name]
+    }
+    for (const [name, value] of Object.entries(tokens)) {
+      if (!(name in before)) before[name] = root.style.getPropertyValue(`--${name}`)
+      root.style.setProperty(`--${name}`, value)
+    }
     const startedAt = performance.now()
     let drawn: unknown
     try {

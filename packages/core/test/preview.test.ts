@@ -141,6 +141,21 @@ describe('the tokens tried', () => {
     // Ce que le projet a posé lui-même n'est jamais touché.
     expect(racine.style.getPropertyValue('--projet')).toBe('garde')
   })
+
+  // Un nom que le projet pose lui-même en ligne : l'essai le couvre, puis lui
+  // rend sa valeur, jamais celle du premier essai.
+  it('gives a token the project set inline its own value back', () => {
+    const racine = preview.document.documentElement
+    racine.style.setProperty('--accent-base', 'projet')
+    createPreviewChannel({ render: () => {} })
+
+    envoie({ ...RENDER, tokens: { 'accent-base': '#f00' } })
+    envoie({ ...RENDER, tokens: { 'accent-base': '#0f0' } })
+    expect(racine.style.getPropertyValue('--accent-base')).toBe('#0f0')
+
+    envoie(RENDER)
+    expect(racine.style.getPropertyValue('--accent-base')).toBe('projet')
+  })
 })
 
 describe('what is ignored', () => {

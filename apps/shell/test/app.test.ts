@@ -3898,10 +3898,19 @@ describe('a token value tried', () => {
     await champ().setValue('#e11d48')
     await vide(écran.wrapper)
     expect(dernier().tokens).toEqual({ 'Brand-primary': '#e11d48' })
-    expect(écran.wrapper.find('.status-bar .tried').text()).toBe('1 token tried')
+    expect(écran.wrapper.find('.status-bar .tried').text()).toBe('1 token tried Reset')
     expect(écran.wrapper.find('.tokens-view .value').text()).toBe('#E11D48')
 
     await écran.wrapper.find('#token-panel .try .reset').trigger('click')
+    await vide(écran.wrapper)
+    expect(dernier().tokens).toBeUndefined()
+    expect(écran.wrapper.find('.status-bar .tried').exists()).toBe(false)
+
+    // Essayée de nouveau, puis effacée d'un coup depuis la barre d'état, loin du
+    // panneau du token.
+    await champ().setValue('#e11d48')
+    await vide(écran.wrapper)
+    await écran.wrapper.find('.status-bar .reset-tried').trigger('click')
     await vide(écran.wrapper)
     expect(dernier().tokens).toBeUndefined()
     expect(écran.wrapper.find('.status-bar .tried').exists()).toBe(false)

@@ -23,12 +23,14 @@ const props = defineProps<{
   stories: StoryEntry[]
   hrefOfToken: (category: string, token: string) => string
   hrefOfComponent: (id: string) => string
+  hrefOfStory: (id: string) => string
   // Les valeurs essayées, par nom de token, que le shell envoie à la preview.
   tried: Record<string, string>
 }>()
 const emit = defineEmits<{
   token: [category: string, token: string, event: MouseEvent]
   component: [id: string, event: MouseEvent]
+  story: [id: string, event: MouseEvent]
   // Une valeur à essayer, `null` pour revenir à celle du fichier.
   try: [name: string, value: string | null]
 }>()
@@ -87,7 +89,7 @@ const listed = computed(() => (tryingIt.value ? affected.value : users.value))
 function readersOf(names: string[]) {
   const found = new Map<
     string,
-    { key: string; id: string; name: string; file: string; folder: string }
+    { key: string; id: string; story: string; name: string; file: string; folder: string }
   >()
   for (const story of props.stories) {
     const { component } = story
@@ -97,6 +99,7 @@ function readersOf(names: string[]) {
       found.set(key, {
         key,
         id: componentIdOf(story.path),
+        story: story.id,
         name: story.path.at(-1)!,
         file: component.file,
         folder: story.path.slice(0, -1).join(' / '),
@@ -172,12 +175,14 @@ function readersOf(names: string[]) {
           {{ tryingIt ? 'affected' : 'used by' }} · {{ plural(listed.length, 'component') }}
         </p>
         <EmptyNote v-if="listed.length === 0">No component reads it.</EmptyNote>
+        <!-- Essayée, chaque composant touché mène à sa première story, où la preview
+             se voit avec la valeur ; sinon à sa page. -->
         <a
           v-for="one of listed"
           :key="one.key"
           class="row link"
-          :href="hrefOfComponent(one.id)"
-          @click="emit('component', one.id, $event)"
+          :href="tryingIt ? hrefOfStory(one.story) : hrefOfComponent(one.id)"
+          @click="tryingIt ? emit('story', one.story, $event) : emit('component', one.id, $event)"
         >
           <Icon :icon="ComponentIcon" />
           <span class="label">{{ one.name }}</span

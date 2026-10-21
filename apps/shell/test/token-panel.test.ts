@@ -70,6 +70,7 @@ const monte = (name: string | null, tried: Record<string, string> = {}) =>
       stories,
       hrefOfToken: (category: string, token: string) => `?tokens=${category}&token=${token}`,
       hrefOfComponent: (id: string) => `?component=${id}`,
+      hrefOfStory: (id: string) => `?id=${id}`,
     },
   })
 const lignes = (wrapper: ReturnType<typeof monte>) =>
@@ -186,9 +187,13 @@ describe('a value tried', () => {
       'used by · 0 components',
       'No component reads it.',
     ])
-    expect(lignes(monte('teal-700', { 'teal-700': '#000' })).slice(-2)).toEqual([
-      'affected · 1 component',
-      'Button ui',
-    ])
+    const essayé = monte('teal-700', { 'teal-700': '#000' })
+    expect(lignes(essayé).slice(-2)).toEqual(['affected · 1 component', 'Button ui'])
+    // Essayée, le composant mène à sa première story, où la preview se voit.
+    expect(essayé.find('a.link[href^="?id="]').attributes('href')).toBe('?id=ui/button--a')
+    expect(lignes(monte('accent-base')).at(-1)).toBe('Button ui')
+    expect(monte('accent-base').findAll('a.link').at(-1)!.attributes('href')).toBe(
+      '?component=ui/button',
+    )
   })
 })
