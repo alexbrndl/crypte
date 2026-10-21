@@ -16,10 +16,10 @@ import {
   type PropsRead,
 } from './props'
 
-// Attributes may hold a `>` between quotes: `generic="T extends Record<string, unknown>"`.
-const SCRIPT = /<script\b((?:[^>"']|"[^"]*"|'[^']*')*)>([\s\S]*?)<\/script>/g
-// Removed before the search, or a commented-out block would win over the real one.
-const COMMENT = /<!--[\s\S]*?-->/g
+// A comment or a block, in one pass: a commented-out block is skipped, and a
+// `<!--` written inside a block's script is never taken for a comment. Attributes
+// may hold a `>` between quotes: `generic="T extends Record<string, unknown>"`.
+const SCRIPT = /<!--[\s\S]*?-->|<script\b((?:[^>"']|"[^"]*"|'[^']*')*)>([\s\S]*?)<\/script>/g
 
 // What declares the props: the type of `defineProps<T>()`, or the value of
 // `defineProps({ … })` or of a component's `props` option, plus the defaults of
@@ -32,16 +32,15 @@ interface Declared {
 }
 
 export function vuePropsOf(file: string, source: string): PropsRead {
-  const blocks = [...source.replace(COMMENT, '').matchAll(SCRIPT)].map((one) => ({
-    attributes: one[1] ?? '',
-    content: one[2] ?? '',
-  }))
+  const blocks = [...source.matchAll(SCRIPT)]
+    .filter((one) => one[2] !== undefined)
+    .map((one) => ({ attributes: one[1] ?? '', content: one[2] ?? '' }))
   const setup = blocks.find((one) => /\bsetup\b/.test(one.attributes))
   const block = setup ?? blocks[0]
   // A template alone takes no props, and that is a reading.
   if (!block) return { details: {} }
 
-  if (/\bsrc\s*=/.test(block.attributes))
+  if (/(?:^|\s)src\s*=/.test(block.attributes))
     return { details: {}, unread: 'its script block lives in another file' }
 
   const lang = /\blang\s*=\s*["'](tsx?|jsx)["']/.exec(block.attributes)?.[1] ?? 'js'

@@ -220,6 +220,19 @@ describe('the script tag', () => {
     ).toEqual({ label: { type: 'string', required: true } })
   })
 
+  // Un `<!--` dans une chaîne du script n'est pas un commentaire HTML.
+  it('reads a block whose script holds <!-- in a string', () => {
+    expect(read(sfc(`const marker = '<!--'\ndefineProps<{ label: string }>()`)).details).toEqual({
+      label: { type: 'string', required: true },
+    })
+  })
+
+  it('reads a block carrying a data-src attribute', () => {
+    expect(
+      read(sfc(`defineProps<{ label: string }>()`, 'setup lang="ts" data-src="x"')).details,
+    ).toEqual({ label: { type: 'string', required: true } })
+  })
+
   it('parses a tsx block as tsx', () => {
     expect(
       read(sfc(`defineProps<{ label: string }>()\nconst icon = <i />`, 'setup lang="tsx"')).details,
