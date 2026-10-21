@@ -57,7 +57,9 @@ export default defineConfig({
         rules: {
           'no-restricted-imports': [
             'error',
-            { patterns: ['react', 'react/*', 'react-dom', 'react-dom/*', 'vue', 'vue/*'] },
+            {
+              patterns: ['react', 'react/*', 'react-dom', 'react-dom/*', 'vue', 'vue/*', '@vue/*'],
+            },
           ],
         },
       },

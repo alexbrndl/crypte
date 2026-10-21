@@ -1,5 +1,5 @@
 import { defineComponent, h, inject, onUnmounted, provide, ref } from 'vue'
-import { describe, expect, test as base, vi } from 'vitest'
+import { describe, expect, test as base } from 'vitest'
 import vue from '../src/index'
 import type { Adapter } from '../src/index'
 
@@ -56,22 +56,74 @@ describe('the Vue adapter', () => {
     expect(monte.hote.textContent).toBe('Réparé')
   })
 
-  // Une nouvelle application à chaque rendu : l'état du composant repart de zéro,
-  // le prix d'un rendu synchrone.
-  test('starts the component state over at each mount', async ({ monte }) => {
+  // Le même composant, qui lève puis ne lève plus : une prop corrigée dans
+  // `controls` doit suffire à le faire rendre.
+  test('renders the same component again once it stops throwing', ({ monte }) => {
+    const Fragile = defineComponent({
+      props: { casse: Boolean },
+      setup: (props) => () => {
+        if (props.casse) throw new Error('cassé')
+        return h('b', 'entier')
+      },
+    })
+
+    expect(() => monte.adapter.mount(monte.hote, Fragile, { casse: true }, [])).toThrow('cassé')
+    monte.adapter.mount(monte.hote, Fragile, { casse: false }, [])
+
+    expect(monte.hote.textContent).toBe('entier')
+  })
+
+  // La racine est gardée : un composant du même type garde son état d'un rendu à
+  // l'autre, ce qu'une édition de `controls` demande, comme avec React.
+  test('keeps component state from one mount to the next', async ({ monte }) => {
     monte.adapter.mount(monte.hote, Compteur, {}, [])
     monte.hote.querySelector('button')?.click()
     await expect.poll(() => monte.hote.textContent).toBe('1')
 
     monte.adapter.mount(monte.hote, Compteur, {}, [])
 
+    expect(monte.hote.textContent).toBe('1')
+  })
+
+  test('renders new props before mount returns', ({ monte }) => {
+    monte.adapter.mount(monte.hote, Badge, { label: 'Avant' }, [])
+    monte.adapter.mount(monte.hote, Badge, { label: 'Après' }, [])
+
+    expect(monte.hote.textContent).toBe('Après')
+  })
+
+  // Après un démontage, l'état repart de zéro : ce qu'un changement de story fait.
+  test('starts from fresh state after an unmount', async ({ monte }) => {
+    monte.adapter.mount(monte.hote, Compteur, {}, [])
+    monte.hote.querySelector('button')?.click()
+    await expect.poll(() => monte.hote.textContent).toBe('1')
+    monte.adapter.unmount()
+
+    monte.adapter.mount(monte.hote, Compteur, {}, [])
+
     expect(monte.hote.textContent).toBe('0')
   })
 
-  // L'application d'avant est démontée, pas recouverte : Vue démonte bien l'arbre
-  // d'avant, mais l'application reste enregistrée sur l'hôte, et le dit.
-  test('unmounts the previous app before mounting the next', ({ monte }) => {
-    const avertit = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  // Vue rend un commentaire vide pour ce qui n'est pas un composant, et n'avertit
+  // qu'en console : la story disparaîtrait, annoncée rendue.
+  test('throws on a value that is not a component, wrapper included', ({ monte }) => {
+    expect(() => monte.adapter.mount(monte.hote, undefined, {}, [])).toThrow(
+      'undefined is not a Vue component',
+    )
+    expect(() =>
+      monte.adapter.mount(monte.hote, Badge, {}, [{ component: {}, props: {} }]),
+    ).toThrow('an object with neither `render` nor `setup` is not a Vue component')
+    expect(() => monte.adapter.mount(monte.hote, 'Badge', {}, [])).toThrow(
+      'a string is not a Vue component',
+    )
+    expect(() => monte.adapter.mount(monte.hote, { template: '<b/>' }, {}, [])).toThrow(
+      'a component declares a `template` but no render function',
+    )
+  })
+
+  // Un autre hôte : l'arbre de l'hôte d'avant est démonté, pas laissé en place
+  // avec ses effets.
+  test('unmounts what the previous host held when the host changes', ({ monte }) => {
     let démontés = 0
     const Suivi = defineComponent({
       setup() {
@@ -80,13 +132,13 @@ describe('the Vue adapter', () => {
       },
     })
 
-    monte.adapter.mount(monte.hote, Suivi, {}, [])
+    const autre = document.createElement('div')
+    monte.adapter.mount(autre, Suivi, {}, [])
     monte.adapter.mount(monte.hote, Badge, { label: 'Ensuite' }, [])
 
     expect(démontés).toBe(1)
+    expect(autre.textContent).toBe('')
     expect(monte.hote.textContent).toBe('Ensuite')
-    expect(avertit).not.toHaveBeenCalled()
-    avertit.mockRestore()
   })
 
   test('empties the host on unmount, and accepts a second unmount', ({ monte }) => {
