@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import EmptyNote from '../ui/empty-note.vue'
-import SidebarLink from '../ui/sidebar-link.vue'
+import { EmptyNote, SidebarLink, ColumnTitle } from '@crypte/ui'
 import { plural } from '../plural'
-import ColumnTitle from '../ui/column-title.vue'
 import {
   AccessibilityIcon,
   Alert02Icon,

@@ -1,12 +1,11 @@
 <script setup lang="ts">
+import { PanelSection, EmptyNote } from '@crypte/ui'
 import { plural } from '../plural'
 import type { StoryEntry } from '@crypte/core/protocol'
 import { ComponentIcon, Hexagon01Icon, LinkSquare02Icon } from '@hugeicons/core-free-icons'
 import { computed, ref } from 'vue'
 import Icon from '../ui/icon.vue'
-import PanelSection from '../panels/panel-section.vue'
 import ColorSwatch from '../ui/color-swatch.vue'
-import EmptyNote from '../ui/empty-note.vue'
 import { keep, kept } from '../storage'
 import { componentIdOf } from '../navigation/tree'
 import { shown, type Category, type Token } from './categories'

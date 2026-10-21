@@ -820,7 +820,7 @@ describe('a plugin in the browser', () => {
     await expect
       .poll(() => ecran.page.locator('.plugin-view td').first().textContent())
       .toBe('Panier')
-    await ecran.page.locator('.sidebar button', { hasText: 'Deutsch' }).click()
+    await ecran.page.locator('.sidebar a', { hasText: 'Deutsch' }).click()
     await expect.poll(() => new URL(ecran.page.url()).search).toBe('?view=i18n&item=de')
     expect(await ecran.page.locator('#view-panel').innerText()).toContain('Deutsch: 1 missing')
     expect(ecran.plaintes()).toEqual([])

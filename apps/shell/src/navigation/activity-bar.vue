@@ -12,10 +12,9 @@ import {
   Search01Icon,
   Sun02Icon,
 } from '@hugeicons/core-free-icons'
-import { Button, Tooltip } from '@crypte/ui'
+import { Button, Tooltip, Badge } from '@crypte/ui'
 import type { PluginView } from '@crypte/core/protocol'
 import { computed } from 'vue'
-import Badge from '../ui/badge.vue'
 import Icon from '../ui/icon.vue'
 import HealthIcon from './health-icon.vue'
 import Logo from '../ui/logo.vue'

@@ -1,11 +1,8 @@
 <script setup lang="ts">
-import EmptyNote from '../ui/empty-note.vue'
-import ColumnTitle from '../ui/column-title.vue'
+import { ColumnTitle, EmptyNote, Tree, type TreeNode } from '@crypte/ui'
 import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
-import { ToggleGroupItem, ToggleGroupRoot, TreeItem, TreeRoot } from 'reka-ui'
+import { ToggleGroupItem, ToggleGroupRoot } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
-import { ArrowDown01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons'
-import Icon from '../ui/icon.vue'
 import { keep, kept } from '../storage'
 import {
   STATUSES,
@@ -117,15 +114,6 @@ function pick(node: Node | undefined) {
   if (node?.kind === 'component') emit('open', node.id)
 }
 
-// Le clic sur le libellé d'un composant ouvre sa page sans le plier : le chevron
-// plie, le libellé mène quelque part. Au clavier, les flèches plient toujours.
-const notFolding = (node: Node, event: CustomEvent<{ originalEvent: Event }>) => {
-  if (node.kind === 'component' && event.detail.originalEvent.type === 'click')
-    event.preventDefault()
-}
-
-const childrenOf = (node: Node) => ('children' in node ? node.children : undefined)
-
 // Les entrées sous un dossier, stories et familles : le compte de la ligne.
 const count = (node: Node): number =>
   node.kind === 'story' || node.kind === 'tokens'
@@ -134,18 +122,22 @@ const count = (node: Node): number =>
       ? node.children.reduce((n, one) => n + count(one), 0)
       : 0
 
-// Les guides sont au centre du chevron de chaque ancêtre, à 20, 32, 44 px. Une ligne
-// sélectionnée remplace le guide de son parent par son marqueur, et sa bande part de
-// là : la sélection se pose dans la hiérarchie au lieu de la couvrir.
-const GUIDE = 20
-const STEP = 12
-const guides = (level: number, selected: boolean) =>
-  Array.from({ length: level - 1 - (selected ? 1 : 0) }, (_, at) => GUIDE + at * STEP)
-const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 0)
+// Les nœuds que `Tree` dessine : un dossier se plie seulement, ses entrées
+// comptées à droite ; ce que le statut choisi laisse de côté est grisé.
+const toItems = (nodes: readonly Node[]): TreeNode[] =>
+  nodes.map((node) => ({
+    key: node.key,
+    label: node.name,
+    kind: node.kind,
+    ...('children' in node ? { children: toItems(node.children) } : {}),
+    ...(node.kind === 'folder' ? { count: count(node), selectable: false } : {}),
+    ...(grey.value.has(node.key) ? { dimmed: true } : {}),
+  }))
+const items = computed(() => toItems(shown.value))
 </script>
 
 <template>
-  <div class="tree">
+  <div class="story-tree">
     <ColumnTitle :title="label" :count="entries.length" />
     <ToggleGroupRoot
       v-if="declared.length > 0"
@@ -161,70 +153,24 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 0)
       </ToggleGroupItem>
     </ToggleGroupRoot>
     <EmptyNote v-if="entries.length === 0">{{ none }}</EmptyNote>
-    <TreeRoot
-      v-slot="{ flattenItems }"
-      :items="shown"
-      :get-key="(node: Node) => node.key"
-      :get-children="childrenOf"
+    <Tree
+      :items="items"
+      :selected="selected?.key ?? null"
+      :label="label"
       :expanded="expanded"
-      :model-value="selected"
-      selection-behavior="replace"
-      class="nodes"
-      :aria-label="label"
       @update:expanded="unfold"
-      @update:model-value="pick"
-    >
-      <TreeItem
-        v-for="item of flattenItems"
-        :key="item._id"
-        v-slot="{ isExpanded, isSelected, handleToggle }"
-        v-bind="item.bind"
-        :class="item.value.kind"
-        :data-dimmed="grey.has(item.value.key) || undefined"
-        :style="{ paddingLeft: `${12 + (item.level - 1) * STEP}px` }"
-        @select="(event) => item.value.kind === 'folder' && event.preventDefault()"
-        @toggle="(event) => notFolding(item.value, event)"
-      >
-        <span
-          v-for="left of guides(item.level, isSelected)"
-          :key="left"
-          class="guide"
-          :style="{ left: `${left}px` }"
-        />
-        <template v-if="isSelected">
-          <span class="band" :style="{ left: `${marker(item.level)}px` }" />
-          <span class="marker" :style="{ left: `${marker(item.level)}px` }" />
-        </template>
-        <!-- L'emplacement est réservé sur chaque ligne ; vide, il laisse passer le clic à la
-             ligne, qui choisit la story. -->
-        <span
-          class="chevron"
-          @click="
-            (event: MouseEvent) => item.hasChildren && (event.stopPropagation(), handleToggle())
-          "
-        >
-          <Icon v-if="item.hasChildren" :icon="isExpanded ? ArrowDown01Icon : ArrowRight01Icon" />
-        </span>
-        <span class="name">{{ item.value.name }}</span>
-        <span v-if="item.value.kind === 'folder'" class="meta">{{ count(item.value) }}</span>
-      </TreeItem>
-    </TreeRoot>
+      @select="(key) => pick(find(shown, key))"
+    />
   </div>
 </template>
 
 <style scoped>
-.tree {
+.story-tree {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
   --empty-note-padding: var(--space-0-5) var(--space-3);
-}
-
-.meta {
-  color: var(--text-subtle);
-  font-size: var(--text-xs);
-  line-height: var(--leading-xs);
 }
 
 .tabs {
@@ -260,97 +206,5 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 0)
   box-shadow: inset 0 0 0 var(--stroke-hairline) var(--accent-hover);
   background: var(--background-current-hover);
   color: var(--text-current-hover);
-}
-
-.nodes {
-  flex: 1;
-  overflow-y: auto;
-  margin: 0;
-  padding: var(--space-2) 0;
-  list-style: none;
-}
-
-.nodes li {
-  position: relative;
-  z-index: 0;
-  display: flex;
-  gap: var(--space-1-5);
-  align-items: center;
-  padding-block: var(--space-0-5);
-  padding-right: var(--space-3);
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  line-height: var(--leading-sm);
-  cursor: pointer;
-}
-
-.nodes li:hover {
-  background: var(--background-hover);
-  color: var(--text-primary);
-}
-
-.nodes li:focus-visible {
-  outline: var(--stroke-focus) solid var(--accent-focus);
-  outline-offset: calc(-1 * var(--stroke-focus));
-}
-
-.nodes li[data-selected] {
-  color: var(--text-current);
-  font-weight: var(--weight-medium);
-}
-
-.nodes li[data-selected]:hover {
-  color: var(--text-current-hover);
-}
-
-.nodes li[data-selected]:hover .band {
-  background: var(--background-current-hover);
-}
-
-.nodes li[data-selected]:hover .marker {
-  background: var(--accent-hover);
-}
-
-.nodes li[data-dimmed] {
-  opacity: 0.4;
-}
-
-/* Sous le fond de la ligne, comme le veut le composant row du fichier Figma. */
-.guide {
-  position: absolute;
-  inset-block: 0;
-  z-index: -1;
-  /* A border: the guide has no width, an inset shadow would draw nothing. */
-  border-left: var(--stroke-hairline) solid var(--border-base);
-}
-
-.band {
-  position: absolute;
-  inset-block: 0;
-  right: 0;
-  z-index: -1;
-  background: var(--background-current);
-}
-
-.marker {
-  position: absolute;
-  inset-block: 0;
-  width: var(--stroke-marker);
-  background: var(--accent-base);
-}
-
-.chevron {
-  display: flex;
-  width: var(--size-icon);
-  height: var(--size-icon);
-  color: var(--text-subtle);
-}
-
-.name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 </style>

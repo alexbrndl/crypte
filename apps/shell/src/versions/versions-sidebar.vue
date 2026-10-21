@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { VisuallyHidden } from 'reka-ui'
-import EmptyNote from '../ui/empty-note.vue'
-import SidebarLink from '../ui/sidebar-link.vue'
-import ColumnTitle from '../ui/column-title.vue'
 import { ComponentIcon, Hexagon01Icon } from '@hugeicons/core-free-icons'
-import { Field, Input, Select } from '@crypte/ui'
+import { Field, Input, Select, EmptyNote, SidebarLink, ColumnTitle } from '@crypte/ui'
 import { computed, ref } from 'vue'
 import Icon from '../ui/icon.vue'
 import type { Difference } from './differences'

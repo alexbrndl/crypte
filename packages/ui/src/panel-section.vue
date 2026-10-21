@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useId } from 'vue'
 import { ArrowDown01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons'
-import Icon from '../ui/icon.vue'
+import { HugeiconsIcon, type IconArray } from '@hugeicons/vue'
 
 // L'en-tête repliable d'un panneau de la colonne de droite, dans toutes les
 // vues. Tout l'en-tête plie le panneau, sauf l'action. Le repli se retient chez
@@ -36,7 +36,14 @@ const noteId = useId()
           :aria-describedby="slots.note ? noteId : undefined"
           @click="emit('toggle')"
         >
-          <Icon :icon="open ? ArrowDown01Icon : ArrowRight01Icon" />
+          <HugeiconsIcon
+            class="icon"
+            :icon="(open ? ArrowDown01Icon : ArrowRight01Icon) as IconArray"
+            :size="16"
+            :stroke-width="1.25"
+            absolute-stroke-width
+            aria-hidden="true"
+          />
           <span class="title">{{ title }}</span>
         </button>
       </h3>

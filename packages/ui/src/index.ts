@@ -11,3 +11,16 @@ export { default as Field } from './field.vue'
 export { default as Input } from './input.vue'
 export { default as Select } from './select.vue'
 export { default as Tooltip } from './tooltip.vue'
+
+// The parts of a view, the shell's own: what a plugin's view builds with, its
+// sidebar, canvas and panel looking like the shell's views.
+export { default as ColumnTitle } from './column-title.vue'
+export { default as SidebarLink } from './sidebar-link.vue'
+export { default as Tree } from './tree.vue'
+export type { TreeNode } from './tree'
+export { default as ViewCanvas } from './view-canvas.vue'
+export { default as SectionHeader } from './section-header.vue'
+export { default as Badge } from './badge.vue'
+export { default as CardTable } from './card-table.vue'
+export { default as EmptyNote } from './empty-note.vue'
+export { default as PanelSection } from './panel-section.vue'
