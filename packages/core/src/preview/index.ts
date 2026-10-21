@@ -322,6 +322,20 @@ export interface PreviewWrapper {
   props: Record<string, unknown>
 }
 
+// What the preview's entry calls to draw a story, section 1.5 of docs/contracts.md.
+// `component` and the wrappers stay `unknown`, as above: each adapter narrows them
+// to its framework's components. `mount` is called again on every render, and
+// throws what the component threw, which the channel sends as that story's error.
+export interface Adapter {
+  mount(
+    container: HTMLElement,
+    component: unknown,
+    props: Record<string, unknown>,
+    wraps: readonly PreviewWrapper[],
+  ): void
+  unmount(): void
+}
+
 // A `Wrap` is one wrapper or an array of them, and an entry of that array is a
 // wrapper or a `[wrapper, props]` pair. Any array entry is read as a pair: the
 // type declares no other array shape.

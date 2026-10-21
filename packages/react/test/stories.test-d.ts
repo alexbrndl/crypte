@@ -1,4 +1,4 @@
-import { wrapsOf, type PreviewWrapper } from '@crypte/core/preview'
+import { wrapsOf, type Adapter as CoreAdapter, type PreviewWrapper } from '@crypte/core/preview'
 import type { ComponentType } from 'react'
 import { describe, expectTypeOf, it } from 'vitest'
 import { createAdapter } from '../src/index'
@@ -93,5 +93,12 @@ describe('the seam with core', () => {
 
     expectTypeOf(wraps).toEqualTypeOf<PreviewWrapper[]>()
     expectTypeOf(adapter.mount).parameter(3).toEqualTypeOf<readonly PreviewWrapper[]>()
+  })
+})
+
+// Le type du noyau, que la configuration exige : l'adaptateur le satisfait.
+describe('the adapter type', () => {
+  it('satisfies the core type', () => {
+    expectTypeOf(createAdapter()).toExtend<CoreAdapter>()
   })
 })

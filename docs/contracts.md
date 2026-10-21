@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.44, reference document. A project brief points here instead of restating these shapes.
+> Version 1.45, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -86,6 +86,7 @@ npm i -D @crypte/cli @crypte/react
 | --- | --- | --- |
 | `@crypte/cli` | the `crypte` binary, `defineConfig` | yes |
 | `@crypte/react` | adapter, `defineStories`, `story` | yes, the one for their framework |
+| `@crypte/vue` | the same three, for Vue | yes, the one for their framework |
 | `@crypte/core` | the core, an internal dependency | no, never imported directly |
 | `@crypte/<plugin>` | plugins, one at a time | on demand |
 | `@crypte/ui` | the components the shell and the site draw in common, and the design tokens panels inherit (6.1); Vue as its only peer, and nothing in the core or the CLI imports it | no, unless building on Crypte's look |
@@ -94,7 +95,7 @@ The package name and the command name are independent: `@crypte/cli` declares a 
 
 **A plugin written in the project imports its types from `@crypte/cli`**: `CryptePlugin`, `PanelProps`, `PanelEvents`, `PreviewHooks` and `PreviewContext`, the core's own. The project does not depend on the core, so it neither imports nor augments it: a plugin written there declares no story options (2.4), prop details (3.3) or messages (5.4). With npm, which hoists the core to the root of `node_modules`, such an augmentation compiles anyway, outside this contract. The limit stays until a project's plugin needs to declare one.
 
-**`defineStories` and `story` come from the adapter, not from a neutral package.** The adapter knows the framework, so prop types are inferred more precisely. A Vue project imports them from its own adapter, and nothing else changes.
+**`defineStories` and `story` come from the adapter, not from a neutral package.** The adapter knows the framework, so prop types are inferred more precisely. A Vue project imports them from `@crypte/vue`, and nothing else changes.
 
 ### 1.5 Project configuration
 
@@ -127,6 +128,24 @@ export default defineConfig({
 | `vite` | Vite plugins the project declares | no |
 
 Two keys are required, and an error names the one that is missing.
+
+**An adapter is typed by the core**, and `adapter` takes nothing else:
+
+```ts
+interface Adapter {
+  mount(
+    container: HTMLElement,
+    component: unknown,
+    props: Record<string, unknown>,
+    wraps: readonly PreviewWrapper[],
+  ): void
+  unmount(): void
+}
+```
+
+The preview calls `mount` on every render, with the wrappers of 2.5 outermost first, and sends what it throws as that story's error. `component` and the wrappers stay `unknown`: each adapter narrows them to its framework's components. `@crypte/react` keeps its root from one render to the next, so a component's state survives a props edit. `@crypte/vue` mounts a new app on every render, since an update renders at Vue's next tick, after `mount` has returned: a component's state starts over, which reopens `update-overrides` (7).
+
+**An adapter brings no Vite plugin.** The project declares the one its framework needs in `vite.plugins`, `react()` or `vue()`, as it would in its own Vite config. The adapter is copied from the configuration's text into the browser and never runs in Node, so it has nowhere to hand one over. Reopened if a framework needs more than one plugin in an order a project cannot guess.
 
 `components` is what the health view counts the components with a story against: every component a `.js`, `.jsx`, `.ts` or `.tsx` file under it exports, at any depth, except under `node_modules`, `.git` and `dist`, in a `.d.ts`, or declared as a `wrap` (2.5), which is context rather than a component. Without it, the shell draws no stories gauge, since nothing says how many components there are.
 
@@ -1020,7 +1039,7 @@ This document is a contract. This section is the only place that says what exist
 | --- | --- |
 | 1.1, story files | discovered and read, in the four extensions. The tree, the identifiers and the call code come out of them. Markdown pages are discovered beside them. The shell's docs view lists every component, with its page when it has one, and the general pages by path. A component's page carries a live example of its first story, its props and the tokens it reads, generated from the catalogue |
 | 1.2, `crypte check` | built, all five problems. The component with no story is looked for in the folders the stories already point at, since no components root is declared anywhere |
-| 1.5, project configuration | the config is read, and the declared style sheet is loaded by the preview |
+| 1.5, project configuration | the config is read, and the declared style sheet is loaded by the preview. Two adapters exist, `@crypte/react` and `@crypte/vue`, and `apps/demo-vue` renders Vue stories in the same shell |
 | 1.5, path aliases | built |
 | 2 and 3, the types | built, and `defineStories` and `story` with them. Inference reads what a component file declares, and 3.2's merge completes it from the story file |
 | 4, the manifest | built, and written by `crypte dev` at start-up, on every restart of the configuration and on every rebuild, so the file follows what is served. The CLI produces `story` and `page` entries and a plugin's `node` surface contributes `tokens` ones (6.3); the shell draws all three |
@@ -1030,7 +1049,7 @@ This document is a contract. This section is the only place that says what exist
 
 **`dev`, `check` and `init` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled in the project by the CLI's own Vite, with the plugins the project declares in `vite.plugins`. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte init` writes the configuration of 1.5 into a project that already has its components, and has no section of its own because the file it writes is 1.5 itself.
 
-Eleven known gaps between this document and the code:
+Thirteen known gaps between this document and the code:
 
 - **A plugin's peer range checks the copies npm installs, never the ones its panel runs on.** `vue` and `@crypte/ui` reach a panel from the installed CLI's shell, through its import map (6.1). A plugin newer than that CLI, which imports a component its `@crypte/ui` does not have yet, fails to load, and the frame shows the import error in the panel's place. Pinning `@crypte/cli` instead would move the whole `fixed` group to a major version at every minor one, measured with `changeset status` (DCJ-352).
 - **The preview is compiled by the CLI's Vite, and nothing checks the project's plugins against it.** A project on another major keeps its own Vite for its build, and its `vite.plugins` run in the CLI's anyway. Measured on a project on Vite 6: its React plugin warned about deprecated options and every story rendered. Resolving the project's own Vite instead would be a rework, not a fix.
@@ -1041,12 +1060,20 @@ Eleven known gaps between this document and the code:
 - **`component.tokens` misses what a global style sheet gives a component.** A class written in a sheet the component does not import ties no custom property to it, since nothing in the component file names it. Reading which rules reach a component needs it rendered, which the producer never does. An imported sheet edited alone is not watched either, so its names follow at the next component change or restart.
 - **A style sheet other than the declared one is not watched.** `crypte dev` rebuilds the catalogue when the `css` of 1.5 changes, as for a story or a component, and reloads the preview when its tokens moved. A sheet a plugin reads by its own option, `tokens({ files })` for one, is followed only at the next rebuild or restart.
 - **A sheet that switches theme only under `@media (prefers-color-scheme: dark)` does not follow the `theme` of 5.2.** No page can force that media query on itself, so such a preview keeps the system's theme whatever the shell asks. Rewriting the sheet's media rules into `[data-theme]` ones would mean editing the project's CSS.
+- **The props of a `.vue` component are not read.** Its file is parsed as script and its `details` stay empty, with `propsUnread` set, so the docs table and `controls` have nothing for it (DCJ-403).
+- **`source` is written in JSX whatever the framework**, so a Vue story's call code does not paste into a Vue template as is (DCJ-405).
 - **The health view counts what a JavaScript or TypeScript file exports, never a `.vue` file.** Under the `components` of 1.5, a component is a capitalised export returning an element, the reading `crypte check` makes; a Vue project's stories gauge has nothing to count yet.
 - `component.file` is resolved without Vite. The producer runs before any server exists, so it applies the project's `paths` and tries the usual extensions, with no plugin and no `exports` field. A component reached through a plugin keeps the identifier the story wrote. `crypte check` calls such an entry an orphan only when the project could have reached it itself, that is a relative path or an alias it declares; anything else it leaves alone.
 
 ---
 
 ## 9. Version log
+
+**v1.45.** The adapter type moves to the core, and a Vue adapter exists (1.4, 1.5).
+
+| Before | After |
+| --- | --- |
+| `adapter` was `unknown`, and its shape lived in `@crypte/react` | `Adapter` is the core's, from `@crypte/core/preview`, re-exported by `@crypte/cli`, and `@crypte/vue` implements it too |
 
 **v1.44.** Markdown pages in the story folder (1.1, 4.2).
 

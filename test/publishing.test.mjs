@@ -43,6 +43,7 @@ test('reads the published packages from the repository', () => {
       'packages/core',
       'packages/cli',
       'packages/react',
+      'packages/vue',
       'packages/ui',
       'plugins/tokens',
       'plugins/controls',

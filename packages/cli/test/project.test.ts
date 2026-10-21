@@ -120,7 +120,7 @@ const test = base.extend<{
 // projet y met.
 describe('defineConfig', () => {
   test('returns the object it receives, without copying it', () => {
-    const config = { stories: 'stories', adapter: {} }
+    const config = { stories: 'stories', adapter: { mount() {}, unmount() {} } }
 
     expect(defineConfig(config)).toBe(config)
   })

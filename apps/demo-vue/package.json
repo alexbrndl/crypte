@@ -1,0 +1,18 @@
+{
+  "name": "@crypte/demo-vue",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "crypte dev ."
+  },
+  "dependencies": {
+    "@crypte/vue": "workspace:*",
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@crypte/cli": "workspace:*",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "typescript": "catalog:"
+  }
+}
