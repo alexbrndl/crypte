@@ -21,6 +21,15 @@ import {
 // may hold a `>` between quotes: `generic="T extends Record<string, unknown>"`.
 const SCRIPT = /<!--[\s\S]*?-->|<script\b((?:[^>"']|"[^"]*"|'[^']*')*)>([\s\S]*?)<\/script>/g
 
+// An attribute's value, `''` when it has none, or `undefined` when the tag does
+// not carry it. Whole names only: `data-setup` is not `setup`.
+function attributeOf(attributes: string, name: string): string | undefined {
+  const found = new RegExp(
+    `(?:^|\\s)${name}(?:\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'>]+)))?(?=\\s|$)`,
+  ).exec(attributes)
+  return found ? (found[1] ?? found[2] ?? found[3] ?? '') : undefined
+}
+
 // What declares the props: the type of `defineProps<T>()`, or the value of
 // `defineProps({ … })` or of a component's `props` option, plus the defaults of
 // `withDefaults` or of a destructured `defineProps`.
@@ -35,15 +44,16 @@ export function vuePropsOf(file: string, source: string): PropsRead {
   const blocks = [...source.matchAll(SCRIPT)]
     .filter((one) => one[2] !== undefined)
     .map((one) => ({ attributes: one[1] ?? '', content: one[2] ?? '' }))
-  const setup = blocks.find((one) => /\bsetup\b/.test(one.attributes))
+  const setup = blocks.find((one) => attributeOf(one.attributes, 'setup') !== undefined)
   const block = setup ?? blocks[0]
   // A template alone takes no props, and that is a reading.
   if (!block) return { details: {} }
 
-  if (/(?:^|\s)src\s*=/.test(block.attributes))
+  if (attributeOf(block.attributes, 'src') !== undefined)
     return { details: {}, unread: 'its script block lives in another file' }
 
-  const lang = /\blang\s*=\s*["'](tsx?|jsx)["']/.exec(block.attributes)?.[1] ?? 'js'
+  const written = attributeOf(block.attributes, 'lang')
+  const lang = written === 'ts' || written === 'tsx' || written === 'jsx' ? written : 'js'
   const parsed = parseSync(`${file}.${lang}`, block.content)
   if (parsed.errors.length > 0) return { details: {}, unread: 'its script block does not parse' }
 

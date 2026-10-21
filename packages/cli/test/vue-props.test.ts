@@ -234,9 +234,19 @@ describe('the script tag', () => {
     ).toEqual({ label: { type: 'string', required: false } })
   })
 
-  it('reads a block carrying a data-src attribute', () => {
+  // Des noms entiers : `data-src`, `data-setup` et `data-lang` ne sont pas les
+  // attributs que la lecture cherche.
+  it('reads whole attribute names only', () => {
     expect(
       read(sfc(`defineProps<{ label: string }>()`, 'setup lang="ts" data-src="x"')).details,
+    ).toEqual({ label: { type: 'string', required: true } })
+    expect(
+      read(
+        `<script lang="ts" data-setup>defineProps<{ old: string }>()</script>\n${sfc(`defineProps<{ label: string }>()`)}`,
+      ).details,
+    ).toEqual({ label: { type: 'string', required: true } })
+    expect(
+      read(sfc(`defineProps<{ label: string }>()`, "setup data-lang='js' lang=ts")).details,
     ).toEqual({ label: { type: 'string', required: true } })
   })
 
