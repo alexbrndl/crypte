@@ -311,10 +311,18 @@ function aliasOf(value: string): { name: string; fallback?: string } | undefined
   if (!value.startsWith('var(') || !value.endsWith(')')) return undefined
 
   let depth = 1
+  // The quote of the string being crossed: a parenthesis inside one is text, and
+  // counted, `'a ) b'` closed the `var()` early. A backslash escapes the next one.
+  let quote: string | undefined
 
   for (let at = 4; at < value.length; at += 1) {
-    if (value[at] === '(') depth += 1
-    else if (value[at] === ')') {
+    const char = value[at]
+    if (quote !== undefined) {
+      if (char === '\\') at += 1
+      else if (char === quote) quote = undefined
+    } else if (char === '"' || char === "'") quote = char
+    else if (char === '(') depth += 1
+    else if (char === ')') {
       depth -= 1
       if (depth === 0 && at !== value.length - 1) return undefined
     }
