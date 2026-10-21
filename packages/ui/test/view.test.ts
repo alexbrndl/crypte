@@ -168,6 +168,30 @@ describe('a tree', () => {
     expect(tree.emitted('update:expanded')!.at(-1)).toEqual([[]])
   })
 
+  // Les données d'une vue de plugin arrivent après le montage : une branche
+  // nouvelle s'ouvre comme les autres, ce que l'utilisateur a plié le reste.
+  it('opens a branch that arrives after the mount, and keeps what was folded', async () => {
+    const tree = mount(Tree, { props: { items: [], selected: null, label: 'x' } })
+    await tree.setProps({ items })
+    expect(tree.findAll('.name').map((one) => one.text())).toEqual([
+      'Forms',
+      'Select',
+      'Default',
+      'Input',
+    ])
+    await row(tree, 'Select').find('.chevron').trigger('click')
+    await tree.setProps({
+      items: [...items, { key: 'g', label: 'Guides', children: [{ key: 'h', label: 'Colours' }] }],
+    })
+    expect(tree.findAll('.name').map((one) => one.text())).toEqual([
+      'Forms',
+      'Select',
+      'Input',
+      'Guides',
+      'Colours',
+    ])
+  })
+
   it('follows the expanded list its parent keeps', async () => {
     const tree = mount(Tree, { props: { items, selected: null, label: 'x', expanded: ['f'] } })
     expect(tree.findAll('.name').map((one) => one.text())).toEqual(['Forms', 'Select', 'Input'])

@@ -436,12 +436,6 @@ importers:
 
   packages/ui:
     dependencies:
-      '@hugeicons/core-free-icons':
-        specifier: 'catalog:'
-        version: 4.3.5
-      '@hugeicons/vue':
-        specifier: 'catalog:'
-        version: 1.0.8(vue@3.5.41(typescript@6.0.3))
       reka-ui:
         specifier: 'catalog:'
         version: 2.10.5(vue@3.5.41(typescript@6.0.3))

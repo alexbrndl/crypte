@@ -19,8 +19,6 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@hugeicons/core-free-icons": "catalog:",
-    "@hugeicons/vue": "catalog:",
     "reka-ui": "catalog:"
   },
   "devDependencies": {

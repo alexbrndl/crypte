@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { ArrowDown01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon, type IconArray } from '@hugeicons/vue'
 import { TreeItem, TreeRoot } from 'reka-ui'
 import { computed, ref } from 'vue'
+import Chevron from './chevron.vue'
 import type { TreeNode } from './tree'
 
 // A tree that folds, the `row` of the Figma sidebar at each level: a guide
@@ -20,10 +19,15 @@ const emit = defineEmits<{ select: [key: string]; 'update:expanded': [keys: stri
 
 const branches = (nodes: readonly TreeNode[]): string[] =>
   nodes.flatMap((node) => (node.children ? [node.key, ...branches(node.children)] : []))
-const own = ref(branches(props.items))
-const open = computed(() => props.expanded ?? own.value)
+// Without `expanded`, what was folded, not what is open: a branch arriving
+// after the mount, a view's data through the channel, starts open like the rest.
+const folded = ref<string[]>([])
+const open = computed(
+  () => props.expanded ?? branches(props.items).filter((key) => !folded.value.includes(key)),
+)
 function expand(keys: string[]) {
-  if (props.expanded === undefined) own.value = keys
+  if (props.expanded === undefined)
+    folded.value = branches(props.items).filter((key) => !keys.includes(key))
   emit('update:expanded', keys)
 }
 
@@ -39,7 +43,7 @@ const chosen = computed(() =>
   props.selected === null ? undefined : find(props.items, props.selected),
 )
 
-// A row that is chosen does not fold on a click on its label: the chevron folds,
+// A row that can be chosen does not fold on a click on its label: the chevron folds,
 // the label leads somewhere. The arrow keys always fold.
 const notFolding = (node: TreeNode, event: CustomEvent<{ originalEvent: Event }>) => {
   if (node.selectable !== false && event.detail.originalEvent.type === 'click')
@@ -98,14 +102,7 @@ const marker = (level: number) => (level > 1 ? GUIDE + (level - 2) * STEP : 0)
           (event: MouseEvent) => item.hasChildren && (event.stopPropagation(), handleToggle())
         "
       >
-        <HugeiconsIcon
-          v-if="item.hasChildren"
-          :icon="(isExpanded ? ArrowDown01Icon : ArrowRight01Icon) as IconArray"
-          :size="16"
-          :stroke-width="1.25"
-          absolute-stroke-width
-          aria-hidden="true"
-        />
+        <Chevron v-if="item.hasChildren" :open="isExpanded" />
       </span>
       <span class="name">{{ item.value.label }}</span>
       <span v-if="item.value.count !== undefined" class="count">{{ item.value.count }}</span>

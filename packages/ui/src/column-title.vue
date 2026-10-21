@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Le titre d'une colonne, `column-title` de la maquette : 32 px, haut plus
-// grand, le compte à droite.
+// The title of a column, `column-title` of the Figma file: 32 px, a taller top,
+// the count at the right.
 defineProps<{ title: string; count?: number | string }>()
 </script>
 

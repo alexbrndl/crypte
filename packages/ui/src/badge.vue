@@ -1,8 +1,8 @@
 <script setup lang="ts">
-// Un compte, `badge` de la maquette, en mono pour que les chiffres s'alignent.
-// `default` : texte inverse sur l'accent, sur une surface neutre ; `inverse` : sur
-// une surface qui porte déjà l'accent. `sm`, pour la barre d'activité : 10 px,
-// coins pleins.
+// A count, `badge` of the Figma file, in mono so the figures line up.
+// `default`: inverse text on the accent, over a neutral surface; `inverse`: over
+// a surface that already holds the accent. `sm`, for the activity bar: 10 px,
+// full corners.
 withDefaults(defineProps<{ tone?: 'default' | 'inverse'; size?: 'md' | 'sm' }>(), {
   tone: 'default',
   size: 'md',

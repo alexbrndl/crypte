@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Le canvas d'une vue, celui de la maquette : padding 20/24, gap 16, sur le
-// fond subtil.
+// The canvas of a view, the Figma file's: padding 20/24, gap 16, on the subtle
+// background.
 </script>
 
 <template>
