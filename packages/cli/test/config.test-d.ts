@@ -1,5 +1,6 @@
 import { describe, expectTypeOf, it } from 'vitest'
 import type * as protocol from '@crypte/core/protocol'
+import type { Adapter } from '@crypte/core/preview'
 import type {
   CrypteConfig,
   CryptePlugin,
@@ -49,5 +50,19 @@ describe('the plugin types a project imports', () => {
     expectTypeOf<ShellView>().toEqualTypeOf<protocol.ShellView>()
     expectTypeOf<ViewProps>().toEqualTypeOf<protocol.ViewProps>()
     expectTypeOf<ViewEvents>().toEqualTypeOf<protocol.ViewEvents>()
+  })
+})
+
+// Le type d'adaptateur vit dans le noyau : sans lui, `adapter` recevait n'importe
+// quoi, et un adaptateur n'avait de contrat que par convention. Que chaque
+// adaptateur le satisfasse, ses propres tests de type le tiennent.
+describe('the adapter', () => {
+  it('is the core type', () => {
+    expectTypeOf<CrypteConfig['adapter']>().toEqualTypeOf<Adapter>()
+  })
+
+  it('refuses a value that cannot mount a story', () => {
+    expectTypeOf<{ name: 'react' }>().not.toExtend<CrypteConfig['adapter']>()
+    expectTypeOf<{ mount(): void }>().not.toExtend<CrypteConfig['adapter']>()
   })
 })

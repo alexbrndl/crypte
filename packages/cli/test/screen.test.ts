@@ -46,6 +46,7 @@ import { storyFilesOf } from '../src/catalogue/manifest'
 // liens vers `node_modules`, qui sont relatifs et de même profondeur.
 
 const demo = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'apps', 'demo')
+const demoVue = join(demo, '..', 'demo-vue')
 
 let browser: Browser
 
@@ -1787,4 +1788,33 @@ describe('a long and non-Latin corpus at 1280', () => {
     await expect.poll(() => ecran.page.locator('.versions-view .change').count()).toBe(1)
     expect(await deborde(ecran)).toEqual([])
   }, 60_000)
+})
+
+// Le second adaptateur, dans le vrai navigateur : la démonstration Vue rend dans
+// le même shell, son `wrap` fournit ce que le composant lit par `inject`, et un
+// clic fait bouger l'état. Le critère de DCJ-402.
+describe('a Vue project', () => {
+  test('renders its stories in the same shell, inside their wrapper', async () => {
+    const root = mkdtempSync(join(demoVue, '..', 'tmp-demo-'))
+    cpSync(demoVue, root, { recursive: true })
+    const started = await startDev(root)
+    await started.server.listen()
+    const page = await browser.newPage()
+
+    try {
+      const address = started.server.httpServer?.address()
+      if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
+      await page.goto(`http://localhost:${address.port}/?id=counter--par-dix`)
+
+      const bouton = page.frameLocator('iframe[title="preview"]').locator('button')
+      await expect.poll(() => bouton.textContent().catch(() => '')).toBe('10')
+      expect(await bouton.getAttribute('data-frame')).toBe('panel')
+      await bouton.click()
+      await expect.poll(() => bouton.textContent()).toBe('20')
+    } finally {
+      await page.close()
+      await started.server.close()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
 })

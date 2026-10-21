@@ -49,15 +49,17 @@ export default defineConfig({
     },
     overrides: [
       {
-        // Aucun React dans le noyau, `preview` compris : c'est le fichier le
+        // Aucun framework dans le noyau, `preview` compris : c'est le fichier le
         // plus proche du montage, donc le plus exposé à un import de commodité.
-        // Sans cette règle, un adaptateur Vue devient impossible sans réécrire
+        // Sans cette règle, le second adaptateur devient impossible sans réécrire
         // le noyau.
         files: ['packages/core/src/**'],
         rules: {
           'no-restricted-imports': [
             'error',
-            { patterns: ['react', 'react/*', 'react-dom', 'react-dom/*'] },
+            {
+              patterns: ['react', 'react/*', 'react-dom', 'react-dom/*', 'vue', 'vue/*', '@vue/*'],
+            },
           ],
         },
       },
@@ -164,6 +166,7 @@ export default defineConfig({
             '**/screen.test.ts',
             '**/restart.test.ts',
             '**/adapter.test.tsx',
+            '**/adapter.test.ts',
             'apps/shell/test/**',
             'plugins/controls/test/**',
             'plugins/a11y/test/**',
@@ -188,14 +191,14 @@ export default defineConfig({
           environment: 'jsdom',
         },
       },
-      // L'adaptateur monte du React : il lui faut un DOM, et jsdom suffit. Sans
+      // Les adaptateurs montent du React et du Vue : il leur faut un DOM, et jsdom suffit. Sans
       // ce projet, le seul fichier publié qu'aucun test n'exécutait le restait,
       // ses deux seules preuves passant par un vrai navigateur et toute la pile.
       {
         extends: true,
         test: {
           name: 'adaptateur',
-          include: ['**/adapter.test.tsx'],
+          include: ['**/adapter.test.tsx', '**/adapter.test.ts'],
           exclude: ignorés,
           environment: 'jsdom',
         },

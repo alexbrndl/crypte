@@ -12,6 +12,7 @@
       "@crypte/cli",
       "@crypte/core",
       "@crypte/react",
+      "@crypte/vue",
       "@crypte/tokens",
       "@crypte/controls",
       "@crypte/a11y"

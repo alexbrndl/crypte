@@ -24,7 +24,11 @@ function projet(fichiers: Record<string, string>, components?: string): Project 
   }
   return {
     root,
-    config: { stories: 'stories', adapter: {}, ...(components ? { components } : {}) },
+    config: {
+      stories: 'stories',
+      adapter: { mount() {}, unmount() {} },
+      ...(components ? { components } : {}),
+    },
     paths: undefined,
     watch: [],
   }

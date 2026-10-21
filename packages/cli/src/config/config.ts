@@ -11,6 +11,7 @@ import type {
   ViewEvents,
   ViewProps,
 } from '@crypte/core/protocol'
+import type { Adapter } from '@crypte/core/preview'
 import type { PluginOption } from 'vite'
 
 export interface CrypteConfig {
@@ -37,9 +38,8 @@ export function defineConfig(config: CrypteConfig): CrypteConfig {
   return config
 }
 
-// Opaque here: the CLI carries them and never reads them. Their shape belongs
-// to the adapter, whose own lot introduces it.
-export type Adapter = unknown
+// Opaque here: the CLI carries it and never reads it, and its components belong
+// to the adapter.
 export type GlobalWrap = unknown
 
 // Re-exported rather than redeclared: the plugin contract spans the three
@@ -47,6 +47,7 @@ export type GlobalWrap = unknown
 // Here because a project installs this package and not the core, which it
 // cannot import: a plugin of its own types its panel and hooks from here.
 export type {
+  Adapter,
   CryptePlugin,
   PanelProps,
   PanelEvents,

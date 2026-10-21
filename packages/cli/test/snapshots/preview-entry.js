@@ -185,7 +185,8 @@ if (import.meta.hot) {
   // Running again builds a new channel and a new adapter. The old ones go
   // first: left behind, the old channel still answers the shell and the old
   // root still holds the container, so each save leaked one of each.
-  // `unmount` is optional: the contract does not require it of an adapter.
+  // Called with `?.` although the core type requires `unmount`: an adapter
+  // written in JavaScript can still leave it out.
   import.meta.hot.dispose(() => {
     __crypte_channel.dispose()
     __crypte_adapter.unmount?.()

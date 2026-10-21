@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "badge--par-defaut",
+      "component": "src/components/Badge.vue#default",
+      "status": "stable",
+      "props": [
+        "label"
+      ],
+      "rest": "34d078859773a8f0"
+    },
+    {
+      "id": "badge--avertissement",
+      "component": "src/components/Badge.vue#default",
+      "status": "stable",
+      "props": [
+        "label",
+        "tone"
+      ],
+      "rest": "fd39bd9e00fbb965"
+    },
+    {
+      "id": "counter--depuis-zero",
+      "component": "src/components/Counter.vue#default",
+      "status": "none",
+      "props": [],
+      "rest": "737010ea3cdf23be"
+    },
+    {
+      "id": "counter--par-dix",
+      "component": "src/components/Counter.vue#default",
+      "status": "none",
+      "props": [
+        "start",
+        "step"
+      ],
+      "rest": "ea8baa54ae087449"
+    }
+  ],
+  "tokens": []
+}
