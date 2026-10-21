@@ -1794,7 +1794,7 @@ describe('a long and non-Latin corpus at 1280', () => {
 // le même shell, son `wrap` fournit ce que le composant lit par `inject`, et un
 // clic fait bouger l'état. Le critère de DCJ-402.
 describe('a Vue project', () => {
-  test('renders its stories in the same shell, inside their wrapper', async () => {
+  test('renders its stories in the same shell, inside their wrapper, under controls', async () => {
     const root = mkdtempSync(join(demoVue, '..', 'tmp-demo-'))
     cpSync(demoVue, root, { recursive: true })
     const started = await startDev(root)
@@ -1811,6 +1811,14 @@ describe('a Vue project', () => {
       expect(await bouton.getAttribute('data-frame')).toBe('panel')
       await bouton.click()
       await expect.poll(() => bouton.textContent()).toBe('20')
+
+      // Une édition de `controls` garde l'état du composant : l'adaptateur garde sa
+      // racine, et le compte ne repart pas de `start`.
+      const controles = page.locator('[data-plugin="controls"]')
+      await controles.getByLabel('step').fill('5')
+      await expect.poll(() => bouton.textContent()).toBe('20')
+      await bouton.click()
+      await expect.poll(() => bouton.textContent()).toBe('25')
     } finally {
       await page.close()
       await started.server.close()

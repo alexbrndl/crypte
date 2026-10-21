@@ -1,4 +1,5 @@
 import { defineConfig } from '@crypte/cli'
+import controls from '@crypte/controls'
 import vue from '@crypte/vue'
 import vuePlugin from '@vitejs/plugin-vue'
 
@@ -9,5 +10,6 @@ export default defineConfig({
   stories: 'stories',
   components: 'src/components',
   adapter: vue(),
+  plugins: [controls()],
   vite: { plugins: [vuePlugin()] },
 })
