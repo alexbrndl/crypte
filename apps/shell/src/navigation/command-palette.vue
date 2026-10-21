@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { plural } from '../plural'
-import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { Clock01Icon, Search01Icon } from '@hugeicons/core-free-icons'
 import { Button, Field, Input, EmptyNote } from '@crypte/ui'
 import {
@@ -21,7 +20,7 @@ import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import Icon from '../ui/icon.vue'
 import { complete, editing, FILTERS, keysStarted, readQuery, type Key } from './filters'
 import { ago, type Visit } from './recent'
-import { componentIdOf, fold } from './tree'
+import { componentIdOf, fold, type Listed } from './tree'
 
 // La palette : un nom mène à sa story, à son composant, à sa famille de tokens ou
 // à la vue versions, et les actions du shell s'y lancent, leur raccourci affiché.
@@ -35,7 +34,7 @@ export interface Action {
 }
 
 const props = defineProps<{
-  entries: (StoryEntry | TokensEntry)[]
+  entries: Listed[]
   actions: Action[]
   recent: Visit[]
   // La clé de l'endroit affiché, que les récents taisent.
@@ -77,6 +76,17 @@ const commands = computed<Command[]>(() => {
 
   for (const entry of props.entries) {
     const context = entry.path.join(' / ')
+    if (entry.type === 'page') {
+      entries.push({
+        key: entry.id,
+        group: 'Pages',
+        type: 'page',
+        context,
+        label: entry.name,
+        run: () => emit('show', entry.id),
+      })
+      continue
+    }
     if (entry.type === 'tokens') {
       entries.push({
         key: entry.id,

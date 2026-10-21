@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ColumnTitle, EmptyNote, Tree, type TreeNode } from '@crypte/ui'
-import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { ToggleGroupItem, ToggleGroupRoot } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
 import { keep, kept } from '../storage'
@@ -11,15 +10,16 @@ import {
   dimmed,
   keysAbove,
   treeOf,
+  type Listed,
   type Node,
   type Status,
 } from './tree'
 
 // `component` : la page composant ouverte, par son identifiant ; sinon l'entrée
-// `current`, story ou famille de tokens, est celle qu'on regarde. `label` titre
+// `current`, story, famille de tokens ou page, est celle qu'on regarde. `label` titre
 // la colonne et nomme l'arbre, `none` dit qu'il est vide.
 const props = defineProps<{
-  entries: (StoryEntry | TokensEntry)[]
+  entries: Listed[]
   current: string | null
   component: string | null
   label: string
@@ -44,6 +44,9 @@ const declared = computed(() =>
 const chosen = computed(() =>
   status.value !== 'all' && declared.value.includes(status.value) ? status.value : null,
 )
+
+// Le titre compte les stories : une page n'en est pas une.
+const stories = computed(() => props.entries.filter((entry) => entry.type === 'story').length)
 
 const shown = computed(() => treeOf(props.entries))
 const grey = computed(() => dimmed(shown.value, chosen.value))
@@ -107,20 +110,15 @@ const selected = computed(() => {
   return props.current === null ? undefined : find(shown.value, props.current)
 })
 
-// Une story, une famille et un composant se choisissent, un dossier se plie
-// seulement.
+// Une entrée et un composant se choisissent, un dossier se plie seulement.
 function pick(node: Node | undefined) {
-  if (node?.kind === 'story' || node?.kind === 'tokens') emit('show', node.entry.id)
+  if (node !== undefined && 'entry' in node) emit('show', node.entry.id)
   if (node?.kind === 'component') emit('open', node.id)
 }
 
-// Les entrées sous un dossier, stories et familles : le compte de la ligne.
+// Les entrées sous un dossier : le compte de la ligne.
 const count = (node: Node): number =>
-  node.kind === 'story' || node.kind === 'tokens'
-    ? 1
-    : 'children' in node
-      ? node.children.reduce((n, one) => n + count(one), 0)
-      : 0
+  'children' in node ? node.children.reduce((n, one) => n + count(one), 0) : 1
 
 // Les nœuds que `Tree` dessine : un dossier se plie seulement, ses entrées
 // comptées à droite ; ce que le statut choisi laisse de côté est grisé.
@@ -138,7 +136,7 @@ const items = computed(() => toItems(shown.value))
 
 <template>
   <div class="story-tree">
-    <ColumnTitle :title="label" :count="entries.length" />
+    <ColumnTitle :title="label" :count="stories" />
     <ToggleGroupRoot
       v-if="declared.length > 0"
       :model-value="chosen ?? 'all'"

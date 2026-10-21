@@ -34,9 +34,9 @@ Why a mechanism exists, and what breaks without it, is a comment beside that mec
 
 ## Roadmap
 
-**Now.** The core, the CLI and the React adapter, which is what `crypte dev` already runs on. Then the shell it serves: a three-level tree, search, a component page, the `tokens` that `@crypte/tokens` reads from the project's style sheet, and what changed in the catalogue since the last commit. Then the plugin contract, frozen since its two plugins with opposite needs exist: `controls`, which writes into a story, and `a11y`, which only reads it.
+**Now.** The core, the CLI and the React adapter, which is what `crypte dev` already runs on. Then the shell it serves: a three-level tree, search, a component page, the `tokens` that `@crypte/tokens` reads from the project's style sheet, markdown pages written beside the stories, and what changed in the catalogue since the last commit. Then the plugin contract, frozen since its two plugins with opposite needs exist: `controls`, which writes into a story, and `a11y`, which only reads it.
 
-**Next.** The Vue adapter, which is the only thing that can prove the core holds nothing React-specific. The everyday plugins: `docs`, `source`, `theme`, `responsive`, `actions`, `visual-tests`, `coverage`. One more kind of manifest entry, `page`, written as markdown in the repository. And what makes Crypte installable by someone who has never heard of it: npm, a local MCP server, a static build deployed on every change.
+**Next.** The Vue adapter, which is the only thing that can prove the core holds nothing React-specific. The everyday plugins: `docs`, `source`, `theme`, `responsive`, `actions`, `visual-tests`, `coverage`. And what makes Crypte installable by someone who has never heard of it: npm, a local MCP server, a static build deployed on every change.
 
 **Later.** An `editor` plugin, on `crypte dev` and on a deployed build alike: pick any element of a story, try a value from the tokens, and hand the change to a coding agent as a GitHub issue. A Figma plugin that shows a designer a selective diff of the tokens.
 

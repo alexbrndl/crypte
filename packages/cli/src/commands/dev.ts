@@ -129,9 +129,9 @@ function shape(catalogue: Catalogue): string {
   ])
 }
 
-// The tokens a catalogue holds, as one string to compare.
-const tokensIn = (catalogue: Catalogue) =>
-  JSON.stringify(catalogue.manifest.entries.filter((entry) => entry.type === 'tokens'))
+// The tokens and pages a catalogue holds, as one string to compare.
+const drawnIn = (catalogue: Catalogue) =>
+  JSON.stringify(catalogue.manifest.entries.filter((entry) => entry.type !== 'story'))
 
 // The component files the catalogue cites, each once, absolute. Watching these
 // and not the project is the whole point: a keystroke in any other file would
@@ -187,10 +187,9 @@ function watchStories(
 
     // Held before the `same` return: the shape decides whether the frame reloads,
     // never whether the catalogue is current, and editing props leaves it untouched.
-    // Tokens that moved reload it too: the shell reads the manifest again on the
-    // `ready` that follows, and nothing else would tell it.
-    const same =
-      shape(next) === shape(held.catalogue) && tokensIn(next) === tokensIn(held.catalogue)
+    // Tokens or pages that moved reload it too: the shell reads the manifest again
+    // on the `ready` that follows, and nothing else would tell it.
+    const same = shape(next) === shape(held.catalogue) && drawnIn(next) === drawnIn(held.catalogue)
     held.catalogue = next
 
     // The manifest on disk follows the catalogue served, or a tool reading it saw

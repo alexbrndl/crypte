@@ -8,11 +8,13 @@ import {
   MANIFEST_VERSION,
   type ContributedEntry,
   type Manifest,
+  type PageEntry,
   type ResolvedPropDetails,
   type StoryEntry,
 } from '@crypte/core/protocol'
 import { ConfigError, reason } from '../errors'
 import { best, isBareSpecifier, ordered, substituted } from '../config/paths'
+import { PAGE_EXTENSION, pageOf } from './pages'
 import { propsOf, type PropsRead } from './props'
 import { entriesOf, posix, STORY_EXTENSIONS } from './stories'
 import { tokensOf } from './tokens'
@@ -81,7 +83,15 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
   // The files of this pass, which is what decides whether a story disappeared.
   const walked = new Set<string>()
 
-  for (const file of storyFiles(storiesRoot)) {
+  // Read after the stories: a page belongs to a story file only if it gave one.
+  const markdown: string[] = []
+
+  for (const file of storyFiles(storiesRoot, [...STORY_EXTENSIONS, PAGE_EXTENSION])) {
+    if (extname(file) === PAGE_EXTENSION) {
+      markdown.push(file)
+      continue
+    }
+
     const read = entriesOf(file, project.root, storiesRoot)
     walked.add(posix(relative(project.root, file)))
 
@@ -125,9 +135,12 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
     }
   }
 
-  assertDistinct(entries)
-
   const gave = new Set(entries.map((entry) => entry.storyFile))
+  const stems = new Map([...gave].map((file) => [file.slice(0, -extname(file).length), file]))
+  const pages = markdown.map((file) => pageOf(file, project.root, storiesRoot, stems))
+
+  assertDistinct([...entries, ...pages])
+
   const reasons = new Map(skipped.map((one) => [one.file, one.reason]))
 
   // `wasStory` and not the previous entries, which lose the file as soon as it
@@ -160,12 +173,15 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
   // After the stories, never before: a contribution that lands on an identifier
   // a story already owns is the one that gives way, since a story comes from the
   // author's own file and a plugin's entry does not.
-  const contributed = contributionsOf(project, new Set(entries.map((entry) => entry.id)))
+  const contributed = contributionsOf(
+    project,
+    new Set([...entries, ...pages].map((entry) => entry.id)),
+  )
 
   return {
     manifest: {
       version: MANIFEST_VERSION,
-      entries: [...entries, ...contributed.entries],
+      entries: [...entries, ...pages, ...contributed.entries],
       ...(certain.length > 0 ? { skipped: certain } : {}),
     },
     skipped,
@@ -341,7 +357,7 @@ export function writeCatalogue(root: string, manifest: Manifest): string {
 
 // Sorted at every level, so two machines walking the same folder write the same
 // file. `readdirSync` gives no order of its own.
-export function storyFiles(folder: string): string[] {
+export function storyFiles(folder: string, extensions = STORY_EXTENSIONS): string[] {
   const found: string[] = []
 
   for (const entry of readdirSync(folder, { withFileTypes: true }).sort((a, b) =>
@@ -350,8 +366,8 @@ export function storyFiles(folder: string): string[] {
     const path = join(folder, entry.name)
 
     if (entry.isDirectory()) {
-      if (!SKIPPED_FOLDERS.has(entry.name)) found.push(...storyFiles(path))
-    } else if (STORY_EXTENSIONS.includes(extname(entry.name))) {
+      if (!SKIPPED_FOLDERS.has(entry.name)) found.push(...storyFiles(path, extensions))
+    } else if (extensions.includes(extname(entry.name))) {
       found.push(path)
     }
   }
@@ -414,18 +430,23 @@ function isFile(path: string): boolean {
 }
 
 // Two stories can carry different names and land on the same identifier, since
-// `storyId` folds case and accents. That identifier is a URL, a baseline key
-// and a comment anchor, so a collision has to be named, not resolved silently.
-function assertDistinct(entries: StoryEntry[]): void {
-  const seen = new Map<string, StoryEntry>()
+// `storyId` folds case and accents, and so can two pages. That identifier is a
+// URL, a baseline key and a comment anchor, so a collision has to be named, not
+// resolved silently.
+function assertDistinct(entries: (StoryEntry | PageEntry)[]): void {
+  const seen = new Map<string, StoryEntry | PageEntry>()
+  const where = (entry: StoryEntry | PageEntry) =>
+    `"${entry.name}" in ${entry.type === 'story' ? entry.storyFile : entry.file}`
 
   for (const entry of entries) {
     const first = seen.get(entry.id)
 
     if (first) {
+      const both =
+        first.type !== entry.type ? 'entries' : first.type === 'story' ? 'stories' : 'pages'
       throw new ConfigError(
-        `Two stories share the identifier \`${entry.id}\`: ` +
-          `"${first.name}" in ${first.storyFile} and "${entry.name}" in ${entry.storyFile}. ` +
+        `Two ${both} share the identifier \`${entry.id}\`: ` +
+          `${where(first)} and ${where(entry)}. ` +
           'Rename one of them.',
       )
     }

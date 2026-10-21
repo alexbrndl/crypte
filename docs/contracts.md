@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.43, reference document. A project brief points here instead of restating these shapes.
+> Version 1.44, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -43,6 +43,8 @@ stories/checkout/OrderSummary.ts
 ```
 
 A story file carries **the exact name of its component**. The sidebar tree comes from the path relative to the stories root. No title is ever declared.
+
+**A markdown file in the story folder is a page.** `Badge.md` beside `Badge.tsx` belongs to that story file's component and shows on its component page. A `.md` with no story file of the same name, or beside one that gives no story, is a general page, placed in the tree by its path. Markdown only, no front matter: the title is the first `# heading` outside a code fence, otherwise the file name. With `stories: '.'` every `.md` of the project is a page, its README included.
 
 **A story is written in the language of its project.** Four extensions are read: `.ts`, `.tsx`, `.js` and `.jsx`. A TypeScript project writes `.ts`, and a project with no TypeScript writes `.js`, the same way it writes its components.
 
@@ -455,7 +457,7 @@ interface SkippedFile {
   reason: string
 }
 
-type ManifestEntry = StoryEntry | TokensEntry
+type ManifestEntry = StoryEntry | TokensEntry | PageEntry
 
 interface StoryEntry {
   type: 'story'
@@ -488,6 +490,16 @@ interface TokensEntry {
   tokens: Record<string, TokenValue>
 }
 
+interface PageEntry {
+  type: 'page'
+  id: string
+  path: string[]
+  name: string
+  file: string
+  body: string
+  storyFile?: string
+}
+
 interface TokenValue {
   type: TokenKind
   description?: string
@@ -506,7 +518,7 @@ const MANIFEST_VERSION = 1
 
 `version` is a plain number rather than the literal type of `MANIFEST_VERSION`. Its job is to spot a manifest written by another version, and a frozen type would make that comparison impossible.
 
-Every entry carries a `type`. **Two values are implemented: `"story"` and `"tokens"`.** `"page"` is reserved for design-system work and must not be implemented now. The reserve costs one field today and saves a migration later.
+Every entry carries a `type`. **Three values are implemented: `"story"`, `"tokens"` and `"page"`.**
 
 **`MANIFEST_VERSION` does not move when a nature is added.** The reserved `type` field is precisely what that reserve was for, and nothing required moved on `StoryEntry`, so a reader that only knows stories skips what it does not recognise instead of failing. The rule that does force a bump is adding a required field once a version that writes manifests is published.
 
@@ -543,6 +555,10 @@ With no `children`, the tag stays self-closing — and so it does when a spread 
 **A value is always a string, whatever its kind.** A `number` token carries `"1.5"`, a `dimension` carries `"4px"`. The kind says how to read it; the field says what was written. Parsing on the reader's side is one line, and a union of string and number would put that choice in every reader instead.
 
 **`value` is always the literal, and `alias` is the chain that led to it.** A real token points at another token, sometimes through several hops. Whoever draws a swatch reads `value` alone and never resolves anything; whoever explains a token walks `alias`, ordered from the token towards the literal. A token that holds a literal itself has no `alias`.
+
+**A page entry is a markdown file of the story folder (1.1), as written.** `path` holds its folders only and `name` its title, as a tokens family's do. `file` is project-relative, like `storyFile`. `body` is the markdown without the heading the title came from, so a reader drawing `name` above it does not draw the title twice. `storyFile` is set when the page belongs to that story file's component, and only when the file gave at least one story: a component page that does not exist cannot show it, so it stays in the tree.
+
+**A page's `id` comes from its file name, never its title**: `storyId([...path, stem], '')`, so `stories/Guides/Accessibilite.md` gives `guides/accessibilite`. Retitling a page keeps its address, and with no name there is no `--`, so a page never lands on a story's `id`. Pages stay out of the fingerprint (4.6): the file itself is in the pull request diff.
 
 **The core carries the shape, a plugin carries the reading.** No file format is part of this contract: CSS variables, DTCG, Tailwind and everything after them live in `@crypte/tokens`. Same split as props, where the core defines `ResolvedPropDetails` and `@crypte/docs` only draws a table from it.
 
@@ -617,8 +633,8 @@ Who holds it, in the order collisions happen:
 
 | Collision | What happens |
 | --- | --- |
-| two stories | the catalogue cannot be built. Neither can be made to give way: both come from the author's own files |
-| a contribution on a story's `id` | the contribution is refused and said, named by plugin. 6.3 has the rule and why the story wins |
+| two stories, or two pages | the catalogue cannot be built. Neither can be made to give way: both come from the author's own files |
+| a contribution on a story's or a page's `id` | the contribution is refused and said, named by plugin. 6.3 has the rule and why the story wins |
 | a contribution on another contribution's `id` | the same refusal. First contributed, first kept |
 
 **What the first row means depends on when it happens.** At start-up, `crypte dev` stops: there is no catalogue to fall back on. While the server runs, it keeps the last good one and says why, because two stories briefly sharing a name is an ordinary state halfway through a rename, and a server that stops on it is worse than a tree that waits. Neither is silent.
@@ -922,7 +938,7 @@ interface NodeContext {
   css?: string
 }
 
-type ContributedEntry = Exclude<ManifestEntry, StoryEntry>
+type ContributedEntry = Exclude<ManifestEntry, StoryEntry | PageEntry>
 
 const CONTRIBUTABLE = ['tokens'] as const
 ```
@@ -981,9 +997,9 @@ Left out on purpose. Some belong to a project brief, others wait for a demonstra
 
 **Out of reserve since 21 August 2026, and now planned:**
 
-- The `page` entry, **in two stages**. Stage one is markdown files in the repository, discovered the way stories are and rendered next to components, with no server at all. Stage two is designers editing those files, which goes through a coding agent like any other change (DCJ-343). Confusing the two is what made `page` look expensive and far away. Tracked in DCJ-250 and DCJ-251.
+- Editing a `page` from the shell. The entry itself is built, as markdown files in the repository (1.1, 4.2) with no server at all. A designer editing those files goes through a coding agent like any other change (DCJ-343). Confusing the two stages is what made `page` look expensive and far away.
 
-The field carrying it already exists, so it is no manifest break. The reason it left reserve is not internal: the documentation tools this project is measured against all sell guidelines as the thing neither Figma nor a component workshop exposes. The `tokens` entry left reserve the same day, those tools all shipping a token manager too, and is built: 4.2 holds its shape and 8 what produces and draws it.
+The reason `page` left reserve is not internal: the documentation tools this project is measured against all sell guidelines as the thing neither Figma nor a component workshop exposes. The `tokens` entry left reserve the same day, those tools all shipping a token manager too, and is built: 4.2 holds its shape and 8 what produces and draws it.
 
 **Held in reserve, to add when a real case asks for it:**
 
@@ -1002,12 +1018,12 @@ This document is a contract. This section is the only place that says what exist
 
 | Section | State |
 | --- | --- |
-| 1.1, story files | discovered and read, in the four extensions. The tree, the identifiers and the call code come out of them |
+| 1.1, story files | discovered and read, in the four extensions. The tree, the identifiers and the call code come out of them. Markdown pages are discovered beside them, and the shell draws a component's on its component page and the others in the tree |
 | 1.2, `crypte check` | built, all five problems. The component with no story is looked for in the folders the stories already point at, since no components root is declared anywhere |
 | 1.5, project configuration | the config is read, and the declared style sheet is loaded by the preview |
 | 1.5, path aliases | built |
 | 2 and 3, the types | built, and `defineStories` and `story` with them. Inference reads what a component file declares, and 3.2's merge completes it from the story file |
-| 4, the manifest | built, and written by `crypte dev` at start-up, on every restart of the configuration and on every rebuild, so the file follows what is served. The CLI produces `story` entries and a plugin's `node` surface contributes `tokens` ones (6.3); the shell draws both |
+| 4, the manifest | built, and written by `crypte dev` at start-up, on every restart of the configuration and on every rebuild, so the file follows what is served. The CLI produces `story` and `page` entries and a plugin's `node` surface contributes `tokens` ones (6.3); the shell draws all three |
 | 4.6, the fingerprint | built, and written by `crypte dev` whenever the catalogue served changes it: at start-up, on a restart of the configuration, and on a story change. So `crypte check` does not fail after a session, and trying a `stories` path then reverting rewrites the same bytes. `crypte dev` also reads the version a commit holds, `HEAD` or one named in the route's query, through Git, and serves the shell the stories that appeared, disappeared, or whose props or status moved, and the tokens that appeared, disappeared or changed value |
 | 5, the channel | built and exercised on both sides |
 | 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. The `shell` and `preview` modules are loaded, and the shell mounts each shell module in a frame that folds when the panel is `inapplicable` and remembers whether it is open. A preview module's `afterMount` and `onMessage` are called, plugin messages cross the channel both ways, and a preview module that fails is named in the shell. `@crypte/controls` edits a story's props through `overrides`, `@crypte/a11y` analyses each render with axe-core and unfolds its panel with `null` when a violation appears, and the demonstration's `hello` and `status` plugins use the rest. `controls` does not add `min`, `max`, `step` or `control` to `PluginPropDetails` yet (3.3), so writing them is still a compile error. A panel's props and events are typed by `PanelProps` and `PanelEvents`, and a key a plugin does not have is refused. A plugin's `view` is built: its entry in the activity bar and in ⌘K, its sidebar, canvas and panel, typed by `PluginView`, `ShellView`, `ViewProps` and `ViewEvents`, and the demonstration's `i18n` plugin draws one. A project's own plugin imports them from `@crypte/cli`. **Frozen** since v1.25 (6.5) |
@@ -1031,6 +1047,12 @@ Eleven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.44.** Markdown pages in the story folder (1.1, 4.2).
+
+| Before | After |
+| --- | --- |
+| `"page"` was a reserved `type` nothing produced | a `.md` of the story folder is a `page` entry, shown on its component's page or in the tree |
 
 **v1.43.** A plugin may have a view of its own in the activity bar (6.1).
 

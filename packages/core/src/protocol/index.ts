@@ -27,6 +27,7 @@ export type {
   StoryEntry,
   ComponentRef,
   TokensEntry,
+  PageEntry,
 } from './manifest'
 export { MANIFEST_VERSION } from './manifest'
 

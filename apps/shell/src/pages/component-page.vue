@@ -1,14 +1,16 @@
 <script setup lang="ts">
+import MarkdownBody from './markdown-body.vue'
 import NoneValue from '../ui/none-value.vue'
 import PlainTable from '../ui/plain-table.vue'
-import type { StoryEntry } from '@crypte/core/protocol'
+import type { PageEntry, StoryEntry } from '@crypte/core/protocol'
 import { computed } from 'vue'
 import { placeSearch, sameTab } from '../navigation/url'
 
 // La page d'un composant : ce que son fichier de stories déclare une fois pour
-// toutes ses stories, et la liste de celles-ci. Aucune zone de plugin : le
-// contrat figé ne donne à un panneau que la story affichée (§6.1).
-const props = defineProps<{ stories: StoryEntry[] }>()
+// toutes ses stories, sa page markdown s'il en a une, et la liste de ses stories.
+// Aucune zone de plugin : le contrat figé ne donne à un panneau que la story
+// affichée (§6.1).
+const props = defineProps<{ stories: StoryEntry[]; page?: PageEntry }>()
 const emit = defineEmits<{ show: [id: string] }>()
 
 // `meta` se déclare par fichier de stories : la première story parle pour toutes.
@@ -58,7 +60,15 @@ function follow(event: MouseEvent, id: string) {
       <dd>
         <code>{{ first.storyFile }}</code>
       </dd>
+      <template v-if="page">
+        <dt>Page</dt>
+        <dd>
+          <code>{{ page.file }}</code>
+        </dd>
+      </template>
     </dl>
+
+    <MarkdownBody v-if="page" class="page" :body="page.body" />
 
     <PlainTable>
       <thead>
@@ -135,6 +145,10 @@ dt {
 
 dd {
   margin: 0;
+}
+
+.page {
+  margin-bottom: var(--space-6);
 }
 
 .prop {
