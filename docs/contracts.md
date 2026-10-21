@@ -44,7 +44,7 @@ stories/checkout/OrderSummary.ts
 
 A story file carries **the exact name of its component**. The sidebar tree comes from the path relative to the stories root. No title is ever declared.
 
-**A markdown file in the story folder is a page.** `Badge.md` beside `Badge.tsx` belongs to that story file's component and shows on its component page. A `.md` with no story file of the same name, or beside one that gives no story, is a general page, placed in the tree by its path. Markdown only, no front matter: the title is the first `# heading` outside a code fence, otherwise the file name. With `stories: '.'` every `.md` of the project is a page, its README included.
+**A markdown file in the story folder is a page.** `Badge.md` beside `Badge.tsx` belongs to that story file's component and shows on that component's page. A `.md` with no story file of the same name, or beside one that gives no story, is a general page, placed by its path. Markdown only, no front matter: the title is the first `# heading` outside a code fence, otherwise the file name. With `stories: '.'` every `.md` of the project is a page, its README included.
 
 **A story is written in the language of its project.** Four extensions are read: `.ts`, `.tsx`, `.js` and `.jsx`. A TypeScript project writes `.ts`, and a project with no TypeScript writes `.js`, the same way it writes its components.
 
@@ -556,7 +556,7 @@ With no `children`, the tag stays self-closing — and so it does when a spread 
 
 **`value` is always the literal, and `alias` is the chain that led to it.** A real token points at another token, sometimes through several hops. Whoever draws a swatch reads `value` alone and never resolves anything; whoever explains a token walks `alias`, ordered from the token towards the literal. A token that holds a literal itself has no `alias`.
 
-**A page entry is a markdown file of the story folder (1.1), as written.** `path` holds its folders only and `name` its title, as a tokens family's do. `file` is project-relative, like `storyFile`. `body` is the markdown without the heading the title came from, so a reader drawing `name` above it does not draw the title twice. `storyFile` is set when the page belongs to that story file's component, and only when the file gave at least one story: a component page that does not exist cannot show it, so it stays in the tree.
+**A page entry is a markdown file of the story folder (1.1), as written.** `path` holds its folders only and `name` its title, as a tokens family's do. `file` is project-relative, like `storyFile`. `body` is the markdown without the heading the title came from, so a reader drawing `name` above it does not draw the title twice. `storyFile` is set when the page belongs to that story file's component, and only when the file gave at least one story: a component page that does not exist cannot show it, so it stays a general page.
 
 **A page's `id` comes from its file name, never its title**: `storyId([...path, stem], '')`, so `stories/Guides/Accessibilite.md` gives `guides/accessibilite`. Retitling a page keeps its address. With no name there is no `--`, so a page lands on a story's `id` only when that story's name normalises to nothing, `'…'` for one, which is then a collision like any other. Pages stay out of the fingerprint (4.6): the file itself is in the pull request diff.
 
@@ -1018,7 +1018,7 @@ This document is a contract. This section is the only place that says what exist
 
 | Section | State |
 | --- | --- |
-| 1.1, story files | discovered and read, in the four extensions. The tree, the identifiers and the call code come out of them. Markdown pages are discovered beside them, and the shell draws a component's on its component page and the others in the tree |
+| 1.1, story files | discovered and read, in the four extensions. The tree, the identifiers and the call code come out of them. Markdown pages are discovered beside them. The shell's docs view lists every component, with its page when it has one, and the general pages by path |
 | 1.2, `crypte check` | built, all five problems. The component with no story is looked for in the folders the stories already point at, since no components root is declared anywhere |
 | 1.5, project configuration | the config is read, and the declared style sheet is loaded by the preview |
 | 1.5, path aliases | built |

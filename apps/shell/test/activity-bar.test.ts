@@ -8,7 +8,13 @@ const monte = (counter: number | null, todo: number) =>
   mount(ActivityBar, {
     props: {
       current: 'stories',
-      hrefs: { stories: '?', tokens: '?tokens', health: '?health', versions: '?changes' },
+      hrefs: {
+        stories: '?',
+        tokens: '?tokens',
+        docs: '?component=badge',
+        health: '?health',
+        versions: '?changes',
+      },
       counter,
       todo,
       searchKeys: '⌘K',

@@ -287,7 +287,7 @@ watch(
           :href="hrefOfComponent(page)"
           @click="emit('page', page, $event)"
         >
-          <span class="label">Its component page</span>
+          <span class="label">Its docs page</span>
           <Icon :icon="LinkSquare02Icon" />
         </a>
         <p v-if="file" class="row">

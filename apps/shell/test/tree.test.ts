@@ -1,6 +1,14 @@
-import type { StoryEntry, StoryMeta, TokensEntry } from '@crypte/core/protocol'
+import type { PageEntry, StoryEntry, StoryMeta, TokensEntry } from '@crypte/core/protocol'
 import { describe, expect, test } from 'vitest'
-import { branchKeys, dimmed, fold, keysAbove, treeOf, type Node } from '../src/navigation/tree'
+import {
+  branchKeys,
+  docsOf,
+  dimmed,
+  fold,
+  keysAbove,
+  treeOf,
+  type Node,
+} from '../src/navigation/tree'
 
 const entry = (
   id: string,
@@ -165,5 +173,38 @@ describe('a tokens family in the tree', () => {
     expect([...dimmed(treeOf([couleur]), 'stable')].sort()).toEqual(
       ['folder:tokens', couleur.id].sort(),
     )
+  })
+})
+
+// L'arbre de la vue docs : chaque composant une fois, en feuille, et les pages
+// générales sous leurs dossiers, qu'un composant peut partager.
+describe('the docs tree', () => {
+  test('lists each component once, then the pages, under shared folders', () => {
+    const guide: PageEntry = {
+      type: 'page',
+      id: 'checkout/rules',
+      path: ['checkout'],
+      name: 'Rules',
+      file: 'stories/checkout/rules.md',
+      body: '',
+    }
+    const nodes = docsOf(
+      [
+        entry('checkout/cart--a', 'A', ['checkout', 'Cart'], 'stable'),
+        entry('checkout/cart--b', 'B', ['checkout', 'Cart']),
+        entry('badge--a', 'A', ['Badge']),
+      ],
+      [guide],
+    )
+
+    expect(shape(nodes)).toEqual([
+      { 'folder checkout': [{ 'component Cart': [] }, 'Rules'] },
+      { 'component Badge': [] },
+    ])
+    expect(branchKeys(nodes)).toEqual([
+      'folder:checkout',
+      'component:checkout/cart',
+      'component:badge',
+    ])
   })
 })

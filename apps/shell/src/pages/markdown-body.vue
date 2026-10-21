@@ -11,24 +11,23 @@ const html = computed(() => rendered(props.body))
 </template>
 
 <style scoped>
+/* La prose de la maquette : 14 px sur 22, intertitres 16 sur 24. */
 .markdown-body {
-  max-width: 72ch;
-  font-size: var(--text-base);
-  line-height: var(--leading-base);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.6;
 }
 
 .markdown-body :deep(:is(h2, h3, h4, h5, h6)) {
-  margin: var(--space-6) 0 var(--space-2);
-  font-weight: var(--weight-semibold);
-}
-
-.markdown-body :deep(:is(h2, h3)) {
-  font-size: var(--text-xl);
-  line-height: var(--leading-xl);
-}
-
-.markdown-body :deep(:is(h4, h5, h6)) {
+  margin: var(--space-5) 0 var(--space-2);
+  color: var(--text-primary);
   font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-base);
+}
+
+.markdown-body :deep(:is(strong, code)) {
+  color: var(--text-primary);
 }
 
 .markdown-body :deep(:is(p, ul, ol, pre, table, blockquote)) {
@@ -55,7 +54,7 @@ const html = computed(() => rendered(props.body))
   padding: var(--space-3);
   overflow-x: auto;
   border-radius: var(--radius-md);
-  background: var(--surface-sunken);
+  background: var(--background-subtle);
 }
 
 .markdown-body :deep(table) {
@@ -65,13 +64,13 @@ const html = computed(() => rendered(props.body))
 
 .markdown-body :deep(:is(th, td)) {
   padding: var(--space-1-5) var(--space-3);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-light);
   text-align: left;
 }
 
 .markdown-body :deep(blockquote) {
   padding-left: var(--space-3);
-  border-left: 2px solid var(--border-subtle);
+  border-left: 2px solid var(--border-light);
   color: var(--text-muted);
 }
 </style>

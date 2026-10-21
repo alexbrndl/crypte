@@ -18,16 +18,12 @@ defineProps<{ page: PageEntry }>()
 </template>
 
 <style scoped>
-.markdown-page {
-  min-height: 70vh;
-}
-
 h2 {
-  margin: 0 0 var(--space-2);
+  margin: 0 0 var(--space-3);
+  color: var(--text-primary);
   font-size: var(--text-3xl);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   line-height: var(--leading-3xl);
-  letter-spacing: var(--tracking-tight);
 }
 
 .file {
