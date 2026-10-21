@@ -2,13 +2,13 @@
 import type { StoryEntry, Theme } from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/shell'
 import { ComponentIcon, LinkSquare02Icon } from '@hugeicons/core-free-icons'
-import { onBeforeUnmount, useTemplateRef, watch } from 'vue'
+import { onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import Icon from '../ui/icon.vue'
 import { sameTab } from '../navigation/url'
 
 // L'exemple vivant d'une page Docs : une preview à part, qui rend la story donnée
-// sans ses panneaux. Ses messages autres que `ready` sont ignorés : la preview du
-// canvas porte les erreurs et les valeurs.
+// sans ses panneaux. Elle lit `ready`, et l'erreur de sa story, qu'elle dit à la
+// place du cadre : la preview du canvas est masquée sous la page.
 const props = defineProps<{ story: StoryEntry; theme: Theme; href: string }>()
 const emit = defineEmits<{ show: [id: string] }>()
 
@@ -16,9 +16,12 @@ const frame = useTemplateRef<HTMLIFrameElement>('frame')
 let channel: { send: ReturnType<typeof createShellChannel>['send']; ready: boolean } | null = null
 let stop = () => {}
 
+const failure = ref<string | null>(null)
+
 const render = () => {
-  if (channel?.ready)
-    channel.send({ type: 'render', id: props.story.id, overrides: {}, theme: props.theme })
+  if (!channel?.ready) return
+  failure.value = null
+  channel.send({ type: 'render', id: props.story.id, overrides: {}, theme: props.theme })
 }
 
 watch(frame, (element) => {
@@ -28,6 +31,7 @@ watch(frame, (element) => {
   const opened = createShellChannel(element)
   const one = { send: opened.send, ready: false }
   stop = opened.onMessage((message) => {
+    if (message.type === 'error' && message.id === props.story.id) failure.value = message.message
     if (message.type !== 'ready') return
     one.ready = true
     render()
@@ -46,7 +50,9 @@ function follow(event: MouseEvent) {
 
 <template>
   <figure class="live-example">
+    <p v-if="failure" class="failure" role="alert">{{ failure }}</p>
     <iframe
+      v-show="!failure"
       ref="frame"
       src="/preview.html"
       :title="`example, ${story.name}`"
@@ -90,6 +96,16 @@ iframe[data-scheme='dark'] {
   background-color: var(--stone-700);
   background-image: radial-gradient(var(--stone-950) 1px, transparent 1px);
   background-size: 12px 12px;
+}
+
+.failure {
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--background-subtle);
+  color: var(--error-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
 }
 
 figcaption {

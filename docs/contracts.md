@@ -560,7 +560,7 @@ With no `children`, the tag stays self-closing — and so it does when a spread 
 
 **A page's `id` comes from its file name, never its title**: `storyId([...path, stem], '')`, so `stories/Guides/Accessibilite.md` gives `guides/accessibilite`. Retitling a page keeps its address. With no name there is no `--`, so a page lands on a story's `id` only when that story's name normalises to nothing, `'…'` for one, which is then a collision like any other. Pages stay out of the fingerprint (4.6): the file itself is in the pull request diff.
 
-**The core carries the shape, a plugin carries the reading.** No file format is part of this contract: CSS variables, DTCG, Tailwind and everything after them live in `@crypte/tokens`. Same split as props, where the core defines `ResolvedPropDetails` and `@crypte/docs` only draws a table from it.
+**The core carries the shape, a plugin carries the reading.** No file format is part of this contract: CSS variables, DTCG, Tailwind and everything after them live in `@crypte/tokens`. Same split as props, where the core defines `ResolvedPropDetails` and the shell's docs page only draws a table from it.
 
 ```json
 {

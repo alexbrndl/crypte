@@ -67,6 +67,7 @@ function follow(event: MouseEvent, name: string) {
             <th scope="col">Prop</th>
             <th scope="col">Type</th>
             <th scope="col">Default</th>
+            <th scope="col">Description</th>
           </tr>
         </thead>
         <tbody>
@@ -77,11 +78,15 @@ function follow(event: MouseEvent, name: string) {
             </td>
             <td>
               <code class="type">{{ one.type }}</code>
+              <code v-if="one.options?.length" class="options">{{
+                one.options.map(written).join(' | ')
+              }}</code>
             </td>
             <td>
               <code v-if="one.default !== undefined">{{ written(one.default) }}</code>
               <NoneValue v-else />
             </td>
+            <td class="description">{{ one.description }}</td>
           </tr>
         </tbody>
       </PlainTable>
@@ -162,6 +167,15 @@ code {
 
 .type {
   color: var(--text-current);
+}
+
+.options {
+  display: block;
+  color: var(--text-muted);
+}
+
+.description {
+  color: var(--text-muted);
 }
 
 .required {

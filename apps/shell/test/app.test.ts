@@ -1669,8 +1669,13 @@ describe('the docs view', () => {
       ...badge,
       component: { ...badge.component, file: 'src/Badge.tsx', tokens: ['Brand-primary', 'gap'] },
       details: {
-        label: { type: 'string', required: true },
-        tone: { type: 'enum', required: false, default: 'neutral' },
+        label: { type: 'string', required: true, description: 'What it says.' },
+        tone: {
+          type: 'enum',
+          required: false,
+          default: 'neutral',
+          options: ['neutral', 'warning'],
+        },
         note: { type: 'string', required: false, default: 'a very long default value, cut short' },
       },
     }
@@ -1681,9 +1686,9 @@ describe('the docs view', () => {
     expect(
       page.findAll('.props tbody tr').map((row) => row.findAll('td').map((cell) => cell.text())),
     ).toEqual([
-      ['labelrequired', 'string', 'none'],
-      ['tone', 'enum', '"neutral"'],
-      ['note', 'string', '"a very long default value, cut…'],
+      ['labelrequired', 'string', 'none', 'What it says.'],
+      ['tone', 'enum"neutral" | "warning"', '"neutral"', ''],
+      ['note', 'string', '"a very long default value, cut…', ''],
     ])
     expect(page.find('[aria-label="Props"] .source').text()).toBe('src/Badge.tsx')
     const pastilles = page.findAll('.chip')
@@ -1710,6 +1715,18 @@ describe('the docs view', () => {
     await expect
       .poll(() => reçus.at(-1))
       .toEqual({ type: 'render', id: 'badge--defaut', overrides: {}, theme: 'light' })
+    // Une story qui lève se dit à la place du cadre : la preview du canvas est masquée.
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'error', id: 'badge--defaut', message: 'Boom' },
+        origin: window.location.origin,
+        source: exemple.contentWindow,
+      }),
+    )
+    await vide(écran.wrapper)
+    expect(page.find('.live-example .failure').text()).toBe('Boom')
+    expect(page.find('.live-example iframe').isVisible()).toBe(false)
+
     await écran.wrapper.find('[aria-label="Dark theme"]').trigger('click')
     await vide(écran.wrapper)
     expect(reçus.at(-1)).toEqual({
@@ -1718,6 +1735,7 @@ describe('the docs view', () => {
       overrides: {},
       theme: 'dark',
     })
+    expect(page.find('.live-example .failure').exists()).toBe(false)
 
     // Un clic du milieu ouvre un onglet : le shell ne bouge pas.
     await pastilles[0]!.trigger('click', { button: 1 })
