@@ -117,47 +117,6 @@ describe('the theme', () => {
   })
 })
 
-// Les tokens essayés se posent sur la racine avant le rendu ; le rendu suivant
-// remplace les siens, et un rendu sans tokens rend chaque token à la feuille.
-describe('the tokens tried', () => {
-  it('sets each one on the root before the story renders, and clears what the next render drops', () => {
-    const racine = preview.document.documentElement
-    racine.style.setProperty('--projet', 'garde')
-    let pendant = ''
-    createPreviewChannel({
-      render: () => void (pendant = racine.style.getPropertyValue('--accent-base')),
-    })
-
-    envoie({ ...RENDER, tokens: { 'accent-base': '#ff0000', 'space-2': '6px' } })
-    expect(pendant).toBe('#ff0000')
-    expect(racine.style.getPropertyValue('--space-2')).toBe('6px')
-
-    envoie({ ...RENDER, tokens: { 'space-2': '10px' } })
-    expect(racine.style.getPropertyValue('--accent-base')).toBe('')
-    expect(racine.style.getPropertyValue('--space-2')).toBe('10px')
-
-    envoie(RENDER)
-    expect(racine.style.getPropertyValue('--space-2')).toBe('')
-    // Ce que le projet a posé lui-même n'est jamais touché.
-    expect(racine.style.getPropertyValue('--projet')).toBe('garde')
-  })
-
-  // Un nom que le projet pose lui-même en ligne : l'essai le couvre, puis lui
-  // rend sa valeur, jamais celle du premier essai.
-  it('gives a token the project set inline its own value back', () => {
-    const racine = preview.document.documentElement
-    racine.style.setProperty('--accent-base', 'projet')
-    createPreviewChannel({ render: () => {} })
-
-    envoie({ ...RENDER, tokens: { 'accent-base': '#f00' } })
-    envoie({ ...RENDER, tokens: { 'accent-base': '#0f0' } })
-    expect(racine.style.getPropertyValue('--accent-base')).toBe('#0f0')
-
-    envoie(RENDER)
-    expect(racine.style.getPropertyValue('--accent-base')).toBe('projet')
-  })
-})
-
 describe('what is ignored', () => {
   function monte(render: (id: string) => void = () => {}) {
     const rendus: unknown[] = []

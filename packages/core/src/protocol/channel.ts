@@ -6,16 +6,7 @@
 // measured with `controls`. That is why `update-overrides` stays in reserve,
 // section 7. Reopened by an adapter that remounts on every `render`.
 export type ShellMessage =
-  // `tokens`: custom properties to try, by name without their dashes, set on the
-  // preview's root before rendering; the next `render` replaces them, and one
-  // without `tokens` clears them.
-  | {
-      type: 'render'
-      id: string
-      overrides: Overrides
-      theme?: Theme
-      tokens?: Record<string, string>
-    }
+  | { type: 'render'; id: string; overrides: Overrides; theme?: Theme }
   | MessagesOf<PluginShellMessages>
 
 export type PreviewMessage =
