@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import type { StoryEntry } from '@crypte/core/protocol'
-import { Button } from '@crypte/ui'
-import CardTable from '../ui/card-table.vue'
-import EmptyNote from '../ui/empty-note.vue'
-import SectionHeader from '../ui/section-header.vue'
-import ViewCanvas from '../ui/view-canvas.vue'
+import { Button, CardTable, EmptyNote, SectionHeader, ViewCanvas } from '@crypte/ui'
 import { storyName } from './health'
 import type { Failure } from './audit'
 

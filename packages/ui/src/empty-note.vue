@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Ce qu'une liste dit quand elle n'a rien à montrer, en cours, ou en échec en
-// rouge. Le contexte règle son retrait par `--empty-note-padding`.
+// What a list says when it has nothing to show, or is busy, or failed, in red.
+// The context sets its inset through `--empty-note-padding`.
 defineProps<{ failed?: boolean }>()
 </script>
 

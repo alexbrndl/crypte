@@ -1,12 +1,8 @@
 <script setup lang="ts">
 import type { StoryEntry } from '@crypte/core/protocol'
-import { Button } from '@crypte/ui'
+import { Button, CardTable, EmptyNote, SectionHeader, ViewCanvas } from '@crypte/ui'
 import { computed } from 'vue'
 import { cleanOf, findingsOf, unjudgedOf, type AuditResult } from './audit'
-import CardTable from '../ui/card-table.vue'
-import EmptyNote from '../ui/empty-note.vue'
-import SectionHeader from '../ui/section-header.vue'
-import ViewCanvas from '../ui/view-canvas.vue'
 import { storyName } from './health'
 
 // La page accessibilité de la vue santé : l'audit de chaque story, en light et en

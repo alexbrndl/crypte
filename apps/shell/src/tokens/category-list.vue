@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import EmptyNote from '../ui/empty-note.vue'
-import SidebarLink from '../ui/sidebar-link.vue'
-import ColumnTitle from '../ui/column-title.vue'
+import { EmptyNote, SidebarLink, ColumnTitle } from '@crypte/ui'
 import type { Category } from './categories'
 
 // La sidebar de la vue tokens : une ligne par catégorie, avec son compte, comme

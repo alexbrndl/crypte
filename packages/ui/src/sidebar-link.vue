@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// Une ligne de sidebar, `row` de la maquette : 24 px, padding 2/12, gap 6, le
-// libellé coupé, le compte à droite. La ligne courante porte la bande et le
-// marqueur au bord de la colonne, comme le premier niveau de l'arbre.
+// A sidebar row, `row` of the Figma file: 24 px, padding 2/12, gap 6, the label
+// cut, the count at the right. The current row has the band and the marker at
+// the column's edge, as the tree's first level.
 defineProps<{ href: string; current: boolean; count?: number | string }>()
 const emit = defineEmits<{ click: [event: MouseEvent] }>()
 defineSlots<{ default(): unknown; icon?(): unknown; detail?(): unknown }>()

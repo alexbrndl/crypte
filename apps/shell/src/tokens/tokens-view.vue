@@ -1,7 +1,6 @@
 <script setup lang="ts">
+import { SectionHeader, ViewCanvas } from '@crypte/ui'
 import { computed } from 'vue'
-import SectionHeader from '../ui/section-header.vue'
-import ViewCanvas from '../ui/view-canvas.vue'
 import { shown, valueIn, type Category, type Token } from './categories'
 
 // Une catégorie de tokens, dessinée selon ce qu'elle porte : des nuanciers pour

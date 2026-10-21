@@ -1,16 +1,12 @@
 <script setup lang="ts">
+import { CardTable, Badge, EmptyNote, SectionHeader, ViewCanvas } from '@crypte/ui'
 import { plural } from '../plural'
 import type { StoryEntry } from '@crypte/core/protocol'
 import { Alert02Icon } from '@hugeicons/core-free-icons'
 import { VisuallyHidden } from 'reka-ui'
 import { computed } from 'vue'
 import { useCopy } from '../clipboard'
-import CardTable from '../ui/card-table.vue'
-import Badge from '../ui/badge.vue'
-import EmptyNote from '../ui/empty-note.vue'
 import Icon from '../ui/icon.vue'
-import SectionHeader from '../ui/section-header.vue'
-import ViewCanvas from '../ui/view-canvas.vue'
 import { ago } from '../navigation/recent'
 import type { Failure, Finding } from './audit'
 import {

@@ -1,22 +1,20 @@
 <script setup lang="ts">
 import { useId } from 'vue'
-import { ArrowDown01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons'
-import Icon from '../ui/icon.vue'
+import Chevron from './chevron.vue'
 
-// L'en-tête repliable d'un panneau de la colonne de droite, dans toutes les
-// vues. Tout l'en-tête plie le panneau, sauf l'action. Le repli se retient chez
-// le parent, qui seul sait sous quelle clé. Les lignes d'un panneau natif du
-// shell, `panel/row` de la maquette, sont dessinées ici : `.rows` les porte,
-// `.row`, `.caption`, `.link`, `.label` et `.meta` les composent. Un
-// panneau de plugin dessine les siennes avec `@crypte/ui`.
+// The header that folds a panel of the right-hand column, in every view. The
+// whole header folds it, but the action. The parent remembers the fold, being
+// the one to know under which key. The rows of a panel, `panel/row` of the
+// Figma file, are drawn here: `.rows` holds them, `.row`, `.caption`,
+// `.link`, `.label` and `.meta` make them.
 defineProps<{ title: string; open: boolean }>()
 const emit = defineEmits<{ toggle: [] }>()
 const slots = defineSlots<{
   default?(): unknown
-  // Ce qui décrit le panneau replié, lu avec le bouton.
+  // What describes the folded panel, read with the button.
   note?(): unknown
   action?(): unknown
-  // Montré replié ou non, à la place du corps : ce qu'un panneau a levé.
+  // Shown folded or not, in place of the body: what a panel threw.
   alert?(): unknown
 }>()
 
@@ -36,7 +34,7 @@ const noteId = useId()
           :aria-describedby="slots.note ? noteId : undefined"
           @click="emit('toggle')"
         >
-          <Icon :icon="open ? ArrowDown01Icon : ArrowRight01Icon" />
+          <Chevron :open="open" />
           <span class="title">{{ title }}</span>
         </button>
       </h3>

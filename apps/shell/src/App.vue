@@ -11,7 +11,15 @@ import type {
   TokensEntry,
 } from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/shell'
-import { Alert, Button, Tooltip } from '@crypte/ui'
+import {
+  Alert,
+  Button,
+  Tooltip,
+  ColumnTitle,
+  EmptyNote,
+  ViewCanvas,
+  PanelSection,
+} from '@crypte/ui'
 import {
   DropdownMenuContent,
   DropdownMenuItemIndicator,
@@ -72,10 +80,6 @@ import {
 } from '@hugeicons/core-free-icons'
 import ActivityBar, { type BuiltIn, type View } from './navigation/activity-bar.vue'
 import Icon from './ui/icon.vue'
-import ColumnTitle from './ui/column-title.vue'
-import EmptyNote from './ui/empty-note.vue'
-import ViewCanvas from './ui/view-canvas.vue'
-import PanelSection from './panels/panel-section.vue'
 import { keep, kept } from './storage'
 import StoryTree from './navigation/story-tree.vue'
 import CategoryList from './tokens/category-list.vue'

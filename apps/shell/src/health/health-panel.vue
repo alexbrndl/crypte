@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { plural } from '../plural'
 import type { StoryEntry } from '@crypte/core/protocol'
-import { Button } from '@crypte/ui'
+import { Button, PanelSection, EmptyNote } from '@crypte/ui'
 import {
   AiContentGenerator01Icon,
   Alert02Icon,
@@ -14,8 +14,6 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useCopy } from '../clipboard'
 import Icon from '../ui/icon.vue'
-import PanelSection from '../panels/panel-section.vue'
-import EmptyNote from '../ui/empty-note.vue'
 import { keep, kept } from '../storage'
 import { ago } from '../navigation/recent'
 import { componentIdOf } from '../navigation/tree'

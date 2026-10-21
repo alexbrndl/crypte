@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import EmptyNote from '../ui/empty-note.vue'
 import { plural } from '../plural'
 import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { Clock01Icon, Search01Icon } from '@hugeicons/core-free-icons'
-import { Button, Field, Input } from '@crypte/ui'
+import { Button, Field, Input, EmptyNote } from '@crypte/ui'
 import {
   DialogContent,
   DialogOverlay,

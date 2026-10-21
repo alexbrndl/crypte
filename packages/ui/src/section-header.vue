@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import Badge from './badge.vue'
 
-// Le `section-header` de la maquette : l'intitulé, le compte en badge, une note
-// à droite, puis l'action.
+// The `section-header` of the Figma file: the title, the count in a badge, a
+// note at the right, then the action.
 defineProps<{ title: string; count?: number | string; note?: string }>()
 defineSlots<{ action?(): unknown }>()
 </script>

@@ -178,10 +178,13 @@ const monte = async (
     statut: () => wrapper.findAll('p').at(-1)?.text() ?? '',
     écartés: () => wrapper.findAll('.set-aside li').map((one) => one.text()),
     partielle: () => wrapper.find('.partial').exists() && wrapper.find('.partial').text(),
-    noms: () => wrapper.findAll('[role="treeitem"].story .name').map((one) => one.text()),
+    noms: () =>
+      wrapper.findAll('[role="treeitem"][data-kind="story"] .name').map((one) => one.text()),
     branches: () =>
-      wrapper.findAll('[role="treeitem"]:not(.story):not(.tokens) .name').map((one) => one.text()),
-    story: (at) => wrapper.findAll('[role="treeitem"].story')[at]!,
+      wrapper
+        .findAll('[role="treeitem"]:not([data-kind="story"]):not([data-kind="tokens"]) .name')
+        .map((one) => one.text()),
+    story: (at) => wrapper.findAll('[role="treeitem"][data-kind="story"]')[at]!,
     vue: (label) =>
       wrapper.findAll('.activity-bar .item').find((one) => one.find('.label').text() === label) ??
       wrapper.find('.activity-bar .absent'),
@@ -860,7 +863,7 @@ describe('the keyboard', () => {
 describe('folding the tree', () => {
   const branche = (écran: Ecran, nom: string) =>
     écran.wrapper
-      .findAll('[role="treeitem"]:not(.story)')
+      .findAll('[role="treeitem"]:not([data-kind="story"])')
       .find((one) => one.find('.name').text() === nom)!
 
   test('folds a component, and remembers it at the next visit', async ({ écran }) => {
@@ -993,9 +996,9 @@ describe('the rows of the tree', () => {
     expect(gauches(ligne(wrapper, 'X'), '.marker')).toEqual(['32px'])
     expect(gauches(ligne(wrapper, 'X'), '.band')).toEqual(['32px'])
     expect(gauches(ligne(wrapper, 'Par défaut'), '.marker')).toEqual([])
-    expect(ligne(wrapper, 'checkout').find('.meta').text()).toBe('1')
+    expect(ligne(wrapper, 'checkout').find('.count').text()).toBe('1')
     // Une famille compte comme une story.
-    expect(ligne(wrapper, 'Color').find('.meta').text()).toBe('1')
+    expect(ligne(wrapper, 'Color').find('.count').text()).toBe('1')
     wrapper.unmount()
   })
 })
@@ -1006,7 +1009,7 @@ describe('folding out of view', () => {
   test('keeps folded what left the tree while something else was folded', async () => {
     const branche = (wrapper: VueWrapper, nom: string) =>
       wrapper
-        .findAll('[role="treeitem"]:not(.story)')
+        .findAll('[role="treeitem"]:not([data-kind="story"])')
         .find((one) => one.find('.name').text() === nom)!
     const wrapper = mount(StoryTree, {
       props: {
@@ -1023,7 +1026,9 @@ describe('folding out of view', () => {
     await branche(wrapper, 'Bouton').find('.chevron').trigger('click')
     await wrapper.setProps({ entries: [badge, bouton] })
 
-    expect(wrapper.findAll('[role="treeitem"].story .name').map((one) => one.text())).toEqual([])
+    expect(
+      wrapper.findAll('[role="treeitem"][data-kind="story"] .name').map((one) => one.text()),
+    ).toEqual([])
     wrapper.unmount()
   })
 
@@ -1039,7 +1044,7 @@ describe('folding out of view', () => {
       },
     })
 
-    await wrapper.find('[role="treeitem"].story .chevron').trigger('click')
+    await wrapper.find('[role="treeitem"][data-kind="story"] .chevron').trigger('click')
     expect(wrapper.emitted('show')).toEqual([[badge.id]])
     wrapper.unmount()
   })
@@ -1097,7 +1102,7 @@ describe('the component page', () => {
 
   const libellé = (écran: Ecran, nom: string) =>
     écran.wrapper
-      .findAll('[role="treeitem"]:not(.story)')
+      .findAll('[role="treeitem"]:not([data-kind="story"])')
       .find((one) => one.find('.name').text() === nom)!
   const page = (écran: Ecran) => écran.wrapper.find('.component-page')
 
@@ -1549,10 +1554,10 @@ describe('the component page', () => {
 describe('the tree around a component', () => {
   const nœud = (wrapper: VueWrapper, nom: string) =>
     wrapper
-      .findAll('[role="treeitem"]:not(.story)')
+      .findAll('[role="treeitem"]:not([data-kind="story"])')
       .find((one) => one.find('.name').text() === nom)!
   const stories = (wrapper: VueWrapper) =>
-    wrapper.findAll('[role="treeitem"].story .name').map((one) => one.text())
+    wrapper.findAll('[role="treeitem"][data-kind="story"] .name').map((one) => one.text())
   const arbre = (entries: StoryEntry[]) =>
     mount(StoryTree, {
       props: { entries, current: null, component: null, label: 'Stories', none: 'no story' },
@@ -4048,7 +4053,7 @@ describe('leaving full screen without Escape', () => {
     expect(wrapper.find('.nav-column').isVisible()).toBe(true)
 
     // Quitté, pas masqué : la story suivante ne le rallume pas.
-    await wrapper.find('[role="treeitem"].story').trigger('click')
+    await wrapper.find('[role="treeitem"][data-kind="story"]').trigger('click')
     await vide(wrapper)
     expect(window.location.search).toBe('?id=bouton--defaut')
     expect(wrapper.find('main').classes()).not.toContain('full')

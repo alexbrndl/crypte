@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { EmptyNote } from '@crypte/ui'
 import ColorSwatch from '../ui/color-swatch.vue'
-import EmptyNote from '../ui/empty-note.vue'
 import NoneValue from '../ui/none-value.vue'
 import PlainTable from '../ui/plain-table.vue'
 import { plural } from '../plural'

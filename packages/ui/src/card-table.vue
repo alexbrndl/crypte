@@ -1,9 +1,8 @@
 <script setup lang="ts">
-// La table de la maquette : un cadre arrondi, l'en-tête sur le fond subtil, des
-// lignes de 38 px séparées d'un filet clair. Chaque ligne se choisit, son lien
-// dans la première cellule, et `data-selected` marque la choisie. `.grow`
-// prend la place qui reste, `.code` est une valeur, `data-ink="error"` un
-// problème.
+// The table of the Figma file: a rounded frame, the head on the subtle
+// background, 38 px rows split by a light hairline. Each row can be chosen, its
+// link in the first cell, and `data-selected` marks the chosen one. `.grow`
+// takes the room left, `.code` is a value, `data-ink="error"` a problem.
 </script>
 
 <template>

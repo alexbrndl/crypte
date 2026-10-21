@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import type { Overrides, RenderedValues, StoryEntry } from '@crypte/core/protocol'
-import { Alert, Button } from '@crypte/ui'
+import { Alert, Button, PanelSection } from '@crypte/ui'
 import { computed, onErrorCaptured, ref, watch, type Component } from 'vue'
 import { keep, kept } from '../storage'
-import PanelSection from './panel-section.vue'
 
 // Le cadre d'un panneau de plugin, section 6.1 des contrats. Local au shell,
 // son seul consommateur : les panneaux sont montés dedans, ils ne le dessinent
