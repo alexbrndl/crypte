@@ -178,7 +178,6 @@ const items = computed(() => toItems(shown.value))
           :data-lit="node.key === lit || undefined"
           :aria-label="`Open the docs page of ${node.label}`"
           @click.stop="emit('open', node.key.slice('component:'.length))"
-          @keydown.stop
         >
           <Icon :icon="ViewIcon" />
         </button>

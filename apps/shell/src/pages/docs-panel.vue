@@ -15,8 +15,8 @@ import { componentIdOf } from '../navigation/tree'
 import { cites, citing } from './links'
 
 // « Links », le panneau de la vue docs. Pour un composant : ses stories, les tokens
-// qu'il lit et les pages qui le citent. Pour une page générale : les composants
-// qu'elle cite.
+// qu'il lit et les pages qui le citent. Pour toute page : les composants qu'elle
+// cite, celui qu'elle documente excepté.
 const props = defineProps<{
   // Les stories du composant ouvert, vides sur une page générale.
   own: StoryEntry[]
@@ -45,12 +45,13 @@ const citedBy = computed(() =>
 )
 // Un composant par nom, dans l'ordre du manifeste.
 const cited = computed(() => {
-  if (name.value !== null || props.page === null) return []
+  if (props.page === null) return []
   const body = props.page.body
   const found = new Map<string, string[]>()
   for (const entry of props.stories) {
     const component = entry.path.at(-1) ?? ''
-    if (cites(body, component)) found.set(componentIdOf(entry.path), entry.path)
+    if (component !== name.value && cites(body, component))
+      found.set(componentIdOf(entry.path), entry.path)
   }
   return [...found].map(([id, path]) => ({ id, path }))
 })

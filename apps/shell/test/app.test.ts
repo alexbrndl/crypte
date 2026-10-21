@@ -1593,6 +1593,12 @@ describe('the docs view', () => {
     expect(ligne(écran, 'Guide').attributes('aria-selected')).toBe('true')
     expect(écran.wrapper.find('.canvas').isVisible()).toBe(false)
     expect(écran.wrapper.find('nav.trail').text()).toBe('docs/Guides/Guide')
+    await ligne(écran, 'Badge').trigger('click')
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?component=badge')
+    await écran.wrapper.find('[aria-controls="docs-panel"]').trigger('click')
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('#docs-panel').exists()).toBe(false)
 
     await écran.vue('stories').trigger('click', { button: 0 })
     await vide(écran.wrapper)
@@ -1659,13 +1665,34 @@ describe('the docs view', () => {
 
   // Le panneau Links : ce qui relie la page au reste, dans les deux sens.
   test('links a page to its stories, its tokens and the pages that cite it', async () => {
-    const lu = { ...badge, component: { ...badge.component, tokens: ['color-text'] } }
+    const lu = {
+      ...badge,
+      component: { ...badge.component, tokens: ['color-text', 'Brand-primary'] },
+    }
     const citante = { ...guide, body: 'Prefer a Badge to a sentence.\n' }
     window.history.replaceState(null, '', '/?component=badge')
-    const écran = await monte([lu, alerte, citante])
+    const écran = await monte([lu, alerte, citante, jetons])
     const légendes = () => écran.wrapper.findAll('#docs-panel .caption').map((one) => one.text())
 
-    expect(légendes()).toEqual(['2 stories', 'tokens read · 1', 'pages that cite Badge · 1'])
+    expect(légendes()).toEqual(['2 stories', 'tokens read · 2', 'pages that cite Badge · 1'])
+    // Un token qu'aucune catégorie ne porte se lit sans lien.
+    expect(écran.wrapper.find('#docs-panel p.row code').text()).toBe('color-text')
+
+    await écran.wrapper
+      .find('#docs-panel a[href="?id=badge--alerte"]')
+      .trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?id=badge--alerte')
+    window.history.replaceState(null, '', '/?component=badge')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    await vide(écran.wrapper)
+    await écran.wrapper.find('#docs-panel a[href^="?tokens="]').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('.tokens-view').exists()).toBe(true)
+    window.history.replaceState(null, '', '/?component=badge')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    await vide(écran.wrapper)
+
     await écran.wrapper
       .find('#docs-panel a[href="?id=guides/guide"]')
       .trigger('click', { button: 0 })
@@ -1674,6 +1701,58 @@ describe('the docs view', () => {
     expect(écran.wrapper.find('.markdown-page h2').text()).toBe('Guide')
     expect(légendes()).toEqual(['1 component cited'])
     expect(écran.wrapper.find('#docs-panel a').attributes('href')).toBe('?component=badge')
+    écran.wrapper.unmount()
+  })
+
+  // La page d'un composant cite aussi : les autres composants, jamais le sien.
+  test('lists the other components a component page cites', async () => {
+    window.history.replaceState(null, '', '/?component=badge')
+    const écran = await monte([badge, bouton, { ...badgePage, body: 'Badge, never a Bouton.\n' }])
+
+    expect(écran.wrapper.findAll('#docs-panel .caption').map((one) => one.text())).toEqual([
+      '1 story',
+      '1 component cited',
+    ])
+    await écran.wrapper
+      .find('#docs-panel a[href="?component=bouton"]')
+      .trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('.component-page h2').text()).toBe('Bouton')
+    écran.wrapper.unmount()
+  })
+
+  // Une page rattachée qui cite un composant mène à la page Docs de son propre
+  // composant, sa seule adresse.
+  test('leads a citing page that belongs to a component to that component', async () => {
+    const boutonPage: PageEntry = {
+      ...badgePage,
+      id: 'bouton',
+      name: 'Bouton',
+      file: 'stories/Bouton.md',
+      body: 'Never inside a Badge.\n',
+      storyFile: 'stories/Bouton.tsx',
+    }
+    window.history.replaceState(null, '', '/?component=badge')
+    const écran = await monte([badge, bouton, boutonPage])
+
+    const lien = écran.wrapper.find('#docs-panel a[href="?component=bouton"]')
+    expect(lien.text()).toBe('Bouton')
+    await lien.trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?component=bouton')
+    écran.wrapper.unmount()
+  })
+
+  test('folds and unfolds its Links panel, remembered', async () => {
+    window.history.replaceState(null, '', '/?component=badge')
+    const écran = await monte([badge])
+
+    await écran.wrapper.find('#docs-panel [aria-label="Links"] button').trigger('click')
+    await vide(écran.wrapper)
+    expect(localStorage.getItem('crypte:panel:docs:links')).toBe('false')
+    await écran.wrapper.find('#docs-panel [aria-label="Links"] button').trigger('click')
+    await vide(écran.wrapper)
+    expect(localStorage.getItem('crypte:panel:docs:links')).toBeNull()
     écran.wrapper.unmount()
   })
 })
