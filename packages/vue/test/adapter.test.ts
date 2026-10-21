@@ -92,7 +92,8 @@ describe('the Vue adapter', () => {
     expect(monte.hote.textContent).toBe('Après')
   })
 
-  // Après un démontage, l'état repart de zéro : ce qu'un changement de story fait.
+  // Après un démontage, l'état repart de zéro : la preview démonte quand le
+  // rechargement à chaud remplace son module, jamais à un changement de story.
   test('starts from fresh state after an unmount', async ({ monte }) => {
     monte.adapter.mount(monte.hote, Compteur, {}, [])
     monte.hote.querySelector('button')?.click()
