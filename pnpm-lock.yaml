@@ -325,6 +325,9 @@ importers:
 
   apps/demo-vue:
     dependencies:
+      '@crypte/controls':
+        specifier: workspace:*
+        version: link:../../plugins/controls
       '@crypte/vue':
         specifier: workspace:*
         version: link:../../packages/vue

@@ -5,8 +5,9 @@ import { readFileSync } from 'node:fs'
 import type { PropKind, ResolvedPropDetails } from '@crypte/core/protocol'
 import { parseSync } from 'vite'
 import { literalOf, propertyOf, type Node } from './ast'
+import { vuePropsOf } from './vue-props'
 
-interface Comment {
+export interface Comment {
   type: string
   value: string
   start: number
@@ -30,6 +31,8 @@ export function propsOf(file: string, exported: string): PropsRead {
 
   try {
     source = readFileSync(file, 'utf8')
+    // A Vue file is not script: its props are in its `<script>` block, read apart.
+    if (file.endsWith('.vue')) return vuePropsOf(file, source)
     parsed = parseSync(file, source)
   } catch (error) {
     // Absent is the common case: a component from a package, or reached through
@@ -98,7 +101,7 @@ export function propsOf(file: string, exported: string): PropsRead {
   return { details }
 }
 
-interface Member {
+export interface Member {
   name: string
   optional: boolean
   // Declared as a method rather than a property, which fixes its kind.
@@ -221,7 +224,7 @@ function membersOf(body: Node[], parameter: Node, fallback?: Node): Member[] | u
 // `ComponentProps<'button'> & VariantProps<typeof x> & { asChild?: boolean }`,
 // the shadcn shape: each part that resolves adds its members, and a part that
 // does not, the DOM one here, adds none.
-function typeMembers(
+export function typeMembers(
   body: Node[],
   annotation: Node,
   seen = new Set<string>(),
@@ -360,7 +363,7 @@ function optionsOf(value: Node): { type: PropKind; options?: unknown[] } {
 
 // The name a key writes. A computed key has none that can be read without
 // running the file, and section 4.2 forbids guessing one.
-function nameOf(key: Node, computed: boolean): string | undefined {
+export function nameOf(key: Node, computed: boolean): string | undefined {
   if (computed) return undefined
   if (key.type === 'Identifier') return String(key['name'])
 
@@ -425,7 +428,10 @@ function destructured(parameter: Node): Member[] {
 
 // Two sets, not one: `{ tone = compute() }` makes the prop optional, so its name
 // is kept, but a computed value does not survive JSON, so its value is not.
-function defaultsOf(parameter: Node): { named: Set<string>; values: Record<string, unknown> } {
+export function defaultsOf(parameter: Node): {
+  named: Set<string>
+  values: Record<string, unknown>
+} {
   const named = new Set<string>()
   const values: Record<string, unknown> = {}
 
@@ -452,7 +458,7 @@ function defaultsOf(parameter: Node): { named: Set<string>; values: Record<strin
 
 // The block comment that ends just before a member, its JSDoc stars and margin
 // removed. Anything further up belongs to something else.
-function describe(source: string, comments: Comment[], at: number): string | undefined {
+export function describe(source: string, comments: Comment[], at: number): string | undefined {
   // JSDoc only: a trailing `//` on the previous line, or an
   // `/* eslint-disable-next-line */`, otherwise becomes a published description.
   const found = comments
@@ -478,9 +484,9 @@ function describe(source: string, comments: Comment[], at: number): string | und
 // A node the type checker would call something. Read from the syntax alone, so
 // what a name points at is out of reach: an unresolved reference is `unknown`
 // rather than `object`, which would claim more than the file says.
-const NODES = new Set(['ReactNode', 'ReactElement', 'Element', 'JSX.Element'])
+const NODES = new Set(['ReactNode', 'ReactElement', 'Element', 'JSX.Element', 'VNode'])
 
-function kindOf(
+export function kindOf(
   annotation: Node,
   body: Node[],
   seen = new Set<string>(),
