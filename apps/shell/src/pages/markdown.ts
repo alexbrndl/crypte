@@ -1,7 +1,8 @@
 // Le markdown d'une page en HTML. La page vient d'un dépôt qu'un build statique
 // publie : le HTML brut s'affiche en texte, et un lien ou une image ne reste qu'en
-// http, https, mailto ou relatif. Jugés sur le DOM, comme le navigateur les lit :
-// sur le texte, `&#106;avascript:` passait pour un chemin relatif. Un titre
+// adresse absolue http, https ou mailto. Jugés sur le DOM, comme le navigateur les
+// lit : sur le texte, `&#106;avascript:` passait pour un chemin relatif. Un chemin
+// relatif se résoudrait contre le shell, qui ne sert pas le dossier des stories. Un titre
 // descend d'un niveau : celui de la page est le `h2`, son `##` vient dessous.
 
 import { Marked, type Tokens } from 'marked'
@@ -24,7 +25,7 @@ const SAFE = ['http:', 'https:', 'mailto:']
 
 const safe = (url: string) => {
   try {
-    return SAFE.includes(new URL(url, window.location.href).protocol)
+    return SAFE.includes(new URL(url).protocol)
   } catch {
     return false
   }
@@ -36,9 +37,9 @@ export function rendered(body: string): string {
   template.innerHTML = marked.parse(body, { async: false })
 
   for (const link of template.content.querySelectorAll('a'))
-    if (!safe(link.href)) link.replaceWith(...link.childNodes)
+    if (!safe(String(link.getAttribute('href')))) link.replaceWith(...link.childNodes)
   for (const image of template.content.querySelectorAll('img'))
-    if (!safe(image.src)) image.replaceWith(image.alt)
+    if (!safe(String(image.getAttribute('src')))) image.replaceWith(image.alt)
 
   return template.innerHTML
 }

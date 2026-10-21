@@ -179,6 +179,23 @@ describe('the catalogue', () => {
     )
   })
 
+  // Un nom de story qui se normalise en vide rend l'identifiant du composant,
+  // celui de sa page.
+  it('refuses a story and a page that land on the same id', async () => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      'stories/A.ts':
+        "import { A } from '../a'\nexport default defineStories(A, { stories: { '…': {} } })\n",
+      'stories/A.md': '# A\n',
+    })
+
+    const project = await loadProject(root)
+
+    expect(() => buildCatalogue(project)).toThrowErrorMatchingInlineSnapshot(
+      `[Error: Two entries share the identifier \`a\`: "…" in stories/A.ts and "A" in stories/A.md. Rename one of them.]`,
+    )
+  })
+
   it('names the stories folder when it is missing', async () => {
     const root = projectWith({ 'crypte.config.ts': CONFIG })
 

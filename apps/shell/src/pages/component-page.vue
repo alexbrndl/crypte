@@ -68,7 +68,10 @@ function follow(event: MouseEvent, id: string) {
       </template>
     </dl>
 
-    <MarkdownBody v-if="page" class="page" :body="page.body" />
+    <template v-if="page">
+      <h3 v-if="page.name !== first.path.at(-1)">{{ page.name }}</h3>
+      <MarkdownBody class="page" :body="page.body" />
+    </template>
 
     <PlainTable>
       <thead>
@@ -145,6 +148,13 @@ dt {
 
 dd {
   margin: 0;
+}
+
+h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-xl);
 }
 
 .page {

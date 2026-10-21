@@ -348,6 +348,18 @@ describe('the shell tree', () => {
     const page = écran.wrapper.find('.component-page')
     expect(page.find('.markdown-body').text()).toBe('Un badge annonce un état court.')
     expect(page.findAll('dd').at(-1)?.text()).toBe('stories/Badge.md')
+    expect(page.find('h3').exists()).toBe(false)
+    écran.wrapper.unmount()
+  })
+
+  // Le corps arrive sans son titre : celui qui diffère du composant se dessine.
+  test('draws the title of a component page that is not the component name', async () => {
+    const écran = await monte([badge, { ...badgePage, name: "Badge : règles d'usage" }])
+
+    await écran.wrapper.find('[role="treeitem"][data-kind="component"]').trigger('click')
+    await vide(écran.wrapper)
+
+    expect(écran.wrapper.find('.component-page h3').text()).toBe("Badge : règles d'usage")
     écran.wrapper.unmount()
   })
 

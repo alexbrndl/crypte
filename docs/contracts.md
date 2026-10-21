@@ -558,7 +558,7 @@ With no `children`, the tag stays self-closing — and so it does when a spread 
 
 **A page entry is a markdown file of the story folder (1.1), as written.** `path` holds its folders only and `name` its title, as a tokens family's do. `file` is project-relative, like `storyFile`. `body` is the markdown without the heading the title came from, so a reader drawing `name` above it does not draw the title twice. `storyFile` is set when the page belongs to that story file's component, and only when the file gave at least one story: a component page that does not exist cannot show it, so it stays in the tree.
 
-**A page's `id` comes from its file name, never its title**: `storyId([...path, stem], '')`, so `stories/Guides/Accessibilite.md` gives `guides/accessibilite`. Retitling a page keeps its address, and with no name there is no `--`, so a page never lands on a story's `id`. Pages stay out of the fingerprint (4.6): the file itself is in the pull request diff.
+**A page's `id` comes from its file name, never its title**: `storyId([...path, stem], '')`, so `stories/Guides/Accessibilite.md` gives `guides/accessibilite`. Retitling a page keeps its address. With no name there is no `--`, so a page lands on a story's `id` only when that story's name normalises to nothing, `'…'` for one, which is then a collision like any other. Pages stay out of the fingerprint (4.6): the file itself is in the pull request diff.
 
 **The core carries the shape, a plugin carries the reading.** No file format is part of this contract: CSS variables, DTCG, Tailwind and everything after them live in `@crypte/tokens`. Same split as props, where the core defines `ResolvedPropDetails` and `@crypte/docs` only draws a table from it.
 
@@ -633,7 +633,7 @@ Who holds it, in the order collisions happen:
 
 | Collision | What happens |
 | --- | --- |
-| two stories, or two pages | the catalogue cannot be built. Neither can be made to give way: both come from the author's own files |
+| two entries read from the story folder, stories or pages | the catalogue cannot be built. Neither can be made to give way: both come from the author's own files |
 | a contribution on a story's or a page's `id` | the contribution is refused and said, named by plugin. 6.3 has the rule and why the story wins |
 | a contribution on another contribution's `id` | the same refusal. First contributed, first kept |
 
