@@ -4634,6 +4634,19 @@ describe('the command palette', () => {
     }
   })
 
+  test('offers a page left among them', async () => {
+    const écran = await monte([badge, guide])
+
+    await ouvre(écran)
+    await choisit(écran, 'Guides / Guide')
+    await ouvre(écran)
+    await choisit(écran, 'Badge / Par défaut')
+    await ouvre(écran)
+
+    expect(options()[0]).toBe('Guides / Guide just now')
+    écran.wrapper.unmount()
+  })
+
   test('forgets what is gone, and an unreadable storage', async () => {
     localStorage.setItem(
       'crypte:palette:recent',

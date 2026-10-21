@@ -36,9 +36,9 @@ export function rendered(body: string): string {
   template.innerHTML = marked.parse(body, { async: false })
 
   for (const link of template.content.querySelectorAll('a'))
-    if (!safe(link.getAttribute('href') ?? '')) link.replaceWith(...link.childNodes)
+    if (!safe(link.href)) link.replaceWith(...link.childNodes)
   for (const image of template.content.querySelectorAll('img'))
-    if (!safe(image.getAttribute('src') ?? '')) image.replaceWith(image.alt)
+    if (!safe(image.src)) image.replaceWith(image.alt)
 
   return template.innerHTML
 }

@@ -22,10 +22,10 @@ describe('the markdown of a page', () => {
   test('follows only an http, https, mailto or relative link', () => {
     expect(
       rendered(
-        '[a](https://x.dev) [b](mailto:a@x.dev) [c](./Badge.md) [d](javascript:alert(1)) [e](JavaScript:alert(1)) [f](data:text/html,x) [g](&#106;avascript:alert(1)) [h](java&#x09;script:alert(1)) [i](javascript&colon;alert(1))\n',
+        '[a](https://x.dev) [b](mailto:a@x.dev) [c](./Badge.md) [d](javascript:alert(1)) [e](JavaScript:alert(1)) [f](data:text/html,x) [g](&#106;avascript:alert(1)) [h](java&#x09;script:alert(1)) [i](javascript&colon;alert(1)) [j](http://[)\n',
       ),
     ).toMatchInlineSnapshot(`
-      "<p><a href="https://x.dev">a</a> <a href="mailto:a@x.dev">b</a> <a href="./Badge.md">c</a> d e f g h i</p>
+      "<p><a href="https://x.dev">a</a> <a href="mailto:a@x.dev">b</a> <a href="./Badge.md">c</a> d e f g h i j</p>
       "
     `)
   })
