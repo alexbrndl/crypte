@@ -1276,6 +1276,29 @@ describe('the component page', () => {
   })
 })
 
+// Les pages markdown de la démonstration : le critère de DCJ-251.
+describe('the markdown pages', () => {
+  test("shows a component's page on its component page, and a general one from the tree", async ({
+    ecran,
+  }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    await ecran.page.goto(new URL('?component=badge', ecran.page.url()).href)
+
+    const composant = ecran.page.locator('.component-page .markdown-body')
+    await expect
+      .poll(() => composant.locator('h3').allTextContents())
+      .toEqual(["Quand l'utiliser", 'À éviter'])
+
+    await ecran.page.getByRole('treeitem', { name: 'Accessibilité', exact: true }).click()
+
+    const page = ecran.page.locator('.markdown-page')
+    await expect.poll(() => page.locator('h2').textContent()).toBe('Accessibilité')
+    expect(await page.locator('pre code').textContent()).toBe('color: var(--color-text);\n')
+    expect(new URL(ecran.page.url()).search).toBe('?id=guides/accessibilite')
+    expect(await ecran.page.getByRole('treeitem', { name: 'Tag', exact: true }).count()).toBe(1)
+  })
+})
+
 // Les familles que `@crypte/tokens` lit dans la démonstration : le critère de DCJ-338.
 describe('the tokens page', () => {
   test('lists the four categories, and opens a family from its older address', async ({

@@ -371,6 +371,27 @@ export default defineStories(Badge, { props: { ...base, size: 'lg' } })
 
     expect(projet.rechargements()).toBe(avant)
   })
+
+  // Le shell ne relit le manifeste que sur `ready` : sans rechargement, une page
+  // retouchée gardait son ancien texte jusqu'au fichier de story suivant.
+  test('reloads when a page changes', async ({ projet }) => {
+    const file = join(projet.root, 'stories', 'Guide.md')
+    const corps = async () => {
+      const manifest = (await fetch(`${projet.origin}${MANIFEST_ROUTE}`).then((answer) =>
+        answer.json(),
+      )) as Manifest
+      return manifest.entries.find((entry) => entry.type === 'page')?.body
+    }
+
+    writeFileSync(file, '# Guide\n\nAvant.\n')
+    await expect.poll(corps).toBe('Avant.\n')
+    const avant = projet.rechargements()
+
+    writeFileSync(file, '# Guide\n\nAprès.\n')
+
+    await expect.poll(corps).toBe('Après.\n')
+    expect(projet.rechargements()).toBeGreaterThan(avant)
+  })
 })
 
 // La feuille déclarée en `css` : un plugin y lit ses tokens, et l'empreinte les

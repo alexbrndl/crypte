@@ -3,6 +3,7 @@ import { plural } from './plural'
 import type {
   Manifest,
   Overrides,
+  PageEntry,
   RenderedValues,
   ShellMessage,
   SkippedFile,
@@ -68,6 +69,7 @@ import { useCopy } from './clipboard'
 import CommandPalette, { type Action } from './navigation/command-palette.vue'
 import { useRecent } from './navigation/recent'
 import ComponentPage from './pages/component-page.vue'
+import MarkdownPage from './pages/markdown-page.vue'
 import EmptyGuide from './pages/empty-guide.vue'
 import {
   AiContentGenerator01Icon,
@@ -101,6 +103,10 @@ const frameDark = useTemplateRef<HTMLIFrameElement>('frameDark')
 const entries = ref<StoryEntry[]>([])
 // Les familles de tokens, que la vue tokens range et qu'une page dessine.
 const families = ref<TokensEntry[]>([])
+// Les pages markdown. Celle d'un composant se lit sur sa page composant, les
+// autres, générales, se rangent dans l'arbre.
+const pages = ref<PageEntry[]>([])
+const generalPages = computed(() => pages.value.filter((one) => one.storyFile === undefined))
 const skipped = ref<SkippedFile[]>([])
 const current = ref<string | null>(null)
 const status = ref('loading the catalogue')
@@ -164,6 +170,15 @@ const ofComponent = (id: string, stories: readonly StoryEntry[]) =>
 const componentStories = computed(() =>
   component.value === null ? [] : ofComponent(component.value, entries.value),
 )
+const componentPage = computed(() => {
+  const file = componentStories.value[0]?.storyFile
+  return file === undefined ? undefined : pages.value.find((one) => one.storyFile === file)
+})
+
+// La page générale ouverte, ou `null`. Comme la page composant, elle laisse la
+// story chargée dessous.
+const pageAt = ref<string | null>(null)
+const shownPage = computed(() => generalPages.value.find((one) => one.id === pageAt.value) ?? null)
 
 // La catégorie de tokens ouverte, et le token choisi dedans, ou `null`. Comme une
 // page composant, elle laisse la preview et les panneaux chargés dessous.
@@ -256,7 +271,7 @@ const categoryOf = (id: string) => {
 
 // Ce que la palette cherche, dans l'ordre du manifeste : les familles y suivent les
 // stories, les contributions des plugins passant après elles (§6.3).
-const listed = computed(() => [...entries.value, ...families.value])
+const listed = computed(() => [...entries.value, ...families.value, ...generalPages.value])
 
 // La vue versions : ouverte ou non, son point de départ et l'écart choisi, et ce
 // que le CLI en dit, relu avec le catalogue. Comme une page, elle laisse la
@@ -282,7 +297,7 @@ const here = computed(() => {
     )
   }
   if (component.value !== null) return `component:${component.value}`
-  return current.value
+  return pageAt.value ?? current.value
 })
 watch(here, (_, left) => {
   if (left !== null) remember(left)
@@ -377,6 +392,8 @@ const line = computed(() => {
     return componentStories.value.length > 0
       ? counted(entries.value.length)
       : 'the component on display is gone'
+  if (pageAt.value !== null)
+    return shownPage.value ? counted(entries.value.length) : 'the page on display is gone'
   return status.value
 })
 
@@ -540,6 +557,7 @@ const full = ref(false)
 const storyMode = computed(
   () =>
     component.value === null &&
+    pageAt.value === null &&
     tokensAt.value === null &&
     healthAt.value === null &&
     viewAt.value === null &&
@@ -677,18 +695,32 @@ function select(id: string) {
   renderDark()
 }
 
-// Une story ou une famille de tokens : `?id=` les nomme toutes les deux (§4.3).
+// Une story, une famille de tokens ou une page : `?id=` les nomme toutes (§4.3).
 // Une famille ouvre sa catégorie, sous l'adresse de la vue tokens.
 function show(id: string, trace: Trace = 'replace') {
   const category = categoryOf(id)
   if (category !== undefined) return openTokens(category, undefined, trace)
+  if (generalPages.value.some((one) => one.id === id)) return openPage(id, trace)
   if (trace === 'push') stale.value = null
+  closeChanges()
+  component.value = null
+  pageAt.value = null
+  tokensAt.value = null
+  healthAt.value = null
+  viewAt.value = null
+  select(id)
+  write(placeSearch({ mode: 'entry', id }), trace)
+}
+
+function openPage(id: string, trace: Trace = 'push') {
+  if (trace === 'push') stale.value = null
+  full.value = false
   closeChanges()
   component.value = null
   tokensAt.value = null
   healthAt.value = null
   viewAt.value = null
-  select(id)
+  pageAt.value = id
   write(placeSearch({ mode: 'entry', id }), trace)
 }
 
@@ -697,6 +729,7 @@ function openTokens(category: string, token?: string, trace: Trace = 'push') {
   full.value = false
   closeChanges()
   component.value = null
+  pageAt.value = null
   healthAt.value = null
   viewAt.value = null
   tokensAt.value = token === undefined ? { category } : { category, token }
@@ -713,6 +746,7 @@ function openHealth(page: HealthPage, item?: string, trace: Trace = 'push') {
   full.value = false
   closeChanges()
   component.value = null
+  pageAt.value = null
   tokensAt.value = null
   viewAt.value = null
   if (healthAt.value === null) void readHealth()
@@ -728,6 +762,7 @@ function openView(plugin: string, item?: string, trace: Trace = 'push') {
   full.value = false
   closeChanges()
   component.value = null
+  pageAt.value = null
   tokensAt.value = null
   healthAt.value = null
   viewAt.value = item === undefined ? { plugin } : { plugin, item }
@@ -745,6 +780,7 @@ function open(id: string, trace: Trace = 'push') {
   full.value = false
   closeChanges()
   component.value = id
+  pageAt.value = null
   tokensAt.value = null
   healthAt.value = null
   viewAt.value = null
@@ -763,6 +799,7 @@ function openChanges(trace: Trace = 'push', at: Since & { change?: string } = {}
   void readVersions()
   changesOpen.value = true
   component.value = null
+  pageAt.value = null
   tokensAt.value = null
   healthAt.value = null
   viewAt.value = null
@@ -844,6 +881,7 @@ function go(to: View, event: MouseEvent) {
       healthAt.value = null
       viewAt.value = null
       component.value = null
+      pageAt.value = null
       // Le chemin seul : une adresse vide laisserait la requête en place.
       write(window.location.pathname, 'push')
     }
@@ -1035,8 +1073,7 @@ async function refresh() {
 
   const before = entries.value
 
-  // Les stories et les familles de tokens : `page` est réservée (§4.2), et ce que
-  // le shell ne sait pas dessiner, il l'ignore.
+  // Ce que le shell ne sait pas dessiner, il l'ignore.
   const stories = manifest.entries.filter((entry): entry is StoryEntry => entry.type === 'story')
 
   unread.value = null
@@ -1044,6 +1081,7 @@ async function refresh() {
   reread()
   entries.value = stories
   families.value = manifest.entries.filter((entry): entry is TokensEntry => entry.type === 'tokens')
+  pages.value = manifest.entries.filter((entry): entry is PageEntry => entry.type === 'page')
   skipped.value = manifest.skipped ?? []
   status.value = counted(stories.length)
 
@@ -1056,6 +1094,7 @@ async function refresh() {
     shown = stories.find((entry) => entry.id === id) ?? shown
     const category = categoryOf(id)
     if (category !== undefined) tokensAt.value = { category }
+    if (generalPages.value.some((one) => one.id === id)) pageAt.value = id
   }
   if (arrival.mode === 'tokens')
     tokensAt.value =
@@ -1072,7 +1111,8 @@ async function refresh() {
     const { mode: _, ...at } = arrival
     if (!changesOpen.value) openChanges('none', at)
   }
-  if (arrival.mode === 'entry' && !shown && tokensAt.value === null) stale.value = arrival.id
+  if (arrival.mode === 'entry' && !shown && tokensAt.value === null && pageAt.value === null)
+    stale.value = arrival.id
   if (arrival.mode === 'component' && opening === null) stale.value = arrival.id
   arrival = { mode: 'home' }
 
@@ -1108,6 +1148,7 @@ async function refresh() {
     if (followed !== component.value) open(followed, 'replace')
   } else if (
     tokensAt.value !== null ||
+    pageAt.value !== null ||
     changesOpen.value ||
     healthAt.value !== null ||
     viewAt.value !== null
@@ -1271,8 +1312,8 @@ onMounted(() => {
         </template>
         <StoryTree
           v-else
-          :entries="entries"
-          :current="changesOpen ? null : current"
+          :entries="[...entries, ...generalPages]"
+          :current="changesOpen ? null : (pageAt ?? current)"
           :component="component"
           label="Stories"
           none="No story."
@@ -1593,14 +1634,17 @@ onMounted(() => {
           <ComponentPage
             v-if="component !== null"
             :stories="componentStories"
+            :page="componentPage"
             @show="(id) => show(id, 'push')"
           />
+          <MarkdownPage v-if="shownPage" :page="shownPage" />
 
           <!-- Masqué et non retiré : la preview et les panneaux gardent leur état
            pendant qu'une page composant ou une famille est ouverte. -->
           <div
             v-show="
               component === null &&
+              pageAt === null &&
               tokensAt === null &&
               healthAt === null &&
               viewAt === null &&

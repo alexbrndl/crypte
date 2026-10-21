@@ -26,9 +26,7 @@ export interface SkippedFile {
   reason: string
 }
 
-// `page` stays reserved for design-system work: the field is here so that it
-// will not force a migration.
-export type ManifestEntry = StoryEntry | TokensEntry
+export type ManifestEntry = StoryEntry | TokensEntry | PageEntry
 
 export interface StoryEntry {
   type: 'story'
@@ -77,6 +75,21 @@ export interface TokensEntry {
   tokens: Record<string, TokenValue>
 }
 
-// Unchanged by `tokens`: the reserved `type` is what a new nature was for, and
+// A markdown file of the story folder, as written. `path` holds its folders
+// only, as a tokens family's does, and `name` is its title.
+export interface PageEntry {
+  type: 'page'
+  id: string
+  path: string[]
+  name: string
+  // Project-relative, as `StoryEntry.storyFile` is.
+  file: string
+  // The markdown, without the heading the title came from.
+  body: string
+  // Set when the page belongs to the component of this story file, which shows it.
+  storyFile?: string
+}
+
+// Unchanged by `tokens` and `page`: the reserved `type` is what a new nature was for, and
 // nothing required moved on `StoryEntry`.
 export const MANIFEST_VERSION = 1

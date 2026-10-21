@@ -129,6 +129,73 @@ describe('the catalogue', () => {
     expect(() => buildCatalogue(project)).toThrow(/a--avec-reference/)
   })
 
+  // Une page rattachée se lit sur la page de son composant : un fichier de
+  // stories qui n'en donne aucune n'a pas de page composant où la montrer.
+  it('attaches a page to the story file of its name, only when that file gives stories', async () => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      'stories/A.ts': "import { A } from '../a'\nexport default defineStories(A)\n",
+      'stories/A.md': '# Le A\n\nTexte.\n',
+      'stories/B.ts': 'export default defineStories(',
+      'stories/B.md': 'Sans titre.\n',
+      'stories/guides/Écrire.md': 'Intro.\n\n# Écrire une page\n',
+    })
+
+    const { manifest } = buildCatalogue(await loadProject(root))
+
+    expect(manifest.entries.filter((entry) => entry.type === 'page')).toEqual([
+      {
+        type: 'page',
+        id: 'a',
+        path: [],
+        name: 'Le A',
+        file: 'stories/A.md',
+        body: 'Texte.\n',
+        storyFile: 'stories/A.ts',
+      },
+      { type: 'page', id: 'b', path: [], name: 'B', file: 'stories/B.md', body: 'Sans titre.\n' },
+      {
+        type: 'page',
+        id: 'guides/ecrire',
+        path: ['guides'],
+        name: 'Écrire une page',
+        file: 'stories/guides/Écrire.md',
+        body: 'Intro.\n\n',
+      },
+    ])
+  })
+
+  it('refuses two pages that land on the same id', async () => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      'stories/Guide.md': '',
+      'stories/guide!.md': '',
+    })
+
+    const project = await loadProject(root)
+
+    expect(() => buildCatalogue(project)).toThrowErrorMatchingInlineSnapshot(
+      `[Error: Two pages share the identifier \`guide\`: "guide!" in stories/guide!.md and "Guide" in stories/Guide.md. Rename one of them.]`,
+    )
+  })
+
+  // Un nom de story qui se normalise en vide rend l'identifiant du composant,
+  // celui de sa page.
+  it('refuses a story and a page that land on the same id', async () => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      'stories/A.ts':
+        "import { A } from '../a'\nexport default defineStories(A, { stories: { '…': {} } })\n",
+      'stories/A.md': '# A\n',
+    })
+
+    const project = await loadProject(root)
+
+    expect(() => buildCatalogue(project)).toThrowErrorMatchingInlineSnapshot(
+      `[Error: Two entries share the identifier \`a\`: "…" in stories/A.ts and "A" in stories/A.md. Rename one of them.]`,
+    )
+  })
+
   it('names the stories folder when it is missing', async () => {
     const root = projectWith({ 'crypte.config.ts': CONFIG })
 

@@ -1,7 +1,7 @@
 // The plugin contract, section 6 of docs/contracts.md. Frozen: 6.5 says what breaks it.
 
 import type { Overrides, RenderedValues } from './channel'
-import type { ManifestEntry, StoryEntry } from './manifest'
+import type { ManifestEntry, PageEntry, StoryEntry } from './manifest'
 
 export interface CryptePlugin {
   name: string
@@ -117,10 +117,11 @@ export interface NodeContext {
   css?: string
 }
 
-// Stories excluded: they are read from story files, and a plugin injecting one
-// would bypass discovery. `Exclude` rather than a list, so a nature added to the
-// manifest widens this on its own.
-export type ContributedEntry = Exclude<ManifestEntry, StoryEntry>
+// Stories and pages excluded: they are read from the story folder, and a plugin
+// injecting one would bypass discovery. `Exclude` rather than a list, so a nature
+// added to the manifest widens this on its own. Pages reopen if a plugin needs to
+// write one, a generated changelog for instance.
+export type ContributedEntry = Exclude<ManifestEntry, StoryEntry | PageEntry>
 
 // The same set at run time, because `ContributedEntry` holds at compile time and
 // a plugin arrives compiled: nothing in a published plugin stops it from handing

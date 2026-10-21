@@ -232,6 +232,9 @@ catalogs:
     jsdom:
       specifier: ^30.0.1
       version: 30.0.1
+    marked:
+      specifier: ^18.1.1
+      version: 18.1.1
     playwright:
       specifier: ^1.62.1
       version: 1.62.1
@@ -334,6 +337,9 @@ importers:
       '@hugeicons/vue':
         specifier: 'catalog:'
         version: 1.0.8(vue@3.5.41(typescript@6.0.3))
+      marked:
+        specifier: 'catalog:'
+        version: 18.1.1
       reka-ui:
         specifier: 'catalog:'
         version: 2.10.5(vue@3.5.41(typescript@6.0.3))
@@ -2273,6 +2279,11 @@ packages:
   make-dir@4.0.0:
     resolution: {integrity: sha512-hXdUTZYIVOt1Ex//jAQi+wTZZpUpwBj/0QsOzqegb3rGMMeJiSEu5xLHnYfBrRV4RH2+OCSOO95Is/7x1WJ4bw==}
     engines: {node: '>=10'}
+
+  marked@18.1.1:
+    resolution: {integrity: sha512-zEGgrtUG8crk+TrMacJSVABU4DYDDkS8uqgU3ohrn/2fW9C2AEfUrO3m6IhpIpQpl7YcVpiXXC9cSMWDANT3dg==}
+    engines: {node: '>= 20'}
+    hasBin: true
 
   mdn-data@2.27.1:
     resolution: {integrity: sha512-9Yubnt3e8A0OKwxYSXyhLymGW4sCufcLG6VdiDdUGVkPhpqLxlvP5vl1983gQjJl3tqbrM731mjaZaP68AgosQ==}
@@ -4433,6 +4444,8 @@ snapshots:
   make-dir@4.0.0:
     dependencies:
       semver: 7.8.5
+
+  marked@18.1.1: {}
 
   mdn-data@2.27.1: {}
 

@@ -1,6 +1,7 @@
 import type {
   Manifest,
   ManifestEntry,
+  PageEntry,
   PreviewMessage,
   ShellMessage,
   StoryEntry,
@@ -38,6 +39,24 @@ const entry = (id: string, name: string, path: string[], storyFile: string): Sto
 const badge = entry('badge--defaut', 'Par défaut', ['Badge'], 'stories/Badge.tsx')
 const alerte = entry('badge--alerte', 'Alerte', ['Badge'], 'stories/Badge.tsx')
 const bouton = entry('bouton--defaut', 'Par défaut', ['Bouton'], 'stories/Bouton.tsx')
+
+const guide: PageEntry = {
+  type: 'page',
+  id: 'guides/guide',
+  path: ['Guides'],
+  name: 'Guide',
+  file: 'stories/Guides/Guide.md',
+  body: '## Usage\n\nUn texte **gras**.\n',
+}
+const badgePage: PageEntry = {
+  type: 'page',
+  id: 'badge',
+  path: [],
+  name: 'Badge',
+  file: 'stories/Badge.md',
+  body: 'Un badge annonce un état court.\n',
+  storyFile: 'stories/Badge.tsx',
+}
 
 const jetons: TokensEntry = {
   type: 'tokens',
@@ -182,7 +201,9 @@ const monte = async (
       wrapper.findAll('[role="treeitem"][data-kind="story"] .name').map((one) => one.text()),
     branches: () =>
       wrapper
-        .findAll('[role="treeitem"]:not([data-kind="story"]):not([data-kind="tokens"]) .name')
+        .findAll(
+          '[role="treeitem"]:not([data-kind="story"]):not([data-kind="tokens"]):not([data-kind="page"]) .name',
+        )
         .map((one) => one.text()),
     story: (at) => wrapper.findAll('[role="treeitem"][data-kind="story"]')[at]!,
     vue: (label) =>
@@ -260,14 +281,85 @@ describe('the shell tree', () => {
   })
 
   // Mesuré : retirer le filtre de `refresh` laissait les 675 cas au vert, aucun
-  // n'envoyant autre chose que des stories dans le manifeste. `page` est réservé
-  // (§4.2) : ce que le shell ne sait pas dessiner, il l'ignore.
+  // n'envoyant autre chose que des stories dans le manifeste. Ce que le shell ne
+  // sait pas dessiner, une nature d'une version future, il l'ignore.
   test('does not show a nature it cannot draw', async () => {
-    const page = { type: 'page', id: 'guide', path: ['Guides'], name: 'Guide' }
-    const écran = await monte([badge, page as never])
+    const schéma = { type: 'diagram', id: 'flux', path: ['Guides'], name: 'Flux' }
+    const écran = await monte([badge, schéma as never])
 
     expect(écran.branches()).toEqual(['Badge'])
     expect(écran.wrapper.findAll('[role="treeitem"]')).toHaveLength(2)
+    écran.wrapper.unmount()
+  })
+
+  // Une page générale se range par son chemin, comme une famille de tokens, et
+  // prend la place du canvas : la story reste chargée dessous.
+  test('draws a general page under its folders, and opens it in place of the canvas', async () => {
+    const écran = await monte([badge, guide])
+    const ligne = () => écran.wrapper.find('[role="treeitem"][data-kind="page"]')
+
+    expect(ligne().find('.name').text()).toBe('Guide')
+    expect(écran.wrapper.find('.story-tree .count').text()).toBe('1')
+    await ligne().trigger('click')
+    await vide(écran.wrapper)
+
+    const page = écran.wrapper.find('.markdown-page')
+    expect(page.find('h2').text()).toBe('Guide')
+    expect(page.find('h3').text()).toBe('Usage')
+    expect(page.find('strong').text()).toBe('gras')
+    expect(window.location.search).toBe('?id=guides/guide')
+    expect(ligne().attributes('aria-selected')).toBe('true')
+    expect(écran.wrapper.find('.canvas').isVisible()).toBe(false)
+    expect(écran.wrapper.find('.toolbar').exists()).toBe(false)
+
+    await écran.story(0).trigger('click')
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('.markdown-page').exists()).toBe(false)
+    expect(window.location.search).toBe('?id=badge--defaut')
+    écran.wrapper.unmount()
+  })
+
+  // Le manifeste servi partage ce tableau : le vider retire la page du suivant.
+  test('opens a page from its address, and says when it is gone', async () => {
+    window.history.replaceState(null, '', '/?id=guides/guide')
+    const catalogue: ManifestEntry[] = [badge, guide]
+    const écran = await monte(catalogue)
+
+    expect(écran.wrapper.find('.markdown-page h2').text()).toBe('Guide')
+    expect(écran.wrapper.find('.stale').exists()).toBe(false)
+    expect(écran.statut()).toBe('1 story')
+
+    catalogue.pop()
+    await écran.répond({ type: 'ready', protocolVersion: 1 })
+    expect(écran.wrapper.find('.markdown-page').exists()).toBe(false)
+    expect(écran.statut()).toBe('the page on display is gone')
+    expect(window.location.search).toBe('?id=guides/guide')
+    écran.wrapper.unmount()
+  })
+
+  // Rattachée, elle se lit sur la page de son composant, jamais dans l'arbre.
+  test("keeps a component's page out of the tree, for its component page", async () => {
+    const écran = await monte([badge, alerte, badgePage])
+
+    expect(écran.wrapper.find('[data-kind="page"]').exists()).toBe(false)
+    await écran.wrapper.find('[role="treeitem"][data-kind="component"]').trigger('click')
+    await vide(écran.wrapper)
+
+    const page = écran.wrapper.find('.component-page')
+    expect(page.find('.markdown-body').text()).toBe('Un badge annonce un état court.')
+    expect(page.findAll('dd').at(-1)?.text()).toBe('stories/Badge.md')
+    expect(page.find('.page-title').exists()).toBe(false)
+    écran.wrapper.unmount()
+  })
+
+  // Le corps arrive sans son titre : celui qui diffère du composant se dessine.
+  test('draws the title of a component page that is not the component name', async () => {
+    const écran = await monte([badge, { ...badgePage, name: "Badge : règles d'usage" }])
+
+    await écran.wrapper.find('[role="treeitem"][data-kind="component"]').trigger('click')
+    await vide(écran.wrapper)
+
+    expect(écran.wrapper.find('.component-page .page-title').text()).toBe("Badge : règles d'usage")
     écran.wrapper.unmount()
   })
 
@@ -4321,6 +4413,17 @@ describe('the command palette', () => {
     écran.wrapper.unmount()
   })
 
+  test('goes to a general page', async () => {
+    const écran = await monte([badge, guide])
+
+    await ouvre(écran)
+    await choisit(écran, 'Guides / Guide')
+
+    expect(window.location.search).toBe('?id=guides/guide')
+    expect(écran.wrapper.find('.markdown-page').exists()).toBe(true)
+    écran.wrapper.unmount()
+  })
+
   // Une fois fermée. Le focus que la fermeture rend au bouton, jsdom ne le rend
   // pas : le cas navigateur de `screen.test.ts` le tient.
   test('runs an action once closed, and only once', async ({ écran }) => {
@@ -4541,6 +4644,19 @@ describe('the command palette', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  test('offers a page left among them', async () => {
+    const écran = await monte([badge, guide])
+
+    await ouvre(écran)
+    await choisit(écran, 'Guides / Guide')
+    await ouvre(écran)
+    await choisit(écran, 'Badge / Par défaut')
+    await ouvre(écran)
+
+    expect(options()[0]).toBe('Guides / Guide just now')
+    écran.wrapper.unmount()
   })
 
   test('forgets what is gone, and an unreadable storage', async () => {

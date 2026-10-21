@@ -61,6 +61,18 @@ describe('what a plugin is refused', () => {
     ])
   })
 
+  // Une page aussi : elle vient du dossier des stories, comme une story.
+  it('refuses an entry that takes a page’s id', async () => {
+    const project = await loadProject(demo)
+    project.config.plugins = [contributing('greedy', () => [tokens('guides/accessibilite')])]
+    const catalogue = buildCatalogue(project)
+
+    expect(ids(catalogue).filter((id) => id === 'guides/accessibilite')).toHaveLength(1)
+    expect(catalogue.skippedPlugins).toEqual([
+      { plugin: 'greedy', reason: '`guides/accessibilite` is already taken' },
+    ])
+  })
+
   it('refuses the second plugin the id the first one took', async () => {
     const catalogue = await build(
       contributing('first', () => [tokens('color--brand')]),

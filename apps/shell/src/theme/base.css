@@ -7,10 +7,14 @@
   font-display: swap;
 }
 
+/* Axe de graisse réduit à 400–700, celui des `--weight-*`, tous les glyphes
+   gardés : 22 Ko gzip de moins sur un budget de 300 Ko. Pas Geist, qui dessine le
+   spécimen des tokens de graisse d'un projet, 300 ou 800 compris. Rouvert par un
+   token de graisse hors de 400–700 : réinstancier depuis le paquet `geist`. */
 @font-face {
   font-family: 'Geist Mono';
   src: url('./fonts/GeistMono-Variable.woff2') format('woff2');
-  font-weight: 100 900;
+  font-weight: 400 700;
   font-display: swap;
 }
 
