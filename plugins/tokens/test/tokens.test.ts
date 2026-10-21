@@ -277,6 +277,34 @@ describe('a var() that is not the whole value', () => {
     })
   })
 
+  // Une parenthèse dans une chaîne n'en est pas une : comptée, elle refermait le
+  // `var()` avant sa fin, et la valeur restait un texte sans alias.
+  it('reads parentheses inside a string as text', () => {
+    const entries = read(
+      [
+        ':root {',
+        '  --font-one: var(--absente, "Helvetica (Neue)");',
+        "  --font-two: var(--absente, 'a ) b');",
+        '  --font-three: var(--absente, "it\\"s (")',
+        '}',
+      ].join('\n'),
+    )
+    const font = family(entries, 'font')
+
+    expect(font?.one?.themes.default).toEqual({
+      value: '"Helvetica (Neue)"',
+      alias: ['absente'],
+    })
+    expect(font?.two?.themes.default).toEqual({ value: "'a ) b'", alias: ['absente'] })
+    expect(font?.three?.themes.default).toEqual({ value: '"it\\"s ("', alias: ['absente'] })
+  })
+
+  it('does not take a var() whose string never closes for an alias', () => {
+    const entries = read(':root { --a-one: var(--absente, "abc) }')
+
+    expect(family(entries, 'a')?.one?.themes.default).toEqual({ value: 'var(--absente, "abc)' })
+  })
+
   it('follows a fallback that is itself a var()', () => {
     const entries = read(':root { --a-base: 8px; --a-one: var(--absente, var(--a-base)) }')
 
