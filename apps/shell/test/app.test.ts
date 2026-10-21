@@ -1581,7 +1581,7 @@ describe('the docs view', () => {
     expect(window.location.search).toBe('?component=badge')
     expect(écran.wrapper.find('.component-page h2').text()).toBe('Badge')
     expect(docs(écran)).toEqual(['Badge', 'Guides', 'Guide'])
-    expect(écran.wrapper.find('.docs-tree .column-title').text()).toContain('2')
+    expect(écran.wrapper.find('.docs-tree .column-title .count').text()).toBe('2')
 
     await ligne(écran, 'Guide').trigger('click')
     await vide(écran.wrapper)
@@ -1622,6 +1622,21 @@ describe('the docs view', () => {
     expect(écran.wrapper.find('.markdown-page').exists()).toBe(false)
     expect(écran.statut()).toBe('the page on display is gone')
     expect(window.location.search).toBe('?id=guides/guide')
+    écran.wrapper.unmount()
+  })
+
+  // Sans story, la vue mène à la première page, et y reste quand on y revient.
+  test('opens the first page of a project that has only pages', async () => {
+    const écran = await monte([guide])
+
+    expect(écran.vue('docs').attributes('href')).toBe('?id=guides/guide')
+    await ouvre(écran)
+    expect(window.location.search).toBe('?id=guides/guide')
+    expect(écran.wrapper.find('nav.trail').text()).toBe('docs/Guides/Guide')
+    const avant = window.history.length
+    await ouvre(écran)
+    expect(window.history.length).toBe(avant)
+    expect(écran.wrapper.find('.markdown-page h2').text()).toBe('Guide')
     écran.wrapper.unmount()
   })
 
