@@ -16,7 +16,10 @@ import {
   type PropsRead,
 } from './props'
 
-const SCRIPT = /<script\b([^>]*)>([\s\S]*?)<\/script>/g
+// Attributes may hold a `>` between quotes: `generic="T extends Record<string, unknown>"`.
+const SCRIPT = /<script\b((?:[^>"']|"[^"]*"|'[^']*')*)>([\s\S]*?)<\/script>/g
+// Removed before the search, or a commented-out block would win over the real one.
+const COMMENT = /<!--[\s\S]*?-->/g
 
 // What declares the props: the type of `defineProps<T>()`, or the value of
 // `defineProps({ … })` or of a component's `props` option, plus the defaults of
@@ -29,7 +32,7 @@ interface Declared {
 }
 
 export function vuePropsOf(file: string, source: string): PropsRead {
-  const blocks = [...source.matchAll(SCRIPT)].map((one) => ({
+  const blocks = [...source.replace(COMMENT, '').matchAll(SCRIPT)].map((one) => ({
     attributes: one[1] ?? '',
     content: one[2] ?? '',
   }))
@@ -38,43 +41,58 @@ export function vuePropsOf(file: string, source: string): PropsRead {
   // A template alone takes no props, and that is a reading.
   if (!block) return { details: {} }
 
-  const ts = /\blang\s*=\s*["']tsx?["']/.test(block.attributes)
-  const parsed = parseSync(`${file}.${ts ? 'ts' : 'js'}`, block.content)
+  if (/\bsrc\s*=/.test(block.attributes))
+    return { details: {}, unread: 'its script block lives in another file' }
+
+  const lang = /\blang\s*=\s*["'](tsx?|jsx)["']/.exec(block.attributes)?.[1] ?? 'js'
+  const parsed = parseSync(`${file}.${lang}`, block.content)
   if (parsed.errors.length > 0) return { details: {}, unread: 'its script block does not parse' }
 
   const body = parsed.program.body as unknown as Node[]
   const comments = parsed.comments as unknown as Comment[]
   const declared = setup ? definePropsOf(body) : optionsOf(body)
-  // No `defineProps`, an empty one, or no `props` option: the component takes none.
-  if (!declared || (!declared.typed && !declared.runtime)) return { details: {} }
+  if (declared === UNFOLLOWED)
+    return {
+      details: {},
+      unread: 'the default export is not declared in a form the reader follows',
+    }
+  const models = setup ? modelsOf(body) : []
 
-  const members = declared.typed
+  const members = declared?.typed
     ? typeMembers(body, declared.typed)
-    : declared.runtime
+    : declared?.runtime
       ? runtimeMembers(declared.runtime, body)
-      : undefined
+      : []
   if (!members) {
     return {
       details: {},
-      unread: declared.typed
+      unread: declared?.typed
         ? 'nothing the reader follows types its props'
         : 'its props are declared through a value the reader does not follow',
     }
   }
 
-  const fromPattern = declared.pattern
+  const fromPattern = declared?.pattern
     ? defaultsOf(declared.pattern)
     : { named: new Set<string>(), values: {} }
-  const fromObject = defaultsIn(declared.defaults)
+  const fromObject = defaultsIn(declared?.defaults)
   const details: Record<string, ResolvedPropDetails> = {}
 
-  for (const { name, optional, method, annotation, at, read, preset } of members) {
+  // No `defineProps`, an empty one, no `props` option and no `defineModel`: the
+  // component takes none, and that is a reading.
+  for (const { name, optional, method, annotation, at, read, preset } of [...members, ...models]) {
     const described = describe(block.content, comments, at)
     const kind = method
       ? { type: 'function' as PropKind }
       : (read ?? (annotation ? kindOf(annotation, body) : { type: 'unknown' as PropKind }))
     const defaulted = fromPattern.named.has(name) || fromObject.named.has(name)
-    const fallback = fromPattern.values[name] ?? fromObject.values[name] ?? preset
+    // `in` and not `??`: `null` is a default a file writes.
+    const fallback =
+      name in fromPattern.values
+        ? fromPattern.values[name]
+        : name in fromObject.values
+          ? fromObject.values[name]
+          : preset
 
     details[name] = {
       ...kind,
@@ -125,18 +143,59 @@ function definePropsOf(body: Node[]): Declared | undefined {
   return undefined
 }
 
-// The `props` option of `export default { … }` or `defineComponent({ … })`.
-function optionsOf(body: Node[]): Declared | undefined {
-  const exported = body.find((node) => node.type === 'ExportDefaultDeclaration')?.[
-    'declaration'
-  ] as Node | undefined
+// What the reader cannot follow: told apart from a component with no props.
+const UNFOLLOWED = Symbol('unfollowed')
+
+// The `props` option of `export default { … }` or `defineComponent({ … })`. No
+// default export at all is a component with no options. Any other form, a name
+// or a `satisfies`, holds props the reader cannot see.
+function optionsOf(body: Node[]): Declared | undefined | typeof UNFOLLOWED {
+  const node = body.find((one) => one.type === 'ExportDefaultDeclaration')
+  if (!node) return undefined
+  const exported = node['declaration'] as Node
   const object =
-    exported?.type === 'CallExpression' &&
-    (exported['callee'] as Node)['name'] === 'defineComponent'
+    exported.type === 'CallExpression' && (exported['callee'] as Node)['name'] === 'defineComponent'
       ? (exported['arguments'] as Node[])[0]
       : exported
-  const props = object?.type === 'ObjectExpression' ? propertyOf(object, 'props') : null
+  if (object?.type !== 'ObjectExpression') return UNFOLLOWED
+  const props = propertyOf(object, 'props')
   return props ? { runtime: props } : undefined
+}
+
+// Each `defineModel` declares a prop, `modelValue` or the name it is given, typed
+// by its type argument or its `type` option.
+function modelsOf(body: Node[]): Member[] {
+  const calls = body.flatMap((node) =>
+    node.type === 'ExpressionStatement'
+      ? [node['expression'] as Node]
+      : node.type === 'VariableDeclaration'
+        ? (node['declarations'] as Node[]).map((one) => one['init'] as Node)
+        : [],
+  )
+
+  return calls.flatMap((call): Member[] => {
+    if (call?.type !== 'CallExpression' || (call['callee'] as Node)['name'] !== 'defineModel')
+      return []
+    const args = call['arguments'] as Node[]
+    const named = literalOf(args[0])?.value
+    const options = args.find((one) => one.type === 'ObjectExpression')
+    const typed = ((call['typeArguments'] as Node | null)?.['params'] as Node[] | undefined)?.[0]
+    const written = options ? propertyOf(options, 'default') : null
+    const preset = written ? literalOf(written) : undefined
+
+    return [
+      {
+        name: typeof named === 'string' ? named : 'modelValue',
+        optional: !(options && literalOf(propertyOf(options, 'required'))?.value === true),
+        annotation: typed,
+        at: call.start,
+        ...(typed
+          ? {}
+          : { read: constructorKind(options ? propertyOf(options, 'type') : null, body) }),
+        ...(preset ? { preset: preset.value } : {}),
+      },
+    ]
+  })
 }
 
 // `['label', 'tone']`, or `{ label: String, tone: { type: String, default: 'x' } }`.
@@ -163,10 +222,9 @@ function runtimeMembers(value: Node, body: Node[]): Member[] | undefined {
     const object = option.type === 'ObjectExpression' ? option : undefined
     const type = object ? propertyOf(object, 'type') : option
     const required = object ? literalOf(propertyOf(object, 'required'))?.value === true : false
-    // A factory is a default whose value cannot be read, but a default all the
-    // same: the prop is optional for whoever calls the component.
+    // A factory has no value to show: the prop is optional through `required`.
     const written = object ? propertyOf(object, 'default') : null
-    const preset = written ? (literalOf(written)?.value ?? FACTORY) : undefined
+    const preset = written ? literalOf(written) : undefined
 
     return [
       {
@@ -175,13 +233,11 @@ function runtimeMembers(value: Node, body: Node[]): Member[] | undefined {
         annotation: undefined,
         at: one.start,
         read: constructorKind(type, body),
-        ...(preset === undefined || preset === FACTORY ? {} : { preset }),
+        ...(preset ? { preset: preset.value } : {}),
       },
     ]
   })
 }
-
-const FACTORY = Symbol('a default the reader cannot read')
 
 // `String`, or `String as PropType<'a' | 'b'>`, whose type argument is read like
 // a TypeScript annotation.

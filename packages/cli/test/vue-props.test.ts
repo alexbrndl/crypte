@@ -147,10 +147,89 @@ defineProps({ tone: String as PropType<Tone>, count: Number as unknown })`),
     })
   })
 
+  // Un export par défaut que la lecture ne suit pas n'est pas un composant sans props.
+  it('says it does not follow a default export that is not an object', () => {
+    for (const script of [
+      'const C = defineComponent({ props: { label: String } })\nexport default C',
+      'export default { props: { label: String } } satisfies object',
+    ])
+      expect(read(sfc(script, 'lang="ts"'))).toEqual({
+        details: {},
+        unread: 'the default export is not declared in a form the reader follows',
+      })
+  })
+
+  // `null` est une valeur par défaut qu'un fichier écrit.
+  it('keeps a null default', () => {
+    expect(read(sfc(`defineProps({ label: { type: String, default: null } })`)).details).toEqual({
+      label: { type: 'string', required: false, default: null },
+    })
+    expect(
+      read(sfc(`const { label = null } = defineProps<{ label?: string | null }>()`)).details,
+    ).toEqual({
+      label: { type: 'unknown', required: false, default: null },
+    })
+  })
+
   it('says it follows nothing for props held in a variable', () => {
     expect(read(sfc(`const shape = { label: String }\ndefineProps(shape)`))).toEqual({
       details: {},
       unread: 'its props are declared through a value the reader does not follow',
+    })
+  })
+})
+
+// `defineModel` déclare une prop : un composant de formulaire n'en est pas privé.
+describe('defineModel', () => {
+  it('reads modelValue and named models, beside defineProps', () => {
+    expect(
+      read(
+        sfc(`defineProps<{ label: string }>()
+const value = defineModel<string>()
+const open = defineModel<boolean>('open', { required: true })
+const count = defineModel('count', { type: Number, default: 0 })`),
+      ).details,
+    ).toEqual({
+      label: { type: 'string', required: true },
+      modelValue: { type: 'string', required: false },
+      open: { type: 'boolean', required: true },
+      count: { type: 'number', required: false, default: 0 },
+    })
+  })
+})
+
+describe('the script tag', () => {
+  // Un générique Vue porte un `>` dans un attribut entre guillemets.
+  it('reads a block whose attribute holds a > between quotes', () => {
+    expect(
+      read(
+        sfc(
+          `defineProps<{ label: string }>()`,
+          'setup lang="ts" generic="T extends Record<string, unknown>"',
+        ),
+      ).details,
+    ).toEqual({ label: { type: 'string', required: true } })
+  })
+
+  // Un bloc mis en commentaire ne gagne pas sur le vrai.
+  it('skips a commented-out script block', () => {
+    expect(
+      read(
+        `<!-- <script setup lang="ts">defineProps<{ old: string }>()</script> -->\n${sfc(`defineProps<{ label: string }>()`)}`,
+      ).details,
+    ).toEqual({ label: { type: 'string', required: true } })
+  })
+
+  it('parses a tsx block as tsx', () => {
+    expect(
+      read(sfc(`defineProps<{ label: string }>()\nconst icon = <i />`, 'setup lang="tsx"')).details,
+    ).toEqual({ label: { type: 'string', required: true } })
+  })
+
+  it('says a block in another file is not read', () => {
+    expect(read('<script setup lang="ts" src="./badge.ts"></script>')).toEqual({
+      details: {},
+      unread: 'its script block lives in another file',
     })
   })
 })
@@ -163,6 +242,7 @@ describe('what reading says when it reads nothing', () => {
     expect(read(sfc(`const n = 1`))).toEqual({ details: {} })
     expect(read(sfc(`defineProps()`))).toEqual({ details: {} })
     expect(read(sfc(`export default { name: 'Badge' }`, ''))).toEqual({ details: {} })
+    expect(read(sfc(`export const shared = 1`, ''))).toEqual({ details: {} })
   })
 
   it('says when its script block does not parse', () => {
