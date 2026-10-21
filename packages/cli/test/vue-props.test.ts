@@ -227,6 +227,13 @@ describe('the script tag', () => {
     })
   })
 
+  // Un commentaire n'est jamais un bloc, même sans `setup` pour lui passer devant.
+  it('skips a comment before a plain script', () => {
+    expect(
+      read(`<!-- notes -->\n${sfc(`export default { props: { label: String } }`, '')}`).details,
+    ).toEqual({ label: { type: 'string', required: false } })
+  })
+
   it('reads a block carrying a data-src attribute', () => {
     expect(
       read(sfc(`defineProps<{ label: string }>()`, 'setup lang="ts" data-src="x"')).details,
