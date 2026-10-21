@@ -69,7 +69,8 @@ function follow(event: MouseEvent, id: string) {
     </dl>
 
     <template v-if="page">
-      <h3 v-if="page.name !== first.path.at(-1)">{{ page.name }}</h3>
+      <!-- Pas un titre : le corps descend ses `##` en `h3`, qui seraient ses sœurs. -->
+      <p v-if="page.name !== first.path.at(-1)" class="page-title">{{ page.name }}</p>
       <MarkdownBody class="page" :body="page.body" />
     </template>
 
@@ -150,7 +151,7 @@ dd {
   margin: 0;
 }
 
-h3 {
+.page-title {
   margin: 0 0 var(--space-2);
   font-size: var(--text-xl);
   font-weight: var(--weight-semibold);

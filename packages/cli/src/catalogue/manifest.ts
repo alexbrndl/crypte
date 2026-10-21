@@ -430,7 +430,8 @@ function isFile(path: string): boolean {
 }
 
 // Two stories can carry different names and land on the same identifier, since
-// `storyId` folds case and accents, and so can two pages. That identifier is a
+// `storyId` folds case and accents, and so can two pages, or a story whose name
+// folds to nothing and the page of its component. That identifier is a
 // URL, a baseline key and a comment anchor, so a collision has to be named, not
 // resolved silently.
 function assertDistinct(entries: (StoryEntry | PageEntry)[]): void {

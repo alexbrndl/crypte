@@ -348,7 +348,7 @@ describe('the shell tree', () => {
     const page = écran.wrapper.find('.component-page')
     expect(page.find('.markdown-body').text()).toBe('Un badge annonce un état court.')
     expect(page.findAll('dd').at(-1)?.text()).toBe('stories/Badge.md')
-    expect(page.find('h3').exists()).toBe(false)
+    expect(page.find('.page-title').exists()).toBe(false)
     écran.wrapper.unmount()
   })
 
@@ -359,7 +359,7 @@ describe('the shell tree', () => {
     await écran.wrapper.find('[role="treeitem"][data-kind="component"]').trigger('click')
     await vide(écran.wrapper)
 
-    expect(écran.wrapper.find('.component-page h3').text()).toBe("Badge : règles d'usage")
+    expect(écran.wrapper.find('.component-page .page-title').text()).toBe("Badge : règles d'usage")
     écran.wrapper.unmount()
   })
 
