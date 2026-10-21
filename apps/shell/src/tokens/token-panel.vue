@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { plural } from '../plural'
 import type { StoryEntry } from '@crypte/core/protocol'
+import { Button, Input } from '@crypte/ui'
 import { ComponentIcon, Hexagon01Icon, LinkSquare02Icon } from '@hugeicons/core-free-icons'
 import { computed, ref } from 'vue'
 import Icon from '../ui/icon.vue'
@@ -22,10 +23,14 @@ const props = defineProps<{
   stories: StoryEntry[]
   hrefOfToken: (category: string, token: string) => string
   hrefOfComponent: (id: string) => string
+  // Les valeurs essayées, par nom de token, que le shell envoie à la preview.
+  tried: Record<string, string>
 }>()
 const emit = defineEmits<{
   token: [category: string, token: string, event: MouseEvent]
   component: [id: string, event: MouseEvent]
+  // Une valeur à essayer, `null` pour revenir à celle du fichier.
+  try: [name: string, value: string | null]
 }>()
 
 const KEY = 'crypte:panel:shell:token'
@@ -70,16 +75,23 @@ const pointing = computed(() => {
 })
 
 // Un composant une fois, par son fichier et son export : plusieurs stories le portent.
-const users = computed(() => {
-  const name = props.token?.name
-  if (name === undefined) return []
+const users = computed(() => (props.token ? readersOf([props.token.name]) : []))
+// Ce qu'une valeur essayée touche : les lecteurs du token, et ceux des tokens
+// dont la chaîne passe par lui, qui en prennent la valeur.
+const affected = computed(() =>
+  props.token ? readersOf([props.token.name, ...pointing.value.map((one) => one.token.name)]) : [],
+)
+const tryingIt = computed(() => (props.token ? props.tried[props.token.name] : undefined))
+const listed = computed(() => (tryingIt.value ? affected.value : users.value))
+
+function readersOf(names: string[]) {
   const found = new Map<
     string,
     { key: string; id: string; name: string; file: string; folder: string }
   >()
   for (const story of props.stories) {
     const { component } = story
-    if (!component.tokens?.includes(name)) continue
+    if (!component.tokens?.some((one) => names.includes(one))) continue
     const key = `${component.file}#${component.export}`
     if (!found.has(key))
       found.set(key, {
@@ -91,7 +103,7 @@ const users = computed(() => {
       })
   }
   return [...found.values()]
-})
+}
 </script>
 
 <template>
@@ -118,6 +130,28 @@ const users = computed(() => {
           <code>var(--{{ token.name }})</code>
         </p>
 
+        <!-- Appliquée à la preview tant qu'elle reste là, jamais écrite : Reset
+             rend la valeur du fichier. -->
+        <p class="caption">try a value</p>
+        <div class="row try">
+          <Input
+            :value="tryingIt ?? ''"
+            :placeholder="themes[0]?.value ?? ''"
+            aria-label="Try a value"
+            @input="
+              (event: Event) =>
+                emit('try', token!.name, (event.target as HTMLInputElement).value.trim() || null)
+            "
+          />
+          <Button
+            v-if="tryingIt"
+            variant="ghost"
+            class="reset"
+            @click="emit('try', token.name, null)"
+            >Reset</Button
+          >
+        </div>
+
         <template v-if="pointing.length > 0">
           <p class="caption">aliases pointing here · {{ pointing.length }}</p>
           <a
@@ -134,10 +168,12 @@ const users = computed(() => {
           </a>
         </template>
 
-        <p class="caption">used by · {{ plural(users.length, 'component') }}</p>
-        <EmptyNote v-if="users.length === 0">No component reads it.</EmptyNote>
+        <p class="caption">
+          {{ tryingIt ? 'affected' : 'used by' }} · {{ plural(listed.length, 'component') }}
+        </p>
+        <EmptyNote v-if="listed.length === 0">No component reads it.</EmptyNote>
         <a
-          v-for="one of users"
+          v-for="one of listed"
           :key="one.key"
           class="row link"
           :href="hrefOfComponent(one.id)"
@@ -165,5 +201,14 @@ const users = computed(() => {
   width: 48px;
   flex: none;
   color: var(--text-muted);
+}
+.try {
+  gap: var(--space-2);
+}
+
+/* The sm button of the Figma panel header, 24 px high. */
+.try .reset {
+  --button-height: 24px;
+  --button-padding: var(--space-0-5) var(--space-2);
 }
 </style>

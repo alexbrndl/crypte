@@ -3884,6 +3884,31 @@ describe('the light and dark comparison', () => {
   })
 })
 
+// Une valeur de token essayée part avec chaque rendu de la preview, la barre
+// d'état le dit, et Reset rend la valeur du fichier : rien n'est écrit.
+describe('a token value tried', () => {
+  test('travels with every render until it is reset', async () => {
+    window.history.replaceState(null, '', '/?tokens=palette&token=Brand-primary')
+    const écran = await monte([badge, alerte, jetons])
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    const champ = () => écran.wrapper.find('#token-panel .try input')
+    const dernier = () =>
+      écran.envoyés.filter((one) => one.type === 'render').at(-1) as { tokens?: unknown }
+
+    await champ().setValue('#e11d48')
+    await vide(écran.wrapper)
+    expect(dernier().tokens).toEqual({ 'Brand-primary': '#e11d48' })
+    expect(écran.wrapper.find('.status-bar .tried').text()).toBe('1 token tried')
+    expect(écran.wrapper.find('.tokens-view .value').text()).toBe('#E11D48')
+
+    await écran.wrapper.find('#token-panel .try .reset').trigger('click')
+    await vide(écran.wrapper)
+    expect(dernier().tokens).toBeUndefined()
+    expect(écran.wrapper.find('.status-bar .tried').exists()).toBe(false)
+    écran.wrapper.unmount()
+  })
+})
+
 // La vue d'un plugin, section 6.1 : son entrée sous un séparateur, sa sidebar,
 // son canvas et son panneau, l'élément choisi dans l'adresse.
 describe('the view of a plugin', () => {

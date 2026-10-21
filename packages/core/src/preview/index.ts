@@ -41,23 +41,38 @@ export function createPreviewChannel(handlers: PreviewHandlers): PreviewChannel 
 
   // What the shell last asked for. Held here rather than by the caller: the
   // reporting belongs to the same place, and two owners would drift.
-  let asked: { id: string; overrides: Record<string, unknown>; theme?: Theme } | undefined
+  let asked:
+    | {
+        id: string
+        overrides: Record<string, unknown>
+        theme?: Theme
+        tokens?: Record<string, string>
+      }
+    | undefined
+  // The custom properties the last `render` tried, removed before the next one
+  // sets its own: a token no longer tried goes back to the sheet's value.
+  let tried: string[] = []
 
   const draw = ({
     id,
     overrides,
     theme,
+    tokens = {},
   }: {
     id: string
     overrides: Record<string, unknown>
     theme?: Theme
+    tokens?: Record<string, string>
   }) => {
+    const root = window.document.documentElement
     // Before the render, so the story mounts in its theme rather than repainting.
     if (theme) {
-      const root = window.document.documentElement
       root.dataset.theme = theme
       root.style.colorScheme = theme
     }
+    for (const name of tried) root.style.removeProperty(`--${name}`)
+    tried = Object.keys(tokens)
+    for (const name of tried) root.style.setProperty(`--${name}`, tokens[name]!)
     const startedAt = performance.now()
     let drawn: unknown
     try {
@@ -95,6 +110,7 @@ export function createPreviewChannel(handlers: PreviewHandlers): PreviewChannel 
         id: message.id,
         overrides: message.overrides,
         ...(message.theme ? { theme: message.theme } : {}),
+        ...(message.tokens ? { tokens: message.tokens } : {}),
       }
       draw(asked)
     } else if (type.includes(':')) handlers.message?.(event.data as { type: string })

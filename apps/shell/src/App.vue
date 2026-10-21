@@ -660,6 +660,19 @@ function write(search: string, trace: Trace) {
     window.history[trace === 'push' ? 'pushState' : 'replaceState'](null, '', search)
 }
 
+// Les valeurs de tokens essayées, par nom, envoyées avec chaque rendu jusqu'à
+// leur effacement : rien n'est écrit dans un fichier. Une copie simple : un
+// proxy réactif ne passe pas `postMessage`.
+const tried = ref<Record<string, string>>({})
+const triedTokens = () =>
+  Object.keys(tried.value).length > 0 ? { tokens: { ...tried.value } } : {}
+
+function tryToken(name: string, value: string | null) {
+  const { [name]: _, ...rest } = tried.value
+  tried.value = value ? { ...rest, [name]: value } : rest
+  if (current.value !== null) select(current.value)
+}
+
 // La story que la preview rend, sans changer de page.
 function select(id: string) {
   if (id !== current.value) overrides.value = {}
@@ -669,7 +682,13 @@ function select(id: string) {
   // Rien ne part avant que la preview ait dit `ready` : un message envoyé à une
   // iframe qui n'écoute pas encore est perdu sans trace.
   if (ready)
-    channel?.send({ type: 'render', id, overrides: overrides.value, theme: mainTheme.value })
+    channel?.send({
+      type: 'render',
+      id,
+      overrides: overrides.value,
+      theme: mainTheme.value,
+      ...triedTokens(),
+    })
   renderDark()
 }
 
@@ -886,7 +905,13 @@ let dark: { send: (message: ShellMessage) => void; ready: boolean; stop: () => v
 
 function renderDark() {
   if (dark?.ready && current.value !== null)
-    dark.send({ type: 'render', id: current.value, overrides: overrides.value, theme: 'dark' })
+    dark.send({
+      type: 'render',
+      id: current.value,
+      overrides: overrides.value,
+      theme: 'dark',
+      ...triedTokens(),
+    })
 }
 
 watch(frameDark, (element) => {
@@ -1506,6 +1531,7 @@ onMounted(() => {
             :category="shownCategory"
             :theme="theme"
             :selected="tokensAt?.token ?? null"
+            :tried="tried"
             :href-of="
               (token) => placeSearch({ mode: 'tokens', category: shownCategory!.name, token })
             "
@@ -1751,10 +1777,12 @@ onMounted(() => {
             :token="selectedToken"
             :categories="categories"
             :stories="entries"
+            :tried="tried"
             :href-of-token="(category, token) => placeSearch({ mode: 'tokens', category, token })"
             :href-of-component="(id) => placeSearch({ mode: 'component', id })"
             @token="(category, token, event) => follow(event, () => openTokens(category, token))"
             @component="(id, event) => follow(event, () => open(id))"
+            @try="tryToken"
           />
         </aside>
         <aside
@@ -1814,6 +1842,9 @@ onMounted(() => {
       </Tooltip>
       <span v-if="project" class="version">Crypte {{ project.version }}</span>
       <ul class="figures">
+        <li v-if="Object.keys(tried).length > 0" class="tried">
+          {{ plural(Object.keys(tried).length, 'token') }} tried
+        </li>
         <li v-if="project">
           <Tooltip content="The shell, gzipped">
             <span tabindex="0">Shell {{ kB(project.shellBytes) }}</span>
