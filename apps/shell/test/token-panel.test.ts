@@ -61,16 +61,14 @@ const stories = [
   story('tag--a', ['Tag'], 'src/Tag.tsx'),
 ]
 
-const monte = (name: string | null, tried: Record<string, string> = {}) =>
+const monte = (name: string | null) =>
   mount(TokenPanel, {
     props: {
       token: name === null ? null : tokenNamed(name),
-      tried,
       categories,
       stories,
       hrefOfToken: (category: string, token: string) => `?tokens=${category}&token=${token}`,
       hrefOfComponent: (id: string) => `?component=${id}`,
-      hrefOfStory: (id: string) => `?id=${id}`,
     },
   })
 const lignes = (wrapper: ReturnType<typeof monte>) =>
@@ -91,8 +89,6 @@ describe('the token panel', () => {
       'light teal/700 · #00776E',
       'dark teal/500 · #00B9A6',
       'css var(--accent-base)',
-      'try a value',
-      '',
       'aliases pointing here · 1',
       'accent/focus color',
       'used by · 1 component',
@@ -112,8 +108,6 @@ describe('the token panel', () => {
       'value',
       'light teal/700 · #00776E',
       'css var(--accent-focus)',
-      'try a value',
-      '',
       'used by · 0 components',
       'No component reads it.',
     ])
@@ -122,7 +116,7 @@ describe('the token panel', () => {
 
   // Une primitive visée par un thème seulement compte quand même.
   test('counts a token that aims at it in one theme only', () => {
-    expect(lignes(monte('teal-500')).slice(5, 7)).toEqual([
+    expect(lignes(monte('teal-500')).slice(3, 5)).toEqual([
       'aliases pointing here · 1',
       'accent/base color',
     ])
@@ -158,42 +152,5 @@ describe('the token panel', () => {
     await composant!.trigger('click')
     expect(wrapper.emitted('token')?.[0]?.slice(0, 2)).toEqual(['color', 'accent-focus'])
     expect(wrapper.emitted('component')?.[0]?.[0]).toBe('ui/button')
-  })
-})
-
-// Une valeur essayée part au shell à chaque frappe ; Reset revient au fichier.
-// Essayée, la liste dit ce qu'elle touche : les lecteurs du token, et ceux des
-// tokens dont la chaîne passe par lui.
-describe('a value tried', () => {
-  test('goes to the shell as it is written, and Reset takes it back', async () => {
-    const wrapper = monte('accent-base')
-    const champ = wrapper.find('.try input')
-    expect(wrapper.find('.try .reset').exists()).toBe(false)
-    await champ.setValue('  #e11d48 ')
-    await champ.setValue('')
-    expect(wrapper.emitted('try')).toEqual([
-      ['accent-base', '#e11d48'],
-      ['accent-base', null],
-    ])
-
-    const essayé = monte('accent-base', { 'accent-base': '#e11d48' })
-    expect((essayé.find('.try input').element as HTMLInputElement).value).toBe('#e11d48')
-    await essayé.find('.try .reset').trigger('click')
-    expect(essayé.emitted('try')).toEqual([['accent-base', null]])
-  })
-
-  test('lists what it affects, through the aliases that point at the token', () => {
-    expect(lignes(monte('teal-700')).slice(-2)).toEqual([
-      'used by · 0 components',
-      'No component reads it.',
-    ])
-    const essayé = monte('teal-700', { 'teal-700': '#000' })
-    expect(lignes(essayé).slice(-2)).toEqual(['affected · 1 component', 'Button ui'])
-    // Essayée, le composant mène à sa première story, où la preview se voit.
-    expect(essayé.find('a.link[href^="?id="]').attributes('href')).toBe('?id=ui/button--a')
-    expect(lignes(monte('accent-base')).at(-1)).toBe('Button ui')
-    expect(monte('accent-base').findAll('a.link').at(-1)!.attributes('href')).toBe(
-      '?component=ui/button',
-    )
   })
 })

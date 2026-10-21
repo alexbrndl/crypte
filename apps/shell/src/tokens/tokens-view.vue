@@ -13,8 +13,6 @@ const props = defineProps<{
   theme: string
   selected: string | null
   hrefOf: (token: string) => string
-  // Les valeurs essayées, montrées à la place de celles du fichier.
-  tried?: Record<string, string>
 }>()
 const emit = defineEmits<{ select: [token: string, event: MouseEvent] }>()
 
@@ -26,7 +24,7 @@ const layout = computed(() => {
   return 'list'
 })
 
-const value = (token: Token) => props.tried?.[token.name] ?? valueIn(token.value, props.theme)
+const value = (token: Token) => valueIn(token.value, props.theme)
 
 // La largeur d'une barre d'espace, en pixels, coupée à la piste : un `rem` vaut
 // 16 px, ce que le navigateur prend sans réglage de l'utilisateur.

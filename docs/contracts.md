@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.44, reference document. A project brief points here instead of restating these shapes.
+> Version 1.43, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -681,7 +681,7 @@ Each direction has its own type: `ShellMessage` goes to the iframe, `PreviewMess
 
 ```ts
 type ShellMessage =
-  | { type: 'render'; id: string; overrides: Overrides; theme?: Theme; tokens?: Record<string, string> }
+  | { type: 'render'; id: string; overrides: Overrides; theme?: Theme }
   | MessagesOf<PluginShellMessages>
 
 type Theme = 'light' | 'dark'
@@ -690,8 +690,6 @@ type Theme = 'light' | 'dark'
 `render` mounts the entry that was asked for, with the shell's overrides applied on top of the story's props by 2.3's merge, shallow and prop by prop. A preview drops any message it does not know.
 
 `theme` is the theme to draw in. Before rendering, the preview sets it as `data-theme` and as the `color-scheme` of its root element: a sheet reads the first through a `[data-theme="dark"]` selector, the one `@crypte/tokens` reads its themes from, and `light-dark()` follows the second. A `render` without `theme` changes nothing on the root: it keeps what the project or the last `theme` set there. The shell sends its own theme; to compare, it opens a second preview and sends `light` to one and `dark` to the other.
-
-`tokens` are custom properties to try, by name without their dashes, `{ 'accent-base': '#e11d48' }`. Before rendering, the preview sets each on its root's inline style, `--accent-base`, where it wins over the sheet; the next `render` replaces them, and a `render` without `tokens` takes every one off: the root gets back what it held inline before the try, the project's own value, or the sheet's otherwise. The shell sends the values tried in the token panel with every render, until they are reset: nothing is written to a file.
 
 **`update-overrides` and `set-globals` were here and are now in reserve**, section 7. Neither had a consumer, and `render` already carries overrides: what the first added was updating them *without remounting*. **`controls` settled it: nothing is remounted.** Measured in a browser, the node the React adapter rendered survives an edit, since the adapter renders again on the root it keeps.
 
@@ -1033,12 +1031,6 @@ Eleven known gaps between this document and the code:
 ---
 
 ## 9. Version log
-
-**v1.44.** A token value tried before it is written (5.2).
-
-| Before | After |
-| --- | --- |
-| a token's value could only be changed in the style sheet | `render` carries optional `tokens`, set on the preview's root until the next render drops them |
 
 **v1.43.** A plugin may have a view of its own in the activity bar (6.1).
 
