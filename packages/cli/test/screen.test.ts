@@ -1310,6 +1310,10 @@ describe('the markdown pages', () => {
       .poll(() => composant.locator('h3').allTextContents())
       .toEqual(["Quand l'utiliser", 'À éviter'])
 
+    // L'exemple vivant rend la première story dans sa propre preview.
+    const exemple = ecran.page.frameLocator('.live-example iframe')
+    await expect.poll(() => exemple.locator('body').innerText()).toContain('Nouveau')
+
     await ecran.page.getByRole('treeitem', { name: 'Accessibilité', exact: true }).click()
 
     const page = ecran.page.locator('.markdown-page')

@@ -1754,7 +1754,11 @@ onMounted(() => {
               class="doc-page"
               :stories="componentStories"
               :page="componentPage"
+              :categories="categories"
+              :theme="theme"
+              :href-of-token="tokenHref"
               @show="(id) => show(id, 'push')"
+              @token="openToken"
             />
             <MarkdownPage v-else-if="shownPage" class="doc-page" :page="shownPage" />
           </div>

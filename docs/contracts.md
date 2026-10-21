@@ -560,7 +560,7 @@ With no `children`, the tag stays self-closing — and so it does when a spread 
 
 **A page's `id` comes from its file name, never its title**: `storyId([...path, stem], '')`, so `stories/Guides/Accessibilite.md` gives `guides/accessibilite`. Retitling a page keeps its address. With no name there is no `--`, so a page lands on a story's `id` only when that story's name normalises to nothing, `'…'` for one, which is then a collision like any other. Pages stay out of the fingerprint (4.6): the file itself is in the pull request diff.
 
-**The core carries the shape, a plugin carries the reading.** No file format is part of this contract: CSS variables, DTCG, Tailwind and everything after them live in `@crypte/tokens`. Same split as props, where the core defines `ResolvedPropDetails` and `@crypte/docs` only draws a table from it.
+**The core carries the shape, a plugin carries the reading.** No file format is part of this contract: CSS variables, DTCG, Tailwind and everything after them live in `@crypte/tokens`. Same split as props, where the core defines `ResolvedPropDetails` and the shell's docs page only draws a table from it.
 
 ```json
 {
@@ -1018,7 +1018,7 @@ This document is a contract. This section is the only place that says what exist
 
 | Section | State |
 | --- | --- |
-| 1.1, story files | discovered and read, in the four extensions. The tree, the identifiers and the call code come out of them. Markdown pages are discovered beside them. The shell's docs view lists every component, with its page when it has one, and the general pages by path |
+| 1.1, story files | discovered and read, in the four extensions. The tree, the identifiers and the call code come out of them. Markdown pages are discovered beside them. The shell's docs view lists every component, with its page when it has one, and the general pages by path. A component's page carries a live example of its first story, its props and the tokens it reads, generated from the catalogue |
 | 1.2, `crypte check` | built, all five problems. The component with no story is looked for in the folders the stories already point at, since no components root is declared anywhere |
 | 1.5, project configuration | the config is read, and the declared style sheet is loaded by the preview |
 | 1.5, path aliases | built |
