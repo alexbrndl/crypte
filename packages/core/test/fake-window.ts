@@ -10,8 +10,9 @@ const global = globalThis as unknown as { window?: unknown }
 
 export interface FakeWindow {
   location: { origin: string }
-  // La racine du document, réduite à ce que la preview y écrit : le thème.
-  document: { documentElement: { dataset: Record<string, string>; style: { colorScheme: string } } }
+  // La racine du document, réduite à ce que la preview y écrit : le thème et les
+  // tokens essayés.
+  document: { documentElement: { dataset: Record<string, string>; style: FakeStyle } }
   parent: FakeWindow
   // Qui écrit dans ce contexte, donc ce que le destinataire lira dans
   // `event.origin` et `event.source`.
@@ -24,12 +25,29 @@ export interface FakeWindow {
   listenerCount(): number
 }
 
+export interface FakeStyle {
+  colorScheme: string
+  setProperty(name: string, value: string): void
+  removeProperty(name: string): void
+  getPropertyValue(name: string): string
+}
+
+function styleOf(): FakeStyle {
+  const held = new Map<string, string>()
+  return {
+    colorScheme: '',
+    setProperty: (name, value) => void held.set(name, value),
+    removeProperty: (name) => void held.delete(name),
+    getPropertyValue: (name) => held.get(name) ?? '',
+  }
+}
+
 export function windowAt(origin: string): FakeWindow {
   const listeners = new Set<Listener>()
 
   const self: FakeWindow = {
     location: { origin },
-    document: { documentElement: { dataset: {}, style: { colorScheme: '' } } },
+    document: { documentElement: { dataset: {}, style: styleOf() } },
     // Une fenêtre sans parent est son propre parent, comme dans un navigateur.
     parent: undefined as unknown as FakeWindow,
     sender: undefined as unknown as FakeWindow,

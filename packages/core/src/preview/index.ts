@@ -41,22 +41,45 @@ export function createPreviewChannel(handlers: PreviewHandlers): PreviewChannel 
 
   // What the shell last asked for. Held here rather than by the caller: the
   // reporting belongs to the same place, and two owners would drift.
-  let asked: { id: string; overrides: Record<string, unknown>; theme?: Theme } | undefined
+  let asked:
+    | {
+        id: string
+        overrides: Record<string, unknown>
+        theme?: Theme
+        tokens?: Record<string, string>
+      }
+    | undefined
+  // What the root held inline before a token was tried, by name: put back once
+  // it is tried no more, so a token the project set inline keeps its value, and
+  // one it did not goes back to the sheet's.
+  let before: Record<string, string> = {}
 
   const draw = ({
     id,
     overrides,
     theme,
+    tokens = {},
   }: {
     id: string
     overrides: Record<string, unknown>
     theme?: Theme
+    tokens?: Record<string, string>
   }) => {
+    const root = window.document.documentElement
     // Before the render, so the story mounts in its theme rather than repainting.
     if (theme) {
-      const root = window.document.documentElement
       root.dataset.theme = theme
       root.style.colorScheme = theme
+    }
+    for (const name of Object.keys(before)) {
+      if (name in tokens) continue
+      if (before[name]) root.style.setProperty(`--${name}`, before[name])
+      else root.style.removeProperty(`--${name}`)
+      delete before[name]
+    }
+    for (const [name, value] of Object.entries(tokens)) {
+      if (!(name in before)) before[name] = root.style.getPropertyValue(`--${name}`)
+      root.style.setProperty(`--${name}`, value)
     }
     const startedAt = performance.now()
     let drawn: unknown
@@ -95,6 +118,7 @@ export function createPreviewChannel(handlers: PreviewHandlers): PreviewChannel 
         id: message.id,
         overrides: message.overrides,
         ...(message.theme ? { theme: message.theme } : {}),
+        ...(message.tokens ? { tokens: message.tokens } : {}),
       }
       draw(asked)
     } else if (type.includes(':')) handlers.message?.(event.data as { type: string })
