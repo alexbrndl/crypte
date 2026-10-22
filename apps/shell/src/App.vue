@@ -525,6 +525,8 @@ const kB = (bytes: number) => `${(bytes / 1e3).toFixed(1)} kB`
 const PROJECT = '/@crypte/project.json'
 const project = ref<{
   stories: string
+  // Le paquet de l'adaptateur, `@crypte/vue` pour un projet Vue.
+  adapter?: string | null
   config: string | null
   shellBytes: number
   version: string
@@ -583,12 +585,20 @@ const noStory = computed(
 // L'exemple suit la racine déclarée : `src/stories` remonte d'un dossier de plus
 // que `stories`, et un import écrit pour l'une ne résout pas depuis l'autre.
 const storiesRoot = computed(() => (project.value?.stories ?? 'stories').replace(/^\.\/|\/$/g, ''))
-const snippet = computed(
-  () => `import { defineStories } from '@crypte/react'
-import { Badge } from '${'../'.repeat(storiesRoot.value.split('/').length + 1)}src/components/ui/Badge'
+// Pour Vue, un `.vue` importé par défaut, son extension comprise.
+const vueProject = computed(() => project.value?.adapter === '@crypte/vue')
+const snippet = computed(() => {
+  const up = '../'.repeat(storiesRoot.value.split('/').length + 1)
+  return vueProject.value
+    ? `import { defineStories } from '@crypte/vue'
+import Badge from '${up}src/components/ui/Badge.vue'
 
-export default defineStories(Badge)`,
-)
+export default defineStories(Badge)`
+    : `import { defineStories } from '@crypte/react'
+import { Badge } from '${up}src/components/ui/Badge'
+
+export default defineStories(Badge)`
+})
 
 const COMPONENTS_SNIPPET = `export default defineConfig({
   stories: 'stories',
@@ -1632,9 +1642,13 @@ onMounted(() => {
               :title="project ? `No story in ${project.stories}/` : 'No story found'"
               :path="project ? `${project.stories}/` : null"
               rule="A story file carries the exact name of its component, and the tree follows its path. The folder is the stories of crypte.config.ts."
-              :mapping="`src/components/ui/Badge.tsx  >  ${storiesRoot}/ui/Badge.ts`"
+              :mapping="`src/components/ui/Badge.${vueProject ? 'vue' : 'tsx'}  >  ${storiesRoot}/ui/Badge.ts`"
               :snippet="snippet"
-              note="When every prop is optional, a story named Default is generated. Name the file .tsx when a children prop needs markup."
+              :note="
+                vueProject
+                  ? 'When every prop is optional, a story named Default is generated.'
+                  : 'When every prop is optional, a story named Default is generated. Name the file .tsx when a children prop needs markup.'
+              "
               outcome="The file appears and its story renders, without a restart."
             />
           </div>
@@ -1767,7 +1781,7 @@ onMounted(() => {
               :title="project ? `No docs page in ${project.stories}/` : 'No docs page'"
               :path="project ? `${project.stories}/` : null"
               rule="A component gets its docs page from its stories. A markdown file beside its story file adds its guidelines; any other markdown file is a page of its own."
-              :mapping="`${storiesRoot}/ui/Badge.tsx  >  ${storiesRoot}/ui/Badge.md`"
+              :mapping="`${storiesRoot}/ui/Badge.${vueProject ? 'ts' : 'tsx'}  >  ${storiesRoot}/ui/Badge.md`"
               :snippet="DOCS_SNIPPET"
               note="Markdown only: the title is the first # heading, otherwise the file name."
               outcome="The page appears, linked to its stories and its tokens."

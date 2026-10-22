@@ -9,22 +9,40 @@ const CONFIG_FILE = 'crypte.config.ts'
 
 // The adapters that exist, and the dependency that names each framework. A
 // framework with no adapter cannot be configured at all, so `init` refuses
-// rather than write a file `crypte dev` would reject.
-const ADAPTERS = [{ dependency: 'react', package: '@crypte/react', local: 'react' }] as const
+// rather than write a file `crypte dev` would reject. `vite` is the plugin the
+// framework needs and its adapter does not bring, section 1.5: without it a
+// `.vue` file is not compiled.
+interface Known {
+  dependency: string
+  package: string
+  local: string
+  vite?: { package: string; local: string }
+}
+
+const ADAPTERS: readonly Known[] = [
+  { dependency: 'react', package: '@crypte/react', local: 'react' },
+  {
+    dependency: 'vue',
+    package: '@crypte/vue',
+    local: 'vue',
+    vite: { package: '@vitejs/plugin-vue', local: 'vuePlugin' },
+  },
+]
 
 // The story roots a project may already have, in the order a reader would look.
 // Posix here, and split for the file system: the string is written as is.
 const ROOTS = ['stories', 'src/stories']
 
 export interface Plan {
-  adapter: (typeof ADAPTERS)[number]
+  adapter: Known
   stories: string
   // Whether the root has to be created. `buildCatalogue` refuses a root that
   // does not exist, so a config naming one would not start.
   missing: boolean
-  // Whether the adapter package is declared. Only a line of advice: writing the
-  // config before installing is an ordinary order.
-  installed: boolean
+  // What the framework needs that the project does not declare, the adapter and
+  // its Vite plugin. Only a line of advice: writing the config before installing
+  // is an ordinary order.
+  missingPackages: string[]
 }
 
 export function planFor(root: string): Plan {
@@ -43,7 +61,9 @@ export function planFor(root: string): Plan {
     adapter,
     stories: found ?? ROOTS[0]!,
     missing: found === undefined,
-    installed: declared.has(adapter.package),
+    missingPackages: [adapter.package, ...(adapter.vite ? [adapter.vite.package] : [])].filter(
+      (one) => !declared.has(one),
+    ),
   }
 }
 
@@ -65,17 +85,21 @@ function dependenciesOf(root: string): Set<string> {
   ])
 }
 
-// The two required keys of section 1.5, and nothing else: `css`, `wrap` and the
-// plugins are the project's own answers, and guessing one writes a second
-// source of truth beside the one it guessed from.
+// The two required keys of section 1.5, and the Vite plugin a framework cannot
+// render without, `vue()`. Nothing else: `css`, `wrap` and the other plugins are
+// the project's own answers, and guessing one writes a second source of truth
+// beside the one it guessed from.
 export function configFor(plan: Plan): string {
+  const { vite } = plan.adapter
   return [
     `import { defineConfig } from '@crypte/cli'`,
     `import ${plan.adapter.local} from '${plan.adapter.package}'`,
+    ...(vite ? [`import ${vite.local} from '${vite.package}'`] : []),
     ``,
     `export default defineConfig({`,
     `  stories: '${plan.stories}',`,
     `  adapter: ${plan.adapter.local}(),`,
+    ...(vite ? [`  vite: { plugins: [${vite.local}()] },`] : []),
     `})`,
     ``,
   ].join('\n')
@@ -94,17 +118,25 @@ export function linesOf(plan: Plan): string[] {
     ``,
   ]
 
-  if (!plan.installed) {
+  if (plan.missingPackages.length > 0) {
     said.push(
-      `Install the two packages first:`,
+      `Install what it needs first:`,
       ``,
-      `  npm i -D @crypte/cli ${plan.adapter.package}`,
+      `  npm i -D @crypte/cli ${plan.missingPackages.join(' ')}`,
       ``,
     )
   }
 
   // From the story root, which may sit under `src` itself.
   const component = posix.relative(plan.stories, 'src/components/Badge')
+  // A `.vue` file has one export, its default, and its extension is part of the path.
+  const imports = plan.adapter.vite
+    ? [`  import Badge from '${component}.vue'`]
+    : [
+        `  import { Badge } from '${component}'`,
+        `  // or, for a component exported by default:`,
+        `  // import Badge from '${component}'`,
+      ]
 
   return [
     ...said,
@@ -112,9 +144,7 @@ export function linesOf(plan: Plan): string[] {
     ``,
     `  // ${plan.stories}/Badge.ts`,
     `  import { defineStories } from '${plan.adapter.package}'`,
-    `  import { Badge } from '${component}'`,
-    `  // or, for a component exported by default:`,
-    `  // import Badge from '${component}'`,
+    ...imports,
     ``,
     `  export default defineStories(Badge)`,
   ]

@@ -191,6 +191,7 @@ export function servePlugin(
               response.end(
                 JSON.stringify({
                   stories: project.config.stories,
+                  adapter: adapterPackage(project),
                   config: unreadConfig() ?? null,
                   shellBytes: bytes,
                   version: VERSION,
@@ -471,6 +472,19 @@ async function compiled(
   }
 
   return { code, map }
+}
+
+// The module the configuration imports its adapter from, `@crypte/vue` for one,
+// so the shell's empty guide writes a story for the right framework. `null` when
+// the configuration cannot be read or imports it from nowhere.
+export function adapterPackage(project: Project): string | null {
+  let imports: string[]
+  try {
+    imports = configSources(project).adapter?.imports ?? []
+  } catch {
+    return null
+  }
+  return imports.flatMap((one) => /from\s+['"]([^'"]+)['"]/.exec(one)?.[1] ?? [])[0] ?? null
 }
 
 // The warnings already printed, so a reload does not repeat them.

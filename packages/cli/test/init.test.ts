@@ -99,6 +99,48 @@ describe('the written file', () => {
   })
 })
 
+// Vue : l'adaptateur et le plugin Vite qu'il n'apporte pas, section 1.5.
+describe('a Vue project', () => {
+  const vue = (extra: Record<string, string> = {}) =>
+    projectWith({ 'package.json': paquet({ vue: '^3.5.0' }, extra) }, ['stories'])
+
+  test('writes the Vue adapter and the Vite plugin it needs', () => {
+    expect(configFor(planFor(vue()))).toMatchInlineSnapshot(`
+      "import { defineConfig } from '@crypte/cli'
+      import vue from '@crypte/vue'
+      import vuePlugin from '@vitejs/plugin-vue'
+
+      export default defineConfig({
+        stories: 'stories',
+        adapter: vue(),
+        vite: { plugins: [vuePlugin()] },
+      })
+      "
+    `)
+  })
+
+  test('gives the install command for what is missing, and an example importing a .vue file', () => {
+    const lines = linesOf(planFor(vue({ '@crypte/vue': '^0.0.0' }))).join('\n')
+
+    expect(lines).toContain('npm i -D @crypte/cli @vitejs/plugin-vue\n')
+    expect(lines.slice(lines.indexOf('Write a first story'))).toMatchInlineSnapshot(`
+      "Write a first story under \`stories\`, then run \`crypte dev\`:
+
+        // stories/Badge.ts
+        import { defineStories } from '@crypte/vue'
+        import Badge from '../src/components/Badge.vue'
+
+        export default defineStories(Badge)"
+    `)
+  })
+
+  test('says nothing to install when both are declared', () => {
+    const lines = linesOf(planFor(vue({ '@crypte/vue': '^0.0.0', '@vitejs/plugin-vue': '^6.0.0' })))
+
+    expect(lines.join('\n')).not.toContain('npm i -D')
+  })
+})
+
 describe('what the command prints', () => {
   // Les deux formes d'import : copié avec la mauvaise, l'exemple échoue au rendu
   // sur « does not provide an export named ». Et le chemin part de la racine des
@@ -182,7 +224,7 @@ describe('the command', () => {
   })
 
   test('writes nothing when no framework is recognised', () => {
-    const root = projectWith({ 'package.json': paquet({ vue: '^3.5.0' }) })
+    const root = projectWith({ 'package.json': paquet({ svelte: '^5.0.0' }) })
 
     expect(() => init(root, () => {})).toThrow()
     expect(existsSync(join(root, 'crypte.config.ts'))).toBe(false)

@@ -197,3 +197,85 @@ describe('the components the health view counts', () => {
     })
   })
 })
+
+// Un projet Vue : chaque `.vue` est un composant, nommé par son fichier, avec ses
+// props, un squelette de story pour Vue, et les `.vue` qui l'importent.
+describe('a Vue project', () => {
+  const VUE_BADGE =
+    '<script setup lang="ts">\ndefineProps<{ label: string }>()\n</script>\n<template><b /></template>\n'
+  const VUE_CARD =
+    '<script setup lang="ts">\nimport Badge from \'./Badge.vue\'\n</script>\n<template><Badge label="x" /></template>\n'
+
+  // Un `.vue` réduit à son template, ou au script illisible, reste un composant
+  // que ses importateurs utilisent.
+  test('names the importers of a .vue file whose script cannot be read', () => {
+    const composants = santé(
+      projet(
+        {
+          'src/components/Feuille.vue': '<template><b /></template>',
+          'src/components/Casse.vue':
+            '<script setup lang="ts">const = </script><template><i /></template>',
+          'src/components/Page.vue':
+            "<script setup lang=\"ts\">\nimport Feuille from './Feuille.vue'\nimport Casse from './Casse.vue'\n</script>\n<template><Feuille /><Casse /></template>\n",
+        },
+        'src/components',
+      ),
+    )
+
+    expect(Object.fromEntries((composants ?? []).map((one) => [one.name, one.usedBy]))).toEqual({
+      Casse: ['src/components/Page.vue:default'],
+      Feuille: ['src/components/Page.vue:default'],
+      Page: undefined,
+    })
+  })
+
+  test('counts each .vue file, with its props, its importers and a Vue skeleton', () => {
+    const composants = santé(
+      projet(
+        {
+          'src/components/Badge.vue': VUE_BADGE,
+          'src/components/ui/Card.vue': VUE_CARD.replace('./Badge.vue', '../Badge.vue'),
+          'stories/ui/Card.ts':
+            "import { defineStories } from '@crypte/vue'\nimport Card from '../../src/components/ui/Card.vue'\n\nexport default defineStories(Card)\n",
+        },
+        'src/components',
+      ),
+    )
+
+    expect(
+      composants?.map(({ name, file, export: exported, stories, props, required, usedBy }) => ({
+        name,
+        file,
+        exported,
+        stories,
+        props,
+        required,
+        usedBy,
+      })),
+    ).toEqual([
+      {
+        name: 'Badge',
+        file: 'src/components/Badge.vue',
+        exported: 'default',
+        stories: [],
+        props: 1,
+        required: 1,
+        usedBy: ['src/components/ui/Card.vue:default'],
+      },
+      {
+        name: 'Card',
+        file: 'src/components/ui/Card.vue',
+        exported: 'default',
+        stories: ['ui/card--default'],
+        props: 0,
+        required: 0,
+        usedBy: undefined,
+      },
+    ])
+    expect(composants?.[0]?.skeleton).toEqual({
+      file: 'stories/Badge.ts',
+      source:
+        "import { defineStories } from '@crypte/vue'\nimport Badge from '../src/components/Badge.vue'\n\nexport default defineStories(Badge)\n",
+    })
+  })
+})

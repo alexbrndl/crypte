@@ -24,6 +24,7 @@ import {
   MANIFEST_ROUTE,
   PLUGINS_ROUTE,
   PROJECT_ROUTE,
+  adapterPackage,
   VERSIONS_ROUTE,
   PREVIEW_ENTRY_ID,
   previewEntry,
@@ -91,6 +92,8 @@ describe('crypte dev', () => {
     expect(status).toBe(200)
     expect(JSON.parse(body)).toEqual({
       stories: 'stories',
+      // La fixture écrit son adaptateur en place, sans l'importer d'un paquet.
+      adapter: null,
       config: null,
       shellBytes: gz(...fichiers),
       version: (
@@ -356,6 +359,18 @@ describe('crypte dev', () => {
 // que sur la machine qui l'a écrit.
 const racine = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 const sansRacine = (source: string) => source.replaceAll(racine, '<racine>')
+
+// Le paquet d'où vient l'adaptateur, que le guide vide du shell lit pour écrire une
+// story du bon framework : les deux démonstrations, et la fixture qui n'en importe aucun.
+describe('the adapter package', () => {
+  it('names the package the configuration imports its adapter from', async () => {
+    const apps = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'apps')
+
+    expect(adapterPackage(await loadProject(join(apps, 'demo')))).toBe('@crypte/react')
+    expect(adapterPackage(await loadProject(join(apps, 'demo-vue')))).toBe('@crypte/vue')
+    expect(adapterPackage(await loadProject(fixture))).toBeNull()
+  })
+})
 
 describe('the preview entry', () => {
   // L'entrée entière, dans un fichier que la revue lit comme un diff.

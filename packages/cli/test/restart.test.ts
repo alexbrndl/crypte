@@ -167,6 +167,7 @@ export default defineConfig({
       await expect.poll(compte, { timeout: 30_000 }).toBe(3)
       expect(await projet()).toEqual({
         stories: 'stories/checkout',
+        adapter: null,
         config: null,
         shellBytes: expect.any(Number),
         version: expect.any(String),

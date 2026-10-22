@@ -60,7 +60,7 @@ The command reports five problems:
 - **Component with no story**: an exported component has no story. This one is a warning and never fails the command.
 - **Stale fingerprint**: `.crypte/fingerprint.json` is missing, or differs from what the stories give today (4.6). It fails the command, so a CI running `crypte check` refuses a branch that did not update it.
 
-The component-with-no-story check only looks at exports **identified as components**: a capitalised name that returns an element. Utility functions exported from a component file, such as `stepFromProgress` in `ProgressLoader.tsx`, are never reported. Nor is a component the project already declares as a frame, in the `wrap` of its configuration or of a story file (2.5): it is context, not a component missing its page.
+The component-with-no-story check only looks at exports **identified as components**: a capitalised name that returns an element, or a `.vue` file, which is one component, its default export. A default export is reported under its file's name. Utility functions exported from a component file, such as `stepFromProgress` in `ProgressLoader.tsx`, are never reported. Nor is a component the project already declares as a frame, in the `wrap` of its configuration or of a story file (2.5): it is context, not a component missing its page.
 
 **When in doubt, report nothing.** A false warning costs more than a miss: it teaches people to ignore the command.
 
@@ -147,9 +147,9 @@ The preview calls `mount` on every render, with the wrappers of 2.5 outermost fi
 
 **An adapter brings no Vite plugin.** The project declares the one its framework needs in `vite.plugins`, `react()` or `vue()`, as it would in its own Vite config. `vue()` does run in Node when the configuration is evaluated, but that instance is dropped: the browser rebuilds the adapter from the configuration's text, so a plugin it returned would reach nothing. Reopened if a framework needs more than one plugin in an order a project cannot guess.
 
-`components` is what the health view counts the components with a story against: every component a `.js`, `.jsx`, `.ts` or `.tsx` file under it exports, at any depth, except under `node_modules`, `.git` and `dist`, in a `.d.ts`, or declared as a `wrap` (2.5), which is context rather than a component. Without it, the shell draws no stories gauge, since nothing says how many components there are.
+`components` is what the health view counts the components with a story against: every component a `.js`, `.jsx`, `.ts` or `.tsx` file under it exports, and every `.vue` file, at any depth, except under `node_modules`, `.git` and `dist`, in a `.d.ts`, or declared as a `wrap` (2.5), which is context rather than a component. Without it, the shell draws no stories gauge, since nothing says how many components there are.
 
-`vite.plugins` exists for the cases where a framework needs an extra transform, such as Nuxt auto-imports. The project declares it. Crypte never guesses it.
+`vite.plugins` exists for the cases where a framework needs an extra transform, such as Nuxt auto-imports. The project declares it. Crypte never guesses it, except the one plugin a framework cannot render without: `crypte init` writes `vue()` for a Vue project, since no `.vue` file compiles without it.
 
 **Those plugins run in the CLI's Vite, not in the project's.** The project's `vite.config` is never read, and Vite itself is the CLI's dependency. A plugin written for another major of Vite still loads, and may warn or break: section 8 carries that gap.
 
@@ -1051,7 +1051,7 @@ This document is a contract. This section is the only place that says what exist
 
 **`dev`, `check` and `init` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled in the project by the CLI's own Vite, with the plugins the project declares in `vite.plugins`. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte init` writes the configuration of 1.5 into a project that already has its components, and has no section of its own because the file it writes is 1.5 itself.
 
-Fourteen known gaps between this document and the code:
+Twelve known gaps between this document and the code:
 
 - **A plugin's peer range checks the copies npm installs, never the ones its panel runs on.** `vue` and `@crypte/ui` reach a panel from the installed CLI's shell, through its import map (6.1). A plugin newer than that CLI, which imports a component its `@crypte/ui` does not have yet, fails to load, and the frame shows the import error in the panel's place. Pinning `@crypte/cli` instead would move the whole `fixed` group to a major version at every minor one, measured with `changeset status` (DCJ-352).
 - **The preview is compiled by the CLI's Vite, and nothing checks the project's plugins against it.** A project on another major keeps its own Vite for its build, and its `vite.plugins` run in the CLI's anyway. Measured on a project on Vite 6: its React plugin warned about deprecated options and every story rendered. Resolving the project's own Vite instead would be a rework, not a fix.
@@ -1063,9 +1063,7 @@ Fourteen known gaps between this document and the code:
 - **A style sheet other than the declared one is not watched.** `crypte dev` rebuilds the catalogue when the `css` of 1.5 changes, as for a story or a component, and reloads the preview when its tokens moved. A sheet a plugin reads by its own option, `tokens({ files })` for one, is followed only at the next rebuild or restart.
 - **A sheet that switches theme only under `@media (prefers-color-scheme: dark)` does not follow the `theme` of 5.2.** No page can force that media query on itself, so such a preview keeps the system's theme whatever the shell asks. Rewriting the sheet's media rules into `[data-theme]` ones would mean editing the project's CSS.
 - **A global `wrap` (2.5) cannot be a `.vue` component.** `crypte.config.ts` is evaluated in Node, which does not load a `.vue` file, and the configuration fails to load. A story file's own `wrap` can, since only the preview runs it. Reopened by a project whose provider is a `.vue` file every story needs.
-- **`crypte init`, the story skeleton of the health view and the empty stories guide know React only** (DCJ-404): `init` refuses a Vue project, and both others write `import { defineStories } from '@crypte/react'`.
 - **`source` is written in JSX whatever the framework**, so a Vue story's call code does not paste into a Vue template as is (DCJ-405).
-- **The health view counts what a JavaScript or TypeScript file exports, never a `.vue` file.** Under the `components` of 1.5, a component is a capitalised export returning an element, the reading `crypte check` makes; a Vue project's stories gauge has nothing to count yet.
 - `component.file` is resolved without Vite. The producer runs before any server exists, so it applies the project's `paths` and tries the usual extensions, with no plugin and no `exports` field. A component reached through a plugin keeps the identifier the story wrote. `crypte check` calls such an entry an orphan only when the project could have reached it itself, that is a relative path or an alias it declares; anything else it leaves alone.
 
 ---
