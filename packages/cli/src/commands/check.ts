@@ -1,7 +1,7 @@
 // `crypte check`: the five problems section 1.2 names. See docs/contracts.md.
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { dirname, extname, join, relative, resolve, sep } from 'node:path'
+import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path'
 import { parseSync } from 'vite'
 import type { Manifest } from '@crypte/core/protocol'
 import { configWrappers } from '../config/config-source'
@@ -25,7 +25,7 @@ export interface Problem {
 // Which files are opened, not which ones count: the parser refuses every other
 // extension anyway. It is a read filter, and the tree it walks is a project's,
 // so the measure is on a real one.
-const READ = ['.tsx', '.jsx', '.ts', '.js']
+const READ = ['.tsx', '.jsx', '.ts', '.js', '.vue']
 
 // A story whose component is gone. The producer resolves `component.file`
 // without Vite, so an unresolvable one keeps the identifier the story wrote:
@@ -103,6 +103,9 @@ export function wrappers(project: Project, entries: ReturnType<typeof storiesOf>
 // component, and a capitalised constant is none either. One group per component
 // holds every name the file exports it under, so a story on any covers it.
 export function componentsIn(file: string): string[][] {
+  // A `.vue` file is one component, its default export, whatever its script holds.
+  if (file.endsWith('.vue')) return [['default']]
+
   let parsed: ReturnType<typeof parseSync>
   let source: string
 
@@ -314,7 +317,9 @@ export function problemsOf(
       for (const group of componentsIn(file)) {
         if (group.some((one) => known.has(`${file}#${one}`))) continue
 
-        unstoried.push({ kind: 'unstoried', file: named(project.root, file), name: group[0]! })
+        // A default export is named by its file, as the health view names it.
+        const name = group[0] === 'default' ? basename(file, extname(file)) : group[0]!
+        unstoried.push({ kind: 'unstoried', file: named(project.root, file), name })
       }
     }
   }
@@ -354,7 +359,7 @@ export function staleOf(project: Project, manifest: Manifest): Problem[] {
 // on its first line whatever it held.
 export function brokenOf(project: Project, manifest: Manifest): Problem[] {
   const files = [...new Set(storiesOf(manifest).map((entry) => entry.component.file))].filter(
-    (file) => READ.includes(extname(file)),
+    (file) => READ.includes(extname(file)) && !file.endsWith('.vue'),
   )
 
   return files.flatMap((file) => {

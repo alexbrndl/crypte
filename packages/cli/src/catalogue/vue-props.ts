@@ -40,22 +40,40 @@ interface Declared {
   pattern?: Node
 }
 
-export function vuePropsOf(file: string, source: string): PropsRead {
+// The script block of a `.vue` file, parsed: the `setup` one, or the plain one
+// without it. `undefined` for a template alone; a reason when it cannot be read.
+export interface Script {
+  content: string
+  setup: boolean
+  parsed: ReturnType<typeof parseSync>
+}
+
+export function scriptOf(file: string, source: string): Script | { unread: string } | undefined {
   const blocks = [...source.matchAll(SCRIPT)]
     .filter((one) => one[2] !== undefined)
     .map((one) => ({ attributes: one[1] ?? '', content: one[2] ?? '' }))
   const setup = blocks.find((one) => attributeOf(one.attributes, 'setup') !== undefined)
   const block = setup ?? blocks[0]
-  // A template alone takes no props, and that is a reading.
-  if (!block) return { details: {} }
+  if (!block) return undefined
 
   if (attributeOf(block.attributes, 'src') !== undefined)
-    return { details: {}, unread: 'its script block lives in another file' }
+    return { unread: 'its script block lives in another file' }
 
   const written = attributeOf(block.attributes, 'lang')
   const lang = written === 'ts' || written === 'tsx' || written === 'jsx' ? written : 'js'
   const parsed = parseSync(`${file}.${lang}`, block.content)
-  if (parsed.errors.length > 0) return { details: {}, unread: 'its script block does not parse' }
+  if (parsed.errors.length > 0) return { unread: 'its script block does not parse' }
+
+  return { content: block.content, setup: setup !== undefined, parsed }
+}
+
+export function vuePropsOf(file: string, source: string): PropsRead {
+  const script = scriptOf(file, source)
+  // A template alone takes no props, and that is a reading.
+  if (!script) return { details: {} }
+  if ('unread' in script) return { details: {}, unread: script.unread }
+  const { parsed, setup } = script
+  const block = script
 
   const body = parsed.program.body as unknown as Node[]
   const comments = parsed.comments as unknown as Comment[]

@@ -11,6 +11,7 @@ import { parseSync } from 'vite'
 import { componentsIn, wrappers } from '../commands/check'
 import type { Project } from '../config/project'
 import { componentFile } from './manifest'
+import { scriptOf } from './vue-props'
 import { propsOf } from './props'
 
 export interface Health {
@@ -44,9 +45,9 @@ export interface HealthComponent {
   usedBy?: string[]
 }
 
-// Opened, not counted: `componentsIn` keeps only what returns an element. A Vue
-// file is not read, so a Vue project's gauge counts nothing yet (section 8).
-const READ = ['.tsx', '.jsx', '.ts', '.js']
+// Opened, not counted: `componentsIn` keeps only what returns an element, and
+// counts a `.vue` file as one component.
+const READ = ['.tsx', '.jsx', '.ts', '.js', '.vue']
 const SKIPPED = new Set(['node_modules', '.git', 'dist'])
 
 export function healthOf(project: Project, stories: StoryEntry[]): Health {
@@ -120,11 +121,25 @@ function importersOf(
 ): Map<string, string[]> {
   const read = files.flatMap((file) => {
     try {
-      const source = readFileSync(file, 'utf8')
-      const parsed = parseSync(file, source)
+      const text = readFileSync(file, 'utf8')
+      // A `.vue` file imports from its script block, read alone.
+      if (file.endsWith('.vue')) {
+        const script = scriptOf(file, text)
+        return script && !('unread' in script)
+          ? [
+              {
+                file,
+                self: named(project.root, file),
+                source: script.content,
+                parsed: script.parsed,
+              },
+            ]
+          : []
+      }
+      const parsed = parseSync(file, text)
       return parsed.errors.length > 0
         ? []
-        : [{ file, self: named(project.root, file), source, parsed }]
+        : [{ file, self: named(project.root, file), source: text, parsed }]
     } catch {
       return []
     }
@@ -247,18 +262,25 @@ function filesIn(folder: string): string[] {
 }
 
 // The story file mirrors the component's place under the story root, and imports
-// it by a relative path, which needs no alias. `@crypte/react` is the only
-// adapter there is; reopened with a second one.
+// it by a relative path, which needs no alias. The component says which adapter:
+// a `.vue` file is Vue's, keeps its extension in the import, and its story file
+// is a `.ts` one; anything else is React's.
 function skeletonOf(project: Project, folder: string, file: string, exported: string) {
+  const vue = file.endsWith('.vue')
   const inside = relative(join(project.root, folder), file)
-  const target = join(project.root, project.config.stories, inside)
+  const target = join(
+    project.root,
+    project.config.stories,
+    vue ? inside.replace(/\.vue$/, '.ts') : inside,
+  )
   let path = relative(dirname(target), file).split(sep).join('/')
   path = (path.startsWith('.') ? path : `./${path}`).replace(/\.[jt]sx?$/, '')
   const local = exported === 'default' ? basename(file, extname(file)) : exported
   const imported = exported === 'default' ? local : `{ ${exported} }`
+  const adapter = vue ? '@crypte/vue' : '@crypte/react'
   return {
     file: named(project.root, target),
-    source: `import { defineStories } from '@crypte/react'\nimport ${imported} from '${path}'\n\nexport default defineStories(${local})\n`,
+    source: `import { defineStories } from '${adapter}'\nimport ${imported} from '${path}'\n\nexport default defineStories(${local})\n`,
   }
 }
 

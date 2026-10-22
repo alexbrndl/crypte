@@ -225,6 +225,24 @@ describe('component without a story', () => {
     ])
   })
 
+  // Un `.vue` est un composant, son export par défaut, nommé par son fichier ; un
+  // export par défaut React aussi, plutôt que « default has no story ».
+  test('reports a .vue file and a default export by their file name', async () => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      'src/Badge.vue': '<template><b /></template>',
+      'src/Carte.vue': '<template><p /></template>',
+      'src/Select.tsx': 'export default function Choix() { return <select /> }',
+      'stories/Carte.ts':
+        "import Carte from '../src/Carte.vue'\nexport default defineStories(Carte)",
+    })
+
+    expect(problemsOf(await loadProject(root))).toEqual([
+      { kind: 'unstoried', file: 'src/Badge.vue', name: 'Badge' },
+      { kind: 'unstoried', file: 'src/Select.tsx', name: 'Select' },
+    ])
+  })
+
   // La clé est `fichier#export` : sans le fichier, une story sur l'un des deux
   // couvrirait l'autre en silence.
   test('does not let one namesake cover the other', async () => {

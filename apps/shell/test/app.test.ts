@@ -2849,6 +2849,28 @@ describe('an empty catalogue', () => {
     écran.wrapper.unmount()
   })
 
+  // Un projet Vue : l'exemple importe un `.vue` par défaut, depuis `@crypte/vue`.
+  test('guides a Vue project with a Vue story', async () => {
+    const écran = await monte([], false, undefined, undefined, () => ({
+      stories: 'stories',
+      adapter: '@crypte/vue',
+      config: null,
+    }))
+    const guide = écran.wrapper.find('.empty')
+
+    expect(guide.find('.mapping').text()).toBe(
+      'src/components/ui/Badge.vue  >  stories/ui/Badge.ts',
+    )
+    expect(guide.find('pre').text()).toMatchInlineSnapshot(`
+      "import { defineStories } from '@crypte/vue'
+      import Badge from '../../src/components/ui/Badge.vue'
+
+      export default defineStories(Badge)"
+    `)
+    expect(guide.find('.note').text()).not.toContain('.tsx')
+    écran.wrapper.unmount()
+  })
+
   test('copies the shortest story file', async () => {
     const écrit = vi.fn(async () => undefined)
     vi.stubGlobal('navigator', { clipboard: { writeText: écrit } })
