@@ -557,6 +557,8 @@ The first publication is what turns it on. From then the published shape is the 
 
 An attribute answers the same question differently: a brace and an angle bracket are ordinary inside quotes, a double quote is not, and neither is an `&`, a line terminator, a backslash or a control character. A JSX attribute literal unescapes nothing, so a backslash written for JavaScript would arrive doubled. Those take braces too, and between the tags the same characters need no help since the text is emitted as it is.
 
+**A `.vue` component's `source` is written as a Vue template**, since that is where it is pasted. A string is a static attribute escaped as HTML, `&` and `"`, which the template decodes back to the same string. Every other value is bound, `:count="3"`, `true` included, since a bare attribute is `true` only for a prop declared `Boolean` and an empty string otherwise; a bound expression is escaped the same way. A text child goes in the default slot, bare when the template gives it back unchanged and interpolated, `{{ " bord " }}`, when it holds an angle bracket, an `&`, `{{`, a line break or edge whitespace. An element goes as written.
+
 With no `children`, the tag stays self-closing — and so it does when a spread may replace the value, since 4.2 forbids showing what the run does not have.
 
 **A prop spread with `...` is in neither field**, and neither is a key computed at runtime. Their names cannot be read without running the file, and guessing them would put wrong names in a coverage figure.
@@ -1051,7 +1053,7 @@ This document is a contract. This section is the only place that says what exist
 
 **`dev`, `check` and `init` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled in the project by the CLI's own Vite, with the plugins the project declares in `vite.plugins`. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte init` writes the configuration of 1.5 into a project that already has its components, and has no section of its own because the file it writes is 1.5 itself.
 
-Twelve known gaps between this document and the code:
+Eleven known gaps between this document and the code:
 
 - **A plugin's peer range checks the copies npm installs, never the ones its panel runs on.** `vue` and `@crypte/ui` reach a panel from the installed CLI's shell, through its import map (6.1). A plugin newer than that CLI, which imports a component its `@crypte/ui` does not have yet, fails to load, and the frame shows the import error in the panel's place. Pinning `@crypte/cli` instead would move the whole `fixed` group to a major version at every minor one, measured with `changeset status` (DCJ-352).
 - **The preview is compiled by the CLI's Vite, and nothing checks the project's plugins against it.** A project on another major keeps its own Vite for its build, and its `vite.plugins` run in the CLI's anyway. Measured on a project on Vite 6: its React plugin warned about deprecated options and every story rendered. Resolving the project's own Vite instead would be a rework, not a fix.
@@ -1063,7 +1065,6 @@ Twelve known gaps between this document and the code:
 - **A style sheet other than the declared one is not watched.** `crypte dev` rebuilds the catalogue when the `css` of 1.5 changes, as for a story or a component, and reloads the preview when its tokens moved. A sheet a plugin reads by its own option, `tokens({ files })` for one, is followed only at the next rebuild or restart.
 - **A sheet that switches theme only under `@media (prefers-color-scheme: dark)` does not follow the `theme` of 5.2.** No page can force that media query on itself, so such a preview keeps the system's theme whatever the shell asks. Rewriting the sheet's media rules into `[data-theme]` ones would mean editing the project's CSS.
 - **A global `wrap` (2.5) cannot be a `.vue` component.** `crypte.config.ts` is evaluated in Node, which does not load a `.vue` file, and the configuration fails to load. A story file's own `wrap` can, since only the preview runs it. Reopened by a project whose provider is a `.vue` file every story needs.
-- **`source` is written in JSX whatever the framework**, so a Vue story's call code does not paste into a Vue template as is (DCJ-405).
 - `component.file` is resolved without Vite. The producer runs before any server exists, so it applies the project's `paths` and tries the usual extensions, with no plugin and no `exports` field. A component reached through a plugin keeps the identifier the story wrote. `crypte check` calls such an entry an orphan only when the project could have reached it itself, that is a relative path or an alias it declares; anything else it leaves alone.
 
 ---
