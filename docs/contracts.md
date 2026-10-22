@@ -149,7 +149,7 @@ The preview calls `mount` on every render, with the wrappers of 2.5 outermost fi
 
 `components` is what the health view counts the components with a story against: every component a `.js`, `.jsx`, `.ts` or `.tsx` file under it exports, and every `.vue` file, at any depth, except under `node_modules`, `.git` and `dist`, in a `.d.ts`, or declared as a `wrap` (2.5), which is context rather than a component. Without it, the shell draws no stories gauge, since nothing says how many components there are.
 
-`vite.plugins` exists for the cases where a framework needs an extra transform, such as Nuxt auto-imports. The project declares it. Crypte never guesses it.
+`vite.plugins` exists for the cases where a framework needs an extra transform, such as Nuxt auto-imports. The project declares it. Crypte never guesses it, except the one plugin a framework cannot render without: `crypte init` writes `vue()` for a Vue project, since no `.vue` file compiles without it.
 
 **Those plugins run in the CLI's Vite, not in the project's.** The project's `vite.config` is never read, and Vite itself is the CLI's dependency. A plugin written for another major of Vite still loads, and may warn or break: section 8 carries that gap.
 

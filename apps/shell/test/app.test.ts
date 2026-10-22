@@ -2867,7 +2867,9 @@ describe('an empty catalogue', () => {
 
       export default defineStories(Badge)"
     `)
-    expect(guide.find('.note').text()).not.toContain('.tsx')
+    expect(guide.find('.note').text()).toBe(
+      'When every prop is optional, a story named Default is generated.',
+    )
     écran.wrapper.unmount()
   })
 

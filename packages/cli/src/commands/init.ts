@@ -85,9 +85,10 @@ function dependenciesOf(root: string): Set<string> {
   ])
 }
 
-// The two required keys of section 1.5, and nothing else: `css`, `wrap` and the
-// plugins are the project's own answers, and guessing one writes a second
-// source of truth beside the one it guessed from.
+// The two required keys of section 1.5, and the Vite plugin a framework cannot
+// render without, `vue()`. Nothing else: `css`, `wrap` and the other plugins are
+// the project's own answers, and guessing one writes a second source of truth
+// beside the one it guessed from.
 export function configFor(plan: Plan): string {
   const { vite } = plan.adapter
   return [

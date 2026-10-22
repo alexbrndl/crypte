@@ -206,6 +206,29 @@ describe('a Vue project', () => {
   const VUE_CARD =
     '<script setup lang="ts">\nimport Badge from \'./Badge.vue\'\n</script>\n<template><Badge label="x" /></template>\n'
 
+  // Un `.vue` réduit à son template, ou au script illisible, reste un composant
+  // que ses importateurs utilisent.
+  test('names the importers of a .vue file whose script cannot be read', () => {
+    const composants = santé(
+      projet(
+        {
+          'src/components/Feuille.vue': '<template><b /></template>',
+          'src/components/Casse.vue':
+            '<script setup lang="ts">const = </script><template><i /></template>',
+          'src/components/Page.vue':
+            "<script setup lang=\"ts\">\nimport Feuille from './Feuille.vue'\nimport Casse from './Casse.vue'\n</script>\n<template><Feuille /><Casse /></template>\n",
+        },
+        'src/components',
+      ),
+    )
+
+    expect(Object.fromEntries((composants ?? []).map((one) => [one.name, one.usedBy]))).toEqual({
+      Casse: ['src/components/Page.vue:default'],
+      Feuille: ['src/components/Page.vue:default'],
+      Page: undefined,
+    })
+  })
+
   test('counts each .vue file, with its props, its importers and a Vue skeleton', () => {
     const composants = santé(
       projet(

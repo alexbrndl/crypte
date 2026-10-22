@@ -122,7 +122,8 @@ function importersOf(
   const read = files.flatMap((file) => {
     try {
       const text = readFileSync(file, 'utf8')
-      // A `.vue` file imports from its script block, read alone.
+      // A `.vue` file imports from its script block, the `setup` one when it has
+      // two: an import in the plain block beside it is not seen.
       if (file.endsWith('.vue')) {
         const script = scriptOf(file, text)
         return script && !('unread' in script)
@@ -148,8 +149,12 @@ function importersOf(
   const declared = new Set<string>()
   const forward = new Map<string, string>()
   const star = new Map<string, string[]>()
+  // Every file of the folder, not only those whose script parsed: a `.vue` file
+  // made of its template alone is still a component its importers use.
+  for (const file of files)
+    for (const names of componentsIn(file))
+      for (const one of names) declared.add(`${named(project.root, file)}#${one}`)
   for (const { file, self, parsed } of read) {
-    for (const names of componentsIn(file)) for (const one of names) declared.add(`${self}#${one}`)
     for (const one of parsed.module.staticExports) {
       for (const entry of one.entries) {
         if (!entry.moduleRequest) continue
