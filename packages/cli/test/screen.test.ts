@@ -1896,6 +1896,22 @@ describe('a static build, served below a path', () => {
         'Panel',
         'Tone',
       ])
+
+      // L'export au format de Storybook : la story de l'adresse, sans shell, et
+      // un identifiant inconnu nommé à sa place.
+      const seule = await browser.newPage()
+      try {
+        await seule.goto(
+          `http://localhost:${address.port}/sous/iframe.html?id=badge--avertissement`,
+        )
+        await expect.poll(() => seule.locator('#root').textContent()).toContain('Nouveau')
+        await seule.goto(`http://localhost:${address.port}/sous/iframe.html?id=inconnue`)
+        await expect
+          .poll(() => seule.locator('#root').textContent())
+          .toBe('unknown story: inconnue')
+      } finally {
+        await seule.close()
+      }
       expect(plaintes).toEqual([])
     } finally {
       await page.close()

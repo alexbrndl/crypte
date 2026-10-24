@@ -30,6 +30,7 @@ import {
   previewEntry,
   servePlugin,
 } from '../src/server/serve'
+import { storybookIndexOf } from '../src/catalogue/storybook'
 
 // Ce que `crypte dev` sert vraiment, mesuré sur un serveur qui écoute.
 
@@ -70,6 +71,20 @@ describe('crypte dev', () => {
 
     expect(status).toBe(404)
     expect(body).not.toContain('la page du projet')
+  })
+
+  // L'export au format de Storybook, que zeroheight et Supernova lisent : la liste
+  // des stories, et la page qui en rend une sans shell.
+  it('serves the Storybook index and the page that renders one story alone', async () => {
+    const index = await get('/index.json')
+    const page = await get('/iframe.html?id=badge--defaut')
+
+    expect(index.status).toBe(200)
+    expect(JSON.parse(index.body)).toEqual(storybookIndexOf(started.held.catalogue.manifest))
+    expect(page.status).toBe(200)
+    expect(page.body).toContain('<html data-standalone>')
+    expect(page.body).toContain('/@crypte/preview.js')
+    expect((await get('/preview.html')).body).not.toContain('data-standalone')
   })
 
   it('serves the catalogue from memory, not from the written file', async () => {

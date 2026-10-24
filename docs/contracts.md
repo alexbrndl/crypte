@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.47, reference document. A project brief points here instead of restating these shapes.
+> Version 1.48, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -1057,7 +1057,7 @@ This document is a contract. This section is the only place that says what exist
 | 5, the channel | built and exercised on both sides |
 | 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. The `shell` and `preview` modules are loaded, and the shell mounts each shell module in a frame that folds when the panel is `inapplicable` and remembers whether it is open. A preview module's `afterMount` and `onMessage` are called, plugin messages cross the channel both ways, and a preview module that fails is named in the shell. `@crypte/controls` edits a story's props through `overrides`, `@crypte/a11y` analyses each render with axe-core and unfolds its panel with `null` when a violation appears, and the demonstration's `hello` and `status` plugins use the rest. `controls` does not add `min`, `max`, `step` or `control` to `PluginPropDetails` yet (3.3), so writing them is still a compile error. A panel's props and events are typed by `PanelProps` and `PanelEvents`, and a key a plugin does not have is refused. A plugin's `view` is built: its entry in the activity bar and in ⌘K, its sidebar, canvas and panel, typed by `PluginView`, `ShellView`, `ViewProps` and `ViewEvents`, and the demonstration's `i18n` plugin draws one. A project's own plugin imports them from `@crypte/cli`. **Frozen** since v1.25 (6.5) |
 
-**`dev`, `build`, `check` and `init` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled in the project by the CLI's own Vite, with the plugins the project declares in `vite.plugins`. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte build` writes the same two pages into `crypte-static/`, the preview compiled once, beside what the dev server's routes answer, read once; every address the shell and the preview ask for is relative, so the folder may be served below a path. `crypte init` writes the configuration of 1.5 into a project that already has its components, and has no section of its own because the file it writes is 1.5 itself.
+**`dev`, `build`, `check` and `init` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled in the project by the CLI's own Vite, with the plugins the project declares in `vite.plugins`. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte build` writes the same two pages into `crypte-static/`, the preview compiled once, beside what the dev server's routes answer, read once; every address the shell and the preview ask for is relative, so the folder may be served below a path. Both commands also give `index.json` and `iframe.html?id=` in the shape a built Storybook publishes, so zeroheight, Supernova and Knapsack can list and embed the stories: a compatibility export, never Crypte's own format, which follows Storybook's if it changes. `crypte init` writes the configuration of 1.5 into a project that already has its components, and has no section of its own because the file it writes is 1.5 itself.
 
 Twelve known gaps between this document and the code:
 
@@ -1078,6 +1078,12 @@ Twelve known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.48.** The stories can be read in the shape of a built Storybook (8).
+
+| Before | After |
+| --- | --- |
+| a tool that embeds Storybook stories had nothing to read | `crypte dev` and `crypte build` give `index.json` and `iframe.html?id=`, a page that renders one story with no shell |
 
 **v1.47.** The workshop can be built as a static folder (4.6, 8).
 

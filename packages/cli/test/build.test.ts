@@ -18,6 +18,7 @@ import { staleOf } from '../src/commands/check'
 import { FINGERPRINT, fingerprintOf } from '../src/catalogue/fingerprint'
 import { healthOf } from '../src/catalogue/health'
 import { buildCatalogue, storiesOf } from '../src/catalogue/manifest'
+import { storybookIndexOf } from '../src/catalogue/storybook'
 import { loadProject } from '../src/config/project'
 import { ConfigError } from '../src/errors'
 
@@ -132,10 +133,11 @@ describe('crypte build', () => {
     const project = await loadProject(root)
 
     expect(fichiers(out).length).toBeGreaterThan(5)
-    for (const one of ['index.html', 'preview.html', 'vendor/vue.js'])
+    for (const one of ['index.html', 'preview.html', 'iframe.html', 'vendor/vue.js'])
       expect(existsSync(join(out, one)), one).toBe(true)
     expect(existsSync(join(out, 'reste.txt'))).toBe(false)
     expect(lu(root, '@crypte', 'manifest.json')).toEqual(buildCatalogue(project).manifest)
+    expect(lu(root, 'index.json')).toEqual(storybookIndexOf(buildCatalogue(project).manifest))
     expect(lu(root, '@crypte', 'versions.json')).toEqual({
       branch: 'main',
       tags: [{ name: 'v1', date: expect.any(String) }],

@@ -124,6 +124,13 @@ const __crypte_channel = __crypte_channelOf({ render: __crypte_render, rendered:
 // once `ready` is out, so the shell has cleared what the frame before said.
 const __crypte_host = __crypte_hostOf(__crypte_loaded, __crypte_channel.send)
 
+// `iframe.html?id=`, the page Storybook's readers embed: the story its address
+// names, with no shell to ask for it, and its failure written in its place.
+if (document.documentElement.hasAttribute('data-standalone')) {
+  const id = new URLSearchParams(location.search).get('id')
+  try { if (id) __crypte_render(id, {}) } catch (error) { __crypte_container.textContent = error instanceof Error ? error.message : String(error) }
+}
+
 if (import.meta.hot) {
   const __crypte_paths = new Set(["/stories/Gardee.tsx"])
 
