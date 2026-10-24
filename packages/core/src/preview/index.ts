@@ -103,7 +103,11 @@ export function createPreviewChannel(handlers: PreviewHandlers): PreviewChannel 
         id: message.id,
         overrides: message.overrides,
         ...(message.theme ? { theme: message.theme } : {}),
-        ...(Array.isArray(message.muted) ? { muted: message.muted } : {}),
+        // Ranks only: the entry tests them with `includes`, and `'10'.includes(1)`
+        // is `true`, so a string would turn off wrappers instead of nothing.
+        ...(Array.isArray(message.muted) && message.muted.every((one) => Number.isInteger(one))
+          ? { muted: message.muted }
+          : {}),
       }
       draw(asked)
     } else if (type.includes(':')) handlers.message?.(event.data as { type: string })
@@ -327,14 +331,23 @@ export function wrapsOf(
 // function name, a Vue file's `__name` or its `name` option. A wrapper with none
 // is still listed, so its rank stays the one `muted` counts by.
 function wrapperName(wrapper: unknown): string {
-  const component = (wrapper as { component?: unknown } | null)?.component
+  return nameOf((wrapper as { component?: unknown } | null)?.component, 0)
+}
+
+// `memo(…)` holds its component in `type`, `forwardRef(…)` in `render`: read
+// through them, a few levels at most.
+function nameOf(component: unknown, depth: number): string {
   if ((typeof component !== 'object' && typeof component !== 'function') || component === null)
     return 'anonymous'
   for (const key of ['displayName', '__name', 'name']) {
     const value = (component as Record<string, unknown>)[key]
     if (typeof value === 'string' && value !== '') return value
   }
-  return 'anonymous'
+  if (depth > 2) return 'anonymous'
+  const inner =
+    (component as { type?: unknown; render?: unknown }).type ??
+    (component as { render?: unknown }).render
+  return nameOf(inner, depth + 1)
 }
 
 // One wrapper and the props it was declared with. `component` stays `unknown`:

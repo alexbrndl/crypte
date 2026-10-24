@@ -133,6 +133,18 @@ describe('muted wrappers', () => {
     expect(reçus).toEqual([[1], [1], undefined])
   })
 
+  // Des rangs seulement : une chaîne passerait `includes` et couperait au hasard.
+  it('drops a muted that is not a list of ranks', () => {
+    const reçus: (readonly number[] | undefined)[] = []
+    createPreviewChannel({ render: (_id, _overrides, muted) => void reçus.push(muted) })
+
+    envoie({ ...RENDER, muted: '10' })
+    envoie({ ...RENDER, muted: ['1'] })
+    envoie({ ...RENDER, muted: [0.5] })
+
+    expect(reçus).toEqual([undefined, undefined, undefined])
+  })
+
   it('names every wrapper of the story in the rendered message', () => {
     function Theme() {}
     const Nommé = Object.assign(() => {}, { displayName: 'Routeur' })
@@ -144,6 +156,8 @@ describe('muted wrappers', () => {
           { component: { __name: 'Panel' }, props: {} },
           { component: Theme, props: {} },
           { component: { name: 'Fournisseur' }, props: {} },
+          { component: { $typeof: 'memo', type: Theme }, props: {} },
+          { component: { $typeof: 'forward', render: Nommé }, props: {} },
           { component: {}, props: {} },
           { component: 'Badge', props: {} },
         ],
@@ -157,9 +171,24 @@ describe('muted wrappers', () => {
       'Panel',
       'Theme',
       'Fournisseur',
+      'Theme',
+      'Routeur',
       'anonymous',
       'anonymous',
     ])
+  })
+
+  // Un composant qui se contient lui-même ne fait pas tourner la lecture du nom.
+  it('names a wrapper whose type points back at itself', () => {
+    const boucle: { type?: unknown } = {}
+    boucle.type = boucle
+    createPreviewChannel({
+      render: () => ({ props: {}, wraps: [{ component: boucle, props: {} }] }),
+    })
+
+    envoie(RENDER)
+
+    expect((recus.at(-1) as { wraps?: string[] }).wraps).toEqual(['anonymous'])
   })
 
   it('sends no wraps when the render returns none', () => {

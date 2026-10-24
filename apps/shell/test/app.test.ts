@@ -3277,9 +3277,6 @@ describe('the shortcuts on other keyboards', () => {
   })
 })
 
-// La colonne de droite suit la largeur, et le bouton la bascule à toute largeur.
-// jsdom ne lit pas les media queries : le stub de `matchMedia` tient la largeur,
-// et le cas navigateur de `screen.test.ts` la mise en page par-dessus le canvas.
 // Les enrobages que la preview annonce, et ceux qu'on coupe : leurs rangs partent
 // avec le rendu, et un changement de story les oublie.
 describe('the wrappers panel', () => {
@@ -3352,6 +3349,9 @@ describe('the wrappers panel', () => {
   })
 })
 
+// La colonne de droite suit la largeur, et le bouton la bascule à toute largeur.
+// jsdom ne lit pas les media queries : le stub de `matchMedia` tient la largeur,
+// et le cas navigateur de `screen.test.ts` la mise en page par-dessus le canvas.
 describe('the panels toggle', () => {
   const bascule = (écran: Ecran) => écran.wrapper.find('.panels-toggle')
   const colonne = (écran: Ecran) => écran.wrapper.find('#panels')
