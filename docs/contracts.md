@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.46, reference document. A project brief points here instead of restating these shapes.
+> Version 1.47, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -693,6 +693,8 @@ The fingerprint is not a smaller manifest and nothing reads it to render. `crypt
 
 **Tokens have a section of their own**, beside the story entries: per token, its family's identifier, its key, its kind and the literal of each theme, sorted by family and key. The values themselves and not a digest, since the versions view shows a token before and after. A fingerprint committed before this section has no `tokens` at all, which reads as "unknown", not "empty": the token history starts with the next commit.
 
+**`crypte build` writes both files too**, so the record is rewritten without a server, and it writes what the versions view reads beside the static folder: a static host cannot ask Git. The default comparison is the default branch, since the last commit of a deployed build compares with itself; then the tags and the two periods the view offers, counted in UTC days before the build, each in a file named by its point in hexadecimal, since a tag may hold a `/` or a `%` a host would decode.
+
 **A missing or stale fingerprint is never fatal to a build.** It is a record, so the build writes it and moves on. Telling a project that its record is behind is the job of `crypte check`, which fails on it (1.2). The two are compared as data, so reformatting the file is not a change.
 
 ---
@@ -1051,13 +1053,15 @@ This document is a contract. This section is the only place that says what exist
 | 1.5, path aliases | built |
 | 2 and 3, the types | built, and `defineStories` and `story` with them. Inference reads what a component file declares, and 3.2's merge completes it from the story file |
 | 4, the manifest | built, and written by `crypte dev` at start-up, on every restart of the configuration and on every rebuild, so the file follows what is served. The CLI produces `story` and `page` entries and a plugin's `node` surface contributes `tokens` ones (6.3); the shell draws all three |
-| 4.6, the fingerprint | built, and written by `crypte dev` whenever the catalogue served changes it: at start-up, on a restart of the configuration, and on a story change. So `crypte check` does not fail after a session, and trying a `stories` path then reverting rewrites the same bytes. `crypte dev` also reads the version a commit holds, `HEAD` or one named in the route's query, through Git, and serves the shell the stories that appeared, disappeared, or whose props or status moved, and the tokens that appeared, disappeared or changed value |
+| 4.6, the fingerprint | built, written by `crypte build`, and by `crypte dev` whenever the catalogue served changes it: at start-up, on a restart of the configuration, and on a story change. So `crypte check` does not fail after a session, and trying a `stories` path then reverting rewrites the same bytes. `crypte dev` also reads the version a commit holds, `HEAD` or one named in the route's query, through Git, and serves the shell the stories that appeared, disappeared, or whose props or status moved, and the tokens that appeared, disappeared or changed value |
 | 5, the channel | built and exercised on both sides |
 | 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. The `shell` and `preview` modules are loaded, and the shell mounts each shell module in a frame that folds when the panel is `inapplicable` and remembers whether it is open. A preview module's `afterMount` and `onMessage` are called, plugin messages cross the channel both ways, and a preview module that fails is named in the shell. `@crypte/controls` edits a story's props through `overrides`, `@crypte/a11y` analyses each render with axe-core and unfolds its panel with `null` when a violation appears, and the demonstration's `hello` and `status` plugins use the rest. `controls` does not add `min`, `max`, `step` or `control` to `PluginPropDetails` yet (3.3), so writing them is still a compile error. A panel's props and events are typed by `PanelProps` and `PanelEvents`, and a key a plugin does not have is refused. A plugin's `view` is built: its entry in the activity bar and in ⌘K, its sidebar, canvas and panel, typed by `PluginView`, `ShellView`, `ViewProps` and `ViewEvents`, and the demonstration's `i18n` plugin draws one. A project's own plugin imports them from `@crypte/cli`. **Frozen** since v1.25 (6.5) |
 
-**`dev`, `check` and `init` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled in the project by the CLI's own Vite, with the plugins the project declares in `vite.plugins`. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte init` writes the configuration of 1.5 into a project that already has its components, and has no section of its own because the file it writes is 1.5 itself.
+**`dev`, `build`, `check` and `init` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled in the project by the CLI's own Vite, with the plugins the project declares in `vite.plugins`. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte build` writes the same two pages into `crypte-static/`, the preview compiled once, beside what the dev server's routes answer, read once; every address the shell and the preview ask for is relative, so the folder may be served below a path. `crypte init` writes the configuration of 1.5 into a project that already has its components, and has no section of its own because the file it writes is 1.5 itself.
 
-Eleven known gaps between this document and the code:
+Twelve known gaps between this document and the code:
+
+- **A build compares only with the points it computed.** The versions view of a static folder reads the default branch, the tags and the two periods `crypte build` wrote; a commit or a date typed in says that the build holds no comparison from it (DCJ-386).
 
 - **A plugin's peer range checks the copies npm installs, never the ones its panel runs on.** `vue` and `@crypte/ui` reach a panel from the installed CLI's shell, through its import map (6.1). A plugin newer than that CLI, which imports a component its `@crypte/ui` does not have yet, fails to load, and the frame shows the import error in the panel's place. Pinning `@crypte/cli` instead would move the whole `fixed` group to a major version at every minor one, measured with `changeset status` (DCJ-352).
 - **The preview is compiled by the CLI's Vite, and nothing checks the project's plugins against it.** A project on another major keeps its own Vite for its build, and its `vite.plugins` run in the CLI's anyway. Measured on a project on Vite 6: its React plugin warned about deprecated options and every story rendered. Resolving the project's own Vite instead would be a rework, not a fix.
@@ -1074,6 +1078,12 @@ Eleven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.47.** The workshop can be built as a static folder (4.6, 8).
+
+| Before | After |
+| --- | --- |
+| the workshop existed while `crypte dev` ran, and only it wrote the fingerprint | `crypte build` writes `crypte-static/`, the shell, the compiled preview and what the routes answer, and writes the fingerprint without a server |
 
 **v1.46.** A wrapper can be turned off from the shell (5.2, 5.3).
 

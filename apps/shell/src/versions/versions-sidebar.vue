@@ -24,6 +24,8 @@ export interface Versions {
 const props = defineProps<{
   since: Since
   versions: Versions | null
+  // Quand `crypte build` a tourné, `null` sous `crypte dev`.
+  built: string | null
   tokens: Difference[]
   stories: Difference[]
   selected: string | null
@@ -31,18 +33,25 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ since: [since: Since]; select: [key: string, event: MouseEvent] }>()
 
-// Une date d'il y a N jours, au jour près : le CLI la lit comme son minuit.
+// Une date d'il y a N jours, au jour près : le CLI la lit comme son minuit. Sur
+// un build, avant le build et en UTC, comme `crypte build` a nommé ses fichiers.
 const daysAgo = (days: number) => {
+  if (props.built)
+    return new Date(Date.parse(props.built) - days * 86_400_000).toISOString().slice(0, 10)
   const at = new Date(Date.now() - days * 86_400_000)
   return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, '0')}-${String(at.getDate()).padStart(2, '0')}`
 }
 
-// Les points proposés : le dernier commit, la branche par défaut, deux périodes et
-// les tags, plus le point de l'adresse quand il n'est aucun d'eux.
+// Les points proposés : le point par défaut, la branche par défaut, deux périodes
+// et les tags, plus le point de l'adresse quand il n'est aucun d'eux. Le point par
+// défaut est le dernier commit, ou sur un build la branche par défaut, qu'il ne
+// répète donc pas : le dernier commit d'un build déployé ne dit rien.
 const options = computed(() => {
-  const found: { value: string; label: string }[] = [{ value: 'ref:HEAD', label: 'Last commit' }]
-  if (props.versions?.branch)
-    found.push({ value: `ref:${props.versions.branch}`, label: props.versions.branch })
+  const branch = props.versions?.branch
+  const found: { value: string; label: string }[] = [
+    { value: 'default', label: props.built ? (branch ?? 'Default branch') : 'Last commit' },
+  ]
+  if (branch && !props.built) found.push({ value: `ref:${branch}`, label: branch })
   found.push(
     { value: `before:${daysAgo(7)}`, label: 'Last 7 days' },
     { value: `before:${daysAgo(30)}`, label: 'Last 30 days' },
@@ -56,14 +65,22 @@ const options = computed(() => {
 })
 
 const chosen = computed(() =>
-  props.since.before ? `before:${props.since.before}` : `ref:${props.since.from ?? 'HEAD'}`,
+  props.since.before
+    ? `before:${props.since.before}`
+    : props.since.from
+      ? `ref:${props.since.from}`
+      : 'default',
 )
 
 function choose(value: string | undefined) {
   if (value === undefined || value === chosen.value) return
+  if (value === 'default') {
+    emit('since', {})
+    return
+  }
   const [kind, ...rest] = value.split(':')
   const point = rest.join(':')
-  emit('since', kind === 'before' ? { before: point } : point === 'HEAD' ? {} : { from: point })
+  emit('since', kind === 'before' ? { before: point } : { from: point })
 }
 
 // Un commit, un tag ou une date, tapé : une date si elle se lit comme une date.

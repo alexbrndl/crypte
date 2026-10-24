@@ -67,6 +67,23 @@ export async function pluginWeights(surfaces: Surfaces): Promise<Weight[]> {
   )
 }
 
+// A shell module and the files it reaches by relative imports, what a build
+// copies of it: never its whole folder, which for a local plugin can be the
+// project itself. Reopened with `importsOf`, when a plugin splits a chunk off.
+export async function shellFiles(file: string): Promise<string[]> {
+  const found = new Set<string>()
+  const visit = async (one: string) => {
+    if (found.has(one)) return
+    found.add(one)
+    for (const specifier of (await read(one))?.imports ?? []) {
+      const next = resolved(specifier, one, false)
+      if (next) await visit(next)
+    }
+  }
+  await visit(file)
+  return [...found]
+}
+
 // Node's resolution under `require`, from the importing file. A dependency is
 // counted by the file it resolves to, and the `require` calls inside it are not
 // followed. Reopened when a plugin depends on a package written in CommonJS, or

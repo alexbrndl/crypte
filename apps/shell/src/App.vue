@@ -43,7 +43,7 @@ import {
 } from 'vue'
 import Panels, { type LoadedView } from './panels/panels.vue'
 import { landing, unreadable, type Shown } from './navigation/recover'
-import { CHANGES, type Changes } from './pages/changes'
+import { changesUrl, type Changes } from './pages/changes'
 import { differencesOf, sinceLabel } from './versions/differences'
 import VersionsSidebar, { type Since, type Versions } from './versions/versions-sidebar.vue'
 import VersionsView from './versions/versions-view.vue'
@@ -98,7 +98,8 @@ import { placeSearch, readPlace, sameTab } from './navigation/url'
 // Le shell ne connaît aucun framework : il est construit à l'avance et livré dans
 // le CLI, là où la preview est compilée chez l'utilisateur.
 
-const MANIFEST = '/@crypte/manifest.json'
+// Chaque adresse lue est relative à la page : un build peut être servi sous un chemin.
+const MANIFEST = '@crypte/manifest.json'
 
 const frame = useTemplateRef<HTMLIFrameElement>('frame')
 // La seconde preview de la comparaison light et dark, la première passant en light.
@@ -219,7 +220,7 @@ function toggleViewPanel() {
   viewFolds.value = { ...viewFolds.value, [viewAt.value?.plugin ?? '']: next }
   keep(viewPanelKey(), next ? undefined : false)
 }
-const HEALTH = '/@crypte/health.json'
+const HEALTH = '@crypte/health.json'
 const health = ref<Health | 'failed' | null>(null)
 async function readHealth() {
   try {
@@ -309,19 +310,19 @@ watch(here, (_, left) => {
   if (left !== null) remember(left)
 })
 
-const sinceQuery = () => {
-  const query = new URLSearchParams()
-  if (changesAt.value.from) query.set('from', changesAt.value.from)
-  if (changesAt.value.before) query.set('before', changesAt.value.before)
-  const text = query.toString()
-  return text === '' ? '' : `?${text}`
-}
-
 async function readChanges() {
   const run = (reading += 1)
+  const since = changesAt.value
   let read: Changes
   try {
-    read = (await fetch(`${CHANGES}${sinceQuery()}`).then((answer) => answer.json())) as Changes
+    const point = since.from ?? since.before
+    if (point !== undefined) await projectRead
+    const built = Boolean(project.value?.built)
+    const answer = await fetch(changesUrl(since, built))
+    read =
+      built && !answer.ok
+        ? { reason: `this build holds no comparison from ${point}` }
+        : ((await answer.json()) as Changes)
   } catch (error) {
     read = {
       reason: `its route could not be read: ${error instanceof Error ? error.message : String(error)}`,
@@ -332,7 +333,7 @@ async function readChanges() {
 }
 
 // Les points de départ que le CLI propose, relus à l'ouverture de la vue.
-const VERSIONS = '/@crypte/versions.json'
+const VERSIONS = '@crypte/versions.json'
 const versions = ref<Versions | null>(null)
 async function readVersions() {
   try {
@@ -539,7 +540,7 @@ const kB = (bytes: number) => `${(bytes / 1e3).toFixed(1)} kB`
 // Ce que le CLI dit du projet : la racine de stories qu'il déclare, et pourquoi
 // la dernière relecture de la configuration a échoué, le serveur gardant la
 // précédente. Relu comme les changements.
-const PROJECT = '/@crypte/project.json'
+const PROJECT = '@crypte/project.json'
 const project = ref<{
   stories: string
   // Le paquet de l'adaptateur, `@crypte/vue` pour un projet Vue.
@@ -547,10 +548,20 @@ const project = ref<{
   config: string | null
   shellBytes: number
   version: string
+  // Quand `crypte build` a écrit ce que le shell lit, `null` sous `crypte dev`.
+  built?: string | null
 } | null>(null)
 let asking = 0
+// La dernière lecture, qu'attend celle des changements depuis un point : sur un
+// build, ils se lisent ailleurs.
+let projectRead: Promise<void> = Promise.resolve()
 
-async function readProject() {
+function readProject() {
+  projectRead = fetchProject()
+  return projectRead
+}
+
+async function fetchProject() {
   const run = (asking += 1)
   let read: typeof project.value = null
   try {
@@ -1400,6 +1411,7 @@ onMounted(() => {
           v-else-if="view === 'versions'"
           :since="changesAt"
           :versions="versions"
+          :built="project?.built ?? null"
           :tokens="differences.tokens"
           :stories="differences.stories"
           :selected="changesAt.change ?? null"
@@ -1909,7 +1921,7 @@ onMounted(() => {
               <figure class="preview">
                 <iframe
                   ref="frame"
-                  src="/preview.html"
+                  src="preview.html"
                   title="preview"
                   :data-scheme="mainTheme"
                 ></iframe>
@@ -1918,7 +1930,7 @@ onMounted(() => {
               <figure v-if="compare" class="preview dark">
                 <iframe
                   ref="frameDark"
-                  src="/preview.html"
+                  src="preview.html"
                   title="preview, dark"
                   data-scheme="dark"
                 ></iframe>
@@ -2090,7 +2102,7 @@ onMounted(() => {
       v-if="auditing"
       ref="auditFrame"
       class="audit-frame"
-      src="/preview.html"
+      src="preview.html"
       title="accessibility audit"
       aria-hidden="true"
       tabindex="-1"

@@ -34,6 +34,9 @@ const shared: Plugin = {
 }
 
 export default defineConfig({
+  // Relatif, comme l'import map de `index.html` : un build de `crypte build` peut
+  // être servi sous un chemin.
+  base: './',
   plugins: [vue(), shared],
   build: {
     rolldownOptions: {

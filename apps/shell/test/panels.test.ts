@@ -8,8 +8,7 @@ import Panels from '../src/panels/panels.vue'
 
 // Un chemin absolu, comme l'URL que le shell importe : le tsconfig du shell
 // n'a pas les types de Node, d'où `URL` plutôt que `node:path`.
-const module = (nom: string) =>
-  decodeURIComponent(new URL(`./panels/${nom}`, import.meta.url).pathname)
+const module = (nom: string) => new URL(`./panels/${nom}`, import.meta.url).href
 
 // Ce que `/@crypte/plugins.json` rend : les modules à monter, et ce que le CLI
 // a écarté des plugins.

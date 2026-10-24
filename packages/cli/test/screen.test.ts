@@ -18,12 +18,15 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs'
+import { createServer } from 'node:http'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium, type Browser, type Frame, type Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, test as base } from 'vitest'
 import type { ViteDevServer } from 'vite'
+import sirv from 'sirv'
+import { BUILD_OUTPUT, build } from '../src/commands/build'
 import { startDev, type Started } from '../src/commands/dev'
 import { storyId } from '@crypte/core/protocol'
 import { storyFilesOf } from '../src/catalogue/manifest'
@@ -1844,6 +1847,59 @@ describe('a Vue project', () => {
     } finally {
       await page.close()
       await started.server.close()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
+// Le dossier de `crypte build`, servi tel quel par un serveur de fichiers et sous
+// un chemin : sans Vite, sans les routes de `crypte dev`, et sans une adresse
+// absolue qui tomberait hors du chemin.
+describe('a static build, served below a path', () => {
+  base('renders a story, mounts the panels and names the wrappers', async () => {
+    const root = copie()
+    await build(root, () => {})
+
+    const serve = sirv(join(root, BUILD_OUTPUT))
+    const server = createServer((request, response) => {
+      const missing = () => {
+        response.statusCode = 404
+        response.end()
+      }
+      if (!request.url?.startsWith('/sous/')) return missing()
+      request.url = request.url.slice('/sous'.length)
+      serve(request, response, missing)
+    })
+    await new Promise<void>((done) => server.listen(0, done))
+    const address = server.address()
+    if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
+
+    const page = await browser.newPage()
+    const plaintes: string[] = []
+    page.on('console', (message) => {
+      if (message.type() === 'error') plaintes.push(message.text())
+    })
+    page.on('response', (answer) => {
+      if (answer.status() >= 400) plaintes.push(`${answer.status()} ${answer.url()}`)
+    })
+
+    try {
+      await page.goto(`http://localhost:${address.port}/sous/?id=badge--par-defaut`)
+
+      const rendu = page.frameLocator('iframe[title="preview"]').locator('#root')
+      await expect.poll(() => rendu.textContent().catch(() => '')).toContain('Nouveau')
+      await expect
+        .poll(() => page.locator('[data-plugin="hello"] .body button').first().textContent())
+        .toBe('hello, 0 clic(s)')
+      // Les noms des fonctions, gardés à la minification : `i` et `a` sinon.
+      expect(await page.locator('[aria-label="Wrappers"] code').allTextContents()).toEqual([
+        'Panel',
+        'Tone',
+      ])
+      expect(plaintes).toEqual([])
+    } finally {
+      await page.close()
+      await new Promise((done) => server.close(done))
       rmSync(root, { recursive: true, force: true })
     }
   })

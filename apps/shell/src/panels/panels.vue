@@ -48,7 +48,7 @@ const emit = defineEmits<{
   views: [views: LoadedView[]]
 }>()
 
-const PLUGINS = '/@crypte/plugins.json'
+const PLUGINS = '@crypte/plugins.json'
 
 const panels = shallowRef<{ name: string; panel: Component }[]>([])
 const failures = shallowRef<{ name: string; message: string }[]>([])
@@ -112,7 +112,12 @@ async function load() {
   const loaded = await Promise.allSettled(
     listed.panels.map(
       (one) =>
-        import(/* @vite-ignore */ one.shell) as Promise<{ default?: unknown; view?: unknown }>,
+        // Contre la page et non contre ce module, qui vit sous `assets/` : un build
+        // nomme ses modules par une adresse relative.
+        import(/* @vite-ignore */ new URL(one.shell, document.baseURI).href) as Promise<{
+          default?: unknown
+          view?: unknown
+        }>,
     ),
   )
 

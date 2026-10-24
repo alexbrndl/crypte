@@ -7,7 +7,7 @@ A component workshop for design systems, built to stay light and to work with mo
 
 A framework-neutral core, one adapter per framework, and plugins you add one at a time. Nothing you have not installed is ever loaded.
 
-> **Status: in progress.** Three of the four contracts are settled, the plugin one is still provisional. `crypte dev` serves the workshop: it reads a project's configuration, resolves its path aliases, discovers stories, renders them in a preview, and follows the files while it runs. **Nothing is published to npm yet.** Section 8 of [`docs/contracts.md`](docs/contracts.md) says exactly what exists.
+> **Status: in progress.** Three of the four contracts are settled, the plugin one is still provisional. `crypte dev` serves the workshop: it reads a project's configuration, resolves its path aliases, discovers stories, renders them in a preview, and follows the files while it runs. `crypte build` writes the same workshop as a static folder, which any host serves. **Nothing is published to npm yet.** Section 8 of [`docs/contracts.md`](docs/contracts.md) says exactly what exists.
 
 ## Why
 
@@ -34,9 +34,9 @@ Why a mechanism exists, and what breaks without it, is a comment beside that mec
 
 ## Roadmap
 
-**Now.** The core, the CLI and the React adapter, which is what `crypte dev` already runs on. Then the shell it serves: a three-level tree, search, a component page, the `tokens` that `@crypte/tokens` reads from the project's style sheet, markdown pages written beside the stories, and what changed in the catalogue since the last commit. Then the plugin contract, frozen since its two plugins with opposite needs exist: `controls`, which writes into a story, and `a11y`, which only reads it.
+**Now.** The core, the CLI and two adapters, React and Vue, which is what `crypte dev` already runs on: the second proves the core holds nothing React-specific. Then the shell it serves: a three-level tree, search, a component page, the `tokens` that `@crypte/tokens` reads from the project's style sheet, markdown pages written beside the stories, what changed in the catalogue since the last commit, and `crypte build`, the same workshop as a static folder. Then the plugin contract, frozen since its two plugins with opposite needs exist: `controls`, which writes into a story, and `a11y`, which only reads it.
 
-**Next.** The Vue adapter, which is the only thing that can prove the core holds nothing React-specific. The everyday plugins: `docs`, `source`, `theme`, `responsive`, `actions`, `visual-tests`, `coverage`. And what makes Crypte installable by someone who has never heard of it: npm, a local MCP server, a static build deployed on every change.
+**Next.** The everyday plugins: `docs`, `source`, `theme`, `responsive`, `actions`, `visual-tests`, `coverage`. And what makes Crypte installable by someone who has never heard of it: npm, a local MCP server, a build deployed on every change.
 
 **Later.** An `editor` plugin, on `crypte dev` and on a deployed build alike: pick any element of a story, try a value from the tokens, and hand the change to a coding agent as a GitHub issue. A Figma plugin that shows a designer a selective diff of the tokens.
 

@@ -171,6 +171,7 @@ export default defineConfig({
         config: null,
         shellBytes: expect.any(Number),
         version: expect.any(String),
+        built: null,
       })
     } finally {
       await running.close()

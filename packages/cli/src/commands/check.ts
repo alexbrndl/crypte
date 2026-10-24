@@ -331,7 +331,7 @@ export function problemsOf(
 // Behind or missing fails the command: the file is committed so that a pull
 // request shows what its catalogue changed, and a CI running `crypte check` is
 // what refuses a branch that forgot to update it. Reopened if projects commit
-// stories without ever running `crypte dev`.
+// stories without ever running `crypte dev` or `crypte build`.
 export function staleOf(project: Project, manifest: Manifest): Problem[] {
   const file = join(project.root, FINGERPRINT)
   if (!existsSync(file)) return [{ kind: 'stale', file: FINGERPRINT, name: 'missing' }]
@@ -400,7 +400,7 @@ export function linesOf(problems: Problem[]): string[] {
     one.kind === 'orphan'
       ? `${one.name}: its component is gone, ${one.file}`
       : one.kind === 'stale'
-        ? `${one.file} is ${STALE[one.name] ?? one.name}: run crypte dev and commit it`
+        ? `${one.file} is ${STALE[one.name] ?? one.name}: run crypte build and commit it`
         : one.kind === 'unreadable'
           ? `${one.file}: this story file cannot be read, ${one.name}`
           : one.kind === 'broken'

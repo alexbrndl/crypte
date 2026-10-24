@@ -108,10 +108,10 @@ function nameOf(segment: string): string | undefined {
   }
 }
 
-function shellAssets(): string {
+export function shellAssets(): string {
   if (!existsSync(join(SHELL, 'index.html'))) {
     throw new ConfigError(
-      'This @crypte/cli was published without its shell, so `crypte dev` has no page to serve. ' +
+      'This @crypte/cli was published without its shell, so `crypte dev` and `crypte build` have no shell to use. ' +
         'Reinstall the package, and report it: https://github.com/alexbrndl/crypte/issues. ' +
         'Working in the repository itself? Run `vp run -r pack` at its root.',
     )
@@ -138,9 +138,6 @@ export function servePlugin(
   // tsconfig cache than the one Vite clears when the file changes, and the entry
   // keeps the old `compilerOptions` until the process restarts. Measured.
   let dev: ViteDevServer | undefined
-
-  // Measured once: the shell's files do not change while the server runs.
-  let shellWeight: Promise<number> | undefined
 
   return {
     name: 'crypte:serve',
@@ -184,19 +181,10 @@ export function servePlugin(
         }
 
         if (url === PROJECT_ROUTE) {
-          shellWeight ??= shellBytes(shell)
-          shellWeight
-            .then((bytes) => {
+          projectOf(project, unreadConfig() ?? null, null)
+            .then((read) => {
               response.setHeader('Content-Type', 'application/json')
-              response.end(
-                JSON.stringify({
-                  stories: project.config.stories,
-                  adapter: adapterPackage(project),
-                  config: unreadConfig() ?? null,
-                  shellBytes: bytes,
-                  version: VERSION,
-                }),
-              )
+              response.end(JSON.stringify(read))
             })
             .catch(next)
           return
@@ -231,20 +219,10 @@ export function servePlugin(
         }
 
         if (url === PLUGINS_ROUTE) {
-          const surfaces = surfacesOf(project)
-          const panels = surfaces.shell.map((one) => ({
-            name: one.plugin,
-            shell: `${PLUGIN_FILES}${segmentOf(one.plugin)}/${basename(one.file)}`,
-            ...(one.view ? { view: one.view } : {}),
-          }))
-
-          // What was refused of each plugin, so the shell names it beside the
-          // panels: the terminal was the only place a refusal was said.
-          const refused = [...current().skippedContributions, ...surfaces.refused]
-          pluginWeights(surfaces)
-            .then((weights) => {
+          pluginsOf(project, current(), PLUGIN_FILES)
+            .then((read) => {
               response.setHeader('Content-Type', 'application/json')
-              response.end(JSON.stringify({ panels, refused, weights }))
+              response.end(JSON.stringify(read))
             })
             .catch(next)
           return
@@ -487,6 +465,75 @@ export function adapterPackage(project: Project): string | null {
   return imports.flatMap((one) => /from\s+['"]([^'"]+)['"]/.exec(one)?.[1] ?? [])[0] ?? null
 }
 
+// Measured once: the shell's files do not change while the process runs.
+let shellWeight: Promise<number> | undefined
+
+// What `PROJECT_ROUTE` serves. `built` is when `crypte build` ran, `null` under
+// `crypte dev`: the shell compares a build with its default branch, not with a
+// last commit that means nothing once deployed.
+export async function projectOf(project: Project, config: string | null, built: string | null) {
+  shellWeight ??= shellBytes(shellAssets())
+  return {
+    stories: project.config.stories,
+    adapter: adapterPackage(project),
+    config,
+    shellBytes: await shellWeight,
+    version: VERSION,
+    built,
+  }
+}
+
+// What `PLUGINS_ROUTE` serves, each shell module under `files`: absolute under
+// `crypte dev`, relative in a build, which may be served below a path.
+export async function pluginsOf(project: Project, catalogue: Catalogue, files: string) {
+  const surfaces = surfacesOf(project)
+  const panels = surfaces.shell.map((one) => ({
+    name: one.plugin,
+    shell: `${files}${segmentOf(one.plugin)}/${basename(one.file)}`,
+    ...(one.view ? { view: one.view } : {}),
+  }))
+
+  // What was refused of each plugin, so the shell names it beside the panels:
+  // the terminal was the only place a refusal was said.
+  const refused = [...catalogue.skippedContributions, ...surfaces.refused]
+  return { panels, refused, weights: await pluginWeights(surfaces) }
+}
+
+// Each shell module of a build, with the folder `pluginsOf` names for it.
+export function shellModulesOf(project: Project): { folder: string; file: string }[] {
+  return surfacesOf(project).shell.map((one) => ({ folder: segmentOf(one.plugin), file: one.file }))
+}
+
+// The preview, compiled for `crypte build`: the page and its entry are the ones
+// `servePlugin` serves, written to disk by Vite rather than answered on request.
+export function previewBuildPlugin(project: Project, catalogue: Catalogue): Plugin {
+  const page = join(project.root, PREVIEW_PAGE.slice(1))
+
+  return {
+    name: 'crypte:build',
+
+    config() {
+      return { resolve: { alias: { '@crypte/core/preview': channelPath() } } }
+    },
+
+    resolveId(id) {
+      if (id === page) return page
+      return id === PREVIEW_ENTRY ? PREVIEW_ENTRY_ID : undefined
+    },
+
+    load(id) {
+      if (id === page) return previewHtml()
+      if (id !== PREVIEW_ENTRY_ID) return undefined
+      return compiled(
+        previewEntry(project, storyFilesOf(catalogue), true),
+        project.root,
+        undefined,
+        (one) => this.warn(one),
+      )
+    },
+  }
+}
+
 // The warnings already printed, so a reload does not repeat them.
 const said = new Set<string>()
 
@@ -495,8 +542,12 @@ const said = new Set<string>()
 // Every story module is held at once, so switching story is a lookup rather
 // than a round trip, and the props stay real, functions and elements included,
 // since none of them crosses the channel.
-export function previewEntry(project: Project, files: string[] = []): string {
+export function previewEntry(project: Project, files: string[] = [], built = false): string {
   const css = cssEntryOf(project)
+
+  // What error messages strip from a path. Nothing in a build, whose modules are
+  // chunks: the folder it ran in would be published with it.
+  const local = built ? '' : `${project.root}/`
 
   const sources = configSources(project)
   const adapter = required(sources.adapter)
@@ -574,7 +625,8 @@ export function previewEntry(project: Project, files: string[] = []): string {
     ...plugins,
     `]`,
     ...(loads.length > 0 ? ['', `await Promise.all([`, ...loads, `])`] : []),
-    `const ${OWN}manifest = await fetch(${JSON.stringify(MANIFEST_ROUTE)}).then((answer) => answer.json())`,
+    // Relative to the page: a build may be served below a path.
+    `const ${OWN}manifest = await fetch(${JSON.stringify(MANIFEST_ROUTE.slice(1))}).then((answer) => answer.json())`,
     '',
     `const ${OWN}adapter = ${adapter.expression}`,
     // The global wrap of section 2.5, read from the text like the adapter: the
@@ -595,7 +647,7 @@ export function previewEntry(project: Project, files: string[] = []): string {
     ')',
     '',
     `function ${OWN}modulePath(id) {`,
-    `  return '/' + String(id).split('?')[0].replace(${JSON.stringify(`${project.root}/`)}, '')`,
+    `  return '/' + String(id).split('?')[0].replace(${JSON.stringify(local)}, '')`,
     '}',
     '',
     '// A failed fetch of a module, told by the error Vite reported for that very',
@@ -610,7 +662,7 @@ export function previewEntry(project: Project, files: string[] = []): string {
     '  // module that file imports, so both are said rather than one blamed.',
     "  const missing = failure instanceof SyntaxError && /^The requested module '([^']+)' does not provide an export named '([^']+)'/.exec(failure.message)",
     '  if (missing && loading) {',
-    `    const shown = (path) => path.split('?')[0].replace(/^\\/@fs/, '').replace(${JSON.stringify(`${project.root}/`)}, '').replace(/^\\//, '')`,
+    `    const shown = (path) => path.split('?')[0].replace(/^\\/@fs/, '').replace(${JSON.stringify(local)}, '').replace(/^\\//, '')`,
     '    const named = new Error(`${shown(loading)} cannot load: ${shown(missing[1])} does not export ${missing[2]}`)',
     '    named.stack = failure.message',
     '    return named',
@@ -620,7 +672,7 @@ export function previewEntry(project: Project, files: string[] = []): string {
     '  const url = failure.message.slice(prefix.length).trim()',
     `  const err = ${OWN}loadErrors.get(new URL(url, location.href).pathname) ?? (${OWN}loadErrors.size === 1 ? [...${OWN}loadErrors.values()][0] : undefined)`,
     '  if (!err) return failure',
-    `  const root = ${JSON.stringify(`${project.root}/`)}`,
+    `  const root = ${JSON.stringify(local)}`,
     "  const file = String(err.id ?? err.loc?.file ?? '').replace(root, '')",
     '  const at = err.loc ? `${file}:${err.loc.line}:${err.loc.column}` : file',
     "  const [first = '', ...frame] = String(err.message).split('\\n')",

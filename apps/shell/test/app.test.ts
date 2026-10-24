@@ -10,6 +10,7 @@ import type {
 import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test as base, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
+import { changesUrl } from '../src/pages/changes'
 import App from '../src/App.vue'
 import { Select, Tooltip } from '@crypte/ui'
 import ActivityBar from '../src/navigation/activity-bar.vue'
@@ -123,6 +124,9 @@ const rétrécit = (étroit: boolean) => {
   for (const one of système.largeurs) one({ matches: !étroit } as MediaQueryListEvent)
 }
 
+// Ce que répond un fichier qu'un build n'a pas écrit : 404, sans JSON.
+const ABSENT = Symbol('absent')
+
 // Ce que répond la route de la vue santé, rendu à son défaut après chaque cas.
 let santé: () => unknown = () => ({ components: null })
 
@@ -150,21 +154,25 @@ const monte = async (
     'fetch',
     vi.fn(async (url: string) => {
       // Les panneaux de plugins lisent leur propre route : aucun plugin ici.
-      if (url === '/@crypte/plugins.json')
+      if (url === '@crypte/plugins.json')
         return { json: async () => ({ panels: [], refused: [], weights: [] }) } as Response
       // La vue versions lit sa propre route : rien n'a changé ici. Et les points de
       // départ que le CLI propose.
-      if (url.startsWith('/@crypte/changes.json'))
-        return { json: async () => changements(url) } as Response
-      if (url === '/@crypte/versions.json')
+      if (url.startsWith('@crypte/changes')) {
+        const lu = changements(url)
+        return lu === ABSENT
+          ? ({ ok: false, json: async () => JSON.parse('<') } as Response)
+          : ({ ok: true, json: async () => lu } as Response)
+      }
+      if (url === '@crypte/versions.json')
         return {
           json: async () => ({
             branch: 'main',
             tags: [{ name: 'v1.0.0', date: '2026-01-01T00:00:00.000Z' }],
           }),
         } as Response
-      if (url === '/@crypte/project.json') return { json: async () => projet() } as Response
-      if (url === '/@crypte/health.json') return { json: async () => santé() } as Response
+      if (url === '@crypte/project.json') return { json: async () => projet() } as Response
+      if (url === '@crypte/health.json') return { json: async () => santé() } as Response
       if (échoue) throw new Error('Unexpected end of JSON input')
 
       return { json: async () => manifest } as Response
@@ -244,6 +252,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
   vi.restoreAllMocks()
   // L'adresse et le stockage survivent au démontage : sans ça, la story cliquée
   // par un cas devenait la première affichée du suivant.
@@ -738,13 +747,13 @@ describe('what the catalog left out', () => {
         async (url: string) =>
           ({
             json: async () =>
-              url === '/@crypte/plugins.json'
+              url === '@crypte/plugins.json'
                 ? { panels: [], refused: [], weights: [] }
-                : url === '/@crypte/changes.json'
+                : url === '@crypte/changes.json'
                   ? { changes: [] }
-                  : url === '/@crypte/health.json'
+                  : url === '@crypte/health.json'
                     ? { components: null }
-                    : url === '/@crypte/project.json'
+                    : url === '@crypte/project.json'
                       ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
                       : (manifests.shift() ?? manifests[0]),
           }) as Response,
@@ -1389,13 +1398,13 @@ describe('the component page', () => {
         async (url: string) =>
           ({
             json: async () =>
-              url === '/@crypte/plugins.json'
+              url === '@crypte/plugins.json'
                 ? { panels: [], refused: [], weights: [] }
-                : url === '/@crypte/changes.json'
+                : url === '@crypte/changes.json'
                   ? { changes: [] }
-                  : url === '/@crypte/health.json'
+                  : url === '@crypte/health.json'
                     ? { components: null }
-                    : url === '/@crypte/project.json'
+                    : url === '@crypte/project.json'
                       ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
                       : manifests.length > 1
                         ? manifests.shift()
@@ -1447,13 +1456,13 @@ describe('the component page', () => {
         async (url: string) =>
           ({
             json: async () =>
-              url === '/@crypte/plugins.json'
+              url === '@crypte/plugins.json'
                 ? { panels: [], refused: [], weights: [] }
-                : url === '/@crypte/changes.json'
+                : url === '@crypte/changes.json'
                   ? { changes: [] }
-                  : url === '/@crypte/health.json'
+                  : url === '@crypte/health.json'
                     ? { components: null }
-                    : url === '/@crypte/project.json'
+                    : url === '@crypte/project.json'
                       ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
                       : manifests.length > 1
                         ? manifests.shift()
@@ -1518,13 +1527,13 @@ describe('the component page', () => {
         async (url: string) =>
           ({
             json: async () =>
-              url === '/@crypte/plugins.json'
+              url === '@crypte/plugins.json'
                 ? { panels: [], refused: [], weights: [] }
-                : url === '/@crypte/changes.json'
+                : url === '@crypte/changes.json'
                   ? { changes: [] }
-                  : url === '/@crypte/health.json'
+                  : url === '@crypte/health.json'
                     ? { components: null }
-                    : url === '/@crypte/project.json'
+                    : url === '@crypte/project.json'
                       ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
                       : manifests.length > 1
                         ? manifests.shift()
@@ -2262,13 +2271,13 @@ describe('the tokens view', () => {
         async (url: string) =>
           ({
             json: async () =>
-              url === '/@crypte/plugins.json'
+              url === '@crypte/plugins.json'
                 ? { panels: [], refused: [], weights: [] }
-                : url === '/@crypte/changes.json'
+                : url === '@crypte/changes.json'
                   ? { changes: [] }
-                  : url === '/@crypte/health.json'
+                  : url === '@crypte/health.json'
                     ? { components: null }
-                    : url === '/@crypte/project.json'
+                    : url === '@crypte/project.json'
                       ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
                       : manifests.length > 1
                         ? manifests.shift()
@@ -2336,13 +2345,13 @@ describe('the status line under a page', () => {
         async (url: string) =>
           ({
             json: async () =>
-              url === '/@crypte/plugins.json'
+              url === '@crypte/plugins.json'
                 ? { panels: [], refused: [], weights: [] }
-                : url === '/@crypte/changes.json'
+                : url === '@crypte/changes.json'
                   ? { changes: [] }
-                  : url === '/@crypte/health.json'
+                  : url === '@crypte/health.json'
                     ? { components: null }
-                    : url === '/@crypte/project.json'
+                    : url === '@crypte/project.json'
                       ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
                       : manifests.length > 1
                         ? manifests.shift()
@@ -2520,6 +2529,60 @@ describe('the versions view', () => {
 
   // Le point de départ se tape : une date part du dernier commit avant elle, le
   // reste se lit comme une révision. Il entre dans l'adresse et dans la requête.
+  // Un build n'a pas de dernier commit qui vaille : il part de la branche par
+  // défaut, et lit chaque point dans le fichier que `crypte build` a nommé par sa
+  // clé en hexadécimal. Les périodes comptent depuis le build, en UTC.
+  test('reads a build from the files it wrote, from the default branch', async () => {
+    // UTC+14 : le jour local du build y est déjà le lendemain.
+    vi.stubEnv('TZ', 'Pacific/Kiritimati')
+    const lues: string[] = []
+    const écran = await monte(
+      [badge],
+      false,
+      undefined,
+      (url) => {
+        lues.push(url)
+        if (url === '@crypte/changes.json')
+          return { ...lus, from: { ref: 'main', commit: 'abcdef0' } }
+        if (url === '@crypte/changes/7265663a76312e302e30.json')
+          return { ...lus, from: { ref: 'v1.0.0', commit: '1234567' } }
+        return ABSENT
+      },
+      () => ({
+        stories: 'stories',
+        config: null,
+        shellBytes: 83149,
+        version: '1.2.3',
+        built: '2026-10-24T12:00:00.000Z',
+      }),
+    )
+    await clique(écran, entrée(écran))
+    const menu = écran.wrapper.find('.sidebar').findComponent(Select)
+
+    expect(menu.props('options')).toEqual([
+      { value: 'default', label: 'main' },
+      { value: 'before:2026-10-17', label: 'Last 7 days' },
+      { value: 'before:2026-09-24', label: 'Last 30 days' },
+      { value: 'ref:v1.0.0', label: 'v1.0.0 · 2026-01-01' },
+    ])
+    expect(lues.at(-1)).toBe('@crypte/changes.json')
+    expect(vue(écran).find('h2').text()).toBe('What changed since main')
+
+    menu.vm.$emit('update:modelValue', 'ref:v1.0.0')
+    await vide(écran.wrapper)
+    expect(lues.at(-1)).toBe('@crypte/changes/7265663a76312e302e30.json')
+    expect(vue(écran).find('h2').text()).toBe('What changed since v1.0.0')
+
+    const champ = écran.wrapper.find('.sidebar input')
+    await champ.setValue('v9')
+    await champ.trigger('keydown', { key: 'Enter' })
+    await vide(écran.wrapper)
+    expect(vue(écran).text()).toContain(
+      'The changes cannot be read: this build holds no comparison from v9.',
+    )
+    écran.wrapper.unmount()
+  })
+
   test('starts from a commit, a tag or a date typed in', async () => {
     const lues: string[] = []
     const écran = await monte([badge], false, undefined, (url) => {
@@ -2533,14 +2596,14 @@ describe('the versions view', () => {
     await champ.trigger('keydown', { key: 'Enter' })
     await vide(écran.wrapper)
     expect(window.location.search).toBe('?changes&from=v1.0.0')
-    expect(lues.at(-1)).toBe('/@crypte/changes.json?from=v1.0.0')
+    expect(lues.at(-1)).toBe('@crypte/changes.json?from=v1.0.0')
     expect(vue(écran).find('h2').text()).toBe('What changed since v1.0.0')
 
     await champ.setValue('2026-09-16')
     await champ.trigger('keydown', { key: 'Enter' })
     await vide(écran.wrapper)
     expect(window.location.search).toBe('?changes&before=2026-09-16')
-    expect(lues.at(-1)).toBe('/@crypte/changes.json?before=2026-09-16')
+    expect(lues.at(-1)).toBe('@crypte/changes.json?before=2026-09-16')
     écran.wrapper.unmount()
   })
 
@@ -2562,17 +2625,17 @@ describe('the versions view', () => {
     menu.vm.$emit('update:modelValue', 'ref:v1.0.0')
     await vide(écran.wrapper)
     expect(window.location.search).toBe('?changes&from=v1.0.0')
-    expect(lues.at(-1)).toBe('/@crypte/changes.json?from=v1.0.0')
+    expect(lues.at(-1)).toBe('@crypte/changes.json?from=v1.0.0')
 
     const semaine = menu.props('options')[2]!.value as string
     menu.vm.$emit('update:modelValue', semaine)
     await vide(écran.wrapper)
     expect(window.location.search).toBe(`?changes&before=${semaine.slice(7)}`)
 
-    menu.vm.$emit('update:modelValue', 'ref:HEAD')
+    menu.vm.$emit('update:modelValue', 'default')
     await vide(écran.wrapper)
     expect(window.location.search).toBe('?changes')
-    expect(lues.at(-1)).toBe('/@crypte/changes.json')
+    expect(lues.at(-1)).toBe('@crypte/changes.json')
     écran.wrapper.unmount()
   })
 
@@ -2616,7 +2679,7 @@ describe('the versions view', () => {
     await champ.setValue('2026-09-16-hotfix')
     await champ.trigger('keydown', { key: 'Enter' })
     await vide(écran.wrapper)
-    expect(lues.at(-1)).toBe('/@crypte/changes.json?from=2026-09-16-hotfix')
+    expect(lues.at(-1)).toBe('@crypte/changes.json?from=2026-09-16-hotfix')
     écran.wrapper.unmount()
   })
 
@@ -2701,6 +2764,31 @@ describe('the versions view', () => {
     écran.wrapper.unmount()
   })
 
+  // Le point de l'adresse se lit avant que le projet soit lu : sur un build, il
+  // attend de savoir qu'il en est un, plutôt que de demander une requête que le
+  // serveur de fichiers ignorerait.
+  test('reads the point of its address from the file a build wrote', async () => {
+    window.history.replaceState(null, '', '/?changes&from=v1.0.0')
+    const lues: string[] = []
+    const écran = await monte(
+      [badge],
+      false,
+      undefined,
+      (url) => (lues.push(url), lus),
+      () => ({
+        stories: 'stories',
+        config: null,
+        shellBytes: 1,
+        version: '1',
+        built: '2026-10-24T12:00:00.000Z',
+      }),
+    )
+
+    expect(lues.at(-1)).toBe('@crypte/changes/7265663a76312e302e30.json')
+    expect(lues.filter((url) => url.includes('?'))).toEqual([])
+    écran.wrapper.unmount()
+  })
+
   test('opens from its address, with the first story loaded underneath', async () => {
     window.history.replaceState(null, '', '/?changes&from=main')
     const lues: string[] = []
@@ -2709,7 +2797,7 @@ describe('the versions view', () => {
 
     expect(vue(écran).exists()).toBe(true)
     expect(window.location.search).toBe('?changes&from=main')
-    expect(lues.at(-1)).toBe('/@crypte/changes.json?from=main')
+    expect(lues.at(-1)).toBe('@crypte/changes.json?from=main')
     await expect
       .poll(() => écran.envoyés.at(-1))
       .toEqual({ type: 'render', id: 'badge--defaut', overrides: {}, theme: 'light' })
@@ -4458,13 +4546,13 @@ describe('leaving full screen without Escape', () => {
         async (url: string) =>
           ({
             json: async () =>
-              url === '/@crypte/plugins.json'
+              url === '@crypte/plugins.json'
                 ? { panels: [], refused: [], weights: [] }
-                : url === '/@crypte/changes.json'
+                : url === '@crypte/changes.json'
                   ? { changes: [] }
-                  : url === '/@crypte/health.json'
+                  : url === '@crypte/health.json'
                     ? { components: null }
-                    : url === '/@crypte/project.json'
+                    : url === '@crypte/project.json'
                       ? { stories: 'stories', config: null, shellBytes: 83149, version: '1.2.3' }
                       : manifests.length > 1
                         ? manifests.shift()
@@ -5234,5 +5322,21 @@ describe('the empty catalogue beside its neighbours', () => {
     expect(écran.wrapper.find('.stale').exists()).toBe(false)
     expect(écran.wrapper.find('.empty').exists()).toBe(true)
     écran.wrapper.unmount()
+  })
+})
+
+// Les mêmes paires que `packages/cli/test/build.test.ts` éprouve côté build.
+describe('where the changes from a point are read', () => {
+  test.for([
+    [{ from: 'release/1.0' }, '7265663a72656c656173652f312e30'],
+    [{ from: 'été' }, '7265663ac3a974c3a9'],
+    [{ before: '2026-10-17' }, '6265666f72653a323032362d31302d3137'],
+  ] as const)('reads %j from the file a build named', ([since, hex]) => {
+    expect(changesUrl(since, true)).toBe(`@crypte/changes/${hex}.json`)
+  })
+
+  test('reads the default comparison without a point, and Git on request under crypte dev', () => {
+    expect(changesUrl({}, true)).toBe('@crypte/changes.json')
+    expect(changesUrl({ from: 'v1' }, false)).toBe('@crypte/changes.json?from=v1')
   })
 })

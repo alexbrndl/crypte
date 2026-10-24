@@ -14,21 +14,27 @@ import {
   SelectValue,
   SelectViewport,
 } from 'reka-ui'
+import { computed } from 'vue'
 
 defineOptions({ inheritAttrs: false })
 
-defineProps<{
+const props = defineProps<{
   options: readonly { value: string; label: string }[]
   placeholder?: string
 }>()
 
 const model = defineModel<string>()
+
+// Read here rather than left to Reka, which keeps the label the chosen option had
+// when it was first drawn: an option relabelled under the same value kept its old
+// text in the trigger. Measured.
+const label = computed(() => props.options.find((one) => one.value === model.value)?.label)
 </script>
 
 <template>
   <SelectRoot v-model="model">
     <SelectTrigger class="trigger" v-bind="$attrs">
-      <SelectValue :placeholder="placeholder" />
+      <SelectValue :placeholder="placeholder">{{ label ?? placeholder }}</SelectValue>
       <svg
         width="16"
         height="16"
