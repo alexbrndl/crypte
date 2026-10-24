@@ -4,6 +4,7 @@
 
 import { cpSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
+import { stripVTControlCharacters } from 'node:util'
 import { build as viteBuild } from 'vite'
 import { changesSince, type Changes } from '../catalogue/changes'
 import { fingerprintOf, writeFingerprint, type Fingerprint } from '../catalogue/fingerprint'
@@ -72,7 +73,13 @@ export async function build(input: string, log: (line: string) => void = console
       },
     },
   }).catch((cause: unknown) => {
-    throw new ConfigError(`The preview could not be built: ${reason(cause)}`, { cause })
+    // Without Vite's colours, which a CI log prints as escape codes.
+    throw new ConfigError(
+      `The preview could not be built: ${stripVTControlCharacters(reason(cause))}`,
+      {
+        cause,
+      },
+    )
   })
 
   cpSync(shellAssets(), out, { recursive: true })
