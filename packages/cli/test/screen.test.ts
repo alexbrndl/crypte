@@ -574,8 +574,6 @@ describe('the screen', () => {
     expect(await alerte.textContent()).not.toContain('Failed to fetch')
   })
 
-  // Ce que React rafraîchit lui-même : le composant est repris par Fast Refresh,
-  // pas par le chemin chaud de l'entrée.
   // `iframe.html` n'a pas de shell pour redemander la story : elle passe par le
   // même chemin, donc les plugins la suivent et une édition la redessine.
   test('draws iframe.html with its plugins, and again after an edit', async ({ ecran }) => {
@@ -598,6 +596,8 @@ describe('the screen', () => {
     }
   })
 
+  // Ce que React rafraîchit lui-même : le composant est repris par Fast Refresh,
+  // pas par le chemin chaud de l'entrée.
   test('refreshes the displayed story when its component changes', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
 

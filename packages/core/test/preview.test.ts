@@ -928,4 +928,23 @@ describe('a story no shell asked for', () => {
     expect(montés).toHaveLength(2)
     expect(recus.filter((one) => (one as PreviewMessage).type === 'rendered')).toHaveLength(2)
   })
+
+  it('says the error of a story that throws, and hands nothing to the plugins', () => {
+    const montés: unknown[] = []
+    const canal = createPreviewChannel({
+      render: () => {
+        throw new Error('unknown story: inconnue')
+      },
+      rendered: (story) => void montés.push(story),
+    })
+
+    canal.show('inconnue')
+
+    expect(montés).toEqual([])
+    expect(recus.at(-1)).toMatchObject({
+      type: 'error',
+      id: 'inconnue',
+      message: 'unknown story: inconnue',
+    })
+  })
 })
