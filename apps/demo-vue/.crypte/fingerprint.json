@@ -8,7 +8,7 @@
       "props": [
         "label"
       ],
-      "rest": "34d078859773a8f0"
+      "rest": "32c95b669c3f31f0"
     },
     {
       "id": "badge--avertissement",
@@ -18,14 +18,14 @@
         "label",
         "tone"
       ],
-      "rest": "fd39bd9e00fbb965"
+      "rest": "8d3d8a2a4589e08d"
     },
     {
       "id": "counter--depuis-zero",
       "component": "src/components/Counter.vue#default",
       "status": "none",
       "props": [],
-      "rest": "737010ea3cdf23be"
+      "rest": "b6feb3070e44c465"
     },
     {
       "id": "counter--par-dix",
@@ -35,7 +35,7 @@
         "start",
         "step"
       ],
-      "rest": "ea8baa54ae087449"
+      "rest": "b51f204edec360df"
     }
   ],
   "tokens": []

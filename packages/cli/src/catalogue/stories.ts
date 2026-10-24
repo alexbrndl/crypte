@@ -31,7 +31,15 @@ export interface StoryFileRead {
   meant?: boolean
 }
 
-export function entriesOf(file: string, root: string, storiesRoot: string): StoryFileRead {
+// `template` writes the call code as a Vue template. By default, when the story
+// imports a `.vue` file by name; the caller forces it once an import written
+// without its extension resolves to one.
+export function entriesOf(
+  file: string,
+  root: string,
+  storiesRoot: string,
+  template?: boolean,
+): StoryFileRead {
   const source = readFileSync(file, 'utf8')
   const parsed = parseSync(file, source)
 
@@ -145,7 +153,11 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
         options: options ?? {},
         details: {},
         props: [...props.keys()].sort(),
-        source: callOf(name, props, source),
+        // A `.vue` component is called from a Vue template, everything else from JSX.
+        source:
+          (template ?? component.file.endsWith('.vue'))
+            ? templateOf(name, props, source)
+            : callOf(name, props, source),
         ...(meta ? { meta } : {}),
         ...(partial.length > 0 ? { partial: partial.join('; ') } : {}),
       } satisfies StoryEntry
@@ -533,6 +545,60 @@ function callOf(name: string, props: Map<string, Node | undefined>, source: stri
 
   return body === undefined ? `${opening} />` : `${opening}>${body}</${name}>`
 }
+
+// The same call in a Vue template. A string is a static attribute, escaped as
+// HTML, which Vue decodes back to the same string; every other value is bound by
+// `:prop`, including `true`, since a bare attribute is `true` only for a prop
+// declared `Boolean` and `''` otherwise. A text child goes in the default slot.
+function templateOf(name: string, props: Map<string, Node | undefined>, source: string): string {
+  const written = [...props]
+    .filter(([prop]) => prop !== 'children')
+    .map(([prop, value]) => {
+      // Set, its value unknown: as in `callOf`, nothing the run does not have.
+      if (value === undefined) return ''
+      if (value.type === 'Literal' && typeof value['value'] === 'string')
+        return ` ${prop}="${escapedAttribute(value['value'] as string)}"`
+      return ` :${prop}="${escapedAttribute(source.slice(value.start, value.end))}"`
+    })
+
+  const opening = `<${name}${written.join('')}`
+  const body = slotOf(props, source)
+
+  return body === undefined ? `${opening} />` : `${opening}>${body}</${name}>`
+}
+
+// A double quote closes the attribute, and an `&` opens an entity Vue decodes.
+const escapedAttribute = (text: string) => text.replaceAll('&', '&amp;').replaceAll('"', '&quot;')
+
+// The default slot. An element goes as written; a string bare when the template
+// gives it back unchanged, otherwise interpolated; anything else interpolated.
+function slotOf(props: Map<string, Node | undefined>, source: string): string | undefined {
+  if (!props.has('children')) return undefined
+  const value = props.get('children')
+  if (value === undefined) return undefined
+
+  const inner = unwrapped(value)
+  const raw = source.slice(inner.start, inner.end)
+  if (inner.type === 'JSXElement' || inner.type === 'JSXFragment') return raw
+
+  if (inner.type === 'Literal' && typeof inner['value'] === 'string') {
+    const text = inner['value'] as string
+    return text !== '' && !SLOT_HOSTILE.test(text) ? text : interpolated(JSON.stringify(text))
+  }
+
+  return interpolated(raw)
+}
+
+// What a template would not give back unchanged as text: an angle bracket and an
+// `&` are markup, `{{` an interpolation, and Vue condenses edge whitespace, runs
+// of spaces and line breaks.
+const SLOT_HOSTILE = /[<&\n\r\u2028\u2029\u0000-\u001f]|\{\{|^\s|\s$|\s\s/
+
+// An interpolation is found by its first `}}`, then decoded as HTML: `&` written
+// `&amp;` and a `}` before another as `&#125;` come back as themselves, in a
+// string as in an expression.
+const interpolated = (expression: string) =>
+  `{{ ${expression.replaceAll('&', '&amp;').replace(/\}(?=\})/g, '&#125;')} }}`
 
 // What goes between the tags: `children` as an attribute is valid JSX and not
 // what anybody writes. `undefined` keeps the self-closing form, including for a

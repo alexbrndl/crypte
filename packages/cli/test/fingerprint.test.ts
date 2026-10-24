@@ -161,6 +161,25 @@ describe('reduced fingerprint', () => {
     )
   })
 
+  // Le même tri pour un template Vue, que TSX ne lit pas : `:count="3"`.
+  it('stays still when only the attributes of a Vue template change order', () => {
+    const ordre = (source: string) => fingerprintOf(one({ source }))
+
+    expect(
+      same(ordre('<Badge label="x" :count="3" />'), ordre('<Badge :count="3" label="x" />')),
+    ).toBe(true)
+    expect(
+      same(
+        ordre('<Badge :on="() => 1" label="x">{{ y }}</Badge>'),
+        ordre('<Badge label="x" :on="() => 1">{{ y }}</Badge>'),
+      ),
+    ).toBe(true)
+    expect(
+      same(ordre('<Badge label="x" :count="3" />'), ordre('<Badge :count="4" label="x" />')),
+    ).toBe(false)
+    expect(same(ordre('<Badge :a="1">Un</Badge>'), ordre('<Badge :a="1">Deux</Badge>'))).toBe(false)
+  })
+
   // Les clés du premier niveau arrivent déjà triées par `digestOf`, donc c'est
   // sur un objet imbriqué que le tri de `stable` se mesure. Sans ce cas, retirer
   // ce tri ne faisait rougir personne.

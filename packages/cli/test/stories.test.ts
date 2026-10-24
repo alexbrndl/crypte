@@ -636,3 +636,59 @@ describe('what the entry does not say', () => {
     )
   })
 })
+
+// Le code d'appel d'un composant `.vue`, en template Vue : mesuré avec
+// `@vue/compiler-dom`, un attribut statique échappé en HTML redonne la chaîne
+// exacte, et une liaison décode ses entités avant d'être évaluée.
+describe('the call code of a Vue component', () => {
+  // En `.tsx` : un fichier de stories Vue peut l'être, et un enfant élément l'exige.
+  const vue = (story: string) =>
+    fileWith(
+      'Badge.tsx',
+      [
+        "import Badge from '../src/Badge.vue'",
+        `export default defineStories(Badge, { stories: { Une: ${story} } })`,
+      ].join('\n'),
+    ).entries[0]?.source
+
+  it('writes strings as attributes and binds everything else', () => {
+    expect(vue("{ label: 'Neuf', count: 3, open: true, shut: false, onClose: () => {} }")).toBe(
+      '<Badge label="Neuf" :count="3" :open="true" :shut="false" :onClose="() => {}" />',
+    )
+  })
+
+  // Un guillemet ferme l'attribut, un `&` ouvre une entité : échappés, ils
+  // reviennent tels quels, en attribut statique comme dans une liaison.
+  it('escapes what a template would read otherwise', () => {
+    expect(vue(`{ label: 'a & b "q"', on: 'x' === "y" && ok }`)).toBe(
+      '<Badge label="a &amp; b &quot;q&quot;" :on="\'x\' === &quot;y&quot; &amp;&amp; ok" />',
+    )
+  })
+
+  it('writes a child in the default slot, according to its shape', () => {
+    expect(vue("{ children: 'Neuf' }")).toBe('<Badge>Neuf</Badge>')
+    expect(vue('{ children: <b>Neuf</b> }')).toBe('<Badge><b>Neuf</b></Badge>')
+    expect(vue('{ children: items }')).toBe('<Badge>{{ items }}</Badge>')
+    // Le template replie les espaces de bord, lit `<` et `&` comme du balisage
+    // et `{{` comme une interpolation : la chaîne passe alors interpolée.
+    expect(vue("{ children: ' bord ' }")).toBe('<Badge>{{ " bord " }}</Badge>')
+    expect(vue("{ children: 'a < b' }")).toBe('<Badge>{{ "a < b" }}</Badge>')
+    expect(vue("{ children: 'x {{ y' }")).toBe('<Badge>{{ "x {{ y" }}</Badge>')
+    expect(vue("{ children: '' }")).toBe('<Badge>{{ "" }}</Badge>')
+  })
+
+  // Une interpolation se ferme au premier `}}` puis décode le HTML : écrits en
+  // entités, `&` et `}}` reviennent tels quels (mesuré avec `@vue/compiler-dom`).
+  it('escapes what an interpolation would read otherwise', () => {
+    expect(vue("{ children: '{{ x }}' }")).toBe('<Badge>{{ "{{ x &#125;}" }}</Badge>')
+    expect(vue("{ children: '&copy; 2026' }")).toBe('<Badge>{{ "&amp;copy; 2026" }}</Badge>')
+    expect(vue('{ children: { a: { b: 1 }} }')).toBe('<Badge>{{ { a: { b: 1 &#125;} }}</Badge>')
+    // Une suite d'espaces est condensée par le template.
+    expect(vue("{ children: 'a  b' }")).toBe('<Badge>{{ "a  b" }}</Badge>')
+  })
+
+  // Une valeur qu'un spread peut remplacer n'est pas montrée, comme en JSX.
+  it('shows no value a spread may replace', () => {
+    expect(vue("{ ...base, label: 'Neuf', children: 'x', ...more }")).toBe('<Badge />')
+  })
+})

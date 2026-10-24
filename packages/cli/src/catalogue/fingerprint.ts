@@ -134,7 +134,7 @@ function comparable(source: string): string {
     | Node
     | undefined
   const opening = element?.['openingElement'] as Node | undefined
-  if (parsed.errors.length > 0 || !opening) return source
+  if (parsed.errors.length > 0 || !opening) return template(source)
 
   const text = `(${source})`
   const attributes = (opening['attributes'] as Node[]).map((one) => text.slice(one.start, one.end))
@@ -143,6 +143,18 @@ function comparable(source: string): string {
   return (
     [text.slice(name.start, name.end), ...attributes.sort()].join(' ') + text.slice(opening.end, -1)
   )
+}
+
+// The same for a Vue template, which TSX does not read: `:count="3"`. The producer
+// writes each attribute `name="…"` or `:name="…"` with its quotes escaped, so a
+// pattern finds them all. Anything else comes back as it is.
+const TEMPLATE = /^<([\w$.-]+)((?:\s:?[\w$.-]+="[^"]*")*)(\s*\/>|>[\s\S]*)$/
+
+function template(source: string): string {
+  const found = TEMPLATE.exec(source)
+  if (!found) return source
+  const attributes = found[2]!.match(/:?[\w$.-]+="[^"]*"/g) ?? []
+  return [found[1], ...attributes.sort()].join(' ') + found[3]
 }
 
 // A JSON form whose object keys are sorted at every depth. `JSON.stringify`
