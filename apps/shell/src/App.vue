@@ -332,7 +332,9 @@ async function readChanges() {
               since,
               (await fetch(FINGERPRINT).then((one) => one.json())) as Fingerprint,
             )
-          : { reason: `this build holds no comparison from ${point}` }
+          : {
+              reason: `this build holds no comparison from ${point}, and names no GitHub repository to read it from`,
+            }
   } catch (error) {
     read = {
       reason: `its route could not be read: ${error instanceof Error ? error.message : String(error)}`,

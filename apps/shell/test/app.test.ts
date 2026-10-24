@@ -2578,7 +2578,7 @@ describe('the versions view', () => {
     await champ.trigger('keydown', { key: 'Enter' })
     await vide(écran.wrapper)
     expect(vue(écran).text()).toContain(
-      'The changes cannot be read: this build holds no comparison from v9.',
+      'The changes cannot be read: this build holds no comparison from v9, and names no GitHub repository to read it from.',
     )
     écran.wrapper.unmount()
   })
@@ -2616,7 +2616,8 @@ describe('the versions view', () => {
     const champ = écran.wrapper.find('.sidebar input')
     await champ.setValue('a3f19c2')
     await champ.trigger('keydown', { key: 'Enter' })
-    await vi.waitFor(() => expect(vue(écran).find('h2').text()).toBe('What changed since a3f19c2'))
+    // Ce que seule une comparaison faite dessine : le titre suit le point, pas la lecture.
+    await vi.waitFor(() => expect(vue(écran).text()).toContain('Nothing changed in the catalogue.'))
     écran.wrapper.unmount()
   })
 

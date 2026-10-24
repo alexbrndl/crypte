@@ -709,11 +709,11 @@ interface FingerprintToken {
   themes: Record<string, string>
 }
 
-function compareFingerprints(before: Fingerprint, after: Fingerprint, from: { ref: string; commit: string }): Changes
+function compareFingerprints(before: Fingerprint, after: Fingerprint, from: { ref: string; commit: string }): Exclude<Changes, { reason: string }>
 function readFingerprint(read: unknown): Fingerprint | { lacks: string }
 ```
 
-`compareFingerprints` gives what moved between two of them, which the CLI reads from Git and a build's shell from GitHub: a `Change` per story that appeared, disappeared, or whose props or status moved, in manifest order, and a `TokenChange` per token that appeared, disappeared or changed value, or `null` for the tokens when `before` predates them. `Changes` is that, or the `reason` there is none to read. `readFingerprint` reads a file someone may have edited, and names what it lacks rather than throwing.
+`compareFingerprints` gives what moved between two of them, which the CLI reads from Git and a build's shell from GitHub: a `Change` per story that appeared, disappeared, or whose props or status moved, in manifest order, and a `TokenChange` per token that appeared, disappeared or changed value, or `null` for the tokens when `before` predates them. `Changes` is that, or the `reason` there is none to read, which the comparison itself never gives. `readFingerprint` reads a file someone may have edited, and names what it lacks rather than throwing.
 
 **The manifest is the truth.** It is regenerated from the story files on every build, so when the two disagree it is the fingerprint that is out of date, never the other way round.
 

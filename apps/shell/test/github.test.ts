@@ -65,6 +65,17 @@ describe('a point read from GitHub', () => {
       },
     )
   })
+
+  // Le dossier du projet entre dans l'adresse segment par segment.
+  test('reads a project in a folder whose name holds a # or a %', async () => {
+    const ailleurs = { ...GITHUB, path: 'apps/v1#2%/' }
+    const contenu = `${API}/contents/apps/v1%232%25/.crypte/fingerprint.json?ref=${SHA}`
+    const { read } = github({ [`${API}/commits/v1`]: json({ sha: SHA }), [contenu]: json(AVANT) })
+
+    expect(await changesOnGitHub(ailleurs, { from: 'v1' }, MAINTENANT, read)).toMatchObject({
+      from: { ref: 'v1' },
+    })
+  })
 })
 
 describe('what keeps GitHub from answering', () => {

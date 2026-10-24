@@ -70,7 +70,9 @@ export async function changesOnGitHub(
     sha = ((await asked.answer.json()) as { sha: string }).sha
   }
 
-  const asked = await ask(`/contents/${github.path}${FILE}?ref=${sha}`, true)
+  // Segment par segment : un dossier peut porter un `#`, un `?` ou un `%`.
+  const folder = github.path.split('/').map(encodeURIComponent).join('/')
+  const asked = await ask(`/contents/${folder}${FILE}?ref=${sha}`, true)
   if ('reason' in asked) return { reason: asked.reason }
   if ('status' in asked)
     return {
