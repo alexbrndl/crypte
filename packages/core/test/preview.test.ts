@@ -156,9 +156,10 @@ describe('muted wrappers', () => {
           { component: { __name: 'Panel' }, props: {} },
           { component: Theme, props: {} },
           { component: { name: 'Fournisseur' }, props: {} },
-          { component: { $typeof: 'memo', type: Theme }, props: {} },
-          { component: { $typeof: 'forward', render: Nommé }, props: {} },
+          { component: { $$typeof: 'memo', type: Theme }, props: {} },
+          { component: { $$typeof: 'forward', render: Nommé }, props: {} },
           { component: {}, props: {} },
+          { component: { render() {} }, props: {} },
           { component: 'Badge', props: {} },
         ],
       }),
@@ -175,12 +176,13 @@ describe('muted wrappers', () => {
       'Routeur',
       'anonymous',
       'anonymous',
+      'anonymous',
     ])
   })
 
   // Un composant qui se contient lui-même ne fait pas tourner la lecture du nom.
   it('names a wrapper whose type points back at itself', () => {
-    const boucle: { type?: unknown } = {}
+    const boucle: { $$typeof: string; type?: unknown } = { $$typeof: 'memo' }
     boucle.type = boucle
     createPreviewChannel({
       render: () => ({ props: {}, wraps: [{ component: boucle, props: {} }] }),

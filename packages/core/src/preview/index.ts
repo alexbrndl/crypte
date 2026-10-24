@@ -335,7 +335,8 @@ function wrapperName(wrapper: unknown): string {
 }
 
 // `memo(…)` holds its component in `type`, `forwardRef(…)` in `render`: read
-// through them, a few levels at most.
+// through them, a few levels at most. Only what React marks with `$$typeof`: a Vue
+// component carries a `render` of its own, whose name is `render`.
 function nameOf(component: unknown, depth: number): string {
   if ((typeof component !== 'object' && typeof component !== 'function') || component === null)
     return 'anonymous'
@@ -343,7 +344,7 @@ function nameOf(component: unknown, depth: number): string {
     const value = (component as Record<string, unknown>)[key]
     if (typeof value === 'string' && value !== '') return value
   }
-  if (depth > 2) return 'anonymous'
+  if (depth > 2 || !('$$typeof' in component)) return 'anonymous'
   const inner =
     (component as { type?: unknown; render?: unknown }).type ??
     (component as { render?: unknown }).render
