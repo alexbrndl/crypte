@@ -86,6 +86,7 @@ import { keep, kept } from './storage'
 import StoryTree from './navigation/story-tree.vue'
 import DocsTree from './navigation/docs-tree.vue'
 import DocsPanel from './pages/docs-panel.vue'
+import WrappersPanel from './panels/wrappers-panel.vue'
 import CategoryList from './tokens/category-list.vue'
 import { categoriesOf } from './tokens/categories'
 import TokenPanel from './tokens/token-panel.vue'
@@ -516,7 +517,23 @@ async function runAudit() {
 
 // Ce que la dernière story rendue a reçu, sous son identifiant : les panneaux ne
 // le lisent que pour la story affichée, une autre ayant pu répondre entre-temps.
-const rendered = shallowRef<{ id: string; values: RenderedValues } | null>(null)
+const rendered = shallowRef<{ id: string; values: RenderedValues; wraps: string[] } | null>(null)
+
+// Les enrobages coupés de la story affichée, par rang dans `rendered.wraps`. Un
+// réglage de vue comme l'échelle : hors de l'adresse, et oublié au changement de
+// story, dont les enrobages ne sont plus les mêmes.
+const muted = ref<number[]>([])
+const renderMessage = (id: string, theme: Theme) => ({
+  type: 'render' as const,
+  id,
+  overrides: overrides.value,
+  theme,
+  ...(muted.value.length > 0 ? { muted: [...muted.value] } : {}),
+})
+function mute(ranks: number[]) {
+  muted.value = ranks
+  if (current.value !== null) select(current.value)
+}
 const kB = (bytes: number) => `${(bytes / 1e3).toFixed(1)} kB`
 
 // Ce que le CLI dit du projet : la racine de stories qu'il déclare, et pourquoi
@@ -700,14 +717,16 @@ function write(search: string, trace: Trace) {
 
 // La story que la preview rend, sans changer de page.
 function select(id: string) {
-  if (id !== current.value) overrides.value = {}
+  if (id !== current.value) {
+    overrides.value = {}
+    muted.value = []
+  }
   current.value = id
   shown = entries.value.find((entry) => entry.id === id) ?? shown
   failure.value = null
   // Rien ne part avant que la preview ait dit `ready` : un message envoyé à une
   // iframe qui n'écoute pas encore est perdu sans trace.
-  if (ready)
-    channel?.send({ type: 'render', id, overrides: overrides.value, theme: mainTheme.value })
+  if (ready) channel?.send(renderMessage(id, mainTheme.value))
   renderDark()
 }
 
@@ -1015,8 +1034,7 @@ const mainTheme = computed<Theme>(() => (compare.value ? 'light' : theme.value))
 let dark: { send: (message: ShellMessage) => void; ready: boolean; stop: () => void } | null = null
 
 function renderDark() {
-  if (dark?.ready && current.value !== null)
-    dark.send({ type: 'render', id: current.value, overrides: overrides.value, theme: 'dark' })
+  if (dark?.ready && current.value !== null) dark.send(renderMessage(current.value, 'dark'))
 }
 
 watch(frameDark, (element) => {
@@ -1303,7 +1321,7 @@ onMounted(() => {
         failure.value = null
         firstRender.value ??= performance.now()
         previewAnswered.value = true
-        rendered.value = { id: message.id, values: message.values }
+        rendered.value = { id: message.id, values: message.values, wraps: message.wraps ?? [] }
         status.value = `${message.id} rendered`
       }
       // Rattachée à la story affichée : cliquer B pendant que A rend laissait
@@ -1924,6 +1942,12 @@ onMounted(() => {
           aria-label="Panels"
         >
           <ColumnTitle title="Panels" />
+          <WrappersPanel
+            v-if="rendered && rendered.id === displayed?.id && rendered.wraps.length > 0"
+            :wraps="rendered.wraps"
+            :muted="muted"
+            @muted="mute"
+          />
           <Panels
             :entry="displayed"
             :received="received"
