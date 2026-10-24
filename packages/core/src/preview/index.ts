@@ -31,6 +31,9 @@ export interface PreviewChannel {
   // Draws the last story again through the same path: drawing it from outside
   // skips the error reporting, and the shell stays on `rendered`.
   again(): void
+  // Draws a story no shell asked for, through the same path: `iframe.html?id=`
+  // has no shell, and its plugins and hot updates still follow the render.
+  show(id: string): void
   send(message: PreviewMessage): void
 }
 
@@ -120,6 +123,10 @@ export function createPreviewChannel(handlers: PreviewHandlers): PreviewChannel 
     dispose: () => window.removeEventListener('message', listener),
     again: () => {
       if (asked) draw(asked)
+    },
+    show: (id) => {
+      asked = { id, overrides: {} }
+      draw(asked)
     },
     send: reply,
   }

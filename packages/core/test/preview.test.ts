@@ -906,3 +906,26 @@ describe('the plugin host', () => {
     })
   })
 })
+
+// `iframe.html?id=` n'a pas de shell : la story de son adresse passe par le même
+// chemin, donc elle est annoncée, suivie par les plugins et redessinée à chaud.
+describe('a story no shell asked for', () => {
+  it('draws it with no overrides, hands it to the plugins, and draws it again', () => {
+    const rendus: [string, Record<string, unknown>][] = []
+    const montés: unknown[] = []
+    const canal = createPreviewChannel({
+      render: (id, overrides) => (rendus.push([id, overrides]), { props: {} }),
+      rendered: (story) => void montés.push(story),
+    })
+
+    canal.show('badge--par-defaut')
+    canal.again()
+
+    expect(rendus).toEqual([
+      ['badge--par-defaut', {}],
+      ['badge--par-defaut', {}],
+    ])
+    expect(montés).toHaveLength(2)
+    expect(recus.filter((one) => (one as PreviewMessage).type === 'rendered')).toHaveLength(2)
+  })
+})

@@ -2,6 +2,11 @@
 // zeroheight, Supernova and Knapsack read to list stories and then embed each
 // one from `iframe.html?id=`. A compatibility export, never Crypte's own format:
 // if Storybook changes it, this file follows and nothing else moves.
+//
+// The ids are Crypte's (4.3), which `iframe.html` resolves, not the ones
+// Storybook would derive from the title and name: a nested path keeps its `/`,
+// `checkout/order-summary--vide`, and latin accents are dropped. Those readers
+// take the id from the index. Reopened by one that rebuilds it from the title.
 
 import type { Manifest } from '@crypte/core/protocol'
 import { storiesOf } from './manifest'

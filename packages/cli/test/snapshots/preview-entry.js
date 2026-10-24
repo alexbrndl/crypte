@@ -117,18 +117,38 @@ function __crypte_render(id, overrides, muted = []) {
   return { id, props, options: entry.options, root: __crypte_container, wraps: __crypte_wraps }
 }
 
+// With no shell to say a failure, `iframe.html` writes it beside the story, and
+// the next render that goes through takes it away. Never in the container: the
+// adapter keeps its root there, and the next render would mount on a foreign node.
+const __crypte_standalone = document.documentElement.hasAttribute('data-standalone')
+function __crypte_drawn(...args) {
+  const shown = document.getElementById('crypte-failure')
+  try {
+    const story = __crypte_render(...args)
+    shown?.remove()
+    return story
+  } catch (error) {
+    if (__crypte_standalone) {
+      const failure = shown ?? document.body.appendChild(document.createElement('p'))
+      failure.id = 'crypte-failure'
+      failure.textContent = error instanceof Error ? error.message : String(error)
+    }
+    throw error
+  }
+}
+
 // `wraps` stays out of what the plugins receive: their context is typed without it.
-const __crypte_channel = __crypte_channelOf({ render: __crypte_render, rendered: ({ wraps: _wraps, ...story }) => __crypte_host.mounted(story), message: (message) => __crypte_host.received(message) })
+const __crypte_channel = __crypte_channelOf({ render: __crypte_drawn, rendered: ({ wraps: _wraps, ...story }) => __crypte_host.mounted(story), message: (message) => __crypte_host.received(message) })
 
 // After the channel, since it sends through it: what failed to load is said
 // once `ready` is out, so the shell has cleared what the frame before said.
 const __crypte_host = __crypte_hostOf(__crypte_loaded, __crypte_channel.send)
 
 // `iframe.html?id=`, the page Storybook's readers embed: the story its address
-// names, with no shell to ask for it, and its failure written in its place.
-if (document.documentElement.hasAttribute('data-standalone')) {
+// names, with no shell to ask for it.
+if (__crypte_standalone) {
   const id = new URLSearchParams(location.search).get('id')
-  try { if (id) __crypte_render(id, {}) } catch (error) { __crypte_container.textContent = error instanceof Error ? error.message : String(error) }
+  if (id) __crypte_channel.show(id)
 }
 
 if (import.meta.hot) {
