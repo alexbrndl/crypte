@@ -4,43 +4,12 @@
 // the last commit before a date.
 
 import { execFileSync } from 'node:child_process'
-import type { Fingerprint, FingerprintEntry, FingerprintToken } from './fingerprint'
-
-export type Change =
-  | { kind: 'appeared'; id: string }
-  | {
-      kind: 'changed'
-      id: string
-      // Only what moved; a story whose props and status stayed is not listed,
-      // whatever else its digest folds.
-      props?: { before: string[]; after: string[] }
-      status?: { before: string; after: string }
-    }
-  | { kind: 'disappeared'; id: string }
-
-// A token by its family's identifier and its key, with the literal of each theme
-// on either side.
-export type TokenChange =
-  | { kind: 'appeared'; family: string; key: string; after: Record<string, string> }
-  | {
-      kind: 'changed'
-      family: string
-      key: string
-      before: Record<string, string>
-      after: Record<string, string>
-    }
-  | { kind: 'disappeared'; family: string; key: string; before: Record<string, string> }
-
-// The changes, or why there are none to read. A reason is said rather than an
-// empty list, which would read as "nothing changed". `tokens` is `null` when the
-// commit predates tokens in the fingerprint: their history starts after it.
-export type Changes =
-  | {
-      from: { ref: string; commit: string }
-      changes: Change[]
-      tokens: TokenChange[] | null
-    }
-  | { reason: string }
+import {
+  compareFingerprints,
+  readFingerprint,
+  type Changes,
+  type Fingerprint,
+} from '@crypte/core/protocol'
 
 // Where the comparison starts: a revision Git knows, or the last commit before a
 // date. Neither means `HEAD`.
@@ -57,14 +26,7 @@ export function changesSince(root: string, now: Fingerprint, since: Since = {}):
   const committed = committedFingerprint(root, commit.sha)
   return typeof committed === 'string'
     ? { reason: committed }
-    : {
-        from: { ref: commit.ref, commit: commit.sha.slice(0, 7) },
-        changes: changesOf(committed, now),
-        tokens:
-          committed.tokens === undefined
-            ? null
-            : tokenChangesOf(committed.tokens, now.tokens ?? []),
-      }
+    : compareFingerprints(committed, now, { ref: commit.ref, commit: commit.sha.slice(0, 7) })
 }
 
 // The commit a point names, resolved once so a moving branch cannot change
@@ -120,75 +82,6 @@ function git(root: string, args: string[]): string | { reason: string; code?: nu
   }
 }
 
-// Each token compared on its family and key, theme by theme.
-export function tokenChangesOf(
-  before: FingerprintToken[],
-  after: FingerprintToken[],
-): TokenChange[] {
-  const id = (one: FingerprintToken) => `${one.family}\u0000${one.key}`
-  const old = new Map(before.map((one) => [id(one), one]))
-  const now = new Set(after.map(id))
-  const changes: TokenChange[] = []
-
-  for (const one of after) {
-    const was = old.get(id(one))
-    if (!was)
-      changes.push({ kind: 'appeared', family: one.family, key: one.key, after: one.themes })
-    else if (JSON.stringify(was.themes) !== JSON.stringify(one.themes))
-      changes.push({
-        kind: 'changed',
-        family: one.family,
-        key: one.key,
-        before: was.themes,
-        after: one.themes,
-      })
-  }
-  for (const one of before) {
-    if (!now.has(id(one)))
-      changes.push({ kind: 'disappeared', family: one.family, key: one.key, before: one.themes })
-  }
-
-  return changes
-}
-
-// In manifest order: what appeared and changed in the order the catalogue
-// holds it now, what disappeared in the order the commit held it.
-export function changesOf(before: Fingerprint, after: Fingerprint): Change[] {
-  const old = new Map(before.entries.map((entry) => [entry.id, entry]))
-  const ids = new Set(after.entries.map((entry) => entry.id))
-  const changes: Change[] = []
-
-  for (const entry of after.entries) {
-    const was = old.get(entry.id)
-    if (!was) {
-      changes.push({ kind: 'appeared', id: entry.id })
-      continue
-    }
-    const props = same(was.props, entry.props)
-      ? undefined
-      : { before: was.props, after: entry.props }
-    const status =
-      was.status === entry.status ? undefined : { before: was.status, after: entry.status }
-    if (props || status)
-      changes.push({
-        kind: 'changed',
-        id: entry.id,
-        ...(props && { props }),
-        ...(status && { status }),
-      })
-  }
-
-  for (const entry of before.entries) {
-    if (!ids.has(entry.id)) changes.push({ kind: 'disappeared', id: entry.id })
-  }
-
-  return changes
-}
-
-// Sorted on both sides by the producer, so equal lists hold the same order.
-const same = (a: string[], b: string[]) =>
-  a.length === b.length && a.every((one, at) => one === b[at])
-
 // The fingerprint a commit holds, `HEAD` by default, or what keeps it from being
 // read. Relative to the project, `./`, since the project may sit anywhere inside
 // its repository.
@@ -215,7 +108,10 @@ export function committedFingerprint(root: string, commit = 'HEAD'): Fingerprint
   } catch {
     return `the committed ${FILE} is not JSON`
   }
-  return fingerprintIn(read) ?? `the committed ${FILE} is not a fingerprint: ${missing(read)}`
+  const fingerprint = readFingerprint(read)
+  return 'lacks' in fingerprint
+    ? `the committed ${FILE} is not a fingerprint: ${fingerprint.lacks}`
+    : fingerprint
 }
 
 function gitReason(error: unknown): string {
@@ -230,40 +126,3 @@ function gitReason(error: unknown): string {
   const first = said.trim().split('\n')[0] || (error as Error).message
   return `Git could not read the committed ${FILE}: ${first}`
 }
-
-// A file someone may have edited, truncated or written with another version:
-// what it lacks is named rather than thrown on (DCJ-278).
-function fingerprintIn(read: unknown): Fingerprint | null {
-  if (!isObject(read) || !Array.isArray(read['entries'])) return null
-  if (!read['entries'].every(isEntry)) return null
-  // Absent, the tokens are unknown; present, each one must read.
-  if ('tokens' in read && !(Array.isArray(read['tokens']) && read['tokens'].every(isToken)))
-    return null
-  return read as unknown as Fingerprint
-}
-
-function missing(read: unknown): string {
-  if (!isObject(read) || !Array.isArray(read['entries'])) return 'no `entries` list'
-  const at = read['entries'].findIndex((one) => !isEntry(one))
-  if (at !== -1) return `entry ${at} lacks a string \`id\`, a string \`status\` or a \`props\` list`
-  if (!Array.isArray(read['tokens'])) return '`tokens` is not a list'
-  return `token ${read['tokens'].findIndex((one) => !isToken(one))} lacks a string \`family\`, \`key\` or \`type\`, or \`themes\` of strings`
-}
-
-const isToken = (value: unknown): value is FingerprintToken =>
-  isObject(value) &&
-  typeof value['family'] === 'string' &&
-  typeof value['key'] === 'string' &&
-  typeof value['type'] === 'string' &&
-  isObject(value['themes']) &&
-  Object.values(value['themes']).every((one) => typeof one === 'string')
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null
-
-const isEntry = (value: unknown): value is FingerprintEntry =>
-  isObject(value) &&
-  typeof value['id'] === 'string' &&
-  typeof value['status'] === 'string' &&
-  Array.isArray(value['props']) &&
-  value['props'].every((one) => typeof one === 'string')

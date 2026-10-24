@@ -1,5 +1,5 @@
 import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
-import type { Change, TokenChange } from '../pages/changes'
+import type { Change, TokenChange } from '@crypte/core/protocol'
 import { nameOf } from '../tokens/categories'
 
 // Les écarts de la vue versions, une ligne chacun : son signe, son libellé et le

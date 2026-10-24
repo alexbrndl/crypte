@@ -108,6 +108,7 @@ describe('crypte build', () => {
     })
 
     git(root, 'init', '-q', '-b', 'main')
+    git(root, 'remote', 'add', 'origin', 'https://github.com/acme/ui.git')
     await build(root, () => {})
     git(root, 'add', '-A')
     git(root, 'commit', '-qm', 'catalogue')
@@ -152,6 +153,14 @@ describe('crypte build', () => {
     const project = lu(root, '@crypte', 'project.json') as { built: string; config: unknown }
 
     expect(project.config).toBeNull()
+    // Où le shell lit les points que le build n'a pas calculés.
+    expect(project).toMatchObject({
+      github: {
+        repository: 'acme/ui',
+        path: '',
+        commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
+      },
+    })
     expect(new Date(project.built).toISOString()).toBe(project.built)
   })
 
@@ -176,6 +185,8 @@ describe('crypte build', () => {
       fingerprintOf(manifest),
     )
     expect(staleOf(project, manifest)).toEqual([])
+    // Publiée aussi, pour qu'un point lu sur GitHub se compare à elle.
+    expect(lu(root, '@crypte', 'fingerprint.json')).toEqual(fingerprintOf(manifest))
   })
 
   // Le dossier est publié : le chemin où le build a tourné n'y entre pas.

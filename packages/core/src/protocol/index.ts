@@ -31,6 +31,17 @@ export type {
 } from './manifest'
 export { MANIFEST_VERSION } from './manifest'
 
+// What is committed of it, and what changed between two commits
+export type {
+  FingerprintEntry,
+  FingerprintToken,
+  Fingerprint,
+  Change,
+  TokenChange,
+  Changes,
+} from './fingerprint'
+export { compareFingerprints, readFingerprint } from './fingerprint'
+
 // How a story is named
 export { normalizeSegment, storyId } from './id'
 

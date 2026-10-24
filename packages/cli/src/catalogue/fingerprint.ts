@@ -7,44 +7,19 @@
 import { createHash } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { Manifest, StoryEntry, TokensEntry } from '@crypte/core/protocol'
+import type {
+  Fingerprint,
+  FingerprintToken,
+  Manifest,
+  StoryEntry,
+  TokensEntry,
+} from '@crypte/core/protocol'
 import { parseSync } from 'vite'
 import type { Node } from './ast'
 import { storiesOf } from './manifest'
 
 // Beside the manifest, and committed where the manifest is not.
 export const FINGERPRINT = join('.crypte', 'fingerprint.json')
-
-export interface FingerprintEntry {
-  id: string
-  // `file#export`, one string: the pair is what identifies a component, and
-  // splitting it here would let one half move without the other.
-  component: string
-  status: string
-  // Sorted, so reordering a story file changes nothing.
-  props: string[]
-  // Everything else, folded into one value. What it holds does not matter to a
-  // reader; that it changes when the entry changes does.
-  rest: string
-}
-
-// One token: its family by identifier, its key, its kind, and the literal of
-// each theme. The values themselves and not a digest: the versions view shows a
-// token before and after.
-export interface FingerprintToken {
-  family: string
-  key: string
-  type: string
-  themes: Record<string, string>
-}
-
-export interface Fingerprint {
-  version: number
-  entries: FingerprintEntry[]
-  // Absent from a fingerprint committed before tokens had a history: its tokens
-  // are unknown, not empty.
-  tokens?: FingerprintToken[]
-}
 
 // The fields shown on their own; everything else goes into `rest`, so a field
 // added anywhere is folded in rather than forgotten. `component` and `meta` are

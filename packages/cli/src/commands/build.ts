@@ -6,8 +6,10 @@ import { cpSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
 import { build as viteBuild } from 'vite'
-import { changesSince, type Changes } from '../catalogue/changes'
-import { fingerprintOf, writeFingerprint, type Fingerprint } from '../catalogue/fingerprint'
+import type { Changes, Fingerprint } from '@crypte/core/protocol'
+import { changesSince } from '../catalogue/changes'
+import { fingerprintOf, writeFingerprint } from '../catalogue/fingerprint'
+import { githubOf } from '../catalogue/github'
 import { healthOf } from '../catalogue/health'
 import { buildCatalogue, storiesOf, writeCatalogue } from '../catalogue/manifest'
 import { STORYBOOK_IFRAME, STORYBOOK_INDEX, storybookIndexOf } from '../catalogue/storybook'
@@ -16,6 +18,7 @@ import { loadProject, viteConfigOf } from '../config/project'
 import { ConfigError, reason } from '../errors'
 import {
   CHANGES_ROUTE,
+  FINGERPRINT_ROUTE,
   HEALTH_ROUTE,
   MANIFEST_ROUTE,
   PLUGIN_FILES,
@@ -99,7 +102,9 @@ export async function build(input: string, log: (line: string) => void = console
   data(PLUGINS_ROUTE, await pluginsOf(project, catalogue, PLUGIN_FILES.slice(1)))
   data(VERSIONS_ROUTE, versions)
   data(HEALTH_ROUTE, healthOf(project, storiesOf(manifest)))
-  data(PROJECT_ROUTE, await projectOf(project, null, built.toISOString()))
+  data(PROJECT_ROUTE, await projectOf(project, null, built.toISOString(), githubOf(project.root)))
+  // What the shell compares a commit or a date typed in with, read from GitHub.
+  data(FINGERPRINT_ROUTE, fingerprint)
 
   for (const [route, changes] of changesOf(project.root, fingerprint, versions, built))
     data(route, changes)

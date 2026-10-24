@@ -2578,8 +2578,46 @@ describe('the versions view', () => {
     await champ.trigger('keydown', { key: 'Enter' })
     await vide(écran.wrapper)
     expect(vue(écran).text()).toContain(
-      'The changes cannot be read: this build holds no comparison from v9.',
+      'The changes cannot be read: this build holds no comparison from v9, and names no GitHub repository to read it from.',
     )
+    écran.wrapper.unmount()
+  })
+
+  // Un point que le build n'a pas calculé se lit sur GitHub, quand le dépôt y est.
+  test('reads a point the build did not compute from GitHub', async () => {
+    const écran = await monte(
+      [badge],
+      false,
+      undefined,
+      (url) => (url === '@crypte/changes.json' ? lus : ABSENT),
+      () => ({
+        stories: 'stories',
+        config: null,
+        shellBytes: 1,
+        version: '1',
+        built: '2026-10-24T12:00:00.000Z',
+        github: { repository: 'acme/ui', path: '', commit: 'f'.repeat(40) },
+      }),
+    )
+    const api = 'https://api.github.com/repos/acme/ui'
+    const empreinte = { version: 1, entries: [] }
+    const avant = globalThis.fetch
+    vi.stubGlobal('fetch', async (url: string) =>
+      url === `${api}/commits/a3f19c2`
+        ? new Response(JSON.stringify({ sha: 'a3f19c2'.padEnd(40, '0') }))
+        : url.startsWith(`${api}/contents/.crypte/fingerprint.json?ref=a3f19c2`)
+          ? new Response(JSON.stringify(empreinte))
+          : url === '@crypte/fingerprint.json'
+            ? new Response(JSON.stringify(empreinte))
+            : avant(url),
+    )
+    await clique(écran, entrée(écran))
+
+    const champ = écran.wrapper.find('.sidebar input')
+    await champ.setValue('a3f19c2')
+    await champ.trigger('keydown', { key: 'Enter' })
+    // Ce que seule une comparaison faite dessine : le titre suit le point, pas la lecture.
+    await vi.waitFor(() => expect(vue(écran).text()).toContain('Nothing changed in the catalogue.'))
     écran.wrapper.unmount()
   })
 

@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.48, reference document. A project brief points here instead of restating these shapes.
+> Version 1.49, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -687,13 +687,41 @@ The CLI writes two files side by side in `.crypte/`.
 | `manifest.json` | no | what the shell reads |
 | `fingerprint.json` | yes | what a build produced, kept in the repository's history |
 
+```ts
+interface Fingerprint {
+  version: number
+  entries: FingerprintEntry[]
+  tokens?: FingerprintToken[] // absent: unknown, not empty
+}
+
+interface FingerprintEntry {
+  id: string
+  component: string // `file#export`
+  status: string
+  props: string[] // sorted
+  rest: string // a digest of everything else
+}
+
+interface FingerprintToken {
+  family: string
+  key: string
+  type: string
+  themes: Record<string, string>
+}
+
+function compareFingerprints(before: Fingerprint, after: Fingerprint, from: { ref: string; commit: string }): Exclude<Changes, { reason: string }>
+function readFingerprint(read: unknown): Fingerprint | { lacks: string }
+```
+
+`compareFingerprints` gives what moved between two of them, which the CLI reads from Git and a build's shell from GitHub: a `Change` per story that appeared, disappeared, or whose props or status moved, in manifest order, and a `TokenChange` per token that appeared, disappeared or changed value, or `null` for the tokens when `before` predates them. `Changes` is that, or the `reason` there is none to read, which the comparison itself never gives. `readFingerprint` reads a file someone may have edited, and names what it lacks rather than throwing.
+
 **The manifest is the truth.** It is regenerated from the story files on every build, so when the two disagree it is the fingerprint that is out of date, never the other way round.
 
 The fingerprint is not a smaller manifest and nothing reads it to render. `crypte dev` reads the version a commit holds, through Git, and serves its difference with the catalogue to the shell's versions view: `HEAD` by default, or a branch, a tag or a commit named in the route's query, or the last commit before a date. It exists so that Git holds the history of a catalogue: per **story** entry, the identifier, the component as `file#export`, the status, the sorted prop names, and one digest folding everything else but `component.tokens`. The digest reads `source` with its attributes sorted, so reordering props in a story file, which changes nothing rendered, leaves the fingerprint alone. That is enough to say what changed between two versions, and small enough to commit on every build. Measured on 500 stories: the full manifest is 706 KB raw and 83 KB gzipped, the fingerprint 131 KB and 9 KB, which is 268 bytes per story.
 
 **Tokens have a section of their own**, beside the story entries: per token, its family's identifier, its key, its kind and the literal of each theme, sorted by family and key. The values themselves and not a digest, since the versions view shows a token before and after. A fingerprint committed before this section has no `tokens` at all, which reads as "unknown", not "empty": the token history starts with the next commit.
 
-**`crypte build` writes both files too**, so the record is rewritten without a server, and it writes what the versions view reads beside the static folder: a static host cannot ask Git. The default comparison is the default branch, since the last commit of a deployed build compares with itself; then the tags and the two periods the view offers, counted in UTC days before the build, each in a file named by its point in hexadecimal, since a tag may hold a `/` or a `%` a host would decode.
+**`crypte build` writes both files too**, so the record is rewritten without a server, and it writes what the versions view reads beside the static folder: a static host cannot ask Git. The default comparison is the default branch, since the last commit of a deployed build compares with itself; then the tags and the two periods the view offers, counted in UTC days before the build, each in a file named by its point in hexadecimal, since a tag may hold a `/` or a `%` a host would decode. Any other point is read in the browser: the build publishes its own fingerprint and names its GitHub repository, its folder in it and the commit built, and the shell reads the fingerprint GitHub holds at that point.
 
 **A missing or stale fingerprint is never fatal to a build.** It is a record, so the build writes it and moves on. Telling a project that its record is behind is the job of `crypte check`, which fails on it (1.2). The two are compared as data, so reformatting the file is not a change.
 
@@ -1061,7 +1089,7 @@ This document is a contract. This section is the only place that says what exist
 
 Twelve known gaps between this document and the code:
 
-- **A build compares only with the points it computed.** The versions view of a static folder reads the default branch, the tags and the two periods `crypte build` wrote; a commit or a date typed in says that the build holds no comparison from it (DCJ-386).
+- **A build reads any other point from a public GitHub repository only.** The versions view of a static folder reads the default branch, the tags and the two periods `crypte build` wrote; a commit or a date typed in is read from GitHub, without a token, so a private repository or another host says why it cannot be read. The token a private repository needs waits for the `editor` plugin (DCJ-343).
 
 - **A plugin's peer range checks the copies npm installs, never the ones its panel runs on.** `vue` and `@crypte/ui` reach a panel from the installed CLI's shell, through its import map (6.1). A plugin newer than that CLI, which imports a component its `@crypte/ui` does not have yet, fails to load, and the frame shows the import error in the panel's place. Pinning `@crypte/cli` instead would move the whole `fixed` group to a major version at every minor one, measured with `changeset status` (DCJ-352).
 - **The preview is compiled by the CLI's Vite, and nothing checks the project's plugins against it.** A project on another major keeps its own Vite for its build, and its `vite.plugins` run in the CLI's anyway. Measured on a project on Vite 6: its React plugin warned about deprecated options and every story rendered. Resolving the project's own Vite instead would be a rework, not a fix.
@@ -1078,6 +1106,13 @@ Twelve known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.49.** The fingerprint's shape and its comparison move to the core, and a build compares with any point of a public GitHub repository (4.6, 8).
+
+| Before | After |
+| --- | --- |
+| `Fingerprint` and the comparison lived in the CLI, and the shell copied the shape of `Changes` | `@crypte/core/protocol` exports them, with `compareFingerprints` and `readFingerprint` |
+| a commit or a date typed in on a build said the build held no comparison from it | it is read from GitHub when the repository is there |
 
 **v1.48.** The stories can be read in the shape of a built Storybook (8).
 

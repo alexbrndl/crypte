@@ -3,13 +3,8 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import {
-  changesOf,
-  changesSince,
-  committedFingerprint,
-  tokenChangesOf,
-} from '../src/catalogue/changes'
-import type { Fingerprint, FingerprintEntry } from '../src/catalogue/fingerprint'
+import type { Fingerprint, FingerprintEntry } from '@crypte/core/protocol'
+import { changesSince, committedFingerprint } from '../src/catalogue/changes'
 
 // Ce qui a changé depuis le dernier commit : l'empreinte que `HEAD` porte,
 // relue dans Git, contre celle du catalogue servi.
@@ -22,63 +17,6 @@ const entrée = (id: string, props: string[], status = 'none', rest = 'r'): Fing
   rest,
 })
 const empreinte = (...entries: FingerprintEntry[]): Fingerprint => ({ version: 1, entries })
-
-describe('the changes between two fingerprints', () => {
-  test('names what appeared, changed and disappeared, in that order', () => {
-    const avant = empreinte(
-      entrée('a--garde', ['label']),
-      entrée('a--props', ['label']),
-      entrée('a--statut', [], 'draft'),
-      entrée('a--partie', []),
-    )
-    const après = empreinte(
-      entrée('a--neuve', ['tone']),
-      entrée('a--garde', ['label']),
-      entrée('a--props', ['label', 'tone']),
-      entrée('a--statut', [], 'stable'),
-    )
-
-    expect(changesOf(avant, après)).toEqual([
-      { kind: 'appeared', id: 'a--neuve' },
-      { kind: 'changed', id: 'a--props', props: { before: ['label'], after: ['label', 'tone'] } },
-      { kind: 'changed', id: 'a--statut', status: { before: 'draft', after: 'stable' } },
-      { kind: 'disappeared', id: 'a--partie' },
-    ])
-  })
-
-  test('names both halves when the props and the status moved together', () => {
-    expect(
-      changesOf(
-        empreinte(entrée('a--x', ['a'], 'draft')),
-        empreinte(entrée('a--x', ['b'], 'stable')),
-      ),
-    ).toEqual([
-      {
-        kind: 'changed',
-        id: 'a--x',
-        props: { before: ['a'], after: ['b'] },
-        status: { before: 'draft', after: 'stable' },
-      },
-    ])
-  })
-
-  // Le condensé change avec la source ; le mode changements ne compare que les
-  // identifiants, les statuts et les noms de props.
-  test('does not list a story whose props and status stayed, whatever else moved', () => {
-    expect(
-      changesOf(
-        empreinte(entrée('a--x', ['a'], 'none', 'avant')),
-        empreinte(entrée('a--x', ['a'], 'none', 'après')),
-      ),
-    ).toEqual([])
-  })
-
-  test('tells a removed prop from an equal list of another length', () => {
-    expect(
-      changesOf(empreinte(entrée('a--x', ['a', 'b'])), empreinte(entrée('a--x', ['a']))),
-    ).toEqual([{ kind: 'changed', id: 'a--x', props: { before: ['a', 'b'], after: ['a'] } }])
-  })
-})
 
 // Des dépôts jetables, hors de celui-ci : `tmpdir()` n'est dans aucun dépôt.
 describe('the committed fingerprint', () => {
@@ -277,55 +215,6 @@ describe('the committed fingerprint', () => {
     expect(changesSince(dossier(), empreinte())).toEqual({
       reason: 'the project is not in a Git repository',
     })
-  })
-})
-
-describe('the changes of the tokens', () => {
-  const jeton = (key: string, themes: Record<string, string>, family = 'tokens--color') => ({
-    family,
-    key,
-    type: 'color',
-    themes,
-  })
-
-  test('names what appeared, changed and disappeared, theme by theme', () => {
-    expect(
-      tokenChangesOf(
-        [
-          jeton('garde', { light: '#111' }),
-          jeton('teinte', { light: '#111', dark: '#eee' }),
-          jeton('partie', { light: '#000' }),
-        ],
-        [
-          jeton('neuve', { light: '#fff' }),
-          jeton('garde', { light: '#111' }),
-          jeton('teinte', { light: '#111', dark: '#ddd' }),
-        ],
-      ),
-    ).toEqual([
-      { kind: 'appeared', family: 'tokens--color', key: 'neuve', after: { light: '#fff' } },
-      {
-        kind: 'changed',
-        family: 'tokens--color',
-        key: 'teinte',
-        before: { light: '#111', dark: '#eee' },
-        after: { light: '#111', dark: '#ddd' },
-      },
-      { kind: 'disappeared', family: 'tokens--color', key: 'partie', before: { light: '#000' } },
-    ])
-  })
-
-  // Une même clé dans deux familles : deux tokens.
-  test('keeps two families apart', () => {
-    expect(
-      tokenChangesOf(
-        [jeton('base', { light: '#111' }, 'a')],
-        [jeton('base', { light: '#111' }, 'b')],
-      ),
-    ).toEqual([
-      { kind: 'appeared', family: 'b', key: 'base', after: { light: '#111' } },
-      { kind: 'disappeared', family: 'a', key: 'base', before: { light: '#111' } },
-    ])
   })
 })
 

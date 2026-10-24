@@ -7,7 +7,8 @@ import { plural } from '../plural'
 import type { StoryEntry } from '@crypte/core/protocol'
 import { computed } from 'vue'
 import { componentIdOf } from '../navigation/tree'
-import { componentOfId, type Changes } from '../pages/changes'
+import type { Changes } from '@crypte/core/protocol'
+import { componentOfId } from '../pages/changes'
 import { sinceLabel, type Difference } from './differences'
 
 // Le canvas de la vue versions : ce qui a changé depuis le point choisi, puis le
