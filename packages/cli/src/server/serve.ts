@@ -15,6 +15,7 @@ import { cssEntryOf, type Project } from '../config/project'
 import { ONLY_STORY } from '../catalogue/stories'
 import { configSources, required } from '../config/config-source'
 import { STORYBOOK_IFRAME, STORYBOOK_INDEX, storybookIndexOf } from '../catalogue/storybook'
+import type { GitHub } from '../catalogue/github'
 import { surfacesOf } from './surfaces'
 import { pluginWeights, shellBytes } from './weight'
 
@@ -67,6 +68,10 @@ export const PLUGINS_ROUTE = '/@crypte/plugins.json'
 // Read from Git at each request: a commit made while the server runs moves it.
 // `?from=` names another point, a branch, a tag or a commit; `?before=` a date.
 export const CHANGES_ROUTE = '/@crypte/changes.json'
+
+// The catalogue's fingerprint, which only a build writes: its shell compares it
+// with the one GitHub holds at a commit or a date the build did not compute.
+export const FINGERPRINT_ROUTE = '/@crypte/fingerprint.json'
 
 // The points the versions view offers to start from: the default branch and the
 // tags. Read from Git at each request too.
@@ -479,8 +484,14 @@ let shellWeight: Promise<number> | undefined
 
 // What `PROJECT_ROUTE` serves. `built` is when `crypte build` ran, `null` under
 // `crypte dev`: the shell compares a build with its default branch, not with a
-// last commit that means nothing once deployed.
-export async function projectOf(project: Project, config: string | null, built: string | null) {
+// last commit that means nothing once deployed. `github` is where a build reads
+// a point it did not compute, `null` under `crypte dev`, which asks Git.
+export async function projectOf(
+  project: Project,
+  config: string | null,
+  built: string | null,
+  github: GitHub | null = null,
+) {
   shellWeight ??= shellBytes(shellAssets())
   return {
     stories: project.config.stories,
@@ -489,6 +500,7 @@ export async function projectOf(project: Project, config: string | null, built: 
     shellBytes: await shellWeight,
     version: VERSION,
     built,
+    github,
   }
 }
 

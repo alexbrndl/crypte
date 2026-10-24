@@ -43,7 +43,9 @@ import {
 } from 'vue'
 import Panels, { type LoadedView } from './panels/panels.vue'
 import { landing, unreadable, type Shown } from './navigation/recover'
-import { changesUrl, type Changes } from './pages/changes'
+import type { Changes, Fingerprint } from '@crypte/core/protocol'
+import { changesUrl } from './pages/changes'
+import { changesOnGitHub, type GitHub } from './versions/github'
 import { differencesOf, sinceLabel } from './versions/differences'
 import VersionsSidebar, { type Since, type Versions } from './versions/versions-sidebar.vue'
 import VersionsView from './versions/versions-view.vue'
@@ -319,10 +321,18 @@ async function readChanges() {
     if (point !== undefined) await projectRead
     const built = Boolean(project.value?.built)
     const answer = await fetch(changesUrl(since, built))
+    const github = project.value?.github
+    // Un point que le build n'a pas calculé se lit sur GitHub, quand le dépôt y est.
     read =
-      built && !answer.ok
-        ? { reason: `this build holds no comparison from ${point}` }
-        : ((await answer.json()) as Changes)
+      !built || answer.ok
+        ? ((await answer.json()) as Changes)
+        : github
+          ? await changesOnGitHub(
+              github,
+              since,
+              (await fetch(FINGERPRINT).then((one) => one.json())) as Fingerprint,
+            )
+          : { reason: `this build holds no comparison from ${point}` }
   } catch (error) {
     read = {
       reason: `its route could not be read: ${error instanceof Error ? error.message : String(error)}`,
@@ -331,6 +341,9 @@ async function readChanges() {
   // Le dernier relu gagne : deux `ready` rapprochés ne se répondent pas dans l'ordre.
   if (run === reading) changes.value = read
 }
+
+// L'empreinte du build, que seul `crypte build` écrit.
+const FINGERPRINT = '@crypte/fingerprint.json'
 
 // Les points de départ que le CLI propose, relus à l'ouverture de la vue.
 const VERSIONS = '@crypte/versions.json'
@@ -550,6 +563,8 @@ const project = ref<{
   version: string
   // Quand `crypte build` a écrit ce que le shell lit, `null` sous `crypte dev`.
   built?: string | null
+  // Le dépôt GitHub d'un build, `null` sous `crypte dev` ou hors de GitHub.
+  github?: GitHub | null
 } | null>(null)
 let asking = 0
 // La dernière lecture, qu'attend celle des changements depuis un point : sur un

@@ -118,6 +118,7 @@ describe('crypte dev', () => {
       ).version,
       // Sous `crypte dev` : seul `crypte build` date ce que le shell lit.
       built: null,
+      github: null,
     })
   })
 
