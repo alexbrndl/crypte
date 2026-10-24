@@ -117,6 +117,91 @@ describe('the theme', () => {
   })
 })
 
+// Les enrobages coupés depuis le shell : leurs rangs arrivent au rendu, et le rendu
+// rend les noms de tous, coupés compris, pour que les rangs restent les mêmes.
+describe('muted wrappers', () => {
+  it('hands the muted ranks to the render, and keeps them on a replay', () => {
+    const reçus: (readonly number[] | undefined)[] = []
+    const canal = createPreviewChannel({
+      render: (_id, _overrides, muted) => void reçus.push(muted),
+    })
+
+    envoie({ ...RENDER, muted: [1] })
+    canal.again()
+    envoie(RENDER)
+
+    expect(reçus).toEqual([[1], [1], undefined])
+  })
+
+  // Des rangs seulement : une chaîne passerait `includes` et couperait au hasard.
+  it('drops a muted that is not a list of ranks', () => {
+    const reçus: (readonly number[] | undefined)[] = []
+    createPreviewChannel({ render: (_id, _overrides, muted) => void reçus.push(muted) })
+
+    envoie({ ...RENDER, muted: '10' })
+    envoie({ ...RENDER, muted: ['1'] })
+    envoie({ ...RENDER, muted: [0.5] })
+
+    expect(reçus).toEqual([undefined, undefined, undefined])
+  })
+
+  it('names every wrapper of the story in the rendered message', () => {
+    function Theme() {}
+    const Nommé = Object.assign(() => {}, { displayName: 'Routeur' })
+    createPreviewChannel({
+      render: () => ({
+        props: {},
+        wraps: [
+          { component: Nommé, props: {} },
+          { component: { __name: 'Panel' }, props: {} },
+          { component: Theme, props: {} },
+          { component: { name: 'Fournisseur' }, props: {} },
+          { component: { $$typeof: 'memo', type: Theme }, props: {} },
+          { component: { $$typeof: 'forward', render: Nommé }, props: {} },
+          { component: {}, props: {} },
+          { component: { render() {} }, props: {} },
+          { component: 'Badge', props: {} },
+        ],
+      }),
+    })
+
+    envoie(RENDER)
+
+    expect((recus.at(-1) as { wraps?: string[] }).wraps).toEqual([
+      'Routeur',
+      'Panel',
+      'Theme',
+      'Fournisseur',
+      'Theme',
+      'Routeur',
+      'anonymous',
+      'anonymous',
+      'anonymous',
+    ])
+  })
+
+  // Un composant qui se contient lui-même ne fait pas tourner la lecture du nom.
+  it('names a wrapper whose type points back at itself', () => {
+    const boucle: { $$typeof: string; type?: unknown } = { $$typeof: 'memo' }
+    boucle.type = boucle
+    createPreviewChannel({
+      render: () => ({ props: {}, wraps: [{ component: boucle, props: {} }] }),
+    })
+
+    envoie(RENDER)
+
+    expect((recus.at(-1) as { wraps?: string[] }).wraps).toEqual(['anonymous'])
+  })
+
+  it('sends no wraps when the render returns none', () => {
+    createPreviewChannel({ render: () => ({ props: {} }) })
+
+    envoie(RENDER)
+
+    expect(recus.at(-1)).not.toHaveProperty('wraps')
+  })
+})
+
 describe('what is ignored', () => {
   function monte(render: (id: string) => void = () => {}) {
     const rendus: unknown[] = []

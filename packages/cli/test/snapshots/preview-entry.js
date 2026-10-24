@@ -68,7 +68,7 @@ function __crypte_named(failure, loading) {
   return named
 }
 
-function __crypte_render(id, overrides) {
+function __crypte_render(id, overrides, muted = []) {
   const entry = __crypte_byId.get(id)
   if (!entry) throw new Error(`unknown story: ${id}`)
 
@@ -108,14 +108,17 @@ function __crypte_render(id, overrides) {
   const __crypte_declared = definition.stories?.[entry.name]
   const __crypte_own = __crypte_declared !== null && typeof __crypte_declared === 'object' && 'props' in __crypte_declared ? __crypte_declared.options : undefined
   __crypte_container.dataset.layout = __crypte_own?.layout ?? entry.options.layout ?? 'centered'
-  __crypte_adapter.mount(__crypte_container, component, props, __crypte_wrapsOf(__crypte_wrap, definition))
+  // All of them travel back by name; the muted ones, by rank, stay out of the mount.
+  const __crypte_wraps = __crypte_wrapsOf(__crypte_wrap, definition)
+  __crypte_adapter.mount(__crypte_container, component, props, __crypte_wraps.filter((_, at) => !muted.includes(at)))
 
   // The story drawn, which the channel hands to the plugins' hooks once
   // `rendered` is out: a render that threw has none to hand.
-  return { id, props, options: entry.options, root: __crypte_container }
+  return { id, props, options: entry.options, root: __crypte_container, wraps: __crypte_wraps }
 }
 
-const __crypte_channel = __crypte_channelOf({ render: __crypte_render, rendered: (story) => __crypte_host.mounted(story), message: (message) => __crypte_host.received(message) })
+// `wraps` stays out of what the plugins receive: their context is typed without it.
+const __crypte_channel = __crypte_channelOf({ render: __crypte_render, rendered: ({ wraps: _wraps, ...story }) => __crypte_host.mounted(story), message: (message) => __crypte_host.received(message) })
 
 // After the channel, since it sends through it: what failed to load is said
 // once `ready` is out, so the shell has cleared what the frame before said.

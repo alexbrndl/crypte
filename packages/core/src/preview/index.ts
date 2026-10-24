@@ -15,7 +15,9 @@ export const PREVIEW_MARKER = '__crypte_preview__'
 export interface PreviewHandlers {
   // What it returns is handed to `rendered`, and its `props`, the primitive
   // ones, travel to the shell with the `rendered` message.
-  render(id: string, overrides: Record<string, unknown>): unknown
+  // `muted`: the ranks of the wrappers to leave out. What it returns may carry the
+  // story's `wraps`, all of them, whose names travel with `rendered` too.
+  render(id: string, overrides: Record<string, unknown>, muted?: readonly number[]): unknown
   // After a render that went through, once `rendered` is out: what runs here,
   // the plugins' `afterMount`, is not part of the time the shell shows.
   rendered?(drawn: unknown): void
@@ -41,16 +43,20 @@ export function createPreviewChannel(handlers: PreviewHandlers): PreviewChannel 
 
   // What the shell last asked for. Held here rather than by the caller: the
   // reporting belongs to the same place, and two owners would drift.
-  let asked: { id: string; overrides: Record<string, unknown>; theme?: Theme } | undefined
+  let asked:
+    | { id: string; overrides: Record<string, unknown>; theme?: Theme; muted?: number[] }
+    | undefined
 
   const draw = ({
     id,
     overrides,
     theme,
+    muted,
   }: {
     id: string
     overrides: Record<string, unknown>
     theme?: Theme
+    muted?: number[]
   }) => {
     // Before the render, so the story mounts in its theme rather than repainting.
     if (theme) {
@@ -61,12 +67,14 @@ export function createPreviewChannel(handlers: PreviewHandlers): PreviewChannel 
     const startedAt = performance.now()
     let drawn: unknown
     try {
-      drawn = handlers.render(id, overrides)
+      drawn = handlers.render(id, overrides, muted)
+      const wraps = (drawn as { wraps?: unknown } | null | undefined)?.wraps
       reply({
         type: 'rendered',
         id,
         durationMs: performance.now() - startedAt,
         values: primitivesOf((drawn as { props?: unknown } | null | undefined)?.props),
+        ...(Array.isArray(wraps) ? { wraps: wraps.map((one) => wrapperName(one)) } : {}),
       })
     } catch (error) {
       reply({
@@ -95,6 +103,11 @@ export function createPreviewChannel(handlers: PreviewHandlers): PreviewChannel 
         id: message.id,
         overrides: message.overrides,
         ...(message.theme ? { theme: message.theme } : {}),
+        // Ranks only: the entry tests them with `includes`, and `'10'.includes(1)`
+        // is `true`, so a string would turn off wrappers instead of nothing.
+        ...(Array.isArray(message.muted) && message.muted.every((one) => Number.isInteger(one))
+          ? { muted: message.muted }
+          : {}),
       }
       draw(asked)
     } else if (type.includes(':')) handlers.message?.(event.data as { type: string })
@@ -312,6 +325,30 @@ export function wrapsOf(
   definition: { wrap?: unknown } | undefined,
 ): PreviewWrapper[] {
   return [...entriesOf(global), ...entriesOf(definition?.wrap)]
+}
+
+// What the shell shows for a wrapper: a React component's `displayName` or
+// function name, a Vue file's `__name` or its `name` option. A wrapper with none
+// is still listed, so its rank stays the one `muted` counts by.
+function wrapperName(wrapper: unknown): string {
+  return nameOf((wrapper as { component?: unknown } | null)?.component, 0)
+}
+
+// `memo(…)` holds its component in `type`, `forwardRef(…)` in `render`: read
+// through them, a few levels at most. Only what React marks with `$$typeof`: a Vue
+// component carries a `render` of its own, whose name is `render`.
+function nameOf(component: unknown, depth: number): string {
+  if ((typeof component !== 'object' && typeof component !== 'function') || component === null)
+    return 'anonymous'
+  for (const key of ['displayName', '__name', 'name']) {
+    const value = (component as Record<string, unknown>)[key]
+    if (typeof value === 'string' && value !== '') return value
+  }
+  if (depth > 2 || !('$$typeof' in component)) return 'anonymous'
+  const inner =
+    (component as { type?: unknown; render?: unknown }).type ??
+    (component as { render?: unknown }).render
+  return nameOf(inner, depth + 1)
 }
 
 // One wrapper and the props it was declared with. `component` stays `unknown`:

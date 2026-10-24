@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.45, reference document. A project brief points here instead of restating these shapes.
+> Version 1.46, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -143,7 +143,7 @@ interface Adapter {
 }
 ```
 
-The preview calls `mount` on every render, with the wrappers of 2.5 outermost first, and sends what it throws as that story's error. `component` and the wrappers stay `unknown`: each adapter narrows them to its framework's components. Both adapters keep their root from one render to the next, so a component's state survives a props edit, and a switch to another story of the same component: an open dialog stays open. The preview unmounts only when hot reload replaces its module. `@crypte/vue` patches through Vue's `render` rather than an app, whose updates wait for the next tick: the story is on screen when `mount` returns. Each throws on a value that is not one of its framework's components, which would otherwise render nothing and be announced as rendered.
+The preview calls `mount` on every render, with the wrappers of 2.5 that are not muted (5.2), outermost first, and sends what it throws as that story's error. `component` and the wrappers stay `unknown`: each adapter narrows them to its framework's components. Both adapters keep their root from one render to the next, so a component's state survives a props edit, and a switch to another story of the same component: an open dialog stays open. The preview unmounts only when hot reload replaces its module. `@crypte/vue` patches through Vue's `render` rather than an app, whose updates wait for the next tick: the story is on screen when `mount` returns. Each throws on a value that is not one of its framework's components, which would otherwise render nothing and be announced as rendered.
 
 **An adapter brings no Vite plugin.** The project declares the one its framework needs in `vite.plugins`, `react()` or `vue()`, as it would in its own Vite config. `vue()` does run in Node when the configuration is evaluated, but that instance is dropped: the browser rebuilds the adapter from the configuration's text, so a plugin it returned would reach nothing. Reopened if a framework needs more than one plugin in an order a project cannot guess.
 
@@ -722,7 +722,7 @@ Each direction has its own type: `ShellMessage` goes to the iframe, `PreviewMess
 
 ```ts
 type ShellMessage =
-  | { type: 'render'; id: string; overrides: Overrides; theme?: Theme }
+  | { type: 'render'; id: string; overrides: Overrides; theme?: Theme; muted?: number[] }
   | MessagesOf<PluginShellMessages>
 
 type Theme = 'light' | 'dark'
@@ -732,6 +732,8 @@ type Theme = 'light' | 'dark'
 
 `theme` is the theme to draw in. Before rendering, the preview sets it as `data-theme` and as the `color-scheme` of its root element: a sheet reads the first through a `[data-theme="dark"]` selector, the one `@crypte/tokens` reads its themes from, and `light-dark()` follows the second. A `render` without `theme` changes nothing on the root: it keeps what the project or the last `theme` set there. The shell sends its own theme; to compare, it opens a second preview and sends `light` to one and `dark` to the other.
 
+`muted` lists the wrappers to leave out, by their rank in the `wraps` of the last `rendered` (5.3), outermost first. The preview's entry drops them before `mount`, so no adapter knows of it: turning off a provider shows which context a component depends on without saying. The shell forgets what was turned off when the story changes, and keeps it out of the address, as the zoom.
+
 **`update-overrides` and `set-globals` were here and are now in reserve**, section 7. Neither had a consumer, and `render` already carries overrides: what the first added was updating them *without remounting*. **`controls` settled it: nothing is remounted.** Measured in a browser, the node the React adapter rendered survives an edit, since the adapter renders again on the root it keeps; the Vue adapter does the same through Vue's `render`.
 
 ### 5.3 Preview to shell
@@ -739,13 +741,13 @@ type Theme = 'light' | 'dark'
 ```ts
 type PreviewMessage =
   | { type: 'ready'; protocolVersion: number }
-  | { type: 'rendered'; id: string; durationMs: number; values: RenderedValues }
+  | { type: 'rendered'; id: string; durationMs: number; values: RenderedValues; wraps?: string[] }
   | { type: 'error'; id: string; message: string; stack?: string }
   | { type: 'plugin-error'; plugin: string; message: string }
   | MessagesOf<PluginPreviewMessages>
 ```
 
-`ready` says the preview is up. `rendered` reports a finished render, how long it took, and what the story rendered with: its props after 2.3's merge, overrides included, keeping a string, a finite number or a boolean, as an override is (5.1).
+`ready` says the preview is up. `rendered` reports a finished render, how long it took, and what the story rendered with: its props after 2.3's merge, overrides included, keeping a string, a finite number or a boolean, as an override is (5.1). `wraps` names the story's wrappers of 2.5, outermost first, muted ones included so a rank stays the same: a component's `displayName`, a Vue file's `__name`, its `name`, or `anonymous`.
 
 ```ts
 type RenderedValues = Record<string, string | number | boolean>
@@ -1072,6 +1074,12 @@ Eleven known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.46.** A wrapper can be turned off from the shell (5.2, 5.3).
+
+| Before | After |
+| --- | --- |
+| a story always rendered inside all its wrappers | `rendered` names them in `wraps`, `render` leaves out the ranks in `muted`, and the stories panels list them with a toggle each |
 
 **v1.45.** The adapter type moves to the core, and a Vue adapter exists (1.4, 1.5).
 
