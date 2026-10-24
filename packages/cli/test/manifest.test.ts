@@ -196,6 +196,21 @@ describe('the catalogue', () => {
     )
   })
 
+  // Le choix entre JSX et template suit le fichier résolu : un import écrit sans
+  // `.vue` qui y mène donne un template aussi.
+  it('writes a template for an import that resolves to a .vue file', async () => {
+    const root = projectWith({
+      'crypte.config.ts': CONFIG,
+      'src/Badge.vue': '<template><b /></template>',
+      'stories/Badge.ts':
+        "import Badge from '../src/Badge'\nexport default defineStories(Badge, { props: { count: 3 } })\n",
+    })
+
+    const { manifest } = buildCatalogue(await loadProject(root))
+
+    expect(storiesOf(manifest)[0]?.source).toBe('<Badge :count="3" />')
+  })
+
   it('names the stories folder when it is missing', async () => {
     const root = projectWith({ 'crypte.config.ts': CONFIG })
 

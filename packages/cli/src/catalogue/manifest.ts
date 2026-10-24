@@ -92,7 +92,7 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
       continue
     }
 
-    const read = entriesOf(file, project.root, storiesRoot)
+    let read = entriesOf(file, project.root, storiesRoot)
     walked.add(posix(relative(project.root, file)))
 
     if (read.skipped) {
@@ -113,6 +113,11 @@ export function buildCatalogue(project: Project, before?: Catalogue): Catalogue 
     const resolved = read.entries[0]
       ? componentFile(read.entries[0].component.file, file, project)
       : undefined
+
+    // `import Badge from './Badge'` resolving to `Badge.vue`: the call code is a
+    // template too, which only the resolved file can tell.
+    if (resolved?.endsWith('.vue') && !read.entries[0]!.component.file.endsWith('.vue'))
+      read = entriesOf(file, project.root, storiesRoot, true)
 
     // Once per file too, and for the same reason: every entry of a file names the
     // same component, so reading its props once is enough. `resolved` is only

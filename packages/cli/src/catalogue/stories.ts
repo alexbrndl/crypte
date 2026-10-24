@@ -31,7 +31,15 @@ export interface StoryFileRead {
   meant?: boolean
 }
 
-export function entriesOf(file: string, root: string, storiesRoot: string): StoryFileRead {
+// `template` writes the call code as a Vue template. By default, when the story
+// imports a `.vue` file by name; the caller forces it once an import written
+// without its extension resolves to one.
+export function entriesOf(
+  file: string,
+  root: string,
+  storiesRoot: string,
+  template?: boolean,
+): StoryFileRead {
   const source = readFileSync(file, 'utf8')
   const parsed = parseSync(file, source)
 
@@ -146,9 +154,10 @@ export function entriesOf(file: string, root: string, storiesRoot: string): Stor
         details: {},
         props: [...props.keys()].sort(),
         // A `.vue` component is called from a Vue template, everything else from JSX.
-        source: component.file.endsWith('.vue')
-          ? templateOf(name, props, source)
-          : callOf(name, props, source),
+        source:
+          (template ?? component.file.endsWith('.vue'))
+            ? templateOf(name, props, source)
+            : callOf(name, props, source),
         ...(meta ? { meta } : {}),
         ...(partial.length > 0 ? { partial: partial.join('; ') } : {}),
       } satisfies StoryEntry
@@ -574,16 +583,22 @@ function slotOf(props: Map<string, Node | undefined>, source: string): string | 
 
   if (inner.type === 'Literal' && typeof inner['value'] === 'string') {
     const text = inner['value'] as string
-    return text !== '' && !SLOT_HOSTILE.test(text) ? text : `{{ ${JSON.stringify(text)} }}`
+    return text !== '' && !SLOT_HOSTILE.test(text) ? text : interpolated(JSON.stringify(text))
   }
 
-  return `{{ ${raw} }}`
+  return interpolated(raw)
 }
 
 // What a template would not give back unchanged as text: an angle bracket and an
-// `&` are markup, `{{` an interpolation, and Vue condenses edge whitespace and
-// line breaks.
-const SLOT_HOSTILE = /[<&\n\r\u2028\u2029\u0000-\u001f]|\{\{|^\s|\s$/
+// `&` are markup, `{{` an interpolation, and Vue condenses edge whitespace, runs
+// of spaces and line breaks.
+const SLOT_HOSTILE = /[<&\n\r\u2028\u2029\u0000-\u001f]|\{\{|^\s|\s$|\s\s/
+
+// An interpolation is found by its first `}}`, then decoded as HTML: `&` written
+// `&amp;` and a `}` before another as `&#125;` come back as themselves, in a
+// string as in an expression.
+const interpolated = (expression: string) =>
+  `{{ ${expression.replaceAll('&', '&amp;').replace(/\}(?=\})/g, '&#125;')} }}`
 
 // What goes between the tags: `children` as an attribute is valid JSX and not
 // what anybody writes. `undefined` keeps the self-closing form, including for a

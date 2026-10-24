@@ -677,6 +677,16 @@ describe('the call code of a Vue component', () => {
     expect(vue("{ children: '' }")).toBe('<Badge>{{ "" }}</Badge>')
   })
 
+  // Une interpolation se ferme au premier `}}` puis décode le HTML : écrits en
+  // entités, `&` et `}}` reviennent tels quels (mesuré avec `@vue/compiler-dom`).
+  it('escapes what an interpolation would read otherwise', () => {
+    expect(vue("{ children: '{{ x }}' }")).toBe('<Badge>{{ "{{ x &#125;}" }}</Badge>')
+    expect(vue("{ children: '&copy; 2026' }")).toBe('<Badge>{{ "&amp;copy; 2026" }}</Badge>')
+    expect(vue('{ children: { a: { b: 1 }} }')).toBe('<Badge>{{ { a: { b: 1 &#125;} }}</Badge>')
+    // Une suite d'espaces est condensée par le template.
+    expect(vue("{ children: 'a  b' }")).toBe('<Badge>{{ "a  b" }}</Badge>')
+  })
+
   // Une valeur qu'un spread peut remplacer n'est pas montrée, comme en JSX.
   it('shows no value a spread may replace', () => {
     expect(vue("{ ...base, label: 'Neuf', children: 'x', ...more }")).toBe('<Badge />')
