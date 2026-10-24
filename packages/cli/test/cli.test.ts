@@ -14,7 +14,7 @@ const dit = () => {
   return { lignes, log: (line: string) => lignes.push(line) }
 }
 
-// Les trois commandes montent un serveur, lisent un projet ou écrivent un
+// Les quatre commandes montent un serveur, lisent un projet ou écrivent un
 // fichier : ici on n'éprouve que ce que l'entrée leur passe, donc des doublures
 // qui retiennent quelle commande a reçu quelle racine.
 const faux = () => {
@@ -25,6 +25,9 @@ const faux = () => {
     dev: async (input: string) => {
       appels.push(['dev', input])
       return undefined as unknown as Running
+    },
+    build: async (input: string) => {
+      appels.push(['build', input])
     },
     check: async (input: string) => {
       appels.push(['check', input])
@@ -63,13 +66,13 @@ describe('the crypte command', () => {
     expect(doublure.appels).toEqual([])
   })
 
-  // L'aide nomme les trois commandes et la version du protocole : c'est ce
+  // L'aide nomme les quatre commandes et la version du protocole : c'est ce
   // qu'on vient y chercher.
-  test('names the three commands and the protocol version in the help', () => {
+  test('names the four commands and the protocol version in the help', () => {
     const texte = help().join('\n')
 
     expect(texte).toContain(`protocol v${PROTOCOL_VERSION}`)
-    for (const commande of ['dev [root]', 'check [root]', 'init [root]']) {
+    for (const commande of ['dev [root]', 'build [root]', 'check [root]', 'init [root]']) {
       expect(texte).toContain(commande)
     }
   })
@@ -102,17 +105,20 @@ describe('the crypte command', () => {
     expect(doublure.appels).toEqual([])
   })
 
-  test.for(['dev', 'check', 'init'] as const)('passes the given root to %s', async (commande) => {
-    const doublure = faux()
+  test.for(['dev', 'build', 'check', 'init'] as const)(
+    'passes the given root to %s',
+    async (commande) => {
+      const doublure = faux()
 
-    await run([commande, '/un/projet'], dit().log, doublure)
+      await run([commande, '/un/projet'], dit().log, doublure)
 
-    expect(doublure.appels).toEqual([[commande, '/un/projet']])
-  })
+      expect(doublure.appels).toEqual([[commande, '/un/projet']])
+    },
+  )
 
   // Sans racine, le dossier courant : c'est ce qu'une commande nue doit faire,
   // et rien ne le vérifiait.
-  test.for(['dev', 'check', 'init'] as const)(
+  test.for(['dev', 'build', 'check', 'init'] as const)(
     'uses the current directory when the root is missing on %s',
     async (commande) => {
       const doublure = faux()

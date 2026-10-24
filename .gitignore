@@ -31,6 +31,10 @@ coverage/
 # comme un fichier et qu'un motif de dossier ne couvre pas. Mesuré.
 packages/cli/test/tmp-hot-*
 packages/cli/test/tmp-dev-*
+packages/cli/test/tmp-build-*
 apps/tmp-demo-*
 test/.mutation-inflight.json
 vitest-report.json
+
+# La sortie de `crypte build`, réécrite à chaque fois.
+**/crypte-static

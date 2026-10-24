@@ -347,7 +347,7 @@ describe('fingerprint', () => {
     const lignes: string[] = []
 
     expect(await check(projet(), (line) => lignes.push(line))).toBe(1)
-    expect(lignes).toEqual(['.crypte/fingerprint.json is missing: run crypte dev and commit it'])
+    expect(lignes).toEqual(['.crypte/fingerprint.json is missing: run crypte build and commit it'])
   })
 
   test('exits with 1 when a story has changed since', async () => {
@@ -360,7 +360,7 @@ describe('fingerprint', () => {
 
     expect(await check(root, (line) => lignes.push(line))).toBe(1)
     expect(lignes).toEqual([
-      '.crypte/fingerprint.json is behind the stories and their components: run crypte dev and commit it',
+      '.crypte/fingerprint.json is behind the stories and their components: run crypte build and commit it',
     ])
   })
 
@@ -370,7 +370,9 @@ describe('fingerprint', () => {
     writeFileSync(join(root, FINGERPRINT), '<<<<<<< HEAD\n{}\n=======\n{}\n>>>>>>> autre\n')
 
     expect(await check(root, (line) => lignes.push(line))).toBe(1)
-    expect(lignes).toEqual(['.crypte/fingerprint.json is unreadable: run crypte dev and commit it'])
+    expect(lignes).toEqual([
+      '.crypte/fingerprint.json is unreadable: run crypte build and commit it',
+    ])
   })
 
   test('does not count formatting as a change', async () => {
@@ -452,7 +454,7 @@ describe('command', () => {
     expect(lignes).toMatchInlineSnapshot(`
       [
         "src/Carte.tsx: this component file cannot be read, Unexpected token at line 2, column 7",
-        ".crypte/fingerprint.json is behind the stories and their components: run crypte dev and commit it",
+        ".crypte/fingerprint.json is behind the stories and their components: run crypte build and commit it",
       ]
     `)
   })

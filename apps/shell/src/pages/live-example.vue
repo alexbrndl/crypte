@@ -54,7 +54,7 @@ function follow(event: MouseEvent) {
     <iframe
       v-show="!failure"
       ref="frame"
-      src="/preview.html"
+      src="preview.html"
       :title="`example, ${story.name}`"
       :data-scheme="theme"
     ></iframe>

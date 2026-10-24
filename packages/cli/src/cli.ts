@@ -1,15 +1,17 @@
 // What the `crypte` command does with its arguments.
 
 import { PROTOCOL_VERSION } from '@crypte/core/protocol'
+import { build as compile } from './commands/build'
 import { check as verify } from './commands/check'
 import { dev as start } from './commands/dev'
 import { ConfigError } from './errors'
 import { init as create } from './commands/init'
 
-// The three commands, taken as arguments so a test reaches them without a
+// The four commands, taken as arguments so a test reaches them without a
 // server, a file written or a process spawned.
 export interface Commands {
   dev: typeof start
+  build: typeof compile
   check: typeof verify
   init: typeof create
 }
@@ -23,6 +25,7 @@ export function help(): string[] {
     'Usage: crypte <command> [root]',
     '',
     '  dev [root]     serve the workshop for the project at root',
+    '  build [root]   write the workshop as a static folder, crypte-static',
     '  check [root]   report orphan stories, a stale fingerprint, components with no story',
     '  init [root]    write crypte.config.ts for a project that has components',
     '',
@@ -56,14 +59,20 @@ export async function run(
   // A misspelled command in a script or a CI must fail, not print the help and
   // pass.
   const version = command === '--version' || command === '-v'
-  if (!version && command !== 'dev' && command !== 'check' && command !== 'init') {
+  if (
+    !version &&
+    command !== 'dev' &&
+    command !== 'build' &&
+    command !== 'check' &&
+    command !== 'init'
+  ) {
     warn(`crypte: unknown command ${command}, see crypte --help`)
     return 1
   }
 
   // No command takes an option yet, so anything that looks like one is a typo,
   // not a folder named `--port`. And each takes at most its root: `--version`
-  // none, the three commands one.
+  // none, the four commands one.
   const option = rest.find((one) => one.startsWith('-'))
   if (option !== undefined) {
     warn(`crypte ${command}: unknown option ${option}`)
@@ -83,6 +92,10 @@ export async function run(
   const root = rest[0] ?? process.cwd()
 
   if (command === 'check') return await (commands.check ?? verify)(root, log)
+  if (command === 'build') {
+    await (commands.build ?? compile)(root, log)
+    return 0
+  }
   if (command === 'init') (commands.init ?? create)(root, log)
   else await (commands.dev ?? start)(root)
 

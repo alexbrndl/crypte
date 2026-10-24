@@ -16,7 +16,7 @@ const __crypte_loaded = [
 await Promise.all([
   import("/stories/Gardee.tsx").then((module) => { __crypte_modules["/stories/Gardee.tsx"] = module }, (error) => { __crypte_broken["/stories/Gardee.tsx"] = error }),
 ])
-const __crypte_manifest = await fetch("/@crypte/manifest.json").then((answer) => answer.json())
+const __crypte_manifest = await fetch("@crypte/manifest.json").then((answer) => answer.json())
 
 const __crypte_adapter = { name: 'fixture' }
 const __crypte_wrap = undefined
