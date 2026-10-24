@@ -574,6 +574,28 @@ describe('the screen', () => {
     expect(await alerte.textContent()).not.toContain('Failed to fetch')
   })
 
+  // `iframe.html` n'a pas de shell pour redemander la story : elle passe par le
+  // même chemin, donc les plugins la suivent et une édition la redessine.
+  test('draws iframe.html with its plugins, and again after an edit', async ({ ecran }) => {
+    const address = ecran.server.httpServer?.address()
+    if (typeof address !== 'object' || address === null) throw new Error('serveur sans adresse')
+    const seule = await browser.newPage()
+    try {
+      await seule.goto(`http://localhost:${address.port}/iframe.html?id=badge--par-defaut`)
+      await expect.poll(() => seule.locator('#root').textContent()).toBe('Nouveau')
+      await expect.poll(() => seule.locator('html').getAttribute('data-hello-renders')).toBe('1')
+
+      const file = join(ecran.root, 'stories', 'Badge.tsx')
+      writeFileSync(
+        file,
+        readFileSync(file, 'utf8').replace("label: 'Nouveau'", "label: 'Nouveau !'"),
+      )
+      await expect.poll(() => seule.locator('#root').textContent()).toBe('Nouveau !')
+    } finally {
+      await seule.close()
+    }
+  })
+
   // Ce que React rafraîchit lui-même : le composant est repris par Fast Refresh,
   // pas par le chemin chaud de l'entrée.
   test('refreshes the displayed story when its component changes', async ({ ecran }) => {
@@ -1896,6 +1918,22 @@ describe('a static build, served below a path', () => {
         'Panel',
         'Tone',
       ])
+
+      // L'export au format de Storybook : la story de l'adresse, sans shell, et
+      // un identifiant inconnu nommé à sa place.
+      const seule = await browser.newPage()
+      try {
+        await seule.goto(
+          `http://localhost:${address.port}/sous/iframe.html?id=badge--avertissement`,
+        )
+        await expect.poll(() => seule.locator('#root').textContent()).toContain('Nouveau')
+        await seule.goto(`http://localhost:${address.port}/sous/iframe.html?id=inconnue`)
+        await expect
+          .poll(() => seule.locator('#crypte-failure').textContent())
+          .toBe('unknown story: inconnue')
+      } finally {
+        await seule.close()
+      }
       expect(plaintes).toEqual([])
     } finally {
       await page.close()

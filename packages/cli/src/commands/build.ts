@@ -10,6 +10,7 @@ import { changesSince, type Changes } from '../catalogue/changes'
 import { fingerprintOf, writeFingerprint, type Fingerprint } from '../catalogue/fingerprint'
 import { healthOf } from '../catalogue/health'
 import { buildCatalogue, storiesOf, writeCatalogue } from '../catalogue/manifest'
+import { STORYBOOK_IFRAME, STORYBOOK_INDEX, storybookIndexOf } from '../catalogue/storybook'
 import { versionsOf, type Versions } from '../catalogue/versions'
 import { loadProject, viteConfigOf } from '../config/project'
 import { ConfigError, reason } from '../errors'
@@ -67,7 +68,7 @@ export async function build(input: string, log: (line: string) => void = console
       // limit: a warning the project can do nothing about.
       chunkSizeWarningLimit: Number.POSITIVE_INFINITY,
       rolldownOptions: {
-        input: join(project.root, PREVIEW_PAGE.slice(1)),
+        input: [PREVIEW_PAGE, STORYBOOK_IFRAME].map((page) => join(project.root, page.slice(1))),
         // The wrappers panel names each wrapper by its function: minified, `i` and `a`.
         output: { keepNames: true },
       },
@@ -94,6 +95,7 @@ export async function build(input: string, log: (line: string) => void = console
   const built = new Date()
 
   data(MANIFEST_ROUTE, manifest)
+  data(STORYBOOK_INDEX, storybookIndexOf(manifest))
   data(PLUGINS_ROUTE, await pluginsOf(project, catalogue, PLUGIN_FILES.slice(1)))
   data(VERSIONS_ROUTE, versions)
   data(HEALTH_ROUTE, healthOf(project, storiesOf(manifest)))

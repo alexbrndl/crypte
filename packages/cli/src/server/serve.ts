@@ -14,6 +14,7 @@ import { storiesOf, storyFilesOf, type Catalogue } from '../catalogue/manifest'
 import { cssEntryOf, type Project } from '../config/project'
 import { ONLY_STORY } from '../catalogue/stories'
 import { configSources, required } from '../config/config-source'
+import { STORYBOOK_IFRAME, STORYBOOK_INDEX, storybookIndexOf } from '../catalogue/storybook'
 import { surfacesOf } from './surfaces'
 import { pluginWeights, shellBytes } from './weight'
 
@@ -253,13 +254,19 @@ export function servePlugin(
           return
         }
 
-        if (url !== PREVIEW_PAGE) {
+        if (url === STORYBOOK_INDEX) {
+          response.setHeader('Content-Type', 'application/json')
+          response.end(JSON.stringify(storybookIndexOf(current().manifest)))
+          return
+        }
+
+        if (url !== PREVIEW_PAGE && url !== STORYBOOK_IFRAME) {
           next()
           return
         }
 
         server
-          .transformIndexHtml(url, previewHtml())
+          .transformIndexHtml(url, previewHtml(url === STORYBOOK_IFRAME))
           .then((transformed) => {
             response.setHeader('Content-Type', 'text/html')
             response.end(transformed)
@@ -306,10 +313,12 @@ function channelPath(): string {
 
 // No `lang`: the page renders the project's components, in the project's
 // language, which Crypte cannot know. A screen reader falls back on the system's.
-function previewHtml(): string {
+// `standalone` for `iframe.html`, which renders the story its address names
+// without waiting for a shell.
+function previewHtml(standalone = false): string {
   return [
     '<!doctype html>',
-    '<html>',
+    standalone ? '<html data-standalone>' : '<html>',
     '  <head>',
     '    <meta charset="UTF-8" />',
     '    <title>Preview</title>',
@@ -508,6 +517,7 @@ export function shellModulesOf(project: Project): { folder: string; file: string
 // `servePlugin` serves, written to disk by Vite rather than answered on request.
 export function previewBuildPlugin(project: Project, catalogue: Catalogue): Plugin {
   const page = join(project.root, PREVIEW_PAGE.slice(1))
+  const standalone = join(project.root, STORYBOOK_IFRAME.slice(1))
 
   return {
     name: 'crypte:build',
@@ -517,12 +527,12 @@ export function previewBuildPlugin(project: Project, catalogue: Catalogue): Plug
     },
 
     resolveId(id) {
-      if (id === page) return page
+      if (id === page || id === standalone) return id
       return id === PREVIEW_ENTRY ? PREVIEW_ENTRY_ID : undefined
     },
 
     load(id) {
-      if (id === page) return previewHtml()
+      if (id === page || id === standalone) return previewHtml(id === standalone)
       if (id !== PREVIEW_ENTRY_ID) return undefined
       return compiled(
         previewEntry(project, storyFilesOf(catalogue), true),
@@ -730,12 +740,39 @@ export function previewEntry(project: Project, files: string[] = [], built = fal
     `  return { id, props, options: entry.options, root: ${OWN}container, wraps: ${OWN}wraps }`,
     '}',
     '',
+    '// With no shell to say a failure, `iframe.html` writes it beside the story, and',
+    '// the next render that goes through takes it away. Never in the container: the',
+    '// adapter keeps its root there, and the next render would mount on a foreign node.',
+    `const ${OWN}standalone = document.documentElement.hasAttribute('data-standalone')`,
+    `function ${OWN}drawn(...args) {`,
+    "  const shown = document.getElementById('crypte-failure')",
+    `  try {`,
+    `    const story = ${OWN}render(...args)`,
+    '    shown?.remove()',
+    '    return story',
+    '  } catch (error) {',
+    `    if (${OWN}standalone) {`,
+    "      const failure = shown ?? document.body.appendChild(document.createElement('p'))",
+    "      failure.id = 'crypte-failure'",
+    '      failure.textContent = error instanceof Error ? error.message : String(error)',
+    '    }',
+    '    throw error',
+    '  }',
+    '}',
+    '',
     '// `wraps` stays out of what the plugins receive: their context is typed without it.',
-    `const ${OWN}channel = ${OWN}channelOf({ render: ${OWN}render, rendered: ({ wraps: _wraps, ...story }) => ${OWN}host.mounted(story), message: (message) => ${OWN}host.received(message) })`,
+    `const ${OWN}channel = ${OWN}channelOf({ render: ${OWN}drawn, rendered: ({ wraps: _wraps, ...story }) => ${OWN}host.mounted(story), message: (message) => ${OWN}host.received(message) })`,
     '',
     '// After the channel, since it sends through it: what failed to load is said',
     '// once `ready` is out, so the shell has cleared what the frame before said.',
     `const ${OWN}host = ${OWN}hostOf(${OWN}loaded, ${OWN}channel.send)`,
+    '',
+    "// `iframe.html?id=`, the page Storybook's readers embed: the story its address",
+    '// names, with no shell to ask for it.',
+    `if (${OWN}standalone) {`,
+    "  const id = new URLSearchParams(location.search).get('id')",
+    `  if (id) ${OWN}channel.show(id)`,
+    '}',
     '',
     ...hot(files),
   ].join('\n')
