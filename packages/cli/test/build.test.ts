@@ -74,13 +74,22 @@ describe('crypte build', () => {
   const lignes: string[] = []
 
   beforeAll(async () => {
-    // Un module shell, son morceau, et ce que son dossier porte d'autre.
+    // Un module shell, son morceau, et ce que `crypte dev` ne servirait pas de
+    // ses imports : un fichier absent, un dossier, un fichier caché, un fichier
+    // au-dessus de son dossier. Ni copiés, ni cause d'échec.
     plugin = mkdtempSync(join(tmpdir(), 'crypte-build-plugin-'))
-    writeFileSync(join(plugin, 'shell.mjs'), "import './parts/chunk.mjs'\n")
-    mkdirSync(join(plugin, 'parts'))
+    mkdirSync(join(plugin, 'dist', 'parts'), { recursive: true })
+    writeFileSync(
+      join(plugin, 'dist', 'shell.mjs'),
+      ['./parts/chunk.mjs', './absent.mjs', './parts', './.cache.mjs', '../outside.mjs']
+        .map((one) => `import '${one}'\n`)
+        .join(''),
+    )
     // Une boucle : le morceau réimporte le module, copié une fois.
-    writeFileSync(join(plugin, 'parts', 'chunk.mjs'), "import '../shell.mjs'\nexport {}\n")
-    writeFileSync(join(plugin, 'secret.txt'), 'hors du module\n')
+    writeFileSync(join(plugin, 'dist', 'parts', 'chunk.mjs'), "import '../shell.mjs'\nexport {}\n")
+    writeFileSync(join(plugin, 'dist', '.cache.mjs'), 'export {}\n')
+    writeFileSync(join(plugin, 'outside.mjs'), 'export {}\n')
+    writeFileSync(join(plugin, 'dist', 'secret.txt'), 'hors du module\n')
 
     root = projet({
       'crypte.config.ts': [
@@ -89,7 +98,7 @@ describe('crypte build', () => {
         'export default defineConfig({',
         "  stories: 'stories',",
         "  adapter: { name: 'plain', mount() {}, unmount() {} },",
-        `  plugins: [{ name: 'a', shell: ${JSON.stringify(pathToFileURL(join(plugin, 'shell.mjs')).href)} }],`,
+        `  plugins: [{ name: 'a', shell: ${JSON.stringify(pathToFileURL(join(plugin, 'dist', 'shell.mjs')).href)} }],`,
         '})',
         '',
       ].join('\n'),

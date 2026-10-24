@@ -5,7 +5,7 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { join } from 'node:path'
+import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import { gzip } from 'node:zlib'
@@ -69,13 +69,25 @@ export async function pluginWeights(surfaces: Surfaces): Promise<Weight[]> {
 
 // A shell module and the files it reaches by relative imports, what a build
 // copies of it: never its whole folder, which for a local plugin can be the
-// project itself. Reopened with `importsOf`, when a plugin splits a chunk off.
+// project itself. Only what `crypte dev` serves of that folder: a file inside
+// it, with no segment starting with a dot. Anything else answers 404 there, and
+// copied it would land outside the plugin's folder, or fail the whole build.
+// Reopened with `importsOf`, when a plugin splits a chunk off.
 export async function shellFiles(file: string): Promise<string[]> {
+  const folder = dirname(file)
   const found = new Set<string>()
   const visit = async (one: string) => {
-    if (found.has(one)) return
+    if (
+      found.has(one) ||
+      relative(folder, one)
+        .split(sep)
+        .some((part) => part.startsWith('.'))
+    )
+      return
+    const known = await read(one)
+    if (!known) return
     found.add(one)
-    for (const specifier of (await read(one))?.imports ?? []) {
+    for (const specifier of known.imports) {
       const next = resolved(specifier, one, false)
       if (next) await visit(next)
     }
