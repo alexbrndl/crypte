@@ -76,21 +76,39 @@ test('the version workflow does not publish', () => {
 // seulement celui-là : un second qui oublierait le verrou passerait sinon.
 test('nothing publishes unless NPM_PUBLISH is true, and never 0.0.0', () => {
   const dossier = join(root, '.github', 'workflows')
-  const workflows = readdirSync(dossier).map((nom) => [
-    nom,
-    readFileSync(join(dossier, nom), 'utf8'),
-  ])
-  const publient = workflows.filter(([, texte]) =>
-    /changeset publish|(?:npm|pnpm) publish/.test(texte.replace(/^\s*#.*$/gm, '')),
+  // Toute forme de publication, `pnpm -r publish` compris, hors commentaires.
+  const publie = /\b(?:changeset|npm|pnpm|yarn)\b(?:\s+-{1,2}\S+)*\s+publish\b/
+  // Chaque job pris seul, pour que le verrou soit celui du job qui publie.
+  const jobs = readdirSync(dossier).flatMap((nom) =>
+    readFileSync(join(dossier, nom), 'utf8')
+      .replace(/^\s*#.*$/gm, '')
+      .split(/^(?= {2}[\w-]+:$)/m)
+      .slice(1)
+      .map((texte) => [`${nom} ${texte.split(':')[0].trim()}`, texte]),
   )
+  const publient = jobs.filter(([, texte]) => publie.test(texte))
 
-  expect(workflows.length).toBeGreaterThan(2)
-  expect(publient.map(([nom]) => nom)).toEqual(['publish.yml'])
+  expect(jobs.length).toBeGreaterThan(3)
+  expect(publient.map(([nom]) => nom)).toEqual(['publish.yml publish'])
   const [, texte] = publient[0]
   expect(texte).toMatch(/^ {4}if: vars\.NPM_PUBLISH == 'true'$/m)
   expect(texte).toMatch(
     /^ {6}- if: steps\.version\.outputs\.version != '0\.0\.0'\n {8}run: vp exec changeset publish$/m,
   )
+  // Ni par un script : `vp run release` passerait sinon sous le motif.
+  const scripts = JSON.parse(lire('package.json')).scripts ?? {}
+  expect(Object.values(scripts).filter((one) => publie.test(one))).toEqual([])
+})
+
+// La garde 0.0.0 lit la version de `@crypte/cli` seule : elle ne dit vrai que si
+// chaque paquet publié monte avec lui, dans le groupe `fixed`. Hors du groupe,
+// un paquet partait à un autre numéro, ou en 0.0.0, sans tag ni release.
+test('every published package versions with the CLI', () => {
+  const [groupe] = JSON.parse(lire('.changeset', 'config.json')).fixed
+  const noms = PUBLIÉS.map((dossier) => JSON.parse(lire(dossier, 'package.json')).name)
+
+  expect(noms.length).toBeGreaterThan(5)
+  expect([...groupe].sort()).toEqual([...noms].sort())
 })
 
 // La provenance n'est signée que pour un paquet qui nomme son dépôt, et npm

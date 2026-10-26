@@ -19,7 +19,7 @@ permissions:
   id-token: write
 
 # Jamais annulée en vol : une publication à moitié faite laisse des paquets à des
-# versions différentes, et la suivante ne la reprend pas.
+# versions différentes jusqu'à la poussée suivante, qui publie ce qui manque.
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false

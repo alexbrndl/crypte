@@ -15,7 +15,8 @@
       "@crypte/vue",
       "@crypte/tokens",
       "@crypte/controls",
-      "@crypte/a11y"
+      "@crypte/a11y",
+      "@crypte/ui"
     ]
   ],
   "linked": [],
