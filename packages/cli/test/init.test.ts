@@ -13,6 +13,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, test } from 'vitest'
 import { configFor, init, linesOf, planFor } from '../src/commands/init'
+import { SKILL, SKILL_FILE } from '../src/commands/skill'
 import { buildCatalogue } from '../src/catalogue/manifest'
 import { loadProject } from '../src/config/project'
 
@@ -203,14 +204,51 @@ describe('what the command prints', () => {
 describe('the command', () => {
   // Une configuration existante porte des réponses que cette commande ne sait
   // pas reconstruire, les plugins Vite d'abord.
-  test('never overwrites an existing config', () => {
+  // Le skill seul s'ajoute alors : il sert à chaque nouveau composant, et un
+  // projet configuré avant lui n'en a pas.
+  test('never overwrites an existing config, and adds only the skill it lacks', () => {
     const root = projectWith({
       'package.json': paquet({ react: '^19.0.0' }),
       'crypte.config.ts': '// la mienne',
     })
+    const dit: string[] = []
+
+    init(root, (line) => dit.push(line))
+    expect(dit).toEqual([`wrote ${SKILL_FILE}, crypte.config.ts left as it is`])
+    expect(readFileSync(join(root, SKILL_FILE), 'utf8')).toBe(SKILL)
+    expect(readFileSync(join(root, 'crypte.config.ts'), 'utf8')).toBe('// la mienne')
 
     expect(() => init(root, () => {})).toThrow('already there')
-    expect(readFileSync(join(root, 'crypte.config.ts'), 'utf8')).toBe('// la mienne')
+  })
+
+  test('writes the skill beside the config, and says so', () => {
+    const root = projectWith({ 'package.json': paquet({ react: '^19.0.0' }) })
+    const dit: string[] = []
+
+    init(root, (line) => dit.push(line))
+
+    expect(readFileSync(join(root, SKILL_FILE), 'utf8')).toBe(SKILL)
+    expect(dit.slice(0, 5)).toEqual([
+      'wrote crypte.config.ts',
+      '  adapter: @crypte/react',
+      '  stories: stories (created)',
+      '  css: not written, add it if your project has a style sheet',
+      `wrote ${SKILL_FILE}, which writes stories from how the application calls a component`,
+    ])
+  })
+
+  // Son propriétaire l'a peut-être modifié.
+  test('never overwrites a skill already there', () => {
+    const root = projectWith({
+      'package.json': paquet({ react: '^19.0.0' }),
+      [SKILL_FILE]: '# le mien',
+    })
+    const dit: string[] = []
+
+    init(root, (line) => dit.push(line))
+
+    expect(readFileSync(join(root, SKILL_FILE), 'utf8')).toBe('# le mien')
+    expect(dit.some((line) => line.includes(SKILL_FILE))).toBe(false)
   })
 
   // `buildCatalogue` refuse une racine qui n'existe pas : sans la créer, la

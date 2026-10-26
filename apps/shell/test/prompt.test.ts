@@ -61,7 +61,7 @@ describe('the prompt for an agent', () => {
     expect(promptOf({ failures: [], findings: [], unstoried: [] }, stories)).toBe('')
   })
 
-  // Une pile ou un squelette qui porte des backticks ne referme pas son bloc.
+  // Une pile qui porte des backticks ne referme pas son bloc.
   test('names the files of every render error, violation and story to write', () => {
     expect(promptOf({ failures: [failure], findings: [finding], unstoried: [select] }, stories))
       .toMatchInlineSnapshot(`
@@ -92,16 +92,12 @@ describe('the prompt for an agent', () => {
 
         ## Stories to write
 
+        Write them from the places the application uses each component, following \`.claude/skills/write-stories/SKILL.md\`, which \`crypte init\` writes (run it again to add it if it is missing): propose the cases found there, and let a person keep and name them.
+
         ### Select
         - Component: \`src/components/form/Select.tsx\`, export \`default\`
-        - Required props: 1, to give in its Default story
+        - Required props: 1
         - Story file to create: \`src/components/form/Select.stories.tsx\`
-
-        \`\`\`\`tsx
-        export default { component: Select }
-
-        export const Default = { args: { value: '\`\`\`' } }
-        \`\`\`\`
 
         When done, run the audit again from the health view: nothing above should be left.
         "
@@ -134,9 +130,11 @@ describe('the prompt for an agent', () => {
 
       ## Stories to write
 
+      Write them from the places the application uses each component, following \`.claude/skills/write-stories/SKILL.md\`, which \`crypte init\` writes (run it again to add it if it is missing): propose the cases found there, and let a person keep and name them.
+
       ### Select
       - Component: \`src/components/form/Select.tsx\`, export \`default\`
-      - Required props: 1, to give in its Default story
+      - Required props: 1
 
       When done, run the audit again from the health view: nothing above should be left.
       "
