@@ -6,14 +6,17 @@ import { check as verify } from './commands/check'
 import { dev as start } from './commands/dev'
 import { ConfigError } from './errors'
 import { init as create } from './commands/init'
+import { mcp as answerAgents } from './commands/mcp'
+import { VERSION } from './server/serve'
 
-// The four commands, taken as arguments so a test reaches them without a
+// The five commands, taken as arguments so a test reaches them without a
 // server, a file written or a process spawned.
 export interface Commands {
   dev: typeof start
   build: typeof compile
   check: typeof verify
   init: typeof create
+  mcp: typeof answerAgents
 }
 
 // What `--help` prints, and what a bare `crypte` prints. The protocol version
@@ -28,6 +31,7 @@ export function help(): string[] {
     '  build [root]   write the workshop as a static folder, crypte-static',
     '  check [root]   report orphan stories, a stale fingerprint, components with no story',
     '  init [root]    write crypte.config.ts for a project that has components',
+    '  mcp [root]     serve the catalogue to a coding agent, over stdio',
     '',
     '  --help, -h     print this help',
     '  --version, -v  print the version',
@@ -64,7 +68,8 @@ export async function run(
     command !== 'dev' &&
     command !== 'build' &&
     command !== 'check' &&
-    command !== 'init'
+    command !== 'init' &&
+    command !== 'mcp'
   ) {
     warn(`crypte: unknown command ${command}, see crypte --help`)
     return 1
@@ -72,7 +77,7 @@ export async function run(
 
   // No command takes an option yet, so anything that looks like one is a typo,
   // not a folder named `--port`. And each takes at most its root: `--version`
-  // none, the four commands one.
+  // none, the five commands one.
   const option = rest.find((one) => one.startsWith('-'))
   if (option !== undefined) {
     warn(`crypte ${command}: unknown option ${option}`)
@@ -94,6 +99,10 @@ export async function run(
   if (command === 'check') return await (commands.check ?? verify)(root, log)
   if (command === 'build') {
     await (commands.build ?? compile)(root, log)
+    return 0
+  }
+  if (command === 'mcp') {
+    await (commands.mcp ?? answerAgents)(root, VERSION)
     return 0
   }
   if (command === 'init') (commands.init ?? create)(root, log)
