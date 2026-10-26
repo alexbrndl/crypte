@@ -2,8 +2,9 @@
 // project.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join, posix, resolve } from 'node:path'
+import { dirname, join, posix, resolve } from 'node:path'
 import { ConfigError } from '../errors'
+import { SKILL, SKILL_FILE } from './skill'
 
 const CONFIG_FILE = 'crypte.config.ts'
 
@@ -109,12 +110,15 @@ export function configFor(plan: Plan): string {
 // story is written: it would have to name a component, and picking one is the
 // guess section 1.2 refuses everywhere else. For the same reason the example
 // gives both import forms: copied with the wrong one, it fails at render.
-export function linesOf(plan: Plan): string[] {
+export function linesOf(plan: Plan, skill = false): string[] {
   const said = [
     `wrote ${CONFIG_FILE}`,
     `  adapter: ${plan.adapter.package}`,
     `  stories: ${plan.stories}${plan.missing ? ' (created)' : ''}`,
     `  css: not written, add it if your project has a style sheet`,
+    ...(skill
+      ? [`wrote ${SKILL_FILE}, which writes stories from how the application calls a component`]
+      : []),
     ``,
   ]
 
@@ -155,15 +159,29 @@ export function init(input: string, log: (line: string) => void = console.log): 
   const file = join(root, CONFIG_FILE)
 
   // Never overwritten: an existing config holds answers this command cannot
-  // reconstruct, the Vite plugins first.
+  // reconstruct, the Vite plugins first. The skill alone is added to it: it
+  // serves at every new component, and a project set up before it had none.
   if (existsSync(file)) {
-    throw new ConfigError(`${CONFIG_FILE} is already there (${root}).`)
+    if (!writeSkill(root)) throw new ConfigError(`${CONFIG_FILE} is already there (${root}).`)
+    log(`wrote ${SKILL_FILE}, ${CONFIG_FILE} left as it is`)
+    return
   }
 
   const plan = planFor(root)
 
   if (plan.missing) mkdirSync(join(root, ...plan.stories.split('/')), { recursive: true })
   writeFileSync(file, configFor(plan))
+  const skill = writeSkill(root)
 
-  for (const line of linesOf(plan)) log(line)
+  for (const line of linesOf(plan, skill)) log(line)
+}
+
+// Never over a skill already there, which its owner may have edited. Whether
+// it was written.
+function writeSkill(root: string): boolean {
+  const file = join(root, ...SKILL_FILE.split('/'))
+  if (existsSync(file)) return false
+  mkdirSync(dirname(file), { recursive: true })
+  writeFileSync(file, SKILL)
+  return true
 }

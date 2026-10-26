@@ -61,18 +61,15 @@ export function promptOf({ failures, findings, unstoried }: Todo, stories: Story
   if (unstoried.length > 0)
     sections.push(
       '## Stories to write',
+      // Depuis l'usage et non la signature, DCJ-238 : le squelette de la vue
+      // n'énumère que des props, le skill que `crypte init` écrit lit les appels.
+      'Write them from the places the application uses each component, following `.claude/skills/write-stories/SKILL.md`, which `crypte init` writes: propose the cases found there, and let a person keep and name them.',
       ...unstoried.map((one) =>
         [
           `### ${one.name}`,
           `- Component: \`${one.file}\`, export \`${one.export}\``,
-          `- Required props: ${one.required}, to give in its Default story`,
-          ...(one.skeleton
-            ? [
-                `- Story file to create: \`${one.skeleton.file}\``,
-                '',
-                fence(one.skeleton.source, one.skeleton.file.split('.').at(-1) ?? ''),
-              ]
-            : []),
+          `- Required props: ${one.required}`,
+          ...(one.skeleton ? [`- Story file to create: \`${one.skeleton.file}\``] : []),
         ].join('\n'),
       ),
     )
@@ -94,7 +91,7 @@ function stackOf(stack: string): string {
 }
 
 // Une clôture plus longue que tout ce que le texte contient de backticks : une
-// pile ou un squelette qui en porte ne referme pas le bloc.
+// pile qui en porte ne referme pas le bloc.
 function fence(text: string, lang: string): string {
   const longest = Math.max(2, ...[...text.matchAll(/`+/g)].map((run) => run[0].length))
   const ticks = '`'.repeat(longest + 1)
