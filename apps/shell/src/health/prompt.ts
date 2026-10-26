@@ -63,7 +63,7 @@ export function promptOf({ failures, findings, unstoried }: Todo, stories: Story
       '## Stories to write',
       // Depuis l'usage et non la signature, DCJ-238 : le squelette de la vue
       // n'énumère que des props, le skill que `crypte init` écrit lit les appels.
-      'Write them from the places the application uses each component, following `.claude/skills/write-stories/SKILL.md`, which `crypte init` writes: propose the cases found there, and let a person keep and name them.',
+      'Write them from the places the application uses each component, following `.claude/skills/write-stories/SKILL.md`, which `crypte init` writes and adds when it is missing: propose the cases found there, and let a person keep and name them.',
       ...unstoried.map((one) =>
         [
           `### ${one.name}`,

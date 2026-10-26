@@ -228,9 +228,13 @@ describe('the command', () => {
     init(root, (line) => dit.push(line))
 
     expect(readFileSync(join(root, SKILL_FILE), 'utf8')).toBe(SKILL)
-    expect(dit).toContain(
+    expect(dit.slice(0, 5)).toEqual([
+      'wrote crypte.config.ts',
+      '  adapter: @crypte/react',
+      '  stories: stories (created)',
+      '  css: not written, add it if your project has a style sheet',
       `wrote ${SKILL_FILE}, which writes stories from how the application calls a component`,
-    )
+    ])
   })
 
   // Son propriétaire l'a peut-être modifié.
