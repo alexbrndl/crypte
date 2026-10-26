@@ -229,6 +229,9 @@ describe('what each tool gives', () => {
         from: { ref: 'HEAD' },
         changes: [{ kind: 'appeared', id: 'badge--defaut' }],
       })
+      // Les deux points nommés arrivent jusqu'à Git, chacun avec sa raison.
+      expect(outil('changes', { from: '-x' }, root)).toEqual({ reason: '"-x" is not a revision' })
+      expect(outil('changes', { before: 'hier' }, root)).toEqual({ reason: '"hier" is not a date' })
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
