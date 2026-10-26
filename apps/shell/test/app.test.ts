@@ -3877,6 +3877,12 @@ describe('the health view', () => {
     expect(écran.wrapper.find('[data-failed]').text()).toBe(
       'The audit could not run: the preview never said it was ready.',
     )
+    // Dit après coup, l'échec suit pourtant un changement de langue.
+    setLocale('fr')
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('[data-failed]').text()).toBe(
+      "L'audit n'a pas pu tourner : l'aperçu n'a jamais dit qu'il était prêt.",
+    )
     écran.wrapper.unmount()
   })
 
