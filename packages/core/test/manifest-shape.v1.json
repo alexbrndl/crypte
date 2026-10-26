@@ -46,6 +46,7 @@
     "storyFile?": "string"
   },
   "PropDetails": {
+    "(heritage)": "extends PluginPropDetails",
     "type?": "PropKind",
     "required?": "boolean",
     "default?": "unknown",
@@ -53,6 +54,7 @@
     "options?": "unknown[]"
   },
   "ResolvedPropDetails": {
+    "(heritage)": "extends PropDetails",
     "type": "PropKind",
     "required": "boolean"
   },

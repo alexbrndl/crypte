@@ -33,16 +33,29 @@ export function manifestShape(): Record<string, Record<string, string> | string>
   const shape: Record<string, Record<string, string> | string> = {}
 
   for (const name of INTERFACES) {
-    const found = new RegExp(`^export interface ${name}\\b[^{]*\\{\\n([\\s\\S]*?)^\\}`, 'm').exec(
+    const found = new RegExp(`^export interface ${name}\\b([^{]*)\\{\\n([\\s\\S]*?)^\\}`, 'm').exec(
       source,
     )
     if (!found) throw new Error(`interface ${name} not found in the protocol`)
-    shape[name] = Object.fromEntries(
-      [...found[1]!.matchAll(/^ {2}(\w+)(\??): (.+)$/gm)].map((field) => [
-        `${field[1]}${field[2]}`,
-        field[3]!.trim(),
-      ]),
-    )
+    const heritage = found[1]!.trim()
+    // Les commentaires partis, chaque champ va de son nom au suivant : un type
+    // replié sur plusieurs lignes, une union longue, reste entier.
+    const body = found[2]!.replace(/^\s*\/\/.*\n/gm, '')
+    const fields = [...body.matchAll(/^ {2}(\w+)(\??):\s*([\s\S]*?)(?=^ {2}\S|(?![\s\S]))/gm)]
+    // Une ligne au niveau d'un champ que le motif n'a pas lue est refusée plutôt
+    // que perdue : sans quoi elle partirait de la ligne de base à l'enregistrement.
+    const unread = body.match(/^ {2}\S.*$/gm)?.filter((line) => !/^ {2}\w+\??:/.test(line)) ?? []
+    if (unread.length > 0)
+      throw new Error(`${name} holds a line this reader does not follow: ${unread[0]}`)
+    shape[name] = {
+      ...(heritage ? { '(heritage)': heritage.replace(/\s+/g, ' ') } : {}),
+      ...Object.fromEntries(
+        fields.map((field) => [
+          `${field[1]}${field[2]}`,
+          field[3]!.replace(/\s+/g, ' ').replace(/^\| /, '').trim(),
+        ]),
+      ),
+    }
   }
   for (const name of ALIASES) {
     const found = new RegExp(`^export type ${name} =([\\s\\S]*?)(?:\\n\\n|(?![\\s\\S]))`, 'm').exec(

@@ -25,6 +25,20 @@ describe('the manifest version', () => {
     expect(existsSync(baseline), `manifest-shape.v${MANIFEST_VERSION}.json is missing`).toBe(true)
   })
 
+  // Un type que la forme cite sans le relever pourrait changer sans que rien ne
+  // rougisse : chaque nom de type cité en est une clé, hors les génériques natifs
+  // et `PluginPropDetails`, vide dans le noyau, que chaque plugin augmente.
+  it('reads every type its fields name', () => {
+    const shape = manifestShape()
+    const cited = Object.values(shape)
+      .flatMap((one) => (typeof one === 'string' ? [one] : Object.values(one)))
+      .flatMap((text) => text.match(/\b[A-Z]\w*/g) ?? [])
+      .filter((name) => name !== 'Record' && name !== 'PluginPropDetails')
+
+    expect(cited.length).toBeGreaterThan(5)
+    expect(cited.filter((name) => !(name in shape))).toEqual([])
+  })
+
   it('keeps the shape its version recorded', () => {
     expect(
       manifestShape(),
