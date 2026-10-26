@@ -49,6 +49,8 @@ export { normalizeSegment, storyId } from './id'
 export type {
   CryptePlugin,
   PluginView,
+  ViewLabel,
+  Locale,
   ShellView,
   ViewProps,
   ViewEvents,

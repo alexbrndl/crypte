@@ -609,3 +609,27 @@ describe('what a panel sends, as JSON', () => {
     )
   })
 })
+
+// La langue du shell arrive au panneau (6.1), et la suit quand elle change.
+describe('the language the shell speaks', () => {
+  test('passes it to the panel, and the change of it', async () => {
+    const { setLocale } = await import('../src/i18n')
+    const langue = defineComponent({
+      props: { locale: { type: String, default: undefined } },
+      setup: (props) => () => h('p', { class: 'langue' }, String(props.locale)),
+    })
+    try {
+      setLocale('en')
+      const wrapper = monte(langue, brouillon)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.langue').text()).toBe('en')
+
+      setLocale('fr')
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.langue').text()).toBe('fr')
+    } finally {
+      setLocale('en')
+      localStorage.clear()
+    }
+  })
+})

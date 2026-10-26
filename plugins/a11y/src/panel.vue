@@ -8,12 +8,49 @@ const props = defineProps<PanelProps>()
 
 const emit = defineEmits<Pick<PanelEvents, 'inapplicable' | 'send'>>()
 
-const IMPACTS: [Impact, string][] = [
-  ['critical', 'Critical'],
-  ['serious', 'Serious'],
-  ['moderate', 'Moderate'],
-  ['minor', 'Minor'],
-]
+// Its texts in each language the shell speaks, which it passes as `locale`
+// (6.1). axe's own help stays in English: it comes from axe.
+const TEXTS = {
+  en: {
+    critical: 'Critical',
+    serious: 'Serious',
+    moderate: 'Moderate',
+    minor: 'Minor',
+    none: 'no story on display',
+    failed: 'the story could not be rendered',
+    noRule: 'no automatic rule applies to this render',
+    rule: 'automatic rule passed',
+    rules: 'automatic rules passed',
+    clean: 'no violation',
+    violation: 'violation',
+    violations: 'violations',
+    waiting: 'Waiting for an analysis…',
+    again: 'Run the analysis again',
+  },
+  fr: {
+    critical: 'Critique',
+    serious: 'Sérieuse',
+    moderate: 'Modérée',
+    minor: 'Mineure',
+    none: 'aucune story affichée',
+    failed: "la story n'a pas pu être rendue",
+    noRule: "aucune règle automatique ne s'applique à ce rendu",
+    rule: 'règle automatique passée',
+    rules: 'règles automatiques passées',
+    clean: 'aucune violation',
+    violation: 'violation',
+    violations: 'violations',
+    waiting: "En attente d'une analyse…",
+    again: "Relancer l'analyse",
+  },
+} as const
+// English for a language it does not know: the shell may speak more later.
+const t = (key: keyof (typeof TEXTS)['en']) =>
+  ((TEXTS as Record<string, Record<string, string>>)[props.locale ?? 'en'] ?? TEXTS.en)[key]
+// Zero and one take the singular in French.
+const one = (count: number) => (props.locale === 'fr' ? count < 2 : count === 1)
+
+const IMPACTS: Impact[] = ['critical', 'serious', 'moderate', 'minor']
 
 // Only the analysis of the story on display: the shell hands over the last
 // message whatever story it was about.
@@ -24,9 +61,9 @@ const results = computed(() => {
 })
 
 const groupsOf = (found: Results) =>
-  IMPACTS.map(([impact, label]) => ({
+  IMPACTS.map((impact) => ({
     impact,
-    label,
+    label: t(impact),
     violations: found.violations.filter((one) => one.impact === impact),
   })).filter((group) => group.violations.length > 0)
 
@@ -41,19 +78,18 @@ watch([() => props.received, () => props.entry], () => {
 // Said again for every entry and every result, section 6.1: a story with no
 // violation folds, and folds no longer once an edit of its props adds one.
 watchEffect(() => {
-  if (!props.entry) return emit('inapplicable', 'no story on display')
+  if (!props.entry) return emit('inapplicable', t('none'))
   // No render, so no analysis will come: waiting would be for ever.
-  if (typeof props.failed === 'string')
-    return emit('inapplicable', 'the story could not be rendered')
+  if (typeof props.failed === 'string') return emit('inapplicable', t('failed'))
 
   const found = results.value
   if (found && found.violations.length === 0) {
     // Nothing read, not nothing wrong: a render that threw leaves the root
     // empty, and "Run the analysis again" analyses it all the same.
-    if (found.passes === 0) return emit('inapplicable', 'no automatic rule applies to this render')
+    if (found.passes === 0) return emit('inapplicable', t('noRule'))
 
-    const rules = found.passes === 1 ? 'automatic rule passed' : 'automatic rules passed'
-    return emit('inapplicable', `${found.passes} ${rules}, no violation`)
+    const rules = one(found.passes) ? t('rule') : t('rules')
+    return emit('inapplicable', `${found.passes} ${rules}, ${t('clean')}`)
   }
 
   emit('inapplicable', null)
@@ -65,12 +101,12 @@ function rerun() {
 }
 
 const count = (violations: Violation[]) =>
-  violations.length === 1 ? '1 violation' : `${violations.length} violations`
+  `${violations.length} ${one(violations.length) ? t('violation') : t('violations')}`
 </script>
 
 <template>
   <p v-if="!results || running" role="status" style="margin: 0; font-size: 13px">
-    Waiting for an analysis…
+    {{ t('waiting') }}
   </p>
   <div v-else style="display: grid; gap: 12px">
     <section v-for="group in groupsOf(results)" :key="group.impact">
@@ -90,5 +126,5 @@ const count = (violations: Violation[]) =>
       </ul>
     </section>
   </div>
-  <Button style="margin-top: var(--space-3)" @click="rerun">Run the analysis again</Button>
+  <Button style="margin-top: var(--space-3)" @click="rerun">{{ t('again') }}</Button>
 </template>

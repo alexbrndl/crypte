@@ -2,6 +2,7 @@
 
 import type {
   CryptePlugin,
+  Locale,
   PanelEvents,
   PanelProps,
   PluginView,
@@ -9,6 +10,7 @@ import type {
   PreviewHooks,
   ShellView,
   ViewEvents,
+  ViewLabel,
   ViewProps,
 } from '@crypte/core/protocol'
 import type { Adapter } from '@crypte/core/preview'
@@ -54,6 +56,8 @@ export type {
   PreviewHooks,
   PreviewContext,
   PluginView,
+  ViewLabel,
+  Locale,
   ShellView,
   ViewProps,
   ViewEvents,

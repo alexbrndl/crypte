@@ -3,7 +3,7 @@ import type { Overrides, RenderedValues, StoryEntry } from '@crypte/core/protoco
 import { Alert, Button, PanelSection } from '@crypte/ui'
 import { computed, onErrorCaptured, ref, watch, type Component } from 'vue'
 import { keep, kept } from '../storage'
-import { texts } from '../i18n'
+import { locale, texts } from '../i18n'
 
 // Le cadre d'un panneau de plugin, section 6.1 des contrats. Local au shell,
 // son seul consommateur : les panneaux sont montés dedans, ils ne le dessinent
@@ -225,6 +225,7 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
           :failed="failed"
           :values="values"
           :overrides="overrides"
+          :locale="locale"
           @inapplicable="declare"
           @overrides="edit"
           @send="send"

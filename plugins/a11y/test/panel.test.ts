@@ -168,3 +168,32 @@ describe('the plugin', () => {
     })
   })
 })
+
+// Le shell passe sa langue (6.1) : le panneau dit ses textes dans la sienne, et
+// suit un changement sans être remonté. L'aide d'axe reste celle d'axe.
+describe('the language the shell speaks', () => {
+  it('draws its texts in French, and follows a change of language', async () => {
+    const wrapper = mount(Panel, {
+      props: {
+        entry: entry('x--a'),
+        received: resultats('x--a', [violation('region', 'minor')]),
+        failed: null,
+        locale: 'fr',
+      },
+    })
+
+    expect(wrapper.find('section p').text()).toBe('Mineure · 1 violation')
+    expect(wrapper.find('section a').text()).toBe('aide de region')
+    expect(wrapper.find('button').text()).toBe("Relancer l'analyse")
+
+    await wrapper.setProps({ received: resultats('x--a', [], 0) })
+    expect(derniere(wrapper)).toBe("aucune règle automatique ne s'applique à ce rendu")
+    await wrapper.setProps({ received: resultats('x--a', [], 1) })
+    expect(derniere(wrapper)).toBe('1 règle automatique passée, aucune violation')
+    await wrapper.setProps({ locale: 'en' })
+    expect(derniere(wrapper)).toBe('1 automatic rule passed, no violation')
+    // Une langue qu'il ne connaît pas : l'anglais, plutôt qu'une erreur.
+    await wrapper.setProps({ locale: 'de' as never })
+    expect(derniere(wrapper)).toBe('1 automatic rule passed, no violation')
+  })
+})

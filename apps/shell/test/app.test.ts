@@ -4495,6 +4495,39 @@ describe('the view of a plugin', () => {
     await vide(écran.wrapper)
   }
 
+  // Un libellé par langue, et la langue passée à chaque partie (6.1).
+  test('shows the label of the language of the moment, and passes that language on', async () => {
+    const langue = (nom: string) =>
+      defineComponent({
+        props: { locale: { type: String, default: undefined } },
+        setup: (props) => () => h('div', { class: nom }, `${nom}:${String(props.locale)}`),
+      })
+    const écran = await monte([badge])
+    await vues(écran, [
+      {
+        ...i18n,
+        label: { en: 'Language', fr: 'Langues' },
+        canvas: langue('canvas'),
+        sidebar: langue('side'),
+        panel: langue('detail'),
+      },
+    ])
+    await clique(écran, écran.vue('Language'))
+    expect(écran.wrapper.find('.sidebar .column-title').text()).toBe('Language')
+    expect(écran.wrapper.find('.plugin-view .canvas').text()).toBe('canvas:en')
+
+    setLocale('fr')
+    await vide(écran.wrapper)
+    expect(écran.vue('Langues').exists()).toBe(true)
+    expect(écran.wrapper.find('.sidebar .column-title').text()).toBe('Langues')
+    expect(
+      ['.sidebar .side', '.plugin-view .canvas', '#view-panel .detail'].map((one) =>
+        écran.wrapper.find(one).text(),
+      ),
+    ).toEqual(['side:fr', 'canvas:fr', 'detail:fr'])
+    écran.wrapper.unmount()
+  })
+
   test('opens from its entry, chooses an item from its sidebar, and keeps it in the address', async () => {
     const écran = await monte([badge, alerte])
     await vues(écran, [i18n])

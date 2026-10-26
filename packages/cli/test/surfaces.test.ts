@@ -328,7 +328,7 @@ describe('the view of a plugin', () => {
       return [lues.refused.map((one) => one.reason), lues.shell.map((one) => one.view)]
     }
     const LIBELLE =
-      '`view.label` must be a string of 1 to 8 characters, the activity bar is 48 px wide'
+      '`view.label` must be a string of 1 to 8 characters, or one per language, `en` required and `fr` optional: the activity bar is 48 px wide'
     const ICONE_REFUS =
       '`view.icon` must be a Hugeicons object, imported from `@hugeicons/core-free-icons`'
     expect(raison({ label: 'neuf-char', icon: ICONE })).toEqual([[LIBELLE], [undefined]])
@@ -337,6 +337,28 @@ describe('the view of a plugin', () => {
     expect(raison({ label: 'éèàùçôîï', icon: ICONE })).toEqual([
       [],
       [{ label: 'éèàùçôîï', icon: ICONE }],
+    ])
+    // Un libellé par langue, l'anglais requis, chacun à sa mesure.
+    expect(raison({ label: { en: 'Language', fr: 'Langues' }, icon: ICONE })).toEqual([
+      [],
+      [{ label: { en: 'Language', fr: 'Langues' }, icon: ICONE }],
+    ])
+    expect(raison({ label: { en: 'i18n' }, icon: ICONE })).toEqual([
+      [],
+      [{ label: { en: 'i18n' }, icon: ICONE }],
+    ])
+    expect(raison({ label: { en: 'i18n', fr: undefined }, icon: ICONE })).toEqual([
+      [],
+      [{ label: { en: 'i18n', fr: undefined }, icon: ICONE }],
+    ])
+    expect(raison({ label: { fr: 'Langues' }, icon: ICONE })).toEqual([[LIBELLE], [undefined]])
+    expect(raison({ label: { en: 'i18n', de: 'Sprachen' }, icon: ICONE })).toEqual([
+      [LIBELLE],
+      [undefined],
+    ])
+    expect(raison({ label: { en: 'i18n', fr: 'neuf-char' }, icon: ICONE })).toEqual([
+      [LIBELLE],
+      [undefined],
     ])
     expect(raison({ label: 'i18n', icon: 'TranslateIcon' })).toEqual([[ICONE_REFUS], [undefined]])
     expect(raison({ label: 'i18n', icon: [] })).toEqual([[ICONE_REFUS], [undefined]])
