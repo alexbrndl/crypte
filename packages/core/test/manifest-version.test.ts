@@ -26,7 +26,7 @@ describe('the manifest version', () => {
   })
 
   // Un type que la forme cite sans le relever pourrait changer sans que rien ne
-  // rougisse : chaque nom de type cité en est une clé, hors les génériques natifs
+  // rougisse : chaque nom de type cité en est une clé, hors `Record`
   // et `PluginPropDetails`, vide dans le noyau, que chaque plugin augmente.
   it('reads every type its fields name', () => {
     const shape = manifestShape()
