@@ -6,8 +6,31 @@ import { computed, watchEffect } from 'vue'
 // `overrides` spelled out: picked from `PanelProps`, the SFC compiler could not
 // resolve its runtime type and the panel did not compile.
 const props = defineProps<
-  Pick<PanelProps, 'entry' | 'values'> & { overrides?: Record<string, unknown> }
+  Pick<PanelProps, 'entry' | 'values' | 'locale'> & { overrides?: Record<string, unknown> }
 >()
+
+// Its texts in each language the shell speaks, which it passes as `locale` (6.1).
+const TEXTS = {
+  en: {
+    none: 'no story on display',
+    noProp: 'no prop on this component',
+    noEditable: 'no editable prop on this component',
+    unread: 'Props not read from the component file:',
+    only: 'Only those the story declares in',
+    appear: 'appear here.',
+    reset: 'Reset',
+  },
+  fr: {
+    none: 'aucune story affichée',
+    noProp: 'aucune prop sur ce composant',
+    noEditable: 'aucune prop modifiable sur ce composant',
+    unread: 'Props non lues dans le fichier du composant :',
+    only: 'Seules celles que la story déclare dans',
+    appear: 'apparaissent ici.',
+    reset: 'Réinitialiser',
+  },
+} as const
+const t = (key: keyof (typeof TEXTS)['en']) => TEXTS[props.locale ?? 'en'][key]
 
 const emit = defineEmits<Pick<PanelEvents, 'inapplicable' | 'overrides'>>()
 
@@ -28,15 +51,10 @@ const edited = computed<Overrides>(() => props.overrides ?? {})
 // Said again for every entry, section 6.1: the shell forgets it at each one.
 watchEffect(() => {
   const entry = props.entry
-  if (!entry) return emit('inapplicable', 'no story on display')
+  if (!entry) return emit('inapplicable', t('none'))
   if (fields.value.length > 0 || entry.propsUnread !== undefined) return
 
-  emit(
-    'inapplicable',
-    Object.keys(entry.details).length === 0
-      ? 'no prop on this component'
-      : 'no editable prop on this component',
-  )
+  emit('inapplicable', Object.keys(entry.details).length === 0 ? t('noProp') : t('noEditable'))
 })
 
 function set(name: string, value: unknown) {
@@ -99,8 +117,8 @@ const hint = (name: string, details: ResolvedPropDetails) => {
     class="unread"
     style="color: var(--warning-text, #b55200); font-size: 13px"
   >
-    Props not read from the component file: {{ entry.propsUnread }}. Only those the story declares
-    in <code>details</code> appear here.
+    {{ t('unread') }} {{ entry.propsUnread }}. {{ t('only') }} <code>details</code>
+    {{ t('appear') }}
   </p>
   <form
     v-if="fields.length > 0"
@@ -115,7 +133,7 @@ const hint = (name: string, details: ResolvedPropDetails) => {
       :description="details.description"
     >
       <template #action>
-        <Button v-if="name in edited" @click="unset(name)">Reset</Button>
+        <Button v-if="name in edited" @click="unset(name)">{{ t('reset') }}</Button>
       </template>
       <template #default="{ id, describedBy }">
         <Input

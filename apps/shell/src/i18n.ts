@@ -29,6 +29,11 @@ watchEffect(() => {
   document.documentElement.lang = locale.value
 })
 
+// Le libellé d'une vue de plugin dans la langue du moment : le sien s'il en a
+// un, l'anglais sinon (section 6.1).
+export const labelOf = (label: string | { en: string; fr?: string }) =>
+  typeof label === 'string' ? label : (label[locale.value] ?? label.en)
+
 // Un nombre à une décimale, dans la langue du moment : « 1.4 » ou « 1,4 ».
 export const decimal = (value: number) =>
   value.toLocaleString(locale.value, { minimumFractionDigits: 1, maximumFractionDigits: 1 })

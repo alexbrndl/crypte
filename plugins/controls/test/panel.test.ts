@@ -302,3 +302,23 @@ describe('the plugin', () => {
     expect(plugin.shell).toBe(new URL('../src/shell.js', import.meta.url).href)
   })
 })
+
+// Le shell passe sa langue (6.1) : le panneau dit ses textes dans la sienne, et
+// suit un changement sans être remonté. Les noms et les valeurs restent ceux du projet.
+describe('the language the shell speaks', () => {
+  test('draws its texts in French, and follows a change of language', async () => {
+    const wrapper = mount(Panel, { props: { entry: entry('x--nue', {}), locale: 'fr' } })
+
+    expect(raisons(wrapper)).toEqual(['aucune prop sur ce composant'])
+    await wrapper.setProps({ locale: 'en' })
+    expect(raisons(wrapper).at(-1)).toBe('no prop on this component')
+
+    const lue = mount(Panel, {
+      props: { entry: { ...toutes, propsUnread: 'boum' }, locale: 'fr', overrides: { label: 'x' } },
+    })
+    expect(lue.find('.unread').text()).toBe(
+      'Props non lues dans le fichier du composant : boum. Seules celles que la story déclare dans details apparaissent ici.',
+    )
+    expect(lue.find('button').text()).toBe('Réinitialiser')
+  })
+})

@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.53, reference document. A project brief points here instead of restating these shapes.
+> Version 1.54, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -887,8 +887,13 @@ export default {
 
 ```ts
 interface PluginView {
-  label: string
+  label: string | ViewLabel
   icon: ReadonlyArray<readonly [string, Readonly<Record<string, string | number>>]>
+}
+
+interface ViewLabel {
+  en: string
+  fr?: string
 }
 
 interface ShellView {
@@ -898,13 +903,14 @@ interface ShellView {
 }
 ```
 
-The label is 1 to 8 characters, the activity bar being 48 px wide; the icon is the Hugeicons object the plugin imports from `@hugeicons/core-free-icons`, a name would make the shell carry the whole set. No shortcut: ⌘1 to ⌘9 belong to the browser's tabs, a view opens by its entry and from ⌘K. **A view the CLI cannot draw is refused, with its reason**: a label too long, empty or not a string, an icon that is not a list of `[tag, attributes]` pairs, or a plugin with no `shell` module to draw it. **The shell module exports `view`**, the components of the view, beside a default export that stays the story panel and may be absent: a plugin that has only a view adds no panel to the stories. A `view` export whose canvas, or whose sidebar or panel when given, is not a component is named beside the panels, and the view is not drawn.
+The label is 1 to 8 characters, the activity bar being 48 px wide, or one such label per language the shell speaks, English required: the shell shows the one of its language, or the English one; the icon is the Hugeicons object the plugin imports from `@hugeicons/core-free-icons`, a name would make the shell carry the whole set. No shortcut: ⌘1 to ⌘9 belong to the browser's tabs, a view opens by its entry and from ⌘K. **A view the CLI cannot draw is refused, with its reason**: a label too long, empty or not a string, an icon that is not a list of `[tag, attributes]` pairs, or a plugin with no `shell` module to draw it. **The shell module exports `view`**, the components of the view, beside a default export that stays the story panel and may be absent: a plugin that has only a view adds no panel to the stories. A `view` export whose canvas, or whose sidebar or panel when given, is not a component is named beside the panels, and the view is not drawn.
 
 Each part receives the item chosen in the view and emits `item` to choose another, `null` for none. The shell keeps it in the address, `?view=<plugin>&item=<key>`, so a link reopens the view on it. The shell writes the view's label as the sidebar's title, draws the canvas on the workspace's background, and the panel in a frame folded and remembered like the other panels, under a key of its own:
 
 ```ts
 interface ViewProps {
   item: string | null
+  locale?: Locale
 }
 
 interface ViewEvents {
@@ -923,7 +929,10 @@ interface PanelProps {
   failed?: string | null
   values?: RenderedValues | null
   overrides?: Overrides
+  locale?: Locale
 }
+
+type Locale = 'en' | 'fr'
 
 interface PanelEvents {
   inapplicable: [reason: string | null]
@@ -933,6 +942,8 @@ interface PanelEvents {
 ```
 
 A panel declares the part it uses: `defineProps<Pick<PanelProps, 'entry'>>()`, `defineEmits<Pick<PanelEvents, 'inapplicable' | 'overrides'>>()`.
+
+**A panel and each part of a view receive `locale`**, the language the shell speaks, `en` or `fr`, and translate their own texts with it, in a dictionary of their own: no format is imposed, and a plugin that ignores it stays in its language. It is optional, added to the frozen contract (6.5) without breaking a plugin written before it. `controls` and `a11y` translate their panels; what comes from the project or from axe keeps its language.
 
 **A panel draws with the shell's design tokens.** It is mounted in the shell's document, not in an iframe, so it inherits the custom properties declared on the root, under the names of the design file's variables: `--text-primary`, `--text-muted`, `--background-raised`, `--border-light`, `--accent-base`, `--warning-text` and the other theme colors, the `--space-*` and `--radius-*` scales, `--font-sans` and `--font-mono`. The colors follow the shell's light or dark theme. A panel reads them with a fallback, `var(--text-muted, #57534d)`: a plugin cannot import `@crypte/ui`, which declares them, and its panel still renders where they are absent.
 
@@ -1081,7 +1092,7 @@ This document is a contract. This section is the only place that says what exist
 | 5, the channel | built and exercised on both sides |
 | 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. The `shell` and `preview` modules are loaded, and the shell mounts each shell module in a frame that folds when the panel is `inapplicable` and remembers whether it is open. A preview module's `afterMount` and `onMessage` are called, plugin messages cross the channel both ways, and a preview module that fails is named in the shell. `@crypte/controls` edits a story's props through `overrides`, `@crypte/a11y` analyses each render with axe-core and unfolds its panel with `null` when a violation appears, and the demonstration's `hello` and `status` plugins use the rest. `controls` does not add `min`, `max`, `step` or `control` to `PluginPropDetails` yet (3.3), so writing them is still a compile error. A panel's props and events are typed by `PanelProps` and `PanelEvents`, and a key a plugin does not have is refused. A plugin's `view` is built: its entry in the activity bar and in ⌘K, its sidebar, canvas and panel, typed by `PluginView`, `ShellView`, `ViewProps` and `ViewEvents`, and the demonstration's `i18n` plugin draws one. A project's own plugin imports them from `@crypte/cli`. **Frozen** since v1.25 (6.5) |
 
-**The shell speaks English and French**: the browser's language, French when it is French and English otherwise, then the choice of a switch at the foot of the activity bar, kept from one visit to the next. What comes from the project, the CLI or Git, names, messages and reasons, keeps its own language. The panels of the plugins are not translated yet.
+**The shell speaks English and French**: the browser's language, French when it is French and English otherwise, then the choice of a switch at the foot of the activity bar, kept from one visit to the next. What comes from the project, the CLI or Git, names, messages and reasons, keeps its own language. The panels of the official plugins follow it through `locale` (6.1).
 
 **`dev`, `build`, `check`, `init` and `mcp` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled in the project by the CLI's own Vite, with the plugins the project declares in `vite.plugins`. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte build` writes the same two pages into `crypte-static/`, the preview compiled once, beside what the dev server's routes answer, read once; every address the shell and the preview ask for is relative, so the folder may be served below a path. Both commands also give `index.json` and `iframe.html?id=` in the shape a built Storybook publishes, so zeroheight, Supernova and Knapsack can list and embed the stories. `iframe.html` draws through the path a render from the shell takes, so the preview modules of the plugins follow it and an edit redraws it, and writes a failure beside the story. The ids are those of 4.3, which a nested path keeps with its `/`. A compatibility export, never Crypte's own format, which follows Storybook's if it changes. `crypte mcp` serves the catalogue to a coding agent in the repository, as a Model Context Protocol server over stdio: four tools, the components, one component with its props, its stories' call code and its guidelines, the tokens, and what changed since a point of the history, each read from the story files at the call. `crypte init` writes the configuration of 1.5 into a project that already has its components, with a skill for a coding agent, `.claude/skills/write-stories/SKILL.md`, which writes a component's stories from the places the application calls it rather than from its signature; a project already configured gets the skill alone, and one already there is never overwritten. It has no section of its own because the configuration it writes is 1.5 itself.
 
@@ -1104,6 +1115,12 @@ Twelve known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.54.** The shell passes its language to the plugins (6.1).
+
+| Before | After |
+| --- | --- |
+| a plugin could not know the shell's language | panels and view parts receive `locale`, and a view's `label` may be one per language |
 
 **v1.53.** The shell speaks English and French (8).
 

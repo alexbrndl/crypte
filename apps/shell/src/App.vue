@@ -96,7 +96,7 @@ import TokensView from './tokens/tokens-view.vue'
 import { useTheme } from './theme/theme'
 import { componentIdOf } from './navigation/tree'
 import { placeSearch, readPlace, sameTab } from './navigation/url'
-import { decimal, texts } from './i18n'
+import { decimal, labelOf, locale, texts } from './i18n'
 
 const t = texts({
   en: {
@@ -440,9 +440,11 @@ const healthAt = ref<{ page: HealthPage; item?: string } | null>(null)
 // dessine rien.
 const viewAt = ref<{ plugin: string; item?: string } | null>(null)
 const views = shallowRef<LoadedView[]>([])
-const shownView = computed(
-  () => views.value.find((one) => one.name === viewAt.value?.plugin) ?? null,
-)
+// Son libellé déjà dans la langue du moment, pour chaque endroit qui le montre.
+const shownView = computed(() => {
+  const found = views.value.find((one) => one.name === viewAt.value?.plugin)
+  return found ? { ...found, label: labelOf(found.label) } : null
+})
 // Le repli du panneau d'une vue, retenu par plugin sous sa propre clé : celle
 // de son panneau des stories est `crypte:panel:<nom>`.
 const viewFolds = ref<Record<string, boolean>>({})
@@ -1237,7 +1239,7 @@ const DOCS_SNIPPET = '# Badge\n\nA short label for a status. It is never clickab
 const pluginViews = computed(() =>
   views.value.map((one) => ({
     name: one.name,
-    label: one.label,
+    label: labelOf(one.label),
     icon: one.icon,
     href: placeSearch({ mode: 'view', plugin: one.name }),
   })),
@@ -1693,6 +1695,7 @@ onMounted(() => {
             :is="shownView.sidebar"
             v-if="shownView?.sidebar"
             :item="viewAt.item ?? null"
+            :locale="locale"
             @item="(key: string | null) => openView(viewAt!.plugin, key ?? undefined)"
           />
         </template>
@@ -2053,6 +2056,7 @@ onMounted(() => {
               <component
                 :is="shownView.canvas"
                 :item="viewAt.item ?? null"
+                :locale="locale"
                 @item="(key: string | null) => openView(viewAt!.plugin, key ?? undefined)"
               />
             </ViewCanvas>
@@ -2301,6 +2305,7 @@ onMounted(() => {
               <component
                 :is="shownView.panel"
                 :item="viewAt.item ?? null"
+                :locale="locale"
                 @item="(key: string | null) => openView(viewAt!.plugin, key ?? undefined)"
               />
             </div>
@@ -2367,7 +2372,7 @@ onMounted(() => {
       :here="here"
       @show="(id) => show(id, 'push')"
       @open="(id) => open(id)"
-      :views="views"
+      :views="views.map((one) => ({ name: one.name, label: labelOf(one.label) }))"
       @changes="openChanges()"
       @view="(plugin) => openView(plugin)"
     />

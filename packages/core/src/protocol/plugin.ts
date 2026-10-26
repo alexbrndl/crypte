@@ -19,12 +19,24 @@ export interface CryptePlugin {
 }
 
 export interface PluginView {
-  // Eight characters at most: the activity bar is 48 px wide.
-  label: string
+  // Eight characters at most: the activity bar is 48 px wide. One per language
+  // the shell speaks, English required: the shell shows it in its language.
+  label: string | ViewLabel
   // The Hugeicons object the plugin imports from `@hugeicons/core-free-icons`:
   // a name would make the shell carry the whole set.
   icon: ReadonlyArray<readonly [string, Readonly<Record<string, string | number>>]>
 }
+
+// A view's label in each language the shell speaks. English is required, the one
+// shown when the shell's language has none.
+export interface ViewLabel {
+  en: string
+  fr?: string
+}
+
+// The languages the shell speaks, which it passes to each panel and each part of
+// a view: a plugin translates its own texts, in a dictionary of its own.
+export type Locale = 'en' | 'fr'
 
 // What the shell module exports as `view`, section 6.1: Vue components, opaque
 // like `ShellContribution`. The canvas is required, a view without one draws
@@ -40,6 +52,8 @@ export interface ShellView {
 // emits `item` to choose another, `null` to choose none.
 export interface ViewProps {
   item: string | null
+  // The shell's language, to draw the view's texts in.
+  locale?: Locale
 }
 
 export interface ViewEvents {
@@ -65,6 +79,8 @@ export interface PanelProps {
   // display: a panel that edits reads its values here rather than keeping its
   // own, so the shell can reset them.
   overrides?: Overrides
+  // The shell's language, to draw the panel's texts in.
+  locale?: Locale
 }
 
 // What a panel may emit, section 6.1, in the form `defineEmits` takes. A panel

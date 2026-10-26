@@ -142,8 +142,17 @@ function refusalOf(view: unknown): string | undefined {
     label?: unknown
     icon?: unknown
   }
-  if (typeof label !== 'string' || label === '' || [...label].length > 8)
-    return '`view.label` must be a string of 1 to 8 characters, the activity bar is 48 px wide'
+  // One string, or one per language, English required, each one fitting.
+  const fits = (one: unknown) => typeof one === 'string' && one !== '' && [...one].length <= 8
+  const labels =
+    typeof label === 'object' && label !== null
+      ? Object.entries(label as Record<string, unknown>)
+      : [['en', label] as const]
+  if (
+    !labels.some(([language]) => language === 'en') ||
+    !labels.every(([language, one]) => (language === 'en' || language === 'fr') && fits(one))
+  )
+    return '`view.label` must be a string of 1 to 8 characters, or one per language, `en` required and `fr` optional: the activity bar is 48 px wide'
   const drawable =
     Array.isArray(icon) &&
     icon.length > 0 &&
