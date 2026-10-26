@@ -4,7 +4,7 @@
 
 Crypte is driven by a CLI. `crypte dev`, `crypte build`, `crypte check`, `crypte init` and `crypte mcp` are the whole surface today. `migrate` is planned and not built.
 
-`crypte dev` writes a manifest at `.crypte/manifest.json` describing every entry in the catalogue: the file each component lives in, the props each story exercises, and the call code rebuilt from the story file, with path aliases resolved into real paths. The manifest is the interface: the workshop shell renders from it today. `crypte check` reports orphan stories, components with no story, and a committed fingerprint the stories no longer match, so a CI running it refuses a branch that did not update it. The MCP server that hands the manifest to agents is not built.
+`crypte dev` writes a manifest at `.crypte/manifest.json` describing every entry in the catalogue: the file each component lives in, the props each story exercises, and the call code rebuilt from the story file, with path aliases resolved into real paths. The manifest is the interface: the workshop shell renders from it today. `crypte check` reports orphan stories, components with no story, and a committed fingerprint the stories no longer match, so a CI running it refuses a branch that did not update it. `crypte mcp` hands the same manifest to coding agents, through four tools: `components`, `component`, `tokens` and `changes`.
 
 Status: in progress, nothing published to npm yet. Everything is MIT, nothing is for sale, and the CLI sends no telemetry. The contracts and the decisions behind them are committed to the public repository before the code that implements them.
 
