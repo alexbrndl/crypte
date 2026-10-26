@@ -5,6 +5,7 @@ import {
   type CryptePlugin,
   type PanelEvents,
   type PanelProps,
+  type Locale,
   type PluginView,
   type StoryEntry,
   type ViewEvents,
@@ -90,4 +91,24 @@ test('a view holds a label and a Hugeicons object', () => {
   expectTypeOf([nommée, muette]).toBeArray()
   expectTypeOf<ViewEvents['item']>().toEqualTypeOf<[key: string | null]>()
   expectTypeOf<ViewProps['item']>().toEqualTypeOf<string | null>()
+})
+
+// Un libellé par langue, l'anglais requis ; la langue que le shell passe, l'une
+// de celles qu'il parle, facultative pour qu'un plugin d'avant compile encore.
+test('a view label per language, and the language a part receives', () => {
+  const icon = [['path', { d: 'M0 0' }]] as const
+  const bilingue: PluginView = { label: { en: 'Language', fr: 'Langues' }, icon }
+  const anglais: PluginView = { label: { en: 'i18n' }, icon }
+  // @ts-expect-error l'anglais est requis
+  const sansAnglais: PluginView = { label: { fr: 'Langues' }, icon }
+  expectTypeOf([bilingue, anglais, sansAnglais]).toBeArray()
+  expectTypeOf<Locale>().toEqualTypeOf<'en' | 'fr'>()
+  expectTypeOf<PanelProps['locale']>().toEqualTypeOf<Locale | undefined>()
+  expectTypeOf<ViewProps['locale']>().toEqualTypeOf<Locale | undefined>()
+  expectTypeOf<{ entry: null; received: null }>().toExtend<PanelProps>()
+  // @ts-expect-error une langue que le shell ne parle pas
+  const allemand: Pick<PanelProps, 'locale'> = { locale: 'de' }
+  // @ts-expect-error de même pour une partie de vue
+  const vueAllemande: ViewProps = { item: null, locale: 'de' }
+  expectTypeOf([allemand, vueAllemande]).toBeArray()
 })

@@ -312,6 +312,9 @@ describe('the language the shell speaks', () => {
     expect(raisons(wrapper)).toEqual(['aucune prop sur ce composant'])
     await wrapper.setProps({ locale: 'en' })
     expect(raisons(wrapper).at(-1)).toBe('no prop on this component')
+    // Une langue qu'il ne connaît pas : l'anglais, plutôt qu'une erreur.
+    await wrapper.setProps({ locale: 'de' as never })
+    expect(raisons(wrapper).at(-1)).toBe('no prop on this component')
 
     const lue = mount(Panel, {
       props: { entry: { ...toutes, propsUnread: 'boum' }, locale: 'fr', overrides: { label: 'x' } },

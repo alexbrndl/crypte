@@ -192,5 +192,8 @@ describe('the language the shell speaks', () => {
     expect(derniere(wrapper)).toBe('1 règle automatique passée, aucune violation')
     await wrapper.setProps({ locale: 'en' })
     expect(derniere(wrapper)).toBe('1 automatic rule passed, no violation')
+    // Une langue qu'il ne connaît pas : l'anglais, plutôt qu'une erreur.
+    await wrapper.setProps({ locale: 'de' as never })
+    expect(derniere(wrapper)).toBe('1 automatic rule passed, no violation')
   })
 })

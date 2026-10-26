@@ -44,7 +44,9 @@ const TEXTS = {
     again: "Relancer l'analyse",
   },
 } as const
-const t = (key: keyof (typeof TEXTS)['en']) => TEXTS[props.locale ?? 'en'][key]
+// English for a language it does not know: the shell may speak more later.
+const t = (key: keyof (typeof TEXTS)['en']) =>
+  ((TEXTS as Record<string, Record<string, string>>)[props.locale ?? 'en'] ?? TEXTS.en)[key]
 // Zero and one take the singular in French.
 const one = (count: number) => (props.locale === 'fr' ? count < 2 : count === 1)
 

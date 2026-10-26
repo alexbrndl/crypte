@@ -30,7 +30,9 @@ const TEXTS = {
     reset: 'Réinitialiser',
   },
 } as const
-const t = (key: keyof (typeof TEXTS)['en']) => TEXTS[props.locale ?? 'en'][key]
+// English for a language it does not know: the shell may speak more later.
+const t = (key: keyof (typeof TEXTS)['en']) =>
+  ((TEXTS as Record<string, Record<string, string>>)[props.locale ?? 'en'] ?? TEXTS.en)[key]
 
 const emit = defineEmits<Pick<PanelEvents, 'inapplicable' | 'overrides'>>()
 

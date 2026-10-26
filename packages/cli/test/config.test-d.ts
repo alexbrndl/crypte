@@ -4,6 +4,7 @@ import type { Adapter } from '@crypte/core/preview'
 import type {
   CrypteConfig,
   CryptePlugin,
+  Locale,
   PanelEvents,
   PanelProps,
   PluginView,
@@ -11,6 +12,7 @@ import type {
   PreviewHooks,
   ShellView,
   ViewEvents,
+  ViewLabel,
   ViewProps,
 } from '../src/config/config'
 
@@ -47,6 +49,8 @@ describe('the plugin types a project imports', () => {
     expectTypeOf<PreviewHooks>().toEqualTypeOf<protocol.PreviewHooks>()
     expectTypeOf<PreviewContext>().toEqualTypeOf<protocol.PreviewContext>()
     expectTypeOf<PluginView>().toEqualTypeOf<protocol.PluginView>()
+    expectTypeOf<ViewLabel>().toEqualTypeOf<protocol.ViewLabel>()
+    expectTypeOf<Locale>().toEqualTypeOf<protocol.Locale>()
     expectTypeOf<ShellView>().toEqualTypeOf<protocol.ShellView>()
     expectTypeOf<ViewProps>().toEqualTypeOf<protocol.ViewProps>()
     expectTypeOf<ViewEvents>().toEqualTypeOf<protocol.ViewEvents>()

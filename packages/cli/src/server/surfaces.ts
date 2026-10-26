@@ -146,7 +146,7 @@ function refusalOf(view: unknown): string | undefined {
   const fits = (one: unknown) => typeof one === 'string' && one !== '' && [...one].length <= 8
   const labels =
     typeof label === 'object' && label !== null
-      ? Object.entries(label as Record<string, unknown>)
+      ? Object.entries(label as Record<string, unknown>).filter(([, one]) => one !== undefined)
       : [['en', label] as const]
   if (
     !labels.some(([language]) => language === 'en') ||

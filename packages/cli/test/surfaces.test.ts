@@ -347,6 +347,10 @@ describe('the view of a plugin', () => {
       [],
       [{ label: { en: 'i18n' }, icon: ICONE }],
     ])
+    expect(raison({ label: { en: 'i18n', fr: undefined }, icon: ICONE })).toEqual([
+      [],
+      [{ label: { en: 'i18n', fr: undefined }, icon: ICONE }],
+    ])
     expect(raison({ label: { fr: 'Langues' }, icon: ICONE })).toEqual([[LIBELLE], [undefined]])
     expect(raison({ label: { en: 'i18n', de: 'Sprachen' }, icon: ICONE })).toEqual([
       [LIBELLE],
