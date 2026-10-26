@@ -78,6 +78,8 @@ test('nothing publishes unless NPM_PUBLISH is true, and never 0.0.0', () => {
   const dossier = join(root, '.github', 'workflows')
   // Le mot `publish` en position de commande, hors commentaires : toute forme,
   // `pnpm --filter x publish`, `vp pm publish` ou `npm publish&&` comprises.
+  // Une clé `publish:` aussi, et exprès : sous `changesets/action`, elle publie.
+  // Une clé du même nom qui ne publierait pas ferait rougir à tort, bruyamment.
   const publie = /(?:^|[\s;&|(])publish(?![\w-])/m
   // Chaque job pris seul, pour que le verrou soit celui du job qui publie.
   const jobs = readdirSync(dossier).flatMap((nom) =>
