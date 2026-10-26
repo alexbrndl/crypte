@@ -90,6 +90,31 @@ describe('the language of the shell', () => {
     expect(t('a', { n: 3 })).toBe('3 left')
   })
 
+  test('writes a decimal number the way the language does', async () => {
+    vi.stubGlobal('navigator', { language: 'en-US' })
+    const { decimal, setLocale } = await fresh()
+
+    expect(decimal(1.43)).toBe('1.4')
+    setLocale('fr')
+    expect(decimal(1.43)).toBe('1,4')
+  })
+
+  // Un texte produit avant un changement de langue se lit après lui : la ligne
+  // d'état et l'échec d'un audit suivent le sélecteur.
+  test('reads a text made before a change of language in the new one', async () => {
+    vi.stubGlobal('navigator', { language: 'en-US' })
+    const { setLocale } = await fresh()
+    const { unreadable } = await import('../src/navigation/recover')
+    const { AuditFailure } = await import('../src/health/audit')
+    const said = unreadable(new Error('boum'))
+    const failure = new AuditFailure(() => (said().startsWith('the') ? 'en' : 'fr'))
+
+    expect(said()).toBe('the catalogue could not be read: boum')
+    setLocale('fr')
+    expect(said()).toBe("le catalogue n'a pas pu être lu : boum")
+    expect(failure.text()).toBe('fr')
+  })
+
   // En français, zéro et un prennent le singulier.
   test('agrees a count with its noun by the rule of the language', async () => {
     vi.stubGlobal('navigator', { language: 'en-US' })

@@ -33,16 +33,22 @@ export type AuditResult =
 
 export const THEMES: Theme[] = ['light', 'dark']
 
+// Ce que l'audit dit lui-même de son échec : un texte lu à l'affichage, qui suit
+// la langue choisie après coup.
+export class AuditFailure extends Error {
+  constructor(readonly text: () => string) {
+    super(text())
+  }
+}
+
 const t = texts({
   en: {
     neverReady: 'the preview never said it was ready',
     neverBack: 'the preview never came back after a reload',
-    shape: 'the a11y plugin answered in a shape the shell does not read',
   },
   fr: {
     neverReady: "l'aperçu n'a jamais dit qu'il était prêt",
     neverBack: "l'aperçu n'est jamais revenu après un rechargement",
-    shape: 'le plugin a11y a répondu sous une forme que le shell ne lit pas',
   },
 })
 
@@ -112,14 +118,14 @@ export async function audit(
         resolve(message)
       }
     })
-  const ready = async (reason: string) => {
+  const ready = async (reason: () => string) => {
     const message = await next((one) => one.type === 'ready')
-    if (message === null && !signal?.aborted) throw new Error(reason)
+    if (message === null && !signal?.aborted) throw new AuditFailure(reason)
   }
 
   const results: AuditResult[] = []
   try {
-    await ready(t('neverReady'))
+    await ready(() => t('neverReady'))
     for (const id of stories) {
       for (const theme of THEMES) {
         if (signal?.aborted) return results
@@ -140,7 +146,7 @@ export async function audit(
           // Une réponse qui arriverait après l'attente passerait pour celle du
           // rendu suivant, d'un autre thème ou d'une autre story : la preview
           // rechargée jette tout ce qu'elle avait en cours.
-          const reloaded = ready(t('neverBack'))
+          const reloaded = ready(() => t('neverBack'))
           reload()
           await reloaded
         } else if (message.type === 'error')
@@ -157,7 +163,9 @@ export async function audit(
           results.push({
             id,
             theme,
-            error: t('shape'),
+            // Jamais affiché : seule l'identité de la story compte, sur la page
+            // accessibilité. En anglais, comme un diagnostic.
+            error: 'the a11y plugin answered in a shape the shell does not read',
           })
         else results.push({ id, theme, passes: message.passes, violations: message.violations })
         progress(results.length)

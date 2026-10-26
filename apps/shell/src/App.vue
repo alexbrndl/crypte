@@ -54,7 +54,7 @@ import HealthView from './health/health-view.vue'
 import HealthPanel from './health/health-panel.vue'
 import HealthAccessibility from './health/health-accessibility.vue'
 import HealthFailures from './health/health-failures.vue'
-import { audit, failuresOf, findingsOf, type AuditResult } from './health/audit'
+import { AuditFailure, audit, failuresOf, findingsOf, type AuditResult } from './health/audit'
 import {
   gaugesOf,
   keyOf,
@@ -96,7 +96,7 @@ import TokensView from './tokens/tokens-view.vue'
 import { useTheme } from './theme/theme'
 import { componentIdOf } from './navigation/tree'
 import { placeSearch, readPlace, sameTab } from './navigation/url'
-import { texts } from './i18n'
+import { decimal, texts } from './i18n'
 
 const t = texts({
   en: {
@@ -350,7 +350,7 @@ const current = ref<string | null>(null)
 // Une fonction, lue au rendu : un texte figé ne suivrait pas la langue.
 const status = ref<() => string>(() => t('loading'))
 // Ce qu'un catalogue illisible laisse dire, quelle que soit la page.
-const unread = ref<string | null>(null)
+const unread = ref<(() => string) | null>(null)
 
 // L'entrée affichée, pas seulement son identifiant : celui-ci vient du chemin et
 // du nom, donc renommer une story le change et la sélection ne se retrouve plus.
@@ -621,7 +621,7 @@ const counter = computed(() =>
 // place. Une page dont l'entrée a disparu reste ouverte et le dit, comme une
 // story perdue : l'entrée revenue, la page revient avec elle.
 const line = computed(() => {
-  if (unread.value !== null) return unread.value
+  if (unread.value !== null) return unread.value()
   if (changesOpen.value)
     return changes.value !== null && 'from' in changes.value
       ? t('since', {
@@ -639,7 +639,7 @@ const line = computed(() => {
     if (healthAt.value.page === 'accessibility' && auditResults.value && auditTook.value !== null)
       return t('audited', {
         count: auditResults.value.length / 2,
-        seconds: (auditTook.value / 1000).toFixed(1),
+        seconds: decimal(auditTook.value / 1000),
       })
     const covered = listed.filter((one) => one.stories.length > 0).length
     return t('covered', {
@@ -691,7 +691,7 @@ const auditResults = shallowRef<AuditResult[] | null>(null)
 const auditTook = ref<number | null>(null)
 // Pourquoi le dernier audit n'a pas tourné, dit sur sa page : un clic sans suite
 // ne dirait rien.
-const auditFailed = ref<string | null>(null)
+const auditFailed = ref<(() => string) | null>(null)
 const findings = computed(() => (auditResults.value ? findingsOf(auditResults.value) : null))
 const a11yPlugin = computed(() => weights.value.some((one) => one.plugin === 'a11y'))
 const selectedFinding = computed(
@@ -768,7 +768,8 @@ async function runAudit() {
     auditTook.value = performance.now() - started
   } catch (error) {
     auditTook.value = null
-    auditFailed.value = error instanceof Error ? error.message : String(error)
+    const said = error instanceof Error ? error.message : String(error)
+    auditFailed.value = error instanceof AuditFailure ? error.text : () => said
   } finally {
     auditing.value = null
   }
@@ -793,7 +794,7 @@ function mute(ranks: number[]) {
   muted.value = ranks
   if (current.value !== null) select(current.value)
 }
-const kB = (bytes: number) => `${(bytes / 1e3).toFixed(1)} kB`
+const kB = (bytes: number) => `${decimal(bytes / 1e3)} kB`
 
 // Ce que le CLI dit du projet : la racine de stories qu'il déclare, et pourquoi
 // la dernière relecture de la configuration a échoué, le serveur gardant la
@@ -1496,8 +1497,7 @@ async function refresh() {
 
   const next = landing(shown, before, stories)
   shown = next.shown
-  const said = next.status
-  if (said) status.value = () => said
+  if (next.status) status.value = next.status
 
   // L'erreur part avec la story : un fichier supprimé fait d'abord échouer son
   // rechargement à chaud, et l'alerte restait par-dessus « la story affichée a
@@ -1991,7 +1991,7 @@ onMounted(() => {
             v-if="healthAt?.page === 'failures' && listedHealth"
             :failures="failures"
             :running="auditing"
-            :failed="auditFailed"
+            :failed="auditFailed?.() ?? null"
             :stories="entries"
             :selected="healthAt.item ?? null"
             :href-of="(key) => placeSearch({ mode: 'health', page: 'failures', item: key })"
@@ -2003,7 +2003,7 @@ onMounted(() => {
             :plugin="a11yPlugin"
             :audit="auditResults"
             :running="auditing"
-            :failed="auditFailed"
+            :failed="auditFailed?.() ?? null"
             :stories="entries"
             :selected="healthAt.item ?? null"
             :href-of="(key) => placeSearch({ mode: 'health', page: 'accessibility', item: key })"

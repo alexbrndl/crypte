@@ -79,7 +79,7 @@ const t = texts({
     write: 'Écrire la story de {name}',
     overview: 'par problèmes',
     unstoried: 'par props',
-    statuses: "dépréciés d'abord",
+    statuses: "obsolètes d'abord",
     everything: 'Tout ce qui est à faire',
     toDo: 'à faire',
     nothing: 'Rien à lister ici.',

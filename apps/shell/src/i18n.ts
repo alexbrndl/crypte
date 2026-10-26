@@ -29,6 +29,10 @@ watchEffect(() => {
   document.documentElement.lang = locale.value
 })
 
+// Un nombre à une décimale, dans la langue du moment : « 1.4 » ou « 1,4 ».
+export const decimal = (value: number) =>
+  value.toLocaleString(locale.value, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+
 // Les paramètres d'un texte : `{count}` dans `'{count} à faire'`.
 type Params<S> = S extends `${string}{${infer P}}${infer R}` ? P | Params<R> : never
 

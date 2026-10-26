@@ -120,7 +120,7 @@ const t = texts({
     violation: 'violation',
     violations: 'violations',
     fix: 'Corriger {violations}',
-    replace: 'Déprécié : à remplacer dans {name}',
+    replace: 'Obsolète : à remplacer dans {name}',
     nothing: 'Rien à faire.',
     links: 'Liens',
     story: 'story',
