@@ -10,6 +10,7 @@
     "@crypte/a11y": "workspace:*",
     "@crypte/controls": "workspace:*",
     "@crypte/react": "workspace:*",
+    "@crypte/source": "workspace:*",
     "@crypte/tokens": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

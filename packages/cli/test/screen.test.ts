@@ -817,7 +817,7 @@ describe('a plugin in the browser', () => {
 
     expect(await chiffres.allInnerTexts()).toEqual([
       expect.stringMatching(/^Shell \d+\.\d kB$/),
-      '6 plugins',
+      '7 plugins',
     ])
     expect(await ecran.page.locator('.status-bar .render').innerText()).toMatch(
       /^First render \d+ ms$/,
@@ -831,6 +831,7 @@ describe('a plugin in the browser', () => {
     expect((await bulle.textContent())?.split('\n')).toEqual([
       'tokens 0.0 kB',
       expect.stringMatching(/^controls \d\.\d kB$/),
+      expect.stringMatching(/^source \d\.\d kB$/),
       expect.stringMatching(/^a11y 1\d\d\.\d kB$/),
       expect.stringMatching(/^hello \d\.\d kB$/),
       expect.stringMatching(/^status \d\.\d kB$/),
@@ -995,7 +996,7 @@ describe('the panel host', () => {
           .locator('[data-plugin]')
           .evaluateAll((tous) => tous.map((un) => un.getAttribute('data-plugin'))),
       )
-      .toEqual(['controls', 'a11y', 'hello', 'status'])
+      .toEqual(['controls', 'source', 'a11y', 'hello', 'status'])
   })
 
   test('folds a panel with nothing to say, story by story', async ({ ecran }) => {

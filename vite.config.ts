@@ -169,6 +169,7 @@ export default defineConfig({
             '**/adapter.test.ts',
             'apps/shell/test/**',
             'plugins/controls/test/**',
+            'plugins/source/test/**',
             'plugins/a11y/test/**',
             'packages/ui/test/**',
           ],
@@ -185,6 +186,7 @@ export default defineConfig({
           include: [
             'apps/shell/test/**/*.test.ts',
             'plugins/controls/test/**/*.test.ts',
+            'plugins/source/test/**/*.test.ts',
             'plugins/a11y/test/**/*.test.ts',
             'packages/ui/test/**/*.test.ts',
           ],

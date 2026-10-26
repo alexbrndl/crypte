@@ -16,7 +16,8 @@
       "@crypte/tokens",
       "@crypte/controls",
       "@crypte/a11y",
-      "@crypte/ui"
+      "@crypte/ui",
+      "@crypte/source"
     ]
   ],
   "linked": [],
