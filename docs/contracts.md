@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.51, reference document. A project brief points here instead of restating these shapes.
+> Version 1.52, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -543,11 +543,7 @@ Every entry carries a `type`. **Three values are implemented: `"story"`, `"token
 
 **`MANIFEST_VERSION` does not move when a nature is added.** The reserved `type` field is precisely what that reserve was for, and nothing required moved on `StoryEntry`, so a reader that only knows stories skips what it does not recognise instead of failing. The rule that does force a bump is adding a required field once a version that writes manifests is published.
 
-**That rule is prose, and no test holds it.** A baseline exists — `manifest-shape.test.ts` pins the fixture's manifest field by field, so a field appearing, going or being renamed is seen there. What no case does is **tie that to the version**: it pins `version: 1` beside the rest and never relates the two.
-
-Tying them is what cannot be done yet, and the reason is the rule's own condition. The rule asks for a bump once a published version writes manifests; nothing is published, so adding a required field is free, and a case demanding a bump would fail correct work.
-
-The first publication is what turns it on. From then the published shape is the baseline, and a case can require that a required field appearing without `MANIFEST_VERSION` moving is a failure. Until then this paragraph is the guard, and it is a weak one.
+**A test holds that rule.** `manifest-shape.v1.json`, beside the core's tests, records every type a manifest holds, field by field with its type, and the unions that bound their values. A shape that differs from the file of the current `MANIFEST_VERSION` fails, whatever moved. Before the first publication the failure asks to record the new shape in that same file, since nothing published depends on it yet; after it, to bump `MANIFEST_VERSION` and record the new shape under the next number, unless an optional field or a new nature of entry was added and nothing else. **There is no JSON Schema**: the readers this format is for are written in JavaScript and read its types from `@crypte/core/protocol`, and a schema would be a second source to keep in step. Reopened by a reader that is not, or an editor that validates the file.
 
 `props` and `source` are read from the story file, not declared in it. `props` lists the names the story passes to the component, from the shared block and its own, sorted, with no value attached: a prop set to a function is still a prop the story exercises, and prop coverage counts it. `source` rebuilds the call from the text the user wrote, so an expression the CLI cannot evaluate still reads the way they typed it.
 
@@ -1106,6 +1102,12 @@ Twelve known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.52.** A test ties the manifest's shape to its version (4.2).
+
+| Before | After |
+| --- | --- |
+| the version rule was prose, held by no test | `manifest-shape.v1.json` records the shape, and a shape that moves without being recorded fails |
 
 **v1.51.** `crypte init` writes a skill that writes stories from usage (8).
 
