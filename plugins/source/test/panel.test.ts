@@ -40,20 +40,27 @@ describe('the call code', () => {
 
     expect(wrapper.find('code').text()).toBe('<Badge label="Neuf" />')
     expect(raisons(wrapper)).toEqual([null])
+    expect(wrapper.find('.source-partial').exists()).toBe(false)
 
     await wrapper.setProps({ entry: null })
     expect(wrapper.find('code').exists()).toBe(false)
     expect(raisons(wrapper).at(-1)).toBe('no story on display')
   })
 
-  // Une story dont un spread a caché des props : l'appel est incomplet, et le dit.
+  // Ce que la lecture du fichier a perdu, dont `meta`, qui ne touche pas l'appel.
   test('says what is missing from a partial call', () => {
     const wrapper = mount(Panel, {
-      props: { entry: entry('badge--a', '<Badge />', '`...shared` is not read') },
+      props: {
+        entry: entry(
+          'badge--a',
+          '<Badge />',
+          'a spread in the definition decides `meta`, so no status or owner is read',
+        ),
+      },
     })
 
     expect(wrapper.find('.source-partial').text()).toBe(
-      'Part of this call is missing: `...shared` is not read',
+      'Incomplete reading: a spread in the definition decides `meta`, so no status or owner is read',
     )
   })
 
@@ -93,9 +100,7 @@ describe('the language the shell speaks', () => {
     })
 
     expect(wrapper.find('button').text()).toBe('Copier')
-    expect(wrapper.find('.source-partial').text()).toBe(
-      'Une partie de cet appel manque : un spread',
-    )
+    expect(wrapper.find('.source-partial').text()).toBe('Lecture incomplète : un spread')
     await wrapper.setProps({ entry: null })
     expect(raisons(wrapper).at(-1)).toBe('aucune story affichée')
     await wrapper.setProps({ locale: 'de' as never })

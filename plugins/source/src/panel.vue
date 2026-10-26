@@ -14,14 +14,14 @@ const TEXTS = {
     copy: 'Copy',
     copied: 'Copied',
     failed: 'Copy failed',
-    partial: 'Part of this call is missing:',
+    partial: 'Incomplete reading:',
   },
   fr: {
     none: 'aucune story affichée',
     copy: 'Copier',
     copied: 'Copié',
     failed: 'Échec de la copie',
-    partial: 'Une partie de cet appel manque :',
+    partial: 'Lecture incomplète :',
   },
 } as const
 // English for a language it does not know: the shell may speak more later.
