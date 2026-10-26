@@ -1,0 +1,79 @@
+{
+  "Manifest": {
+    "version": "number",
+    "entries": "ManifestEntry[]",
+    "skipped?": "SkippedFile[]"
+  },
+  "SkippedFile": {
+    "file": "string",
+    "reason": "string"
+  },
+  "StoryEntry": {
+    "type": "'story'",
+    "id": "string",
+    "path": "string[]",
+    "name": "string",
+    "component": "ComponentRef",
+    "storyFile": "string",
+    "options": "Record<string, unknown>",
+    "details": "Record<string, ResolvedPropDetails>",
+    "props": "string[]",
+    "source": "string",
+    "meta?": "StoryMeta",
+    "partial?": "string",
+    "propsUnread?": "string"
+  },
+  "ComponentRef": {
+    "name": "string",
+    "file": "string",
+    "export": "string",
+    "tokens?": "string[]"
+  },
+  "TokensEntry": {
+    "type": "'tokens'",
+    "id": "string",
+    "path": "string[]",
+    "name": "string",
+    "tokens": "Record<string, TokenValue>"
+  },
+  "PageEntry": {
+    "type": "'page'",
+    "id": "string",
+    "path": "string[]",
+    "name": "string",
+    "file": "string",
+    "body": "string",
+    "storyFile?": "string"
+  },
+  "PropDetails": {
+    "(heritage)": "extends PluginPropDetails",
+    "type?": "PropKind",
+    "required?": "boolean",
+    "default?": "unknown",
+    "description?": "string",
+    "options?": "unknown[]"
+  },
+  "ResolvedPropDetails": {
+    "(heritage)": "extends PropDetails",
+    "type": "PropKind",
+    "required": "boolean"
+  },
+  "StoryMeta": {
+    "status?": "'draft' | 'stable' | 'deprecated'",
+    "owner?": "string",
+    "figma?": "string",
+    "description?": "string"
+  },
+  "TokenValue": {
+    "type": "TokenKind",
+    "description?": "string",
+    "themes": "Record<string, TokenInTheme>"
+  },
+  "TokenInTheme": {
+    "value": "string",
+    "alias?": "string[]"
+  },
+  "ManifestEntry": "StoryEntry | TokensEntry | PageEntry",
+  "PropKind": "'string' | 'number' | 'boolean' | 'enum' | 'object' | 'array' | 'function' | 'node' | 'unknown'",
+  "TokenKind": "'color' | 'dimension' | 'fontFamily' | 'fontWeight' | 'number' | 'unknown'"
+}
