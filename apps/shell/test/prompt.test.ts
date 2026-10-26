@@ -92,7 +92,7 @@ describe('the prompt for an agent', () => {
 
         ## Stories to write
 
-        Write them from the places the application uses each component, following \`.claude/skills/write-stories/SKILL.md\`, which \`crypte init\` writes and adds when it is missing: propose the cases found there, and let a person keep and name them.
+        Write them from the places the application uses each component, following \`.claude/skills/write-stories/SKILL.md\`, which \`crypte init\` writes (run it again to add it if it is missing): propose the cases found there, and let a person keep and name them.
 
         ### Select
         - Component: \`src/components/form/Select.tsx\`, export \`default\`
@@ -130,7 +130,7 @@ describe('the prompt for an agent', () => {
 
       ## Stories to write
 
-      Write them from the places the application uses each component, following \`.claude/skills/write-stories/SKILL.md\`, which \`crypte init\` writes and adds when it is missing: propose the cases found there, and let a person keep and name them.
+      Write them from the places the application uses each component, following \`.claude/skills/write-stories/SKILL.md\`, which \`crypte init\` writes (run it again to add it if it is missing): propose the cases found there, and let a person keep and name them.
 
       ### Select
       - Component: \`src/components/form/Select.tsx\`, export \`default\`

@@ -37,7 +37,7 @@ Do not add cases the application never reaches. A prop combination with no call 
 
 ## 4. Write the story file
 
-One file per component, at the component's own path under the story folder, so the tree of stories mirrors the tree of components: \`src/components/checkout/OrderSummary.tsx\` gives \`checkout/OrderSummary.tsx\`. Its extension follows the project: \`.tsx\` or \`.ts\` with TypeScript, \`.jsx\` or \`.js\` without, \`.ts\` for a \`.vue\` component. \`defineStories\` comes from the adapter \`crypte.config.ts\` imports, \`@crypte/react\` or \`@crypte/vue\`; a \`.vue\` component is imported by default, its extension included. Props every story shares go in \`props\`; each story declares only what differs:
+One file per component, at the component's own path under the story folder, so the tree of stories mirrors the tree of components: \`src/components/checkout/OrderSummary.tsx\` gives \`checkout/OrderSummary.tsx\`. Its extension follows the project: \`.ts\` with TypeScript and \`.js\` without, \`.tsx\` or \`.jsx\` when a story writes JSX. \`defineStories\` comes from the adapter \`crypte.config.ts\` imports, \`@crypte/react\` or \`@crypte/vue\`; a \`.vue\` component is imported by default, its extension included. Props every story shares go in \`props\`; each story declares only what differs:
 
 \`\`\`ts
 import { defineStories } from '@crypte/react'
