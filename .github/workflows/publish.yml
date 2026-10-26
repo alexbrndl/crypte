@@ -1,0 +1,79 @@
+name: Publish
+
+# Publie sur npm les paquets dont la version n'y est pas encore, à chaque poussée
+# sur `main` : c'est la fusion de « Version Packages » qui en crée une. **Rien ne
+# part tant que la variable de dépôt `NPM_PUBLISH` ne vaut pas `true`** : la
+# première publication est une décision, et un nom publié ne se reprend plus
+# après 72 heures. `test/publishing.test.mjs` garde ce verrou.
+#
+# Avant de l'activer : le secret `NPM_TOKEN`, et la médiane du démarrage à froid
+# de `main` relevée en local (DCJ-342, `TOLÉRANCE` dans `scripts/budgets.mjs`).
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  # La provenance : npm atteste du dépôt et du commit d'où vient le paquet.
+  id-token: write
+
+# Jamais annulée en vol : une publication à moitié faite laisse des paquets à des
+# versions différentes, et la suivante ne la reprend pas.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: vars.NPM_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: voidzero-dev/setup-vp@49c3e4e92c52e7f8392712a9267bbe71c5ab30e5 # v1.19.0
+        with:
+          node-version: '24'
+          cache: true
+      # Jamais 0.0.0, le numéro du dépôt avant toute version : la première
+      # publication est 0.1.0, qu'écrit la fusion de « Version Packages ».
+      - id: version
+        run: echo "version=$(node -p "require('./packages/cli/package.json').version")" >> "$GITHUB_OUTPUT"
+      - if: steps.version.outputs.version != '0.0.0'
+        run: vp install
+      - if: steps.version.outputs.version != '0.0.0'
+        run: vp run -r pack
+
+      # Le jeton dans `.npmrc` : `changeset publish` ne l'écrit pas, contrairement
+      # à l'action changesets.
+      - if: steps.version.outputs.version != '0.0.0'
+        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > "$HOME/.npmrc"
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Ne publie que ce que npm n'a pas : une poussée sans version neuve ne
+      # publie rien. `pnpm publish` réécrit les `workspace:*` en versions.
+      - if: steps.version.outputs.version != '0.0.0'
+        run: vp exec changeset publish
+        env:
+          NPM_CONFIG_PROVENANCE: 'true'
+
+      # Un seul numéro pour tous les paquets du groupe `fixed`, donc un seul tag
+      # et une seule release, avec l'extrait du changelog de `@crypte/cli`. Rien
+      # quand le tag existe déjà : cette poussée n'a rien publié.
+      - name: Tag and release
+        if: steps.version.outputs.version != '0.0.0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version=${{ steps.version.outputs.version }}
+          if git ls-remote --exit-code --tags origin "v$version" >/dev/null; then exit 0; fi
+          node -e "
+            const text = require('fs').readFileSync('packages/cli/CHANGELOG.md', 'utf8')
+            const start = text.indexOf('## $version')
+            const end = text.indexOf('\n## ', start + 1)
+            process.stdout.write(start === -1 ? '' : text.slice(start, end === -1 ? undefined : end))
+          " > notes.md
+          git tag "v$version"
+          git push origin "v$version"
+          gh release create "v$version" --title "v$version" --notes-file notes.md

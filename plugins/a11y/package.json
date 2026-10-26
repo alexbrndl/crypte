@@ -2,6 +2,11 @@
   "name": "@crypte/a11y",
   "version": "0.0.0",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alexbrndl/crypte.git",
+    "directory": "plugins/a11y"
+  },
   "files": [
     "dist"
   ],

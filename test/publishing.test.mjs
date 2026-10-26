@@ -3,7 +3,7 @@
 // déclaration est tenue par `packages/core/test/side-effects.test.ts`.
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vitest'
@@ -68,6 +68,42 @@ test('the version workflow does not publish', () => {
 
   expect(entrées, 'aucune entrée lue, le motif ne mesure plus rien').not.toEqual([])
   expect(entrées).not.toContain('publish')
+})
+
+// Ce qui publie vraiment, `publish.yml`, ne tourne que si la variable de dépôt
+// `NPM_PUBLISH` vaut `true`, et jamais sur 0.0.0 : activer la publication est une
+// décision, pas l'effet d'une fusion. Tout workflow qui publierait est lu, pas
+// seulement celui-là : un second qui oublierait le verrou passerait sinon.
+test('nothing publishes unless NPM_PUBLISH is true, and never 0.0.0', () => {
+  const dossier = join(root, '.github', 'workflows')
+  const workflows = readdirSync(dossier).map((nom) => [
+    nom,
+    readFileSync(join(dossier, nom), 'utf8'),
+  ])
+  const publient = workflows.filter(([, texte]) =>
+    /changeset publish|(?:npm|pnpm) publish/.test(texte.replace(/^\s*#.*$/gm, '')),
+  )
+
+  expect(workflows.length).toBeGreaterThan(2)
+  expect(publient.map(([nom]) => nom)).toEqual(['publish.yml'])
+  const [, texte] = publient[0]
+  expect(texte).toMatch(/^ {4}if: vars\.NPM_PUBLISH == 'true'$/m)
+  expect(texte).toMatch(
+    /^ {6}- if: steps\.version\.outputs\.version != '0\.0\.0'\n {8}run: vp exec changeset publish$/m,
+  )
+})
+
+// La provenance n'est signée que pour un paquet qui nomme son dépôt, et npm
+// refuse la publication sans : chaque paquet publié le nomme, avec son dossier.
+test('each published package names its repository and its folder', () => {
+  expect(PUBLIÉS.length).toBeGreaterThan(5)
+  for (const dossier of PUBLIÉS) {
+    expect(JSON.parse(lire(dossier, 'package.json')).repository, dossier).toEqual({
+      type: 'git',
+      url: 'git+https://github.com/alexbrndl/crypte.git',
+      directory: dossier,
+    })
+  }
 })
 
 // `sideEffects: false` autorise un bundler à retirer un import dont il ne voit
