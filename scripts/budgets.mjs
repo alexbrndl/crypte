@@ -52,7 +52,7 @@ export const MESURES = {
 // Rouvert si une branche qui ne touche pas au démarrage dépasse sa base de plus
 // de `TOLÉRANCE`. La tolérance vaut pour chaque pull request prise seule :
 // quatre à +8 % font +36 %, plus que la régression d'axe, sans qu'aucune ne
-// rougisse, et rien ne l'ancre encore (DCJ-342).
+// rougisse : la décision de ne pas l'ancrer est écrite à `TOLÉRANCE`.
 function mo(n) {
   return `${(n / 1e6).toFixed(1)} Mo`
 }
@@ -455,6 +455,13 @@ export function médiane(valeurs) {
 // runs de `startVersus` sur un démarrage identique des deux côtés ont donné de
 // −7,4 à +6,2 %, écart-type 2,5 % : 10 % en font quatre. L'import d'axe en tête
 // de module, la seule vraie régression vue (+32 %, DCJ-328), rougit encore.
+//
+// Rien n'ancre la dérive cumulée, et c'est décidé (DCJ-342, 26 oct. 2026). Une
+// référence fixe voudrait un troisième arbre construit et mesuré dans un contrôle
+// requis ; la médiane de `main` se relève plutôt en local avant une publication,
+// où elle est stable : 654 à 667 ms sur quatre médianes. Rouvert si elle passe
+// 800 ms, une dérive que le bruit local n'explique pas, ou si une régression
+// arrive sur `main` sans qu'aucune pull request n'ait rougi.
 export const TOLÉRANCE = 0.1
 
 // Un budget est tenu à égalité : la cible se lit « moins de 1,5 s », et une
