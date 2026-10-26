@@ -76,8 +76,9 @@ test('the version workflow does not publish', () => {
 // seulement celui-là : un second qui oublierait le verrou passerait sinon.
 test('nothing publishes unless NPM_PUBLISH is true, and never 0.0.0', () => {
   const dossier = join(root, '.github', 'workflows')
-  // Toute forme de publication, `pnpm -r publish` compris, hors commentaires.
-  const publie = /\b(?:changeset|npm|pnpm|yarn)\b(?:\s+-{1,2}\S+)*\s+publish\b/
+  // Le mot `publish` en position de commande, hors commentaires : toute forme,
+  // `pnpm --filter x publish` ou `vp pm publish` comprises, sans les énumérer.
+  const publie = /(?:^|\s)publish(?=\s|$)/m
   // Chaque job pris seul, pour que le verrou soit celui du job qui publie.
   const jobs = readdirSync(dossier).flatMap((nom) =>
     readFileSync(join(dossier, nom), 'utf8')
