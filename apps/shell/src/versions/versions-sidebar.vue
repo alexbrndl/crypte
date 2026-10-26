@@ -5,6 +5,7 @@ import { Field, Input, Select, EmptyNote, SidebarLink, ColumnTitle } from '@cryp
 import { computed, ref } from 'vue'
 import Icon from '../ui/icon.vue'
 import type { Difference } from './differences'
+import { texts } from '../i18n'
 
 // La sidebar de la vue versions : d'où part la comparaison, puis les écarts, les
 // tokens d'abord, chacun signé + ~ − comme une liste de contrôle de source.
@@ -33,6 +34,39 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ since: [since: Since]; select: [key: string, event: MouseEvent] }>()
 
+const t = texts({
+  en: {
+    defaultBranch: 'Default branch',
+    lastCommit: 'Last commit',
+    last7: 'Last 7 days',
+    last30: 'Last 30 days',
+    added: 'added',
+    modified: 'modified',
+    removed: 'removed',
+    tokens: 'Tokens',
+    stories: 'Stories',
+    versions: 'Versions',
+    from: 'From',
+    typed: 'Or a commit, a tag or a date',
+    none: 'No difference.',
+  },
+  fr: {
+    defaultBranch: 'Branche par défaut',
+    lastCommit: 'Dernier commit',
+    last7: '7 derniers jours',
+    last30: '30 derniers jours',
+    added: 'ajouté',
+    modified: 'modifié',
+    removed: 'supprimé',
+    tokens: 'Tokens',
+    stories: 'Stories',
+    versions: 'Versions',
+    from: 'Depuis',
+    typed: 'Ou un commit, un tag ou une date',
+    none: 'Aucun écart.',
+  },
+})
+
 // Une date d'il y a N jours, au jour près : le CLI la lit comme son minuit. Sur
 // un build, avant le build et en UTC, comme `crypte build` a nommé ses fichiers.
 const daysAgo = (days: number) => {
@@ -49,12 +83,12 @@ const daysAgo = (days: number) => {
 const options = computed(() => {
   const branch = props.versions?.branch
   const found: { value: string; label: string }[] = [
-    { value: 'default', label: props.built ? (branch ?? 'Default branch') : 'Last commit' },
+    { value: 'default', label: props.built ? (branch ?? t('defaultBranch')) : t('lastCommit') },
   ]
   if (branch && !props.built) found.push({ value: `ref:${branch}`, label: branch })
   found.push(
-    { value: `before:${daysAgo(7)}`, label: 'Last 7 days' },
-    { value: `before:${daysAgo(30)}`, label: 'Last 30 days' },
+    { value: `before:${daysAgo(7)}`, label: t('last7') },
+    { value: `before:${daysAgo(30)}`, label: t('last30') },
   )
   for (const tag of props.versions?.tags ?? [])
     found.push({ value: `ref:${tag.name}`, label: `${tag.name} · ${tag.date.slice(0, 10)}` })
@@ -95,10 +129,11 @@ function apply() {
 
 const SIGNS = { appeared: '+', changed: '~', disappeared: '−' } as const
 const WORDS = { appeared: 'added', changed: 'modified', disappeared: 'removed' } as const
+const word = (kind: keyof typeof WORDS) => t(WORDS[kind])
 const groups = computed(() =>
   [
-    { title: 'Tokens', rows: props.tokens },
-    { title: 'Stories', rows: props.stories },
+    { title: t('tokens'), rows: props.tokens },
+    { title: t('stories'), rows: props.stories },
   ].filter((group) => group.rows.length > 0),
 )
 const total = computed(() => props.tokens.length + props.stories.length)
@@ -106,12 +141,12 @@ const total = computed(() => props.tokens.length + props.stories.length)
 
 <template>
   <div class="versions">
-    <ColumnTitle title="Versions" :count="total" />
+    <ColumnTitle :title="t('versions')" :count="total" />
     <div class="since">
-      <Field v-slot="{ id }" label="From">
+      <Field v-slot="{ id }" :label="t('from')">
         <Select :id="id" :model-value="chosen" :options="options" @update:model-value="choose" />
       </Field>
-      <Field v-slot="{ id }" label="Or a commit, a tag or a date">
+      <Field v-slot="{ id }" :label="t('typed')">
         <Input
           :id="id"
           :value="typed"
@@ -121,7 +156,7 @@ const total = computed(() => props.tokens.length + props.stories.length)
         />
       </Field>
     </div>
-    <EmptyNote v-if="total === 0">No difference.</EmptyNote>
+    <EmptyNote v-if="total === 0">{{ t('none') }}</EmptyNote>
     <section v-for="group of groups" :key="group.title" class="group">
       <ColumnTitle :title="group.title" :count="group.rows.length" />
       <ul>
@@ -133,8 +168,8 @@ const total = computed(() => props.tokens.length + props.stories.length)
             @click="(event) => emit('select', row.key, event)"
           >
             <template #icon>
-              <span class="sign" :title="WORDS[row.kind]"
-                >{{ SIGNS[row.kind] }}<VisuallyHidden> {{ WORDS[row.kind] }}</VisuallyHidden></span
+              <span class="sign" :title="word(row.kind)"
+                >{{ SIGNS[row.kind] }}<VisuallyHidden> {{ word(row.kind) }}</VisuallyHidden></span
               >
               <Icon :icon="row.nature === 'token' ? Hexagon01Icon : ComponentIcon" />
             </template>

@@ -3,6 +3,7 @@ import type { Overrides, PluginView, RenderedValues, StoryEntry } from '@crypte/
 import { Alert } from '@crypte/ui'
 import { onMounted, shallowRef, watch, type Component } from 'vue'
 import PanelFrame from './panel-frame.vue'
+import { texts } from '../i18n'
 
 // Ce que les plugins apportent au shell, section 6.1 des contrats : chaque module
 // est importé tel que le CLI le sert, et son export par défaut est monté dans
@@ -10,6 +11,23 @@ import PanelFrame from './panel-frame.vue'
 // refuse les surfaces d'un second plugin du même nom.
 
 type PanelMessage = { type: string; [key: string]: unknown }
+
+const t = texts({
+  en: {
+    list: 'the list of plugins',
+    notLoaded: 'could not load:',
+    refused: 'Refused in',
+    colon: ':',
+    preview: 'in the preview:',
+  },
+  fr: {
+    list: 'la liste des plugins',
+    notLoaded: "n'a pas pu charger :",
+    refused: 'Refusé dans',
+    colon: ' :',
+    preview: "dans l'aperçu :",
+  },
+})
 
 // La vue d'un plugin, section 6.1 : son libellé et son icône, que le CLI a
 // vérifiés, et les composants que son module exporte en `view`.
@@ -53,7 +71,8 @@ const PLUGINS = '@crypte/plugins.json'
 const panels = shallowRef<{ name: string; panel: Component }[]>([])
 const failures = shallowRef<{ name: string; message: string }[]>([])
 // Ce que le CLI a écarté d'un plugin, avec sa raison : une surface qui ne mène
-// nulle part, une clé inconnue, une contribution refusée.
+// nulle part, une clé inconnue, une contribution refusée. Un nom vide est la
+// liste elle-même, nommée au rendu dans la langue du moment.
 const refused = shallowRef<{ plugin: string; reason: string }[]>([])
 
 const isComponent = (value: unknown) =>
@@ -102,7 +121,7 @@ async function load() {
     listed = (await fetch(PLUGINS).then((answer) => answer.json())) as typeof listed
   } catch (error) {
     if (run !== reading) return
-    failures.value = [{ name: 'the list of plugins', message: said(error) }]
+    failures.value = [{ name: '', message: said(error) }]
     emit('troubles', 1)
     return
   }
@@ -203,14 +222,14 @@ watch(() => props.revision, load)
     role="alert"
   >
     <p v-for="one of failures" :key="one.name">
-      <code>{{ one.name }}</code> could not load: {{ one.message }}
+      <code>{{ one.name || t('list') }}</code> {{ t('notLoaded') }} {{ one.message }}
     </p>
     <p v-for="(one, at) of refused" :key="`refused-${at}`">
-      Refused in <code>{{ one.plugin }}</code
-      >: {{ one.reason }}
+      {{ t('refused') }} <code>{{ one.plugin }}</code
+      >{{ t('colon') }} {{ one.reason }}
     </p>
     <p v-for="(one, at) of errors" :key="`preview-${at}`">
-      <code>{{ one.plugin }}</code> in the preview: {{ one.message }}
+      <code>{{ one.plugin }}</code> {{ t('preview') }} {{ one.message }}
     </p>
   </Alert>
   <PanelFrame

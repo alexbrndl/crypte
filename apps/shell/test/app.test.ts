@@ -11,6 +11,7 @@ import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test as base, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
 import { changesUrl } from '../src/pages/changes'
+import { setLocale } from '../src/i18n'
 import App from '../src/App.vue'
 import { Select, Tooltip } from '@crypte/ui'
 import ActivityBar from '../src/navigation/activity-bar.vue'
@@ -257,6 +258,8 @@ afterEach(() => {
   // L'adresse et le stockage survivent au démontage : sans ça, la story cliquée
   // par un cas devenait la première affichée du suivant.
   window.history.replaceState(null, '', '/')
+  // La langue vit dans un module : un cas qui la change la laisserait aux suivants.
+  setLocale('en')
   localStorage.clear()
   système.sombre = false
   système.étroit = false
@@ -2448,6 +2451,7 @@ describe('the versions view', () => {
       'right health',
       'right versions 5 differences',
       'right Dark theme',
+      'right Afficher en français',
     ])
     await clique(écran, entrée(écran))
 
@@ -3873,6 +3877,12 @@ describe('the health view', () => {
     expect(écran.wrapper.find('[data-failed]').text()).toBe(
       'The audit could not run: the preview never said it was ready.',
     )
+    // Dit après coup, l'échec suit pourtant un changement de langue.
+    setLocale('fr')
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('[data-failed]').text()).toBe(
+      "L'audit n'a pas pu tourner : l'aperçu n'a jamais dit qu'il était prêt.",
+    )
     écran.wrapper.unmount()
   })
 
@@ -5207,6 +5217,33 @@ describe('the command palette', () => {
       '',
     )
     expect(copie().textContent?.trim()).toBe('Copy')
+  })
+})
+
+describe('the language', () => {
+  // Le bouton nomme la langue d'arrivée dans cette langue, et le shell la suit
+  // sans recharger : la barre d'activité, la page, et la visite suivante.
+  test('switches the shell to French and back, and keeps the choice', async () => {
+    const écran = await monte([badge])
+    const bouton = () => écran.wrapper.find('.activity-bar .language')
+    const libellés = () =>
+      écran.wrapper.findAll('.activity-bar .item .label').map((one) => one.text())
+
+    expect(bouton().text()).toBe('FR')
+    expect(libellés()).toContain('health')
+    await bouton().trigger('click')
+    await vide(écran.wrapper)
+
+    expect(bouton().text()).toBe('EN')
+    expect(bouton().attributes('aria-label')).toBe('Show in English')
+    expect(libellés()).toContain('santé')
+    expect(document.documentElement.lang).toBe('fr')
+    expect(localStorage.getItem('crypte:locale')).toBe('"fr"')
+
+    await bouton().trigger('click')
+    await vide(écran.wrapper)
+    expect(libellés()).toContain('health')
+    écran.wrapper.unmount()
   })
 })
 

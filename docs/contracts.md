@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.52, reference document. A project brief points here instead of restating these shapes.
+> Version 1.53, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -1081,6 +1081,8 @@ This document is a contract. This section is the only place that says what exist
 | 5, the channel | built and exercised on both sides |
 | 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. The `shell` and `preview` modules are loaded, and the shell mounts each shell module in a frame that folds when the panel is `inapplicable` and remembers whether it is open. A preview module's `afterMount` and `onMessage` are called, plugin messages cross the channel both ways, and a preview module that fails is named in the shell. `@crypte/controls` edits a story's props through `overrides`, `@crypte/a11y` analyses each render with axe-core and unfolds its panel with `null` when a violation appears, and the demonstration's `hello` and `status` plugins use the rest. `controls` does not add `min`, `max`, `step` or `control` to `PluginPropDetails` yet (3.3), so writing them is still a compile error. A panel's props and events are typed by `PanelProps` and `PanelEvents`, and a key a plugin does not have is refused. A plugin's `view` is built: its entry in the activity bar and in ⌘K, its sidebar, canvas and panel, typed by `PluginView`, `ShellView`, `ViewProps` and `ViewEvents`, and the demonstration's `i18n` plugin draws one. A project's own plugin imports them from `@crypte/cli`. **Frozen** since v1.25 (6.5) |
 
+**The shell speaks English and French**: the browser's language, French when it is French and English otherwise, then the choice of a switch at the foot of the activity bar, kept from one visit to the next. What comes from the project, the CLI or Git, names, messages and reasons, keeps its own language. The panels of the plugins are not translated yet.
+
 **`dev`, `build`, `check`, `init` and `mcp` are built.** The dev server reads the project, writes both files, and serves two pages: the shell prebuilt inside the CLI, and a preview compiled in the project by the CLI's own Vite, with the plugins the project declares in `vite.plugins`. A story renders, switching story works, and a story that throws shows its error instead of an empty frame. `crypte build` writes the same two pages into `crypte-static/`, the preview compiled once, beside what the dev server's routes answer, read once; every address the shell and the preview ask for is relative, so the folder may be served below a path. Both commands also give `index.json` and `iframe.html?id=` in the shape a built Storybook publishes, so zeroheight, Supernova and Knapsack can list and embed the stories. `iframe.html` draws through the path a render from the shell takes, so the preview modules of the plugins follow it and an edit redraws it, and writes a failure beside the story. The ids are those of 4.3, which a nested path keeps with its `/`. A compatibility export, never Crypte's own format, which follows Storybook's if it changes. `crypte mcp` serves the catalogue to a coding agent in the repository, as a Model Context Protocol server over stdio: four tools, the components, one component with its props, its stories' call code and its guidelines, the tokens, and what changed since a point of the history, each read from the story files at the call. `crypte init` writes the configuration of 1.5 into a project that already has its components, with a skill for a coding agent, `.claude/skills/write-stories/SKILL.md`, which writes a component's stories from the places the application calls it rather than from its signature; a project already configured gets the skill alone, and one already there is never overwritten. It has no section of its own because the configuration it writes is 1.5 itself.
 
 Twelve known gaps between this document and the code:
@@ -1102,6 +1104,12 @@ Twelve known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.53.** The shell speaks English and French (8).
+
+| Before | After |
+| --- | --- |
+| the shell was in English only | it follows the browser's language, French or English, and a switch in the activity bar |
 
 **v1.52.** A test ties the manifest's shape to its version (4.2).
 

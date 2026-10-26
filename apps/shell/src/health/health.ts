@@ -4,6 +4,30 @@
 
 import type { StoryEntry } from '@crypte/core/protocol'
 import { cleanOf, drawnOf, failuresOf, findingsOf, type AuditResult } from './audit'
+import { locale, texts } from '../i18n'
+
+const t = texts({
+  en: {
+    overview: 'overview',
+    unstoried: 'without story',
+    failures: 'render errors',
+    accessibility: 'accessibility',
+    statuses: 'statuses',
+    stories: 'stories',
+    render: 'render',
+    a11y: 'a11y',
+  },
+  fr: {
+    overview: "vue d'ensemble",
+    unstoried: 'sans story',
+    failures: 'erreurs de rendu',
+    accessibility: 'accessibilité',
+    statuses: 'statuts',
+    stories: 'stories',
+    render: 'rendu',
+    a11y: 'a11y',
+  },
+})
 
 // Une story nommée « Composant / Story » ; une story absent du catalogue garde
 // son identifiant.
@@ -35,13 +59,15 @@ export interface Health {
 
 export type HealthPage = 'overview' | 'unstoried' | 'failures' | 'accessibility' | 'statuses'
 
-export const PAGES: { page: HealthPage; label: string }[] = [
-  { page: 'overview', label: 'overview' },
-  { page: 'unstoried', label: 'without story' },
-  { page: 'failures', label: 'render errors' },
-  { page: 'accessibility', label: 'accessibility' },
-  { page: 'statuses', label: 'statuses' },
-]
+// `label` lu à chaque accès, dans la langue du moment.
+export const PAGES: { page: HealthPage; readonly label: string }[] = (
+  ['overview', 'unstoried', 'failures', 'accessibility', 'statuses'] as const
+).map((page) => ({
+  page,
+  get label() {
+    return t(page)
+  },
+}))
 
 // La clé d'un composant dans l'adresse : son fichier et son export, deux
 // composants du même nom dans deux fichiers restant distincts.
@@ -61,17 +87,17 @@ export function gaugesOf(
   audit: AuditResult[] | null = null,
 ): Gauge[] {
   const stories = {
-    label: 'stories',
+    label: t('stories'),
     done: components.filter((one) => one.stories.length > 0).length,
     total: components.length,
   }
   if (audit === null) return [stories]
   const { drawn, audited } = drawnOf(audit)
-  const render = { label: 'render', done: drawn, total: audited }
+  const render = { label: t('render'), done: drawn, total: audited }
   const { clean, audited: judged } = cleanOf(audit)
   return judged === 0
     ? [stories, render]
-    : [stories, render, { label: 'a11y', done: clean, total: judged }]
+    : [stories, render, { label: t('a11y'), done: clean, total: judged }]
 }
 
 export function scoreOf(gauges: Gauge[]): number {
@@ -120,6 +146,10 @@ export function todoOf(components: HealthComponent[] | null, audit: AuditResult[
   return unstoried + failuresOf(audit).length + findingsOf(audit).length
 }
 
-// Un jour court, `14 Oct`, pour les dates d'un tableau.
+// Un jour court, `14 Oct` ou `14 oct.`, pour les dates d'un tableau.
 export const dayOf = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+  new Date(iso).toLocaleDateString(locale.value === 'fr' ? 'fr-FR' : 'en-GB', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  })

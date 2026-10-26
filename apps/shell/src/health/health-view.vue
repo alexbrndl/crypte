@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CardTable, Badge, EmptyNote, SectionHeader, ViewCanvas } from '@crypte/ui'
 import { plural } from '../plural'
+import { texts } from '../i18n'
 import type { StoryEntry } from '@crypte/core/protocol'
 import { Alert02Icon } from '@hugeicons/core-free-icons'
 import { VisuallyHidden } from 'reka-ui'
@@ -41,6 +42,67 @@ const emit = defineEmits<{
   changes: [before: string, event: MouseEvent]
 }>()
 
+const t = texts({
+  en: {
+    region: 'Health, {title}',
+    fixRender: 'Fix the render of {name}',
+    fix: 'Fix {rule} in {name}',
+    write: 'Write the story of {name}',
+    overview: 'sorted by problems',
+    unstoried: 'sorted by props',
+    statuses: 'deprecated first',
+    everything: 'Everything to do',
+    toDo: 'to do',
+    nothing: 'Nothing to list here.',
+    component: 'component',
+    components: 'components',
+    stories: 'stories',
+    a11y: 'a11y',
+    status: 'status',
+    changed: 'changed',
+    sourceFile: 'source file',
+    props: 'props',
+    skeleton: 'skeleton',
+    since: 'since',
+    usedBy: 'used by',
+    notTested: 'not tested',
+    violation: 'violation',
+    violations: 'violations',
+    copied: 'copied',
+    copy: 'copy the skeleton',
+    noComponent: 'no component',
+  },
+  fr: {
+    region: 'Santé, {title}',
+    fixRender: 'Réparer le rendu de {name}',
+    fix: 'Corriger {rule} dans {name}',
+    write: 'Écrire la story de {name}',
+    overview: 'par problèmes',
+    unstoried: 'par props',
+    statuses: "obsolètes d'abord",
+    everything: 'Tout ce qui est à faire',
+    toDo: 'à faire',
+    nothing: 'Rien à lister ici.',
+    component: 'composant',
+    components: 'composants',
+    stories: 'stories',
+    a11y: 'a11y',
+    status: 'statut',
+    changed: 'modifié',
+    sourceFile: 'fichier source',
+    props: 'props',
+    skeleton: 'squelette',
+    since: 'depuis',
+    usedBy: 'utilisé par',
+    notTested: 'non testé',
+    violation: 'violation',
+    violations: 'violations',
+    copied: 'copié',
+    copy: 'copier le squelette',
+    noComponent: 'aucun composant',
+  },
+})
+
 const rows = computed(() => rowsOf(props.page, props.components))
 const title = computed(() => PAGES.find((one) => one.page === props.page)!.label)
 
@@ -62,39 +124,34 @@ const todo = computed(() =>
         ...(props.failures ?? []).map((one) => ({
           page: 'failures' as const,
           key: one.key,
-          label: `Fix the render of ${nameOf(one.id)}`,
+          label: t('fixRender', { name: nameOf(one.id) }),
         })),
         ...(props.findings ?? []).map((one) => ({
           page: 'accessibility' as const,
           key: one.key,
-          label: `Fix ${one.violation.rule} in ${nameOf(one.id)}`,
+          label: t('fix', { rule: one.violation.rule, name: nameOf(one.id) }),
         })),
         ...rowsOf('unstoried', props.components).map((one) => ({
           page: 'unstoried' as const,
           key: keyOf(one),
-          label: `Write the story of ${one.name}`,
+          label: t('write', { name: one.name }),
         })),
       ],
 )
 
-const NOTES: Record<HealthPage, string> = {
-  overview: 'sorted by problems',
-  unstoried: 'sorted by props',
-  failures: '',
-  accessibility: '',
-  statuses: 'deprecated first',
-}
+const noteOf = (page: HealthPage) =>
+  page === 'overview' || page === 'unstoried' || page === 'statuses' ? t(page) : ''
 
 // Le squelette copié, dit sur sa ligne.
 const { copied, copy } = useCopy()
 </script>
 
 <template>
-  <ViewCanvas class="health-view" :aria-label="`Health, ${title}`">
-    <SectionHeader :title="title" :count="rows.length" :note="NOTES[page]" />
-    <section v-if="todo.length > 0" class="todo" aria-label="Everything to do">
+  <ViewCanvas class="health-view" :aria-label="t('region', { title })">
+    <SectionHeader :title="title" :count="rows.length" :note="noteOf(page)" />
+    <section v-if="todo.length > 0" class="todo" :aria-label="t('everything')">
       <h3>
-        to do <Badge tone="inverse">{{ todo.length }}</Badge>
+        {{ t('toDo') }} <Badge tone="inverse">{{ todo.length }}</Badge>
       </h3>
       <ul>
         <li v-for="one of todo" :key="`${one.page}:${one.key}`">
@@ -108,27 +165,29 @@ const { copied, copy } = useCopy()
         </li>
       </ul>
     </section>
-    <EmptyNote v-if="rows.length === 0">Nothing to list here.</EmptyNote>
+    <EmptyNote v-if="rows.length === 0">{{ t('nothing') }}</EmptyNote>
     <CardTable v-else>
       <thead>
         <tr v-if="page === 'overview'">
-          <th scope="col" class="grow">component</th>
-          <th scope="col">stories</th>
-          <th scope="col">a11y</th>
-          <th scope="col">status</th>
-          <th scope="col">changed</th>
+          <th scope="col" class="grow">{{ t('component') }}</th>
+          <th scope="col">{{ t('stories') }}</th>
+          <th scope="col">{{ t('a11y') }}</th>
+          <th scope="col">{{ t('status') }}</th>
+          <th scope="col">{{ t('changed') }}</th>
         </tr>
         <tr v-else-if="page === 'unstoried'">
-          <th scope="col" class="grow">component</th>
-          <th scope="col">source file</th>
-          <th scope="col">props</th>
-          <th scope="col"><VisuallyHidden>skeleton</VisuallyHidden></th>
+          <th scope="col" class="grow">{{ t('component') }}</th>
+          <th scope="col">{{ t('sourceFile') }}</th>
+          <th scope="col">{{ t('props') }}</th>
+          <th scope="col">
+            <VisuallyHidden>{{ t('skeleton') }}</VisuallyHidden>
+          </th>
         </tr>
         <tr v-else>
-          <th scope="col" class="grow">component</th>
-          <th scope="col">status</th>
-          <th scope="col">since</th>
-          <th scope="col">used by</th>
+          <th scope="col" class="grow">{{ t('component') }}</th>
+          <th scope="col">{{ t('status') }}</th>
+          <th scope="col">{{ t('since') }}</th>
+          <th scope="col">{{ t('usedBy') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -153,10 +212,10 @@ const { copied, copy } = useCopy()
             <td class="code" :data-ink="(a11yOf(one) ?? 0) > 0 ? 'error' : undefined">
               {{
                 a11yOf(one) === null
-                  ? 'not tested'
+                  ? t('notTested')
                   : a11yOf(one) === 0
                     ? '0'
-                    : `${plural(a11yOf(one) ?? 0, 'violation')}`
+                    : `${plural(a11yOf(one) ?? 0, t('violation'), t('violations'))}`
               }}
             </td>
             <td class="code">{{ one.status ?? '' }}</td>
@@ -172,7 +231,7 @@ const { copied, copy } = useCopy()
                 class="link"
                 @click.stop="copy(one.skeleton.source, keyOf(one))"
               >
-                {{ copied === keyOf(one) ? 'copied' : 'copy the skeleton' }}
+                {{ copied === keyOf(one) ? t('copied') : t('copy') }}
               </button>
             </td>
           </template>
@@ -194,7 +253,11 @@ const { copied, copy } = useCopy()
                 one.status === 'deprecated' && (one.usedBy?.length ?? 0) > 0 ? 'error' : undefined
               "
             >
-              {{ one.usedBy ? plural(one.usedBy.length, 'component') : 'no component' }}
+              {{
+                one.usedBy
+                  ? plural(one.usedBy.length, t('component'), t('components'))
+                  : t('noComponent')
+              }}
             </td>
           </template>
         </tr>

@@ -73,11 +73,13 @@ describe('the landing after a refresh', () => {
   })
 
   it('clears and says so when the selection is lost', () => {
-    expect(landing(alerte, [defaut, alerte, autre], [autre])).toEqual({
+    const perdue = landing(alerte, [defaut, alerte, autre], [autre])
+    expect(perdue).toEqual({
       id: null,
       shown: { lost: alerte, before: [defaut, alerte, autre] },
-      status: 'the story on display is gone',
+      status: expect.any(Function),
     })
+    expect(perdue.status?.()).toBe('the story on display is gone')
   })
 
   it('says nothing more while the selection holds', () => {
@@ -93,6 +95,6 @@ describe('an unreadable catalog', () => {
   // Un rejet qui n'est pas une erreur reste lisible plutôt que de rendre
   // « [object Object] ».
   it('makes readable what is not an error', () => {
-    expect(unreadable(503)).toBe('the catalogue could not be read: 503')
+    expect(unreadable(503)()).toBe('the catalogue could not be read: 503')
   })
 })

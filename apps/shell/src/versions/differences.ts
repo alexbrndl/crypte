@@ -1,6 +1,7 @@
 import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import type { Change, TokenChange } from '@crypte/core/protocol'
 import { nameOf } from '../tokens/categories'
+import { texts } from '../i18n'
 
 // Les écarts de la vue versions, une ligne chacun : son signe, son libellé et le
 // détail qui dit ce qui a bougé. La clé est celle de l'adresse.
@@ -26,9 +27,14 @@ export type Difference =
       name: string
     }
 
+const t = texts({
+  en: { last: 'the last commit' },
+  fr: { last: 'le dernier commit' },
+})
+
 // Le point de départ en mots : le CLI nomme une date `before 2026-09-16`.
 export const sinceLabel = (ref: string) =>
-  ref === 'HEAD' ? 'the last commit' : ref.startsWith('before ') ? ref.slice(7) : ref
+  ref === 'HEAD' ? t('last') : ref.startsWith('before ') ? ref.slice(7) : ref
 
 export const storyKey = (id: string) => `story:${id}`
 export const tokenKey = (family: string, key: string) => `token:${family}/${key}`

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { EmptyNote, SidebarLink, ColumnTitle } from '@crypte/ui'
 import type { Category } from './categories'
+import { texts } from '../i18n'
 
 // La sidebar de la vue tokens : une ligne par catégorie, avec son compte, comme
 // la liste plate de la maquette.
@@ -10,13 +11,21 @@ defineProps<{
   hrefOf: (category: string) => string
 }>()
 const emit = defineEmits<{ pick: [category: string, event: MouseEvent] }>()
+
+const t = texts({
+  en: { tokens: 'Tokens', none: 'No tokens.' },
+  fr: { tokens: 'Tokens', none: 'Aucun token.' },
+})
 </script>
 
 <template>
   <div class="categories">
-    <ColumnTitle title="Tokens" :count="categories.reduce((sum, one) => sum + one.count, 0)" />
-    <EmptyNote v-if="categories.length === 0">No tokens.</EmptyNote>
-    <ul aria-label="Tokens">
+    <ColumnTitle
+      :title="t('tokens')"
+      :count="categories.reduce((sum, one) => sum + one.count, 0)"
+    />
+    <EmptyNote v-if="categories.length === 0">{{ t('none') }}</EmptyNote>
+    <ul :aria-label="t('tokens')">
       <li v-for="category of categories" :key="category.name">
         <SidebarLink
           :href="hrefOf(category.name)"

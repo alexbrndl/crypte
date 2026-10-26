@@ -2,6 +2,9 @@
 import { Checkbox, PanelSection } from '@crypte/ui'
 import { ref } from 'vue'
 import { keep, kept } from '../storage'
+import { texts } from '../i18n'
+
+const t = texts({ en: { wrappers: 'Wrappers' }, fr: { wrappers: 'Enrobages' } })
 
 // Les enrobages de la story affichée, celui de la configuration d'abord : en
 // couper un montre de quel contexte le composant dépend sans le dire. Coché,
@@ -27,7 +30,7 @@ function fold() {
 </script>
 
 <template>
-  <PanelSection title="Wrappers" :open="open" aria-label="Wrappers" @toggle="fold">
+  <PanelSection :title="t('wrappers')" :open="open" :aria-label="t('wrappers')" @toggle="fold">
     <div class="rows">
       <label v-for="(name, at) of wraps" :key="at" class="row">
         <Checkbox :checked="!muted.includes(at)" @change="toggle(at)" />

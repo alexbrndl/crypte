@@ -54,7 +54,7 @@ import HealthView from './health/health-view.vue'
 import HealthPanel from './health/health-panel.vue'
 import HealthAccessibility from './health/health-accessibility.vue'
 import HealthFailures from './health/health-failures.vue'
-import { audit, failuresOf, findingsOf, type AuditResult } from './health/audit'
+import { AuditFailure, audit, failuresOf, findingsOf, type AuditResult } from './health/audit'
 import {
   gaugesOf,
   keyOf,
@@ -96,6 +96,238 @@ import TokensView from './tokens/tokens-view.vue'
 import { useTheme } from './theme/theme'
 import { componentIdOf } from './navigation/tree'
 import { placeSearch, readPlace, sameTab } from './navigation/url'
+import { decimal, texts } from './i18n'
+
+const t = texts({
+  en: {
+    noStoryRead: 'no story read',
+    oneStoryRead: '1 story read, some are missing',
+    storiesRead: '{count} stories read, some are missing',
+    difference: 'difference',
+    differences: 'differences',
+    since: '{count} since {ref}',
+    readingHealth: 'reading the health of the components',
+    healthFailed: 'the health of the components could not be read',
+    noComponentsDeclared: 'no components folder declared',
+    auditing: 'auditing the stories, {done} of {total} renders',
+    audited: 'audit of {count} stories in {seconds} s',
+    component: 'component',
+    components: 'components',
+    covered: '{components}, {covered} with a story',
+    noTokens: 'no tokens found',
+    token: 'token',
+    tokens: 'tokens',
+    tokensLine: '{tokens} {category}, {theme} theme',
+    light: 'light',
+    dark: 'dark',
+    tokensGone: 'the tokens on display are gone',
+    componentGone: 'the component on display is gone',
+    pageGone: 'the page on display is gone',
+    story: 'story',
+    stories: 'stories',
+    loading: 'loading the catalogue',
+    previewReady: 'preview ready, protocol v{version}',
+    rendered: '{id} rendered',
+    renderError: 'render error',
+    lightTheme: 'Light theme',
+    darkTheme: 'Dark theme',
+    copyLink: 'Copy link',
+    copied: 'Copied',
+    copyFailed: 'Copy failed',
+    leaveFullScreen: 'Leave full screen',
+    fullScreen: 'Full screen',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+    actualSize: 'Actual size',
+    healthReading: 'reading…',
+    healthUnread: 'could not be read',
+    storiesLabel: 'Stories',
+    noStory: 'No story.',
+    breadcrumb: 'Breadcrumb',
+    trailStories: 'stories',
+    trailTokens: 'tokens',
+    trailDocs: 'docs',
+    trailHealth: 'health',
+    reload: 'Reload',
+    hidePanels: 'Hide panels',
+    showPanels: 'Show panels',
+    panels: 'Panels',
+    pluginFailed: 'a plugin failed',
+    promptTip:
+      'Paste it to your coding agent: it fixes the render errors, violations and missing stories listed here.',
+    promptCopied: 'Fix prompt copied',
+    copyPrompt: 'Copy fix prompt',
+    nothingToFix: 'Nothing to fix',
+    configUnread: 'could not be read',
+    configKept:
+      'Crypte keeps serving the configuration it read before. Fix the file and save it again:',
+    stale:
+      'is not in the catalogue any more: it was probably renamed. Showing the first story instead.',
+    noStoryIn: 'No story in {folder}/',
+    noStoryFound: 'No story found',
+    storyRule:
+      'A story file carries the exact name of its component, and the tree follows its path. The folder is the stories of crypte.config.ts.',
+    storyNote: 'When every prop is optional, a story named Default is generated.',
+    storyNoteReact:
+      'When every prop is optional, a story named Default is generated. Name the file .tsx when a children prop needs markup.',
+    storyOutcome: 'The file appears and its story renders, without a restart.',
+    setAsideTitle: 'What Crypte could not read',
+    setAside: ': {title}. {reason}',
+    noTokenFound: 'No token found',
+    tokensRule:
+      'Crypte reads the custom properties of the style sheet declared as css in crypte.config.ts, and groups them by category.',
+    tokensNote:
+      'A dark theme goes under [data-theme="dark"] or prefers-color-scheme: dark, and light-dark() works too.',
+    tokensOutcome: 'The tokens appear, grouped by category.',
+    noComponents: 'No components folder',
+    componentsRule:
+      'The health view counts the components of the folder declared as components in crypte.config.ts, and the stories that cover them.',
+    componentsMapping: 'src/components  >  health / stories',
+    componentsNote:
+      'Every component a file under it exports counts, at any depth. A wrapper declared as wrap does not.',
+    componentsOutcome: 'The stories gauge and the health pages appear.',
+    noView: 'No plugin draws a view named {plugin}.',
+    noDocsIn: 'No docs page in {folder}/',
+    noDocs: 'No docs page',
+    docsRule:
+      'A component gets its docs page from its stories. A markdown file beside its story file adds its guidelines; any other markdown file is a page of its own.',
+    docsNote: 'Markdown only: the title is the first # heading, otherwise the file name.',
+    docsOutcome: 'The page appears, linked to its stories and its tokens.',
+    zoom: 'Zoom, {percent} %',
+    zoomStep: 'to step,',
+    zoomActual: 'for 100 %',
+    compare: 'Compare light and dark',
+    notRendered: '{id} could not be rendered',
+    preview: 'preview',
+    previewDark: 'preview, dark',
+    partial: 'Incomplete props table: {detail}.',
+    docsPanel: 'Docs panel',
+    tokenPanel: 'Token panel',
+    viewPanel: '{label} panel',
+    healthPanel: 'Health panel',
+    firstRenderTip: 'From opening this page to the first story rendered',
+    firstRender: 'First render {ms} ms',
+    shellTip: 'The shell, gzipped',
+    shell: 'Shell {size}',
+    plugin: 'plugin',
+    plugins: 'plugins',
+    auditFrame: 'accessibility audit',
+  },
+  fr: {
+    noStoryRead: 'aucune story lue',
+    oneStoryRead: '1 story lue, il en manque',
+    storiesRead: '{count} stories lues, il en manque',
+    difference: 'écart',
+    differences: 'écarts',
+    since: '{count} depuis {ref}',
+    readingHealth: 'lecture de la santé des composants',
+    healthFailed: "la santé des composants n'a pas pu être lue",
+    noComponentsDeclared: 'aucun dossier de composants déclaré',
+    auditing: 'audit des stories, {done} rendus sur {total}',
+    audited: 'audit de {count} stories en {seconds} s',
+    component: 'composant',
+    components: 'composants',
+    covered: '{components}, {covered} avec une story',
+    noTokens: 'aucun token trouvé',
+    token: 'token',
+    tokens: 'tokens',
+    tokensLine: '{tokens} {category}, thème {theme}',
+    light: 'clair',
+    dark: 'sombre',
+    tokensGone: 'les tokens affichés ont disparu',
+    componentGone: 'le composant affiché a disparu',
+    pageGone: 'la page affichée a disparu',
+    story: 'story',
+    stories: 'stories',
+    loading: 'chargement du catalogue',
+    previewReady: 'aperçu prêt, protocole v{version}',
+    rendered: '{id} rendue',
+    renderError: 'erreur de rendu',
+    lightTheme: 'Thème clair',
+    darkTheme: 'Thème sombre',
+    copyLink: 'Copier le lien',
+    copied: 'Copié',
+    copyFailed: 'Échec de la copie',
+    leaveFullScreen: 'Quitter le plein écran',
+    fullScreen: 'Plein écran',
+    zoomIn: 'Zoom avant',
+    zoomOut: 'Zoom arrière',
+    actualSize: 'Taille réelle',
+    healthReading: 'lecture…',
+    healthUnread: 'illisible',
+    storiesLabel: 'Stories',
+    noStory: 'Aucune story.',
+    breadcrumb: "Fil d'Ariane",
+    trailStories: 'stories',
+    trailTokens: 'tokens',
+    trailDocs: 'docs',
+    trailHealth: 'santé',
+    reload: 'Recharger',
+    hidePanels: 'Masquer les panneaux',
+    showPanels: 'Afficher les panneaux',
+    panels: 'Panneaux',
+    pluginFailed: 'un plugin a échoué',
+    promptTip:
+      'Collez-le à votre agent de code : il corrige les erreurs de rendu, les violations et les stories manquantes listées ici.',
+    promptCopied: 'Prompt de correction copié',
+    copyPrompt: 'Copier le prompt de correction',
+    nothingToFix: 'Rien à corriger',
+    configUnread: "n'a pas pu être lu",
+    configKept:
+      'Crypte continue de servir la configuration lue avant. Corrigez le fichier et enregistrez-le à nouveau :',
+    stale:
+      "n'est plus dans le catalogue : un renommage, sans doute. La première story s'affiche à la place.",
+    noStoryIn: 'Aucune story dans {folder}/',
+    noStoryFound: 'Aucune story trouvée',
+    storyRule:
+      "Un fichier de stories porte le nom exact de son composant, et l'arbre suit son chemin. Le dossier est le stories de crypte.config.ts.",
+    storyNote: 'Quand toutes les props sont optionnelles, une story nommée Default est générée.',
+    storyNoteReact:
+      'Quand toutes les props sont optionnelles, une story nommée Default est générée. Nommez le fichier .tsx quand une prop children attend du balisage.',
+    storyOutcome: "Le fichier apparaît et sa story s'affiche, sans redémarrage.",
+    setAsideTitle: "Ce que Crypte n'a pas pu lire",
+    setAside: ' : {title}. {reason}',
+    noTokenFound: 'Aucun token trouvé',
+    tokensRule:
+      'Crypte lit les propriétés personnalisées de la feuille de style déclarée comme css dans crypte.config.ts, et les range par catégorie.',
+    tokensNote:
+      'Un thème sombre se déclare sous [data-theme="dark"] ou prefers-color-scheme: dark, et light-dark() marche aussi.',
+    tokensOutcome: 'Les tokens apparaissent, rangés par catégorie.',
+    noComponents: 'Aucun dossier de composants',
+    componentsRule:
+      'La vue santé compte les composants du dossier déclaré comme components dans crypte.config.ts, et les stories qui les couvrent.',
+    componentsMapping: 'src/components  >  santé / stories',
+    componentsNote:
+      'Chaque composant exporté par un fichier de ce dossier compte, à toute profondeur. Un enrobage déclaré comme wrap ne compte pas.',
+    componentsOutcome: 'La jauge des stories et les pages de santé apparaissent.',
+    noView: 'Aucun plugin ne dessine de vue nommée {plugin}.',
+    noDocsIn: 'Aucune page de docs dans {folder}/',
+    noDocs: 'Aucune page de docs',
+    docsRule:
+      'Un composant tient sa page de docs de ses stories. Un fichier markdown à côté de son fichier de stories y ajoute ses consignes ; tout autre fichier markdown est une page à part entière.',
+    docsNote: 'Markdown seulement : le titre est le premier titre #, sinon le nom du fichier.',
+    docsOutcome: 'La page apparaît, liée à ses stories et à ses tokens.',
+    zoom: 'Zoom, {percent} %',
+    zoomStep: 'pour changer de niveau,',
+    zoomActual: 'pour 100 %',
+    compare: 'Comparer clair et sombre',
+    notRendered: "{id} n'a pas pu être rendue",
+    preview: 'aperçu',
+    previewDark: 'aperçu, sombre',
+    partial: 'Table des props incomplète : {detail}.',
+    docsPanel: 'Panneau des docs',
+    tokenPanel: 'Panneau du token',
+    viewPanel: 'Panneau {label}',
+    healthPanel: 'Panneau de santé',
+    firstRenderTip: "De l'ouverture de cette page à la première story rendue",
+    firstRender: 'Premier rendu {ms} ms',
+    shellTip: 'Le shell, compressé en gzip',
+    shell: 'Shell {size}',
+    plugin: 'plugin',
+    plugins: 'plugins',
+    auditFrame: "audit d'accessibilité",
+  },
+})
 
 // Le shell ne connaît aucun framework : il est construit à l'avance et livré dans
 // le CLI, là où la preview est compilée chez l'utilisateur.
@@ -115,9 +347,10 @@ const pages = ref<PageEntry[]>([])
 const generalPages = computed(() => pages.value.filter((one) => one.storyFile === undefined))
 const skipped = ref<SkippedFile[]>([])
 const current = ref<string | null>(null)
-const status = ref('loading the catalogue')
+// Une fonction, lue au rendu : un texte figé ne suivrait pas la langue.
+const status = ref<() => string>(() => t('loading'))
 // Ce qu'un catalogue illisible laisse dire, quelle que soit la page.
-const unread = ref<string | null>(null)
+const unread = ref<(() => string) | null>(null)
 
 // L'entrée affichée, pas seulement son identifiant : celui-ci vient du chemin et
 // du nom, donc renommer une story le change et la sélection ne se retrouve plus.
@@ -148,10 +381,10 @@ const setAside = computed(() =>
       read,
       title:
         read === 0
-          ? 'no story read'
+          ? t('noStoryRead')
           : read === 1
-            ? '1 story read, some are missing'
-            : `${read} stories read, some are missing`,
+            ? t('oneStoryRead')
+            : t('storiesRead', { count: read }),
     }
   }),
 )
@@ -388,35 +621,45 @@ const counter = computed(() =>
 // place. Une page dont l'entrée a disparu reste ouverte et le dit, comme une
 // story perdue : l'entrée revenue, la page revient avec elle.
 const line = computed(() => {
-  if (unread.value !== null) return unread.value
+  if (unread.value !== null) return unread.value()
   if (changesOpen.value)
     return changes.value !== null && 'from' in changes.value
-      ? `${plural(counter.value ?? 0, 'difference')} since ${sinceLabel(changes.value.from.ref)}`
+      ? t('since', {
+          count: plural(counter.value ?? 0, t('difference'), t('differences')),
+          ref: sinceLabel(changes.value.from.ref),
+        })
       : counted(entries.value.length)
   if (healthAt.value !== null) {
-    if (health.value === null) return 'reading the health of the components'
-    if (health.value === 'failed') return 'the health of the components could not be read'
+    if (health.value === null) return t('readingHealth')
+    if (health.value === 'failed') return t('healthFailed')
     const listed = health.value.components
-    if (!listed) return 'no components folder declared'
+    if (!listed) return t('noComponentsDeclared')
     if (auditing.value)
-      return `auditing the stories, ${auditing.value.done} of ${auditing.value.total} renders`
+      return t('auditing', { done: auditing.value.done, total: auditing.value.total })
     if (healthAt.value.page === 'accessibility' && auditResults.value && auditTook.value !== null)
-      return `audit of ${auditResults.value.length / 2} stories in ${(auditTook.value / 1000).toFixed(1)} s`
+      return t('audited', {
+        count: auditResults.value.length / 2,
+        seconds: decimal(auditTook.value / 1000),
+      })
     const covered = listed.filter((one) => one.stories.length > 0).length
-    return `${plural(listed.length, 'component')}, ${covered} with a story`
+    return t('covered', {
+      components: plural(listed.length, t('component'), t('components')),
+      covered,
+    })
   }
-  if (noTokens.value) return 'no tokens found'
+  if (noTokens.value) return t('noTokens')
   if (tokensAt.value !== null)
     return shownCategory.value
-      ? `${plural(shownCategory.value.count, 'token')} ${shownCategory.value.name}, ${theme.value} theme`
-      : 'the tokens on display are gone'
+      ? t('tokensLine', {
+          tokens: plural(shownCategory.value.count, t('token'), t('tokens')),
+          category: shownCategory.value.name,
+          theme: t(theme.value),
+        })
+      : t('tokensGone')
   if (component.value !== null)
-    return componentStories.value.length > 0
-      ? counted(entries.value.length)
-      : 'the component on display is gone'
-  if (pageAt.value !== null)
-    return shownPage.value ? counted(entries.value.length) : 'the page on display is gone'
-  return status.value
+    return componentStories.value.length > 0 ? counted(entries.value.length) : t('componentGone')
+  if (pageAt.value !== null) return shownPage.value ? counted(entries.value.length) : t('pageGone')
+  return status.value()
 })
 
 // Le point de la barre d'état dit la même chose que la ligne : rouge sur un catalogue
@@ -432,7 +675,7 @@ const trouble = computed(() => unread.value !== null || (storyMode.value && fail
 // panneau peut émettre le sien.
 const overrides = shallowRef<Overrides>({})
 
-const counted = (n: number) => plural(n, 'story', 'stories')
+const counted = (n: number) => plural(n, t('story'), t('stories'))
 
 // Les chiffres de la barre d'état, mesurés et jamais estimés. Le premier rendu
 // court de l'ouverture de la page à la première story rendue : au premier
@@ -448,7 +691,7 @@ const auditResults = shallowRef<AuditResult[] | null>(null)
 const auditTook = ref<number | null>(null)
 // Pourquoi le dernier audit n'a pas tourné, dit sur sa page : un clic sans suite
 // ne dirait rien.
-const auditFailed = ref<string | null>(null)
+const auditFailed = ref<(() => string) | null>(null)
 const findings = computed(() => (auditResults.value ? findingsOf(auditResults.value) : null))
 const a11yPlugin = computed(() => weights.value.some((one) => one.plugin === 'a11y'))
 const selectedFinding = computed(
@@ -525,7 +768,8 @@ async function runAudit() {
     auditTook.value = performance.now() - started
   } catch (error) {
     auditTook.value = null
-    auditFailed.value = error instanceof Error ? error.message : String(error)
+    const said = error instanceof Error ? error.message : String(error)
+    auditFailed.value = error instanceof AuditFailure ? error.text : () => said
   } finally {
     auditing.value = null
   }
@@ -550,7 +794,7 @@ function mute(ranks: number[]) {
   muted.value = ranks
   if (current.value !== null) select(current.value)
 }
-const kB = (bytes: number) => `${(bytes / 1e3).toFixed(1)} kB`
+const kB = (bytes: number) => `${decimal(bytes / 1e3)} kB`
 
 // Ce que le CLI dit du projet : la racine de stories qu'il déclare, et pourquoi
 // la dernière relecture de la configuration a échoué, le serveur gardant la
@@ -1086,21 +1330,22 @@ watch(mainTheme, () => {
   if (current.value !== null) select(current.value)
 })
 
-const themeLabel = computed(() => (theme.value === 'dark' ? 'Light theme' : 'Dark theme'))
+const themeLabel = computed(() => (theme.value === 'dark' ? t('lightTheme') : t('darkTheme')))
 
 const actions = computed<Action[]>(() => [
-  { label: themeLabel.value, keys: 'T', run: toggleTheme },
+  { id: 'theme', label: themeLabel.value, keys: 'T', run: toggleTheme },
   ...(storyMode.value && displayed.value !== null
     ? [
-        { label: 'Copy link', run: () => void copyLink() },
+        { id: 'copy-link', label: t('copyLink'), run: () => void copyLink() },
         {
-          label: full.value ? 'Leave full screen' : 'Full screen',
+          id: 'full-screen',
+          label: full.value ? t('leaveFullScreen') : t('fullScreen'),
           keys: 'F',
           run: () => (full.value = !full.value),
         },
-        { label: 'Zoom in', keys: '+', run: () => zoomBy(1) },
-        { label: 'Zoom out', keys: '-', run: () => zoomBy(-1) },
-        { label: 'Actual size', keys: '0', run: () => (zoom.value = 1) },
+        { id: 'zoom-in', label: t('zoomIn'), keys: '+', run: () => zoomBy(1) },
+        { id: 'zoom-out', label: t('zoomOut'), keys: '-', run: () => zoomBy(-1) },
+        { id: 'actual-size', label: t('actualSize'), keys: '0', run: () => (zoom.value = 1) },
       ]
     : []),
 ])
@@ -1217,7 +1462,7 @@ async function refresh() {
   families.value = manifest.entries.filter((entry): entry is TokensEntry => entry.type === 'tokens')
   pages.value = manifest.entries.filter((entry): entry is PageEntry => entry.type === 'page')
   skipped.value = manifest.skipped ?? []
-  status.value = counted(stories.length)
+  status.value = () => counted(stories.length)
 
   // Lue au premier catalogue, puis oubliée : ensuite, c'est ce qui est affiché
   // qui fait l'adresse. Sous une page composant, la preview charge sa première
@@ -1339,7 +1584,8 @@ onMounted(() => {
           },
           { once: true },
         )
-        status.value = `preview ready, protocol v${message.protocolVersion}`
+        const version = message.protocolVersion
+        status.value = () => t('previewReady', { version })
         // Toujours : le badge de Santé compte les composants sans story.
         void readHealth()
         applyZoom()
@@ -1350,14 +1596,15 @@ onMounted(() => {
         firstRender.value ??= performance.now()
         previewAnswered.value = true
         rendered.value = { id: message.id, values: message.values, wraps: message.wraps ?? [] }
-        status.value = `${message.id} rendered`
+        const id = message.id
+        status.value = () => t('rendered', { id })
       }
       // Rattachée à la story affichée : cliquer B pendant que A rend laissait
       // l'erreur de A couvrir B, et masquer la note partielle de B.
       if (message.type === 'error') previewAnswered.value = true
       if (message.type === 'error' && message.id === current.value) {
         failure.value = { id: message.id, message: message.message, stack: message.stack }
-        status.value = 'render error'
+        status.value = () => t('renderError')
       }
       // Une fois chacune : un hook qui lève lève à chaque rendu, et chaque
       // valeur saisie dans `controls` en ajoutait une ligne identique.
@@ -1415,7 +1662,11 @@ onMounted(() => {
           v-else-if="view === 'health'"
           :components="listedHealth ?? null"
           :unread="
-            health === null ? 'reading…' : health === 'failed' ? 'could not be read' : undefined
+            health === null
+              ? t('healthReading')
+              : health === 'failed'
+                ? t('healthUnread')
+                : undefined
           "
           :audit="auditResults"
           :findings="findings?.length ?? null"
@@ -1458,8 +1709,8 @@ onMounted(() => {
           v-else
           :entries="entries"
           :current="changesOpen ? null : current"
-          label="Stories"
-          none="No story."
+          :label="t('storiesLabel')"
+          :none="t('noStory')"
           @show="(id) => show(id, 'push')"
           @open="(id) => open(id)"
         />
@@ -1470,8 +1721,8 @@ onMounted(() => {
       <div v-if="storyMode && displayed" class="toolbar">
         <!-- Le dossier n'est pas une destination, le composant en est une : seul il
                porte l'accent. Le séparateur suit le segment qui le précède. -->
-        <nav class="trail" aria-label="Breadcrumb">
-          <span class="folder">stories<span class="separator">/</span></span>
+        <nav class="trail" :aria-label="t('breadcrumb')">
+          <span class="folder">{{ t('trailStories') }}<span class="separator">/</span></span>
           <span v-for="(segment, at) of displayed.path.slice(0, -1)" :key="at" class="folder"
             >{{ segment }}<span class="separator">/</span></span
           >
@@ -1483,17 +1734,19 @@ onMounted(() => {
           <span aria-current="page">{{ displayed.name }}</span>
         </nav>
         <div class="actions">
-          <Button class="reload" @click="reload">Reload</Button>
+          <Button class="reload" @click="reload">{{ t('reload') }}</Button>
           <Button variant="secondary" class="copy" @click="copyLink">
             <Icon :icon="Copy01Icon" />
-            {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
+            {{
+              copied === 'yes' ? t('copied') : copied === 'failed' ? t('copyFailed') : t('copyLink')
+            }}
           </Button>
           <span class="divider" aria-hidden="true" />
-          <Tooltip :content="panelsOpen ? 'Hide panels' : 'Show panels'">
+          <Tooltip :content="panelsOpen ? t('hidePanels') : t('showPanels')">
             <Button
               variant="ghost"
               class="panels-toggle"
-              aria-label="Panels"
+              :aria-label="t('panels')"
               aria-controls="panels"
               :aria-expanded="panelsOpen"
               @click="panelsOpen = !panelsOpen"
@@ -1503,7 +1756,7 @@ onMounted(() => {
                 v-if="!panelsOpen && panelTroubles + pluginErrors.length > 0"
                 class="trouble"
                 role="img"
-                aria-label="a plugin failed"
+                :aria-label="t('pluginFailed')"
               />
             </Button>
           </Tooltip>
@@ -1512,8 +1765,8 @@ onMounted(() => {
       <!-- La vue tokens a la sienne : la vue, la catégorie quand elle ne porte pas le
            nom de la famille, la famille et la clé du token choisi. -->
       <div v-else-if="view === 'tokens' && shownCategory" class="toolbar">
-        <nav class="trail" aria-label="Breadcrumb">
-          <span class="folder">tokens<span class="separator">/</span></span>
+        <nav class="trail" :aria-label="t('breadcrumb')">
+          <span class="folder">{{ t('trailTokens') }}<span class="separator">/</span></span>
           <template v-if="selectedToken">
             <span v-if="shownCategory.name !== selectedToken.family" class="folder"
               >{{ shownCategory.name }}<span class="separator">/</span></span
@@ -1525,17 +1778,19 @@ onMounted(() => {
           <span v-else aria-current="page">{{ shownCategory.name }}</span>
         </nav>
         <div class="actions">
-          <Button class="reload" @click="reload">Reload</Button>
+          <Button class="reload" @click="reload">{{ t('reload') }}</Button>
           <Button variant="secondary" class="copy" @click="copyLink">
             <Icon :icon="Copy01Icon" />
-            {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
+            {{
+              copied === 'yes' ? t('copied') : copied === 'failed' ? t('copyFailed') : t('copyLink')
+            }}
           </Button>
           <span class="divider" aria-hidden="true" />
-          <Tooltip :content="panelsOpen ? 'Hide panels' : 'Show panels'">
+          <Tooltip :content="panelsOpen ? t('hidePanels') : t('showPanels')">
             <Button
               variant="ghost"
               class="panels-toggle"
-              aria-label="Panels"
+              :aria-label="t('panels')"
               aria-controls="token-panel"
               :aria-expanded="panelsOpen"
               @click="panelsOpen = !panelsOpen"
@@ -1548,8 +1803,8 @@ onMounted(() => {
 
       <!-- La vue docs a la sienne : la vue, les dossiers, et ce qui est ouvert. -->
       <div v-else-if="view === 'docs' && docsTrail" class="toolbar">
-        <nav class="trail" aria-label="Breadcrumb">
-          <span class="folder">docs<span class="separator">/</span></span>
+        <nav class="trail" :aria-label="t('breadcrumb')">
+          <span class="folder">{{ t('trailDocs') }}<span class="separator">/</span></span>
           <span v-for="(segment, at) of docsTrail.folders" :key="at" class="folder"
             >{{ segment }}<span class="separator">/</span></span
           >
@@ -1558,14 +1813,16 @@ onMounted(() => {
         <div class="actions">
           <Button variant="secondary" class="copy" @click="copyLink">
             <Icon :icon="Copy01Icon" />
-            {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
+            {{
+              copied === 'yes' ? t('copied') : copied === 'failed' ? t('copyFailed') : t('copyLink')
+            }}
           </Button>
           <span class="divider" aria-hidden="true" />
-          <Tooltip :content="panelsOpen ? 'Hide panels' : 'Show panels'">
+          <Tooltip :content="panelsOpen ? t('hidePanels') : t('showPanels')">
             <Button
               variant="ghost"
               class="panels-toggle"
-              aria-label="Panels"
+              :aria-label="t('panels')"
               aria-controls="docs-panel"
               :aria-expanded="panelsOpen"
               @click="panelsOpen = !panelsOpen"
@@ -1578,8 +1835,8 @@ onMounted(() => {
 
       <!-- La vue santé a la sienne : la vue, la page, et le composant choisi. -->
       <div v-else-if="view === 'health' && healthAt" class="toolbar">
-        <nav class="trail" aria-label="Breadcrumb">
-          <span class="folder">health<span class="separator">/</span></span>
+        <nav class="trail" :aria-label="t('breadcrumb')">
+          <span class="folder">{{ t('trailHealth') }}<span class="separator">/</span></span>
           <template v-if="healthItem">
             <a
               :href="placeSearch({ mode: 'health', page: healthAt.page })"
@@ -1593,36 +1850,35 @@ onMounted(() => {
           }}</span>
         </nav>
         <div class="actions">
-          <Tooltip
-            v-if="healthPrompt"
-            content="Paste it to your coding agent: it fixes the render errors, violations and missing stories listed here."
-          >
+          <Tooltip v-if="healthPrompt" :content="t('promptTip')">
             <Button variant="outline" class="prompt" @click="copyPrompt(healthPrompt, 'prompt')">
               <Icon :icon="AiContentGenerator01Icon" />
-              {{ promptCopied === 'prompt' ? 'Fix prompt copied' : 'Copy fix prompt' }}
+              {{ promptCopied === 'prompt' ? t('promptCopied') : t('copyPrompt') }}
             </Button>
           </Tooltip>
           <!-- Désactivé, l'infobulle passe par une enveloppe : un bouton désactivé ne
                reçoit pas le pointeur, et « Nothing to fix » ne se lirait jamais. Actif,
                elle reste sur le bouton, qui seul reçoit le focus clavier. -->
-          <Tooltip v-else content="Nothing to fix">
+          <Tooltip v-else :content="t('nothingToFix')">
             <span class="prompt-hold">
               <Button variant="outline" class="prompt" disabled>
                 <Icon :icon="AiContentGenerator01Icon" />
-                Copy fix prompt
+                {{ t('copyPrompt') }}
               </Button>
             </span>
           </Tooltip>
           <Button variant="secondary" class="copy" @click="copyLink">
             <Icon :icon="Copy01Icon" />
-            {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
+            {{
+              copied === 'yes' ? t('copied') : copied === 'failed' ? t('copyFailed') : t('copyLink')
+            }}
           </Button>
           <span class="divider" aria-hidden="true" />
-          <Tooltip :content="panelsOpen ? 'Hide panels' : 'Show panels'">
+          <Tooltip :content="panelsOpen ? t('hidePanels') : t('showPanels')">
             <Button
               variant="ghost"
               class="panels-toggle"
-              aria-label="Panels"
+              :aria-label="t('panels')"
               aria-controls="health-panel"
               :aria-expanded="panelsOpen"
               @click="panelsOpen = !panelsOpen"
@@ -1633,7 +1889,7 @@ onMounted(() => {
         </div>
       </div>
       <div v-else-if="viewAt" class="toolbar">
-        <nav class="trail" aria-label="Breadcrumb">
+        <nav class="trail" :aria-label="t('breadcrumb')">
           <template v-if="viewAt.item">
             <a
               :href="placeSearch({ mode: 'view', plugin: viewAt.plugin })"
@@ -1647,15 +1903,17 @@ onMounted(() => {
         <div class="actions">
           <Button variant="secondary" class="copy" @click="copyLink">
             <Icon :icon="Copy01Icon" />
-            {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy link' }}
+            {{
+              copied === 'yes' ? t('copied') : copied === 'failed' ? t('copyFailed') : t('copyLink')
+            }}
           </Button>
           <template v-if="shownView?.panel">
             <span class="divider" aria-hidden="true" />
-            <Tooltip :content="panelsOpen ? 'Hide panels' : 'Show panels'">
+            <Tooltip :content="panelsOpen ? t('hidePanels') : t('showPanels')">
               <Button
                 variant="ghost"
                 class="panels-toggle"
-                aria-label="Panels"
+                :aria-label="t('panels')"
                 aria-controls="view-panel"
                 :aria-expanded="panelsOpen"
                 @click="panelsOpen = !panelsOpen"
@@ -1672,55 +1930,50 @@ onMounted(() => {
           <!-- Dit sur toutes les pages : ce qui est servi n'est plus ce que le fichier
            déclare, et rien d'autre ne le montrerait. -->
           <Alert v-if="project?.config" color="warning" class="config" role="alert">
-            <h2><code>crypte.config.ts</code> could not be read</h2>
+            <h2><code>crypte.config.ts</code> {{ t('configUnread') }}</h2>
             <p>
-              Crypte keeps serving the configuration it read before. Fix the file and save it again:
+              {{ t('configKept') }}
               {{ project.config }}
             </p>
           </Alert>
 
           <Alert v-if="stale && entries.length > 0" color="warning" class="stale" role="status">
-            <code>{{ stale }}</code> is not in the catalogue any more: it was probably renamed.
-            Showing the first story instead.
+            <code>{{ stale }}</code> {{ t('stale') }}
           </Alert>
 
           <div v-if="noStory" class="empty">
             <EmptyGuide
-              :title="project ? `No story in ${project.stories}/` : 'No story found'"
+              :title="project ? t('noStoryIn', { folder: project.stories }) : t('noStoryFound')"
               :path="project ? `${project.stories}/` : null"
-              rule="A story file carries the exact name of its component, and the tree follows its path. The folder is the stories of crypte.config.ts."
+              :rule="t('storyRule')"
               :mapping="`src/components/ui/Badge.${vueProject ? 'vue' : 'tsx'}  >  ${storiesRoot}/ui/Badge.ts`"
               :snippet="snippet"
-              :note="
-                vueProject
-                  ? 'When every prop is optional, a story named Default is generated.'
-                  : 'When every prop is optional, a story named Default is generated. Name the file .tsx when a children prop needs markup.'
-              "
-              outcome="The file appears and its story renders, without a restart."
+              :note="vueProject ? t('storyNote') : t('storyNoteReact')"
+              :outcome="t('storyOutcome')"
             />
           </div>
 
           <!-- Au-dessus de la preview et jamais bloquant : une story écartée est
            absente de l'arbre, donc rien d'autre ne la nomme. -->
           <Alert v-if="setAside.length > 0" color="warning" class="set-aside" role="status">
-            <h2>What Crypte could not read</h2>
+            <h2>{{ t('setAsideTitle') }}</h2>
             <ul>
               <li v-for="one of setAside" :key="one.file">
                 <code>{{ one.file }}</code
-                >: {{ one.title }}. {{ one.reason }}
+                >{{ t('setAside', { title: one.title, reason: one.reason }) }}
               </li>
             </ul>
           </Alert>
 
           <div v-if="noTokens" class="empty">
             <EmptyGuide
-              title="No token found"
+              :title="t('noTokenFound')"
               :path="null"
-              rule="Crypte reads the custom properties of the style sheet declared as css in crypte.config.ts, and groups them by category."
+              :rule="t('tokensRule')"
               mapping="src/styles.css  >  tokens / color, space…"
               :snippet="TOKENS_SNIPPET"
-              note='A dark theme goes under [data-theme="dark"] or prefers-color-scheme: dark, and light-dark() works too.'
-              outcome="The tokens appear, grouped by category."
+              :note="t('tokensNote')"
+              :outcome="t('tokensOutcome')"
             />
           </div>
           <TokensView
@@ -1738,7 +1991,7 @@ onMounted(() => {
             v-if="healthAt?.page === 'failures' && listedHealth"
             :failures="failures"
             :running="auditing"
-            :failed="auditFailed"
+            :failed="auditFailed?.() ?? null"
             :stories="entries"
             :selected="healthAt.item ?? null"
             :href-of="(key) => placeSearch({ mode: 'health', page: 'failures', item: key })"
@@ -1750,7 +2003,7 @@ onMounted(() => {
             :plugin="a11yPlugin"
             :audit="auditResults"
             :running="auditing"
-            :failed="auditFailed"
+            :failed="auditFailed?.() ?? null"
             :stories="entries"
             :selected="healthAt.item ?? null"
             :href-of="(key) => placeSearch({ mode: 'health', page: 'accessibility', item: key })"
@@ -1774,13 +2027,13 @@ onMounted(() => {
           />
           <div v-else-if="healthAt && listedHealth === null" class="empty">
             <EmptyGuide
-              title="No components folder"
+              :title="t('noComponents')"
               :path="null"
-              rule="The health view counts the components of the folder declared as components in crypte.config.ts, and the stories that cover them."
-              mapping="src/components  >  health / stories"
+              :rule="t('componentsRule')"
+              :mapping="t('componentsMapping')"
               :snippet="COMPONENTS_SNIPPET"
-              note="Every component a file under it exports counts, at any depth. A wrapper declared as wrap does not."
-              outcome="The stories gauge and the health pages appear."
+              :note="t('componentsNote')"
+              :outcome="t('componentsOutcome')"
             />
           </div>
           <VersionsView
@@ -1804,7 +2057,7 @@ onMounted(() => {
               />
             </ViewCanvas>
             <EmptyNote v-else-if="pluginsRead">
-              No plugin draws a view named {{ viewAt.plugin }}.
+              {{ t('noView', { plugin: viewAt.plugin }) }}
             </EmptyNote>
           </template>
 
@@ -1825,13 +2078,13 @@ onMounted(() => {
           </div>
           <div v-if="docsOpen && docsEmpty" class="empty">
             <EmptyGuide
-              :title="project ? `No docs page in ${project.stories}/` : 'No docs page'"
+              :title="project ? t('noDocsIn', { folder: project.stories }) : t('noDocs')"
               :path="project ? `${project.stories}/` : null"
-              rule="A component gets its docs page from its stories. A markdown file beside its story file adds its guidelines; any other markdown file is a page of its own."
+              :rule="t('docsRule')"
               :mapping="`${storiesRoot}/ui/Badge.${vueProject ? 'ts' : 'tsx'}  >  ${storiesRoot}/ui/Badge.md`"
               :snippet="DOCS_SNIPPET"
-              note="Markdown only: the title is the first # heading, otherwise the file name."
-              outcome="The page appears, linked to its stories and its tokens."
+              :note="t('docsNote')"
+              :outcome="t('docsOutcome')"
             />
           </div>
 
@@ -1866,7 +2119,10 @@ onMounted(() => {
                      et le tooltip revenait après chaque choix. Ses touches sont dites au
                      pied du menu. -->
                 <DropdownMenuTrigger as-child>
-                  <Button class="level" :aria-label="`Zoom, ${Math.round(zoom * 100)} %`">
+                  <Button
+                    class="level"
+                    :aria-label="t('zoom', { percent: Math.round(zoom * 100) })"
+                  >
                     {{ Math.round(zoom * 100) }} %
                     <Icon :icon="ArrowDown01Icon" />
                   </Button>
@@ -1899,25 +2155,26 @@ onMounted(() => {
                     <!-- Hors de l'arbre ARIA, où un paragraphe n'est pas un enfant valide
                          d'un menu : il le décrit par son id. -->
                     <p id="zoom-keys" class="shell-menu-hint" aria-hidden="true">
-                      <kbd>+</kbd> <kbd>-</kbd> to step, <kbd>0</kbd> for 100 %
+                      <kbd>+</kbd> <kbd>-</kbd> {{ t('zoomStep') }} <kbd>0</kbd>
+                      {{ t('zoomActual') }}
                     </p>
                   </DropdownMenuContent>
                 </DropdownMenuPortal>
               </DropdownMenuRoot>
-              <Tooltip content="Compare light and dark">
+              <Tooltip :content="t('compare')">
                 <Button
                   class="square"
-                  aria-label="Compare light and dark"
+                  :aria-label="t('compare')"
                   :aria-pressed="compare"
                   @click="compare = !compare"
                 >
                   <Icon :icon="ContrastIcon" />
                 </Button>
               </Tooltip>
-              <Tooltip :content="full ? 'Leave full screen' : 'Full screen'" keys="F">
+              <Tooltip :content="full ? t('leaveFullScreen') : t('fullScreen')" keys="F">
                 <Button
                   class="square"
-                  :aria-label="full ? 'Leave full screen' : 'Full screen'"
+                  :aria-label="full ? t('leaveFullScreen') : t('fullScreen')"
                   aria-keyshortcuts="f"
                   :aria-pressed="full"
                   @click="full = !full"
@@ -1930,7 +2187,7 @@ onMounted(() => {
            affiché dessous appartient à la story d'avant, et le laisser voir
            ferait croire que celle-ci a rendu. -->
             <Alert v-if="failure" color="error" class="failure" role="alert">
-              <h2>{{ failure.id }} could not be rendered</h2>
+              <h2>{{ t('notRendered', { id: failure.id }) }}</h2>
               <p>{{ failure.message }}</p>
               <pre v-if="failure.stack">{{ failure.stack }}</pre>
             </Alert>
@@ -1939,26 +2196,28 @@ onMounted(() => {
                 <iframe
                   ref="frame"
                   src="preview.html"
-                  title="preview"
+                  :title="t('preview')"
                   :data-scheme="mainTheme"
                 ></iframe>
-                <figcaption v-if="compare">light</figcaption>
+                <figcaption v-if="compare">{{ t('light') }}</figcaption>
               </figure>
               <figure v-if="compare" class="preview dark">
                 <iframe
                   ref="frameDark"
                   src="preview.html"
-                  title="preview, dark"
+                  :title="t('previewDark')"
                   data-scheme="dark"
                 ></iframe>
-                <figcaption>dark</figcaption>
+                <figcaption>{{ t('dark') }}</figcaption>
               </figure>
             </div>
 
             <!-- Sous la preview, pas dessus : la story rend, et l'avertissement ne dit
            que ce qui manque à sa fiche. Le ton dit ce que l'outil ne sait pas
            lire, jamais que le fichier est mal écrit. -->
-            <p v-if="partial && !failure" class="partial">Incomplete props table: {{ partial }}.</p>
+            <p v-if="partial && !failure" class="partial">
+              {{ t('partial', { detail: partial }) }}
+            </p>
           </div>
         </div>
         <!-- Un élément autour : la racine de Panels est un fragment, où v-show ne
@@ -1968,9 +2227,9 @@ onMounted(() => {
           v-show="storyMode && !noStory && panelsOpen"
           id="panels"
           class="panel-column"
-          aria-label="Panels"
+          :aria-label="t('panels')"
         >
-          <ColumnTitle title="Panels" />
+          <ColumnTitle :title="t('panels')" />
           <WrappersPanel
             v-if="rendered && rendered.id === displayed?.id && rendered.wraps.length > 0"
             :wraps="rendered.wraps"
@@ -1995,9 +2254,9 @@ onMounted(() => {
           v-if="view === 'docs' && (component !== null || shownPage) && !fullScreen && panelsOpen"
           id="docs-panel"
           class="panel-column"
-          aria-label="Docs panel"
+          :aria-label="t('docsPanel')"
         >
-          <ColumnTitle title="Panels" />
+          <ColumnTitle :title="t('panels')" />
           <DocsPanel
             :own="componentStories"
             :page="component !== null ? (componentPage ?? null) : shownPage"
@@ -2017,9 +2276,9 @@ onMounted(() => {
           v-if="view === 'tokens' && !noTokens && !fullScreen && panelsOpen"
           id="token-panel"
           class="panel-column"
-          aria-label="Token panel"
+          :aria-label="t('tokenPanel')"
         >
-          <ColumnTitle title="Panels" />
+          <ColumnTitle :title="t('panels')" />
           <TokenPanel
             :token="selectedToken"
             :categories="categories"
@@ -2034,9 +2293,9 @@ onMounted(() => {
           v-if="viewAt && shownView?.panel && !fullScreen && panelsOpen"
           id="view-panel"
           class="panel-column"
-          :aria-label="`${shownView.label} panel`"
+          :aria-label="t('viewPanel', { label: shownView.label })"
         >
-          <ColumnTitle title="Panels" />
+          <ColumnTitle :title="t('panels')" />
           <PanelSection :title="shownView.label" :open="viewPanelOpen" @toggle="toggleViewPanel">
             <div class="view-panel-body">
               <component
@@ -2051,9 +2310,9 @@ onMounted(() => {
           v-if="view === 'health' && listedHealth && !fullScreen && panelsOpen"
           id="health-panel"
           class="panel-column"
-          aria-label="Health panel"
+          :aria-label="t('healthPanel')"
         >
-          <ColumnTitle title="Panels" />
+          <ColumnTitle :title="t('panels')" />
           <HealthPanel
             :component="healthItem"
             :components="listedHealth ?? []"
@@ -2079,23 +2338,22 @@ onMounted(() => {
       <span class="dot" :data-failed="trouble || undefined" aria-hidden="true" />
       <p>{{ line }}</p>
       <!-- Focusables, pour que le clavier lise leur tooltip comme la souris. -->
-      <Tooltip
-        v-if="firstRender !== null"
-        content="From opening this page to the first story rendered"
-      >
-        <span class="render" tabindex="0">First render {{ Math.round(firstRender) }} ms</span>
+      <Tooltip v-if="firstRender !== null" :content="t('firstRenderTip')">
+        <span class="render" tabindex="0">{{
+          t('firstRender', { ms: Math.round(firstRender) })
+        }}</span>
       </Tooltip>
       <span v-if="project" class="version">Crypte {{ project.version }}</span>
       <ul class="figures">
         <li v-if="project">
-          <Tooltip content="The shell, gzipped">
-            <span tabindex="0">Shell {{ kB(project.shellBytes) }}</span>
+          <Tooltip :content="t('shellTip')">
+            <span tabindex="0">{{ t('shell', { size: kB(project.shellBytes) }) }}</span>
           </Tooltip>
         </li>
         <li v-if="weights.length > 0">
           <Tooltip :content="weights.map((one) => `${one.plugin} ${kB(one.bytes)}`).join('\n')">
             <span tabindex="0">
-              {{ plural(weights.length, 'plugin') }}
+              {{ plural(weights.length, t('plugin'), t('plugins')) }}
             </span>
           </Tooltip>
         </li>
@@ -2120,7 +2378,7 @@ onMounted(() => {
       ref="auditFrame"
       class="audit-frame"
       src="preview.html"
-      title="accessibility audit"
+      :title="t('auditFrame')"
       aria-hidden="true"
       tabindex="-1"
     ></iframe>
