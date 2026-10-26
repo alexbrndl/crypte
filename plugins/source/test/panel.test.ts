@@ -48,7 +48,7 @@ describe('the call code', () => {
   })
 
   // Ce que la lecture du fichier a perdu, dont `meta`, qui ne touche pas l'appel.
-  test('says what is missing from a partial call', () => {
+  test('says what the reading of the file lost', () => {
     const wrapper = mount(Panel, {
       props: {
         entry: entry(
