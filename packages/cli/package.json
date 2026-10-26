@@ -2,6 +2,11 @@
   "name": "@crypte/cli",
   "version": "0.0.0",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alexbrndl/crypte.git",
+    "directory": "packages/cli"
+  },
   "bin": {
     "crypte": "./dist/index.mjs"
   },
