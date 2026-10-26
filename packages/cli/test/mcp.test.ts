@@ -1,9 +1,14 @@
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, test } from 'vitest'
 import { answer, mcp, toolsOf } from '../src/commands/mcp'
-import { loadProject } from '../src/config/project'
+import type { Manifest, StoryEntry } from '@crypte/core/protocol'
+import { fingerprintOf, writeFingerprint } from '../src/catalogue/fingerprint'
+import { loadProject, type Project } from '../src/config/project'
 
 // `crypte mcp` : le catalogue pour un agent qui écrit du code, en JSON-RPC sur
 // stdio, une ligne par message.
@@ -83,6 +88,8 @@ describe('the protocol', () => {
     [{ id: 1, method: 'tools/call', params: { name: 'nope' } }, -32602, 'Unknown tool: nope'],
     [{ id: 1, method: 'resources/list' }, -32601, 'Method not found: resources/list'],
     [{ id: 1 }, -32600, 'Invalid Request'],
+    [{ id: 1, method: 'tools/call', params: null }, -32600, 'Invalid Request'],
+    [{ id: 1, method: 'initialize', params: [1] }, -32600, 'Invalid Request'],
   ] as const)('refuses %j', ([message, code, texte]) => {
     expect(dit(message)).toEqual({ jsonrpc: '2.0', id: 1, error: { code, message: texte } })
   })
@@ -112,25 +119,119 @@ describe('the tools, on a project', () => {
     expect(filtrés.map((one) => one.name)).toEqual(['OrderSummary'])
   })
 
-  test('gives a component by its name, whatever the case, with its stories and their code', async () => {
-    const [badge] = (await outil('component', { name: 'badge' })) as {
-      name: string
-      stories: { id: string; source: string }[]
-      guidelines: string | null
-    }[]
-
-    expect(badge!.name).toBe('Badge')
-    expect(badge!.stories.length).toBeGreaterThan(0)
-    expect(badge!.stories.every((one) => one.source.includes('Badge'))).toBe(true)
-  })
-
   test('names a component it does not know', async () => {
     await expect(outil('component', { name: 'nope' })).rejects.toThrow('no component named nope')
   })
+})
 
-  test('reads the tokens, and what changed since a point', async () => {
-    expect(Array.isArray(await outil('tokens'))).toBe(true)
-    expect(await outil('changes', { from: '-x' })).toEqual({ reason: '"-x" is not a revision' })
+// Un manifeste écrit ici : la fixture n'a ni page ni token, et un outil qui rend
+// une liste vide passerait sur elle sans rien affirmer.
+describe('what each tool gives', () => {
+  const story = (over: Partial<StoryEntry>): StoryEntry => ({
+    type: 'story',
+    id: 'badge--defaut',
+    path: ['Badge'],
+    name: 'Défaut',
+    component: { name: 'Badge', file: 'src/Badge.tsx', export: 'Badge' },
+    storyFile: 'stories/Badge.tsx',
+    options: {},
+    details: { label: { type: 'string', required: true } },
+    props: ['label'],
+    source: '<Badge label="Neuf" />',
+    meta: { status: 'stable' },
+    ...over,
+  })
+  const manifeste = {
+    version: 1,
+    entries: [
+      story({}),
+      story({
+        id: 'tag--nu',
+        path: ['Tag'],
+        name: 'Nu',
+        component: { name: 'Tag', file: 'src/Tag.tsx', export: 'Tag' },
+        storyFile: 'stories/Tag.tsx',
+        details: {},
+        source: '<Tag />',
+        meta: undefined,
+      }),
+      {
+        type: 'page',
+        id: 'badge',
+        path: [],
+        name: 'Badge',
+        file: 'stories/Badge.md',
+        body: 'Un seul par carte.',
+        storyFile: 'stories/Badge.tsx',
+      },
+      {
+        type: 'tokens',
+        id: 'color',
+        path: ['Color'],
+        name: 'Color',
+        tokens: { brand: { type: 'color', themes: { default: { value: '#00f' } } } },
+      },
+    ],
+  } as unknown as Manifest
+  const outil = (name: string, args: Record<string, unknown> = {}, root = fixture) =>
+    toolsOf({ root } as Project, () => manifeste)
+      .find((one) => one.name === name)!
+      .run(args)
+
+  test('gives a component with its props, its stories and its guidelines, or none', () => {
+    expect(outil('component', { name: 'BADGE' })).toEqual([
+      {
+        name: 'Badge',
+        file: 'src/Badge.tsx',
+        export: 'Badge',
+        props: { label: { type: 'string', required: true } },
+        stories: [
+          {
+            id: 'badge--defaut',
+            name: 'Défaut',
+            status: 'stable',
+            source: '<Badge label="Neuf" />',
+          },
+        ],
+        guidelines: 'Un seul par carte.',
+      },
+    ])
+    expect(outil('component', { name: 'Tag' })).toMatchObject([
+      { stories: [{ id: 'tag--nu', name: 'Nu', source: '<Tag />' }], guidelines: null },
+    ])
+  })
+
+  test('gives the token families', () => {
+    expect(outil('tokens')).toEqual([
+      {
+        family: 'Color',
+        tokens: { brand: { type: 'color', themes: { default: { value: '#00f' } } } },
+      },
+    ])
+  })
+
+  // Un dépôt jetable dont le commit ne porte que Tag : Badge est apparu depuis.
+  test('gives what changed since a commit', () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'crypte-mcp-')))
+    try {
+      const git = (...args: string[]) =>
+        execFileSync(
+          'git',
+          ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', ...args],
+          { cwd: root, stdio: 'ignore' },
+        )
+      git('init', '-q')
+      writeFingerprint(root, fingerprintOf({ ...manifeste, entries: [manifeste.entries[1]!] }))
+      git('add', '-A')
+      git('commit', '-qm', 'tag')
+
+      expect(outil('changes', {}, root)).toMatchObject({
+        from: { ref: 'HEAD' },
+        changes: [{ kind: 'appeared', id: 'badge--defaut' }],
+      })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })
 

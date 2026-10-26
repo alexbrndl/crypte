@@ -136,15 +136,24 @@ export function answer(line: string, tools: Tool[], version: string): object | u
   } catch {
     return failure(null, -32700, 'Parse error')
   }
-  if (request?.jsonrpc !== '2.0' || typeof request.method !== 'string')
+  // `params` read below as an object: `null` there threw out of the loop, and a
+  // single line stopped the server.
+  const params = request?.params
+  if (
+    request?.jsonrpc !== '2.0' ||
+    typeof request.method !== 'string' ||
+    (params !== undefined &&
+      (typeof params !== 'object' || params === null || Array.isArray(params)))
+  )
     return failure(request?.id ?? null, -32600, 'Invalid Request')
   if (request.id === undefined) return undefined
 
-  const { id, method, params = {} } = request
+  const { id, method } = request
+  const asked = params ?? {}
   if (method === 'initialize') {
-    const asked = params['protocolVersion']
+    const wanted = asked['protocolVersion']
     return result(id, {
-      protocolVersion: VERSIONS.includes(String(asked)) ? asked : VERSIONS[0],
+      protocolVersion: VERSIONS.includes(String(wanted)) ? wanted : VERSIONS[0],
       capabilities: { tools: {} },
       serverInfo: { name: 'crypte', version },
     })
@@ -153,9 +162,9 @@ export function answer(line: string, tools: Tool[], version: string): object | u
   if (method === 'tools/list')
     return result(id, { tools: tools.map(({ run: _run, ...tool }) => tool) })
   if (method === 'tools/call') {
-    const tool = tools.find((one) => one.name === params['name'])
-    if (!tool) return failure(id, -32602, `Unknown tool: ${String(params['name'])}`)
-    const args = (params['arguments'] ?? {}) as Record<string, unknown>
+    const tool = tools.find((one) => one.name === asked['name'])
+    if (!tool) return failure(id, -32602, `Unknown tool: ${String(asked['name'])}`)
+    const args = (asked['arguments'] ?? {}) as Record<string, unknown>
     try {
       return result(id, {
         content: [{ type: 'text', text: JSON.stringify(tool.run(args), null, 2) }],
