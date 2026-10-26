@@ -8,7 +8,7 @@
 [![CI](https://github.com/alexbrndl/crypte/actions/workflows/ci.yml/badge.svg)](https://github.com/alexbrndl/crypte/actions/workflows/ci.yml)
 [![coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Falexbrndl%2Fcrypte%2Fmain%2F.github%2Fcoverage.json)](https://github.com/alexbrndl/crypte/actions/workflows/ci.yml)
 
-A component workshop for design systems, built to stay light and to work with more than one framework.
+**A design system workshop that stays light.**
 
 A framework-neutral core, one adapter per framework, and plugins you add one at a time. Nothing you have not installed is ever loaded.
 
