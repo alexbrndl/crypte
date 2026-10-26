@@ -1,8 +1,8 @@
 # Crypte
 
-> Crypte is an open-source component workshop for design systems. It renders components, design tokens and guideline pages straight from a repository, works with more than one framework, and never reads your Vite config: whatever it needs, you declare.
+> Crypte is an open-source design system workshop that stays light. It renders components, design tokens and guideline pages straight from a repository, works with more than one framework, and never reads your Vite config: whatever it needs, you declare.
 
-Crypte is driven by a CLI. `crypte dev`, `crypte check` and `crypte init` are the whole surface today. `build` and `migrate` are planned and not built.
+Crypte is driven by a CLI. `crypte dev`, `crypte build`, `crypte check`, `crypte init` and `crypte mcp` are the whole surface today. `migrate` is planned and not built.
 
 `crypte dev` writes a manifest at `.crypte/manifest.json` describing every entry in the catalogue: the file each component lives in, the props each story exercises, and the call code rebuilt from the story file, with path aliases resolved into real paths. The manifest is the interface: the workshop shell renders from it today. `crypte check` reports orphan stories, components with no story, and a committed fingerprint the stories no longer match, so a CI running it refuses a branch that did not update it. The MCP server that hands the manifest to agents is not built.
 
@@ -14,7 +14,7 @@ Status: in progress, nothing published to npm yet. Everything is MIT, nothing is
 - [Story format](https://crypte.dev/docs/story-format/): `defineStories`, shared props, per-story overrides, `details` for what inference cannot find
 - [Configuration](https://crypte.dev/docs/config/): `crypte.config.ts`, two required keys
 - [Contracts](https://crypte.dev/docs/contracts/): manifest entry, plugin declaration, preview bridge, node hooks
-- [Commands](https://crypte.dev/docs/cli/): `dev`, `check` and `init` today; `build` and `migrate` planned
+- [Commands](https://crypte.dev/docs/cli/): `dev`, `build`, `check`, `init` and `mcp` today; `migrate` planned
 
 ## Concepts
 
