@@ -7,6 +7,7 @@ import type { PageEntry, StoryEntry, Theme } from '@crypte/core/protocol'
 import type { Category } from '../tokens/categories'
 import { computed } from 'vue'
 import { placeSearch, sameTab } from '../navigation/url'
+import { texts } from '../i18n'
 
 // La page d'un composant : ce que son fichier de stories déclare une fois pour
 // toutes ses stories, sa page markdown s'il en a une, et la liste de ses stories.
@@ -20,6 +21,31 @@ const props = defineProps<{
   hrefOfToken: (name: string) => string | null
 }>()
 const emit = defineEmits<{ show: [id: string]; token: [name: string] }>()
+
+const t = texts({
+  en: {
+    status: 'Status',
+    owner: 'Owner',
+    component: 'Component',
+    stories: 'Stories',
+    page: 'Page',
+    noPage: 'No guidelines yet: write',
+    beside: 'beside its stories.',
+    story: 'Story',
+    props: 'Props it sets',
+  },
+  fr: {
+    status: 'Statut',
+    owner: 'Responsable',
+    component: 'Composant',
+    stories: 'Stories',
+    page: 'Page',
+    noPage: 'Pas encore de recommandations : écrivez',
+    beside: 'à côté de ses stories.',
+    story: 'Story',
+    props: 'Props qu’elle définit',
+  },
+})
 
 // `meta` se déclare par fichier de stories : la première story parle pour toutes.
 const first = computed(() => props.stories[0])
@@ -47,11 +73,11 @@ function follow(event: MouseEvent, id: string) {
 
     <dl>
       <template v-if="meta.status">
-        <dt>Status</dt>
+        <dt>{{ t('status') }}</dt>
         <dd>{{ meta.status }}</dd>
       </template>
       <template v-if="meta.owner">
-        <dt>Owner</dt>
+        <dt>{{ t('owner') }}</dt>
         <dd>{{ meta.owner }}</dd>
       </template>
       <template v-if="meta.figma">
@@ -61,16 +87,16 @@ function follow(event: MouseEvent, id: string) {
           <code v-else>{{ meta.figma }}</code>
         </dd>
       </template>
-      <dt>Component</dt>
+      <dt>{{ t('component') }}</dt>
       <dd>
         <code>{{ first.component.file }}</code>
       </dd>
-      <dt>Stories</dt>
+      <dt>{{ t('stories') }}</dt>
       <dd>
         <code>{{ first.storyFile }}</code>
       </dd>
       <template v-if="page">
-        <dt>Page</dt>
+        <dt>{{ t('page') }}</dt>
         <dd>
           <code>{{ page.file }}</code>
         </dd>
@@ -93,14 +119,14 @@ function follow(event: MouseEvent, id: string) {
       <MarkdownBody class="page" :body="page.body" />
     </template>
     <p v-else class="no-page">
-      No guidelines yet: write <code>{{ suggested }}</code> beside its stories.
+      {{ t('noPage') }} <code>{{ suggested }}</code> {{ t('beside') }}
     </p>
 
     <PlainTable class="stories">
       <thead>
         <tr>
-          <th scope="col">Story</th>
-          <th scope="col">Props it sets</th>
+          <th scope="col">{{ t('story') }}</th>
+          <th scope="col">{{ t('props') }}</th>
         </tr>
       </thead>
       <tbody>

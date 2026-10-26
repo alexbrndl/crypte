@@ -10,6 +10,7 @@ import { componentIdOf } from '../navigation/tree'
 import type { Changes } from '@crypte/core/protocol'
 import { componentOfId } from '../pages/changes'
 import { sinceLabel, type Difference } from './differences'
+import { texts } from '../i18n'
 
 // Le canvas de la vue versions : ce qui a changé depuis le point choisi, puis le
 // détail de l'écart sélectionné. Pour un token, sa valeur avant et après dans
@@ -27,6 +28,58 @@ const emit = defineEmits<{
   story: [id: string, event: MouseEvent]
   component: [id: string, event: MouseEvent]
 }>()
+
+const t = texts({
+  en: {
+    versions: 'Versions',
+    since: 'What changed since {ref}',
+    changed: 'What changed',
+    reading: 'Reading the changes…',
+    unread: 'The changes cannot be read:',
+    nothing: 'Nothing changed in the catalogue.',
+    difference: 'difference',
+    differences: 'differences',
+    from: '{count} from {commit}.',
+    noHistory: 'The tokens have no history before this commit: its fingerprint predates them.',
+    theme: 'Theme',
+    before: 'Before',
+    after: 'After',
+    readBy: 'Read by {count}',
+    component: 'component',
+    components: 'components',
+    appeared: 'A new story.',
+    disappeared: 'This story is gone.',
+    status: 'Status:',
+    added: 'Props added:',
+    removed: 'Props removed:',
+    select: 'Select a difference to see what moved.',
+  },
+  fr: {
+    versions: 'Versions',
+    since: 'Ce qui a changé depuis {ref}',
+    changed: 'Ce qui a changé',
+    reading: 'Lecture des changements…',
+    unread: 'Les changements ne peuvent pas être lus :',
+    nothing: 'Rien n’a changé dans le catalogue.',
+    difference: 'écart',
+    differences: 'écarts',
+    from: '{count} depuis {commit}.',
+    noHistory:
+      'Les tokens n’ont pas d’historique avant ce commit : son empreinte leur est antérieure.',
+    theme: 'Thème',
+    before: 'Avant',
+    after: 'Après',
+    readBy: 'Lu par {count}',
+    component: 'composant',
+    components: 'composants',
+    appeared: 'Une nouvelle story.',
+    disappeared: 'Cette story a disparu.',
+    status: 'Statut :',
+    added: 'Props ajoutées :',
+    removed: 'Props supprimées :',
+    select: 'Sélectionnez un écart pour voir ce qui a bougé.',
+  },
+})
 
 const since = computed(() =>
   props.changes !== null && 'from' in props.changes ? sinceLabel(props.changes.from.ref) : null,
@@ -83,21 +136,22 @@ const isColor = (value: string | undefined) =>
 </script>
 
 <template>
-  <section class="versions-view" aria-label="Versions">
-    <h2>{{ since ? `What changed since ${since}` : 'What changed' }}</h2>
-    <EmptyNote v-if="changes === null">Reading the changes…</EmptyNote>
-    <EmptyNote v-else-if="'reason' in changes">
-      The changes cannot be read: {{ changes.reason }}.
-    </EmptyNote>
+  <section class="versions-view" :aria-label="t('versions')">
+    <h2>{{ since ? t('since', { ref: since }) : t('changed') }}</h2>
+    <EmptyNote v-if="changes === null">{{ t('reading') }}</EmptyNote>
+    <EmptyNote v-else-if="'reason' in changes"> {{ t('unread') }} {{ changes.reason }}. </EmptyNote>
     <template v-else>
       <EmptyNote>
         {{
           count === 0
-            ? 'Nothing changed in the catalogue.'
-            : `${plural(count, 'difference')} from ${changes.from.commit}.`
+            ? t('nothing')
+            : t('from', {
+                count: plural(count, t('difference'), t('differences')),
+                commit: changes.from.commit,
+              })
         }}
         <template v-if="changes.tokens === null">
-          The tokens have no history before this commit: its fingerprint predates them.
+          {{ t('noHistory') }}
         </template>
       </EmptyNote>
 
@@ -108,9 +162,9 @@ const isColor = (value: string | undefined) =>
         <PlainTable>
           <thead>
             <tr>
-              <th scope="col">Theme</th>
-              <th scope="col">Before</th>
-              <th scope="col">After</th>
+              <th scope="col">{{ t('theme') }}</th>
+              <th scope="col">{{ t('before') }}</th>
+              <th scope="col">{{ t('after') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -132,7 +186,9 @@ const isColor = (value: string | undefined) =>
             </tr>
           </tbody>
         </PlainTable>
-        <h4>Read by {{ plural(readers.length, 'component') }}</h4>
+        <h4>
+          {{ t('readBy', { count: plural(readers.length, t('component'), t('components')) }) }}
+        </h4>
         <ul v-if="readers.length > 0" class="readers">
           <li v-for="one of readers" :key="one.id">
             <a :href="hrefOfComponent(one.id)" @click="emit('component', one.id, $event)">{{
@@ -158,21 +214,23 @@ const isColor = (value: string | undefined) =>
           >
           <code v-else>{{ difference.change.id }}</code>
         </h3>
-        <p v-if="difference.kind === 'appeared'">A new story.</p>
-        <p v-if="difference.kind === 'disappeared'">This story is gone.</p>
+        <p v-if="difference.kind === 'appeared'">{{ t('appeared') }}</p>
+        <p v-if="difference.kind === 'disappeared'">{{ t('disappeared') }}</p>
         <p v-if="difference.change.kind === 'changed' && difference.change.status">
-          Status: {{ difference.change.status.before }} → {{ difference.change.status.after }}
+          {{ t('status') }} {{ difference.change.status.before }} →
+          {{ difference.change.status.after }}
         </p>
         <p v-if="props_ && props_.added.length > 0">
-          Props added: <code v-for="one of props_.added" :key="one" class="added">{{ one }}</code>
+          {{ t('added') }}
+          <code v-for="one of props_.added" :key="one" class="added">{{ one }}</code>
         </p>
         <p v-if="props_ && props_.removed.length > 0">
-          Props removed:
+          {{ t('removed') }}
           <code v-for="one of props_.removed" :key="one" class="removed">{{ one }}</code>
         </p>
       </article>
 
-      <EmptyNote v-else-if="count > 0">Select a difference to see what moved.</EmptyNote>
+      <EmptyNote v-else-if="count > 0">{{ t('select') }}</EmptyNote>
     </template>
   </section>
 </template>

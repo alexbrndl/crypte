@@ -67,6 +67,12 @@ function ko(n) {
 // La barre d'état du shell compte de la même façon, dans `packages/cli/src/server/weight.ts` :
 // changer l'une sans l'autre fait diverger les deux chiffres.
 //
+// La cible est passée de 300 à 310 Ko le 26 oct. 2026, avec la traduction du
+// shell (DCJ-378) : deux langues, environ 9 Ko de textes. Ce qui pèse alors,
+// gzip : les polices Geist 120 Ko, Vue et son compilateur 62, Reka 35, le code
+// du shell 44, marked 14. Rouvert par la prochaine langue, ou si une de ces
+// pièces s'allège.
+//
 // Lève plutôt que de rendre zéro. Un dossier absent veut dire que `vp pack`
 // n'a pas tourné, et un budget de poids tenu par un bundle inexistant est le
 // pire des verdicts : vert, et sur rien.

@@ -3,6 +3,7 @@ import { ColumnTitle, EmptyNote, Tree, type TreeNode } from '@crypte/ui'
 import { ViewIcon } from '@hugeicons/core-free-icons'
 import { ToggleGroupItem, ToggleGroupRoot } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
+import { texts } from '../i18n'
 import { keep, kept } from '../storage'
 import Icon from '../ui/icon.vue'
 import {
@@ -27,6 +28,25 @@ const props = defineProps<{
   none: string
 }>()
 const emit = defineEmits<{ show: [id: string]; open: [component: string] }>()
+
+const t = texts({
+  en: {
+    filter: 'Filter by status',
+    all: 'all',
+    draft: 'draft',
+    stable: 'stable',
+    deprecated: 'deprecated',
+    open: 'Open the docs page of {name}',
+  },
+  fr: {
+    filter: 'Filtrer par statut',
+    all: 'tous',
+    draft: 'brouillon',
+    stable: 'stable',
+    deprecated: 'obsolète',
+    open: 'Ouvrir la page docs de {name}',
+  },
+})
 
 // Un statut à la fois, ou tous : les onglets du fichier Figma.
 const status = ref<Status | 'all'>('all')
@@ -153,12 +173,12 @@ const items = computed(() => toItems(shown.value))
       :model-value="chosen ?? 'all'"
       type="single"
       class="tabs"
-      aria-label="Filter by status"
+      :aria-label="t('filter')"
       @update:model-value="(value) => (status = (value as Status | 'all' | undefined) || 'all')"
     >
-      <ToggleGroupItem value="all">all</ToggleGroupItem>
+      <ToggleGroupItem value="all">{{ t('all') }}</ToggleGroupItem>
       <ToggleGroupItem v-for="one of declared" :key="one" :value="one">
-        {{ one }}
+        {{ t(one) }}
       </ToggleGroupItem>
     </ToggleGroupRoot>
     <EmptyNote v-if="entries.length === 0">{{ none }}</EmptyNote>
@@ -176,7 +196,7 @@ const items = computed(() => toItems(shown.value))
           type="button"
           class="eye"
           :data-lit="node.key === lit || undefined"
-          :aria-label="`Open the docs page of ${node.label}`"
+          :aria-label="t('open', { name: node.label })"
           @click.stop="emit('open', node.key.slice('component:'.length))"
         >
           <Icon :icon="ViewIcon" />

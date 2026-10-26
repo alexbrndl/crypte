@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { texts } from '../i18n'
 import { keep, kept } from '../storage'
 
 // Les derniers endroits ouverts, que la palette propose quand rien n'est tapé :
@@ -38,15 +39,40 @@ export function useRecent() {
   return { visits, remember }
 }
 
+const t = texts({
+  en: {
+    now: 'just now',
+    minutes: '{count} min ago',
+    hours: '{count} h ago',
+    yesterday: 'yesterday',
+    days: '{count} days ago',
+    lastWeek: 'last week',
+    weeks: '{count} weeks ago',
+    lastMonth: 'last month',
+    months: '{count} months ago',
+  },
+  fr: {
+    now: "à l'instant",
+    minutes: 'il y a {count} min',
+    hours: 'il y a {count} h',
+    yesterday: 'hier',
+    days: 'il y a {count} jours',
+    lastWeek: 'la semaine dernière',
+    weeks: 'il y a {count} semaines',
+    lastMonth: 'le mois dernier',
+    months: 'il y a {count} mois',
+  },
+})
+
 export function ago(at: number, now = Date.now()): string {
   const minutes = Math.floor((now - at) / 60_000)
-  if (minutes < 1) return 'just now'
-  if (minutes < 60) return `${minutes} min ago`
+  if (minutes < 1) return t('now')
+  if (minutes < 60) return t('minutes', { count: minutes })
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} h ago`
+  if (hours < 24) return t('hours', { count: hours })
   const days = Math.floor(hours / 24)
-  if (days < 7) return days === 1 ? 'yesterday' : `${days} days ago`
-  if (days < 30) return days < 14 ? 'last week' : `${Math.floor(days / 7)} weeks ago`
+  if (days < 7) return days === 1 ? t('yesterday') : t('days', { count: days })
+  if (days < 30) return days < 14 ? t('lastWeek') : t('weeks', { count: Math.floor(days / 7) })
   const months = Math.floor(days / 30)
-  return months === 1 ? 'last month' : `${months} months ago`
+  return months === 1 ? t('lastMonth') : t('months', { count: months })
 }

@@ -5,12 +5,26 @@ import { ComponentIcon, LinkSquare02Icon } from '@hugeicons/core-free-icons'
 import { onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import Icon from '../ui/icon.vue'
 import { sameTab } from '../navigation/url'
+import { texts } from '../i18n'
 
 // L'exemple vivant d'une page Docs : une preview à part, qui rend la story donnée
 // sans ses panneaux. Elle lit `ready`, et l'erreur de sa story, qu'elle dit à la
 // place du cadre : la preview du canvas est masquée sous la page.
 const props = defineProps<{ story: StoryEntry; theme: Theme; href: string }>()
 const emit = defineEmits<{ show: [id: string] }>()
+
+const t = texts({
+  en: {
+    example: 'example, {name}',
+    story: 'story · {name}',
+    open: 'Open in stories',
+  },
+  fr: {
+    example: 'exemple, {name}',
+    story: 'story · {name}',
+    open: 'Ouvrir dans les stories',
+  },
+})
 
 const frame = useTemplateRef<HTMLIFrameElement>('frame')
 let channel: { send: ReturnType<typeof createShellChannel>['send']; ready: boolean } | null = null
@@ -55,13 +69,13 @@ function follow(event: MouseEvent) {
       v-show="!failure"
       ref="frame"
       src="preview.html"
-      :title="`example, ${story.name}`"
+      :title="t('example', { name: story.name })"
       :data-scheme="theme"
     ></iframe>
     <figcaption>
       <Icon :icon="ComponentIcon" />
-      <code class="name">story · {{ story.name }}</code>
-      <a :href="href" @click="follow">Open in stories</a>
+      <code class="name">{{ t('story', { name: story.name }) }}</code>
+      <a :href="href" @click="follow">{{ t('open') }}</a>
       <Icon :icon="LinkSquare02Icon" />
     </figcaption>
   </figure>

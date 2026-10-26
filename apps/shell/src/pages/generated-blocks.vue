@@ -8,6 +8,7 @@ import PlainTable from '../ui/plain-table.vue'
 import { sameTab } from '../navigation/url'
 import { valueIn, type Category } from '../tokens/categories'
 import LiveExample from './live-example.vue'
+import { texts } from '../i18n'
 
 // Les blocs qu'une page Docs reçoit d'office, sans rien écrire dans son markdown :
 // l'exemple vivant de la première story, les props du composant et les tokens
@@ -20,6 +21,31 @@ const props = defineProps<{
   hrefOfToken: (name: string) => string | null
 }>()
 const emit = defineEmits<{ story: [id: string]; token: [name: string] }>()
+
+const t = texts({
+  en: {
+    props: 'Props',
+    generated: 'generated',
+    prop: 'Prop',
+    type: 'Type',
+    default: 'Default',
+    description: 'Description',
+    required: 'required',
+    noProp: 'No prop.',
+    tokens: 'Tokens',
+  },
+  fr: {
+    props: 'Props',
+    generated: 'généré',
+    prop: 'Prop',
+    type: 'Type',
+    default: 'Défaut',
+    description: 'Description',
+    required: 'requise',
+    noProp: 'Aucune prop.',
+    tokens: 'Tokens',
+  },
+})
 
 const first = computed(() => props.stories[0])
 const details = computed(() => Object.entries(first.value?.details ?? {}))
@@ -56,25 +82,25 @@ function follow(event: MouseEvent, name: string) {
       @show="(id) => emit('story', id)"
     />
 
-    <section aria-label="Props">
+    <section :aria-label="t('props')">
       <h3>
-        Props <span class="tag">generated</span
+        {{ t('props') }} <span class="tag">{{ t('generated') }}</span
         ><code class="source">{{ first.component.file }}</code>
       </h3>
       <PlainTable v-if="details.length > 0" class="props">
         <thead>
           <tr>
-            <th scope="col">Prop</th>
-            <th scope="col">Type</th>
-            <th scope="col">Default</th>
-            <th scope="col">Description</th>
+            <th scope="col">{{ t('prop') }}</th>
+            <th scope="col">{{ t('type') }}</th>
+            <th scope="col">{{ t('default') }}</th>
+            <th scope="col">{{ t('description') }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="[name, one] of details" :key="name">
             <td>
               <code>{{ name }}</code>
-              <span v-if="one.required" class="required">required</span>
+              <span v-if="one.required" class="required">{{ t('required') }}</span>
             </td>
             <td>
               <code class="type">{{ one.type }}</code>
@@ -90,11 +116,13 @@ function follow(event: MouseEvent, name: string) {
           </tr>
         </tbody>
       </PlainTable>
-      <p v-else class="none">{{ first.propsUnread ?? 'No prop.' }}</p>
+      <p v-else class="none">{{ first.propsUnread ?? t('noProp') }}</p>
     </section>
 
-    <section v-if="tokens.length > 0" aria-label="Tokens">
-      <h3>Tokens <span class="tag">generated</span></h3>
+    <section v-if="tokens.length > 0" :aria-label="t('tokens')">
+      <h3>
+        {{ t('tokens') }} <span class="tag">{{ t('generated') }}</span>
+      </h3>
       <ul class="chips">
         <li v-for="one of tokens" :key="one.name">
           <component

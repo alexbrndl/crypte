@@ -1,12 +1,24 @@
 // Où retomber quand l'identifiant affiché a disparu du catalogue.
 
 import type { StoryEntry } from '@crypte/core/protocol'
+import { texts } from '../i18n'
+
+const t = texts({
+  en: {
+    unreadable: 'the catalogue could not be read: {reason}',
+    gone: 'the story on display is gone',
+  },
+  fr: {
+    unreadable: "le catalogue n'a pas pu être lu : {reason}",
+    gone: 'la story affichée a disparu',
+  },
+})
 
 // Ce qu'un catalogue illisible laisse à l'écran. Un arbre qui se fige sans un
 // mot ressemble à un outil qui a cessé de suivre, ce que le panneau d'erreur
 // défend déjà pour un rendu raté.
 export function unreadable(error: unknown): string {
-  return `the catalogue could not be read: ${error instanceof Error ? error.message : String(error)}`
+  return t('unreadable', { reason: error instanceof Error ? error.message : String(error) })
 }
 
 // Hors du composant pour être testable : la distinction entre `null`, une entrée
@@ -26,7 +38,7 @@ export function landing(
   // La story perdue est gardée, avec le catalogue d'où elle a disparu : quand
   // son fichier revient, c'est elle qu'on retrouve.
   const lost = shown !== null && 'lost' in shown ? shown : { lost: shown as StoryEntry, before }
-  return { id: null, shown: lost, status: 'the story on display is gone' }
+  return { id: null, shown: lost, status: t('gone') }
 }
 
 // `lost` : la sélection vient d'être perdue, avec le catalogue d'où elle a

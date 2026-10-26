@@ -9,6 +9,7 @@ import ColorSwatch from '../ui/color-swatch.vue'
 import { keep, kept } from '../storage'
 import { componentIdOf } from '../navigation/tree'
 import { shown, type Category, type Token } from './categories'
+import { texts } from '../i18n'
 
 // Le panneau d'un token : sa valeur dans chaque
 // thème, son nom CSS, les tokens qui pointent vers lui et les composants qui le
@@ -26,6 +27,29 @@ const emit = defineEmits<{
   token: [category: string, token: string, event: MouseEvent]
   component: [id: string, event: MouseEvent]
 }>()
+
+const t = texts({
+  en: {
+    token: 'Token',
+    select: 'Select a token to see its values and its uses.',
+    value: 'value',
+    aliases: 'aliases pointing here · {count}',
+    usedBy: 'used by · {count}',
+    component: 'component',
+    components: 'components',
+    unused: 'No component reads it.',
+  },
+  fr: {
+    token: 'Token',
+    select: 'Sélectionnez un token pour voir ses valeurs et ses usages.',
+    value: 'valeur',
+    aliases: 'alias qui pointent ici · {count}',
+    usedBy: 'utilisé par · {count}',
+    component: 'composant',
+    components: 'composants',
+    unused: 'Aucun composant ne le lit.',
+  },
+})
 
 const KEY = 'crypte:panel:shell:token'
 const open = ref(kept(KEY) !== false)
@@ -95,15 +119,15 @@ const users = computed(() => {
 
 <template>
   <PanelSection
-    :title="token ? figma(token) : 'Token'"
+    :title="token ? figma(token) : t('token')"
     :open="open"
-    :aria-label="token ? token.name : 'Token'"
+    :aria-label="token ? token.name : t('token')"
     @toggle="toggle"
   >
     <div class="rows">
-      <EmptyNote v-if="token === null">Select a token to see its values and its uses.</EmptyNote>
+      <EmptyNote v-if="token === null">{{ t('select') }}</EmptyNote>
       <template v-else>
-        <p class="caption">value</p>
+        <p class="caption">{{ t('value') }}</p>
         <p v-for="one of themes" :key="one.theme" class="row value">
           <code class="key">{{ one.theme }}</code
           >{{ ' ' }}
@@ -118,7 +142,7 @@ const users = computed(() => {
         </p>
 
         <template v-if="pointing.length > 0">
-          <p class="caption">aliases pointing here · {{ pointing.length }}</p>
+          <p class="caption">{{ t('aliases', { count: pointing.length }) }}</p>
           <a
             v-for="one of pointing"
             :key="one.token.key"
@@ -133,8 +157,10 @@ const users = computed(() => {
           </a>
         </template>
 
-        <p class="caption">used by · {{ plural(users.length, 'component') }}</p>
-        <EmptyNote v-if="users.length === 0">No component reads it.</EmptyNote>
+        <p class="caption">
+          {{ t('usedBy', { count: plural(users.length, t('component'), t('components')) }) }}
+        </p>
+        <EmptyNote v-if="users.length === 0">{{ t('unused') }}</EmptyNote>
         <a
           v-for="one of users"
           :key="one.key"

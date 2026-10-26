@@ -3,12 +3,21 @@ import type { Overrides, RenderedValues, StoryEntry } from '@crypte/core/protoco
 import { Alert, Button, PanelSection } from '@crypte/ui'
 import { computed, onErrorCaptured, ref, watch, type Component } from 'vue'
 import { keep, kept } from '../storage'
+import { texts } from '../i18n'
 
 // Le cadre d'un panneau de plugin, section 6.1 des contrats. Local au shell,
 // son seul consommateur : les panneaux sont montés dedans, ils ne le dessinent
 // pas.
 
 type PanelMessage = { type: string; [key: string]: unknown }
+
+const t = texts({
+  en: { reset: 'Reset all', threw: 'This panel threw: {message}' },
+  fr: {
+    reset: 'Tout réinitialiser',
+    threw: 'Ce panneau a levé une erreur : {message}',
+  },
+})
 
 const props = defineProps<{
   name: string
@@ -200,10 +209,12 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
     >
     <!-- Tout panneau qui édite l'a, sans rien écrire : le shell tient ses valeurs. -->
     <template v-if="Object.keys(overrides).length > 0" #action>
-      <Button variant="ghost" class="reset" @click="emit('overrides', {})">Reset all</Button>
+      <Button variant="ghost" class="reset" @click="emit('overrides', {})">{{ t('reset') }}</Button>
     </template>
     <template v-if="failure !== null" #alert>
-      <Alert color="error" class="panel-failed" role="alert">This panel threw: {{ failure }}</Alert>
+      <Alert color="error" class="panel-failed" role="alert">{{
+        t('threw', { message: failure })
+      }}</Alert>
     </template>
     <template v-else #default>
       <div class="content">

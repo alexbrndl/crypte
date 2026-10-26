@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { EmptyNote, SidebarLink, ColumnTitle } from '@crypte/ui'
 import { plural } from '../plural'
+import { texts } from '../i18n'
 import {
   AccessibilityIcon,
   Alert02Icon,
@@ -39,6 +40,27 @@ const ICONS: Record<HealthPage, typeof Search01Icon> = {
   statuses: Flag01Icon,
 }
 
+const t = texts({
+  en: {
+    title: 'Health',
+    component: 'component',
+    components: 'components',
+    noFolder: 'No components folder.',
+    score: 'Score',
+    overall: 'overall health',
+    pages: 'Pages',
+  },
+  fr: {
+    title: 'Santé',
+    component: 'composant',
+    components: 'composants',
+    noFolder: 'Aucun dossier de composants.',
+    score: 'Score',
+    overall: 'santé globale',
+    pages: 'Pages',
+  },
+})
+
 const gauges = computed(() => (props.components ? gaugesOf(props.components, props.audit) : []))
 const countOf = (page: HealthPage) =>
   page === 'accessibility'
@@ -52,15 +74,19 @@ const score = computed(() => scoreOf(gauges.value))
 <template>
   <div class="health">
     <ColumnTitle
-      title="Health"
-      :count="components && !unread ? `${plural(components.length, 'component')}` : undefined"
+      :title="t('title')"
+      :count="
+        components && !unread
+          ? `${plural(components.length, t('component'), t('components'))}`
+          : undefined
+      "
     />
     <EmptyNote v-if="unread">{{ unread }}</EmptyNote>
-    <EmptyNote v-else-if="components === null">No components folder.</EmptyNote>
+    <EmptyNote v-else-if="components === null">{{ t('noFolder') }}</EmptyNote>
     <template v-else>
-      <section class="score" aria-label="Score">
+      <section class="score" :aria-label="t('score')">
         <p class="top">
-          <strong>{{ score }} %</strong>{{ ' ' }}<span>overall health</span>
+          <strong>{{ score }} %</strong>{{ ' ' }}<span>{{ t('overall') }}</span>
         </p>
         <p v-for="gauge of gauges" :key="gauge.label" class="gauge">
           <span class="label">{{ gauge.label }}</span
@@ -81,8 +107,8 @@ const score = computed(() => scoreOf(gauges.value))
           {{ ' ' }}<span class="ratio">{{ gauge.done }}/{{ gauge.total }}</span>
         </p>
       </section>
-      <ColumnTitle class="pages" title="Pages" :count="PAGES.length" />
-      <ul aria-label="Pages">
+      <ColumnTitle class="pages" :title="t('pages')" :count="PAGES.length" />
+      <ul :aria-label="t('pages')">
         <li v-for="one of PAGES" :key="one.page">
           <SidebarLink
             :href="hrefOf(one.page)"

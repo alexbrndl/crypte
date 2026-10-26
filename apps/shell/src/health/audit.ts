@@ -1,5 +1,6 @@
 import type { PreviewMessage, Theme } from '@crypte/core/protocol'
 import { createShellChannel } from '@crypte/core/shell'
+import { texts } from '../i18n'
 
 // L'audit de la vue santé : chaque story rendue dans une preview cachée, en
 // light puis en dark. Il dit lesquelles ne rendent pas et, avec le plugin a11y,
@@ -31,6 +32,19 @@ export type AuditResult =
   | { id: string; theme: Theme; silent: true }
 
 export const THEMES: Theme[] = ['light', 'dark']
+
+const t = texts({
+  en: {
+    neverReady: 'the preview never said it was ready',
+    neverBack: 'the preview never came back after a reload',
+    shape: 'the a11y plugin answered in a shape the shell does not read',
+  },
+  fr: {
+    neverReady: "l'aperçu n'a jamais dit qu'il était prêt",
+    neverBack: "l'aperçu n'est jamais revenu après un rechargement",
+    shape: 'le plugin a11y a répondu sous une forme que le shell ne lit pas',
+  },
+})
 
 // Une story qui ne rend pas, ou un plugin muet, n'arrête pas l'audit.
 const WAIT = 8000
@@ -105,7 +119,7 @@ export async function audit(
 
   const results: AuditResult[] = []
   try {
-    await ready('the preview never said it was ready')
+    await ready(t('neverReady'))
     for (const id of stories) {
       for (const theme of THEMES) {
         if (signal?.aborted) return results
@@ -126,7 +140,7 @@ export async function audit(
           // Une réponse qui arriverait après l'attente passerait pour celle du
           // rendu suivant, d'un autre thème ou d'une autre story : la preview
           // rechargée jette tout ce qu'elle avait en cours.
-          const reloaded = ready('the preview never came back after a reload')
+          const reloaded = ready(t('neverBack'))
           reload()
           await reloaded
         } else if (message.type === 'error')
@@ -143,7 +157,7 @@ export async function audit(
           results.push({
             id,
             theme,
-            error: 'the a11y plugin answered in a shape the shell does not read',
+            error: t('shape'),
           })
         else results.push({ id, theme, passes: message.passes, violations: message.violations })
         progress(results.length)

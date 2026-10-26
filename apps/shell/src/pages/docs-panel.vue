@@ -13,6 +13,7 @@ import Icon from '../ui/icon.vue'
 import { keep, kept } from '../storage'
 import { componentIdOf } from '../navigation/tree'
 import { cites, citing } from './links'
+import { texts } from '../i18n'
 
 // « Links », le panneau de la vue docs. Pour un composant : ses stories, les tokens
 // qu'il lit et les pages qui le citent. Pour toute page : les composants qu'elle
@@ -35,6 +36,29 @@ const emit = defineEmits<{
   page: [id: string, event: MouseEvent]
   token: [name: string, event: MouseEvent]
 }>()
+
+const t = texts({
+  en: {
+    links: 'Links',
+    story: 'story',
+    stories: 'stories',
+    tokensRead: 'tokens read · {count}',
+    citing: 'pages that cite {name} · {count}',
+    cited: 'component cited',
+    citedMany: 'components cited',
+    none: 'No link.',
+  },
+  fr: {
+    links: 'Liens',
+    story: 'story',
+    stories: 'stories',
+    tokensRead: 'tokens lus · {count}',
+    citing: 'pages qui citent {name} · {count}',
+    cited: 'composant cité',
+    citedMany: 'composants cités',
+    none: 'Aucun lien.',
+  },
+})
 
 const name = computed(() => props.own[0]?.path.at(-1) ?? null)
 const tokens = computed(() => [
@@ -65,10 +89,10 @@ function toggle() {
 </script>
 
 <template>
-  <PanelSection title="Links" :open="open" aria-label="Links" @toggle="toggle">
+  <PanelSection :title="t('links')" :open="open" :aria-label="t('links')" @toggle="toggle">
     <div class="rows">
       <template v-if="own.length > 0">
-        <p class="caption">{{ plural(own.length, 'story', 'stories') }}</p>
+        <p class="caption">{{ plural(own.length, t('story'), t('stories')) }}</p>
         <a
           v-for="one of own"
           :key="one.id"
@@ -82,7 +106,7 @@ function toggle() {
         </a>
       </template>
       <template v-if="tokens.length > 0">
-        <p class="caption">tokens read · {{ tokens.length }}</p>
+        <p class="caption">{{ t('tokensRead', { count: tokens.length }) }}</p>
         <template v-for="one of tokens" :key="one">
           <a
             v-if="hrefOfToken(one)"
@@ -100,7 +124,7 @@ function toggle() {
         </template>
       </template>
       <template v-if="citedBy.length > 0">
-        <p class="caption">pages that cite {{ name }} · {{ citedBy.length }}</p>
+        <p class="caption">{{ t('citing', { name: name ?? '', count: citedBy.length }) }}</p>
         <a
           v-for="one of citedBy"
           :key="one.id"
@@ -114,7 +138,7 @@ function toggle() {
         </a>
       </template>
       <template v-if="cited.length > 0">
-        <p class="caption">{{ plural(cited.length, 'component') }} cited</p>
+        <p class="caption">{{ plural(cited.length, t('cited'), t('citedMany')) }}</p>
         <a
           v-for="one of cited"
           :key="one.id"
@@ -130,7 +154,7 @@ function toggle() {
       <EmptyNote
         v-if="own.length === 0 && tokens.length === 0 && citedBy.length === 0 && cited.length === 0"
       >
-        No link.
+        {{ t('none') }}
       </EmptyNote>
     </div>
   </PanelSection>

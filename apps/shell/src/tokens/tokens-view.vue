@@ -2,6 +2,7 @@
 import { SectionHeader, ViewCanvas } from '@crypte/ui'
 import { computed } from 'vue'
 import { shown, valueIn, type Category, type Token } from './categories'
+import { texts } from '../i18n'
 
 // Une catégorie de tokens, dessinée selon ce qu'elle porte : des nuanciers pour
 // les couleurs, des barres à l'échelle pour l'espace, des spécimens pour la
@@ -14,6 +15,11 @@ const props = defineProps<{
   hrefOf: (token: string) => string
 }>()
 const emit = defineEmits<{ select: [token: string, event: MouseEvent] }>()
+
+const t = texts({
+  en: { undeclared: 'not declared', specimen: 'Order summary 348.00' },
+  fr: { undeclared: 'non déclaré', specimen: 'Récapitulatif de commande 348,00' },
+})
 
 const layout = computed(() => {
   const name = props.category.name
@@ -79,11 +85,11 @@ function specimen(token: Token): Record<string, string> {
             <span class="meta">
               <code class="name">{{ token.label }}</code>
               <code class="value">{{
-                value(token) === undefined ? 'not declared' : shown(value(token)!)
+                value(token) === undefined ? t('undeclared') : shown(value(token)!)
               }}</code>
             </span>
             <span v-if="layout === 'typography'" class="specimen" :style="specimen(token)">
-              Order summary 348.00
+              {{ t('specimen') }}
             </span>
           </a>
         </li>

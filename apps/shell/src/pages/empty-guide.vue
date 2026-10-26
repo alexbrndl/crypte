@@ -4,6 +4,7 @@
 <script setup lang="ts">
 import { Button } from '@crypte/ui'
 import { ref } from 'vue'
+import { texts } from '../i18n'
 
 const props = defineProps<{
   title: string
@@ -15,6 +16,21 @@ const props = defineProps<{
   note: string
   outcome: string
 }>()
+
+const t = texts({
+  en: {
+    shortest: 'The shortest that works',
+    copied: 'Copied',
+    failed: 'Copy failed',
+    copy: 'Copy',
+  },
+  fr: {
+    shortest: 'Le plus court qui marche',
+    copied: 'Copié',
+    failed: 'Échec de la copie',
+    copy: 'Copier',
+  },
+})
 
 const copied = ref<'yes' | 'failed' | null>(null)
 let clearing: ReturnType<typeof setTimeout> | undefined
@@ -44,9 +60,9 @@ async function copy() {
     </div>
     <div class="block">
       <div class="head">
-        <h3>The shortest that works</h3>
+        <h3>{{ t('shortest') }}</h3>
         <Button variant="ghost" class="copy" @click="copy">
-          {{ copied === 'yes' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy' }}
+          {{ copied === 'yes' ? t('copied') : copied === 'failed' ? t('failed') : t('copy') }}
         </Button>
       </div>
       <pre><code>{{ snippet }}</code></pre>

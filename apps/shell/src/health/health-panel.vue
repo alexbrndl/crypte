@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { plural } from '../plural'
+import { texts } from '../i18n'
 import type { StoryEntry } from '@crypte/core/protocol'
 import { Button, PanelSection, EmptyNote } from '@crypte/ui'
 import {
@@ -50,6 +51,90 @@ const emit = defineEmits<{
   health: [page: HealthPage, key: string, event: MouseEvent]
   token: [name: string, event: MouseEvent]
 }>()
+
+const t = texts({
+  en: {
+    since: '{status} since {day}',
+    noStatus: 'no status',
+    changed: 'changed {when}',
+    titled: '{title} · to do',
+    toDo: 'To do',
+    promptCopied: 'Fix prompt copied',
+    copyPrompt: 'Copy fix prompt',
+    select: 'Select a row to see what it needs.',
+    element: 'element',
+    elements: 'elements',
+    atFault: '{elements} at fault,',
+    both: 'in light and dark',
+    light: 'in light',
+    dark: 'in dark',
+    howTo: 'How to fix {rule}',
+    fails: 'fails to render,',
+    toCreate: 'to create',
+    skeletonCopied: 'Skeleton copied',
+    copySkeleton: 'Copy the skeleton',
+    noRequired: 'No required prop: its Default story is enough.',
+    requiredProp: 'required prop',
+    requiredProps: 'required props',
+    required: '{props} to fill in its Default story.',
+    fixRender: 'Fix the render of {name}',
+    violation: 'violation',
+    violations: 'violations',
+    fix: 'Fix {violations}',
+    replace: 'Deprecated: replace it in {name}',
+    nothing: 'Nothing to do.',
+    links: 'Links',
+    story: 'story',
+    stories: 'stories',
+    component: 'component',
+    components: 'components',
+    docsPage: 'Its docs page',
+    suspects: 'tokens probably at fault · {count}',
+    read: 'tokens read · {count}',
+  },
+  fr: {
+    since: '{status} depuis le {day}',
+    noStatus: 'aucun statut',
+    changed: 'modifié {when}',
+    titled: '{title} · à faire',
+    toDo: 'À faire',
+    promptCopied: 'Prompt de correction copié',
+    copyPrompt: 'Copier le prompt de correction',
+    select: 'Choisissez une ligne pour voir ce dont elle a besoin.',
+    element: 'élément',
+    elements: 'éléments',
+    atFault: '{elements} en défaut,',
+    both: 'en clair et en sombre',
+    light: 'en clair',
+    dark: 'en sombre',
+    howTo: 'Comment corriger {rule}',
+    fails: 'ne rend pas,',
+    toCreate: 'à créer',
+    skeletonCopied: 'Squelette copié',
+    copySkeleton: 'Copier le squelette',
+    noRequired: 'Aucune prop requise : sa story Default suffit.',
+    requiredProp: 'prop requise',
+    requiredProps: 'props requises',
+    required: '{props} à remplir dans sa story Default.',
+    fixRender: 'Réparer le rendu de {name}',
+    violation: 'violation',
+    violations: 'violations',
+    fix: 'Corriger {violations}',
+    replace: 'Déprécié : à remplacer dans {name}',
+    nothing: 'Rien à faire.',
+    links: 'Liens',
+    story: 'story',
+    stories: 'stories',
+    component: 'composant',
+    components: 'composants',
+    docsPage: 'Sa page de docs',
+    suspects: 'tokens probablement en cause · {count}',
+    read: 'tokens lus · {count}',
+  },
+})
+
+const themesOf = (themes: string[]) =>
+  themes.length === 2 ? t('both') : t(themes[0] === 'dark' ? 'dark' : 'light')
 
 // Les stories de ce qui est choisi : celles du composant, ou la seule story de la
 // violation ou du rendu.
@@ -104,9 +189,11 @@ const state = computed(() => {
   if (!one) return null
   return [
     one.status
-      ? `${one.status}${one.statusSince ? ` since ${dayOf(one.statusSince)}` : ''}`
-      : 'no status',
-    one.changed ? `changed ${ago(Date.parse(one.changed))}` : null,
+      ? one.statusSince
+        ? t('since', { status: one.status, day: dayOf(one.statusSince) })
+        : one.status
+      : t('noStatus'),
+    one.changed ? t('changed', { when: ago(Date.parse(one.changed)) }) : null,
   ]
     .filter(Boolean)
     .join(' · ')
@@ -154,39 +241,43 @@ watch(
 
 <template>
   <PanelSection
-    :title="chosen ? `${title} · to do` : 'To do'"
+    :title="chosen ? t('titled', { title }) : t('toDo')"
     :open="open.todo"
-    aria-label="To do"
+    :aria-label="t('toDo')"
     @toggle="toggle('todo')"
   >
     <template v-if="prompt" #action>
       <Button variant="ghost" class="prompt" @click="copy(prompt, 'prompt')">
         <Icon :icon="AiContentGenerator01Icon" />
-        {{ copied === 'prompt' ? 'Fix prompt copied' : 'Copy fix prompt' }}
+        {{ copied === 'prompt' ? t('promptCopied') : t('copyPrompt') }}
       </Button>
     </template>
     <div class="rows">
-      <EmptyNote v-if="!chosen">Select a row to see what it needs.</EmptyNote>
+      <EmptyNote v-if="!chosen">{{ t('select') }}</EmptyNote>
 
       <template v-else-if="finding">
         <p class="caption">{{ finding.violation.help }}</p>
         <p class="caption">
-          {{ plural(finding.violation.targets.length, 'element') }} at fault,
-          {{ finding.themes.length === 2 ? 'in light and dark' : `in ${finding.themes[0]}` }}
+          {{
+            t('atFault', {
+              elements: plural(finding.violation.targets.length, t('element'), t('elements')),
+            })
+          }}
+          {{ themesOf(finding.themes) }}
         </p>
         <p v-for="one of finding.violation.targets" :key="one" class="row">
           <code class="label">{{ one }}</code>
         </p>
         <a class="row link" :href="finding.violation.helpUrl" target="_blank" rel="noreferrer">
-          <span class="label">How to fix {{ finding.violation.rule }}</span>
+          <span class="label">{{ t('howTo', { rule: finding.violation.rule }) }}</span>
           <Icon :icon="LinkSquare02Icon" />
         </a>
       </template>
 
       <template v-else-if="failure">
         <p class="caption">
-          fails to render,
-          {{ failure.themes.length === 2 ? 'in light and dark' : `in ${failure.themes[0]}` }}
+          {{ t('fails') }}
+          {{ themesOf(failure.themes) }}
         </p>
         <p class="row message">{{ failure.message }}</p>
         <pre v-if="failure.stack" class="stack">{{
@@ -200,7 +291,7 @@ watch(
           <p class="row">
             <Icon :icon="FileAddIcon" />
             <code class="label">{{ component.skeleton.file }}</code>
-            <span class="meta">to create</span>
+            <span class="meta">{{ t('toCreate') }}</span>
           </p>
           <button
             type="button"
@@ -209,14 +300,16 @@ watch(
           >
             <Icon :icon="Copy01Icon" />
             <span class="label">{{
-              copied === 'skeleton' ? 'Skeleton copied' : 'Copy the skeleton'
+              copied === 'skeleton' ? t('skeletonCopied') : t('copySkeleton')
             }}</span>
           </button>
           <p class="caption required">
             {{
               component.required === 0
-                ? 'No required prop: its Default story is enough.'
-                : `${plural(component.required, 'required prop')} to fill in its Default story.`
+                ? t('noRequired')
+                : t('required', {
+                    props: plural(component.required, t('requiredProp'), t('requiredProps')),
+                  })
             }}
           </p>
         </template>
@@ -228,10 +321,9 @@ watch(
           @click="emit('health', 'failures', one.key, $event)"
         >
           <Icon :icon="Alert02Icon" />
-          <span class="label"
-            >Fix the render of
-            {{ stories.find((entry) => entry.id === one.id)?.name ?? one.id }}</span
-          >
+          <span class="label">{{
+            t('fixRender', { name: stories.find((entry) => entry.id === one.id)?.name ?? one.id })
+          }}</span>
         </a>
         <a
           v-if="mine.findings.length > 0"
@@ -240,7 +332,9 @@ watch(
           @click="emit('health', 'accessibility', mine.findings[0]!.key, $event)"
         >
           <Icon :icon="Alert02Icon" />
-          <span class="label">Fix {{ plural(mine.findings.length, 'violation') }}</span>
+          <span class="label">{{
+            t('fix', { violations: plural(mine.findings.length, t('violation'), t('violations')) })
+          }}</span>
         </a>
         <a
           v-for="one of still"
@@ -250,23 +344,23 @@ watch(
           @click="emit('health', 'overview', keyOf(one), $event)"
         >
           <Icon :icon="Alert02Icon" />
-          <span class="label">Deprecated: replace it in {{ one.name }}</span>
+          <span class="label">{{ t('replace', { name: one.name }) }}</span>
         </a>
-        <EmptyNote v-if="nothing">Nothing to do.</EmptyNote>
+        <EmptyNote v-if="nothing">{{ t('nothing') }}</EmptyNote>
       </template>
     </div>
   </PanelSection>
 
   <PanelSection
     v-if="chosen"
-    title="Links"
+    :title="t('links')"
     :open="open.links"
-    aria-label="Links"
+    :aria-label="t('links')"
     @toggle="toggle('links')"
   >
     <div class="rows">
       <template v-if="own.length > 0">
-        <p class="caption">{{ plural(own.length, 'story', 'stories') }}</p>
+        <p class="caption">{{ plural(own.length, t('story'), t('stories')) }}</p>
         <a
           v-for="one of own"
           :key="one.id"
@@ -280,14 +374,14 @@ watch(
         </a>
       </template>
       <template v-if="page || file">
-        <p class="caption">component</p>
+        <p class="caption">{{ t('component') }}</p>
         <a
           v-if="page"
           class="row link"
           :href="hrefOfComponent(page)"
           @click="emit('page', page, $event)"
         >
-          <span class="label">Its docs page</span>
+          <span class="label">{{ t('docsPage') }}</span>
           <Icon :icon="LinkSquare02Icon" />
         </a>
         <p v-if="file" class="row">
@@ -295,7 +389,7 @@ watch(
         </p>
       </template>
       <template v-if="suspects.length > 0">
-        <p class="caption">tokens probably at fault · {{ suspects.length }}</p>
+        <p class="caption">{{ t('suspects', { count: suspects.length }) }}</p>
         <a
           v-for="one of suspects"
           :key="one.token.key"
@@ -305,11 +399,11 @@ watch(
         >
           <Icon :icon="Hexagon01Icon" />
           <code class="label">{{ one.token.name }}</code>
-          <span class="meta">{{ plural(one.readers, 'component') }}</span>
+          <span class="meta">{{ plural(one.readers, t('component'), t('components')) }}</span>
         </a>
       </template>
       <template v-if="tokens.length > 0">
-        <p class="caption">tokens read · {{ tokens.length }}</p>
+        <p class="caption">{{ t('read', { count: tokens.length }) }}</p>
         <template v-for="one of tokens" :key="one">
           <a
             v-if="hrefOfToken(one)"

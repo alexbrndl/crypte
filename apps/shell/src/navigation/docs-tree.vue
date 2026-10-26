@@ -2,6 +2,7 @@
 import { ColumnTitle, EmptyNote, Tree, type TreeNode } from '@crypte/ui'
 import type { PageEntry, StoryEntry } from '@crypte/core/protocol'
 import { computed } from 'vue'
+import { texts } from '../i18n'
 import { docsOf, type Node } from './tree'
 
 // L'arbre de la vue docs. `component` ou `page` : ce qui est ouvert, par son
@@ -13,6 +14,11 @@ const props = defineProps<{
   page: string | null
 }>()
 const emit = defineEmits<{ open: [component: string]; show: [page: string] }>()
+
+const t = texts({
+  en: { docs: 'Docs', none: 'No page.' },
+  fr: { docs: 'Docs', none: 'Aucune page.' },
+})
 
 const shown = computed(() => docsOf(props.stories, props.pages))
 
@@ -52,9 +58,9 @@ const items = computed(() => toItems(shown.value))
 
 <template>
   <div class="docs-tree">
-    <ColumnTitle title="Docs" :count="all.length" />
-    <EmptyNote v-if="all.length === 0">No page.</EmptyNote>
-    <Tree :items="items" :selected="selected" label="Docs" @select="pick" />
+    <ColumnTitle :title="t('docs')" :count="all.length" />
+    <EmptyNote v-if="all.length === 0">{{ t('none') }}</EmptyNote>
+    <Tree :items="items" :selected="selected" :label="t('docs')" @select="pick" />
   </div>
 </template>
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { plural } from '../plural'
+import { texts } from '../i18n'
 import { Clock01Icon, Search01Icon } from '@hugeicons/core-free-icons'
 import { Button, Field, Input, EmptyNote } from '@crypte/ui'
 import {
@@ -20,7 +21,7 @@ import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import Icon from '../ui/icon.vue'
 import { complete, editing, FILTERS, keysStarted, readQuery, type Key } from './filters'
 import { ago, type Visit } from './recent'
-import { componentIdOf, fold, type Listed } from './tree'
+import { componentIdOf, fold, type Listed, type Status } from './tree'
 
 // La palette : un nom mène à sa story, à son composant, à sa famille de tokens ou
 // à la vue versions, et les actions du shell s'y lancent, leur raccourci affiché.
@@ -28,6 +29,9 @@ import { componentIdOf, fold, type Listed } from './tree'
 // et aucun plugin n'en demande. Rouvert quand un plugin réel en demande une.
 
 export interface Action {
+  // Ce sous quoi la palette retient l'action parmi les récents : le libellé suit
+  // la langue et le thème, et le récent se perdait à chaque changement.
+  id: string
   label: string
   keys?: string
   run: () => void
@@ -54,16 +58,90 @@ const open = defineModel<boolean>('open', { required: true })
 // raccourci, le statut ou l'ancienneté.
 interface Command {
   key: string
-  group: string
+  group: Group
   type: 'action' | 'page' | (typeof FILTERS.type)[number]
   context: string
   label: string
   keys?: string
-  status?: string
+  status?: Status
   run: () => void
 }
 
-const GROUPS = ['Actions', 'Components', 'Stories', 'Tokens', 'Pages']
+const GROUPS = ['actions', 'components', 'stories', 'tokens', 'pages'] as const
+type Group = (typeof GROUPS)[number]
+
+const t = texts({
+  en: {
+    actions: 'Actions',
+    components: 'Components',
+    stories: 'Stories',
+    tokens: 'Tokens',
+    pages: 'Pages',
+    draft: 'draft',
+    stable: 'stable',
+    deprecated: 'deprecated',
+    installing: 'Install a plugin…',
+    install: 'Install a plugin',
+    commands: 'Commands',
+    changes: 'Changes since the last commit',
+    view: 'view',
+    hint: 'is: type: to filter',
+    value: 'value',
+    values: 'values',
+    result: 'result',
+    results: 'results',
+    explain: 'Crypte installs nothing itself: add the package with npm, then call it in',
+    package: 'Package',
+    copied: 'Copied',
+    copy: 'Copy',
+    goTo: 'Go to or run',
+    search: 'Search or run',
+    list: 'Results',
+    nothing: 'Nothing matches.',
+    recent: 'Recent',
+    valuesGroup: 'Values',
+    filters: 'Filters',
+    browse: '↑↓ browse',
+    open: '↵ open',
+    complete: '⇥ complete a filter',
+    combine: 'filters combine',
+  },
+  fr: {
+    actions: 'Actions',
+    components: 'Composants',
+    stories: 'Stories',
+    tokens: 'Tokens',
+    pages: 'Pages',
+    draft: 'brouillon',
+    stable: 'stable',
+    deprecated: 'obsolète',
+    installing: 'Installer un plugin…',
+    install: 'Installer un plugin',
+    commands: 'Commandes',
+    changes: 'Changements depuis le dernier commit',
+    view: 'vue',
+    hint: 'is: type: pour filtrer',
+    value: 'valeur',
+    values: 'valeurs',
+    result: 'résultat',
+    results: 'résultats',
+    explain: "Crypte n'installe rien lui-même : ajoutez le paquet avec npm, puis appelez-le dans",
+    package: 'Paquet',
+    copied: 'Copié',
+    copy: 'Copier',
+    goTo: 'Aller à ou lancer',
+    search: 'Chercher ou lancer',
+    list: 'Résultats',
+    nothing: 'Aucun résultat.',
+    recent: 'Récents',
+    valuesGroup: 'Valeurs',
+    filters: 'Filtres',
+    browse: '↑↓ parcourir',
+    open: '↵ ouvrir',
+    complete: '⇥ compléter un filtre',
+    combine: 'les filtres se combinent',
+  },
+})
 
 const installing = ref(false)
 
@@ -71,7 +149,7 @@ const installing = ref(false)
 // sur sa première story comme le filtre de la sidebar : `meta` se déclare par
 // fichier, et `is:stable` garde ou écarte un composant avec toutes ses stories.
 const commands = computed<Command[]>(() => {
-  const components = new Map<string, { path: string[]; status?: string }>()
+  const components = new Map<string, { path: string[]; status?: Status }>()
   const entries: Command[] = []
 
   for (const entry of props.entries) {
@@ -79,7 +157,7 @@ const commands = computed<Command[]>(() => {
     if (entry.type === 'page') {
       entries.push({
         key: entry.id,
-        group: 'Pages',
+        group: 'pages',
         type: 'page',
         context,
         label: entry.name,
@@ -90,7 +168,7 @@ const commands = computed<Command[]>(() => {
     if (entry.type === 'tokens') {
       entries.push({
         key: entry.id,
-        group: 'Tokens',
+        group: 'tokens',
         type: 'token',
         context,
         label: entry.name,
@@ -107,7 +185,7 @@ const commands = computed<Command[]>(() => {
     const { status } = components.get(id)!
     entries.push({
       key: entry.id,
-      group: 'Stories',
+      group: 'stories',
       type: 'story',
       context,
       label: entry.name,
@@ -119,22 +197,22 @@ const commands = computed<Command[]>(() => {
   return [
     ...props.actions.map((one) => ({
       ...one,
-      key: `action:${one.label}`,
-      group: 'Actions',
+      key: `action:${one.id}`,
+      group: 'actions' as const,
       type: 'action' as const,
       context: '',
     })),
     {
       key: 'action:install',
-      group: 'Actions',
+      group: 'actions',
       type: 'action',
       context: '',
-      label: 'Install a plugin…',
+      label: t('installing'),
       run: () => (installing.value = true),
     },
     ...[...components].map(([id, { path, status }]) => ({
       key: `component:${id}`,
-      group: 'Components',
+      group: 'components' as const,
       type: 'component' as const,
       context: path.slice(0, -1).join(' / '),
       label: path.at(-1)!,
@@ -144,17 +222,17 @@ const commands = computed<Command[]>(() => {
     ...entries,
     {
       key: 'changes',
-      group: 'Pages',
+      group: 'pages',
       type: 'page',
       context: '',
-      label: 'Changes since the last commit',
+      label: t('changes'),
       run: () => emit('changes'),
     },
     ...(props.views ?? []).map((one) => ({
       key: `view:${one.name}`,
-      group: 'Pages',
+      group: 'pages' as const,
       type: 'page' as const,
-      context: 'view',
+      context: t('view'),
       label: one.label,
       run: () => emit('view', one.name),
     })),
@@ -213,13 +291,13 @@ const filterRows = computed(() => {
 })
 
 const count = computed(() => {
-  if (query.value.trim() === '') return 'is: type: to filter'
+  if (query.value.trim() === '') return t('hint')
   if (inFilter.value !== null) {
     const values = valueRows.value.length
-    return `${plural(values, 'value')}`
+    return plural(values, t('value'), t('values'))
   }
   const found = kept.value.length
-  return `${plural(found, 'result')}`
+  return plural(found, t('result'), t('results'))
 })
 
 const filter = useTemplateRef<{ $el: HTMLInputElement }>('filter')
@@ -325,16 +403,16 @@ async function copy() {
       <DialogContent class="palette" :aria-describedby="undefined">
         <VisuallyHidden as-child
           ><DialogTitle>{{
-            installing ? 'Install a plugin' : 'Commands'
+            installing ? t('install') : t('commands')
           }}</DialogTitle></VisuallyHidden
         >
         <section v-if="installing" class="install">
-          <h2>Install a plugin</h2>
+          <h2>{{ t('install') }}</h2>
           <p>
-            Crypte installs nothing itself: add the package with npm, then call it in
+            {{ t('explain') }}
             <code>plugins</code>.
           </p>
-          <Field v-slot="{ id }" label="Package">
+          <Field v-slot="{ id }" :label="t('package')">
             <Input
               :id="id"
               ref="field"
@@ -346,7 +424,7 @@ async function copy() {
           <div class="snippet">
             <code>{{ command }}</code>
             <Button variant="secondary" class="copy" :disabled="name.trim() === ''" @click="copy">
-              {{ copied ? 'Copied' : 'Copy' }}
+              {{ copied ? t('copied') : t('copy') }}
             </Button>
           </div>
           <pre class="config"><code>{{ config }}</code></pre>
@@ -359,21 +437,21 @@ async function copy() {
               v-model="query"
               auto-focus
               class="filter"
-              aria-label="Go to or run"
-              placeholder="Search or run"
+              :aria-label="t('goTo')"
+              :placeholder="t('search')"
               @keydown.tab.exact="tab"
             />
             <span class="count">{{ count }}</span>
           </div>
-          <ListboxContent class="results" aria-label="Results">
+          <ListboxContent class="results" :aria-label="t('list')">
             <EmptyNote
               v-if="groups.length === 0 && filterRows.length === 0 && valueRows.length === 0"
             >
-              Nothing matches.
+              {{ t('nothing') }}
             </EmptyNote>
             <ListboxGroup v-if="recentRows.length > 0">
               <ListboxGroupLabel class="group"
-                ><Icon :icon="Clock01Icon" />Recent</ListboxGroupLabel
+                ><Icon :icon="Clock01Icon" />{{ t('recent') }}</ListboxGroupLabel
               >
               <ListboxItem
                 v-for="one of recentRows"
@@ -388,7 +466,7 @@ async function copy() {
               </ListboxItem>
             </ListboxGroup>
             <ListboxGroup v-for="group of groups" :key="group.name">
-              <ListboxGroupLabel class="group">{{ group.name }}</ListboxGroupLabel>
+              <ListboxGroupLabel class="group">{{ t(group.name) }}</ListboxGroupLabel>
               <ListboxItem
                 v-for="one of group.items"
                 :key="one.key"
@@ -400,12 +478,12 @@ async function copy() {
                 <span class="label">{{ one.label }}</span>
                 <span class="trailing">
                   <kbd v-if="one.keys">{{ one.keys }}</kbd>
-                  <template v-else-if="one.status">{{ one.status }}</template>
+                  <template v-else-if="one.status">{{ t(one.status) }}</template>
                 </span>
               </ListboxItem>
             </ListboxGroup>
             <ListboxGroup v-if="valueRows.length > 0">
-              <ListboxGroupLabel class="group">Values</ListboxGroupLabel>
+              <ListboxGroupLabel class="group">{{ t('valuesGroup') }}</ListboxGroupLabel>
               <ListboxItem
                 v-for="one of valueRows"
                 :key="one.value"
@@ -419,7 +497,7 @@ async function copy() {
               </ListboxItem>
             </ListboxGroup>
             <ListboxGroup v-if="filterRows.length > 0">
-              <ListboxGroupLabel class="group">Filters</ListboxGroupLabel>
+              <ListboxGroupLabel class="group">{{ t('filters') }}</ListboxGroupLabel>
               <ListboxItem
                 v-for="one of filterRows"
                 :key="one.key"
@@ -434,10 +512,10 @@ async function copy() {
             </ListboxGroup>
           </ListboxContent>
           <footer class="footer">
-            <span>↑↓ browse</span>
-            <span>↵ open</span>
-            <span class="hint">⇥ complete a filter</span>
-            <span class="hint">filters combine</span>
+            <span>{{ t('browse') }}</span>
+            <span>{{ t('open') }}</span>
+            <span class="hint">{{ t('complete') }}</span>
+            <span class="hint">{{ t('combine') }}</span>
           </footer>
         </ListboxRoot>
       </DialogContent>

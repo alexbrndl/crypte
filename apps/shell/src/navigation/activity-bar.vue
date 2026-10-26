@@ -4,6 +4,7 @@
      dessinée. -->
 <script setup lang="ts">
 import { plural } from '../plural'
+import { locale, setLocale, texts } from '../i18n'
 import {
   BookOpen01Icon,
   ComponentIcon,
@@ -47,25 +48,57 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ go: [view: View, event: MouseEvent]; search: []; theme: [] }>()
 
-const GROUPS: { view: BuiltIn; label: string; icon: typeof Search01Icon }[][] = [
+const t = texts({
+  en: {
+    views: 'Views',
+    search: 'Search or run',
+    tokens: 'tokens',
+    stories: 'stories',
+    docs: 'docs',
+    health: 'health',
+    versions: 'versions',
+    difference: 'difference',
+    differences: 'differences',
+    toDo: '{count} to do',
+    language: 'Afficher en français',
+  },
+  fr: {
+    views: 'Vues',
+    search: 'Chercher ou lancer',
+    tokens: 'tokens',
+    stories: 'stories',
+    docs: 'docs',
+    health: 'santé',
+    versions: 'versions',
+    difference: 'écart',
+    differences: 'écarts',
+    toDo: '{count} à faire',
+    language: 'Show in English',
+  },
+})
+
+const GROUPS: { view: BuiltIn; icon: typeof Search01Icon }[][] = [
   [
-    { view: 'tokens', label: 'tokens', icon: Hexagon01Icon },
-    { view: 'stories', label: 'stories', icon: ComponentIcon },
-    { view: 'docs', label: 'docs', icon: BookOpen01Icon },
+    { view: 'tokens', icon: Hexagon01Icon },
+    { view: 'stories', icon: ComponentIcon },
+    { view: 'docs', icon: BookOpen01Icon },
   ],
   [
     // Dessiné par `HealthIcon`, qui le remplit selon le score.
-    { view: 'health', label: 'health', icon: FavouriteIcon },
-    { view: 'versions', label: 'versions', icon: GitCompareArrowsIcon },
+    { view: 'health', icon: FavouriteIcon },
+    { view: 'versions', icon: GitCompareArrowsIcon },
   ],
 ]
 
 // Le détail du tooltip de chaque vue : ce que son badge compte.
 const detailOf = (view: BuiltIn) =>
   view === 'versions' && props.counter !== null
-    ? `${plural(props.counter, 'difference')}`
+    ? plural(props.counter, t('difference'), t('differences'))
     : view === 'health' && (props.score != null || props.todo)
-      ? [props.score != null ? `${props.score} %` : null, props.todo ? `${props.todo} to do` : null]
+      ? [
+          props.score != null ? `${props.score} %` : null,
+          props.todo ? t('toDo', { count: props.todo }) : null,
+        ]
           .filter(Boolean)
           .join(' · ')
       : undefined
@@ -78,13 +111,13 @@ const groups = computed(() =>
 </script>
 
 <template>
-  <nav class="activity-bar" aria-label="Views">
+  <nav class="activity-bar" :aria-label="t('views')">
     <h1 class="logo"><Logo /></h1>
-    <Tooltip content="Search or run" :keys="searchKeys" side="right">
+    <Tooltip :content="t('search')" :keys="searchKeys" side="right">
       <Button
         variant="ghost"
         class="icon-button"
-        aria-label="Search or run"
+        :aria-label="t('search')"
         :aria-keyshortcuts="searchShortcuts"
         @click="emit('search')"
       >
@@ -96,7 +129,7 @@ const groups = computed(() =>
       <Tooltip
         v-for="item of group"
         :key="item.view"
-        :content="item.label"
+        :content="t(item.view)"
         :detail="detailOf(item.view)"
         side="right"
       >
@@ -116,7 +149,7 @@ const groups = computed(() =>
               capped(todo)
             }}</Badge>
           </span>
-          <span class="label">{{ item.label }}</span>
+          <span class="label">{{ t(item.view) }}</span>
         </a>
       </Tooltip>
     </template>
@@ -146,6 +179,18 @@ const groups = computed(() =>
         <Icon :icon="Sun02Icon" />
       </Button>
     </Tooltip>
+    <!-- La langue de l'autre, nommée dans la sienne : « FR » pour passer au français. -->
+    <Tooltip :content="t('language')" side="right">
+      <Button
+        variant="ghost"
+        class="icon-button language"
+        :aria-label="t('language')"
+        :lang="locale === 'en' ? 'fr' : 'en'"
+        @click="setLocale(locale === 'en' ? 'fr' : 'en')"
+      >
+        {{ locale === 'en' ? 'FR' : 'EN' }}
+      </Button>
+    </Tooltip>
   </nav>
 </template>
 
@@ -171,6 +216,12 @@ const groups = computed(() =>
   justify-content: center;
   width: 32px;
   height: 32px;
+}
+
+/* Le code de la langue, à la taille d'une étiquette. */
+.language {
+  font-size: var(--text-xs);
+  font-weight: 600;
 }
 
 /* Le bouton icône lg du fichier Figma : 32 × 32. */
