@@ -35,8 +35,8 @@ function packageRoot(): string {
 
 const SHELL = join(packageRoot(), 'dist', 'shell')
 
-// Shown beside the logo of the shell.
-const VERSION = (
+// Shown beside the logo of the shell, and said by `crypte mcp`.
+export const VERSION = (
   JSON.parse(readFileSync(join(packageRoot(), 'package.json'), 'utf8')) as { version: string }
 ).version
 
