@@ -253,16 +253,22 @@ export function createPluginHost(
         if (!one || !beforeMount) continue
 
         // A copy for each: a hook that throws halfway leaves the props as the
-        // one before handed them, and the story still mounts.
-        const draft = { ...props }
+        // one before handed them, and the story still mounts. Read back from the
+        // context, since `ctx.props = { ...ctx.props }` replaces the copy.
+        const ctx = contextOf(one.name, { ...story, props: { ...props } })
         try {
-          const result: unknown = beforeMount(contextOf(one.name, { ...story, props: draft }))
+          const result: unknown = beforeMount(ctx)
           if (typeof (result as { then?: unknown } | null)?.then === 'function') {
             said(one.name, '`beforeMount` returned a promise, and the mount does not wait for one')
             ;(result as Promise<unknown>).then(undefined, () => {})
             continue
           }
-          props = draft
+          const next: unknown = ctx.props
+          if (typeof next !== 'object' || next === null || Array.isArray(next)) {
+            said(one.name, `\`beforeMount\` left \`props\` as ${String(next)}, not an object`)
+            continue
+          }
+          props = next as Record<string, unknown>
         } catch (error) {
           said(one.name, `\`beforeMount\` threw: ${text(error)}`)
         }

@@ -820,6 +820,36 @@ describe('the plugin host', () => {
       ])
     })
 
+    // Le style immuable remplace l'objet au lieu de l'écrire : gardé, et ce qui
+    // n'est plus un objet de props est refusé.
+    it('keeps props a hook replaces, and refuses what is not an object', () => {
+      const host = hôte(
+        {
+          name: 'a',
+          module: {
+            default: {
+              beforeMount: (ctx: MountContext) => {
+                ctx.props = { ...ctx.props, onSelect: 'a' }
+              },
+            },
+          },
+        },
+        {
+          name: 'b',
+          module: {
+            default: {
+              beforeMount: (ctx: MountContext) => {
+                ctx.props = null as unknown as Record<string, unknown>
+              },
+            },
+          },
+        },
+      )
+
+      expect(host.beforeMount(àMonter)).toEqual({ label: 'x', onSelect: 'a' })
+      expect(envoyés).toEqual([refus('b', '`beforeMount` left `props` as null, not an object')])
+    })
+
     it('lets a hook send under its own name', () => {
       const host = hôte({
         name: 'a',
