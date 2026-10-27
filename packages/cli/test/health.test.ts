@@ -339,6 +339,46 @@ describe('the coverage of a component', () => {
     expect(index).toBeUndefined()
   })
 
+  // La racine des stories, telle que la configuration l'écrit : avec sa barre
+  // finale, ou le projet entier, '.', où vit aussi l'application. Les fichiers
+  // de story sortent par leur nom ; ni un test, ni un composant du dossier
+  // n'est l'application.
+  test.for(['stories', 'stories/', '.'])(
+    'reads the application with a story root of %j',
+    (racine) => {
+      const project = projet(
+        {
+          'src/components/Bouton.tsx': BOUTON,
+          'src/components/Carte.tsx':
+            "import { Bouton } from './Bouton'\nexport function Carte() { return <Bouton label='a' /> }\n",
+          'src/pages/Accueil.tsx':
+            "import { Bouton } from '../components/Bouton'\nexport const Accueil = () => <Bouton label='a' />\n",
+          'src/pages/Accueil.test.tsx': "import { Bouton } from '../components/Bouton'\n",
+          'src/__tests__/x.tsx': "import { Bouton } from '../components/Bouton'\n",
+          'stories/Bouton.tsx': histoire('{ Default: {} }'),
+        },
+        'src/components',
+      )
+      project.config.stories = racine
+      const [bouton] = santé(project)!
+      expect(bouton!.usedIn).toEqual(['src/pages/Accueil.tsx'])
+    },
+  )
+
+  // Un spread cache ce qu'il donne (4.2) : rien n'est dit plutôt qu'un faux nom.
+  test('says nothing of the props when a story spreads an object', () => {
+    const [bouton] = santé(
+      projet(
+        {
+          'src/components/Bouton.tsx': BOUTON,
+          'stories/Bouton.tsx': histoire("{ Default: { ...{ tone: 'x' } } }"),
+        },
+        'src/components',
+      ),
+    )!
+    expect(bouton!.unexercised).toBeUndefined()
+  })
+
   test('says nothing of a component the application never imports', () => {
     const [bouton] = santé(projet({ 'src/components/Bouton.tsx': BOUTON }, 'src/components'))!
     expect(bouton!.usedIn).toBeUndefined()

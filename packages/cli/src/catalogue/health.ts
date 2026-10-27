@@ -5,9 +5,10 @@
 
 import { execFileSync } from 'node:child_process'
 import { readdirSync, readFileSync } from 'node:fs'
-import { basename, dirname, extname, join, relative, sep } from 'node:path'
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { StoryEntry, StoryMeta } from '@crypte/core/protocol'
 import { parseSync } from 'vite'
+import { BUILD_OUTPUT } from '../commands/build'
 import { componentsIn, wrappers } from '../commands/check'
 import type { Project } from '../config/project'
 import { componentFile } from './manifest'
@@ -56,11 +57,13 @@ export interface HealthComponent {
 // counts a `.vue` file as one component.
 const READ = ['.tsx', '.jsx', '.ts', '.js', '.vue']
 const SKIPPED = new Set(['node_modules', '.git', 'dist'])
-// The application beyond the folder: also what `crypte build` writes, and any
-// hidden folder, `.crypte` among them. Read at every request in dev: 68 ms with
-// this whole repository as the application, 18 on its demo. Measured.
+// The application beyond the folder: not what `crypte build` writes, a hidden
+// folder, `.crypte` among them, or tests, which exercise a component without
+// the product using it. Read at every request in dev: 68 ms with this whole
+// repository as the application, 18 on its demo. Measured.
 const OUTSIDE = (name: string) =>
-  SKIPPED.has(name) || name === 'crypte-static' || name.startsWith('.')
+  SKIPPED.has(name) || name === BUILD_OUTPUT || name === '__tests__' || name.startsWith('.')
+const TEST = /\.(test|spec)\.[cm]?[jt]sx?$/
 
 export function healthOf(project: Project, stories: StoryEntry[]): Health {
   const folder = project.config.components
@@ -85,9 +88,13 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
     project.config.stories,
   ])
   const files = filesIn(join(project.root, folder))
-  const inside = [join(project.root, folder), join(project.root, project.config.stories)]
+  // The story files by name, since their root may hold the application,
+  // `stories: '.'`; that root left out only when it does not.
+  const storyFiles = new Set(stories.map((entry) => resolve(project.root, entry.storyFile)))
+  const storyRoot = resolve(project.root, project.config.stories)
+  const left = [resolve(project.root, folder), ...(storyRoot === project.root ? [] : [storyRoot])]
   const application = filesIn(project.root, OUTSIDE).filter(
-    (file) => !inside.some((one) => file.startsWith(one + sep)),
+    (file) => !TEST.test(file) && !storyFiles.has(file) && !left.some((one) => under(one, file)),
   )
   const { importers, users } = importersOf(project, files, frames, application)
   const found: HealthComponent[] = []
@@ -108,6 +115,8 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
       const usedIn = [
         ...new Set(names.flatMap((one) => users.get(`${named(project.root, file)}#${one}`) ?? [])),
       ].sort()
+      // A spread hides what it gives (4.2): with one, nothing is said.
+      const spread = covered.some((entry) => entry.partial !== undefined)
       const given = new Set(covered.flatMap((entry) => entry.props))
       const unexercised = Object.keys(details)
         .filter((one) => !given.has(one))
@@ -124,7 +133,7 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
         ...(since ? { statusSince: since } : {}),
         ...(covered.length === 0 ? { skeleton: skeletonOf(project, folder, file, exported) } : {}),
         ...(usedBy.length > 0 ? { usedBy } : {}),
-        ...(covered.length > 0 && unexercised.length > 0 ? { unexercised } : {}),
+        ...(covered.length > 0 && !spread && unexercised.length > 0 ? { unexercised } : {}),
         ...(usedIn.length > 0 ? { usedIn } : {}),
       })
     }
@@ -298,6 +307,12 @@ function spansOf(body: Statement[]): Map<string, [number, number]> {
     if (span) spans.set('default', span as [number, number])
   }
   return spans
+}
+
+// Whether `file` lies below `folder`, both absolute.
+function under(folder: string, file: string): boolean {
+  const path = relative(folder, file)
+  return path !== '' && !path.startsWith('..') && !isAbsolute(path)
 }
 
 // Sorted, so two machines write the same file.
