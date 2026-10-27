@@ -123,15 +123,19 @@ function __crypte_render(id, overrides, muted = []) {
 // With no shell to say a failure, `iframe.html` writes it beside the story, and
 // the next render that goes through takes it away. Never in the container: the
 // adapter keeps its root there, and the next render would mount on a foreign node.
+// `data-rendered` names the story drawn, which `crypte visual` waits for: a story
+// may draw nothing, and the adapters mount before returning.
 const __crypte_standalone = document.documentElement.hasAttribute('data-standalone')
 function __crypte_drawn(...args) {
   const shown = document.getElementById('crypte-failure')
   try {
     const story = __crypte_render(...args)
     shown?.remove()
+    if (__crypte_standalone) document.documentElement.dataset.rendered = story.id
     return story
   } catch (error) {
     if (__crypte_standalone) {
+      delete document.documentElement.dataset.rendered
       const failure = shown ?? document.body.appendChild(document.createElement('p'))
       failure.id = 'crypte-failure'
       failure.textContent = error instanceof Error ? error.message : String(error)

@@ -7,9 +7,10 @@ import { dev as start } from './commands/dev'
 import { ConfigError } from './errors'
 import { init as create } from './commands/init'
 import { mcp as answerAgents } from './commands/mcp'
+import { visual as compare } from './commands/visual'
 import { VERSION } from './server/serve'
 
-// The five commands, taken as arguments so a test reaches them without a
+// The six commands, taken as arguments so a test reaches them without a
 // server, a file written or a process spawned.
 export interface Commands {
   dev: typeof start
@@ -17,6 +18,7 @@ export interface Commands {
   check: typeof verify
   init: typeof create
   mcp: typeof answerAgents
+  visual: typeof compare
 }
 
 // What `--help` prints, and what a bare `crypte` prints. The protocol version
@@ -32,6 +34,7 @@ export function help(): string[] {
     '  check [root]   report orphan stories, a stale fingerprint, components with no story',
     '  init [root]    write crypte.config.ts for a project that has components',
     '  mcp [root]     serve the catalogue to a coding agent, over stdio',
+    '  visual [root]  compare each story with its baseline, --update to write them',
     '',
     '  --help, -h     print this help',
     '  --version, -v  print the version',
@@ -69,21 +72,24 @@ export async function run(
     command !== 'build' &&
     command !== 'check' &&
     command !== 'init' &&
-    command !== 'mcp'
+    command !== 'mcp' &&
+    command !== 'visual'
   ) {
     warn(`crypte: unknown command ${command}, see crypte --help`)
     return 1
   }
 
-  // No command takes an option yet, so anything that looks like one is a typo,
-  // not a folder named `--port`. And each takes at most its root: `--version`
-  // none, the five commands one.
-  const option = rest.find((one) => one.startsWith('-'))
+  // `--update` is the one option, and `visual`'s alone: anything else that looks
+  // like one is a typo, not a folder named `--port`. And each takes at most its
+  // root: `--version` none, the six commands one.
+  const update = command === 'visual' && rest.includes('--update')
+  const positional = rest.filter((one) => !(update && one === '--update'))
+  const option = positional.find((one) => one.startsWith('-'))
   if (option !== undefined) {
     warn(`crypte ${command}: unknown option ${option}`)
     return 1
   }
-  const extra = rest[version ? 0 : 1]
+  const extra = positional[version ? 0 : 1]
   if (extra !== undefined) {
     warn(`crypte ${command}: unexpected argument ${extra}`)
     return 1
@@ -94,9 +100,10 @@ export async function run(
     return 0
   }
 
-  const root = rest[0] ?? process.cwd()
+  const root = positional[0] ?? process.cwd()
 
   if (command === 'check') return await (commands.check ?? verify)(root, log)
+  if (command === 'visual') return await (commands.visual ?? compare)(root, update, log)
   if (command === 'build') {
     await (commands.build ?? compile)(root, log)
     return 0
