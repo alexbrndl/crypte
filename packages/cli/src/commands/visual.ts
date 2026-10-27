@@ -2,11 +2,14 @@
 // baseline, one PNG per story under `.crypte/visual`. See docs/contracts.md,
 // section 8.
 
+import { execFileSync } from 'node:child_process'
 import { createServer } from 'node:http'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve, sep } from 'node:path'
-import type { StoryEntry } from '@crypte/core/protocol'
+import type { FingerprintEntry, StoryEntry } from '@crypte/core/protocol'
 import sirv from 'sirv'
+import { committedFingerprint } from '../catalogue/changes'
+import { fingerprintOf } from '../catalogue/fingerprint'
 import { storiesOf } from '../catalogue/manifest'
 import { ConfigError } from '../errors'
 import { STORYBOOK_IFRAME } from '../catalogue/storybook'
@@ -49,6 +52,7 @@ export async function visual(
   const out = join(root, BUILD_OUTPUT)
   const manifest: unknown = JSON.parse(readFileSync(join(out, MANIFEST_ROUTE.slice(1)), 'utf8'))
   const stories = storiesOf(manifest as Parameters<typeof storiesOf>[0])
+  const now = fingerprintOf(manifest as Parameters<typeof fingerprintOf>[0]).entries
 
   const serve = sirv(out, { dev: true })
   const server = createServer((request, response) => serve(request, response))
@@ -110,9 +114,26 @@ export async function visual(
     return 0
   }
 
+  const renames = renamesOf(
+    missing,
+    stale.map((name) => name.slice(0, -4)),
+    // Nothing to pair without a story missing its baseline: no Git run then.
+    missing.length === 0 ? [] : storiesBefore(root, stale),
+    now,
+  )
+  const taken = new Set(renames.values())
+
   for (const id of changed) log(`  ${id}: differs from its baseline, see ${DIFFERENT}/${id}.png`)
-  for (const id of missing) log(`  ${id}: no baseline`)
-  for (const name of stale) log(`  ${name.slice(0, -4)}: a baseline with no story`)
+  for (const id of missing) {
+    const before = renames.get(id)
+    log(
+      before === undefined
+        ? `  ${id}: no baseline`
+        : `  ${id}: no baseline, probably ${before} renamed: ${moveOf(before, id)} keeps its baseline`,
+    )
+  }
+  for (const name of stale)
+    if (!taken.has(name.slice(0, -4))) log(`  ${name.slice(0, -4)}: a baseline with no story`)
   if (changed.length + missing.length === 0) {
     log(`${stories.length} stories match their baselines`)
     return 0
@@ -165,4 +186,68 @@ async function chromiumOf(): Promise<Chromium> {
       { cause },
     )
   }
+}
+
+// The story each baseline left over was taken of, from the fingerprint of the
+// commit that last wrote it: `HEAD` holds the new id once the rename is
+// committed, which is when the CI compares. Outside Git, or for a baseline
+// never committed, there is nothing to read.
+function storiesBefore(root: string, stale: string[]): FingerprintEntry[] {
+  // One read per commit: one `--update` writes many baselines at once.
+  const read = new Map<string, ReturnType<typeof committedFingerprint>>()
+  return stale.flatMap((name) => {
+    let commit: string
+    try {
+      commit = execFileSync('git', ['log', '-1', '--format=%H', '--', join(BASELINES, name)], {
+        cwd: root,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim()
+    } catch {
+      return []
+    }
+    if (commit === '') return []
+    if (!read.has(commit)) read.set(commit, committedFingerprint(root, commit))
+    const fingerprint = read.get(commit)!
+    if (typeof fingerprint === 'string') return []
+    return fingerprint.entries.filter((entry) => `${entry.id}.png` === name)
+  })
+}
+
+// The command that keeps the baseline: `git mv` creates no folder, and an id
+// that moves to a folder of its own needs one (4.3).
+export function moveOf(before: string, id: string): string {
+  const from = `${BASELINES}/${before}.png`
+  const to = `${BASELINES}/${id}.png`
+  const folder = dirname(to)
+  return dirname(from) === folder
+    ? `git mv ${from} ${to}`
+    : `mkdir -p ${folder} && git mv ${from} ${to}`
+}
+
+// A story with no baseline, and a baseline whose story, in the fingerprint of
+// the commit that last wrote it, had the same component, props and status:
+// probably one renamed. Not `rest`, which folds in the name a rename changes. Said, never done, and only when each side has one match: a guess
+// between two would take the wrong baseline as often as the right one.
+export function renamesOf(
+  missing: string[],
+  stale: string[],
+  before: FingerprintEntry[],
+  now: FingerprintEntry[],
+): Map<string, string> {
+  const same = (one: FingerprintEntry, other: FingerprintEntry) =>
+    one.component === other.component &&
+    one.status === other.status &&
+    one.props.join() === other.props.join()
+  const old = before.filter((entry) => stale.includes(entry.id))
+  const fresh = now.filter((entry) => missing.includes(entry.id))
+
+  const found = new Map<string, string>()
+  for (const entry of fresh) {
+    const matches = old.filter((one) => same(one, entry))
+    if (matches.length !== 1) continue
+    const [match] = matches
+    if (fresh.filter((one) => same(match!, one)).length === 1) found.set(entry.id, match!.id)
+  }
+  return found
 }
