@@ -2,6 +2,7 @@
 // baseline, one PNG per story under `.crypte/visual`. See docs/contracts.md,
 // section 8.
 
+import { execFileSync } from 'node:child_process'
 import { createServer } from 'node:http'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve, sep } from 'node:path'
@@ -113,12 +114,10 @@ export async function visual(
     return 0
   }
 
-  // Outside Git, or before a first commit, there is nothing to pair against.
-  const committed = committedFingerprint(root)
   const renames = renamesOf(
     missing,
     stale.map((name) => name.slice(0, -4)),
-    typeof committed === 'string' ? [] : committed.entries,
+    storiesBefore(root, stale),
     now,
   )
   const taken = new Set(renames.values())
@@ -129,7 +128,7 @@ export async function visual(
     log(
       before === undefined
         ? `  ${id}: no baseline`
-        : `  ${id}: no baseline, probably ${before} renamed: git mv ${BASELINES}/${before}.png ${BASELINES}/${id}.png keeps its baseline`,
+        : `  ${id}: no baseline, probably ${before} renamed: ${moveOf(before, id)} keeps its baseline`,
     )
   }
   for (const name of stale)
@@ -186,6 +185,40 @@ async function chromiumOf(): Promise<Chromium> {
       { cause },
     )
   }
+}
+
+// The story each baseline left over was taken of, from the fingerprint of the
+// commit that last wrote it: `HEAD` holds the new id once the rename is
+// committed, which is when the CI compares. Outside Git, or for a baseline
+// never committed, there is nothing to read.
+function storiesBefore(root: string, stale: string[]): FingerprintEntry[] {
+  return stale.flatMap((name) => {
+    let commit: string
+    try {
+      commit = execFileSync('git', ['log', '-1', '--format=%H', '--', join(BASELINES, name)], {
+        cwd: root,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim()
+    } catch {
+      return []
+    }
+    if (commit === '') return []
+    const fingerprint = committedFingerprint(root, commit)
+    if (typeof fingerprint === 'string') return []
+    return fingerprint.entries.filter((entry) => `${entry.id}.png` === name)
+  })
+}
+
+// The command that keeps the baseline: `git mv` creates no folder, and an id
+// that moves to a folder of its own needs one (4.3).
+export function moveOf(before: string, id: string): string {
+  const from = `${BASELINES}/${before}.png`
+  const to = `${BASELINES}/${id}.png`
+  const folder = dirname(to)
+  return dirname(from) === folder
+    ? `git mv ${from} ${to}`
+    : `mkdir -p ${folder} && git mv ${from} ${to}`
 }
 
 // A story with no baseline, and a baseline whose story the committed

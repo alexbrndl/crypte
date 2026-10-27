@@ -3,7 +3,7 @@
 
 import type { FingerprintEntry } from '@crypte/core/protocol'
 import { describe, expect, test } from 'vitest'
-import { renamesOf } from '../src/commands/visual'
+import { moveOf, renamesOf } from '../src/commands/visual'
 
 const story = (id: string, more: Partial<FingerprintEntry> = {}): FingerprintEntry => ({
   id,
@@ -43,5 +43,19 @@ describe('a renamed story', () => {
   test('reads only the stories with no baseline and the baselines left over', () => {
     expect(renamesOf(['b'], [], [story('a')], [story('b')])).toEqual(new Map())
     expect(renamesOf([], ['a'], [story('a')], [story('b')])).toEqual(new Map())
+  })
+})
+
+// `git mv` ne crée pas de dossier : la commande le crée quand l'id en change.
+describe('the command that keeps a baseline', () => {
+  test.for([
+    ['badge--a', 'badge--b', 'git mv .crypte/visual/badge--a.png .crypte/visual/badge--b.png'],
+    [
+      'badge--a',
+      'forms/badge--a',
+      'mkdir -p .crypte/visual/forms && git mv .crypte/visual/badge--a.png .crypte/visual/forms/badge--a.png',
+    ],
+  ] as const)('moves %s to %s', ([avant, après, commande]) => {
+    expect(moveOf(avant, après)).toBe(commande)
   })
 })
