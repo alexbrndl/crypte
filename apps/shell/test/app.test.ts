@@ -3385,7 +3385,7 @@ describe('the width', () => {
   // Les deux cadres de la comparaison, et retour à la pleine largeur.
   test('sizes both frames of the comparison, and gives the full width back', async ({ écran }) => {
     await choisit(écran, '768 px')
-    await écran.wrapper.find('.stage-tools .square').trigger('click')
+    await écran.wrapper.find('.stage-tools [aria-label="Compare light and dark"]').trigger('click')
     await vide(écran.wrapper)
     expect(cadres(écran)).toEqual(['768px', '768px'])
 
@@ -3406,6 +3406,49 @@ describe('the width', () => {
     expect(écran.wrapper.find('.stage-tools .level').text()).toBe('100 %')
 
     menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
+    await vide(écran.wrapper)
+    expect(document.querySelector('[role="menu"]')).toBeNull()
+  })
+})
+
+// Le motif derrière la story, sur les deux cadres de la comparaison.
+describe('the background', () => {
+  const ouvre = async (écran: Ecran) => {
+    await écran.wrapper.find('.stage-tools .backdrop').trigger('keydown', { key: 'Enter' })
+    await vide(écran.wrapper)
+    await vide(écran.wrapper)
+  }
+  const fonds = (écran: Ecran) =>
+    écran.wrapper.findAll('figure.preview iframe').map((one) => one.attributes('data-backdrop'))
+
+  test('offers dots, plain and checkerboard, and sets it on both frames', async ({ écran }) => {
+    await ouvre(écran)
+    expect(
+      [...document.querySelectorAll('[role="menuitemradio"]')].map((one) => [
+        one.textContent?.trim(),
+        one.getAttribute('aria-checked'),
+      ]),
+    ).toEqual([
+      ['Dots', 'true'],
+      ['Plain', 'false'],
+      ['Checkerboard', 'false'],
+    ])
+    ;([...document.querySelectorAll('[role="menuitemradio"]')][2] as HTMLElement).click()
+    await vide(écran.wrapper)
+    await écran.wrapper.find('.stage-tools [aria-label="Compare light and dark"]').trigger('click')
+    await vide(écran.wrapper)
+
+    expect(fonds(écran)).toEqual(['checker', 'checker'])
+    expect(écran.wrapper.find('.stage-tools .backdrop').attributes('aria-label')).toBe(
+      'Background, Checkerboard',
+    )
+  })
+
+  test('closes its menu on Tab', async ({ écran }) => {
+    await ouvre(écran)
+    document
+      .querySelector('[role="menu"]')!
+      .dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
     await vide(écran.wrapper)
     expect(document.querySelector('[role="menu"]')).toBeNull()
   })

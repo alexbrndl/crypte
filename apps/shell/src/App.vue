@@ -78,8 +78,11 @@ import {
   ArrowDown01Icon,
   ArrowHorizontalIcon,
   ComputerIcon,
+  DragDropIcon,
+  Grid2x2Icon,
   LaptopIcon,
   SmartPhone01Icon,
+  SquareIcon,
   Tablet01Icon,
   ContrastIcon,
   Copy01Icon,
@@ -208,6 +211,10 @@ const t = texts({
     tablet: 'Tablet (iPad)',
     laptop: 'Laptop',
     desktop: 'Desktop',
+    backdrop: 'Background, {name}',
+    dots: 'Dots',
+    plain: 'Plain',
+    checker: 'Checkerboard',
     notRendered: '{id} could not be rendered',
     preview: 'preview',
     previewDark: 'preview, dark',
@@ -328,6 +335,10 @@ const t = texts({
     tablet: 'Tablette (iPad)',
     laptop: 'Portable',
     desktop: 'Bureau',
+    backdrop: 'Fond, {name}',
+    dots: 'Points',
+    plain: 'Uni',
+    checker: 'Damier',
     notRendered: "{id} n'a pas pu être rendue",
     preview: 'aperçu',
     previewDark: 'aperçu, sombre',
@@ -989,6 +1000,13 @@ const widthLabel = computed(() => (width.value === null ? t('fullWidth') : `${wi
 const widthIcon = computed(() =>
   width.value === null ? ArrowHorizontalIcon : WIDTHS[width.value].icon,
 )
+
+// Le motif derrière la story, dans la couleur du thème de chaque cadre. Le damier
+// montre ce qui est transparent. Un réglage de vue, hors de l'adresse.
+const BACKDROPS = { dots: DragDropIcon, plain: SquareIcon, checker: Grid2x2Icon } as const
+type Backdrop = keyof typeof BACKDROPS
+const backdrop = ref<Backdrop>('dots')
+const backdropMenu = ref(false)
 
 // Ce qui dépasse de la scène, de chaque côté : un dégradé sur le bord le dit, la
 // barre de défilement étant masquée par défaut sur macOS.
@@ -2274,6 +2292,45 @@ onMounted(() => {
                   </DropdownMenuContent>
                 </DropdownMenuPortal>
               </DropdownMenuRoot>
+              <DropdownMenuRoot
+                v-model:open="backdropMenu"
+                :modal="false"
+                @update:open="(open) => open && focusLevel()"
+              >
+                <DropdownMenuTrigger as-child>
+                  <Button
+                    class="square backdrop"
+                    :aria-label="t('backdrop', { name: t(backdrop) })"
+                  >
+                    <Icon :icon="BACKDROPS[backdrop]" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuPortal to=".stage-tools">
+                  <DropdownMenuContent
+                    class="shell-menu"
+                    align="end"
+                    :side-offset="4"
+                    @keydown.tab="backdropMenu = false"
+                  >
+                    <DropdownMenuRadioGroup
+                      :model-value="backdrop"
+                      @update:model-value="(chosen) => (backdrop = chosen as Backdrop)"
+                    >
+                      <DropdownMenuRadioItem
+                        v-for="(icon, name) of BACKDROPS"
+                        :key="name"
+                        :value="name"
+                        class="shell-menu-item"
+                      >
+                        <span class="shell-menu-label"><Icon :icon="icon" />{{ t(name) }}</span>
+                        <DropdownMenuItemIndicator class="shell-menu-check">
+                          <Icon :icon="Tick02Icon" />
+                        </DropdownMenuItemIndicator>
+                      </DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenuPortal>
+              </DropdownMenuRoot>
               <Tooltip :content="t('compare')">
                 <Button
                   class="square"
@@ -2316,6 +2373,7 @@ onMounted(() => {
                     src="preview.html"
                     :title="t('preview')"
                     :data-scheme="mainTheme"
+                    :data-backdrop="backdrop"
                   ></iframe>
                   <figcaption v-if="compare">{{ t('light') }}</figcaption>
                 </figure>
@@ -2330,6 +2388,7 @@ onMounted(() => {
                     src="preview.html"
                     :title="t('previewDark')"
                     data-scheme="dark"
+                    :data-backdrop="backdrop"
                   ></iframe>
                   <figcaption>{{ t('dark') }}</figcaption>
                 </figure>
@@ -2880,6 +2939,32 @@ iframe[data-scheme='dark'] {
   color-scheme: dark;
   background-color: var(--stone-700);
   background-image: radial-gradient(var(--stone-950) 1px, transparent 1px);
+}
+
+iframe[data-backdrop='plain'] {
+  background-image: none;
+}
+
+iframe[data-backdrop='checker'] {
+  background-size: 16px 16px;
+}
+
+iframe[data-backdrop='checker'][data-scheme='light'] {
+  background-image: conic-gradient(
+    var(--stone-200) 25%,
+    transparent 0 50%,
+    var(--stone-200) 0 75%,
+    transparent 0
+  );
+}
+
+iframe[data-backdrop='checker'][data-scheme='dark'] {
+  background-image: conic-gradient(
+    var(--stone-800) 25%,
+    transparent 0 50%,
+    var(--stone-800) 0 75%,
+    transparent 0
+  );
 }
 
 .failure {
