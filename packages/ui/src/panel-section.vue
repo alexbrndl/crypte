@@ -62,10 +62,13 @@ const noteId = useId()
   background: var(--background-subtle);
 }
 
-/* Its natural width before the note: a long note beside a button squeezed the
-   title out of sight, measured with a folded a11y panel. */
+/* The note takes what the title and the action leave, from nothing, and wraps:
+   sized by its text, it squeezed the title out of sight beside a button,
+   measured on a folded a11y panel. The title still shrinks last, or a long one
+   pushed its button out of the column. */
 h3 {
-  flex: 1 0 auto;
+  flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
@@ -109,7 +112,7 @@ h3 {
 }
 
 .note {
-  flex: 0 1 auto;
+  flex: 1000 1 0;
   min-width: 0;
   padding-right: var(--space-3);
   color: var(--text-subtle);

@@ -53,8 +53,9 @@ describe('the plugin', () => {
 
 describe('the calls', () => {
   it('lists the calls of the story on display, newest first, and clears them', async () => {
+    const header = entête()
     const wrapper = mount(Panel, {
-      props: { actions: entête(), entry: entry('x--a'), received: null },
+      props: { actions: header, entry: entry('x--a'), received: null },
     })
     expect(wrapper.find('[role="status"]').text()).toBe('No call yet: use the component.')
     expect(derniere(wrapper)).toBeNull()
@@ -64,6 +65,9 @@ describe('the calls', () => {
     await wrapper.setProps({ received: { type: 'autre:chose' } })
     await wrapper.setProps({ received: appel('x--a', 'onClick', ['"pro"', '2']) })
     expect(lignes(wrapper)).toEqual(['onClick("pro", 2)', 'onClick(MouseEvent click)'])
+    // Dans l'en-tête, jamais dans le corps du panneau.
+    expect(header.querySelector('.actions-clear')).not.toBeNull()
+    expect(wrapper.find('.actions-clear').exists()).toBe(false)
 
     await wrapper.findComponent(Button).trigger('click')
     expect(wrapper.find('.actions-calls').exists()).toBe(false)

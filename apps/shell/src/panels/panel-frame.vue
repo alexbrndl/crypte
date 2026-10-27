@@ -258,6 +258,16 @@ const actions = useTemplateRef<HTMLElement>('actions')
   color: var(--text-subtle);
 }
 
+/* The slot a panel teleports into takes no room of its own, and the header's
+   action none while nothing is in it. */
+.plugin-actions {
+  display: contents;
+}
+
+.panel :deep(.action:not(:has(button))) {
+  display: none;
+}
+
 .content {
   padding: var(--space-3);
   font-size: var(--text-sm);

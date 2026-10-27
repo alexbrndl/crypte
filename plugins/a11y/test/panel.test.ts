@@ -151,6 +151,9 @@ describe('running the analysis again', () => {
   it('asks the preview, and waits for the next result', async () => {
     const wrapper = monte(entry('x--a'), resultats('x--a', [violation('image-alt', 'critical')]))
 
+    // Dans l'en-tête, jamais dans le corps du panneau.
+    expect(wrapper.find('.a11y-again').exists()).toBe(false)
+    expect(document.querySelector('.a11y-again')).not.toBeNull()
     await wrapper.findComponent(Button).trigger('click')
 
     expect(wrapper.emitted('send')).toEqual([[{ type: 'a11y:run' }]])
