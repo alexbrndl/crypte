@@ -41,7 +41,7 @@ Why a mechanism exists, and what breaks without it, is a comment beside that mec
 
 **Now.** The core, the CLI and two adapters, React and Vue, which is what `crypte dev` already runs on: the second proves the core holds nothing React-specific. Then the shell it serves: a three-level tree, search, a component page, the `tokens` that `@crypte/tokens` reads from the project's style sheet, markdown pages written beside the stories, what changed in the catalogue since the last commit, `crypte build`, the same workshop as a static folder, and `crypte mcp`, the catalogue for a coding agent. Then the plugin contract, frozen since its two plugins with opposite needs exist: `controls`, which writes into a story, and `a11y`, which only reads it.
 
-**Next.** The everyday plugins: `theme`, `responsive`, `actions`, `visual-tests`, `coverage`. And what makes Crypte installable by someone who has never heard of it: npm, and a build deployed on every change.
+**Next.** The everyday plugins: `theme`, `actions`, `visual-tests`, `coverage`. And what makes Crypte installable by someone who has never heard of it: npm, and a build deployed on every change.
 
 **Later.** An `editor` plugin, on `crypte dev` and on a deployed build alike: pick any element of a story, try a value from the tokens, and hand the change to a coding agent as a GitHub issue. A Figma plugin that shows a designer a selective diff of the tokens.
 
