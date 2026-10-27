@@ -7,7 +7,7 @@ import {
   type ShellMessage,
   type Theme,
 } from '../protocol/channel'
-import type { PreviewContext, PreviewHooks } from '../protocol/plugin'
+import type { MountContext, PreviewContext, PreviewHooks } from '../protocol/plugin'
 
 // Marker read by test/isolation.test.ts
 export const PREVIEW_MARKER = '__crypte_preview__'
@@ -135,12 +135,15 @@ export function createPreviewChannel(handlers: PreviewHandlers): PreviewChannel 
 // What the preview calls, and nothing else. A hook of section 7's reserve, or a
 // typo, would otherwise be exported and never called, without a word: that is
 // how `beforeRender` was ignored for a whole lot.
-const HOOKS = ['afterMount', 'onMessage']
+const HOOKS = ['beforeMount', 'afterMount', 'onMessage']
 
 // A plugin's preview module as the entry loaded it: its module, or what it threw.
 export type LoadedPlugin = { name: string; module: unknown } | { name: string; error: unknown }
 
 export interface PluginHost {
+  // Before each mount, with the props about to be drawn: the props the mount
+  // takes, which the plugins may have changed, section 6.4.
+  beforeMount(story: Omit<MountContext, 'send'>): Record<string, unknown>
   // After each render that went through, with the story it drew.
   mounted(story: Omit<PreviewContext, 'send'>): void
   // A message from the shell, for the plugin its `type` names.
@@ -157,6 +160,8 @@ export interface PluginHost {
 export function createPluginHost(
   loaded: (LoadedPlugin | Promise<LoadedPlugin>)[],
   send: (message: PreviewMessage) => void,
+  // Draws the story on display again, through the channel.
+  again: () => void,
 ): PluginHost {
   const said = (plugin: string, message: string) => {
     console.error(`crypte: ${plugin}: ${message}`)
@@ -169,7 +174,10 @@ export function createPluginHost(
   // The story last drawn, which a message is answered against.
   let last: Omit<PreviewContext, 'send'> | undefined
 
-  const contextOf = (name: string, story: Omit<PreviewContext, 'send'>): PreviewContext => ({
+  const contextOf = <Story extends object>(
+    name: string,
+    story: Story,
+  ): Story & Pick<PreviewContext, 'send'> => ({
     ...story,
     send: (message) => {
       // The prefix is what tells the shell whose message it is: without it, the
@@ -213,9 +221,13 @@ export function createPluginHost(
     if (typeof hooks === 'string') return said(one.name, hooks)
     plugins[at] = { name: one.name, hooks }
 
-    // Arrived after a render: the story last drawn is not drawn again for it.
-    const { afterMount } = hooks
+    // Arrived after a render: the story last drawn is not drawn again for an
+    // `afterMount`. It is for a `beforeMount`, which changes what is drawn: the
+    // first story renders before the modules arrive, and `actions` logged
+    // nothing on it. Measured in a browser.
+    const { beforeMount, afterMount } = hooks
     const story = last
+    if (beforeMount && story) return again()
     if (afterMount && story)
       call(one.name, 'afterMount', () => afterMount(contextOf(one.name, story)))
   }
@@ -234,6 +246,35 @@ export function createPluginHost(
   })
 
   return {
+    beforeMount(story) {
+      let props = story.props
+      for (const one of plugins) {
+        const beforeMount = one?.hooks.beforeMount
+        if (!one || !beforeMount) continue
+
+        // A copy for each: a hook that throws halfway leaves the props as the
+        // one before handed them, and the story still mounts. Read back from the
+        // context, since `ctx.props = { ...ctx.props }` replaces the copy.
+        const ctx = contextOf(one.name, { ...story, props: { ...props } })
+        try {
+          const result: unknown = beforeMount(ctx)
+          if (typeof (result as { then?: unknown } | null)?.then === 'function') {
+            said(one.name, '`beforeMount` returned a promise, and the mount does not wait for one')
+            ;(result as Promise<unknown>).then(undefined, () => {})
+            continue
+          }
+          const next: unknown = ctx.props
+          if (typeof next !== 'object' || next === null || Array.isArray(next)) {
+            said(one.name, `\`beforeMount\` left \`props\` as ${String(next)}, not an object`)
+            continue
+          }
+          props = next as Record<string, unknown>
+        } catch (error) {
+          said(one.name, `\`beforeMount\` threw: ${text(error)}`)
+        }
+      }
+      return props
+    },
     mounted(story) {
       last = story
       for (const one of plugins) {
@@ -279,7 +320,7 @@ function hooksOf(module: unknown): PreviewHooks | string {
 
   for (const [key, value] of Object.entries(hooks)) {
     if (!HOOKS.includes(key))
-      return `\`${key}\` is not a hook the preview calls, which are ${HOOKS.join(' and ')}`
+      return `\`${key}\` is not a hook the preview calls, which are ${HOOKS.slice(0, -1).join(', ')} and ${HOOKS.at(-1)}`
     if (value !== undefined && typeof value !== 'function') return `\`${key}\` is not a function`
   }
 

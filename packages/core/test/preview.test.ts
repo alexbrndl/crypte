@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PreviewMessage } from '../src/protocol/channel'
-import type { PreviewContext } from '../src/protocol/plugin'
+import type { MountContext, PreviewContext } from '../src/protocol/plugin'
 import {
   createPluginHost,
   createPreviewChannel,
@@ -508,11 +508,13 @@ describe('the plugin host', () => {
   const story = { id: 'badge--defaut', props: { label: 'x' }, options: {}, root: {} as HTMLElement }
 
   let envoyés: PreviewMessage[] = []
+  let redessins: string[] = []
   const send = (message: PreviewMessage) => envoyés.push(message)
   const refus = (plugin: string, message: string) => ({ type: 'plugin-error', plugin, message })
 
   beforeEach(() => {
     envoyés = []
+    redessins = []
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
@@ -521,7 +523,7 @@ describe('the plugin host', () => {
   })
 
   const hôte = (...loaded: (LoadedPlugin | Promise<LoadedPlugin>)[]) =>
-    createPluginHost(loaded, send)
+    createPluginHost(loaded, send, () => redessins.push('again'))
 
   describe('what it refuses', () => {
     it.for([
@@ -558,8 +560,8 @@ describe('the plugin host', () => {
       // Un hook de la réserve, exporté et jamais appelé, échouerait en silence.
       [
         'a hook the preview does not call',
-        { name: 'a', module: { default: { beforeMount: () => {} } } },
-        '`beforeMount` is not a hook the preview calls, which are afterMount and onMessage',
+        { name: 'a', module: { default: { onPropsChange: () => {} } } },
+        '`onPropsChange` is not a hook the preview calls, which are beforeMount, afterMount and onMessage',
       ],
       [
         'a hook that is not a function',
@@ -651,6 +653,33 @@ describe('the plugin host', () => {
       expect(vus).toEqual(['badge--defaut'])
     })
 
+    // Son `beforeMount` change ce qui est dessiné : la story est redessinée, une
+    // fois, et son `afterMount` viendra avec ce rendu-là.
+    it('draws the story on display again for a beforeMount that arrives after a render', async () => {
+      const vus: string[] = []
+      const { promesse, rendre } = tenu()
+      const host = hôte(promesse)
+
+      host.mounted(story)
+      rendre({
+        name: 'a',
+        module: { default: { beforeMount: () => {}, afterMount: () => void vus.push('a') } },
+      })
+      await promesse
+
+      expect(redessins).toEqual(['again'])
+      expect(vus).toEqual([])
+    })
+
+    it('draws nothing again for a beforeMount that arrives before any render', async () => {
+      const { promesse, rendre } = tenu()
+      hôte(promesse)
+      rendre({ name: 'a', module: { default: { beforeMount: () => {} } } })
+      await promesse
+
+      expect(redessins).toEqual([])
+    })
+
     it('lets the others run while one never finishes loading', () => {
       const vus: string[] = []
       const host = hôte(new Promise<LoadedPlugin>(() => {}), {
@@ -716,6 +745,119 @@ describe('the plugin host', () => {
       await promesse
 
       expect(envoyés).toEqual([refus('a', 'its preview module could not load: boum')])
+    })
+  })
+
+  // Le seul moment où les props changent, section 6.4 : chaque plugin, dans
+  // l'ordre, voit ce que le précédent a laissé, et un refus ne coûte ni la
+  // story ni ce qu'avaient fait les autres.
+  describe('beforeMount', () => {
+    const àMonter = { id: 'badge--defaut', props: { label: 'x' }, options: {}, details: {} }
+
+    it('hands each plugin in order the props the one before left, and returns them', () => {
+      const vus: string[] = []
+      const host = hôte(
+        {
+          name: 'a',
+          module: {
+            default: {
+              beforeMount: (ctx: MountContext) => {
+                vus.push(`a:${ctx.id}:${JSON.stringify(ctx.props)}`)
+                ctx.props.onClick = 'a'
+              },
+            },
+          },
+        },
+        {
+          name: 'b',
+          module: {
+            default: {
+              beforeMount: (ctx: MountContext) => {
+                vus.push(`b:${JSON.stringify(ctx.props)}`)
+                ctx.props.label = 'b'
+              },
+            },
+          },
+        },
+      )
+
+      expect(host.beforeMount(àMonter)).toEqual({ label: 'b', onClick: 'a' })
+      expect(vus).toEqual(['a:badge--defaut:{"label":"x"}', 'b:{"label":"x","onClick":"a"}'])
+      expect(àMonter.props).toEqual({ label: 'x' })
+    })
+
+    it('drops what a hook that throws or returns a promise changed, and says it', () => {
+      const host = hôte(
+        {
+          name: 'a',
+          module: {
+            default: {
+              beforeMount: (ctx: MountContext) => {
+                ctx.props.label = 'a'
+                throw new Error('boum')
+              },
+            },
+          },
+        },
+        {
+          name: 'b',
+          module: {
+            default: {
+              beforeMount: async (ctx: MountContext) => {
+                ctx.props.label = 'b'
+                return Promise.reject(new Error('plus tard'))
+              },
+            },
+          },
+        },
+        { name: 'c', module: { default: { afterMount: () => {} } } },
+      )
+
+      expect(host.beforeMount(àMonter)).toEqual({ label: 'x' })
+      expect(envoyés).toEqual([
+        refus('a', '`beforeMount` threw: boum'),
+        refus('b', '`beforeMount` returned a promise, and the mount does not wait for one'),
+      ])
+    })
+
+    // Le style immuable remplace l'objet au lieu de l'écrire : gardé, et ce qui
+    // n'est plus un objet de props est refusé.
+    it('keeps props a hook replaces, and refuses what is not an object', () => {
+      const host = hôte(
+        {
+          name: 'a',
+          module: {
+            default: {
+              beforeMount: (ctx: MountContext) => {
+                ctx.props = { ...ctx.props, onSelect: 'a' }
+              },
+            },
+          },
+        },
+        {
+          name: 'b',
+          module: {
+            default: {
+              beforeMount: (ctx: MountContext) => {
+                ctx.props = null as unknown as Record<string, unknown>
+              },
+            },
+          },
+        },
+      )
+
+      expect(host.beforeMount(àMonter)).toEqual({ label: 'x', onSelect: 'a' })
+      expect(envoyés).toEqual([refus('b', '`beforeMount` left `props` as null, not an object')])
+    })
+
+    it('lets a hook send under its own name', () => {
+      const host = hôte({
+        name: 'a',
+        module: { default: { beforeMount: (ctx: MountContext) => ctx.send({ type: 'a:prêt' }) } },
+      })
+
+      host.beforeMount(àMonter)
+      expect(envoyés).toEqual([{ type: 'a:prêt' }])
     })
   })
 
@@ -799,6 +941,7 @@ describe('the plugin host', () => {
         },
       ],
       canal.send,
+      canal.again,
     )
 
     host.mounted(story)

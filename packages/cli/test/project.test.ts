@@ -129,8 +129,13 @@ describe('defineConfig', () => {
 // La table de la section 1.5 : sans clé, le préréglage ; avec, exactement ce
 // qu'elle liste, le tableau vide compris.
 describe('the plugin preset', () => {
-  test('is controls, tokens and source', () => {
-    expect(defaultPlugins.map((plugin) => plugin.name)).toEqual(['controls', 'tokens', 'source'])
+  test('is controls, tokens, source and actions', () => {
+    expect(defaultPlugins.map((plugin) => plugin.name)).toEqual([
+      'controls',
+      'tokens',
+      'source',
+      'actions',
+    ])
   })
 
   test.for([

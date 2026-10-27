@@ -2,6 +2,7 @@
 
 import type { Overrides, RenderedValues } from './channel'
 import type { ManifestEntry, PageEntry, StoryEntry } from './manifest'
+import type { ResolvedPropDetails } from './prop'
 
 export interface CryptePlugin {
   name: string
@@ -91,12 +92,14 @@ export interface PanelEvents {
   send: [message: { type: string; [key: string]: unknown }]
 }
 
-// What the preview module exports by default, section 6.2. Two hooks because
-// `a11y` is the one consumer: analysing a story once it is mounted, and again
-// when its panel asks. The rest of 6.2 waits in section 7 for the plugin that
-// needs it. Properties holding functions, like `NodeHooks`, and possibly
-// async, as an analysis is.
+// What the preview module exports by default, section 6.2. `a11y` analyses a
+// story once it is mounted and again when its panel asks; `actions` fills its
+// function props before the mount. The rest of 6.2 waits in section 7 for the
+// plugin that needs it. Properties holding functions, like `NodeHooks`.
 export interface PreviewHooks {
+  // Synchronous, since the mount waits for it, and in the order of `plugins`:
+  // each one sees the props the one before left, section 6.4.
+  beforeMount?: (ctx: MountContext) => void
   afterMount?: (ctx: PreviewContext) => void | Promise<void>
   onMessage?: (
     ctx: PreviewContext,
@@ -116,6 +119,16 @@ export interface PreviewContext {
 }
 
 // The one capability a real use demands: contributing entries to the manifest.
+// The story about to be drawn: no root yet, and the one moment its `props` may
+// be changed, section 6.4. `details` says which of them are functions.
+export interface MountContext {
+  id: string
+  props: Record<string, unknown>
+  options: Record<string, unknown>
+  details: Record<string, ResolvedPropDetails>
+  send: (message: { type: string; [key: string]: unknown }) => void
+}
+
 // A property holding a function, not a method: the context comes in as an
 // argument, so a hook has no reason to read `this`.
 export interface NodeHooks {

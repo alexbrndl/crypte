@@ -8,7 +8,7 @@
       "props": [
         "label"
       ],
-      "rest": "f815254d92cded95"
+      "rest": "0af9de864ee28dfa"
     },
     {
       "id": "badge--avertissement",
@@ -18,7 +18,7 @@
         "label",
         "tone"
       ],
-      "rest": "8a22686d1542b7b1"
+      "rest": "739643aca086d43c"
     },
     {
       "id": "badge--libelle-long",
@@ -27,7 +27,7 @@
       "props": [
         "label"
       ],
-      "rest": "166b38bf8d3408fd"
+      "rest": "141f62a2b361dfd7"
     },
     {
       "id": "boom--echoue-au-rendu",

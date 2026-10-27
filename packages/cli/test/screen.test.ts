@@ -583,7 +583,10 @@ describe('the screen', () => {
     try {
       await seule.goto(`http://localhost:${address.port}/iframe.html?id=badge--par-defaut`)
       await expect.poll(() => seule.locator('#root').textContent()).toBe('Nouveau')
-      await expect.poll(() => seule.locator('html').getAttribute('data-hello-renders')).toBe('1')
+      // Un ou deux : `actions` arrivé après le premier rendu le fait redessiner.
+      await expect
+        .poll(() => seule.locator('html').getAttribute('data-hello-renders'))
+        .toMatch(/^[12]$/)
 
       const file = join(ecran.root, 'stories', 'Badge.tsx')
       writeFileSync(
@@ -802,9 +805,11 @@ describe('a plugin in the browser', () => {
 
   test('shows its shell module and runs its preview module', async ({ ecran }) => {
     await expect.poll(() => panneau(ecran.page).textContent()).toBe('hello, 0 clic(s)')
+    // Un ou deux : le module de `actions` arrivé après le premier rendu fait
+    // redessiner la story pour son `beforeMount`.
     await expect
       .poll(() => cadre(ecran.page).locator('html').getAttribute('data-hello-renders'))
-      .toBe('1')
+      .toMatch(/^[12]$/)
   })
 
   // La chaîne entière : le CLI mesure, ses routes portent, le shell affiche.
@@ -817,7 +822,7 @@ describe('a plugin in the browser', () => {
 
     expect(await chiffres.allInnerTexts()).toEqual([
       expect.stringMatching(/^Shell \d+\.\d kB$/),
-      '7 plugins',
+      '8 plugins',
     ])
     expect(await ecran.page.locator('.status-bar .render').innerText()).toMatch(
       /^First render \d+ ms$/,
@@ -832,6 +837,7 @@ describe('a plugin in the browser', () => {
       expect.stringMatching(/^controls \d\.\d kB$/),
       'tokens 0.0 kB',
       expect.stringMatching(/^source \d\.\d kB$/),
+      expect.stringMatching(/^actions \d\.\d kB$/),
       expect.stringMatching(/^a11y 1\d\d\.\d kB$/),
       expect.stringMatching(/^hello \d\.\d kB$/),
       expect.stringMatching(/^status \d\.\d kB$/),
@@ -921,8 +927,9 @@ describe('the preview hooks and plugin messages', () => {
 
     await ecran.page.getByRole('treeitem', { name: 'Nue', exact: true }).click()
 
+    // Au moins un de plus : `actions`, arrivé tard, peut en ajouter un.
     await expect.poll(ecran.vu).toBe('Étiquette')
-    await expect.poll(() => rendus(ecran.page)).toBe(String(avant + 1))
+    await expect.poll(async () => Number(await rendus(ecran.page))).toBeGreaterThan(avant)
   })
 
   test('carries a plugin message from the panel to the preview and back', async ({ ecran }) => {
@@ -968,7 +975,7 @@ describe('the preview hooks and plugin messages', () => {
   }) => {
     writeFileSync(
       join(ecran.root, 'plugins', 'hello', 'preview.js'),
-      'export default { beforeMount: () => {} }\n',
+      'export default { onPropsChange: () => {} }\n',
     )
     await ecran.page.reload()
 
@@ -978,8 +985,26 @@ describe('the preview hooks and plugin messages', () => {
         (await ecran.page.locator('.failed').textContent())?.replace(/\s+/g, ' ').trim(),
       )
       .toBe(
-        'hello in the preview: `beforeMount` is not a hook the preview calls, which are afterMount and onMessage',
+        'hello in the preview: `onPropsChange` is not a hook the preview calls, which are beforeMount, afterMount and onMessage',
       )
+  })
+})
+
+// `actions` de bout en bout : le badge de la démo, dont la story ne déclare pas
+// `onClick`, cliqué dans la preview, et l'appel dans le panneau.
+describe('the actions panel', () => {
+  test('lists a call the component makes to a prop its story leaves out', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    const panneau = ecran.page.locator('[data-plugin="actions"]')
+    await expect
+      .poll(() => panneau.locator('[role="status"]').textContent())
+      .toBe('No call yet: use the component.')
+
+    await ecran.page.frameLocator('iframe[title="preview"]').getByText('Nouveau').click()
+    await expect
+      .poll(() => panneau.locator('.actions-calls li span').nth(1).textContent())
+      // Chromium envoie un clic en `PointerEvent`.
+      .toBe('onClick(PointerEvent click)')
   })
 })
 
@@ -996,7 +1021,7 @@ describe('the panel host', () => {
           .locator('[data-plugin]')
           .evaluateAll((tous) => tous.map((un) => un.getAttribute('data-plugin'))),
       )
-      .toEqual(['controls', 'source', 'a11y', 'hello', 'status'])
+      .toEqual(['controls', 'source', 'actions', 'a11y', 'hello', 'status'])
   })
 
   test('folds a panel with nothing to say, story by story', async ({ ecran }) => {

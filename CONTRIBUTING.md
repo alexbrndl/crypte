@@ -40,6 +40,7 @@ plugins/tokens    @crypte/tokens    the plugin that reads a project's CSS custom
 plugins/controls  @crypte/controls  the plugin whose panel edits a story's props live
 plugins/a11y      @crypte/a11y      the plugin that analyses each render with axe-core
 plugins/source    @crypte/source    the plugin that shows a story's call code, ready to copy
+plugins/actions   @crypte/actions   the plugin that logs every call to a function prop
 apps/shell        @crypte/shell     the shell, built into `@crypte/cli`, never published alone
 apps/demo         @crypte/demo      a React project that runs the shell, never published
 docs/                               the specification, in English

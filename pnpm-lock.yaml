@@ -384,6 +384,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@crypte/actions':
+        specifier: workspace:*
+        version: link:../../plugins/actions
       '@crypte/controls':
         specifier: workspace:*
         version: link:../../plugins/controls
@@ -511,6 +514,31 @@ importers:
       axe-core:
         specifier: ^4.13.0
         version: 4.13.0
+    devDependencies:
+      '@crypte/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@vitejs/plugin-vue':
+        specifier: ^6.0.1
+        version: 6.0.8(vite@8.2.1(@types/node@24.13.3))(vue@3.5.41(typescript@6.0.3))
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.2.1(@types/node@24.13.3)
+      vue:
+        specifier: ^3.5.0
+        version: 3.5.41(typescript@6.0.3)
+      vue-tsc:
+        specifier: ^3.3.9
+        version: 3.3.9(typescript@6.0.3)
+
+  plugins/actions:
+    dependencies:
+      '@crypte/core':
+        specifier: workspace:*
+        version: link:../../packages/core
     devDependencies:
       '@crypte/ui':
         specifier: workspace:*

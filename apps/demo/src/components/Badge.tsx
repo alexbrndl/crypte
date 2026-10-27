@@ -3,11 +3,14 @@ export interface BadgeProps {
   label: string
   /** Neutre par défaut, `warning` pour attirer l'œil. */
   tone?: 'neutral' | 'warning'
+  /** Au clic, ce que le panneau de `actions` journalise. */
+  onClick?: () => void
 }
 
-export function Badge({ label, tone = 'neutral' }: BadgeProps) {
+export function Badge({ label, tone = 'neutral', onClick }: BadgeProps) {
   return (
     <span
+      onClick={onClick}
       style={{
         background: `var(${tone === 'warning' ? '--color-warning' : '--color-badge-background'})`,
         color: 'var(--color-text)',

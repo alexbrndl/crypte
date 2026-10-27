@@ -6,6 +6,7 @@ import type {
   PanelEvents,
   PanelProps,
   PluginView,
+  MountContext,
   PreviewContext,
   PreviewHooks,
   ShellView,
@@ -14,6 +15,7 @@ import type {
   ViewProps,
 } from '@crypte/core/protocol'
 import type { Adapter } from '@crypte/core/preview'
+import actions from '@crypte/actions'
 import controls from '@crypte/controls'
 import source from '@crypte/source'
 import tokens from '@crypte/tokens'
@@ -45,7 +47,7 @@ export function defineConfig(config: CrypteConfig): CrypteConfig {
 
 // What a configuration with no `plugins` field gets, section 1.5. A field that
 // is there takes exactly what it lists, so a project spreads this to keep them.
-export const defaultPlugins: CryptePlugin[] = [controls(), tokens(), source()]
+export const defaultPlugins: CryptePlugin[] = [controls(), tokens(), source(), actions()]
 
 // Opaque here: the CLI carries it and never reads it, and its components belong
 // to the adapter.
@@ -61,6 +63,7 @@ export type {
   PanelProps,
   PanelEvents,
   PreviewHooks,
+  MountContext,
   PreviewContext,
   PluginView,
   ViewLabel,

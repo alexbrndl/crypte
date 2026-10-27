@@ -11,6 +11,7 @@ if (import.meta.hot) {
 }
 
 const __crypte_loaded = [
+  import("<racine>/plugins/actions/dist/preview.js").then((module) => ({ name: "actions", module }), (error) => ({ name: "actions", error })),
 ]
 
 await Promise.all([
@@ -98,7 +99,9 @@ function __crypte_render(id, overrides, muted = []) {
     throw new Error(`${entry.storyFile} has no story named ${JSON.stringify(entry.name)} in the version this frame loaded`)
   }
 
-  const props = __crypte_propsOf(definition, entry.name, overrides)
+  // The plugins may change them here, and only here, section 6.4: `actions`
+  // wraps every function prop to log its calls.
+  const props = __crypte_host.beforeMount({ id, props: __crypte_propsOf(definition, entry.name, overrides), options: entry.options, details: entry.details })
 
   // The wrappers last: the adapter nests them, outermost first, and the
   // global one of section 2.5 comes from the configuration text.
@@ -142,7 +145,7 @@ const __crypte_channel = __crypte_channelOf({ render: __crypte_drawn, rendered: 
 
 // After the channel, since it sends through it: what failed to load is said
 // once `ready` is out, so the shell has cleared what the frame before said.
-const __crypte_host = __crypte_hostOf(__crypte_loaded, __crypte_channel.send)
+const __crypte_host = __crypte_hostOf(__crypte_loaded, __crypte_channel.send, __crypte_channel.again)
 
 // `iframe.html?id=`, the page Storybook's readers embed: the story its address
 // names, with no shell to ask for it.
