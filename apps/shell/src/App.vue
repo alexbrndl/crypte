@@ -76,6 +76,11 @@ import EmptyGuide from './pages/empty-guide.vue'
 import {
   AiContentGenerator01Icon,
   ArrowDown01Icon,
+  ArrowHorizontalIcon,
+  ComputerIcon,
+  LaptopIcon,
+  SmartPhone01Icon,
+  Tablet01Icon,
   ContrastIcon,
   Copy01Icon,
   FullScreenIcon,
@@ -197,6 +202,12 @@ const t = texts({
     zoomStep: 'to step,',
     zoomActual: 'for 100 %',
     compare: 'Compare light and dark',
+    width: 'Preview width, {width}',
+    fullWidth: 'Full width',
+    mobile: 'Mobile (iPhone)',
+    tablet: 'Tablet (iPad)',
+    laptop: 'Laptop',
+    desktop: 'Desktop',
     notRendered: '{id} could not be rendered',
     preview: 'preview',
     previewDark: 'preview, dark',
@@ -311,6 +322,12 @@ const t = texts({
     zoomStep: 'pour changer de niveau,',
     zoomActual: 'pour 100 %',
     compare: 'Comparer clair et sombre',
+    width: "Largeur de l'aperçu, {width}",
+    fullWidth: 'Pleine largeur',
+    mobile: 'Mobile (iPhone)',
+    tablet: 'Tablette (iPad)',
+    laptop: 'Portable',
+    desktop: 'Bureau',
     notRendered: "{id} n'a pas pu être rendue",
     preview: 'aperçu',
     previewDark: 'aperçu, sombre',
@@ -957,6 +974,43 @@ function focusLevel() {
   )
 }
 
+// La largeur de la preview, pour les media queries d'une story : nommée par
+// l'appareil qu'elle imite. Un réglage de vue comme le zoom, hors de l'adresse.
+const WIDTHS = {
+  375: { device: 'mobile', icon: SmartPhone01Icon },
+  768: { device: 'tablet', icon: Tablet01Icon },
+  1024: { device: 'laptop', icon: LaptopIcon },
+  1440: { device: 'desktop', icon: ComputerIcon },
+} as const
+type Width = keyof typeof WIDTHS
+const width = ref<Width | null>(null)
+const widthMenu = ref(false)
+const widthLabel = computed(() => (width.value === null ? t('fullWidth') : `${width.value} px`))
+const widthIcon = computed(() =>
+  width.value === null ? ArrowHorizontalIcon : WIDTHS[width.value].icon,
+)
+
+// Ce qui dépasse de la scène, de chaque côté : un dégradé sur le bord le dit, la
+// barre de défilement étant masquée par défaut sur macOS.
+const previews = useTemplateRef<HTMLElement>('previews')
+const overflow = ref({ start: false, end: false })
+function measureOverflow() {
+  const box = previews.value
+  if (!box) return
+  overflow.value = {
+    start: box.scrollLeft > 0,
+    end: box.scrollLeft + box.clientWidth < box.scrollWidth - 1,
+  }
+}
+// La scène change de taille sans que la largeur bouge : la fenêtre, les
+// panneaux, le plein écran. Absent de jsdom.
+const resized = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measureOverflow)
+watch(previews, (box, before) => {
+  if (before) resized?.unobserve(before)
+  if (box) resized?.observe(box)
+})
+onBeforeUnmount(() => resized?.disconnect())
+
 function zoomBy(step: number) {
   const at = ZOOMS.indexOf(zoom.value) + step
   zoom.value = ZOOMS[Math.min(Math.max(at, 0), ZOOMS.length - 1)]!
@@ -1304,6 +1358,7 @@ const { theme, toggle: toggleTheme } = useTheme()
 // La seconde ne sert qu'à voir : ses messages autres que `ready` sont ignorés,
 // la première porte les erreurs, les valeurs et les panneaux.
 const compare = ref(false)
+watch([width, compare], () => nextTick(measureOverflow))
 const mainTheme = computed<Theme>(() => (compare.value ? 'light' : theme.value))
 let dark: { send: (message: ShellMessage) => void; ready: boolean; stop: () => void } | null = null
 
@@ -1362,11 +1417,14 @@ function shortcut(event: KeyboardEvent) {
     return
   }
   // La palette et le menu de zoom répondent seuls à leurs touches : Échap les
-  // ferme sans quitter le plein écran dessous. Le menu laisse passer les touches
-  // du zoom, que son pied annonce ; le reste, f compris, lui revient.
+  // ferme sans quitter le plein écran dessous. Le menu de zoom laisse passer ses
+  // touches, que son pied annonce, celui de largeur aucune ; le reste, f compris,
+  // leur revient.
   if (event.target instanceof Element && event.target.closest('[role="dialog"]')) return
-  if (event.target instanceof Element && event.target.closest('[role="menu"]')) {
+  const menu = event.target instanceof Element ? event.target.closest('[role="menu"]') : null
+  if (menu) {
     if (event.metaKey || event.ctrlKey || event.altKey) return
+    if (menu.getAttribute('aria-describedby') !== 'zoom-keys') return
     if (event.key === '+' || event.key === '=') zoomBy(1)
     if (event.key === '-') zoomBy(-1)
     if (event.key === '0') zoom.value = 1
@@ -2165,6 +2223,57 @@ onMounted(() => {
                   </DropdownMenuContent>
                 </DropdownMenuPortal>
               </DropdownMenuRoot>
+              <DropdownMenuRoot
+                v-model:open="widthMenu"
+                :modal="false"
+                @update:open="(open) => open && focusLevel()"
+              >
+                <DropdownMenuTrigger as-child>
+                  <Button class="width" :aria-label="t('width', { width: widthLabel })">
+                    <Icon :icon="widthIcon" />
+                    {{ widthLabel }}
+                    <Icon :icon="ArrowDown01Icon" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuPortal to=".stage-tools">
+                  <DropdownMenuContent
+                    class="shell-menu"
+                    align="end"
+                    :side-offset="4"
+                    @keydown.tab="widthMenu = false"
+                  >
+                    <DropdownMenuRadioGroup
+                      :model-value="String(width)"
+                      @update:model-value="
+                        (chosen) => (width = chosen === 'null' ? null : (Number(chosen) as Width))
+                      "
+                    >
+                      <DropdownMenuRadioItem value="null" class="shell-menu-item">
+                        <span class="shell-menu-label"
+                          ><Icon :icon="ArrowHorizontalIcon" />{{ t('fullWidth') }}</span
+                        >
+                        <DropdownMenuItemIndicator class="shell-menu-check">
+                          <Icon :icon="Tick02Icon" />
+                        </DropdownMenuItemIndicator>
+                      </DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem
+                        v-for="({ device, icon }, size) of WIDTHS"
+                        :key="size"
+                        :value="String(size)"
+                        class="shell-menu-item"
+                      >
+                        <span class="shell-menu-label"
+                          ><Icon :icon="icon" />{{ size }} px
+                          <span class="shell-menu-detail">{{ t(device) }}</span></span
+                        >
+                        <DropdownMenuItemIndicator class="shell-menu-check">
+                          <Icon :icon="Tick02Icon" />
+                        </DropdownMenuItemIndicator>
+                      </DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenuPortal>
+              </DropdownMenuRoot>
               <Tooltip :content="t('compare')">
                 <Button
                   class="square"
@@ -2195,25 +2304,38 @@ onMounted(() => {
               <p>{{ failure.message }}</p>
               <pre v-if="failure.stack">{{ failure.stack }}</pre>
             </Alert>
-            <div v-show="!failure" class="previews">
-              <figure class="preview">
-                <iframe
-                  ref="frame"
-                  src="preview.html"
-                  :title="t('preview')"
-                  :data-scheme="mainTheme"
-                ></iframe>
-                <figcaption v-if="compare">{{ t('light') }}</figcaption>
-              </figure>
-              <figure v-if="compare" class="preview dark">
-                <iframe
-                  ref="frameDark"
-                  src="preview.html"
-                  :title="t('previewDark')"
-                  data-scheme="dark"
-                ></iframe>
-                <figcaption>{{ t('dark') }}</figcaption>
-              </figure>
+            <div v-show="!failure" class="scroller">
+              <div ref="previews" class="previews" @scroll="measureOverflow">
+                <figure
+                  class="preview"
+                  :class="{ sized: width !== null }"
+                  :style="width === null ? undefined : { width: `${width}px` }"
+                >
+                  <iframe
+                    ref="frame"
+                    src="preview.html"
+                    :title="t('preview')"
+                    :data-scheme="mainTheme"
+                  ></iframe>
+                  <figcaption v-if="compare">{{ t('light') }}</figcaption>
+                </figure>
+                <figure
+                  v-if="compare"
+                  class="preview dark"
+                  :class="{ sized: width !== null }"
+                  :style="width === null ? undefined : { width: `${width}px` }"
+                >
+                  <iframe
+                    ref="frameDark"
+                    src="preview.html"
+                    :title="t('previewDark')"
+                    data-scheme="dark"
+                  ></iframe>
+                  <figcaption>{{ t('dark') }}</figcaption>
+                </figure>
+              </div>
+              <span v-if="overflow.start" class="fade start" aria-hidden="true" />
+              <span v-if="overflow.end" class="fade end" aria-hidden="true" />
             </div>
 
             <!-- Sous la preview, pas dessus : la story rend, et l'avertissement ne dit
@@ -2558,6 +2680,11 @@ main.full {
   font-variant-numeric: tabular-nums;
 }
 
+.stage-tools .width {
+  justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Le bouton icône md de Figma : 28 × 28. */
 .stage-tools .square {
   padding: var(--space-1) var(--space-1-5);
@@ -2646,10 +2773,56 @@ main.full {
 }
 
 /* Le canvas : la story sur une trame de points, comme dans les maquettes. */
-.previews {
+.scroller {
+  position: relative;
   display: flex;
   flex: 1;
   min-height: 0;
+}
+
+.previews {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.fade {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--space-8);
+  pointer-events: none;
+}
+
+.fade.start {
+  left: 0;
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--text-primary) 20%, transparent),
+    transparent
+  );
+}
+
+.fade.end {
+  right: 0;
+  background: linear-gradient(
+    to left,
+    color-mix(in srgb, var(--text-primary) 20%, transparent),
+    transparent
+  );
+}
+
+/* At a set width, centred; wider than the stage, it scrolls rather than shrinks:
+   the auto margins never push it past the left edge, where centring would. */
+.preview.sized {
+  flex: none;
+  margin-inline: auto;
+}
+
+/* The edge of the screen it imitates. */
+.preview.sized iframe {
+  box-shadow: 0 0 0 var(--stroke-hairline) var(--border-base);
 }
 
 .preview {
@@ -2839,5 +3012,16 @@ iframe[data-scheme='dark'] {
 
 .shell-menu-check {
   display: flex;
+}
+
+.shell-menu-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.shell-menu-detail {
+  margin-left: var(--space-1);
+  color: var(--text-muted);
 }
 </style>

@@ -73,6 +73,9 @@ function ko(n) {
 // du shell 44, marked 14. Rouvert par la prochaine langue, ou si une de ces
 // pièces s'allège.
 //
+// Puis à 315 Ko le 27 oct. 2026 : le favicon (3,5 Ko) et le menu de largeur de
+// la preview (1,7 Ko). Les polices pèsent 119 Ko, DCJ-407 les allège.
+//
 // Lève plutôt que de rendre zéro. Un dossier absent veut dire que `vp pack`
 // n'a pas tourné, et un budget de poids tenu par un bundle inexistant est le
 // pire des verdicts : vert, et sur rien.

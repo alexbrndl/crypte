@@ -3342,6 +3342,75 @@ describe('the zoom', () => {
   })
 })
 
+// La largeur de la preview, pour les media queries : le cadre la prend
+// exactement, et pleine largeur la lui rend.
+describe('the width', () => {
+  const article = (texte: string) =>
+    [...document.querySelectorAll('[role="menuitemradio"]')].find((one) =>
+      one.textContent?.trim().startsWith(texte),
+    ) as HTMLElement
+  const choisit = async (écran: Ecran, texte: string) => {
+    await écran.wrapper.find('.stage-tools .width').trigger('keydown', { key: 'Enter' })
+    await vide(écran.wrapper)
+    await vide(écran.wrapper)
+    article(texte).click()
+    await vide(écran.wrapper)
+  }
+  const cadres = (écran: Ecran) =>
+    écran.wrapper.findAll('figure.preview').map((one) => (one.element as HTMLElement).style.width)
+
+  test('offers each width by its device, and sets it on the frame', async ({ écran }) => {
+    await écran.wrapper.find('.stage-tools .width').trigger('keydown', { key: 'Enter' })
+    await vide(écran.wrapper)
+    await vide(écran.wrapper)
+    expect(
+      [...document.querySelectorAll('[role="menuitemradio"]')].map((one) => [
+        one.textContent?.trim(),
+        one.getAttribute('aria-checked'),
+      ]),
+    ).toEqual([
+      ['Full width', 'true'],
+      ['375 px Mobile (iPhone)', 'false'],
+      ['768 px Tablet (iPad)', 'false'],
+      ['1024 px Laptop', 'false'],
+      ['1440 px Desktop', 'false'],
+    ])
+    article('375 px').click()
+    await vide(écran.wrapper)
+
+    expect(écran.wrapper.find('.stage-tools .width').text()).toBe('375 px')
+    expect(cadres(écran)).toEqual(['375px'])
+  })
+
+  // Les deux cadres de la comparaison, et retour à la pleine largeur.
+  test('sizes both frames of the comparison, and gives the full width back', async ({ écran }) => {
+    await choisit(écran, '768 px')
+    await écran.wrapper.find('.stage-tools .square').trigger('click')
+    await vide(écran.wrapper)
+    expect(cadres(écran)).toEqual(['768px', '768px'])
+
+    await choisit(écran, 'Full width')
+    expect(cadres(écran)).toEqual(['', ''])
+    expect(écran.wrapper.find('.stage-tools .width').text()).toBe('Full width')
+  })
+
+  // Comme celui du zoom : fermé sur Tab, et les touches du zoom n'y font rien,
+  // son pied ne les annonçant pas.
+  test('closes its menu on Tab, and leaves the zoom keys alone', async ({ écran }) => {
+    await écran.wrapper.find('.stage-tools .width').trigger('keydown', { key: 'Enter' })
+    await vide(écran.wrapper)
+    await vide(écran.wrapper)
+    const menu = document.querySelector('[role="menu"]')!
+    menu.dispatchEvent(new KeyboardEvent('keydown', { key: '+', bubbles: true }))
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('.stage-tools .level').text()).toBe('100 %')
+
+    menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
+    await vide(écran.wrapper)
+    expect(document.querySelector('[role="menu"]')).toBeNull()
+  })
+})
+
 describe('the shortcuts', () => {
   const frappe = async (
     écran: Ecran,

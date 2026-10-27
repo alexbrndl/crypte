@@ -1543,6 +1543,41 @@ describe('the zoom, on screen', () => {
   })
 })
 
+// Ce que la story voit, sa propre largeur de fenêtre, et au-delà de la scène
+// un défilement plutôt qu'une réduction.
+describe('the width, on screen', () => {
+  test('gives the story the width of its device, and scrolls past the stage', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    const largeur = () =>
+      ecran.page
+        .frameLocator('iframe[title="preview"]')
+        .locator('html')
+        .evaluate((root) => root.ownerDocument.defaultView!.innerWidth)
+
+    await ecran.page.locator('.stage-tools .width').click()
+    await ecran.page.getByRole('menuitemradio', { name: /^375 px/ }).click()
+    await expect.poll(largeur).toBe(375)
+
+    await ecran.page.locator('.stage-tools .width').click()
+    await ecran.page.getByRole('menuitemradio', { name: /^1440 px/ }).click()
+    await expect.poll(largeur).toBe(1440)
+    const scène = ecran.page.locator('.previews')
+    expect(await scène.evaluate((one) => one.scrollWidth > one.clientWidth)).toBe(true)
+    // Le bord gauche du cadre reste joignable : centré par la scène, il passait dessous.
+    const cadre = (await ecran.page.locator('iframe[title="preview"]').boundingBox())!
+    expect(cadre.x).toBeGreaterThanOrEqual((await scène.boundingBox())!.x)
+
+    // Un dégradé sur le bord qui cache encore quelque chose, et sur lui seul.
+    const bords = async () => [
+      await ecran.page.locator('.fade.start').count(),
+      await ecran.page.locator('.fade.end').count(),
+    ]
+    await expect.poll(bords).toEqual([0, 1])
+    await scène.evaluate((one) => one.scrollTo({ left: one.scrollWidth }))
+    await expect.poll(bords).toEqual([1, 0])
+  })
+})
+
 // L'audit de la vue santé dans le vrai navigateur : chaque story de la démo rendue
 // en light puis en dark dans la preview cachée, et le vrai plugin a11y qui répond.
 describe('the accessibility audit, on screen', () => {
@@ -1706,6 +1741,7 @@ const ecrans = [
   ['the accessibility audit', '?health=accessibility', '.health-view'],
   ['the command palette', '?id=badge--par-defaut', '[role="dialog"]'],
   ['the zoom menu', '?id=badge--par-defaut', '[role="menu"]'],
+  ['the width menu', '?id=badge--par-defaut', '[role="menu"]'],
 ] as const
 
 // Les résultats de la palette défilent sans être focalisables : le focus reste
@@ -1725,6 +1761,7 @@ describe('accessibility, on screen', () => {
         await ecran.page.locator('main').press('ControlOrMeta+K')
       }
       if (nom === 'the zoom menu') await ecran.page.locator('.stage-tools .level').click()
+      if (nom === 'the width menu') await ecran.page.locator('.stage-tools .width').click()
       await expect.poll(() => ecran.page.locator(dessine).count()).toBe(1)
       expect(await ecran.page.locator('.stale').count()).toBe(0)
       await ecran.page.addScriptTag({ path: axe })
