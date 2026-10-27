@@ -129,7 +129,7 @@ export default defineConfig({
 
 Two keys are required, and an error names the one that is missing.
 
-**Without `plugins`, the preset.** `controls`, `tokens` and `source`, which the CLI depends on and exports as `defaultPlugins`. A `plugins` key takes exactly what it lists, `[]` included, so a project that wants the preset and more spreads it. `a11y` is added by hand: it loads axe-core in the preview.
+**Without `plugins`, the preset.** `controls`, `tokens` and `source`, which the CLI depends on and exports as `defaultPlugins`. A `plugins` key takes exactly what it lists, `[]` included, so a project that wants the preset and more spreads it. A preset plugin given options is listed by hand in its place, `[controls(), tokens({ files }), source()]`: spread beside its own copy, the preset's would run first and keep every id. `a11y` is added by hand: it loads axe-core in the preview.
 
 **An adapter is typed by the core**, and `adapter` takes nothing else:
 
