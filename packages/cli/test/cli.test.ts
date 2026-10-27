@@ -14,11 +14,11 @@ const dit = () => {
   return { lignes, log: (line: string) => lignes.push(line) }
 }
 
-// Les cinq commandes montent un serveur, lisent un projet ou écrivent un
+// Les six commandes montent un serveur, lisent un projet ou écrivent un
 // fichier : ici on n'éprouve que ce que l'entrée leur passe, donc des doublures
 // qui retiennent quelle commande a reçu quelle racine.
 const faux = () => {
-  const appels: [string, string][] = []
+  const appels: (string | boolean)[][] = []
 
   return {
     appels,
@@ -38,6 +38,10 @@ const faux = () => {
     },
     mcp: async (input: string) => {
       appels.push(['mcp', input])
+    },
+    visual: async (input: string, update: boolean) => {
+      appels.push(['visual', input, update])
+      return 0
     },
   }
 }
@@ -69,9 +73,9 @@ describe('the crypte command', () => {
     expect(doublure.appels).toEqual([])
   })
 
-  // L'aide nomme les cinq commandes et la version du protocole : c'est ce
+  // L'aide nomme les six commandes et la version du protocole : c'est ce
   // qu'on vient y chercher.
-  test('names the five commands and the protocol version in the help', () => {
+  test('names the six commands and the protocol version in the help', () => {
     const texte = help().join('\n')
 
     expect(texte).toContain(`protocol v${PROTOCOL_VERSION}`)
@@ -81,6 +85,7 @@ describe('the crypte command', () => {
       'check [root]',
       'init [root]',
       'mcp [root]',
+      'visual [root]',
     ]) {
       expect(texte).toContain(commande)
     }
@@ -105,6 +110,10 @@ describe('the crypte command', () => {
     [['--version', 'foo'], 'crypte --version: unexpected argument foo'],
     [['serve', '--port'], 'crypte: unknown command serve, see crypte --help'],
     [['serve', 'a', 'b'], 'crypte: unknown command serve, see crypte --help'],
+    // `--update` est l'option de `visual`, et d'elle seule.
+    [['build', '--update'], 'crypte build: unknown option --update'],
+    [['visual', '--force'], 'crypte visual: unknown option --force'],
+    [['visual', 'a', '--update', 'b'], 'crypte visual: unexpected argument b'],
   ] as const)('refuses %j instead of running the command', async ([argv, ligne]) => {
     const erreur = dit()
     const doublure = faux()
@@ -137,6 +146,33 @@ describe('the crypte command', () => {
       expect(doublure.appels).toEqual([[commande, process.cwd()]])
     },
   )
+
+  // `--update` à toute position, la racine à la sienne.
+  test.for([
+    [['visual'], ['visual', process.cwd(), false]],
+    [
+      ['visual', '/un/projet'],
+      ['visual', '/un/projet', false],
+    ],
+    [
+      ['visual', '--update', '/un/projet'],
+      ['visual', '/un/projet', true],
+    ],
+    [
+      ['visual', '/un/projet', '--update'],
+      ['visual', '/un/projet', true],
+    ],
+  ] as const)('passes %j to visual', async ([argv, appel]) => {
+    const doublure = faux()
+
+    await run(argv, dit().log, doublure)
+
+    expect(doublure.appels).toEqual([appel])
+  })
+
+  test('returns the exit code of visual', async () => {
+    expect(await run(['visual'], dit().log, { visual: async () => 1 })).toBe(1)
+  })
 
   // Le code de sortie de `check` est le sien : les orphelines font échouer la
   // commande, et l'avaler rendrait le contrôle vert dans une intégration.

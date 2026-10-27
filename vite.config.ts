@@ -165,6 +165,7 @@ export default defineConfig({
             ...ignorés,
             '**/screen.test.ts',
             '**/restart.test.ts',
+            '**/visual.test.ts',
             '**/adapter.test.tsx',
             '**/adapter.test.ts',
             'apps/shell/test/**',
@@ -211,7 +212,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'écran',
-          include: ['**/screen.test.ts', '**/restart.test.ts'],
+          include: ['**/screen.test.ts', '**/restart.test.ts', '**/visual.test.ts'],
           exclude: ignorés,
           sequence: { groupOrder: 1 },
           // Un fichier à la fois : ils sont deux, et « seuls sur la machine »
