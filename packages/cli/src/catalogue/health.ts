@@ -5,9 +5,10 @@
 
 import { execFileSync } from 'node:child_process'
 import { readdirSync, readFileSync } from 'node:fs'
-import { basename, dirname, extname, join, relative, sep } from 'node:path'
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { StoryEntry, StoryMeta } from '@crypte/core/protocol'
 import { parseSync } from 'vite'
+import { BUILD_OUTPUT } from '../commands/build'
 import { componentsIn, wrappers } from '../commands/check'
 import type { Project } from '../config/project'
 import { componentFile } from './manifest'
@@ -43,12 +44,26 @@ export interface HealthComponent {
   // keys them, an index re-exporting it followed: where a deprecated one is
   // still used. Absent when none does.
   usedBy?: string[]
+  // The props of its `details` none of its stories gives, sorted. Absent with no
+  // story, where they all are, and when every one is given.
+  unexercised?: string[]
+  // The files of the application, outside this folder and the stories, that
+  // import it, project-relative: how much the product uses it. Absent when none
+  // does.
+  usedIn?: string[]
 }
 
 // Opened, not counted: `componentsIn` keeps only what returns an element, and
 // counts a `.vue` file as one component.
 const READ = ['.tsx', '.jsx', '.ts', '.js', '.vue']
 const SKIPPED = new Set(['node_modules', '.git', 'dist'])
+// The application beyond the folder: not what `crypte build` writes, a hidden
+// folder, `.crypte` among them, or tests, which exercise a component without
+// the product using it. Read at every request in dev: 68 ms with this whole
+// repository as the application, 18 on its demo. Measured.
+const OUTSIDE = (name: string) =>
+  SKIPPED.has(name) || name === BUILD_OUTPUT || name === '__tests__' || name.startsWith('.')
+const TEST = /\.(test|spec)\.[cm]?[jt]sx?$/
 
 export function healthOf(project: Project, stories: StoryEntry[]): Health {
   const folder = project.config.components
@@ -73,7 +88,15 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
     project.config.stories,
   ])
   const files = filesIn(join(project.root, folder))
-  const importers = importersOf(project, files, frames)
+  // The story files by name, since their root may hold the application,
+  // `stories: '.'`; that root left out only when it does not.
+  const storyFiles = new Set(stories.map((entry) => resolve(project.root, entry.storyFile)))
+  const storyRoot = resolve(project.root, project.config.stories)
+  const left = [resolve(project.root, folder), ...(storyRoot === project.root ? [] : [storyRoot])]
+  const application = filesIn(project.root, OUTSIDE).filter(
+    (file) => !TEST.test(file) && !storyFiles.has(file) && !left.some((one) => under(one, file)),
+  )
+  const { importers, users } = importersOf(project, files, frames, application)
   const found: HealthComponent[] = []
   for (const file of files) {
     for (const names of componentsIn(file)) {
@@ -89,6 +112,15 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
           names.flatMap((one) => importers.get(`${named(project.root, file)}#${one}`) ?? []),
         ),
       ].sort()
+      const usedIn = [
+        ...new Set(names.flatMap((one) => users.get(`${named(project.root, file)}#${one}`) ?? [])),
+      ].sort()
+      // A spread hides what it gives (4.2): with one, nothing is said.
+      const spread = covered.some((entry) => entry.partial !== undefined)
+      const given = new Set(covered.flatMap((entry) => entry.props))
+      const unexercised = Object.keys(details)
+        .filter((one) => !given.has(one))
+        .sort()
       found.push({
         name: exported === 'default' ? basename(file, extname(file)) : exported,
         file: named(project.root, file),
@@ -101,6 +133,8 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
         ...(since ? { statusSince: since } : {}),
         ...(covered.length === 0 ? { skeleton: skeletonOf(project, folder, file, exported) } : {}),
         ...(usedBy.length > 0 ? { usedBy } : {}),
+        ...(covered.length > 0 && !spread && unexercised.length > 0 ? { unexercised } : {}),
+        ...(usedIn.length > 0 ? { usedIn } : {}),
       })
     }
   }
@@ -114,38 +148,16 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
 // the importing file whose declaration names it; to all of them when none can
 // be read, an `export { Card }` of a value built elsewhere for instance. A frame
 // declared as `wrap`, a namespace import and a file importing itself name nobody.
+//
+// `users` is the same reading for the files of the application: for each
+// `file#export`, the files importing it, through the same indexes.
 function importersOf(
   project: Project,
   files: string[],
   frames: Set<string>,
-): Map<string, string[]> {
-  const read = files.flatMap((file) => {
-    try {
-      const text = readFileSync(file, 'utf8')
-      // A `.vue` file imports from its script block, the `setup` one when it has
-      // two: an import in the plain block beside it is not seen.
-      if (file.endsWith('.vue')) {
-        const script = scriptOf(file, text)
-        return script && !('unread' in script)
-          ? [
-              {
-                file,
-                self: named(project.root, file),
-                source: script.content,
-                parsed: script.parsed,
-              },
-            ]
-          : []
-      }
-      const parsed = parseSync(file, text)
-      return parsed.errors.length > 0
-        ? []
-        : [{ file, self: named(project.root, file), source: text, parsed }]
-    } catch {
-      return []
-    }
-  })
-
+  application: string[],
+): { importers: Map<string, string[]>; users: Map<string, string[]> } {
+  const read = parsedOf(project, files)
   const declared = new Set<string>()
   const forward = new Map<string, string>()
   const star = new Map<string, string[]>()
@@ -180,6 +192,23 @@ function importersOf(
     return undefined
   }
 
+  const users = new Map<string, string[]>()
+  for (const { file, self, parsed } of parsedOf(project, application)) {
+    for (const one of parsed.module.staticImports) {
+      const target = componentFile(one.moduleRequest.value, file, project)
+      for (const entry of one.entries) {
+        const imported =
+          entry.importName.kind === 'Default'
+            ? 'default'
+            : entry.importName.kind === 'Name'
+              ? entry.importName.name
+              : undefined
+        const key = imported === undefined ? undefined : origin(`${target}#${imported}`)
+        if (key !== undefined) users.set(key, [...(users.get(key) ?? []), self])
+      }
+    }
+  }
+
   const found = new Map<string, string[]>()
   for (const { file, self, source, parsed } of read) {
     const spans = spansOf(parsed.program.body as unknown as Statement[])
@@ -212,7 +241,38 @@ function importersOf(
       }
     }
   }
-  return found
+  return { importers: found, users }
+}
+
+// Each file parsed, with its script block for a `.vue` one. What cannot be read
+// is left out.
+function parsedOf(project: Project, files: string[]) {
+  return files.flatMap((file) => {
+    try {
+      const text = readFileSync(file, 'utf8')
+      // A `.vue` file imports from its script block, the `setup` one when it has
+      // two: an import in the plain block beside it is not seen.
+      if (file.endsWith('.vue')) {
+        const script = scriptOf(file, text)
+        return script && !('unread' in script)
+          ? [
+              {
+                file,
+                self: named(project.root, file),
+                source: script.content,
+                parsed: script.parsed,
+              },
+            ]
+          : []
+      }
+      const parsed = parseSync(file, text)
+      return parsed.errors.length > 0
+        ? []
+        : [{ file, self: named(project.root, file), source: text, parsed }]
+    } catch {
+      return []
+    }
+  })
 }
 
 interface Statement {
@@ -249,8 +309,14 @@ function spansOf(body: Statement[]): Map<string, [number, number]> {
   return spans
 }
 
+// Whether `file` lies below `folder`, both absolute.
+function under(folder: string, file: string): boolean {
+  const path = relative(folder, file)
+  return path !== '' && !path.startsWith('..') && !isAbsolute(path)
+}
+
 // Sorted, so two machines write the same file.
-function filesIn(folder: string): string[] {
+function filesIn(folder: string, skipped = (name: string) => SKIPPED.has(name)): string[] {
   let entries
   try {
     entries = readdirSync(folder, { withFileTypes: true })
@@ -261,7 +327,7 @@ function filesIn(folder: string): string[] {
     .sort((one, other) => one.name.localeCompare(other.name, 'en'))
     .flatMap((entry) => {
       const path = join(folder, entry.name)
-      if (entry.isDirectory()) return SKIPPED.has(entry.name) ? [] : filesIn(path)
+      if (entry.isDirectory()) return skipped(entry.name) ? [] : filesIn(path, skipped)
       return READ.includes(extname(entry.name)) && !entry.name.endsWith('.d.ts') ? [path] : []
     })
 }

@@ -85,6 +85,7 @@ describe('the components the health view counts', () => {
         props: 2,
         required: 1,
         status: 'draft',
+        unexercised: ['tone'],
       },
       {
         name: 'Select',
@@ -277,5 +278,109 @@ describe('a Vue project', () => {
       source:
         "import { defineStories } from '@crypte/vue'\nimport Badge from '../src/components/Badge.vue'\n\nexport default defineStories(Badge)\n",
     })
+  })
+})
+
+// La page couverture : les props qu'aucune story ne donne, et les fichiers de
+// l'application qui importent chaque composant.
+describe('the coverage of a component', () => {
+  const BOUTON =
+    'export function Bouton({ label, tone, size }: { label: string; tone?: string; size?: number }) { return <button>{label}</button> }\n'
+  const histoire = (stories: string) =>
+    `import { defineStories } from '@crypte/react'\nimport { Bouton } from '../src/components/Bouton'\n\nexport default defineStories(Bouton, {\n  props: { label: 'a' },\n  stories: ${stories},\n})\n`
+
+  // Le bloc partagé compte, comme ce que chaque story ajoute ; sans story, tout
+  // manque et rien n'est dit de plus que « sans story ».
+  test.for([
+    [
+      'a story gives one prop beyond the shared block',
+      "{ Default: {}, Ton: { tone: 'x' } }",
+      ['size'],
+    ],
+    ['every prop is given', "{ Default: { tone: 'x', size: 1 } }", undefined],
+  ] as const)('%s', ([, stories, manque]) => {
+    const [bouton] = santé(
+      projet(
+        { 'src/components/Bouton.tsx': BOUTON, 'stories/Bouton.tsx': histoire(stories) },
+        'src/components',
+      ),
+    )!
+    expect(bouton!.unexercised).toEqual(manque)
+  })
+
+  test('says nothing more of a component with no story', () => {
+    const [bouton] = santé(projet({ 'src/components/Bouton.tsx': BOUTON }, 'src/components'))!
+    expect(bouton!.unexercised).toBeUndefined()
+  })
+
+  // Par un chemin relatif ou un index, une fois par fichier. Ni les stories, ni le
+  // dossier des composants, ni `node_modules`, un dossier caché ou ce que
+  // `crypte build` écrit ne sont l'application.
+  test('lists the files of the application that import it, once each', () => {
+    const [bouton, index] = santé(
+      projet(
+        {
+          'src/components/Bouton.tsx': BOUTON,
+          'src/components/index.ts': "export { Bouton } from './Bouton'\n",
+          'src/pages/Accueil.tsx':
+            "import { Bouton } from '../components/Bouton'\nimport { Bouton as B } from '../components'\nexport const Accueil = () => <Bouton label='a' />\n",
+          'src/pages/Aide.tsx':
+            "import { Bouton } from '../components'\nexport const Aide = () => <Bouton label='a' />\n",
+          'src/pages/Rien.tsx': 'export const Rien = () => null\n',
+          'stories/Bouton.tsx': histoire('{ Default: {} }'),
+          'node_modules/lib/x.tsx': "import { Bouton } from '../../src/components/Bouton'\n",
+          '.cache/x.tsx': "import { Bouton } from '../src/components/Bouton'\n",
+          'crypte-static/x.js': "import { Bouton } from '../src/components/Bouton'\n",
+        },
+        'src/components',
+      ),
+    )!
+    expect(bouton!.usedIn).toEqual(['src/pages/Accueil.tsx', 'src/pages/Aide.tsx'])
+    expect(index).toBeUndefined()
+  })
+
+  // La racine des stories, telle que la configuration l'écrit : avec sa barre
+  // finale, ou le projet entier, '.', où vit aussi l'application. Les fichiers
+  // de story sortent par leur nom ; ni un test, ni un composant du dossier
+  // n'est l'application.
+  test.for(['stories', 'stories/', '.'])(
+    'reads the application with a story root of %j',
+    (racine) => {
+      const project = projet(
+        {
+          'src/components/Bouton.tsx': BOUTON,
+          'src/components/Carte.tsx':
+            "import { Bouton } from './Bouton'\nexport function Carte() { return <Bouton label='a' /> }\n",
+          'src/pages/Accueil.tsx':
+            "import { Bouton } from '../components/Bouton'\nexport const Accueil = () => <Bouton label='a' />\n",
+          'src/pages/Accueil.test.tsx': "import { Bouton } from '../components/Bouton'\n",
+          'src/__tests__/x.tsx': "import { Bouton } from '../components/Bouton'\n",
+          'stories/Bouton.tsx': histoire('{ Default: {} }'),
+        },
+        'src/components',
+      )
+      project.config.stories = racine
+      const [bouton] = santé(project)!
+      expect(bouton!.usedIn).toEqual(['src/pages/Accueil.tsx'])
+    },
+  )
+
+  // Un spread cache ce qu'il donne (4.2) : rien n'est dit plutôt qu'un faux nom.
+  test('says nothing of the props when a story spreads an object', () => {
+    const [bouton] = santé(
+      projet(
+        {
+          'src/components/Bouton.tsx': BOUTON,
+          'stories/Bouton.tsx': histoire("{ Default: { ...{ tone: 'x' } } }"),
+        },
+        'src/components',
+      ),
+    )!
+    expect(bouton!.unexercised).toBeUndefined()
+  })
+
+  test('says nothing of a component the application never imports', () => {
+    const [bouton] = santé(projet({ 'src/components/Bouton.tsx': BOUTON }, 'src/components'))!
+    expect(bouton!.usedIn).toBeUndefined()
   })
 })

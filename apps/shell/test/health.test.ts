@@ -54,6 +54,21 @@ describe('the pages', () => {
   })
 })
 
+// Ce qu'une story n'exerce pas, puis ce que l'application n'importe pas.
+describe('the coverage page', () => {
+  test('keeps the components with props never exercised or no use, the most missing first', () => {
+    const rows = rowsOf('coverage', [
+      un('A', { unexercised: ['x'], usedIn: ['src/p.tsx'] }),
+      un('B', { usedIn: ['src/p.tsx'] }),
+      un('C', { unexercised: ['x', 'y'], usedIn: ['src/p.tsx'] }),
+      un('D'),
+      un('E', { unexercised: ['x'], usedIn: ['src/p.tsx', 'src/q.tsx'] }),
+      un('F', { unexercised: ['x'] }),
+    ])
+    expect(rows.map((one) => one.name)).toEqual(['C', 'F', 'A', 'E', 'D'])
+  })
+})
+
 // Un composant déprécié documenté par ses stories n'a rien à faire ; il en a
 // tant qu'un autre composant l'importe.
 describe('the problems of a component', () => {
