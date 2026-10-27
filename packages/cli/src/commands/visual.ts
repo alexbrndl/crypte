@@ -4,7 +4,7 @@
 
 import { createServer } from 'node:http'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve, sep } from 'node:path'
 import type { StoryEntry } from '@crypte/core/protocol'
 import sirv from 'sirv'
 import { storiesOf } from '../catalogue/manifest'
@@ -59,29 +59,31 @@ export async function visual(
   const baselines = join(root, BASELINES)
   const different = join(root, DIFFERENT)
   rmSync(different, { recursive: true, force: true })
-  if (update) mkdirSync(baselines, { recursive: true })
 
   const changed: string[] = []
   const missing: string[] = []
   let browser
   try {
-    browser = await chromium.launch()
-    const page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: 1 })
+    let page
+    try {
+      browser = await chromium.launch()
+      page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: 1 })
+    } catch (cause) {
+      throw new ConfigError(`crypte visual could not start Chromium: ${(cause as Error).message}`, {
+        cause,
+      })
+    }
     for (const story of stories) {
       const shot = await captureOf(page, origin, story)
+      // An id holds a `/` for a story in a folder (4.3): a folder here too.
       const file = join(baselines, `${story.id}.png`)
-      if (update) writeFileSync(file, shot)
+      if (update) write(file, shot)
       else if (!existsSync(file)) missing.push(story.id)
       else if (!readFileSync(file).equals(shot)) {
         changed.push(story.id)
-        mkdirSync(different, { recursive: true })
-        writeFileSync(join(different, `${story.id}.png`), shot)
+        write(join(different, `${story.id}.png`), shot)
       }
     }
-  } catch (cause) {
-    throw new ConfigError(`crypte visual could not drive Chromium: ${(cause as Error).message}`, {
-      cause,
-    })
   } finally {
     await browser?.close()
     server.close()
@@ -90,11 +92,20 @@ export async function visual(
   // A story renamed or removed leaves its baseline behind, kept until an update.
   const ids = new Set(stories.map((story) => story.id))
   const stale = existsSync(baselines)
-    ? readdirSync(baselines).filter((name) => name.endsWith('.png') && !ids.has(name.slice(0, -4)))
+    ? readdirSync(baselines, { recursive: true, encoding: 'utf8' })
+        .map((name) => name.split(sep).join('/'))
+        .filter((name) => name.endsWith('.png') && !ids.has(name.slice(0, -4)))
     : []
 
   if (update) {
-    for (const name of stale) rmSync(join(baselines, name))
+    for (const name of stale) {
+      rmSync(join(baselines, name))
+      // The folder of a story in a folder, once empty, goes with it.
+      for (let at = dirname(join(baselines, name)); at !== baselines; at = dirname(at)) {
+        if (readdirSync(at).length > 0) break
+        rmSync(at, { recursive: true })
+      }
+    }
     log(`${stories.length} baselines written to ${BASELINES}`)
     return 0
   }
@@ -114,18 +125,33 @@ export async function visual(
 
 // The story alone, by the page Storybook's readers embed, once it has drawn or
 // said why not, its fonts loaded and the page quiet.
+// A story that never says either is named, and stops the run.
 async function captureOf(page: Page, origin: string, story: StoryEntry): Promise<Buffer> {
-  await page.goto(`${origin}${STORYBOOK_IFRAME}?id=${encodeURIComponent(story.id)}`, {
-    waitUntil: 'networkidle',
-  })
-  // As text: they run in the page, and this package is typed for Node.
-  await page.waitForFunction(
-    "(document.getElementById('root')?.childElementCount ?? 0) > 0 || document.getElementById('crypte-failure') !== null",
-    undefined,
-    { timeout: 10_000 },
-  )
-  await page.evaluate('document.fonts.ready')
-  return page.screenshot({ fullPage: true, animations: 'disabled', caret: 'hide' })
+  try {
+    await page.goto(`${origin}${STORYBOOK_IFRAME}?id=${encodeURIComponent(story.id)}`, {
+      waitUntil: 'networkidle',
+    })
+    // As text: they run in the page, and this package is typed for Node.
+    await page.waitForFunction(
+      `document.documentElement.dataset.rendered === ${JSON.stringify(story.id)} || document.getElementById('crypte-failure') !== null`,
+      undefined,
+      { timeout: 10_000 },
+    )
+    await page.evaluate('document.fonts.ready')
+    return await page.screenshot({ fullPage: true, animations: 'disabled', caret: 'hide' })
+  } catch (cause) {
+    throw new ConfigError(
+      `crypte visual: ${story.id} could not be captured: ${(cause as Error).message}`,
+      {
+        cause,
+      },
+    )
+  }
+}
+
+function write(file: string, shot: Buffer) {
+  mkdirSync(dirname(file), { recursive: true })
+  writeFileSync(file, shot)
 }
 
 // Playwright, which the project installs: Crypte does not ship a browser.

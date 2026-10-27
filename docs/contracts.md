@@ -648,7 +648,7 @@ function storyId(path: readonly string[], name: string): string
 
 **The result is not ASCII.** Non-latin scripts are kept, otherwise two distinct Russian or Japanese stories would collapse onto one identifier: `storyId(['Button'], 'Активная')` gives `button--активная`. Whoever puts it in a URL must encode it, and whoever makes it a baseline filename must check that the file system accepts it. The result is composed in NFC, so two identifiers that look the same are the same byte for byte.
 
-**This is stable data, not an implementation detail.** It is a URL, a baseline key for `visual-tests`, and the anchor of a comment. Renaming a story changes its `id` and breaks its baseline. That is accepted, and it must be documented to the user rather than worked around.
+**This is stable data, not an implementation detail.** It is a URL, the name of a `crypte visual` baseline, and the anchor of a comment. Renaming a story changes its `id` and breaks its baseline. That is accepted, and it must be documented to the user rather than worked around.
 
 **`id` is unique across the whole manifest, not per nature.** Since 4.2 carries more than one kind of entry, a story and a `tokens` entry share one namespace, and two entries never hold the same `id` whatever their `type`. One namespace rather than one per nature, because the `id` is a URL and an anchor: a reader that has to know the nature before it can resolve one has to be told the nature first, which no URL carries.
 
@@ -1067,7 +1067,6 @@ Left out on purpose. Some belong to a project brief, others wait for a demonstra
 
 - How the sidebar, the search and the panels look and behave.
 - Caching and start-up work.
-- The storage format of `visual-tests` baselines.
 - Editing a story from the shell. Planned as the `editor` plugin, which hands each change to a coding agent rather than writing the source itself (DCJ-343). There is no `crypte serve`.
 
 **Out of reserve since 21 August 2026, and now planned:**

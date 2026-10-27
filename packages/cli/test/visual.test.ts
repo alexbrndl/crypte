@@ -4,6 +4,7 @@
 import {
   cpSync,
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
@@ -80,5 +81,34 @@ describe('crypte visual', () => {
     expect((await lance(false)).code).toBe(0)
     writeFileSync(story, saine)
     expect((await lance(true)).code).toBe(0)
+  }, 240_000)
+
+  // Une story dans un dossier porte un `/` dans son id (4.3) : sa baseline dans
+  // un sous-dossier, retirée avec elle. Et une story qui ne dessine rien se
+  // capture quand même, au lieu d'attendre un élément qui ne vient pas.
+  test('keeps the baseline of a story in a folder, and captures one that draws nothing', async () => {
+    // Sans le cadre global de la démo, qui dessinerait autour de rien.
+    const config = join(root, 'crypte.config.ts')
+    const avecCadre = readFileSync(config, 'utf8')
+    writeFileSync(config, avecCadre.replace('  wrap: Panel,\n', ''))
+    const rien = join(root, 'src', 'components', 'Rien.tsx')
+    const dossier = join(root, 'stories', 'forms')
+    writeFileSync(rien, 'export function Rien() { return null }\n')
+    mkdirSync(dossier, { recursive: true })
+    writeFileSync(
+      join(dossier, 'Rien.tsx'),
+      "import { defineStories } from '@crypte/react'\nimport { Rien } from '@/components/Rien'\n\nexport default defineStories(Rien)\n",
+    )
+
+    expect((await lance(true)).code).toBe(0)
+    const imbriquées = readdirSync(join(root, BASELINES, 'forms'))
+    expect(imbriquées).toHaveLength(1)
+    expect((await lance(false)).code).toBe(0)
+
+    rmSync(dossier, { recursive: true })
+    rmSync(rien)
+    writeFileSync(config, avecCadre)
+    expect((await lance(true)).code).toBe(0)
+    expect(existsSync(join(root, BASELINES, 'forms'))).toBe(false)
   }, 240_000)
 })

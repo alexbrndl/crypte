@@ -10,7 +10,7 @@ import { mcp as answerAgents } from './commands/mcp'
 import { visual as compare } from './commands/visual'
 import { VERSION } from './server/serve'
 
-// The five commands, taken as arguments so a test reaches them without a
+// The six commands, taken as arguments so a test reaches them without a
 // server, a file written or a process spawned.
 export interface Commands {
   dev: typeof start
@@ -79,10 +79,9 @@ export async function run(
     return 1
   }
 
-  // No command takes an option yet, so anything that looks like one is a typo,
-  // not a folder named `--port`. And each takes at most its root: `--version`
-  // none, the five commands one.
-  // `--update`, the one option, and `visual`'s alone.
+  // `--update` is the one option, and `visual`'s alone: anything else that looks
+  // like one is a typo, not a folder named `--port`. And each takes at most its
+  // root: `--version` none, the six commands one.
   const update = command === 'visual' && rest.includes('--update')
   const positional = rest.filter((one) => !(update && one === '--update'))
   const option = positional.find((one) => one.startsWith('-'))
