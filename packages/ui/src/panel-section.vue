@@ -62,9 +62,10 @@ const noteId = useId()
   background: var(--background-subtle);
 }
 
+/* Its natural width before the note: a long note beside a button squeezed the
+   title out of sight, measured with a folded a11y panel. */
 h3 {
-  flex: 1;
-  min-width: 0;
+  flex: 1 0 auto;
   margin: 0;
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
@@ -108,6 +109,8 @@ h3 {
 }
 
 .note {
+  flex: 0 1 auto;
+  min-width: 0;
   padding-right: var(--space-3);
   color: var(--text-subtle);
   font-size: var(--text-xs);
@@ -122,6 +125,8 @@ h3 {
   --button-height: 24px;
   --button-padding: var(--space-0-5) var(--space-2);
   display: flex;
+  flex: none;
+  gap: var(--space-1);
   padding-right: var(--space-3);
 }
 

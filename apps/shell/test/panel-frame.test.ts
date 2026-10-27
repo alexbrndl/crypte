@@ -1,7 +1,16 @@
 import type { StoryEntry, StoryMeta } from '@crypte/core/protocol'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { defineComponent, h, isProxy, ref, watchEffect, type Component } from 'vue'
+import {
+  defineComponent,
+  h,
+  isProxy,
+  nextTick,
+  ref,
+  Teleport,
+  watchEffect,
+  type Component,
+} from 'vue'
 import PanelFrame from '../src/panels/panel-frame.vue'
 
 // Le cadre d'un panneau de plugin : sans objet story par story, ouverture
@@ -325,6 +334,41 @@ describe('whether a panel is open', () => {
 
     await wrapper.setProps({ entry: brouillon })
     expect(état(wrapper)).toEqual({ ouvert: 'false', raison: null, corps: false })
+  })
+})
+
+// Les boutons d'un panneau vont dans l'en-tête, à côté de « Reset all » : le
+// cadre lui passe l'élément, et le panneau y téléporte (6.1).
+describe('the buttons of a panel', () => {
+  const bouton = defineComponent({
+    props: { actions: { type: Object, default: null } },
+    setup: (props) => () =>
+      props.actions
+        ? h(Teleport, { to: props.actions as HTMLElement }, [h('button', 'Copier')])
+        : null,
+  })
+
+  test('go in its header, beside Reset all', async () => {
+    const wrapper = mount(PanelFrame, {
+      attachTo: document.body,
+      props: {
+        name: 'source',
+        panel: bouton,
+        entry: nue,
+        received: null,
+        failed: null,
+        values: null,
+        overrides: { label: 'x' },
+      },
+    })
+    await nextTick()
+
+    expect(wrapper.findAll('.head .action button').map((one) => one.text())).toEqual([
+      'Copier',
+      'Reset all',
+    ])
+    expect(wrapper.find('.body button').exists()).toBe(false)
+    wrapper.unmount()
   })
 })
 

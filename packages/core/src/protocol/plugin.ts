@@ -82,6 +82,9 @@ export interface PanelProps {
   overrides?: Overrides
   // The shell's language, to draw the panel's texts in.
   locale?: Locale
+  // Where the panel puts its buttons: the action slot of its header, beside
+  // "Reset all", which a `<Teleport>` reaches. `null` until the frame mounts it.
+  actions?: HTMLElement | null
 }
 
 // What a panel may emit, section 6.1, in the form `defineEmits` takes. A panel

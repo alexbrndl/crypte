@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Overrides, RenderedValues, StoryEntry } from '@crypte/core/protocol'
 import { Alert, Button, PanelSection } from '@crypte/ui'
-import { computed, onErrorCaptured, ref, watch, type Component } from 'vue'
+import { computed, onErrorCaptured, ref, useTemplateRef, watch, type Component } from 'vue'
 import { keep, kept } from '../storage'
 import { locale, texts } from '../i18n'
 
@@ -192,6 +192,9 @@ onErrorCaptured((error) => {
 // Ce que le clic bascule, sans l'erreur : sur un panneau qui a levé, chaque
 // clic aurait « ouvert », et effacé ce que l'utilisateur avait fermé.
 const expanded = computed(() => choice.value ?? (inapplicable.value === null && open.value))
+
+// Where the panel teleports its buttons, beside "Reset all", section 6.1.
+const actions = useTemplateRef<HTMLElement>('actions')
 </script>
 
 <template>
@@ -208,8 +211,16 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
       ><span class="inapplicable">{{ inapplicable }}</span></template
     >
     <!-- Tout panneau qui édite l'a, sans rien écrire : le shell tient ses valeurs. -->
-    <template v-if="Object.keys(overrides).length > 0" #action>
-      <Button variant="ghost" class="reset" @click="emit('overrides', {})">{{ t('reset') }}</Button>
+    <!-- Toujours là : le panneau y place ses boutons, à côté de « Reset all ». -->
+    <template #action>
+      <span ref="actions" class="plugin-actions" />
+      <Button
+        v-if="Object.keys(overrides).length > 0"
+        variant="ghost"
+        class="reset"
+        @click="emit('overrides', {})"
+        >{{ t('reset') }}</Button
+      >
     </template>
     <template v-if="failure !== null" #alert>
       <Alert color="error" class="panel-failed" role="alert">{{
@@ -226,6 +237,7 @@ const expanded = computed(() => choice.value ?? (inapplicable.value === null && 
           :values="values"
           :overrides="overrides"
           :locale="locale"
+          :actions="actions"
           @inapplicable="declare"
           @overrides="edit"
           @send="send"

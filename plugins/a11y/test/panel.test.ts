@@ -1,8 +1,12 @@
 import type { StoryEntry } from '@crypte/core/protocol'
+import { Button } from '@crypte/ui'
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import a11y from '../src/index'
 import Panel from '../src/panel.vue'
+
+// L'emplacement d'action de l'en-tête, où le panneau place ses boutons (6.1).
+const entête = () => document.body.appendChild(document.createElement('span'))
 import type { Results, Violation } from '../src/results'
 
 // Le panneau de `a11y` : ce qu'il montre d'une analyse, quand il se replie, et
@@ -40,7 +44,7 @@ const monte = (
   story: StoryEntry | null,
   received: Results | null = null,
   failed: string | null = null,
-) => mount(Panel, { props: { entry: story, received, failed } })
+) => mount(Panel, { props: { actions: entête(), entry: story, received, failed } })
 
 const derniere = (wrapper: ReturnType<typeof monte>) => wrapper.emitted('inapplicable')?.at(-1)?.[0]
 
@@ -118,6 +122,7 @@ describe('when the panel folds', () => {
   it('folds on nothing when the shell says nothing of the render', () => {
     const wrapper = mount(Panel, {
       props: {
+        actions: entête(),
         entry: entry('x--a'),
         received: resultats('x--a', [violation('image-alt', 'critical')]),
       },
@@ -146,7 +151,7 @@ describe('running the analysis again', () => {
   it('asks the preview, and waits for the next result', async () => {
     const wrapper = monte(entry('x--a'), resultats('x--a', [violation('image-alt', 'critical')]))
 
-    await wrapper.find('button').trigger('click')
+    await wrapper.findComponent(Button).trigger('click')
 
     expect(wrapper.emitted('send')).toEqual([[{ type: 'a11y:run' }]])
     expect(wrapper.find('[role="status"]').text()).toBe('Waiting for an analysis…')
@@ -175,6 +180,7 @@ describe('the language the shell speaks', () => {
   it('draws its texts in French, and follows a change of language', async () => {
     const wrapper = mount(Panel, {
       props: {
+        actions: entête(),
         entry: entry('x--a'),
         received: resultats('x--a', [violation('region', 'minor')]),
         failed: null,
@@ -184,7 +190,7 @@ describe('the language the shell speaks', () => {
 
     expect(wrapper.find('section p').text()).toBe('Mineure · 1 violation')
     expect(wrapper.find('section a').text()).toBe('aide de region')
-    expect(wrapper.find('button').text()).toBe("Relancer l'analyse")
+    expect(wrapper.findComponent(Button).text()).toBe('Relancer')
 
     await wrapper.setProps({ received: resultats('x--a', [], 0) })
     expect(derniere(wrapper)).toBe("aucune règle automatique ne s'applique à ce rendu")

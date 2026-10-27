@@ -4,7 +4,7 @@ import { Button } from '@crypte/ui'
 import { computed, ref, watch, watchEffect } from 'vue'
 import type { Called } from './called'
 
-const props = defineProps<Pick<PanelProps, 'entry' | 'received' | 'locale'>>()
+const props = defineProps<Pick<PanelProps, 'entry' | 'received' | 'locale' | 'actions'>>()
 
 const emit = defineEmits<Pick<PanelEvents, 'inapplicable'>>()
 
@@ -82,6 +82,9 @@ watch(
         >
       </li>
     </ol>
-    <Button style="margin-top: var(--space-3, 12px)" @click="calls = []">{{ t('clear') }}</Button>
+    <!-- In the panel's header, beside "Reset all" (6.1). -->
+    <Teleport v-if="actions" :to="actions">
+      <Button variant="ghost" class="actions-clear" @click="calls = []">{{ t('clear') }}</Button>
+    </Teleport>
   </template>
 </template>

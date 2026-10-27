@@ -3,7 +3,7 @@ import type { PanelEvents, PanelProps } from '@crypte/core/protocol'
 import { Button } from '@crypte/ui'
 import { ref, watch, watchEffect } from 'vue'
 
-const props = defineProps<Pick<PanelProps, 'entry' | 'locale'>>()
+const props = defineProps<Pick<PanelProps, 'entry' | 'locale' | 'actions'>>()
 
 const emit = defineEmits<Pick<PanelEvents, 'inapplicable'>>()
 
@@ -76,8 +76,11 @@ async function copy() {
         white-space: pre-wrap;
       "
     ><code>{{ entry.source }}</code></pre>
-    <Button style="margin-top: var(--space-2, 8px)" @click="copy">
-      {{ copied === 'copied' ? t('copied') : copied === 'failed' ? t('failed') : t('copy') }}
-    </Button>
+    <!-- In the panel's header, beside "Reset all" (6.1). -->
+    <Teleport v-if="actions" :to="actions">
+      <Button variant="ghost" class="source-copy" @click="copy">
+        {{ copied === 'copied' ? t('copied') : copied === 'failed' ? t('failed') : t('copy') }}
+      </Button>
+    </Teleport>
   </template>
 </template>
