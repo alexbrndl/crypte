@@ -117,7 +117,8 @@ export async function visual(
   const renames = renamesOf(
     missing,
     stale.map((name) => name.slice(0, -4)),
-    storiesBefore(root, stale),
+    // Nothing to pair without a story missing its baseline: no Git run then.
+    missing.length === 0 ? [] : storiesBefore(root, stale),
     now,
   )
   const taken = new Set(renames.values())
@@ -192,6 +193,8 @@ async function chromiumOf(): Promise<Chromium> {
 // committed, which is when the CI compares. Outside Git, or for a baseline
 // never committed, there is nothing to read.
 function storiesBefore(root: string, stale: string[]): FingerprintEntry[] {
+  // One read per commit: one `--update` writes many baselines at once.
+  const read = new Map<string, ReturnType<typeof committedFingerprint>>()
   return stale.flatMap((name) => {
     let commit: string
     try {
@@ -204,7 +207,8 @@ function storiesBefore(root: string, stale: string[]): FingerprintEntry[] {
       return []
     }
     if (commit === '') return []
-    const fingerprint = committedFingerprint(root, commit)
+    if (!read.has(commit)) read.set(commit, committedFingerprint(root, commit))
+    const fingerprint = read.get(commit)!
     if (typeof fingerprint === 'string') return []
     return fingerprint.entries.filter((entry) => `${entry.id}.png` === name)
   })
@@ -221,9 +225,9 @@ export function moveOf(before: string, id: string): string {
     : `mkdir -p ${folder} && git mv ${from} ${to}`
 }
 
-// A story with no baseline, and a baseline whose story the committed
-// fingerprint held with the same component, props and status: probably one
-// renamed. Not `rest`, which folds in the name a rename changes. Said, never done, and only when each side has one match: a guess
+// A story with no baseline, and a baseline whose story, in the fingerprint of
+// the commit that last wrote it, had the same component, props and status:
+// probably one renamed. Not `rest`, which folds in the name a rename changes. Said, never done, and only when each side has one match: a guess
 // between two would take the wrong baseline as often as the right one.
 export function renamesOf(
   missing: string[],
