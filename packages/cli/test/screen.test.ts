@@ -1578,6 +1578,27 @@ describe('the width, on screen', () => {
   })
 })
 
+// Le motif que le navigateur peint vraiment derrière la story.
+describe('the background, on screen', () => {
+  test('paints dots, nothing, or a checkerboard behind the story', async ({ ecran }) => {
+    await expect.poll(ecran.vu).toBe('Nouveau')
+    const motif = () =>
+      ecran.page
+        .locator('iframe[title="preview"]')
+        .evaluate((one) => one.ownerDocument.defaultView!.getComputedStyle(one).backgroundImage)
+    const choisit = async (nom: string) => {
+      await ecran.page.locator('.stage-tools .backdrop').click()
+      await ecran.page.getByRole('menuitemradio', { name: nom }).click()
+    }
+
+    expect(await motif()).toMatch(/^radial-gradient/)
+    await choisit('Plain')
+    await expect.poll(motif).toBe('none')
+    await choisit('Checkerboard')
+    await expect.poll(motif).toMatch(/^conic-gradient/)
+  })
+})
+
 // L'audit de la vue santé dans le vrai navigateur : chaque story de la démo rendue
 // en light puis en dark dans la preview cachée, et le vrai plugin a11y qui répond.
 describe('the accessibility audit, on screen', () => {
@@ -1742,6 +1763,7 @@ const ecrans = [
   ['the command palette', '?id=badge--par-defaut', '[role="dialog"]'],
   ['the zoom menu', '?id=badge--par-defaut', '[role="menu"]'],
   ['the width menu', '?id=badge--par-defaut', '[role="menu"]'],
+  ['the background menu', '?id=badge--par-defaut', '[role="menu"]'],
 ] as const
 
 // Les résultats de la palette défilent sans être focalisables : le focus reste
@@ -1762,6 +1784,7 @@ describe('accessibility, on screen', () => {
       }
       if (nom === 'the zoom menu') await ecran.page.locator('.stage-tools .level').click()
       if (nom === 'the width menu') await ecran.page.locator('.stage-tools .width').click()
+      if (nom === 'the background menu') await ecran.page.locator('.stage-tools .backdrop').click()
       await expect.poll(() => ecran.page.locator(dessine).count()).toBe(1)
       expect(await ecran.page.locator('.stale').count()).toBe(0)
       await ecran.page.addScriptTag({ path: axe })
