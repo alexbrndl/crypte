@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { loadConfigFromFile, type InlineConfig, type PluginOption } from 'vite'
 import { readProjectPaths } from './config-paths'
-import type { CrypteConfig } from './config'
+import { defaultPlugins, type CrypteConfig } from './config'
 import { pathsPlugin, type ProjectPaths } from './paths'
 import { ConfigError } from '../errors'
 
@@ -51,8 +51,9 @@ export async function loadProject(input: string): Promise<Project> {
 
   // Never null here: Vite returns `null` only when it has to find the file
   // itself, and we always give it one.
-  const config = loaded?.config as unknown as CrypteConfig
-  assertUsable(config)
+  const declared = loaded?.config as unknown as CrypteConfig
+  assertUsable(declared)
+  const config = { ...declared, plugins: declared.plugins ?? defaultPlugins }
 
   // The files read come back even with no paths: adding `paths` to an existing
   // `tsconfig.json` has to trigger a reload.

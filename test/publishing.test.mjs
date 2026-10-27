@@ -183,6 +183,9 @@ test('no library, CLI included, depends on @crypte/ui', () => {
 // bundle : déclaré en pair, que le pack ne copie pas. En dépendance de
 // développement seule, il serait copié dedans, et le panneau tournerait sur une
 // seconde copie que rien ne signale.
+//
+// Et en pair optionnel : le CLI dépend du préréglage, et npm installerait sinon
+// Vue dans un projet React, pour un panneau qui ne le lit jamais de `node_modules`.
 test('a plugin keeps what the shell serves out of its bundle', () => {
   const plugins = PUBLIÉS.filter((dossier) => dossier.startsWith('plugins/'))
   const sources = sourcesOf(plugins)
@@ -195,7 +198,11 @@ test('a plugin keeps what the shell serves out of its bundle', () => {
     expect(importent, `aucun plugin n'importe ${nom}, le garde ne lit plus rien`).not.toEqual([])
     for (const dossier of importent) {
       const manifeste = JSON.parse(lire(dossier, 'package.json'))
-      if (!manifeste.peerDependencies?.[nom] || manifeste.dependencies?.[nom])
+      if (
+        !manifeste.peerDependencies?.[nom] ||
+        manifeste.peerDependenciesMeta?.[nom]?.optional !== true ||
+        manifeste.dependencies?.[nom]
+      )
         fautifs.push(`${dossier}: ${nom}`)
     }
   }

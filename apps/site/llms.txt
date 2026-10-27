@@ -20,7 +20,7 @@ Status: in progress, nothing published to npm yet. Everything is MIT, nothing is
 
 - [The catalogue](https://crypte.dev/docs/catalogue/): three entry types — `story`, `tokens`, `page`
 - [The manifest](https://crypte.dev/docs/manifest/): shape, versioning, the committed fingerprint
-- [Plugins](https://crypte.dev/plugins/): 22 catalogued, none on unless the configuration lists it
+- [Plugins](https://crypte.dev/plugins/): 22 catalogued; `controls`, `tokens` and `source` on by default, the others on when the configuration lists them
 - [Framework adapters](https://crypte.dev/docs/adapters/): React first, Vue next; the shell communicates with the preview through `postMessage` and knows no framework
 
 ## For agents
