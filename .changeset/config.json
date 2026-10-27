@@ -16,6 +16,7 @@
       "@crypte/tokens",
       "@crypte/controls",
       "@crypte/a11y",
+      "@crypte/actions",
       "@crypte/ui",
       "@crypte/source"
     ]

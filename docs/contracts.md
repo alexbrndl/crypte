@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.56, reference document. A project brief points here instead of restating these shapes.
+> Version 1.57, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -129,7 +129,7 @@ export default defineConfig({
 
 Two keys are required, and an error names the one that is missing.
 
-**Without `plugins`, the preset.** `controls`, `tokens` and `source`, which the CLI depends on and exports as `defaultPlugins`. A `plugins` key takes exactly what it lists, `[]` included, so a project that wants the preset and more spreads it. A preset plugin given options is listed by hand in its place, `[controls(), tokens({ files }), source()]`, never spread beside its own copy: two copies claim the same ids, and only the first one's are kept. `a11y` is added by hand: it loads axe-core in the preview.
+**Without `plugins`, the preset.** `controls`, `tokens`, `source` and `actions`, which the CLI depends on and exports as `defaultPlugins`. A `plugins` key takes exactly what it lists, `[]` included, so a project that wants the preset and more spreads it. A preset plugin given options is listed by hand in its place, `[controls(), tokens({ files }), source(), actions()]`, never spread beside its own copy: two copies claim the same ids, and only the first one's are kept. `a11y` is added by hand: it loads axe-core in the preview.
 
 **An adapter is typed by the core**, and `adapter` takes nothing else:
 
@@ -957,11 +957,20 @@ A panel declares the part it uses: `defineProps<Pick<PanelProps, 'entry'>>()`, `
 
 ```ts
 interface PreviewHooks {
+  beforeMount?: (ctx: MountContext) => void
   afterMount?: (ctx: PreviewContext) => void | Promise<void>
   onMessage?: (
     ctx: PreviewContext,
     message: { type: string; [key: string]: unknown },
   ) => void | Promise<void>
+}
+
+interface MountContext {
+  id: string
+  props: Record<string, unknown>
+  options: Record<string, unknown>
+  details: Record<string, ResolvedPropDetails>
+  send: (message: { type: string; [key: string]: unknown }) => void
 }
 
 interface PreviewContext {
@@ -982,9 +991,9 @@ export default {
 }
 ```
 
-**Two hooks, because one consumer demands them**, and `@crypte/a11y` is that consumer. `afterMount` runs after every render that went through, with the story it drew, once `rendered` is sent. `onMessage` receives what the plugin's panel sent, against the story last drawn. Both are properties holding functions, like `NodeHooks`: the context comes as an argument. Either may be async, as an analysis is. `beforeMount`, `onPropsChange` and `beforeUnmount` wait in section 7 for the plugin that needs them.
+**Three hooks, because two consumers demand them.** `beforeMount` runs before every mount, in the order of `plugins`, with the props about to be drawn and their `details`, read from the manifest: the one moment props may change (6.4), which `@crypte/actions` needs. It is synchronous, since the mount waits for it, and a module that arrives after a render has the story drawn again for it. `afterMount` runs after every render that went through, with the story it drew, once `rendered` is sent. `onMessage` receives what the plugin's panel sent, against the story last drawn; `@crypte/a11y` needs these two. All are properties holding functions, like `NodeHooks`: the context comes as an argument. The last two may be async, as an analysis is. `onPropsChange` and `beforeUnmount` wait in section 7 for the plugin that needs them.
 
-**A preview module exports its hooks and nothing else.** Anything other than an object of those two keys, each a function or left `undefined` as the type allows, is refused, and so is anything exported by name beside the default export, as a `plugin-error` (5.3), and so is a hook that throws or rejects, or a message sent under another name: a hook exported and never called would otherwise fail in silence.
+**A preview module exports its hooks and nothing else.** Anything other than an object of those three keys, each a function or left `undefined` as the type allows, is refused, and so is anything exported by name beside the default export, as a `plugin-error` (5.3), and so is a hook that throws or rejects, a `beforeMount` that returns a promise, or a message sent under another name: a hook exported and never called would otherwise fail in silence. A refused `beforeMount` leaves the props as the plugin before it handed them, and the story still mounts.
 
 Without this rule every plugin would be rewritten for every framework, which would cancel the whole point of the architecture.
 
@@ -1033,9 +1042,9 @@ const CONTRIBUTABLE = ['tokens'] as const
 
 ### 6.4 `ctx.props` can be changed before mount
 
-**In reserve with `beforeMount`, section 7**: what follows is the shape it will have when `actions` brings it. Inside `beforeMount`, a plugin may change `ctx.props`. That is the only moment props are mutable; everywhere else the context is read-only.
+Inside `beforeMount`, a plugin may change `ctx.props`. That is the only moment props are mutable; everywhere else the context is read-only. Each plugin works on its own copy, which the next one receives only if the hook went through.
 
-This exists for one demonstrated case: a function prop the story author did not declare. `PricingCard` expects `onSelect`, the story omits it, the component gets `undefined` and breaks on the first click. The `actions` plugin fills those props with logging functions inside `beforeMount`, using `details` to know which ones are functions.
+This exists for one demonstrated case: a function prop the story author did not declare. `PricingCard` expects `onSelect`, the story omits it, the component gets `undefined` and breaks on the first click. `@crypte/actions` fills those props with logging functions, using `details` to know which ones are functions, and wraps the ones the story declares, which it still calls: its panel lists every call.
 
 The core knows nothing about this. With the `actions` plugin absent, the author declares the function themselves.
 
@@ -1071,7 +1080,7 @@ The reason `page` left reserve is not internal: the documentation tools this pro
 
 - `update-overrides`, which would change a mounted entry's props without remounting it. `render` already does, measured with `controls` (5.2). Reopened by an adapter that remounts on every `render`, or a component that loses its state across an edit.
 - `set-globals`, which would apply a locale to the preview. No consumer, and no shape a case has demonstrated. The theme travels with `render` since v1.40 (5.2).
-- The preview hooks `beforeMount`, `onPropsChange` and `beforeUnmount` of 6.2. `beforeMount` returns with `actions`, which fills undeclared function props (6.4); the other two have no consumer.
+- The preview hooks `onPropsChange` and `beforeUnmount` of 6.2, which have no consumer.
 - A `render` escape hatch on a story, to make a controlled component truly interactive. Left out of v1 for lack of a demonstrated case, see 2.7. Adding it later breaks nothing; shipping it now would create a use we could not take back.
 - Documenting pass-through DOM attributes, see 3.4.
 - Path aliases inside style sheets, see 1.5.
@@ -1092,7 +1101,7 @@ This document is a contract. This section is the only place that says what exist
 | 4, the manifest | built, and written by `crypte dev` at start-up, on every restart of the configuration and on every rebuild, so the file follows what is served. The CLI produces `story` and `page` entries and a plugin's `node` surface contributes `tokens` ones (6.3); the shell draws all three |
 | 4.6, the fingerprint | built, written by `crypte build`, and by `crypte dev` whenever the catalogue served changes it: at start-up, on a restart of the configuration, and on a story change. So `crypte check` does not fail after a session, and trying a `stories` path then reverting rewrites the same bytes. `crypte dev` also reads the version a commit holds, `HEAD` or one named in the route's query, through Git, and serves the shell the stories that appeared, disappeared, or whose props or status moved, and the tokens that appeared, disappeared or changed value |
 | 5, the channel | built and exercised on both sides |
-| 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. The `shell` and `preview` modules are loaded, and the shell mounts each shell module in a frame that folds when the panel is `inapplicable` and remembers whether it is open. A preview module's `afterMount` and `onMessage` are called, plugin messages cross the channel both ways, and a preview module that fails is named in the shell. `@crypte/controls` edits a story's props through `overrides`, `@crypte/a11y` analyses each render with axe-core and unfolds its panel with `null` when a violation appears, `@crypte/source` shows the story's call code, its `source`, ready to copy, and the demonstration's `hello` and `status` plugins use the rest. `controls` does not add `min`, `max`, `step` or `control` to `PluginPropDetails` yet (3.3), so writing them is still a compile error. A panel's props and events are typed by `PanelProps` and `PanelEvents`, and a key a plugin does not have is refused. A plugin's `view` is built: its entry in the activity bar and in ⌘K, its sidebar, canvas and panel, typed by `PluginView`, `ShellView`, `ViewProps` and `ViewEvents`, and the demonstration's `i18n` plugin draws one. A project's own plugin imports them from `@crypte/cli`. **Frozen** since v1.25 (6.5) |
+| 6, plugin contract | the `node` surface is built, called by the producer, and used by `@crypte/tokens`. The `shell` and `preview` modules are loaded, and the shell mounts each shell module in a frame that folds when the panel is `inapplicable` and remembers whether it is open. A preview module's `afterMount` and `onMessage` are called, plugin messages cross the channel both ways, and a preview module that fails is named in the shell. `@crypte/controls` edits a story's props through `overrides`, `@crypte/a11y` analyses each render with axe-core and unfolds its panel with `null` when a violation appears, `@crypte/source` shows the story's call code, its `source`, ready to copy, `@crypte/actions` logs every call to a function prop through `beforeMount`, and the demonstration's `hello` and `status` plugins use the rest. `controls` does not add `min`, `max`, `step` or `control` to `PluginPropDetails` yet (3.3), so writing them is still a compile error. A panel's props and events are typed by `PanelProps` and `PanelEvents`, and a key a plugin does not have is refused. A plugin's `view` is built: its entry in the activity bar and in ⌘K, its sidebar, canvas and panel, typed by `PluginView`, `ShellView`, `ViewProps` and `ViewEvents`, and the demonstration's `i18n` plugin draws one. A project's own plugin imports them from `@crypte/cli`. **Frozen** since v1.25 (6.5) |
 
 **The shell speaks English and French**: the browser's language, French when it is French and English otherwise, then the choice of a switch at the foot of the activity bar, kept from one visit to the next. What comes from the project, the CLI or Git, names, messages and reasons, keeps its own language. The panels of the official plugins follow it through `locale` (6.1).
 
@@ -1117,6 +1126,13 @@ Twelve known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.57.** The preview hook `beforeMount` is built, with `@crypte/actions` (6.2, 6.4), which joins the preset (1.5).
+
+| Before | After |
+| --- | --- |
+| `beforeMount` held in reserve | built: synchronous, in order, props changeable, `details` given |
+| `defaultPlugins`: `controls`, `tokens`, `source` | `controls`, `tokens`, `source`, `actions` |
 
 **v1.56.** A configuration with no `plugins` key gets `controls`, `tokens` and `source` (1.5).
 

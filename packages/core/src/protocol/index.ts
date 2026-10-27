@@ -58,6 +58,7 @@ export type {
   PanelProps,
   PanelEvents,
   PreviewHooks,
+  MountContext,
   PreviewContext,
   NodeHooks,
   NodeContext,

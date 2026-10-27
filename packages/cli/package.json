@@ -26,6 +26,7 @@
     "pack": "vp pack && node scripts/copy-shell.mjs"
   },
   "dependencies": {
+    "@crypte/actions": "workspace:*",
     "@crypte/controls": "workspace:*",
     "@crypte/core": "workspace:*",
     "@crypte/source": "workspace:*",
