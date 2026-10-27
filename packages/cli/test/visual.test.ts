@@ -11,6 +11,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
@@ -110,5 +111,35 @@ describe('crypte visual', () => {
     writeFileSync(config, avecCadre)
     expect((await lance(true)).code).toBe(0)
     expect(existsSync(join(root, BASELINES, 'forms'))).toBe(false)
+  }, 240_000)
+
+  // Renommée dans un dépôt dont l'empreinte est commitée : la sortie propose de
+  // reprendre la baseline, sans rien déplacer.
+  test('proposes to keep the baseline of a renamed story, and moves nothing', async () => {
+    expect((await lance(true)).code).toBe(0)
+    const git = (...args: string[]) =>
+      execFileSync(
+        'git',
+        ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', ...args],
+        { cwd: root, stdio: 'ignore' },
+      )
+    git('init', '-q')
+    git('add', '.crypte/fingerprint.json')
+    git('commit', '-q', '-m', 'x')
+
+    const story = join(root, 'stories', 'Badge.tsx')
+    const saine = readFileSync(story, 'utf8')
+    writeFileSync(story, saine.replace('Avertissement:', 'Alerte:'))
+    const { code, lignes } = await lance(false)
+    expect(code).toBe(1)
+    expect(lignes).toContain(
+      '  badge--alerte: no baseline, probably badge--avertissement renamed: git mv .crypte/visual/badge--avertissement.png .crypte/visual/badge--alerte.png keeps its baseline',
+    )
+    expect(lignes.some((ligne) => ligne.includes('a baseline with no story'))).toBe(false)
+    expect(existsSync(join(root, BASELINES, 'badge--avertissement.png'))).toBe(true)
+
+    writeFileSync(story, saine)
+    rmSync(join(root, '.git'), { recursive: true, force: true })
+    expect((await lance(true)).code).toBe(0)
   }, 240_000)
 })
