@@ -3393,6 +3393,22 @@ describe('the width', () => {
     expect(cadres(écran)).toEqual(['', ''])
     expect(écran.wrapper.find('.stage-tools .width').text()).toBe('Full width')
   })
+
+  // Comme celui du zoom : fermé sur Tab, et les touches du zoom n'y font rien,
+  // son pied ne les annonçant pas.
+  test('closes its menu on Tab, and leaves the zoom keys alone', async ({ écran }) => {
+    await écran.wrapper.find('.stage-tools .width').trigger('keydown', { key: 'Enter' })
+    await vide(écran.wrapper)
+    await vide(écran.wrapper)
+    const menu = document.querySelector('[role="menu"]')!
+    menu.dispatchEvent(new KeyboardEvent('keydown', { key: '+', bubbles: true }))
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('.stage-tools .level').text()).toBe('100 %')
+
+    menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
+    await vide(écran.wrapper)
+    expect(document.querySelector('[role="menu"]')).toBeNull()
+  })
 })
 
 describe('the shortcuts', () => {

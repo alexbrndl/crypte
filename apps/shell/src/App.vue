@@ -1417,11 +1417,14 @@ function shortcut(event: KeyboardEvent) {
     return
   }
   // La palette et le menu de zoom répondent seuls à leurs touches : Échap les
-  // ferme sans quitter le plein écran dessous. Le menu laisse passer les touches
-  // du zoom, que son pied annonce ; le reste, f compris, lui revient.
+  // ferme sans quitter le plein écran dessous. Le menu de zoom laisse passer ses
+  // touches, que son pied annonce, celui de largeur aucune ; le reste, f compris,
+  // leur revient.
   if (event.target instanceof Element && event.target.closest('[role="dialog"]')) return
-  if (event.target instanceof Element && event.target.closest('[role="menu"]')) {
+  const menu = event.target instanceof Element ? event.target.closest('[role="menu"]') : null
+  if (menu) {
     if (event.metaKey || event.ctrlKey || event.altKey) return
+    if (menu.getAttribute('aria-describedby') !== 'zoom-keys') return
     if (event.key === '+' || event.key === '=') zoomBy(1)
     if (event.key === '-') zoomBy(-1)
     if (event.key === '0') zoom.value = 1

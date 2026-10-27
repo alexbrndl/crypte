@@ -256,7 +256,7 @@ interface Story<P> {
 }
 ```
 
-The second argument is typed by the core and the plugins you have installed, which is what gives autocompletion. **The core declares one key, `layout`**: where the story sits in the stage, `centered` by default, `padded` with a 16 px margin, or `fullscreen` on the whole frame, for a page or a bar. **Every other key comes from a plugin**, so the example above needs the plugin that declares `responsive`. The common case has no options and never uses this helper.
+The second argument is typed by the core and the plugins you have installed, which is what gives autocompletion. **The core declares one key, `layout`**: where the story sits in the stage, `centered` by default, `padded` with a 16 px margin, or `fullscreen` on the whole frame, for a page or a bar. **Every other key comes from a plugin**, so the example above needs a plugin of the project's own that declares `responsive`. The common case has no options and never uses this helper.
 
 ```ts
 interface CoreStoryOptions {
