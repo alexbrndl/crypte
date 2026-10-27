@@ -51,6 +51,7 @@ const t = texts({
     overview: 'sorted by problems',
     unstoried: 'sorted by props',
     statuses: 'deprecated first',
+    coverage: 'least exercised first',
     everything: 'Everything to do',
     toDo: 'to do',
     nothing: 'Nothing to list here.',
@@ -65,6 +66,11 @@ const t = texts({
     skeleton: 'skeleton',
     since: 'since',
     usedBy: 'used by',
+    unexercised: 'never exercised',
+    usedIn: 'used in',
+    file: 'file',
+    files: 'files',
+    nowhere: 'nowhere',
     notTested: 'not tested',
     violation: 'violation',
     violations: 'violations',
@@ -80,6 +86,7 @@ const t = texts({
     overview: 'par problèmes',
     unstoried: 'par props',
     statuses: "obsolètes d'abord",
+    coverage: "les moins exercés d'abord",
     everything: 'Tout ce qui est à faire',
     toDo: 'à faire',
     nothing: 'Rien à lister ici.',
@@ -94,6 +101,11 @@ const t = texts({
     skeleton: 'squelette',
     since: 'depuis',
     usedBy: 'utilisé par',
+    unexercised: 'jamais exercées',
+    usedIn: 'utilisé dans',
+    file: 'fichier',
+    files: 'fichiers',
+    nowhere: 'nulle part',
     notTested: 'non testé',
     violation: 'violation',
     violations: 'violations',
@@ -140,7 +152,9 @@ const todo = computed(() =>
 )
 
 const noteOf = (page: HealthPage) =>
-  page === 'overview' || page === 'unstoried' || page === 'statuses' ? t(page) : ''
+  page === 'overview' || page === 'unstoried' || page === 'statuses' || page === 'coverage'
+    ? t(page)
+    : ''
 
 // Le squelette copié, dit sur sa ligne.
 const { copied, copy } = useCopy()
@@ -182,6 +196,11 @@ const { copied, copy } = useCopy()
           <th scope="col">
             <VisuallyHidden>{{ t('skeleton') }}</VisuallyHidden>
           </th>
+        </tr>
+        <tr v-else-if="page === 'coverage'">
+          <th scope="col" class="grow">{{ t('component') }}</th>
+          <th scope="col">{{ t('unexercised') }}</th>
+          <th scope="col">{{ t('usedIn') }}</th>
         </tr>
         <tr v-else>
           <th scope="col" class="grow">{{ t('component') }}</th>
@@ -233,6 +252,12 @@ const { copied, copy } = useCopy()
               >
                 {{ copied === keyOf(one) ? t('copied') : t('copy') }}
               </button>
+            </td>
+          </template>
+          <template v-else-if="page === 'coverage'">
+            <td class="code">{{ one.unexercised?.join(', ') ?? '' }}</td>
+            <td class="code" :data-ink="one.usedIn ? undefined : 'error'">
+              {{ one.usedIn ? plural(one.usedIn.length, t('file'), t('files')) : t('nowhere') }}
             </td>
           </template>
           <template v-else>

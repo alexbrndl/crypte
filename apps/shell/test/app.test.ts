@@ -3753,7 +3753,14 @@ describe('the health view', () => {
         .findAll('.health a')
         .map((one) => `${one.find('.label').text()} ${one.find('.count').text()}`),
       // L'accessibilité ne compte rien avant l'audit.
-    ).toEqual(['overview 4', 'without story 2', 'render errors ', 'accessibility ', 'statuses 2'])
+    ).toEqual([
+      'overview 4',
+      'without story 2',
+      'render errors ',
+      'accessibility ',
+      'statuses 2',
+      'coverage 4',
+    ])
     // Ce qui pose problème d'abord, un point chacun : sans story, ou déprécié
     // encore utilisé ; le nom départage.
     expect(lignes(écran)).toEqual([
@@ -3858,6 +3865,23 @@ describe('the health view', () => {
     await page(écran, 'without story')
     expect(window.location.search).toBe('?health=unstoried')
     expect(écran.wrapper.find('.health-view h2').text()).toBe('without story')
+    écran.wrapper.unmount()
+  })
+
+  // Ce que les stories n'exercent pas, et où l'application s'en sert.
+  test('lists on its coverage page the props never exercised and the files using each', async () => {
+    santé = () => ({
+      components: [
+        { ...composants[0], unexercised: ['size', 'tone'], usedIn: ['src/App.tsx'] },
+        { ...composants[1], usedIn: ['src/App.tsx', 'src/Form.tsx'] },
+        composants[2],
+      ],
+    })
+    window.history.replaceState(null, '', '/?health=coverage')
+    const écran = await monte([badge, alerte, bouton])
+
+    expect(écran.wrapper.find('.health-view h2').text()).toBe('coverage')
+    expect(lignes(écran)).toEqual(['Badge | size, tone | 1 file', 'Avatar |  | nowhere'])
     écran.wrapper.unmount()
   })
 

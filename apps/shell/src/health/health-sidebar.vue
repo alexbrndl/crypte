@@ -8,6 +8,7 @@ import {
   ComponentIcon,
   DashboardSquare01Icon,
   Flag01Icon,
+  PieChartIcon,
   type Search01Icon,
 } from '@hugeicons/core-free-icons'
 import { computed } from 'vue'
@@ -38,6 +39,7 @@ const ICONS: Record<HealthPage, typeof Search01Icon> = {
   failures: Alert02Icon,
   accessibility: AccessibilityIcon,
   statuses: Flag01Icon,
+  coverage: PieChartIcon,
 }
 
 const t = texts({

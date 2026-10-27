@@ -13,6 +13,7 @@ const t = texts({
     failures: 'render errors',
     accessibility: 'accessibility',
     statuses: 'statuses',
+    coverage: 'coverage',
     stories: 'stories',
     render: 'render',
     a11y: 'a11y',
@@ -23,6 +24,7 @@ const t = texts({
     failures: 'erreurs de rendu',
     accessibility: 'accessibilité',
     statuses: 'statuts',
+    coverage: 'couverture',
     stories: 'stories',
     render: 'rendu',
     a11y: 'a11y',
@@ -51,17 +53,27 @@ export interface HealthComponent {
   // Les composants du dossier qui l'importent, par leur clé : où un composant
   // déprécié sert encore.
   usedBy?: string[]
+  // Les props qu'aucune de ses stories ne donne.
+  unexercised?: string[]
+  // Les fichiers de l'application qui l'importent, hors dossier et stories.
+  usedIn?: string[]
 }
 
 export interface Health {
   components: HealthComponent[] | null
 }
 
-export type HealthPage = 'overview' | 'unstoried' | 'failures' | 'accessibility' | 'statuses'
+export type HealthPage =
+  | 'overview'
+  | 'unstoried'
+  | 'failures'
+  | 'accessibility'
+  | 'statuses'
+  | 'coverage'
 
 // `label` lu à chaque accès, dans la langue du moment.
 export const PAGES: { page: HealthPage; readonly label: string }[] = (
-  ['overview', 'unstoried', 'failures', 'accessibility', 'statuses'] as const
+  ['overview', 'unstoried', 'failures', 'accessibility', 'statuses', 'coverage'] as const
 ).map((page) => ({
   page,
   get label() {
@@ -122,6 +134,17 @@ export function rowsOf(page: HealthPage, components: HealthComponent[]): HealthC
       .filter((one) => one.stories.length === 0)
       .sort((one, other) => other.props - one.props || byName(one, other))
   if (page === 'accessibility' || page === 'failures') return []
+  // Ce qu'une story n'exerce pas, puis ce que l'application n'importe pas : les
+  // props manquantes d'abord, les plus nombreuses en tête.
+  if (page === 'coverage')
+    return components
+      .filter((one) => (one.unexercised?.length ?? 0) > 0 || one.usedIn === undefined)
+      .sort(
+        (one, other) =>
+          (other.unexercised?.length ?? 0) - (one.unexercised?.length ?? 0) ||
+          (one.usedIn?.length ?? 0) - (other.usedIn?.length ?? 0) ||
+          byName(one, other),
+      )
   if (page === 'statuses') {
     const rank = { deprecated: 0, draft: 1 } as const
     return components
