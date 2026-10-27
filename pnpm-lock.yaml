@@ -288,18 +288,9 @@ importers:
       '@crypte/a11y':
         specifier: workspace:*
         version: link:../../plugins/a11y
-      '@crypte/controls':
-        specifier: workspace:*
-        version: link:../../plugins/controls
       '@crypte/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@crypte/source':
-        specifier: workspace:*
-        version: link:../../plugins/source
-      '@crypte/tokens':
-        specifier: workspace:*
-        version: link:../../plugins/tokens
       react:
         specifier: ^19.0.0
         version: 19.2.8
@@ -393,9 +384,18 @@ importers:
 
   packages/cli:
     dependencies:
+      '@crypte/controls':
+        specifier: workspace:*
+        version: link:../../plugins/controls
       '@crypte/core':
         specifier: workspace:*
         version: link:../core
+      '@crypte/source':
+        specifier: workspace:*
+        version: link:../../plugins/source
+      '@crypte/tokens':
+        specifier: workspace:*
+        version: link:../../plugins/tokens
       sirv:
         specifier: ^3.0.0
         version: 3.0.2

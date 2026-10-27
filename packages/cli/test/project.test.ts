@@ -6,7 +6,7 @@ import { createServer, type InlineConfig, type ViteDevServer } from 'vite'
 import { describe, expect, test as base } from 'vitest'
 import { projectPathsOf } from '../src/config/config-paths'
 import { capture, isBareSpecifier } from '../src/config/paths'
-import { defineConfig } from '../src/config/config'
+import { defaultPlugins, defineConfig } from '../src/config/config'
 import { ConfigError, cssEntryOf, loadProject, viteConfigOf } from '../src/config/project'
 
 // La fixture reproduit les contraintes d'un projet réel : alias `@/`, pas de
@@ -123,6 +123,25 @@ describe('defineConfig', () => {
     const config = { stories: 'stories', adapter: { mount() {}, unmount() {} } }
 
     expect(defineConfig(config)).toBe(config)
+  })
+})
+
+// La table de la section 1.5 : sans clé, le préréglage ; avec, exactement ce
+// qu'elle liste, le tableau vide compris.
+describe('the plugin preset', () => {
+  test('is controls, tokens and source', () => {
+    expect(defaultPlugins.map((plugin) => plugin.name)).toEqual(['controls', 'tokens', 'source'])
+  })
+
+  test.for([
+    ['without a plugins key', '', defaultPlugins.map((plugin) => plugin.name)],
+    ['with an empty plugins', 'plugins: [],', []],
+    ['with a plugin listed', 'plugins: [{ name: "mine" }],', ['mine']],
+  ] as const)('%s', async ([, plugins, names], { projectWith }) => {
+    const root = projectWith(`export default { stories: "s", adapter: {}, ${plugins} }`)
+    const { config } = await loadProject(root)
+
+    expect(config.plugins?.map((plugin) => plugin.name)).toEqual(names)
   })
 })
 

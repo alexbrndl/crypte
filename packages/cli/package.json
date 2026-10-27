@@ -26,7 +26,10 @@
     "pack": "vp pack && node scripts/copy-shell.mjs"
   },
   "dependencies": {
+    "@crypte/controls": "workspace:*",
     "@crypte/core": "workspace:*",
+    "@crypte/source": "workspace:*",
+    "@crypte/tokens": "workspace:*",
     "sirv": "^3.0.0",
     "tsconfck": "catalog:",
     "vite": "catalog:"

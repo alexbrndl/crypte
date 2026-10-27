@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.55, reference document. A project brief points here instead of restating these shapes.
+> Version 1.56, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -102,9 +102,9 @@ The package name and the command name are independent: `@crypte/cli` declares a 
 A `crypte.config.ts` file at the root:
 
 ```ts
-import { defineConfig } from '@crypte/cli'
+import { defineConfig, defaultPlugins } from '@crypte/cli'
 import react from '@crypte/react'
-import controls from '@crypte/controls'
+import a11y from '@crypte/a11y'
 import { ThemeProvider } from './src/lib/theme'
 
 export default defineConfig({
@@ -112,7 +112,7 @@ export default defineConfig({
   css: 'src/styles/app.css',
   adapter: react(),
   wrap: ThemeProvider,
-  plugins: [controls()],
+  plugins: [...defaultPlugins, a11y()],
   vite: { plugins: [] },
 })
 ```
@@ -124,10 +124,12 @@ export default defineConfig({
 | `css` | style sheet loaded in the preview | no |
 | `components` | root of the component files, which the health view counts | no |
 | `wrap` | global wrapper, applied to every story | no |
-| `plugins` | Crypte plugins to enable | no |
+| `plugins` | Crypte plugins to enable, `defaultPlugins` when absent | no |
 | `vite` | Vite plugins the project declares | no |
 
 Two keys are required, and an error names the one that is missing.
+
+**Without `plugins`, the preset.** `controls`, `tokens` and `source`, which the CLI depends on and exports as `defaultPlugins`. A `plugins` key takes exactly what it lists, `[]` included, so a project that wants the preset and more spreads it. `a11y` is added by hand: it loads axe-core in the preview.
 
 **An adapter is typed by the core**, and `adapter` takes nothing else:
 
@@ -850,7 +852,7 @@ export default function controls(): CryptePlugin {
 
 The shell module exports a `ShellContribution` by default, the preview module a `PreviewHooks`. The configuration itself never reaches the browser: running it there would carry the `node` surface along, and `node:fs` with it. **A factory's options stay in Node too**: only the module's URL crosses, read as a file, so a query or a hash written on it is lost. A factory chooses which module it points at, and passes it nothing.
 
-**A preview module goes through the project's Vite**, like a story file, so it imports what it needs. Once the plugin is installed, Vite pre-bundles nothing it imports: a CommonJS dependency has no default export there. `@crypte/a11y` imports axe-core's script for its side effect, which sets `window.axe`. **A shell module is served as is, never compiled**, since the shell is prebuilt. Its bare imports are `vue` and `@crypte/ui`, which the shell provides through an import map, so every panel runs on the shell's own Vue and draws with the shell's own components: `Field`, `Button`, `Input`, `Select`, `Checkbox`, `Tooltip`, `Alert`, and the parts the shell builds its own views with, which a plugin's view builds with too: `ColumnTitle`, `SidebarLink`, `Tree`, `ViewCanvas`, `SectionHeader`, `Badge`, `CardTable`, `EmptyNote`, `PanelSection`. Their styles are already in the shell's page. That Vue carries its template compiler: a module written by hand may use `template` rather than `h()`. A plugin declares `vue` and `@crypte/ui` as peer dependencies and keeps them out of its bundle: a panel running on a second copy of Vue never redraws its own state, and nothing warns.
+**A preview module goes through the project's Vite**, like a story file, so it imports what it needs. Once the plugin is installed, Vite pre-bundles nothing it imports: a CommonJS dependency has no default export there. `@crypte/a11y` imports axe-core's script for its side effect, which sets `window.axe`. **A shell module is served as is, never compiled**, since the shell is prebuilt. Its bare imports are `vue` and `@crypte/ui`, which the shell provides through an import map, so every panel runs on the shell's own Vue and draws with the shell's own components: `Field`, `Button`, `Input`, `Select`, `Checkbox`, `Tooltip`, `Alert`, and the parts the shell builds its own views with, which a plugin's view builds with too: `ColumnTitle`, `SidebarLink`, `Tree`, `ViewCanvas`, `SectionHeader`, `Badge`, `CardTable`, `EmptyNote`, `PanelSection`. Their styles are already in the shell's page. That Vue carries its template compiler: a module written by hand may use `template` rather than `h()`. A plugin declares `vue` and `@crypte/ui` as peer dependencies and keeps them out of its bundle: a panel running on a second copy of Vue never redraws its own state, and nothing warns. Both peers are optional, since the panel never resolves them from `node_modules`: the CLI depends on the preset, and npm would otherwise install Vue into a React project.
 
 **A surface that points nowhere is refused, with its reason**, the way 6.3 refuses a contribution: a pointer that is not a `file:` URL, or one that leads to no file. So are the browser surfaces of a plugin with no `name`, with a name an earlier plugin already has, or with a name that holds a colon, which ends the prefix of its messages (5.4): the shell keys a panel by its plugin's name. So is a key other than `name`, `shell`, `preview`, `node` and `view`, `toolbar` or the old `ui`: a plugin is installed compiled, and nothing else would say the key is ignored. So is a function, the factory written `plugins: [controls]` rather than called: it compiles, since a function has a `name`. Each refusal is said in the terminal, and in the shell beside the panels. A module that throws on import costs nothing else. The shell names it, or a shell module whose default export is neither an object nor a function, and shows the other panels; the preview renders its stories and names the module in the frame's console. Nor does a preview module that never finishes loading: the stories do not wait for it, and its hooks attach when it arrives, `afterMount` catching up on the story last drawn.
 
@@ -1084,7 +1086,7 @@ This document is a contract. This section is the only place that says what exist
 | --- | --- |
 | 1.1, story files | discovered and read, in the four extensions. The tree, the identifiers and the call code come out of them. Markdown pages are discovered beside them. The shell's docs view lists every component, with its page when it has one, and the general pages by path. A component's page carries a live example of its first story, its props and the tokens it reads, generated from the catalogue |
 | 1.2, `crypte check` | built, all five problems. The component with no story is looked for in the folders the stories already point at, since no components root is declared anywhere |
-| 1.5, project configuration | the config is read, and the declared style sheet is loaded by the preview. Two adapters exist, `@crypte/react` and `@crypte/vue`, and `apps/demo-vue` renders Vue stories in the same shell |
+| 1.5, project configuration | the config is read, and the declared style sheet is loaded by the preview. A config with no `plugins` key gets `defaultPlugins`, which the CLI exports. Two adapters exist, `@crypte/react` and `@crypte/vue`, and `apps/demo-vue` renders Vue stories in the same shell |
 | 1.5, path aliases | built |
 | 2 and 3, the types | built, and `defineStories` and `story` with them. Inference reads what a component file declares, and 3.2's merge completes it from the story file |
 | 4, the manifest | built, and written by `crypte dev` at start-up, on every restart of the configuration and on every rebuild, so the file follows what is served. The CLI produces `story` and `page` entries and a plugin's `node` surface contributes `tokens` ones (6.3); the shell draws all three |
@@ -1115,6 +1117,13 @@ Twelve known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.56.** A configuration with no `plugins` key gets `controls`, `tokens` and `source` (1.5).
+
+| Before | After |
+| --- | --- |
+| no `plugins` key, no plugin | no `plugins` key, `defaultPlugins`; a key, exactly what it lists |
+| a plugin's `vue` and `@crypte/ui` peers were required | optional: npm installs neither through the CLI |
 
 **v1.55.** `@crypte/source` shows a story's call code (8).
 

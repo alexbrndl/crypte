@@ -829,8 +829,8 @@ describe('a plugin in the browser', () => {
     const bulle = ecran.page.locator('[role="tooltip"]')
     await expect.poll(() => bulle.count(), { timeout: 5000 }).toBe(1)
     expect((await bulle.textContent())?.split('\n')).toEqual([
-      'tokens 0.0 kB',
       expect.stringMatching(/^controls \d\.\d kB$/),
+      'tokens 0.0 kB',
       expect.stringMatching(/^source \d\.\d kB$/),
       expect.stringMatching(/^a11y 1\d\d\.\d kB$/),
       expect.stringMatching(/^hello \d\.\d kB$/),
