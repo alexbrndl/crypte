@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.62, reference document. A project brief points here instead of restating these shapes.
+> Version 1.63, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -856,7 +856,7 @@ The shell module exports a `ShellContribution` by default, the preview module a 
 
 **A surface that points nowhere is refused, with its reason**, the way 6.3 refuses a contribution: a pointer that is not a `file:` URL, or one that leads to no file. So are the browser surfaces of a plugin with no `name`, with a name an earlier plugin already has, or with a name that holds a colon, which ends the prefix of its messages (5.4): the shell keys a panel by its plugin's name. So is a key other than `name`, `shell`, `preview`, `node` and `view`, `toolbar` or the old `ui`: a plugin is installed compiled, and nothing else would say the key is ignored. So is a function, the factory written `plugins: [controls]` rather than called: it compiles, since a function has a `name`. Each refusal is said in the terminal, and in the shell beside the panels. A module that throws on import costs nothing else. The shell names it, or a shell module whose default export is neither an object nor a function, and shows the other panels; the preview renders its stories and names the module in the frame's console. Nor does a preview module that never finishes loading: the stories do not wait for it, and its hooks attach when it arrives, `afterMount` catching up on the story last drawn.
 
-**A `ShellContribution` is a Vue component, which the shell mounts in a frame**, one per plugin, in the order `plugins` declares them, the panels folded for that reason below the others. It receives the story on display as its `entry` prop, a `StoryEntry` or `null`. A panel with nothing to say about that story emits `inapplicable` with its reason, and the frame folds to one line holding it, rather than showing an empty panel or a greyed one. A click still opens it for that story, the reason kept above, and the panel shows what it renders, which may be nothing: what it offers once folded stays within reach, `a11y` analysing again what changed in the iframe without a render, a menu opened by hand. The last click on a story holds whatever the panel says after it, and is forgotten at the next one; only a click on a panel that is not folded is remembered.
+**A `ShellContribution` is a Vue component, which the shell mounts in a frame**, one per plugin, in the order `plugins` declares them, the panels folded for that reason below the others. It receives the story on display as its `entry` prop, a `StoryEntry` or `null`. A panel with nothing to say about that story emits `inapplicable` with its reason, and the frame folds to one line holding it, rather than showing an empty panel or a greyed one. It does not open: its body would be empty. It stays mounted, folded, so it can say `null` on the same story, and the buttons it puts in its header stay within reach: `a11y` analyses again what changed in the iframe without a render, a menu opened by hand, from there. Whether a panel with something to say is open is the user's choice, remembered.
 
 ```ts
 import { watchEffect } from 'vue'
@@ -1128,6 +1128,12 @@ Twelve known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.63.** A panel folded as `inapplicable` no longer opens (6.1).
+
+| Before | After |
+| --- | --- |
+| a click opened it, on a body often empty | its header is no button; its reason and header buttons stay |
 
 **v1.62.** A panel folded as `inapplicable` goes below the others (6.1).
 

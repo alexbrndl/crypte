@@ -7,7 +7,9 @@ import Chevron from './chevron.vue'
 // the one to know under which key. The rows of a panel, `panel/row` of the
 // Figma file, are drawn here: `.rows` holds them, `.row`, `.caption`,
 // `.link`, `.label` and `.meta` make them.
-defineProps<{ title: string; open: boolean }>()
+// `locked` keeps it folded with no toggle: a plugin panel with nothing to say,
+// whose body stays mounted so it can say otherwise.
+defineProps<{ title: string; open: boolean; locked?: boolean }>()
 const emit = defineEmits<{ toggle: [] }>()
 const slots = defineSlots<{
   default?(): unknown
@@ -26,7 +28,11 @@ const noteId = useId()
   <section class="panel">
     <div class="head">
       <h3>
+        <span v-if="locked" class="toggle locked"
+          ><span class="title">{{ title }}</span></span
+        >
         <button
+          v-else
           type="button"
           class="toggle"
           :aria-expanded="open"
@@ -38,7 +44,7 @@ const noteId = useId()
           <span class="title">{{ title }}</span>
         </button>
       </h3>
-      <span v-if="slots.note" :id="noteId" class="note" @click="emit('toggle')"
+      <span v-if="slots.note" :id="noteId" class="note" @click="locked || emit('toggle')"
         ><slot name="note"
       /></span>
       <span v-if="slots.action" class="action"><slot name="action" /></span>
@@ -92,6 +98,16 @@ h3 {
   text-align: left;
   text-transform: uppercase;
   cursor: pointer;
+}
+
+/* Its title where the others have theirs, after the chevron and its gap. */
+.toggle.locked {
+  padding-left: calc(var(--space-3) + 16px + var(--space-2));
+  cursor: default;
+}
+
+.head:has(.locked) .note {
+  cursor: default;
 }
 
 .toggle:focus-visible {

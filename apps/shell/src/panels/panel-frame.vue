@@ -139,25 +139,9 @@ function described(raw: unknown): string {
 const KEY = `crypte:panel:${props.name}`
 const open = ref(kept(KEY) !== false)
 
-// Le dernier clic sur la story affichée, qui l'emporte sur tout le reste : un
-// panneau replié s'ouvre quand même, sa raison gardée en tête, pour que ce qu'il
-// offre reste joignable, la relance de `a11y` après un menu ouvert dans
-// l'iframe sans rendu. Et le panneau qui change d'avis sur la même story ne
-// rouvre ni ne referme ce que l'utilisateur a choisi. Oublié à la story
-// suivante. Rouvert si un panneau replié ne doit plus pouvoir s'ouvrir, ce
-// qu'aucun ne demande.
-const choice = ref<boolean | null>(null)
-
 function toggle() {
-  const next = !expanded.value
-  choice.value = next
-
-  // Retenu sur un panneau qui a quelque chose à dire seulement : ouvrir un
-  // panneau replié ne dit rien du suivant.
-  if (inapplicable.value !== null) return
-
-  open.value = next
-  keep(KEY, next ? undefined : false)
+  open.value = !open.value
+  keep(KEY, open.value ? undefined : false)
 }
 
 // Sans objet, story par story, jamais déclaré une fois : le panneau le dit avec
@@ -189,7 +173,6 @@ watch(
   () => props.entry,
   () => {
     inapplicable.value = null
-    choice.value = null
     failure.value = null
   },
 )
@@ -199,20 +182,20 @@ onErrorCaptured((error) => {
   return false
 })
 
-// Ce que le clic bascule, sans l'erreur : sur un panneau qui a levé, chaque
-// clic aurait « ouvert », et effacé ce que l'utilisateur avait fermé.
-const expanded = computed(() => choice.value ?? (inapplicable.value === null && open.value))
+const expanded = computed(() => inapplicable.value === null && open.value)
 
 // Where the panel teleports its buttons, beside "Reset all", section 6.1.
 const actions = useTemplateRef<HTMLElement>('actions')
 </script>
 
 <template>
-  <!-- Sans objet, le panneau perd la bande de son en-tête : il se plie toujours, mais
-       rien ne l'y invite. -->
+  <!-- Sans objet, le panneau perd la bande de son en-tête et ne s'ouvre plus : son
+       corps serait vide. Il reste monté pour pouvoir se redéclarer, et ses boutons
+       d'en-tête restent joignables. -->
   <PanelSection
     :title="name"
     :open="expanded"
+    :locked="inapplicable !== null"
     :data-plugin="name"
     :data-inapplicable="inapplicable !== null || undefined"
     @toggle="toggle"
