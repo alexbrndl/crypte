@@ -34,3 +34,8 @@ export function summaryOf(value: unknown): string {
     return 'Object'
   }
 }
+
+// An argument that is only an event, as `summaryOf` writes it: `PointerEvent
+// click`. The panel leaves it out, since it says nothing a click did not.
+// Letters only before `Event`: a string is written quoted, an object as JSON.
+export const isEvent = (summary: string) => /^[A-Za-z]*Event \S+$/.test(summary)

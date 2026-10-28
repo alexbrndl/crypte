@@ -1021,13 +1021,12 @@ describe('the actions panel', () => {
     const panneau = ecran.page.locator('[data-plugin="actions"]')
     await expect
       .poll(() => panneau.locator('[role="status"]').textContent())
-      .toBe('Use the component to call:')
+      .toBe('Use the component to call these props.')
 
     await ecran.page.frameLocator('iframe[title="preview"]').getByText('Nouveau').click()
-    const ligne = panneau.locator('.actions-props li')
-    await expect.poll(() => ligne.locator('.actions-count').textContent()).toBe('×1')
-    // Chromium envoie un clic en `PointerEvent`.
-    expect(await ligne.locator('.actions-args').textContent()).toBe('(PointerEvent click)')
+    await expect.poll(() => panneau.locator('.actions-count').textContent()).toBe('1')
+    // Chromium envoie un clic en `PointerEvent`, un événement seul : pas de sous-ligne.
+    expect(await panneau.locator('.actions-args').count()).toBe(0)
   })
 })
 
