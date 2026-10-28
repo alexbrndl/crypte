@@ -2,7 +2,12 @@
 
 How to set Crypte up on a project.
 
-> **The CLI runs; nothing is published yet.** No package is on npm, so you install from a clone. Section 8 of [`contracts.md`](../../docs/contracts.md) lists what exists.
+```sh
+npm i -D @crypte/cli @crypte/react   # or @crypte/vue, beside @vitejs/plugin-vue
+npx crypte init
+```
+
+> **Nothing is published yet.** Until the first release, the packages are not on npm. Section 8 of [`contracts.md`](../../docs/contracts.md) lists what exists.
 
 ## Configure a project
 
@@ -124,8 +129,14 @@ crypte dev
 
 It reads your configuration, resolves your aliases, discovers your stories, writes `.crypte/manifest.json` and its fingerprint, and serves the workshop. A story that throws shows its error instead of an empty frame, and it watches your files while it runs.
 
-The commands today are `crypte dev`, `crypte check` and `crypte init`, and `crypte --help` lists them.
+Six commands, which `crypte --help` lists: `crypte dev`, `crypte build`, `crypte check`, `crypte init`, `crypte mcp` and `crypte visual`.
 
-`crypte init` writes a `crypte.config.ts` in a project that already has its components: it reads the framework from `package.json`, proposes a story root, and refuses rather than overwrite a configuration you already have.
+`crypte build` writes the same workshop as a static folder, `crypte-static`, that any host serves, below a path or not.
+
+`crypte visual` renders each story in Chromium, through the Playwright your project installs, and compares it with its baseline in `.crypte/visual`, which you commit. A story that differs is written to `crypte-visual/` and the command fails; `crypte visual --update` writes the baselines. Fonts differ from one system to another, so the CI that compares should be the one that writes them.
+
+`crypte mcp` serves the catalogue to a coding agent in the repository, over stdio.
+
+`crypte init` writes a `crypte.config.ts` in a project that already has its components: it reads the framework from `package.json`, proposes a story root, names the style sheet your entry imports and the lines to add to `.gitignore`, and refuses rather than overwrite a configuration you already have. It also writes a skill for a coding agent, `.claude/skills/write-stories/SKILL.md`, which writes a component's stories from the places the application calls it.
 
 `crypte check` reports five problems, listed in section 1.2 of [`contracts.md`](../../docs/contracts.md). Two fail the command: a story whose component is gone, and a fingerprint that the stories no longer match. The others are warnings.
