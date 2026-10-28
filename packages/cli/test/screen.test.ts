@@ -66,9 +66,32 @@ afterAll(async () => {
 // et chaque cas rougirait alors pour cette raison. Posé avant d'être retiré :
 // `apps/demo` n'a pas toujours de cache, et l'affirmation passait sans rien
 // surveiller. `7483a9c` avait perdu cette ligne en silence.
+//
+// Avec trois plugins de test, que la démo ne montre pas : `hello`, toujours
+// ouvert et qui parle à sa preview, `status`, sans objet sur une story sans
+// statut, et `i18n`, la vue d'un plugin. Ce qu'ils éprouvent du contrat, aucun
+// vrai plugin ne l'exerce encore.
 function copie(): string {
   const root = mkdtempSync(join(demo, '..', 'tmp-demo-'))
   cpSync(demo, root, { recursive: true })
+  cpSync(join(dirname(fileURLToPath(import.meta.url)), 'demo-plugins'), join(root, 'plugins'), {
+    recursive: true,
+  })
+  const config = join(root, 'crypte.config.ts')
+  const texte = readFileSync(config, 'utf8')
+  const avec = texte
+    .replace(
+      "import crypte from '@crypte/react'\n",
+      "import crypte from '@crypte/react'\nimport hello from './plugins/hello'\nimport i18n from './plugins/i18n'\nimport status from './plugins/status'\n",
+    )
+    .replace(
+      '  plugins: [...defaultPlugins, a11y()],',
+      '  plugins: [...defaultPlugins, a11y(), hello(), status(), i18n()],',
+    )
+  // Sans quoi la démo a changé de forme, et les cas tourneraient sans eux.
+  expect(avec.match(/plugins\/(hello|i18n|status)'/g)).toHaveLength(3)
+  expect(avec).toContain('hello(), status(), i18n()')
+  writeFileSync(config, avec)
 
   mkdirSync(join(root, 'node_modules', '.crypte', 'deps'), { recursive: true })
   rmSync(join(root, 'node_modules', '.crypte'), { recursive: true, force: true })
