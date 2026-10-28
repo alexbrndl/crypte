@@ -72,8 +72,6 @@ export async function build(input: string, log: (line: string) => void = console
       chunkSizeWarningLimit: Number.POSITIVE_INFINITY,
       rolldownOptions: {
         input: [PREVIEW_PAGE, STORYBOOK_IFRAME].map((page) => join(project.root, page.slice(1))),
-        // The wrappers panel names each wrapper by its function: minified, `i` and `a`.
-        output: { keepNames: true },
       },
     },
   }).catch((cause: unknown) => {

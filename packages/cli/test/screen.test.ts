@@ -1956,24 +1956,6 @@ describe('a long and non-Latin corpus at 1280', () => {
   }, 60_000)
 })
 
-// Couper un enrobage depuis le shell, avec l'adaptateur React : le cadre du `wrap`
-// du fichier disparaît, celui de la configuration reste. Le critère de DCJ-204, que
-// le cas Vue plus bas tient pour le second adaptateur.
-describe('a wrapper turned off', () => {
-  test('renders the story without it, and keeps the others', async ({ ecran }) => {
-    await expect.poll(ecran.vu).toBe('Nouveau')
-    const lignes = ecran.page.locator('[aria-label="Wrappers"] .row')
-    await expect.poll(() => lignes.allTextContents()).toEqual(['Panel', 'Tone'])
-    const preview = ecran.page.frameLocator('iframe[title="preview"]')
-
-    await lignes.nth(1).locator('input').click()
-
-    await expect.poll(() => preview.locator('[data-frame="tone"]').count()).toBe(0)
-    expect(await preview.locator('[data-frame="panel"]').count()).toBe(1)
-    expect(await ecran.vu()).toBe('Nouveau')
-  })
-})
-
 // Le second adaptateur, dans le vrai navigateur : la démonstration Vue rend dans
 // le même shell, son `wrap` fournit ce que le composant lit par `inject`, et un
 // clic fait bouger l'état. Le critère de DCJ-402.
@@ -2003,10 +1985,6 @@ describe('a Vue project', () => {
       await expect.poll(() => bouton.textContent()).toBe('20')
       await bouton.click()
       await expect.poll(() => bouton.textContent()).toBe('25')
-
-      // Couper son enrobage : le composant perd le contexte qu'il lisait par `inject`.
-      await page.locator('[aria-label="Wrappers"] input').click()
-      await expect.poll(() => bouton.getAttribute('data-frame')).toBe('no frame')
     } finally {
       await page.close()
       await started.server.close()
@@ -2019,7 +1997,7 @@ describe('a Vue project', () => {
 // un chemin : sans Vite, sans les routes de `crypte dev`, et sans une adresse
 // absolue qui tomberait hors du chemin.
 describe('a static build, served below a path', () => {
-  base('renders a story, mounts the panels and names the wrappers', async () => {
+  base('renders a story and mounts the panels', async () => {
     const root = copie()
     await build(root, () => {})
 
@@ -2054,11 +2032,6 @@ describe('a static build, served below a path', () => {
       await expect
         .poll(() => page.locator('[data-plugin="hello"] .body button').first().textContent())
         .toBe('hello, 0 clic(s)')
-      // Les noms des fonctions, gardés à la minification : `i` et `a` sinon.
-      expect(await page.locator('[aria-label="Wrappers"] code').allTextContents()).toEqual([
-        'Panel',
-        'Tone',
-      ])
 
       // L'export au format de Storybook : la story de l'adresse, sans shell, et
       // un identifiant inconnu nommé à sa place.

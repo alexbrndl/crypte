@@ -5,22 +5,13 @@
 // does not remount it: the React adapter renders again on the root it keeps,
 // measured with `controls`. That is why `update-overrides` stays in reserve,
 // section 7. Reopened by an adapter that remounts on every `render`.
-// `muted` names the wrappers to leave out by their rank in `rendered.wraps`, so
-// a story is drawn without a context it may depend on in silence.
 export type ShellMessage =
-  | { type: 'render'; id: string; overrides: Overrides; theme?: Theme; muted?: number[] }
+  | { type: 'render'; id: string; overrides: Overrides; theme?: Theme }
   | MessagesOf<PluginShellMessages>
 
 export type PreviewMessage =
   | { type: 'ready'; protocolVersion: number }
-  // `wraps` names the story's wrappers, outermost first, muted ones included.
-  | {
-      type: 'rendered'
-      id: string
-      durationMs: number
-      values: RenderedValues
-      wraps?: string[]
-    }
+  | { type: 'rendered'; id: string; durationMs: number; values: RenderedValues }
   | { type: 'error'; id: string; message: string; stack?: string }
   // A plugin's preview module that could not load, or a hook that threw: the
   // stories still render, and the shell names the plugin.
