@@ -8,7 +8,10 @@ import Chevron from './chevron.vue'
 // Figma file, are drawn here: `.rows` holds them, `.row`, `.caption`,
 // `.link`, `.label` and `.meta` make them.
 // `locked` keeps it folded with no toggle: a plugin panel with nothing to say,
-// whose body stays mounted so it can say otherwise.
+// whose body stays mounted so it can say otherwise. One consumer, the shell's
+// frame, against the rule for this package: the frame cannot drop the body, and
+// hiding the button from outside would tie it to this markup. Reopened if the
+// frame draws its own header.
 defineProps<{ title: string; open: boolean; locked?: boolean }>()
 const emit = defineEmits<{ toggle: [] }>()
 const slots = defineSlots<{

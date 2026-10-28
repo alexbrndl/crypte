@@ -191,7 +191,8 @@ const actions = useTemplateRef<HTMLElement>('actions')
 <template>
   <!-- Sans objet, le panneau perd la bande de son en-tête et ne s'ouvre plus : son
        corps serait vide. Il reste monté pour pouvoir se redéclarer, et ses boutons
-       d'en-tête restent joignables. -->
+       d'en-tête restent joignables. Rouvert par un panneau dont le corps garde
+       quelque chose d'utile une fois sans objet. -->
   <PanelSection
     :title="name"
     :open="expanded"
