@@ -37,8 +37,20 @@ const appel = (id: string, prop: string, args: string[] = []): Called => ({
   args,
 })
 
+// Chaque ligne : la prop, son nombre d'appels et ses derniers arguments, ou rien
+// avant le premier.
 const lignes = (wrapper: ReturnType<typeof mount>) =>
-  wrapper.findAll('.actions-calls li').map((one) => one.findAll('span')[1]!.text())
+  wrapper
+    .findAll('.actions-props li')
+    .map((one) =>
+      [
+        one.find('code').text(),
+        one.find('.actions-count').exists() ? one.find('.actions-count').text() : '',
+        one.find('.actions-args').exists() ? one.find('.actions-args').text() : '',
+      ]
+        .join(' ')
+        .trim(),
+    )
 const derniere = (wrapper: ReturnType<typeof mount>) => wrapper.emitted('inapplicable')?.at(-1)?.[0]
 
 describe('the plugin', () => {
@@ -52,29 +64,44 @@ describe('the plugin', () => {
 })
 
 describe('the calls', () => {
-  it('lists the calls of the story on display, newest first, and clears them', async () => {
+  it('updates the row of the prop called, for the story on display, and clears it', async () => {
     const header = entête()
     const wrapper = mount(Panel, {
       props: { actions: header, entry: entry('x--a'), received: null },
     })
     expect(wrapper.find('[role="status"]').text()).toBe('Use the component to call:')
+    expect(lignes(wrapper)).toEqual(['onClick'])
+    expect(header.querySelector('.actions-clear')).toBeNull()
     expect(derniere(wrapper)).toBeNull()
 
     await wrapper.setProps({ received: appel('x--a', 'onClick', ['MouseEvent click']) })
     await wrapper.setProps({ received: appel('x--autre', 'onClick') })
     await wrapper.setProps({ received: { type: 'autre:chose' } })
     await wrapper.setProps({ received: appel('x--a', 'onClick', ['"pro"', '2']) })
-    expect(lignes(wrapper)).toEqual(['onClick("pro", 2)', 'onClick(MouseEvent click)'])
+    expect(lignes(wrapper)).toEqual(['onClick ×2 ("pro", 2)'])
     // Dans l'en-tête, jamais dans le corps du panneau.
     expect(header.querySelector('.actions-clear')).not.toBeNull()
     expect(wrapper.find('.actions-clear').exists()).toBe(false)
 
     await wrapper.findComponent(Button).trigger('click')
-    expect(wrapper.find('.actions-calls').exists()).toBe(false)
+    expect(lignes(wrapper)).toEqual(['onClick'])
   })
 
-  // Avant le premier appel, les props fonctions qu'il surveille, avec leur description.
-  it('names the function props to call before the first call', async () => {
+  // Une prop appelée que `details` ne liste pas, nommée comme une clé d'objet.
+  it('gives a row to a prop called without being listed, and forgets with the next story', async () => {
+    const wrapper = mount(Panel, {
+      props: { actions: entête(), entry: entry('x--a'), received: null },
+    })
+    await wrapper.setProps({ received: appel('x--a', 'constructor') })
+    await wrapper.setProps({ received: appel('x--a', 'constructor') })
+    expect(lignes(wrapper)).toEqual(['onClick', 'constructor ×2 ()'])
+
+    await wrapper.setProps({ entry: entry('x--b') })
+    expect(lignes(wrapper)).toEqual(['onClick'])
+  })
+
+  // Les props fonctions qu'il surveille, avec leur description.
+  it('names the function props to call, with their description', async () => {
     const wrapper = mount(Panel, {
       props: {
         actions: entête(),
@@ -91,22 +118,6 @@ describe('the calls', () => {
         .findAll('.actions-props li')
         .map((one) => one.findAll('code, span').map((part) => part.text()))
     expect(props()).toEqual([['onClick', 'Fired when pressed'], ['onDismiss']])
-
-    await wrapper.setProps({ received: appel('x--a', 'onClick') })
-    expect(props()).toEqual([])
-  })
-
-  it('forgets the calls with the next story, and keeps a hundred', async () => {
-    const wrapper = mount(Panel, {
-      props: { actions: entête(), entry: entry('x--a'), received: null },
-    })
-    for (let at = 0; at < 101; at += 1)
-      await wrapper.setProps({ received: appel('x--a', `on${at}`) })
-    expect(lignes(wrapper)).toHaveLength(100)
-    expect(lignes(wrapper)[0]).toBe('on100()')
-
-    await wrapper.setProps({ entry: entry('x--b') })
-    expect(wrapper.find('.actions-calls').exists()).toBe(false)
   })
 
   it('folds with no story, and on a component with no function prop', async () => {

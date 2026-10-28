@@ -1,5 +1,5 @@
-// Logs every call a component makes to one of its function props, and lists
-// them in a panel. Section 6.4 of docs/contracts.md.
+// Counts every call a component makes to one of its function props, with the
+// last arguments, in a panel. Section 6.4 of docs/contracts.md.
 
 import type { CryptePlugin } from '@crypte/core/protocol'
 
