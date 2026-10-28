@@ -14,7 +14,6 @@ const TEXTS = {
   en: {
     none: 'no story on display',
     noFunction: 'no function prop',
-    waiting: 'Use the component to call these props.',
     prop: 'prop',
     calls: 'calls',
     clear: 'Clear',
@@ -22,7 +21,6 @@ const TEXTS = {
   fr: {
     none: 'aucune story affichée',
     noFunction: 'aucune prop fonction',
-    waiting: 'Utilisez le composant pour appeler ces props.',
     prop: 'prop',
     calls: 'appels',
     clear: 'Effacer',
@@ -81,13 +79,6 @@ const rows = computed(() =>
 <!-- Styles inline, and no style block: the shell imports this module and
      nothing beside it, so a built style sheet would never load. -->
 <template>
-  <p
-    v-if="last.size === 0"
-    role="status"
-    style="margin: 0 0 8px; color: var(--text-muted, #78716c); font-size: 12px"
-  >
-    {{ t('waiting') }}
-  </p>
   <table class="actions-props" style="width: 100%; border-collapse: collapse; font-size: 13px">
     <thead>
       <tr style="color: var(--text-muted, #78716c); font-size: 12px">

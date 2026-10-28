@@ -1019,9 +1019,7 @@ describe('the actions panel', () => {
   test('counts a call the component makes to a prop its story leaves out', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
     const panneau = ecran.page.locator('[data-plugin="actions"]')
-    await expect
-      .poll(() => panneau.locator('[role="status"]').textContent())
-      .toBe('Use the component to call these props.')
+    await expect.poll(() => panneau.locator('.actions-count').textContent()).toBe('–')
 
     await ecran.page.frameLocator('iframe[title="preview"]').getByText('Nouveau').click()
     await expect.poll(() => panneau.locator('.actions-count').textContent()).toBe('1')
