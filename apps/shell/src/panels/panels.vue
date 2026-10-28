@@ -267,6 +267,12 @@ watch(() => props.revision, load)
 </template>
 
 <style scoped>
+/* Les panneaux sans objet au bas de la colonne, l'espace libre au-dessus d'eux. */
+:not([data-inapplicable]) + [data-inapplicable] {
+  margin-top: auto;
+  border-top: var(--stroke-hairline) solid var(--border-base);
+}
+
 .failed {
   --alert-font-size: 13px;
   margin-top: 12px;

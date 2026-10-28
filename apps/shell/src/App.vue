@@ -2805,6 +2805,16 @@ main.full {
   background: var(--background-raised);
 }
 
+/* En colonne, pour que les panneaux sans objet se collent au bas : voir panels.vue. */
+#panels {
+  display: flex;
+  flex-direction: column;
+}
+
+#panels > :deep(*) {
+  flex: none;
+}
+
 .prompt-hold {
   display: inline-flex;
 }
