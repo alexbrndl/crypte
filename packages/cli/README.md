@@ -3,7 +3,7 @@
 The `crypte` command: a design system workshop that stays light, drawn from your stories.
 
 ```sh
-npm i -D @crypte/cli @crypte/react   # or @crypte/vue
+npm i -D @crypte/cli @crypte/react   # or @crypte/vue @vitejs/plugin-vue
 npx crypte init
 npx crypte dev
 ```

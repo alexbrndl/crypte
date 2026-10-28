@@ -103,9 +103,6 @@ test('nothing publishes unless NPM_PUBLISH is true, and never 0.0.0', () => {
   expect(Object.values(scripts).filter((one) => publie.test(one))).toEqual([])
 })
 
-// La garde 0.0.0 lit la version de `@crypte/cli` seule : elle ne dit vrai que si
-// chaque paquet publié monte avec lui, dans le groupe `fixed`. Hors du groupe,
-// un paquet partait à un autre numéro, ou en 0.0.0, sans tag ni release.
 // npm met le README dans l'archive quel que soit `files` : sans lui, la page du
 // paquet sur npm est vide, celle de `@crypte/cli` comprise. Audit à froid du
 // 28 oct. 2026.
@@ -118,6 +115,9 @@ test('every published package carries a README titled by its name', () => {
   expect(sans).toEqual([])
 })
 
+// La garde 0.0.0 lit la version de `@crypte/cli` seule : elle ne dit vrai que si
+// chaque paquet publié monte avec lui, dans le groupe `fixed`. Hors du groupe,
+// un paquet partait à un autre numéro, ou en 0.0.0, sans tag ni release.
 test('every published package versions with the CLI', () => {
   const [groupe] = JSON.parse(lire('.changeset', 'config.json')).fixed
   const noms = PUBLIÉS.map((dossier) => JSON.parse(lire(dossier, 'package.json')).name)
