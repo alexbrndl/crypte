@@ -3,6 +3,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, posix, resolve } from 'node:path'
+import { parseSync } from 'vite'
 import { ConfigError } from '../errors'
 import { SKILL, SKILL_FILE } from './skill'
 
@@ -73,15 +74,19 @@ export function planFor(root: string): Plan {
 }
 
 // The entries Vite's own templates write, and the first style sheet one imports
-// by a relative path.
+// by a relative path. Read by the parser, never by a pattern: an import left in
+// a comment, line or block, is no import.
 const ENTRIES = ['src/main.tsx', 'src/main.ts', 'src/main.jsx', 'src/main.js']
 
 function cssOf(root: string): { css?: string } {
   for (const entry of ENTRIES) {
     const file = join(root, ...entry.split('/'))
     if (!existsSync(file)) continue
-    const found = /^\s*import\s+['"](\.{1,2}\/[^'"]+\.css)['"]/m.exec(readFileSync(file, 'utf8'))
-    if (found) return { css: posix.join(posix.dirname(entry), found[1]!) }
+    const parsed = parseSync(file, readFileSync(file, 'utf8'))
+    const found = parsed.module.staticImports
+      .map((one) => one.moduleRequest.value)
+      .find((source) => /^\.{1,2}\/.+\.css$/.test(source))
+    if (found) return { css: posix.join(posix.dirname(entry), found) }
   }
   return {}
 }

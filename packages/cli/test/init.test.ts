@@ -266,6 +266,11 @@ describe('the command', () => {
     ['a package style sheet', { 'src/main.tsx': "import 'reset/reset.css'\n" }, undefined],
     ['no entry', {}, undefined],
     ['an import left in a comment', { 'src/main.tsx': "// import './old.css'\n" }, undefined],
+    [
+      'an import left in a block comment',
+      { 'src/main.tsx': "/*\nimport './old.css'\n*/\n" },
+      undefined,
+    ],
   ] as const)('suggests the style sheet for %s', ([, files, css]) => {
     const plan = planFor(projectWith({ 'package.json': paquet({ react: '^19.0.0' }), ...files }))
     expect(plan.css).toBe(css)
