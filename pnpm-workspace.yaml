@@ -26,9 +26,11 @@ catalog:
   # Version exacte et pas une plage : l'API de génération de types n'est pas
   # stable, et une version corrective en changerait le comportement chez les
   # consommateurs. La lignée 6 tient à vue-tsc, qui charge un chemin de l'API
-  # programmatique que la 7 n'expose plus. vp pack émet pourtant les déclarations
-  # publiées avec son propre TypeScript 7 : deux compilateurs, l'un vérifie,
-  # l'autre émet.
+  # programmatique que la 7 n'expose plus. vp pack émet les déclarations publiées
+  # avec le TypeScript que la racine déclare, celui-ci : sans lui à la racine, un
+  # 7 pair de vite-plus s'installait d'office, émettait, et ne posait plus de
+  # `tsc` à la racine, où les tests de types le cherchent. Mesuré : les `.d.ts`
+  # des deux ne diffèrent que par les guillemets d'une constante.
   typescript: 6.0.3
   vite: ^8.2.1
   vitest: ^4.1.10
