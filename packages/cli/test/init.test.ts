@@ -247,7 +247,7 @@ describe('the command', () => {
     expect(lines.slice(at, at + 5)).toEqual([
       'Add to .gitignore, and commit .crypte/fingerprint.json and .crypte/visual:',
       '',
-      '  .crypte/manifest.json',
+      '  **/.crypte/manifest.json',
       '  crypte-static',
       '  crypte-visual',
     ])
@@ -265,6 +265,7 @@ describe('the command', () => {
     ['an entry that imports none', { 'src/main.tsx': "import App from './App'\n" }, undefined],
     ['a package style sheet', { 'src/main.tsx': "import 'reset/reset.css'\n" }, undefined],
     ['no entry', {}, undefined],
+    ['an import left in a comment', { 'src/main.tsx': "// import './old.css'\n" }, undefined],
   ] as const)('suggests the style sheet for %s', ([, files, css]) => {
     const plan = planFor(projectWith({ 'package.json': paquet({ react: '^19.0.0' }), ...files }))
     expect(plan.css).toBe(css)

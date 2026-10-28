@@ -80,7 +80,7 @@ function cssOf(root: string): { css?: string } {
   for (const entry of ENTRIES) {
     const file = join(root, ...entry.split('/'))
     if (!existsSync(file)) continue
-    const found = /import\s+['"](\.{1,2}\/[^'"]+\.css)['"]/.exec(readFileSync(file, 'utf8'))
+    const found = /^\s*import\s+['"](\.{1,2}\/[^'"]+\.css)['"]/m.exec(readFileSync(file, 'utf8'))
     if (found) return { css: posix.join(posix.dirname(entry), found[1]!) }
   }
   return {}
@@ -167,7 +167,9 @@ export function linesOf(plan: Plan, skill = false): string[] {
   said.push(
     `Add to .gitignore, and commit .crypte/fingerprint.json and .crypte/visual:`,
     ``,
-    `  .crypte/manifest.json`,
+    // `**/`: a pattern holding a slash is anchored to its `.gitignore`, and a
+    // project below the repository root would commit its manifest.
+    `  **/.crypte/manifest.json`,
     `  crypte-static`,
     `  crypte-visual`,
     ``,
