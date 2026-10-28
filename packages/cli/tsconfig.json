@@ -4,5 +4,5 @@
     "types": ["node"]
   },
   "include": ["src", "test"],
-  "exclude": ["test/fixture", "test/demo-plugins"]
+  "exclude": ["test/fixture"]
 }
