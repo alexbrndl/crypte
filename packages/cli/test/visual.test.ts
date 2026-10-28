@@ -158,6 +158,11 @@ describe('crypte visual', () => {
       code: 1,
       lignes: ['No baseline yet in .crypte/visual: crypte visual --update writes one per story'],
     })
+    // Une baseline orpheline, peut-être une story renommée : le détail, pas la ligne.
+    mkdirSync(join(root, BASELINES), { recursive: true })
+    writeFileSync(join(root, BASELINES, 'partie--x.png'), '')
+    const { lignes } = await lance(false)
+    expect(lignes).toContain('  partie--x: a baseline with no story')
     expect((await lance(true)).code).toBe(0)
   }, 240_000)
 })

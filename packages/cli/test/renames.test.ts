@@ -3,7 +3,7 @@
 
 import type { FingerprintEntry } from '@crypte/core/protocol'
 import { describe, expect, test } from 'vitest'
-import { moveOf, renamesOf } from '../src/commands/visual'
+import { firstRun, moveOf, renamesOf } from '../src/commands/visual'
 
 const story = (id: string, more: Partial<FingerprintEntry> = {}): FingerprintEntry => ({
   id,
@@ -57,5 +57,18 @@ describe('the command that keeps a baseline', () => {
     ],
   ] as const)('moves %s to %s', ([avant, après, commande]) => {
     expect(moveOf(avant, après)).toBe(commande)
+  })
+})
+
+// Le premier lancement, et seulement lui : sans baseline orpheline, qui peut
+// être celle d'une story renommée, et avec au moins une story.
+describe('a first run of crypte visual', () => {
+  test.for([
+    ['every story without a baseline', 3, 3, 0, true],
+    ['a baseline left over', 3, 3, 1, false],
+    ['one story with its baseline', 3, 2, 0, false],
+    ['no story at all', 0, 0, 0, false],
+  ] as const)('%s', ([, stories, missing, stale, attendu]) => {
+    expect(firstRun(stories, missing, stale)).toBe(attendu)
   })
 })

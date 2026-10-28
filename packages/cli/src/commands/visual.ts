@@ -123,9 +123,7 @@ export async function visual(
   )
   const taken = new Set(renames.values())
 
-  // No baseline at all, a first run: one line rather than one per story, none
-  // of which differs from anything.
-  if (stories.length > 0 && missing.length === stories.length && stale.length === 0) {
+  if (firstRun(stories.length, missing.length, stale.length)) {
     log(`No baseline yet in ${BASELINES}: crypte visual --update writes one per story`)
     return 1
   }
@@ -257,4 +255,11 @@ export function renamesOf(
     if (fresh.filter((one) => same(match!, one)).length === 1) found.set(entry.id, match!.id)
   }
   return found
+}
+
+// No baseline at all, a first run: one line rather than one per story, none of
+// which differs from anything. Not with a baseline left over, which may be a
+// renamed story's (4.3), nor with no story, which has nothing to write.
+export function firstRun(stories: number, missing: number, stale: number): boolean {
+  return stories > 0 && missing === stories && stale === 0
 }
