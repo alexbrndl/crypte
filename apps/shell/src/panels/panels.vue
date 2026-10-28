@@ -267,10 +267,12 @@ watch(() => props.revision, load)
 </template>
 
 <style scoped>
-/* Les panneaux sans objet au bas de la colonne, l'espace libre au-dessus d'eux. */
+/* Les panneaux sans objet au bas de la colonne, l'espace libre au-dessus d'eux.
+   Un trait par une ombre et non une bordure : sans espace libre, il recouvre le
+   bas du panneau précédent au lieu de le doubler. */
 :not([data-inapplicable]) + [data-inapplicable] {
   margin-top: auto;
-  border-top: var(--stroke-hairline) solid var(--border-base);
+  box-shadow: 0 calc(-1 * var(--stroke-hairline)) 0 var(--border-base);
 }
 
 .failed {
