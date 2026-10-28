@@ -22,6 +22,7 @@
     "@vue/test-utils": "catalog:",
     "jsdom": "catalog:",
     "playwright": "catalog:",
+    "typescript": "catalog:",
     "vite-plus": "^0.2.8",
     "vitest": "catalog:"
   },
