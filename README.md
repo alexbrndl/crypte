@@ -17,7 +17,7 @@ A framework-neutral core, one adapter per framework, four plugins on by default 
 ## Get started
 
 ```sh
-npm i -D @crypte/cli @crypte/react   # or @crypte/vue, beside @vitejs/plugin-vue
+npm i -D @crypte/cli @crypte/react   # or @crypte/vue @vitejs/plugin-vue
 npx crypte init
 npx crypte dev
 ```

@@ -3,7 +3,7 @@
 How to set Crypte up on a project.
 
 ```sh
-npm i -D @crypte/cli @crypte/react   # or @crypte/vue, beside @vitejs/plugin-vue
+npm i -D @crypte/cli @crypte/react   # or @crypte/vue @vitejs/plugin-vue
 npx crypte init
 ```
 
