@@ -81,14 +81,14 @@ describe('what the panel shows', () => {
 
     expect(wrapper.find('[role="status"]').text()).toBe('Waiting for an analysis…')
     expect(wrapper.find('section').exists()).toBe(false)
-    expect(derniere(wrapper)).toBeNull()
+    expect(derniere(wrapper)).toBe('waiting for an analysis')
   })
 
   it('waits for an analysis before any has come', () => {
     const wrapper = monte(entry('x--a'))
 
     expect(wrapper.find('[role="status"]').text()).toBe('Waiting for an analysis…')
-    expect(derniere(wrapper)).toBeNull()
+    expect(derniere(wrapper)).toBe('waiting for an analysis')
   })
 })
 

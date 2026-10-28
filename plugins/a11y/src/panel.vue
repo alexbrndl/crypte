@@ -25,6 +25,7 @@ const TEXTS = {
     violation: 'violation',
     violations: 'violations',
     waiting: 'Waiting for an analysis…',
+    pending: 'waiting for an analysis',
     again: 'Run again',
   },
   fr: {
@@ -41,6 +42,7 @@ const TEXTS = {
     violation: 'violation',
     violations: 'violations',
     waiting: "En attente d'une analyse…",
+    pending: "en attente d'une analyse",
     again: 'Relancer',
   },
 } as const
@@ -83,7 +85,10 @@ watchEffect(() => {
   if (typeof props.failed === 'string') return emit('inapplicable', t('failed'))
 
   const found = results.value
-  if (found && found.violations.length === 0) {
+  // Folded while it waits: open, it rose to its place in the column at every story,
+  // then went back down once the analysis found nothing.
+  if (!found) return emit('inapplicable', t('pending'))
+  if (found.violations.length === 0) {
     // Nothing read, not nothing wrong: a render that threw leaves the root
     // empty, and "Run again" analyses it all the same.
     if (found.passes === 0) return emit('inapplicable', t('noRule'))

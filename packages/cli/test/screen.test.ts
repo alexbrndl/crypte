@@ -1037,14 +1037,23 @@ describe('the actions panel', () => {
 describe('the panel host', () => {
   const cadre = (page: Page, nom: string) => page.locator(`[data-plugin="${nom}"]`)
 
-  test('shows the panels in configuration order', async ({ ecran }) => {
+  // Ceux qui n'ont rien à dire en dernier, chaque groupe dans l'ordre de la
+  // configuration : `a11y`, sans violation sur le `Badge` d'arrivée.
+  test('shows the panels in configuration order, those with nothing to say last', async ({
+    ecran,
+  }) => {
     await expect
       .poll(() =>
         ecran.page
           .locator('[data-plugin]')
-          .evaluateAll((tous) => tous.map((un) => un.getAttribute('data-plugin'))),
+          .evaluateAll((tous) =>
+            tous.map(
+              (un) =>
+                `${un.getAttribute('data-plugin')}${un.hasAttribute('data-inapplicable') ? ' (folded)' : ''}`,
+            ),
+          ),
       )
-      .toEqual(['controls', 'source', 'actions', 'a11y', 'hello', 'status'])
+      .toEqual(['controls', 'source', 'actions', 'hello', 'status', 'a11y (folded)'])
   })
 
   test('folds a panel with nothing to say, story by story', async ({ ecran }) => {
