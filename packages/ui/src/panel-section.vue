@@ -103,9 +103,7 @@ h3 {
   cursor: pointer;
 }
 
-/* Its title where the others have theirs, after the chevron and its gap. */
 .toggle.locked {
-  padding-left: calc(var(--space-3) + 16px + var(--space-2));
   cursor: default;
 }
 
