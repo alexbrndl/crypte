@@ -283,9 +283,6 @@ describe('the list read again', () => {
   })
 })
 
-// Deux panneaux qui éditent : remplacer à chaque émission effaçait l'édition de
-// l'autre. Fusionnées dans l'ordre de `plugins`, le dernier gagnant. Audit à
-// froid du projet 1.3.
 describe('a panel without object', () => {
   const rien = { type: 'muet:rien' }
 
@@ -344,6 +341,9 @@ describe('a panel without object', () => {
   })
 })
 
+// Deux panneaux qui éditent : remplacer à chaque émission effaçait l'édition de
+// l'autre. Fusionnées dans l'ordre de `plugins`, le dernier gagnant. Audit à
+// froid du projet 1.3.
 describe('what several panels edit', () => {
   test('merges the values of every panel, the later one winning a prop both edit', async () => {
     const wrapper = await monte([
