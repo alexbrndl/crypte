@@ -57,7 +57,7 @@ describe('the calls', () => {
     const wrapper = mount(Panel, {
       props: { actions: header, entry: entry('x--a'), received: null },
     })
-    expect(wrapper.find('[role="status"]').text()).toBe('No call yet: use the component.')
+    expect(wrapper.find('[role="status"]').text()).toBe('Use the component to call:')
     expect(derniere(wrapper)).toBeNull()
 
     await wrapper.setProps({ received: appel('x--a', 'onClick', ['MouseEvent click']) })
@@ -71,6 +71,29 @@ describe('the calls', () => {
 
     await wrapper.findComponent(Button).trigger('click')
     expect(wrapper.find('.actions-calls').exists()).toBe(false)
+  })
+
+  // Avant le premier appel, les props fonctions qu'il surveille, avec leur description.
+  it('names the function props to call before the first call', async () => {
+    const wrapper = mount(Panel, {
+      props: {
+        actions: entête(),
+        entry: entry('x--a', {
+          label: { type: 'string', required: true },
+          onClick: { ...fn, description: 'Fired when pressed' },
+          onDismiss: fn,
+        }),
+        received: null,
+      },
+    })
+    const props = () =>
+      wrapper
+        .findAll('.actions-props li')
+        .map((one) => one.findAll('code, span').map((part) => part.text()))
+    expect(props()).toEqual([['onClick', 'Fired when pressed'], ['onDismiss']])
+
+    await wrapper.setProps({ received: appel('x--a', 'onClick') })
+    expect(props()).toEqual([])
   })
 
   it('forgets the calls with the next story, and keeps a hundred', async () => {
@@ -99,9 +122,9 @@ describe('the calls', () => {
       props: { actions: entête(), entry: entry('x--a', {}), received: null, locale: 'fr' },
     })
     expect(derniere(wrapper)).toBe('aucune prop fonction')
-    expect(wrapper.find('[role="status"]').text()).toBe('Aucun appel : utilisez le composant.')
+    expect(wrapper.find('[role="status"]').text()).toBe('Utilisez le composant pour appeler :')
 
     await wrapper.setProps({ locale: 'de' as 'fr' })
-    expect(wrapper.find('[role="status"]').text()).toBe('No call yet: use the component.')
+    expect(wrapper.find('[role="status"]').text()).toBe('Use the component to call:')
   })
 })
