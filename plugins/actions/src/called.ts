@@ -34,3 +34,7 @@ export function summaryOf(value: unknown): string {
     return 'Object'
   }
 }
+
+// An argument that is only an event, as `summaryOf` writes it: `PointerEvent
+// click`. The panel leaves it out, since it says nothing a click did not.
+export const isEvent = (summary: string) => /^\S*Event \S+$/.test(summary)

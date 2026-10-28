@@ -2,7 +2,7 @@
 import type { PanelEvents, PanelProps } from '@crypte/core/protocol'
 import { Button } from '@crypte/ui'
 import { computed, shallowRef, watch, watchEffect } from 'vue'
-import type { Called } from './called'
+import { isEvent, type Called } from './called'
 
 const props = defineProps<Pick<PanelProps, 'entry' | 'received' | 'locale' | 'actions'>>()
 
@@ -14,13 +14,17 @@ const TEXTS = {
   en: {
     none: 'no story on display',
     noFunction: 'no function prop',
-    waiting: 'Use the component to call:',
+    waiting: 'Use the component to call these props.',
+    prop: 'prop',
+    calls: 'calls',
     clear: 'Clear',
   },
   fr: {
     none: 'aucune story affichée',
     noFunction: 'aucune prop fonction',
-    waiting: 'Utilisez le composant pour appeler :',
+    waiting: 'Utilisez le composant pour appeler ces props.',
+    prop: 'prop',
+    calls: 'appels',
     clear: 'Effacer',
   },
 } as const
@@ -60,40 +64,63 @@ watch(
 )
 
 // The function props, then any other prop called: `details` may miss one.
-const rows = computed(() => [
-  ...functions.value.map(([name, details]) => ({ name, description: details.description })),
-  ...[...last.value.keys()]
-    .filter((name) => !functions.value.some(([one]) => one === name))
-    .map((name) => ({ name, description: undefined })),
-])
+// `args` keeps what is not an event, and is empty before the first call.
+const rows = computed(() =>
+  [
+    ...functions.value.map(([name, details]) => ({ name, description: details.description })),
+    ...[...last.value.keys()]
+      .filter((name) => !functions.value.some(([one]) => one === name))
+      .map((name) => ({ name, description: undefined })),
+  ].map((row) => {
+    const call = last.value.get(row.name)
+    return { ...row, count: call?.count, args: call?.args.filter((one) => !isEvent(one)) ?? [] }
+  }),
+)
 </script>
 
 <!-- Styles inline, and no style block: the shell imports this module and
      nothing beside it, so a built style sheet would never load. -->
 <template>
-  <p role="status" style="margin: 0 0 4px; font-size: 13px">{{ t('waiting') }}</p>
-  <ul
-    class="actions-props"
-    style="margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 12px"
+  <p
+    v-if="last.size === 0"
+    role="status"
+    style="margin: 0 0 8px; color: var(--text-muted, #78716c); font-size: 12px"
   >
-    <li v-for="row of rows" :key="row.name">
-      <div style="display: flex; gap: 8px">
-        <code style="font-family: var(--font-mono, monospace)">{{ row.name }}</code>
-        <span v-if="row.description" style="color: var(--text-muted, #78716c)">{{
-          row.description
-        }}</span>
-        <strong v-if="last.has(row.name)" class="actions-count" style="margin-left: auto"
-          >×{{ last.get(row.name)?.count }}</strong
-        >
-      </div>
-      <code
-        v-if="last.has(row.name)"
-        class="actions-args"
-        style="font-family: var(--font-mono, monospace); color: var(--text-muted, #78716c)"
-        >({{ last.get(row.name)?.args.join(', ') }})</code
-      >
-    </li>
-  </ul>
+    {{ t('waiting') }}
+  </p>
+  <table class="actions-props" style="width: 100%; border-collapse: collapse; font-size: 13px">
+    <thead>
+      <tr style="color: var(--text-muted, #78716c); font-size: 12px">
+        <th style="padding: 0 0 4px; font-weight: normal; text-align: left">{{ t('prop') }}</th>
+        <th style="padding: 0 0 4px; font-weight: normal; text-align: right">
+          {{ t('calls') }}
+        </th>
+      </tr>
+    </thead>
+    <tbody style="font-family: var(--font-mono, monospace)">
+      <template v-for="row of rows" :key="row.name">
+        <tr class="actions-row" :title="row.description">
+          <td class="actions-name" style="padding: 4px 0">{{ row.name }}</td>
+          <td
+            class="actions-count"
+            style="padding: 4px 0; text-align: right"
+            :style="row.count === undefined ? { color: 'var(--text-muted, #78716c)' } : {}"
+          >
+            {{ row.count ?? '–' }}
+          </td>
+        </tr>
+        <tr v-if="row.args.length > 0">
+          <td
+            class="actions-args"
+            colspan="2"
+            style="padding: 0 0 4px 12px; color: var(--text-muted, #78716c); font-size: 12px"
+          >
+            {{ row.args.join(', ') }}
+          </td>
+        </tr>
+      </template>
+    </tbody>
+  </table>
   <!-- In the panel's header, beside "Reset all" (6.1). -->
   <Teleport v-if="actions && last.size > 0" :to="actions">
     <Button variant="ghost" class="actions-clear" @click="last = new Map()">{{

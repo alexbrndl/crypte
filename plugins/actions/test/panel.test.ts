@@ -37,19 +37,15 @@ const appel = (id: string, prop: string, args: string[] = []): Called => ({
   args,
 })
 
-// Chaque ligne : la prop, son nombre d'appels et ses derniers arguments, ou rien
-// avant le premier.
+// Chaque ligne : la prop, son nombre d'appels ou un tiret, et ses derniers
+// arguments sur la sous-ligne qui suit, quand il y en a.
 const lignes = (wrapper: ReturnType<typeof mount>) =>
   wrapper
-    .findAll('.actions-props li')
+    .findAll('tbody tr')
     .map((one) =>
-      [
-        one.find('code').text(),
-        one.find('.actions-count').exists() ? one.find('.actions-count').text() : '',
-        one.find('.actions-args').exists() ? one.find('.actions-args').text() : '',
-      ]
-        .join(' ')
-        .trim(),
+      one.classes('actions-row')
+        ? `${one.find('.actions-name').text()} ${one.find('.actions-count').text()}`
+        : `  ${one.find('.actions-args').text()}`,
     )
 const derniere = (wrapper: ReturnType<typeof mount>) => wrapper.emitted('inapplicable')?.at(-1)?.[0]
 
@@ -69,8 +65,8 @@ describe('the calls', () => {
     const wrapper = mount(Panel, {
       props: { actions: header, entry: entry('x--a'), received: null },
     })
-    expect(wrapper.find('[role="status"]').text()).toBe('Use the component to call:')
-    expect(lignes(wrapper)).toEqual(['onClick'])
+    expect(wrapper.find('[role="status"]').text()).toBe('Use the component to call these props.')
+    expect(lignes(wrapper)).toEqual(['onClick –'])
     expect(header.querySelector('.actions-clear')).toBeNull()
     expect(derniere(wrapper)).toBeNull()
 
@@ -78,13 +74,15 @@ describe('the calls', () => {
     await wrapper.setProps({ received: appel('x--autre', 'onClick') })
     await wrapper.setProps({ received: { type: 'autre:chose' } })
     await wrapper.setProps({ received: appel('x--a', 'onClick', ['"pro"', '2']) })
-    expect(lignes(wrapper)).toEqual(['onClick ×2 ("pro", 2)'])
+    expect(lignes(wrapper)).toEqual(['onClick 2', '  "pro", 2'])
+    // L'invite seulement avant le premier appel.
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
     // Dans l'en-tête, jamais dans le corps du panneau.
     expect(header.querySelector('.actions-clear')).not.toBeNull()
     expect(wrapper.find('.actions-clear').exists()).toBe(false)
 
     await wrapper.findComponent(Button).trigger('click')
-    expect(lignes(wrapper)).toEqual(['onClick'])
+    expect(lignes(wrapper)).toEqual(['onClick –'])
   })
 
   // Une prop appelée que `details` ne liste pas, nommée comme une clé d'objet.
@@ -94,14 +92,29 @@ describe('the calls', () => {
     })
     await wrapper.setProps({ received: appel('x--a', 'constructor') })
     await wrapper.setProps({ received: appel('x--a', 'constructor') })
-    expect(lignes(wrapper)).toEqual(['onClick', 'constructor ×2 ()'])
+    expect(lignes(wrapper)).toEqual(['onClick –', 'constructor 2'])
 
     await wrapper.setProps({ entry: entry('x--b') })
-    expect(lignes(wrapper)).toEqual(['onClick'])
+    expect(lignes(wrapper)).toEqual(['onClick –'])
+  })
+
+  // Un événement seul ne dit rien qu'un clic n'ait dit : pas de sous-ligne. À côté
+  // d'une valeur, seule la valeur reste.
+  it('leaves out the arguments that are only events', async () => {
+    const wrapper = mount(Panel, {
+      props: { actions: entête(), entry: entry('x--a'), received: null },
+    })
+    await wrapper.setProps({ received: appel('x--a', 'onClick', ['PointerEvent click']) })
+    expect(lignes(wrapper)).toEqual(['onClick 1'])
+
+    await wrapper.setProps({
+      received: appel('x--a', 'onClick', ['Event change', '"pro"', 'Eventual']),
+    })
+    expect(lignes(wrapper)).toEqual(['onClick 2', '  "pro", Eventual'])
   })
 
   // Les props fonctions qu'il surveille, avec leur description.
-  it('names the function props to call, with their description', async () => {
+  it('names the function props to call, their description in a tooltip', async () => {
     const wrapper = mount(Panel, {
       props: {
         actions: entête(),
@@ -113,11 +126,12 @@ describe('the calls', () => {
         received: null,
       },
     })
-    const props = () =>
-      wrapper
-        .findAll('.actions-props li')
-        .map((one) => one.findAll('code, span').map((part) => part.text()))
-    expect(props()).toEqual([['onClick', 'Fired when pressed'], ['onDismiss']])
+    expect(lignes(wrapper)).toEqual(['onClick –', 'onDismiss –'])
+    // En infobulle, pour garder une ligne par prop.
+    expect(wrapper.findAll('.actions-row').map((one) => one.attributes('title'))).toEqual([
+      'Fired when pressed',
+      undefined,
+    ])
   })
 
   it('folds with no story, and on a component with no function prop', async () => {
@@ -133,9 +147,11 @@ describe('the calls', () => {
       props: { actions: entête(), entry: entry('x--a', {}), received: null, locale: 'fr' },
     })
     expect(derniere(wrapper)).toBe('aucune prop fonction')
-    expect(wrapper.find('[role="status"]').text()).toBe('Utilisez le composant pour appeler :')
+    expect(wrapper.find('[role="status"]').text()).toBe(
+      'Utilisez le composant pour appeler ces props.',
+    )
 
     await wrapper.setProps({ locale: 'de' as 'fr' })
-    expect(wrapper.find('[role="status"]').text()).toBe('Use the component to call:')
+    expect(wrapper.find('[role="status"]').text()).toBe('Use the component to call these props.')
   })
 })
