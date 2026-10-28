@@ -14,6 +14,27 @@ A framework-neutral core, one adapter per framework, four plugins on by default 
 
 > **Status: in progress.** Three of the four contracts are settled, the plugin one is still provisional. `crypte dev` serves the workshop: it reads a project's configuration, resolves its path aliases, discovers stories, renders them in a preview, and follows the files while it runs. `crypte build` writes the same workshop as a static folder, which any host serves, `crypte mcp` serves the catalogue to a coding agent, and `crypte visual` compares each story with a committed baseline. **Nothing is published to npm yet.** Section 8 of [`docs/contracts.md`](docs/contracts.md) says exactly what exists.
 
+## Get started
+
+```sh
+npm i -D @crypte/cli @crypte/react   # or @crypte/vue @vitejs/plugin-vue
+npx crypte init
+npx crypte dev
+```
+
+`crypte init` writes `crypte.config.ts` from your `package.json`, and says what to add to `.gitignore`. Write a first story beside your components, and `crypte dev` serves it.
+
+| Command | What it does |
+| --- | --- |
+| `crypte dev` | serves the workshop, and follows your files while it runs |
+| `crypte build` | writes the same workshop as a static folder, `crypte-static`, for any host |
+| `crypte check` | reports orphan stories, a stale fingerprint and components with no story, and fails on the first two |
+| `crypte init` | writes `crypte.config.ts` in a project that already has its components |
+| `crypte mcp` | serves the catalogue to a coding agent, over stdio |
+| `crypte visual` | compares each story with its committed baseline, and `--update` writes them |
+
+The guide, [`apps/site/guide.md`](apps/site/guide.md), goes through the configuration, tokens, path aliases and stories.
+
 ## Why
 
 Storybook is mature but heavy: the configuration costs time, the start-up is slow, and most of what it can do goes unused. The light alternatives are fast because they serve a single framework.
