@@ -149,4 +149,15 @@ describe('crypte visual', () => {
     rmSync(join(root, '.git'), { recursive: true, force: true })
     expect((await lance(true)).code).toBe(0)
   }, 240_000)
+
+  // Au premier lancement, aucune baseline : une ligne qui le dit, pas une par
+  // story, ni « differ » pour ce qui n'a rien avec quoi différer.
+  test('says there is no baseline yet on a first run', async () => {
+    rmSync(join(root, BASELINES), { recursive: true, force: true })
+    expect(await lance(false)).toEqual({
+      code: 1,
+      lignes: ['No baseline yet in .crypte/visual: crypte visual --update writes one per story'],
+    })
+    expect((await lance(true)).code).toBe(0)
+  }, 240_000)
 })

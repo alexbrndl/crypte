@@ -123,6 +123,13 @@ export async function visual(
   )
   const taken = new Set(renames.values())
 
+  // No baseline at all, a first run: one line rather than one per story, none
+  // of which differs from anything.
+  if (stories.length > 0 && missing.length === stories.length && stale.length === 0) {
+    log(`No baseline yet in ${BASELINES}: crypte visual --update writes one per story`)
+    return 1
+  }
+
   for (const id of changed) log(`  ${id}: differs from its baseline, see ${DIFFERENT}/${id}.png`)
   for (const id of missing) {
     const before = renames.get(id)
