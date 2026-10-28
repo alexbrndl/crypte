@@ -20,6 +20,8 @@ beforeAll(async () => {
   dossier = mkdtempSync(join(tmpdir(), 'crypte-surfaces-'))
   writeFileSync(join(dossier, 'shell.mjs'), 'export default {}\n')
   writeFileSync(join(dossier, 'preview.mjs'), '\n')
+  for (const name of ['shell.js', 'shell.ts', 'shell.vue', 'preview.ts'])
+    writeFileSync(join(dossier, name), '\n')
   mkdirSync(join(dossier, 'dossier.mjs'))
 
   project = await loadProject(fixture)
@@ -107,6 +109,25 @@ describe('what a surface is refused', () => {
         reason: `\`preview\` points at ${join(dossier, 'dossier.mjs')}, which is not a file`,
       },
     ])
+  })
+
+  // Servi tel quel au navigateur : un panneau en TypeScript ou en SFC échouait
+  // sur un type MIME que seule la console nommait. La preview passe, elle, par
+  // le Vite du projet, qui compile.
+  it('refuses a shell module that is not JavaScript, and lets the preview be compiled', () => {
+    expect(avec({ name: 'p', shell: url('shell.js'), preview: url('preview.ts') })).toEqual({
+      plugins: ['p'],
+      shell: [{ plugin: 'p', file: join(dossier, 'shell.js') }],
+      preview: [{ plugin: 'p', file: join(dossier, 'preview.ts') }],
+      refused: [],
+    })
+    for (const name of ['shell.ts', 'shell.vue'])
+      expect(avec({ name: 'p', shell: url(name) }).refused).toEqual([
+        {
+          plugin: 'p',
+          reason: `\`shell\` points at ${join(dossier, name)}, which the shell serves as is, never compiled: it must be a .js or .mjs file`,
+        },
+      ])
   })
 
   // `stat` lève sur ces deux-là au lieu de dire que rien n'est là, et la levée

@@ -118,6 +118,13 @@ export function surfacesOf(project: Project): Surfaces {
           plugin: name,
           reason: `\`${side}\` points at ${file}, which is not a file`,
         })
+      } else if (side === 'shell' && !/\.m?js$/.test(file)) {
+        // Served as is to the browser, never compiled: a `.ts` or `.vue` panel
+        // failed with a MIME type the console alone named. Audit of 28 Oct. 2026.
+        found.refused.push({
+          plugin: name,
+          reason: `\`shell\` points at ${file}, which the shell serves as is, never compiled: it must be a .js or .mjs file`,
+        })
       } else found[side].push({ plugin: name, file })
     }
 
