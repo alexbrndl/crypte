@@ -56,7 +56,10 @@ const monte = (panel: Component, story: StoryEntry | null, name = 'status') =>
 // Le style lu tel quel : `isVisible()` rendait l'inverse du DOM sur un montage
 // qui n'est pas attaché au document. Mesuré.
 const état = (wrapper: VueWrapper) => ({
-  ouvert: wrapper.find('.head button').attributes('aria-expanded'),
+  // Sans bouton, sans objet : il ne s'ouvre pas.
+  ouvert: wrapper.find('button.toggle').exists()
+    ? wrapper.find('button.toggle').attributes('aria-expanded')
+    : 'verrouillé',
   raison: wrapper.find('.inapplicable').exists() ? wrapper.find('.inapplicable').text() : null,
   corps:
     wrapper.find('.body').exists() &&
@@ -76,25 +79,27 @@ describe('a panel with nothing to say', () => {
     const wrapper = monte(statut, nue)
     await wrapper.vm.$nextTick()
 
-    expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'aucun statut déclaré', corps: false })
+    expect(état(wrapper)).toEqual({
+      ouvert: 'verrouillé',
+      raison: 'aucun statut déclaré',
+      corps: false,
+    })
   })
 
-  // Ce que la bande dit par un fond, le bouton le dit au lecteur d'écran : ce
-  // qu'il plie, et pourquoi le panneau est sans objet, seulement quand il l'est.
-  test('names what its toggle folds, and its reason only when it has one', async () => {
+  // Sans objet, son titre n'est plus un bouton : son corps serait vide. Sa
+  // raison se lit à côté. Avec quelque chose à dire, le bouton nomme ce qu'il plie.
+  test('has no toggle while it has nothing to say, and names what it folds otherwise', async () => {
     const wrapper = monte(statut, nue)
     await wrapper.vm.$nextTick()
-    const bouton = () => wrapper.find('.head .toggle')
 
-    const corps = wrapper.find('.body').attributes('id')
-    expect(corps).toMatch(/.+/)
-    expect(bouton().attributes('aria-controls')).toBe(corps)
-    expect(wrapper.find(`#${bouton().attributes('aria-describedby')}`).text()).toBe(
-      'aucun statut déclaré',
-    )
+    expect(wrapper.find('.head button').exists()).toBe(false)
+    expect(wrapper.find('.head .toggle').text()).toBe('status')
+    expect(wrapper.find('.head .note').text()).toBe('aucun statut déclaré')
 
     await wrapper.setProps({ entry: brouillon })
-    expect(bouton().attributes('aria-describedby')).toBeUndefined()
+    const bouton = wrapper.find('button.toggle')
+    expect(bouton.attributes('aria-controls')).toBe(wrapper.find('.body').attributes('id'))
+    expect(bouton.attributes('aria-describedby')).toBeUndefined()
   })
 
   // La décision même : déclaré story par story, jamais une fois. Le cadre
@@ -108,7 +113,11 @@ describe('a panel with nothing to say', () => {
     expect(wrapper.find('.body').text()).toBe('statut : draft')
 
     await wrapper.setProps({ entry: autre })
-    expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'aucun statut déclaré', corps: false })
+    expect(état(wrapper)).toEqual({
+      ouvert: 'verrouillé',
+      raison: 'aucun statut déclaré',
+      corps: false,
+    })
   })
 
   // La même story relue après une édition : même identifiant, contenu neuf. Une
@@ -122,7 +131,11 @@ describe('a panel with nothing to say', () => {
     expect(état(wrapper)).toEqual({ ouvert: 'true', raison: null, corps: true })
 
     await wrapper.setProps({ entry: { ...nue } })
-    expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'aucun statut déclaré', corps: false })
+    expect(état(wrapper)).toEqual({
+      ouvert: 'verrouillé',
+      raison: 'aucun statut déclaré',
+      corps: false,
+    })
   })
 
   // Un panneau qui ne le dit qu'une fois, au montage, reste replié à tort si le
@@ -169,13 +182,13 @@ describe('a panel with nothing to say', () => {
       },
     })
     await wrapper.vm.$nextTick()
-    expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'propre', corps: false })
+    expect(état(wrapper)).toEqual({ ouvert: 'verrouillé', raison: 'propre', corps: false })
 
     await wrapper.setProps({ received: { type: 'a11y:r', propre: false } })
     expect(état(wrapper)).toEqual({ ouvert: 'true', raison: null, corps: true })
 
     await wrapper.setProps({ received: { type: 'a11y:r', propre: true } })
-    expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'propre', corps: false })
+    expect(état(wrapper)).toEqual({ ouvert: 'verrouillé', raison: 'propre', corps: false })
   })
 
   // Replié sans raison, ce serait le panneau vide que la décision refuse.
@@ -233,41 +246,18 @@ describe('whether a panel is open', () => {
     expect(état(wrapper).ouvert).toBe('false')
   })
 
-  // Replié, il s'ouvre quand même : la relance de `a11y` vit dans son corps, et
-  // un menu ouvert dans l'iframe ne déclenche aucun rendu. DCJ-327.
-  test('opens a folded panel on a click, its reason kept', async () => {
+  // Sa raison ne l'ouvre pas non plus : la note pliait tout l'en-tête.
+  test('does not open on a click on its reason', async () => {
     const wrapper = monte(statut, nue)
     await wrapper.vm.$nextTick()
 
-    await wrapper.find('.head button').trigger('click')
-    expect(état(wrapper)).toEqual({ ouvert: 'true', raison: 'aucun statut déclaré', corps: true })
-
-    await wrapper.find('.head button').trigger('click')
-    expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'aucun statut déclaré', corps: false })
-
-    // Sa raison plie aussi : tout l'en-tête, sauf l'action.
     await wrapper.find('.head .note').trigger('click')
-    expect(état(wrapper).ouvert).toBe('true')
-    await wrapper.find('.head .note').trigger('click')
-    expect(état(wrapper).ouvert).toBe('false')
-
-    // Refermer un panneau replié ne dit rien des stories suivantes.
+    expect(état(wrapper)).toEqual({
+      ouvert: 'verrouillé',
+      raison: 'aucun statut déclaré',
+      corps: false,
+    })
     expect(localStorage.getItem('crypte:panel:status')).toBeNull()
-  })
-
-  // Pour la story affichée seulement, et rien n'est retenu : la décision du
-  // panneau reprend à la suivante, et le choix de l'utilisateur ne bouge pas.
-  test('folds again at the next story, and remembers nothing of it', async () => {
-    const wrapper = monte(statut, nue)
-    await wrapper.vm.$nextTick()
-    await wrapper.find('.head button').trigger('click')
-
-    await wrapper.setProps({ entry: autre })
-    expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'aucun statut déclaré', corps: false })
-    expect(localStorage.getItem('crypte:panel:status')).toBeNull()
-
-    await wrapper.setProps({ entry: brouillon })
-    expect(état(wrapper)).toEqual({ ouvert: 'true', raison: null, corps: true })
   })
 
   // Le panneau change d'avis sur la même story, comme `a11y` après une relance
@@ -295,28 +285,15 @@ describe('whether a panel is open', () => {
         },
       })
 
-    test('keeps open a folded panel the user opened, when it unfolds', async () => {
-      localStorage.setItem('crypte:panel:a11y', 'false')
-      const wrapper = monteAnalyse(true)
+    // Une violation arrive, l'utilisateur referme, la story redevient propre puis
+    // non : le panneau ne se rouvre pas seul.
+    test('keeps closed a panel the user closed, through a clean analysis', async () => {
+      const wrapper = monteAnalyse(false)
       await wrapper.vm.$nextTick()
-      await wrapper.find('.head button').trigger('click')
-
-      await wrapper.setProps({ received: recu(false) })
-
-      expect(état(wrapper)).toEqual({ ouvert: 'true', raison: null, corps: true })
-    })
-
-    // Ouvert replié, une violation arrive, l'utilisateur referme, la story
-    // redevient propre : le panneau ne se rouvre pas seul.
-    test('keeps closed a panel the user closed, when it folds again', async () => {
-      const wrapper = monteAnalyse(true)
-      await wrapper.vm.$nextTick()
-      await wrapper.find('.head button').trigger('click')
-      await wrapper.setProps({ received: recu(false) })
-      await wrapper.find('.head button').trigger('click')
+      await wrapper.find('button.toggle').trigger('click')
 
       await wrapper.setProps({ received: recu(true) })
-      expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'propre', corps: false })
+      expect(état(wrapper)).toEqual({ ouvert: 'verrouillé', raison: 'propre', corps: false })
 
       await wrapper.setProps({ received: recu(false) })
       expect(état(wrapper)).toEqual({ ouvert: 'false', raison: null, corps: false })
@@ -330,7 +307,11 @@ describe('whether a panel is open', () => {
     await wrapper.find('.head button').trigger('click')
 
     await wrapper.setProps({ entry: nue })
-    expect(état(wrapper)).toEqual({ ouvert: 'false', raison: 'aucun statut déclaré', corps: false })
+    expect(état(wrapper)).toEqual({
+      ouvert: 'verrouillé',
+      raison: 'aucun statut déclaré',
+      corps: false,
+    })
 
     await wrapper.setProps({ entry: brouillon })
     expect(état(wrapper)).toEqual({ ouvert: 'false', raison: null, corps: false })

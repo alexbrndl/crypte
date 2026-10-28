@@ -113,6 +113,25 @@ describe('a panel section', () => {
     expect(bare.find('.body').exists()).toBe(false)
     expect(bare.find('.toggle').attributes('aria-describedby')).toBeUndefined()
   })
+
+  // Verrouillée, son titre n'est plus un bouton, et sa note ne la plie plus. Son
+  // corps reste monté, caché, et son action joignable.
+  it('has no toggle when locked, its body kept and its action reachable', async () => {
+    const section = mount(PanelSection, {
+      props: { title: 'a11y', open: true, locked: true },
+      slots: {
+        default: 'corps',
+        note: 'no violation',
+        action: () => h('button', { class: 'again' }, 'Run again'),
+      },
+    })
+    expect(section.findAll('button').map((one) => one.text())).toEqual(['Run again'])
+    expect(section.find('.toggle').text()).toBe('a11y')
+    expect((section.find('.body').element as HTMLElement).style.display).toBe('none')
+    await section.find('.toggle').trigger('click')
+    await section.find('.note').trigger('click')
+    expect(section.emitted('toggle')).toBeUndefined()
+  })
 })
 
 describe('a tree', () => {

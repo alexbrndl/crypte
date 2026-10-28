@@ -1296,17 +1296,17 @@ describe('the a11y panel', () => {
     await expect.poll(() => raison(ecran.page)).toBe('the story could not be rendered')
   })
 
-  // Replié sur une story propre, le panneau s'ouvre quand même : ce qu'on fait
-  // dans l'iframe sans rendu, un menu ouvert, ne s'analyse que par la relance.
-  // DCJ-327.
+  // Replié sur une story propre, sa relance reste dans l'en-tête : ce qu'on fait
+  // dans l'iframe sans rendu, un menu ouvert, ne s'analyse que par elle. Le
+  // panneau ne s'ouvre pas, il se déplie de lui-même sur une violation. DCJ-327.
   test('runs the analysis again from a folded panel', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
     await expect.poll(() => raison(ecran.page)).toMatch(/no violation$/)
     const navigations = await ecran.navigations()
 
-    await panneau(ecran.page).locator('.head .toggle').click()
+    expect(await panneau(ecran.page).locator('button.toggle').count()).toBe(0)
     const corps = panneau(ecran.page).locator('.body')
-    await expect.poll(() => corps.isVisible()).toBe(true)
+    expect(await corps.isVisible()).toBe(false)
 
     await cadre(ecran.page)
       .locator('#root span')
