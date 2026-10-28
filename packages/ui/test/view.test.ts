@@ -118,7 +118,7 @@ describe('a panel section', () => {
   // corps reste monté, caché, et son action joignable.
   it('has no toggle when locked, its body kept and its action reachable', async () => {
     const section = mount(PanelSection, {
-      props: { title: 'a11y', open: false, locked: true },
+      props: { title: 'a11y', open: true, locked: true },
       slots: {
         default: 'corps',
         note: 'no violation',

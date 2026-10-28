@@ -53,7 +53,7 @@ const noteId = useId()
       <span v-if="slots.action" class="action"><slot name="action" /></span>
     </div>
     <slot name="alert" />
-    <div v-if="slots.default" v-show="open" :id="bodyId" class="body">
+    <div v-if="slots.default" v-show="open && !locked" :id="bodyId" class="body">
       <slot />
     </div>
   </section>
