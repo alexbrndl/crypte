@@ -3,6 +3,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, posix, resolve } from 'node:path'
+import { parseSync } from 'vite'
 import { ConfigError } from '../errors'
 import { SKILL, SKILL_FILE } from './skill'
 
@@ -44,6 +45,9 @@ export interface Plan {
   // its Vite plugin. Only a line of advice: writing the config before installing
   // is an ordinary order.
   missingPackages: string[]
+  // The style sheet the application's entry imports, said and never written:
+  // whether it holds the tokens is the project's answer, `configFor`.
+  css?: string
 }
 
 export function planFor(root: string): Plan {
@@ -65,7 +69,26 @@ export function planFor(root: string): Plan {
     missingPackages: [adapter.package, ...(adapter.vite ? [adapter.vite.package] : [])].filter(
       (one) => !declared.has(one),
     ),
+    ...cssOf(root),
   }
+}
+
+// The entries Vite's own templates write, and the first style sheet one imports
+// by a relative path. Read by the parser, never by a pattern: an import left in
+// a comment, line or block, is no import.
+const ENTRIES = ['src/main.tsx', 'src/main.ts', 'src/main.jsx', 'src/main.js']
+
+function cssOf(root: string): { css?: string } {
+  for (const entry of ENTRIES) {
+    const file = join(root, ...entry.split('/'))
+    if (!existsSync(file)) continue
+    const parsed = parseSync(file, readFileSync(file, 'utf8'))
+    const found = parsed.module.staticImports
+      .map((one) => one.moduleRequest.value)
+      .find((source) => /^\.{1,2}\/.+\.css$/.test(source))
+    if (found) return { css: posix.join(posix.dirname(entry), found) }
+  }
+  return {}
 }
 
 // What the project already declares. Section 0: read, never asked again.
@@ -115,7 +138,9 @@ export function linesOf(plan: Plan, skill = false): string[] {
     `wrote ${CONFIG_FILE}`,
     `  adapter: ${plan.adapter.package}`,
     `  stories: ${plan.stories}${plan.missing ? ' (created)' : ''}`,
-    `  css: not written, add it if your project has a style sheet`,
+    plan.css
+      ? `  css: not written; ${plan.css}, which the application imports, is the line to add if it holds your tokens`
+      : `  css: not written, add it if your project has a style sheet`,
     ...(skill
       ? [`wrote ${SKILL_FILE}, which writes stories from how the application calls a component`]
       : []),
@@ -141,6 +166,19 @@ export function linesOf(plan: Plan, skill = false): string[] {
         `  // or, for a component exported by default:`,
         `  // import Badge from '${component}'`,
       ]
+
+  // What Crypte writes beside the project: two files to keep, three to ignore.
+  // A whole `.crypte` cannot be ignored, it holds the committed fingerprint.
+  said.push(
+    `Add to .gitignore, and commit .crypte/fingerprint.json and .crypte/visual:`,
+    ``,
+    // `**/`: a pattern holding a slash is anchored to its `.gitignore`, and a
+    // project below the repository root would commit its manifest.
+    `  **/.crypte/manifest.json`,
+    `  crypte-static`,
+    `  crypte-visual`,
+    ``,
+  )
 
   return [
     ...said,

@@ -237,6 +237,51 @@ describe('the command', () => {
     ])
   })
 
+  // Ce qui s'ignore et ce qui se commite : tout `.crypte` ne s'ignore pas, il
+  // porte l'empreinte commitée.
+  test('says what to add to .gitignore, and what to commit', () => {
+    const lines = linesOf(planFor(projectWith({ 'package.json': paquet({ react: '^19.0.0' }) })))
+    const at = lines.indexOf(
+      'Add to .gitignore, and commit .crypte/fingerprint.json and .crypte/visual:',
+    )
+    expect(lines.slice(at, at + 5)).toEqual([
+      'Add to .gitignore, and commit .crypte/fingerprint.json and .crypte/visual:',
+      '',
+      '  **/.crypte/manifest.json',
+      '  crypte-static',
+      '  crypte-visual',
+    ])
+  })
+
+  // La feuille que l'entrée du modèle Vite importe, proposée et jamais écrite :
+  // qu'elle porte les tokens est la réponse du projet.
+  test.for([
+    [
+      'an entry that imports a style sheet',
+      { 'src/main.tsx': "import './index.css'\n" },
+      'src/index.css',
+    ],
+    ['a .js entry', { 'src/main.js': 'import "../styles/app.css"\n' }, 'styles/app.css'],
+    ['an entry that imports none', { 'src/main.tsx': "import App from './App'\n" }, undefined],
+    ['a package style sheet', { 'src/main.tsx': "import 'reset/reset.css'\n" }, undefined],
+    ['no entry', {}, undefined],
+    ['an import left in a comment', { 'src/main.tsx': "// import './old.css'\n" }, undefined],
+    [
+      'an import left in a block comment',
+      { 'src/main.tsx': "/*\nimport './old.css'\n*/\n" },
+      undefined,
+    ],
+  ] as const)('suggests the style sheet for %s', ([, files, css]) => {
+    const plan = planFor(projectWith({ 'package.json': paquet({ react: '^19.0.0' }), ...files }))
+    expect(plan.css).toBe(css)
+    expect(configFor(plan)).not.toContain('css')
+    expect(linesOf(plan)[3]).toBe(
+      css
+        ? `  css: not written; ${css}, which the application imports, is the line to add if it holds your tokens`
+        : '  css: not written, add it if your project has a style sheet',
+    )
+  })
+
   // Son propriétaire l'a peut-être modifié.
   test('never overwrites a skill already there', () => {
     const root = projectWith({
