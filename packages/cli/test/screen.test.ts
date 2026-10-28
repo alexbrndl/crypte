@@ -1056,6 +1056,21 @@ describe('the panel host', () => {
       .toEqual(['controls', 'source', 'actions', 'hello', 'status', 'a11y (folded)'])
   })
 
+  // Collés au bas de la colonne, l'espace libre au-dessus d'eux.
+  test('keeps the panels with nothing to say at the foot of the column', async ({ ecran }) => {
+    const bas = (selecteur: string) =>
+      ecran.page.locator(selecteur).evaluate((el) => Math.round(el.getBoundingClientRect().bottom))
+    // Assez haute pour laisser de l'espace libre : la colonne déborde à 720.
+    await ecran.page.setViewportSize({ width: 1280, height: 1400 })
+    await expect
+      .poll(() => cadre(ecran.page, 'a11y').getAttribute('data-inapplicable'))
+      .toBe('true')
+
+    await expect.poll(() => bas('[data-plugin="a11y"]')).toBe(await bas('#panels'))
+    expect(await bas('[data-plugin="status"]')).toBeLessThan((await bas('#panels')) - 100)
+    await ecran.page.setViewportSize({ width: 1280, height: 720 })
+  })
+
   test('folds a panel with nothing to say, story by story', async ({ ecran }) => {
     const statut = cadre(ecran.page, 'status')
     const raison = () =>
