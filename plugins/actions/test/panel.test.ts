@@ -65,7 +65,6 @@ describe('the calls', () => {
     const wrapper = mount(Panel, {
       props: { actions: header, entry: entry('x--a'), received: null },
     })
-    expect(wrapper.find('[role="status"]').text()).toBe('Use the component to call these props.')
     expect(lignes(wrapper)).toEqual(['onClick –'])
     expect(header.querySelector('.actions-clear')).toBeNull()
     expect(derniere(wrapper)).toBeNull()
@@ -75,8 +74,6 @@ describe('the calls', () => {
     await wrapper.setProps({ received: { type: 'autre:chose' } })
     await wrapper.setProps({ received: appel('x--a', 'onClick', ['"pro"', '2']) })
     expect(lignes(wrapper)).toEqual(['onClick 2', '  "pro", 2'])
-    // L'invite seulement avant le premier appel.
-    expect(wrapper.find('[role="status"]').exists()).toBe(false)
     // Dans l'en-tête, jamais dans le corps du panneau.
     expect(header.querySelector('.actions-clear')).not.toBeNull()
     expect(wrapper.find('.actions-clear').exists()).toBe(false)
@@ -152,11 +149,10 @@ describe('the calls', () => {
       props: { actions: entête(), entry: entry('x--a', {}), received: null, locale: 'fr' },
     })
     expect(derniere(wrapper)).toBe('aucune prop fonction')
-    expect(wrapper.find('[role="status"]').text()).toBe(
-      'Utilisez le composant pour appeler ces props.',
-    )
+    const colonnes = () => wrapper.findAll('th').map((one) => one.text())
+    expect(colonnes()).toEqual(['prop', 'appels'])
 
     await wrapper.setProps({ locale: 'de' as 'fr' })
-    expect(wrapper.find('[role="status"]').text()).toBe('Use the component to call these props.')
+    expect(colonnes()).toEqual(['prop', 'calls'])
   })
 })
