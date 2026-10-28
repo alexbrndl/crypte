@@ -108,9 +108,14 @@ describe('the calls', () => {
     expect(lignes(wrapper)).toEqual(['onClick 1'])
 
     await wrapper.setProps({
-      received: appel('x--a', 'onClick', ['Event change', '"pro"', 'Eventual']),
+      received: appel('x--a', 'onClick', [
+        'Event change',
+        '"Event 1"',
+        '{"title":"onEvent x"}',
+        'Eventual',
+      ]),
     })
-    expect(lignes(wrapper)).toEqual(['onClick 2', '  "pro", Eventual'])
+    expect(lignes(wrapper)).toEqual(['onClick 2', '  "Event 1", {"title":"onEvent x"}, Eventual'])
   })
 
   // Les props fonctions qu'il surveille, avec leur description.
