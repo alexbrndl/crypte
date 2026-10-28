@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Overrides, PluginView, RenderedValues, StoryEntry } from '@crypte/core/protocol'
 import { Alert } from '@crypte/ui'
-import { onMounted, shallowRef, watch, type Component } from 'vue'
+import { computed, onMounted, shallowRef, watch, type Component } from 'vue'
 import PanelFrame from './panel-frame.vue'
 import { texts } from '../i18n'
 
@@ -70,6 +70,22 @@ const PLUGINS = '@crypte/plugins.json'
 
 const panels = shallowRef<{ name: string; panel: Component }[]>([])
 const failures = shallowRef<{ name: string; message: string }[]>([])
+// Les panneaux sans objet passent après les autres, chaque groupe dans l'ordre de
+// `plugins`. Par la liste et non par `order` en CSS : le clavier et les lecteurs
+// d'écran suivent le DOM, et la clé garde l'état du panneau déplacé.
+const quiet = shallowRef<ReadonlySet<string>>(new Set())
+const ordered = computed(() => [
+  ...panels.value.filter((one) => !quiet.value.has(one.name)),
+  ...panels.value.filter((one) => quiet.value.has(one.name)),
+])
+
+function hush(name: string, now: boolean) {
+  const next = new Set(quiet.value)
+  if (now) next.add(name)
+  else next.delete(name)
+  quiet.value = next
+}
+
 // Ce que le CLI a écarté d'un plugin, avec sa raison : une surface qui ne mène
 // nulle part, une clé inconnue, une contribution refusée. Un nom vide est la
 // liste elle-même, nommée au rendu dans la langue du moment.
@@ -189,6 +205,8 @@ async function load() {
   refused.value = listed.refused
   emit('weights', listed.weights)
   panels.value = found
+  // Un plugin retiré puis remis revient ouvert : son nom ne doit pas le garder en bas.
+  quiet.value = new Set([...quiet.value].filter((name) => found.some((one) => one.name === name)))
   failures.value = failed
   emit('troubles', failed.length + listed.refused.length)
   emit('views', views)
@@ -233,7 +251,7 @@ watch(() => props.revision, load)
     </p>
   </Alert>
   <PanelFrame
-    v-for="one of panels"
+    v-for="one of ordered"
     :key="one.name"
     :name="one.name"
     :panel="one.panel"
@@ -244,6 +262,7 @@ watch(() => props.revision, load)
     :overrides="heldFor(one.name)"
     @overrides="(values: Overrides) => edit(one.name, values)"
     @send="(message: PanelMessage) => emit('send', message)"
+    @inapplicable="(now: boolean) => hush(one.name, now)"
   />
 </template>
 

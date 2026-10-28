@@ -34,7 +34,12 @@ const props = defineProps<{
 
 // Ce qu'un panneau a édité, que le shell envoie dans `render`, et ce qu'il
 // envoie à sa partie preview.
-const emit = defineEmits<{ overrides: [values: Overrides]; send: [message: PanelMessage] }>()
+const emit = defineEmits<{
+  overrides: [values: Overrides]
+  send: [message: PanelMessage]
+  // Que le panneau devient sans objet, ou cesse de l'être, pour que la liste le range.
+  inapplicable: [inapplicable: boolean]
+}>()
 
 // Ce qu'un panneau envoie à sa partie preview, sous son propre nom, section 5.4.
 // Un autre préfixe atteindrait un autre plugin, ou personne : refusé, et dit.
@@ -169,6 +174,11 @@ const declare = (reason: unknown) => {
   if (reason === null) inapplicable.value = null
   else if (typeof reason === 'string' && reason !== '') inapplicable.value = reason
 }
+
+watch(
+  () => inapplicable.value !== null,
+  (now) => emit('inapplicable', now),
+)
 
 // Ce qu'un panneau a levé, affiché à sa place : le reste du shell continue.
 // Oublié avec l'entrée aussi, et le panneau remonté : il peut ne lever que sur

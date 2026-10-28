@@ -286,6 +286,64 @@ describe('the list read again', () => {
 // Deux panneaux qui éditent : remplacer à chaque émission effaçait l'édition de
 // l'autre. Fusionnées dans l'ordre de `plugins`, le dernier gagnant. Audit à
 // froid du projet 1.3.
+describe('a panel without object', () => {
+  const rien = { type: 'muet:rien' }
+
+  test('goes after the others, each group in configuration order, and keeps its state', async () => {
+    const wrapper = await monte([
+      { name: 'a', shell: module('muet.ts') },
+      { name: 'b', shell: module('un.ts') },
+      { name: 'c', shell: module('muet.ts') },
+      { name: 'd', shell: module('deux.ts') },
+    ])
+    await vi.waitFor(() => expect(wrapper.findAll('[data-plugin]')).toHaveLength(4))
+    const [premier, second] = montés(wrapper)
+      .filter((one) => one.includes('muet'))
+      .map((one) => one.slice(2))
+
+    await wrapper.setProps({ received: { a: rien, c: rien } })
+    expect(montés(wrapper)).toEqual(['b=un', 'd=deux', `a=${premier}`, `c=${second}`])
+
+    await wrapper.setProps({ received: { c: rien } })
+    expect(montés(wrapper)).toEqual([`a=${premier}`, 'b=un', 'd=deux', `c=${second}`])
+  })
+
+  test('comes back in its place when its plugin is removed, then listed again', async () => {
+    const fetch = vi.fn()
+    for (const panels of [
+      [
+        { name: 'a', shell: module('muet.ts') },
+        { name: 'b', shell: module('un.ts') },
+      ],
+      [{ name: 'b', shell: module('un.ts') }],
+      [
+        { name: 'a', shell: module('muet.ts') },
+        { name: 'b', shell: module('un.ts') },
+      ],
+    ])
+      fetch.mockImplementationOnce(async () => ({ json: async () => ({ panels, refused: [] }) }))
+    vi.stubGlobal('fetch', fetch)
+    const wrapper = mount(Panels, {
+      props: {
+        entry: null,
+        received: { a: rien },
+        errors: [],
+        failed: null,
+        values: null,
+        revision: 0,
+      },
+    })
+    await vi.waitFor(() => expect(montés(wrapper).map((one) => one[0])).toEqual(['b', 'a']))
+
+    await wrapper.setProps({ revision: 1 })
+    await vi.waitFor(() => expect(montés(wrapper)).toEqual(['b=un']))
+
+    // Vidé une fois `a` démonté : monté, il sortirait du groupe par lui-même.
+    await wrapper.setProps({ received: {}, revision: 2 })
+    await vi.waitFor(() => expect(montés(wrapper).map((one) => one[0])).toEqual(['a', 'b']))
+  })
+})
+
 describe('what several panels edit', () => {
   test('merges the values of every panel, the later one winning a prop both edit', async () => {
     const wrapper = await monte([
