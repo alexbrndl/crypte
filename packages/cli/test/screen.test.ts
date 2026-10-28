@@ -1016,7 +1016,7 @@ describe('the preview hooks and plugin messages', () => {
 // `actions` de bout en bout : le badge de la démo, dont la story ne déclare pas
 // `onClick`, cliqué dans la preview, et l'appel dans le panneau.
 describe('the actions panel', () => {
-  test('lists a call the component makes to a prop its story leaves out', async ({ ecran }) => {
+  test('counts a call the component makes to a prop its story leaves out', async ({ ecran }) => {
     await expect.poll(ecran.vu).toBe('Nouveau')
     const panneau = ecran.page.locator('[data-plugin="actions"]')
     await expect
@@ -1024,10 +1024,10 @@ describe('the actions panel', () => {
       .toBe('Use the component to call:')
 
     await ecran.page.frameLocator('iframe[title="preview"]').getByText('Nouveau').click()
-    await expect
-      .poll(() => panneau.locator('.actions-calls li span').nth(1).textContent())
-      // Chromium envoie un clic en `PointerEvent`.
-      .toBe('onClick(PointerEvent click)')
+    const ligne = panneau.locator('.actions-props li')
+    await expect.poll(() => ligne.locator('.actions-count').textContent()).toBe('×1')
+    // Chromium envoie un clic en `PointerEvent`.
+    expect(await ligne.locator('.actions-args').textContent()).toBe('(PointerEvent click)')
   })
 })
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { PanelEvents, PanelProps } from '@crypte/core/protocol'
 import { Button } from '@crypte/ui'
-import { computed, ref, watch, watchEffect } from 'vue'
+import { computed, shallowRef, watch, watchEffect } from 'vue'
 import type { Called } from './called'
 
 const props = defineProps<Pick<PanelProps, 'entry' | 'received' | 'locale' | 'actions'>>()
@@ -38,13 +38,14 @@ watchEffect(() => {
   emit('inapplicable', functions.value.length === 0 ? t('noFunction') : null)
 })
 
-// Newest first, for the story on display only, and kept to the last hundred:
-// a handler called on every move would otherwise grow the list for ever.
-const calls = ref<{ prop: string; args: string[]; at: string }[]>([])
+// The last call of each prop, for the story on display only: its row is updated
+// in place, where a log grew with every move of a handler. A Map, since a prop
+// may be named `constructor`.
+const last = shallowRef(new Map<string, { count: number; args: string[] }>())
 
 watch(
   () => props.entry?.id,
-  () => (calls.value = []),
+  () => (last.value = new Map()),
 )
 
 watch(
@@ -53,46 +54,50 @@ watch(
     if (message?.type !== 'actions:called') return
     const called = message as unknown as Called
     if (called.id !== props.entry?.id) return
-    const at = new Date().toLocaleTimeString(props.locale ?? 'en', { hour12: false })
-    calls.value = [{ prop: called.prop, args: called.args, at }, ...calls.value].slice(0, 100)
+    const count = (last.value.get(called.prop)?.count ?? 0) + 1
+    last.value = new Map(last.value).set(called.prop, { count, args: called.args })
   },
 )
+
+// The function props, then any other prop called: `details` may miss one.
+const rows = computed(() => [
+  ...functions.value.map(([name, details]) => ({ name, description: details.description })),
+  ...[...last.value.keys()]
+    .filter((name) => !functions.value.some(([one]) => one === name))
+    .map((name) => ({ name, description: undefined })),
+])
 </script>
 
 <!-- Styles inline, and no style block: the shell imports this module and
      nothing beside it, so a built style sheet would never load. -->
 <template>
-  <template v-if="calls.length === 0">
-    <p role="status" style="margin: 0 0 4px; font-size: 13px">{{ t('waiting') }}</p>
-    <ul class="actions-props" style="margin: 0; padding: 0; list-style: none; font-size: 12px">
-      <li v-for="[name, details] of functions" :key="name" style="display: flex; gap: 8px">
-        <code style="font-family: var(--font-mono, monospace)">{{ name }}</code>
-        <span v-if="details.description" style="color: var(--text-muted, #78716c)">{{
-          details.description
+  <p role="status" style="margin: 0 0 4px; font-size: 13px">{{ t('waiting') }}</p>
+  <ul
+    class="actions-props"
+    style="margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 12px"
+  >
+    <li v-for="row of rows" :key="row.name">
+      <div style="display: flex; gap: 8px">
+        <code style="font-family: var(--font-mono, monospace)">{{ row.name }}</code>
+        <span v-if="row.description" style="color: var(--text-muted, #78716c)">{{
+          row.description
         }}</span>
-      </li>
-    </ul>
-  </template>
-  <template v-else>
-    <ol
-      class="actions-calls"
-      style="margin: 0; padding: 0; list-style: none; display: grid; gap: 4px"
-    >
-      <li
-        v-for="(call, at) of calls"
-        :key="calls.length - at"
-        style="display: flex; gap: 8px; font-size: 12px; font-family: var(--font-mono, monospace)"
-      >
-        <span style="color: var(--text-muted, #78716c)">{{ call.at }}</span>
-        <span
-          ><strong>{{ call.prop }}</strong
-          >({{ call.args.join(', ') }})</span
+        <strong v-if="last.has(row.name)" class="actions-count" style="margin-left: auto"
+          >×{{ last.get(row.name)?.count }}</strong
         >
-      </li>
-    </ol>
-    <!-- In the panel's header, beside "Reset all" (6.1). -->
-    <Teleport v-if="actions" :to="actions">
-      <Button variant="ghost" class="actions-clear" @click="calls = []">{{ t('clear') }}</Button>
-    </Teleport>
-  </template>
+      </div>
+      <code
+        v-if="last.has(row.name)"
+        class="actions-args"
+        style="font-family: var(--font-mono, monospace); color: var(--text-muted, #78716c)"
+        >({{ last.get(row.name)?.args.join(', ') }})</code
+      >
+    </li>
+  </ul>
+  <!-- In the panel's header, beside "Reset all" (6.1). -->
+  <Teleport v-if="actions && last.size > 0" :to="actions">
+    <Button variant="ghost" class="actions-clear" @click="last = new Map()">{{
+      t('clear')
+    }}</Button>
+  </Teleport>
 </template>
