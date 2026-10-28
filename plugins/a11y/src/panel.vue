@@ -25,7 +25,7 @@ const TEXTS = {
     violation: 'violation',
     violations: 'violations',
     waiting: 'Waiting for an analysis…',
-    again: 'Run the analysis again',
+    again: 'Run again',
   },
   fr: {
     critical: 'Critique',
@@ -41,7 +41,7 @@ const TEXTS = {
     violation: 'violation',
     violations: 'violations',
     waiting: "En attente d'une analyse…",
-    again: "Relancer l'analyse",
+    again: 'Relancer',
   },
 } as const
 // English for a language it does not know: the shell may speak more later.
@@ -85,7 +85,7 @@ watchEffect(() => {
   const found = results.value
   if (found && found.violations.length === 0) {
     // Nothing read, not nothing wrong: a render that threw leaves the root
-    // empty, and "Run the analysis again" analyses it all the same.
+    // empty, and "Run again" analyses it all the same.
     if (found.passes === 0) return emit('inapplicable', t('noRule'))
 
     const rules = one(found.passes) ? t('rule') : t('rules')
@@ -126,5 +126,8 @@ const count = (violations: Violation[]) =>
       </ul>
     </section>
   </div>
-  <Button style="margin-top: var(--space-3)" @click="rerun">{{ t('again') }}</Button>
+  <!-- In the panel's header, beside "Reset all" (6.1). -->
+  <Teleport v-if="actions" :to="actions">
+    <Button variant="ghost" class="a11y-again" @click="rerun">{{ t('again') }}</Button>
+  </Teleport>
 </template>

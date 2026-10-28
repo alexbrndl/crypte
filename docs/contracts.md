@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.59, reference document. A project brief points here instead of restating these shapes.
+> Version 1.60, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -932,6 +932,7 @@ interface PanelProps {
   values?: RenderedValues | null
   overrides?: Overrides
   locale?: Locale
+  actions?: HTMLElement | null
 }
 
 type Locale = 'en' | 'fr'
@@ -944,6 +945,8 @@ interface PanelEvents {
 ```
 
 A panel declares the part it uses: `defineProps<Pick<PanelProps, 'entry'>>()`, `defineEmits<Pick<PanelEvents, 'inapplicable' | 'overrides'>>()`.
+
+**A panel's buttons go in its header**, beside the shell's own "Reset all": `actions` is that slot's element, which a `<Teleport>` reaches, `null` until the frame has mounted it. The panel's body is for what it shows. It is optional, added to the frozen contract (6.5); `source`, `actions` and `a11y` put their buttons there.
 
 **A panel and each part of a view receive `locale`**, the language the shell speaks, `en` or `fr`, and translate their own texts with it, in a dictionary of their own: no format is imposed, and a plugin that ignores it stays in its language. **A plugin falls back on English for a language it does not know**, so that a language the shell adds later breaks no plugin at run time; `Locale` widening is a type change a plugin's exhaustive dictionary follows, and comes with a minor version. It is optional, added to the frozen contract (6.5) without breaking a plugin written before it. `controls` and `a11y` translate their panels; what comes from the project or from axe keeps its language.
 
@@ -1125,6 +1128,12 @@ Twelve known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.60.** A panel puts its buttons in its header (6.1).
+
+| Before | After |
+| --- | --- |
+| a panel drew its buttons in its body | `PanelProps.actions` is the header's action slot, which a `<Teleport>` reaches |
 
 **v1.59.** `crypte visual` names a probably renamed story (4.3, 8).
 

@@ -1047,7 +1047,7 @@ describe('the panel host', () => {
   })
 
   test('keeps a panel closed across a reload', async ({ ecran }) => {
-    const titre = () => cadre(ecran.page, 'hello').locator('.head button')
+    const titre = () => cadre(ecran.page, 'hello').locator('.head .toggle')
 
     await titre().click()
     await expect.poll(() => titre().getAttribute('aria-expanded')).toBe('false')
@@ -1230,7 +1230,11 @@ describe('the a11y panel', () => {
     await cadre(ecran.page)
       .locator('#root [role="etiquette"]')
       .evaluate((un) => un.removeAttribute('role'))
-    await corps.getByRole('button', { name: 'Run the analysis again', exact: true }).click()
+    // Dans l'en-tête du panneau, à côté de « Reset all » (6.1).
+    await panneau(ecran.page)
+      .locator('.head')
+      .getByRole('button', { name: 'Run again', exact: true })
+      .click()
 
     await expect.poll(() => raison(ecran.page)).toMatch(/no violation$/)
     expect(await ecran.navigations()).toBe(navigations)
@@ -1253,14 +1257,18 @@ describe('the a11y panel', () => {
     await expect.poll(() => raison(ecran.page)).toMatch(/no violation$/)
     const navigations = await ecran.navigations()
 
-    await panneau(ecran.page).locator('.head button').click()
+    await panneau(ecran.page).locator('.head .toggle').click()
     const corps = panneau(ecran.page).locator('.body')
     await expect.poll(() => corps.isVisible()).toBe(true)
 
     await cadre(ecran.page)
       .locator('#root span')
       .evaluate((un) => un.setAttribute('role', 'etiquette'))
-    await corps.getByRole('button', { name: 'Run the analysis again', exact: true }).click()
+    // Dans l'en-tête du panneau, à côté de « Reset all » (6.1).
+    await panneau(ecran.page)
+      .locator('.head')
+      .getByRole('button', { name: 'Run again', exact: true })
+      .click()
 
     await expect
       .poll(() => corps.locator('section code').allTextContents())
