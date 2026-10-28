@@ -1021,7 +1021,7 @@ describe('the actions panel', () => {
     const panneau = ecran.page.locator('[data-plugin="actions"]')
     await expect
       .poll(() => panneau.locator('[role="status"]').textContent())
-      .toBe('No call yet: use the component.')
+      .toBe('Use the component to call:')
 
     await ecran.page.frameLocator('iframe[title="preview"]').getByText('Nouveau').click()
     await expect

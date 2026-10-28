@@ -14,13 +14,13 @@ const TEXTS = {
   en: {
     none: 'no story on display',
     noFunction: 'no function prop',
-    waiting: 'No call yet: use the component.',
+    waiting: 'Use the component to call:',
     clear: 'Clear',
   },
   fr: {
     none: 'aucune story affichée',
     noFunction: 'aucune prop fonction',
-    waiting: 'Aucun appel : utilisez le composant.',
+    waiting: 'Utilisez le composant pour appeler :',
     clear: 'Effacer',
   },
 } as const
@@ -62,9 +62,17 @@ watch(
 <!-- Styles inline, and no style block: the shell imports this module and
      nothing beside it, so a built style sheet would never load. -->
 <template>
-  <p v-if="calls.length === 0" role="status" style="margin: 0; font-size: 13px">
-    {{ t('waiting') }}
-  </p>
+  <template v-if="calls.length === 0">
+    <p role="status" style="margin: 0 0 4px; font-size: 13px">{{ t('waiting') }}</p>
+    <ul class="actions-props" style="margin: 0; padding: 0; list-style: none; font-size: 12px">
+      <li v-for="[name, details] of functions" :key="name" style="display: flex; gap: 8px">
+        <code style="font-family: var(--font-mono, monospace)">{{ name }}</code>
+        <span v-if="details.description" style="color: var(--text-muted, #78716c)">{{
+          details.description
+        }}</span>
+      </li>
+    </ul>
+  </template>
   <template v-else>
     <ol
       class="actions-calls"
