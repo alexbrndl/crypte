@@ -27,7 +27,7 @@ const TEXTS = {
 const t = (key: keyof (typeof TEXTS)['en']) =>
   ((TEXTS as Record<string, Record<string, string>>)[props.locale ?? 'en'] ?? TEXTS.en)[key]
 
-// The props the preview logs: those `details` types as functions.
+// The props the preview watches: those `details` types as functions.
 const functions = computed(() =>
   Object.entries(props.entry?.details ?? {}).filter(([, details]) => details.type === 'function'),
 )

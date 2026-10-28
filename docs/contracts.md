@@ -1045,7 +1045,7 @@ const CONTRIBUTABLE = ['tokens'] as const
 
 Inside `beforeMount`, a plugin may change `ctx.props`. That is the only moment props are mutable; everywhere else the context is read-only. Each plugin works on its own copy, which the next one receives only if the hook went through.
 
-This exists for one demonstrated case: a function prop the story author did not declare. `PricingCard` expects `onSelect`, the story omits it, the component gets `undefined` and breaks on the first click. `@crypte/actions` fills those props with logging functions, using `details` to know which ones are functions, and wraps the ones the story declares, which it still calls: its panel lists every call.
+This exists for one demonstrated case: a function prop the story author did not declare. `PricingCard` expects `onSelect`, the story omits it, the component gets `undefined` and breaks on the first click. `@crypte/actions` fills those props with logging functions, using `details` to know which ones are functions, and wraps the ones the story declares, which it still calls: its panel counts the calls of each prop and shows the last arguments.
 
 The core knows nothing about this. With the `actions` plugin absent, the author declares the function themselves.
 
