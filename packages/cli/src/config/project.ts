@@ -111,7 +111,7 @@ function assertUsable(config: CrypteConfig): void {
 
 // The default plugins, each replaced in its place by the first listed plugin of
 // its name, then the other listed ones in their order. A second plugin of a name
-// stays: refused with a browser surface (6.1), its taken ids set aside (6.3).
+// stays: its browser surfaces are refused (6.1), its taken ids set aside (6.3).
 // Compared by identity, so a default plugin listed as itself,
 // `[...defaultPlugins, a11y()]`, is not counted twice.
 function withDefaults(listed: CryptePlugin[]): CryptePlugin[] {
