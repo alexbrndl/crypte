@@ -18,6 +18,11 @@ const partagé = {
 // configuration et arrêtaient la chaîne de commit. Mesuré pendant DCJ-334.
 const ignorés = ['**/node_modules/**', '**/.claude/**']
 
+// Pour les projets jsdom : sous Node 26, le `localStorage` natif de Node masque
+// celui de jsdom, et 296 cas du shell levaient sur `localStorage.clear`. Mesuré
+// le 29 oct. 2026. Node 22 et 24 connaissent aussi l'option.
+const SANS_STOCKAGE = ['--no-experimental-webstorage']
+
 export default defineConfig({
   run: {
     cache: true,
@@ -194,6 +199,7 @@ export default defineConfig({
             'packages/ui/test/**/*.test.ts',
           ],
           environment: 'jsdom',
+          execArgv: SANS_STOCKAGE,
         },
       },
       // Les adaptateurs montent du React et du Vue : il leur faut un DOM, et jsdom suffit. Sans
@@ -206,6 +212,7 @@ export default defineConfig({
           include: ['**/adapter.test.tsx', '**/adapter.test.ts'],
           exclude: ignorés,
           environment: 'jsdom',
+          execArgv: SANS_STOCKAGE,
         },
       },
       {
