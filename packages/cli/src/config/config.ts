@@ -34,7 +34,10 @@ export interface CrypteConfig {
   // adapter: `Wrap<unknown>` would collapse to `unknown`, and the field would
   // look typed while constraining nothing.
   wrap?: GlobalWrap
+  // Added to `defaultPlugins`, one of the same name replacing it in its place.
   plugins?: CryptePlugin[]
+  // `false` keeps only what `plugins` lists.
+  defaultPlugins?: boolean
   // Transforms the project needs, Nuxt auto-imports for example. Crypte never
   // guesses them: it does not read the project's `vite.config`.
   vite?: { plugins?: PluginOption[] }
@@ -45,8 +48,7 @@ export function defineConfig(config: CrypteConfig): CrypteConfig {
   return config
 }
 
-// What a configuration with no `plugins` field gets, section 1.5. A field that
-// is there takes exactly what it lists, so a project spreads this to keep them.
+// What every project gets unless it sets `defaultPlugins: false`, section 1.5.
 export const defaultPlugins: CryptePlugin[] = [controls(), tokens(), source(), actions()]
 
 // Opaque here: the CLI carries it and never reads it, and its components belong

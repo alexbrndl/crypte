@@ -4,11 +4,11 @@ The Crypte plugin that analyses each render with axe-core, in a panel and in the
 
 ```ts
 import a11y from '@crypte/a11y'
-import { defaultPlugins, defineConfig } from '@crypte/cli'
+import { defineConfig } from '@crypte/cli'
 
 export default defineConfig({
   // ...
-  plugins: [...defaultPlugins, a11y()],
+  plugins: [a11y()],
 })
 ```
 

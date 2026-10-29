@@ -30,10 +30,10 @@ describe('the required config', () => {
   })
 
   // Et que le compte porte bien sur toutes les clés, pas seulement sur celles
-  // qu'on a pensé à nommer : sept aujourd'hui, deux exigées et cinq non.
-  it('covers only the seven keys the type declares', () => {
+  // qu'on a pensé à nommer : huit aujourd'hui, deux exigées et six non.
+  it('covers only the eight keys the type declares', () => {
     expectTypeOf<keyof CrypteConfig>().toEqualTypeOf<
-      'stories' | 'adapter' | 'css' | 'components' | 'wrap' | 'plugins' | 'vite'
+      'stories' | 'adapter' | 'css' | 'components' | 'wrap' | 'plugins' | 'defaultPlugins' | 'vite'
     >()
   })
 })

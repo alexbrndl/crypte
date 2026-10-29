@@ -99,6 +99,7 @@ describe('crypte build', () => {
         'export default defineConfig({',
         "  stories: 'stories',",
         "  adapter: { name: 'plain', mount() {}, unmount() {} },",
+        '  defaultPlugins: false,',
         `  plugins: [{ name: 'a', shell: ${JSON.stringify(pathToFileURL(join(plugin, 'dist', 'shell.mjs')).href)} }],`,
         '})',
         '',

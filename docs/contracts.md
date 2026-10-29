@@ -1,6 +1,6 @@
 # Crypte contracts
 
-> Version 1.64, reference document. A project brief points here instead of restating these shapes.
+> Version 1.65, reference document. A project brief points here instead of restating these shapes.
 >
 > Section 8 lists what is built today. Everything else in this document is a contract, not a claim about the code.
 
@@ -102,7 +102,7 @@ The package name and the command name are independent: `@crypte/cli` declares a 
 A `crypte.config.ts` file at the root:
 
 ```ts
-import { defineConfig, defaultPlugins } from '@crypte/cli'
+import { defineConfig } from '@crypte/cli'
 import react from '@crypte/react'
 import a11y from '@crypte/a11y'
 import { ThemeProvider } from './src/lib/theme'
@@ -112,7 +112,7 @@ export default defineConfig({
   css: 'src/styles/app.css',
   adapter: react(),
   wrap: ThemeProvider,
-  plugins: [...defaultPlugins, a11y()],
+  plugins: [a11y()],
   vite: { plugins: [] },
 })
 ```
@@ -124,12 +124,13 @@ export default defineConfig({
 | `css` | style sheet loaded in the preview | no |
 | `components` | root of the component files, which the health view counts | no |
 | `wrap` | global wrapper, applied to every story | no |
-| `plugins` | Crypte plugins to enable, `defaultPlugins` when absent | no |
+| `plugins` | Crypte plugins added to `defaultPlugins` | no |
+| `defaultPlugins` | `false` to keep only what `plugins` lists | no |
 | `vite` | Vite plugins the project declares | no |
 
 Two keys are required, and an error names the one that is missing.
 
-**Without `plugins`, the preset.** `controls`, `tokens`, `source` and `actions`, which the CLI depends on and exports as `defaultPlugins`. A `plugins` key takes exactly what it lists, `[]` included, so a project that wants the preset and more spreads it. A preset plugin given options is listed by hand in its place, `[controls(), tokens({ files }), source(), actions()]`, never spread beside its own copy: two copies claim the same ids, and only the first one's are kept. `a11y` is added by hand: it loads axe-core in the preview.
+**`plugins` adds to the preset.** `controls`, `tokens`, `source` and `actions`, which the CLI depends on and exports as `defaultPlugins`, are always on, and `plugins` lists what comes after them. A listed plugin with the name of a preset one replaces it in its place, so `plugins: [tokens({ files })]` gives `tokens` its options with no second copy; a name listed twice keeps its first copy and refuses the second, as 6.1 refuses any name an earlier plugin has. `defaultPlugins: false` keeps only what `plugins` lists. `a11y` is added by hand: it loads axe-core in the preview.
 
 **An adapter is typed by the core**, and `adapter` takes nothing else:
 
@@ -1095,7 +1096,7 @@ This document is a contract. This section is the only place that says what exist
 | --- | --- |
 | 1.1, story files | discovered and read, in the four extensions. The tree, the identifiers and the call code come out of them. Markdown pages are discovered beside them. The shell's docs view lists every component, with its page when it has one, and the general pages by path. A component's page carries a live example of its first story, its props and the tokens it reads, generated from the catalogue |
 | 1.2, `crypte check` | built, all five problems. The component with no story is looked for in the folders the stories already point at, since no components root is declared anywhere |
-| 1.5, project configuration | the config is read, and the declared style sheet is loaded by the preview. A config with no `plugins` key gets `defaultPlugins`, which the CLI exports. Two adapters exist, `@crypte/react` and `@crypte/vue`, and `apps/demo-vue` renders Vue stories in the same shell |
+| 1.5, project configuration | the config is read, and the declared style sheet is loaded by the preview. Every config gets `defaultPlugins`, which the CLI exports, and `plugins` adds to them unless `defaultPlugins` is `false`. Two adapters exist, `@crypte/react` and `@crypte/vue`, and `apps/demo-vue` renders Vue stories in the same shell |
 | 1.5, path aliases | built |
 | 2 and 3, the types | built, and `defineStories` and `story` with them. Inference reads what a component file declares, and 3.2's merge completes it from the story file |
 | 4, the manifest | built, and written by `crypte dev` at start-up, on every restart of the configuration and on every rebuild, so the file follows what is served. The CLI produces `story` and `page` entries and a plugin's `node` surface contributes `tokens` ones (6.3); the shell draws all three |
@@ -1126,6 +1127,12 @@ Twelve known gaps between this document and the code:
 ---
 
 ## 9. Version log
+
+**v1.65.** `plugins` adds to the preset (1.5).
+
+| Before | After |
+| --- | --- |
+| a `plugins` key took exactly what it listed, so `[a11y()]` dropped the preset in silence | `plugins` adds to the preset, a preset name replaces it in its place, `defaultPlugins: false` keeps only the list |
 
 **v1.64.** The wrappers panel is withdrawn before any release, and `muted` and `wraps` with it (5.2, 5.3). No project asked to turn a wrapper off from the shell; reopened by one that does.
 

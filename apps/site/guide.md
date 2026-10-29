@@ -45,21 +45,18 @@ The `tokens` plugin reads your CSS custom properties and puts them in the manife
 
 ```ts
 import { defineConfig } from '@crypte/cli'
-import actions from '@crypte/actions'
-import controls from '@crypte/controls'
 import react from '@crypte/react'
-import source from '@crypte/source'
 import tokens from '@crypte/tokens'
 
 export default defineConfig({
   stories: 'stories',
   adapter: react(),
   css: 'src/styles/app.css',
-  plugins: [controls(), tokens({ files: ['src/styles/tokens.css'] }), source(), actions()],
+  plugins: [tokens({ files: ['src/styles/tokens.css'] })],
 })
 ```
 
-**A `plugins` key replaces the preset**, `controls`, `tokens`, `source` and `actions`, which a config without one gets: so the three others are listed beside `tokens`.
+**`plugins` adds to the preset**, `controls`, `tokens`, `source` and `actions`, and a plugin listed under one of their names takes its place: here `tokens` gets its options, and the three others stay. `defaultPlugins: false` keeps only what `plugins` lists.
 
 **Its settings go to the plugin, not to the config.** `plugins` carries objects Crypte passes along without opening them, so a plugin's options travel inside the one it belongs to. That is why there is no `tokens` key beside `css`: the core would then have to know what a token is, and would need one key per plugin you install.
 

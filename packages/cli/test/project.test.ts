@@ -126,10 +126,11 @@ describe('defineConfig', () => {
   })
 })
 
-// La table de la section 1.5 : sans clé, le préréglage ; avec, exactement ce
-// qu'elle liste, le tableau vide compris.
-describe('the plugin preset', () => {
-  test('is controls, tokens, source and actions', () => {
+// La table de la section 1.5 : `plugins` s'ajoute aux plugins par défaut, un nom
+// de plugin par défaut le remplace à sa place, et `defaultPlugins: false` ne garde
+// que la liste. Une seconde copie reste, pour que les surfaces la refusent.
+describe('the default plugins', () => {
+  test('are controls, tokens, source and actions', () => {
     expect(defaultPlugins.map((plugin) => plugin.name)).toEqual([
       'controls',
       'tokens',
@@ -138,15 +139,39 @@ describe('the plugin preset', () => {
     ])
   })
 
+  const preset = ['controls', 'tokens', 'source', 'actions']
   test.for([
-    ['without a plugins key', '', defaultPlugins.map((plugin) => plugin.name)],
-    ['with an empty plugins', 'plugins: [],', []],
-    ['with a plugin listed', 'plugins: [{ name: "mine" }],', ['mine']],
+    ['without a plugins key', '', preset],
+    ['with an empty plugins', 'plugins: [],', preset],
+    ['with a plugin added', 'plugins: [{ name: "mine" }],', [...preset, 'mine']],
+    [
+      'with a default plugin listed, in its place',
+      'plugins: [{ name: "mine" }, { name: "tokens", mine: true }],',
+      ['controls', 'tokens (mine)', 'source', 'actions', 'mine'],
+    ],
+    [
+      'with a default plugin listed twice',
+      'plugins: [{ name: "source", mine: true }, { name: "source" }],',
+      ['controls', 'tokens', 'source (mine)', 'actions', 'source'],
+    ],
+    ['with a malformed entry', 'plugins: [null],', [...preset, 'null']],
+    ['with defaultPlugins true', 'defaultPlugins: true,', preset],
+    ['with defaultPlugins false', 'defaultPlugins: false,', []],
+    [
+      'with defaultPlugins false and a list',
+      'defaultPlugins: false, plugins: [{ name: "tokens", mine: true }],',
+      ['tokens (mine)'],
+    ],
   ] as const)('%s', async ([, plugins, names], { projectWith }) => {
     const root = projectWith(`export default { stories: "s", adapter: {}, ${plugins} }`)
     const { config } = await loadProject(root)
 
-    expect(config.plugins?.map((plugin) => plugin.name)).toEqual(names)
+    expect(
+      config.plugins?.map((plugin) => {
+        const one = plugin as { name?: string; mine?: boolean } | null
+        return one === null ? 'null' : `${one.name}${one.mine ? ' (mine)' : ''}`
+      }),
+    ).toEqual(names)
   })
 })
 
@@ -205,6 +230,11 @@ describe('config loading', () => {
       'with plugins that are not an array',
       'export default { stories: "s", adapter: {}, plugins: {} }',
       /plugins/,
+    ],
+    [
+      'with a defaultPlugins that is not a boolean',
+      'export default { stories: "s", adapter: {}, defaultPlugins: "no" }',
+      /defaultPlugins/,
     ],
     [
       'with a malformed vite.plugins',

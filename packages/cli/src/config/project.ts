@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { loadConfigFromFile, type InlineConfig, type PluginOption } from 'vite'
 import { readProjectPaths } from './config-paths'
+import type { CryptePlugin } from '@crypte/core/protocol'
 import { defaultPlugins, type CrypteConfig } from './config'
 import { pathsPlugin, type ProjectPaths } from './paths'
 import { ConfigError } from '../errors'
@@ -53,7 +54,13 @@ export async function loadProject(input: string): Promise<Project> {
   // itself, and we always give it one.
   const declared = loaded?.config as unknown as CrypteConfig
   assertUsable(declared)
-  const config = { ...declared, plugins: declared.plugins ?? defaultPlugins }
+  const config = {
+    ...declared,
+    plugins:
+      declared.defaultPlugins === false
+        ? (declared.plugins ?? [])
+        : withDefaults(declared.plugins ?? []),
+  }
 
   // The files read come back even with no paths: adding `paths` to an existing
   // `tsconfig.json` has to trigger a reload.
@@ -93,6 +100,23 @@ function assertUsable(config: CrypteConfig): void {
       throw new ConfigError(`${CONFIG_FILE}: \`${field}\` must be an array.`)
     }
   }
+
+  if (config.defaultPlugins !== undefined && typeof config.defaultPlugins !== 'boolean') {
+    throw new ConfigError(`${CONFIG_FILE}: \`defaultPlugins\` must be \`true\` or \`false\`.`)
+  }
+}
+
+// The default plugins, each replaced in its place by the first listed plugin of
+// its name, then the other listed ones in their order. A second copy of a name
+// stays in the list, so the surfaces refuse it and say so rather than drop it.
+function withDefaults(listed: CryptePlugin[]): CryptePlugin[] {
+  const used = new Set<unknown>()
+  const kept = defaultPlugins.map((preset) => {
+    const mine = listed.find((one) => (one as { name?: unknown } | null)?.name === preset.name)
+    if (mine) used.add(mine)
+    return mine ?? preset
+  })
+  return [...kept, ...listed.filter((one) => !used.has(one))]
 }
 
 // The project's Vite configuration, built from its own. Nothing is guessed:
