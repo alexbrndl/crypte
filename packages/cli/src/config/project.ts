@@ -23,6 +23,9 @@ export interface Project {
   // `crypte.config.ts` and what it imports, plus the TypeScript configuration
   // the paths come from.
   watch: string[]
+  // The `plugins` the configuration wrote, before the default ones join them: a
+  // refusal names an entry by its place there, not in the list it was merged into.
+  listed?: readonly unknown[]
 }
 
 export async function loadProject(input: string): Promise<Project> {
@@ -67,7 +70,7 @@ export async function loadProject(input: string): Promise<Project> {
   const { paths, files } = await readProjectPaths(root)
   const watch = [...(loaded?.dependencies ?? []).map((dep) => resolve(root, dep)), ...files]
 
-  return { root, config, paths, watch }
+  return { root, config, paths, watch, listed: declared.plugins ?? [] }
 }
 
 // Two fields only are required, and the error names them: section 1.5 makes
@@ -107,8 +110,10 @@ function assertUsable(config: CrypteConfig): void {
 }
 
 // The default plugins, each replaced in its place by the first listed plugin of
-// its name, then the other listed ones in their order. A second copy of a name
-// stays in the list, so the surfaces refuse it and say so rather than drop it.
+// its name, then the other listed ones in their order. A second plugin of a name
+// stays, and is then any later plugin of a taken name (6.1, 6.3). Compared by
+// identity, so a default plugin listed as itself, `[...defaultPlugins, a11y()]`,
+// is not counted twice.
 function withDefaults(listed: CryptePlugin[]): CryptePlugin[] {
   const used = new Set<unknown>()
   const kept = defaultPlugins.map((preset) => {

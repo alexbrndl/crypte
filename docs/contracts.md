@@ -130,7 +130,7 @@ export default defineConfig({
 
 Two keys are required, and an error names the one that is missing.
 
-**`plugins` adds to the preset.** `controls`, `tokens`, `source` and `actions`, which the CLI depends on and exports as `defaultPlugins`, are always on, and `plugins` lists what comes after them. A listed plugin with the name of a preset one replaces it in its place, so `plugins: [tokens({ files })]` gives `tokens` its options with no second copy; a name listed twice keeps its first copy and refuses the second, as 6.1 refuses any name an earlier plugin has. `defaultPlugins: false` keeps only what `plugins` lists. `a11y` is added by hand: it loads axe-core in the preview.
+**`plugins` adds to the preset.** `controls`, `tokens`, `source` and `actions`, which the CLI depends on and exports as `defaultPlugins`, are always on, and `plugins` lists what comes after them. A listed plugin with the name of a preset one replaces it in its place, so `plugins: [tokens({ files })]` gives `tokens` its options with no second copy; a name listed twice keeps both copies, the second being any later plugin of a taken name: refused if it has a browser surface (6.1), its ids already taken set aside if it contributes entries (6.3). `defaultPlugins: false` keeps only what `plugins` lists. `a11y` is added by hand: it loads axe-core in the preview.
 
 **An adapter is typed by the core**, and `adapter` takes nothing else:
 

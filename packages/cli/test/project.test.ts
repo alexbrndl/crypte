@@ -8,6 +8,7 @@ import { projectPathsOf } from '../src/config/config-paths'
 import { capture, isBareSpecifier } from '../src/config/paths'
 import { defaultPlugins, defineConfig } from '../src/config/config'
 import { ConfigError, cssEntryOf, loadProject, viteConfigOf } from '../src/config/project'
+import { surfacesOf } from '../src/server/surfaces'
 
 // La fixture reproduit les contraintes d'un projet réel : alias `@/`, pas de
 // `tsconfig.json` mais un `jsconfig.json` à commentaires, des fichiers `.jsx`,
@@ -172,6 +173,22 @@ describe('the default plugins', () => {
         return one === null ? 'null' : `${one.name}${one.mine ? ' (mine)' : ''}`
       }),
     ).toEqual(names)
+  })
+})
+
+// Un refus nomme une entrée sans nom par sa place dans la liste écrite : les
+// plugins par défaut, ajoutés devant, la décalaient de quatre. Revue de la PR #244.
+describe('a refused plugin with no name', () => {
+  test('is named by its place in the list the config wrote', async ({ projectWith }) => {
+    const root = projectWith(
+      'export default { stories: "s", adapter: {}, plugins: [{ name: "tokens" }, { shell: "file:///nowhere.mjs" }, function () {}] }',
+    )
+    const { refused } = surfacesOf(await loadProject(root))
+
+    expect(refused.filter((one) => one.plugin.startsWith('plugins['))).toEqual([
+      { plugin: 'plugins[1]', reason: 'a plugin with a browser surface needs a `name`' },
+      { plugin: 'plugins[2]', reason: 'a function, not a plugin: call it, `the factory()`' },
+    ])
   })
 })
 
