@@ -46,6 +46,12 @@ export function surfacesOf(project: Project): Surfaces {
   // DCJ-322 carry it: two plugins sharing one would share both.
   const taken = new Set<string>()
 
+  // An entry with no name, by its place in the list the configuration wrote.
+  const placeOf = (plugin: unknown, at: number) => {
+    const written = project.listed?.indexOf(plugin) ?? -1
+    return `plugins[${written === -1 ? at : written}]`
+  }
+
   for (const [at, plugin] of (project.config.plugins ?? []).entries()) {
     // `plugins: [controls]`, the factory itself: it compiles, since a function
     // has a `name`, and has nothing else to read, so it did nothing without a
@@ -53,7 +59,7 @@ export function surfacesOf(project: Project): Surfaces {
     if (typeof plugin === 'function') {
       const factory = (plugin as { name: string }).name || 'the factory'
       found.refused.push({
-        plugin: `plugins[${at}]`,
+        plugin: placeOf(plugin, at),
         reason: `a function, not a plugin: call it, \`${factory}()\``,
       })
       continue
@@ -65,7 +71,7 @@ export function surfacesOf(project: Project): Surfaces {
     // A plugin arrives compiled, so nothing checks its type any more: a `toolbar`
     // or the old `ui` would be ignored without a word, the way an unknown
     // preview hook is refused rather than never called.
-    const label = typeof name === 'string' && name !== '' ? name : `plugins[${at}]`
+    const label = typeof name === 'string' && name !== '' ? name : placeOf(plugin, at)
     for (const key of typeof plugin === 'object' && plugin !== null ? Object.keys(plugin) : []) {
       // `hasOwn` and not `in`, which takes `toString` for a key.
       if (Object.hasOwn(KEYS, key)) continue
@@ -78,7 +84,7 @@ export function surfacesOf(project: Project): Surfaces {
     if (typeof name !== 'string' || name === '') {
       if (browser) {
         found.refused.push({
-          plugin: `plugins[${at}]`,
+          plugin: placeOf(plugin, at),
           reason: 'a plugin with a browser surface needs a `name`',
         })
       }

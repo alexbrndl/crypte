@@ -84,10 +84,7 @@ function copie(): string {
       "import crypte from '@crypte/react'\n",
       "import crypte from '@crypte/react'\nimport hello from './plugins/hello'\nimport i18n from './plugins/i18n'\nimport status from './plugins/status'\n",
     )
-    .replace(
-      '  plugins: [...defaultPlugins, a11y()],',
-      '  plugins: [...defaultPlugins, a11y(), hello(), status(), i18n()],',
-    )
+    .replace('  plugins: [a11y()],', '  plugins: [a11y(), hello(), status(), i18n()],')
   // Sans quoi la démo a changé de forme, et les cas tourneraient sans eux.
   expect(avec.match(/plugins\/(hello|i18n|status)'/g)).toHaveLength(3)
   expect(avec).toContain('hello(), status(), i18n()')

@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { loadConfigFromFile, type InlineConfig, type PluginOption } from 'vite'
 import { readProjectPaths } from './config-paths'
+import type { CryptePlugin } from '@crypte/core/protocol'
 import { defaultPlugins, type CrypteConfig } from './config'
 import { pathsPlugin, type ProjectPaths } from './paths'
 import { ConfigError } from '../errors'
@@ -22,6 +23,9 @@ export interface Project {
   // `crypte.config.ts` and what it imports, plus the TypeScript configuration
   // the paths come from.
   watch: string[]
+  // The `plugins` the configuration wrote, before the default ones join them: a
+  // refusal names an entry by its place there, not in the list it was merged into.
+  listed?: readonly unknown[]
 }
 
 export async function loadProject(input: string): Promise<Project> {
@@ -53,14 +57,20 @@ export async function loadProject(input: string): Promise<Project> {
   // itself, and we always give it one.
   const declared = loaded?.config as unknown as CrypteConfig
   assertUsable(declared)
-  const config = { ...declared, plugins: declared.plugins ?? defaultPlugins }
+  const config = {
+    ...declared,
+    plugins:
+      declared.defaultPlugins === false
+        ? (declared.plugins ?? [])
+        : withDefaults(declared.plugins ?? []),
+  }
 
   // The files read come back even with no paths: adding `paths` to an existing
   // `tsconfig.json` has to trigger a reload.
   const { paths, files } = await readProjectPaths(root)
   const watch = [...(loaded?.dependencies ?? []).map((dep) => resolve(root, dep)), ...files]
 
-  return { root, config, paths, watch }
+  return { root, config, paths, watch, listed: declared.plugins ?? [] }
 }
 
 // Two fields only are required, and the error names them: section 1.5 makes
@@ -93,6 +103,25 @@ function assertUsable(config: CrypteConfig): void {
       throw new ConfigError(`${CONFIG_FILE}: \`${field}\` must be an array.`)
     }
   }
+
+  if (config.defaultPlugins !== undefined && typeof config.defaultPlugins !== 'boolean') {
+    throw new ConfigError(`${CONFIG_FILE}: \`defaultPlugins\` must be \`true\` or \`false\`.`)
+  }
+}
+
+// The default plugins, each replaced in its place by the first listed plugin of
+// its name, then the other listed ones in their order. A second plugin of a name
+// stays: its browser surfaces are refused (6.1), its taken ids set aside (6.3).
+// Compared by identity, so a default plugin listed as itself,
+// `[...defaultPlugins, a11y()]`, is not counted twice.
+function withDefaults(listed: CryptePlugin[]): CryptePlugin[] {
+  const used = new Set<unknown>()
+  const kept = defaultPlugins.map((preset) => {
+    const mine = listed.find((one) => (one as { name?: unknown } | null)?.name === preset.name)
+    if (mine) used.add(mine)
+    return mine ?? preset
+  })
+  return [...kept, ...listed.filter((one) => !used.has(one))]
 }
 
 // The project's Vite configuration, built from its own. Nothing is guessed:

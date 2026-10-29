@@ -1,4 +1,4 @@
-import { defaultPlugins, defineConfig } from '@crypte/cli'
+import { defineConfig } from '@crypte/cli'
 import react from '@vitejs/plugin-react'
 import compiler from 'babel-plugin-react-compiler'
 import a11y from '@crypte/a11y'
@@ -11,7 +11,7 @@ export default defineConfig({
   components: 'src/components',
   adapter: crypte(),
   wrap: Panel,
-  plugins: [...defaultPlugins, a11y()],
+  plugins: [a11y()],
   // Le compilateur React est actif, comme sur le projet cible : c'est le risque
   // que `DCJ-170` demandait de lever ici, sur les cas navigateur plutôt que plus
   // tard sur un vrai projet.
