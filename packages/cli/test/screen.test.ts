@@ -1689,6 +1689,13 @@ describe('the accessibility audit, on screen', () => {
       .poll(() => ecran.page.locator('.status-bar p').first().textContent(), { timeout: 60_000 })
       .toMatch(/^audit of \d+ stories in \d+\.\d s$/)
     expect(await ecran.page.locator('.audit-frame').count()).toBe(0)
+    // Sans sidebar, le dashboard prend la place de la colonne : à 1280, bien plus
+    // que ses 267 px.
+    expect(
+      await ecran.page
+        .locator('.health-dashboard')
+        .evaluate((e) => e.getBoundingClientRect().width),
+    ).toBeGreaterThan(1000)
     // Les valeurs réelles de la démo : la story au rôle inconnu enfreint
     // aria-roles. Elles tiennent la forme de `a11y:results`, que le shell lit : un
     // champ renommé dans le plugin fait tomber ces lignes.

@@ -550,8 +550,12 @@ function keys(event: KeyboardEvent, grid: 'case' | 'cell') {
   box-shadow: inset 0 0 0 2px var(--accent-base);
 }
 
+/* Hors du focus, la case perd sa couleur et pas son nom : une opacité de 0.3
+   rendait l'abréviation illisible (axe, 1.5:1). */
 .case[data-dimmed] {
-  opacity: 0.3;
+  background: var(--background-raised);
+  box-shadow: inset 0 0 0 var(--stroke-hairline) var(--border-base);
+  color: var(--text-muted);
 }
 
 .abbreviation {
