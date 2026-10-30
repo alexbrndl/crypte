@@ -3868,6 +3868,97 @@ describe('the health view', () => {
     écran.wrapper.unmount()
   })
 
+  // L'audit ne part qu'une fois : un catalogue vidé puis rendu par la preview
+  // rechargée ne le relance pas.
+  test('runs the audit once, a catalogue emptied and back not starting it again', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health')
+    const catalogue: ManifestEntry[] = [badge, alerte, bouton, jetons, orpheline]
+    const écran = await monte(catalogue)
+    await audite(écran)
+
+    const tout = catalogue.splice(0)
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    await vide(écran.wrapper)
+    catalogue.push(...tout)
+    await écran.répond({ type: 'ready', protocolVersion: 1 } as PreviewMessage)
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('.audit-frame').exists()).toBe(false)
+    expect(écran.statut()).toMatch(/^audit of 3 stories in \d+\.\d s$/)
+    écran.wrapper.unmount()
+  })
+
+  test('says why the audit could not run, in the language shown', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health')
+    const écran = await monte([badge])
+    écran.wrapper.findComponent(Panels).vm.$emit('weights', [{ plugin: 'a11y', bytes: 1 }])
+
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      // Sans attendre : `répond` attend un `setTimeout`, que seule l'avance libère.
+      const rendu = écran.répond({
+        type: 'rendered',
+        id: 'badge--defaut',
+        durationMs: 1,
+        values: {},
+      } as PreviewMessage)
+      await vi.advanceTimersByTimeAsync(9000)
+      await rendu
+    } finally {
+      vi.useRealTimers()
+    }
+    await vide(écran.wrapper)
+
+    expect(écran.wrapper.find('.audit-frame').exists()).toBe(false)
+    expect(écran.statut()).toBe('the audit could not run: the preview never said it was ready')
+    setLocale('fr')
+    await vide(écran.wrapper)
+    expect(écran.statut()).toBe(
+      "l'audit n'a pas pu tourner : l'aperçu n'a jamais dit qu'il était prêt",
+    )
+    écran.wrapper.unmount()
+  })
+
+  // Une ancienne adresse de page garde son `item`, que le dashboard ne connaît
+  // pas : pas de colonne vide.
+  test('opens no panel for a choice the dashboard does not know', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health=failures&item=badge--alerte')
+    const écran = await monte([badge, alerte, bouton])
+
+    expect(écran.wrapper.find('.health-dashboard').exists()).toBe(true)
+    expect(écran.wrapper.find('#health-panel').exists()).toBe(false)
+    expect(écran.wrapper.find('.toolbar .panels-toggle').exists()).toBe(false)
+    écran.wrapper.unmount()
+  })
+
+  // Un brouillon sans audit n'a que des cases vides : coché, il n'écrit rien.
+  test('keeps the prompt button disabled when the checked rows write nothing', async () => {
+    santé = () => ({
+      components: [
+        {
+          name: 'Badge',
+          file: 'x',
+          export: 'default',
+          stories: ['badge--defaut'],
+          props: 0,
+          required: 0,
+          status: 'draft',
+          usedIn: ['src/app.tsx'],
+        },
+      ],
+    })
+    window.history.replaceState(null, '', '/?health')
+    const écran = await monte([badge, badgePage])
+
+    await écran.wrapper.find('.health-list .row input').trigger('change')
+    await vide(écran.wrapper)
+    expect(relevé(écran)).toEqual(['[x] Badge · draft'])
+    expect(écran.wrapper.find('.toolbar .prompt').attributes('disabled')).toBeDefined()
+    écran.wrapper.unmount()
+  })
+
   // Une route qui ne répond pas n'est pas un dossier absent : aucun guide à copier.
   test('says the data could not be read, rather than asking for a folder', async () => {
     santé = () => {

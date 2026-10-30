@@ -51,7 +51,8 @@ import { differencesOf, sinceLabel } from './versions/differences'
 import VersionsSidebar, { type Since, type Versions } from './versions/versions-sidebar.vue'
 import VersionsView from './versions/versions-view.vue'
 import HealthDashboard from './health/health-dashboard.vue'
-import { dashboardOf, selectionOf, todoOf } from './health/dashboard'
+import { dashboardOf, ORPHANS, READY, selectionOf, todoOf } from './health/dashboard'
+import { useCopy } from './clipboard'
 import HealthPanel from './health/health-panel.vue'
 import { AuditFailure, audit, type AuditResult } from './health/audit'
 import type { Health } from './health/health'
@@ -107,6 +108,7 @@ const t = texts({
     noComponentsDeclared: 'no components folder declared',
     auditing: 'auditing the stories, {done} of {total} renders',
     audited: 'audit of {count} stories in {seconds} s',
+    auditFailed: 'the audit could not run: {reason}',
     component: 'component',
     components: 'components',
     covered: '{components}, {covered} with a story',
@@ -232,6 +234,7 @@ const t = texts({
     noComponentsDeclared: 'aucun dossier de composants déclaré',
     auditing: 'audit des stories, {done} rendus sur {total}',
     audited: 'audit de {count} stories en {seconds} s',
+    auditFailed: "l'audit n'a pas pu tourner : {reason}",
     component: 'composant',
     components: 'composants',
     covered: '{components}, {covered} avec une story',
@@ -650,6 +653,7 @@ const line = computed(() => {
     if (!listed) return t('noComponentsDeclared')
     if (auditing.value)
       return t('auditing', { done: auditing.value.done, total: auditing.value.total })
+    if (auditFailed.value) return t('auditFailed', { reason: auditFailed.value() })
     if (auditResults.value && auditTook.value !== null)
       return t('audited', {
         count: auditResults.value.length / 2,
@@ -748,20 +752,32 @@ const healthPrompt = computed(() =>
 )
 // « Prompt copié » le temps de le lire, comme le lien copié ; une liste qui
 // change l'oublie, le texte copié n'étant plus celui-là.
-const promptCopied = ref<number | null>(null)
+const { copied: promptCopied, copy } = useCopy()
 let promptClearing: ReturnType<typeof setTimeout> | undefined
 async function copyPrompt() {
-  try {
-    await navigator.clipboard.writeText(healthPrompt.value)
-    promptCopied.value = inPrompt.value
-  } catch {
-    promptCopied.value = null
-  }
+  await copy(healthPrompt.value, String(inPrompt.value))
   clearTimeout(promptClearing)
   promptClearing = setTimeout(() => (promptCopied.value = null), 1500)
 }
 watch(healthPrompt, () => (promptCopied.value = null))
 // Le score qui remplit le cœur de Santé, `null` sans dossier de composants.
+// Ce que le panneau sait dessiner : une clé inconnue, d'une ancienne adresse par
+// exemple, n'ouvre pas une colonne vide.
+const healthChosen = computed(() => {
+  const item = healthAt.value?.item
+  const board = dashboard.value
+  if (!item || !board) return null
+  const known =
+    item === ORPHANS
+      ? board.coverage.orphans > 0
+      : item === READY
+        ? board.rows.some((one) => one.group === 'ready')
+        : board.rows.some((one) => one.key === item) ||
+          board.coverage.families.some((family) =>
+            family.tokens.some((one) => `token:${one.name}` === item),
+          )
+  return known ? item : null
+})
 const healthScore = computed(() => dashboard.value?.score ?? null)
 
 const firstRender = ref<number | null>(null)
@@ -1896,7 +1912,7 @@ onMounted(() => {
           <span aria-current="page">{{ t('trailHealth') }}</span>
         </nav>
         <div class="actions">
-          <Tooltip v-if="inPrompt > 0" :content="t('promptTip')">
+          <Tooltip v-if="inPrompt > 0 && healthPrompt" :content="t('promptTip')">
             <Button variant="outline" class="prompt" @click="copyPrompt">
               <Icon
                 :icon="promptCopied === null ? AiContentGenerator01Icon : CheckmarkBadge01Icon"
@@ -1905,7 +1921,7 @@ onMounted(() => {
                 {{ t('copyPrompt') }} <Badge tone="inverse">{{ inPrompt }}</Badge>
               </template>
               <template v-else>{{
-                singular(promptCopied)
+                singular(Number(promptCopied))
                   ? t('promptCopiedOne', { count: promptCopied })
                   : t('promptCopiedMany', { count: promptCopied })
               }}</template>
@@ -1922,7 +1938,7 @@ onMounted(() => {
               </Button>
             </span>
           </Tooltip>
-          <template v-if="healthAt.item">
+          <template v-if="healthChosen">
             <span class="divider" aria-hidden="true" />
             <Tooltip :content="panelsOpen ? t('hidePanels') : t('showPanels')">
               <Button
@@ -2437,7 +2453,7 @@ onMounted(() => {
           </PanelSection>
         </aside>
         <aside
-          v-if="view === 'health' && dashboard && healthAt?.item && !fullScreen && panelsOpen"
+          v-if="view === 'health' && dashboard && healthChosen && !fullScreen && panelsOpen"
           id="health-panel"
           class="panel-column"
           :aria-label="t('healthPanel')"
@@ -2445,7 +2461,7 @@ onMounted(() => {
           <ColumnTitle :title="t('panels')" />
           <HealthPanel
             :dashboard="dashboard"
-            :item="healthAt.item"
+            :item="healthChosen"
             :stories="entries"
             :families="families"
             :href-of-story="(id) => placeSearch({ mode: 'entry', id })"

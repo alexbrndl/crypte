@@ -52,10 +52,11 @@ const familles: TokensEntry[] = [
 ]
 
 // Alpha ne rend pas, Beta n'a pas de page, Delta est prêt ; les deux premiers
-// lisent space-1, et space-2 n'est lu par personne.
+// lisent space-1, et space-2 n'est lu par personne. Gamma n'a pas de story.
 const composants = [
   composant('Alpha', { tokens: ['space-1'], status: 'deprecated', statusSince: '2026-10-14' }),
   composant('Beta', { tokens: ['space-1'] }),
+  composant('Gamma', { stories: [] }),
   composant('Delta', { changed: new Date(Date.now() - 2 * 86_400_000).toISOString() }),
 ]
 const histoires = ['Alpha', 'Beta', 'Delta'].map(story)
@@ -140,6 +141,12 @@ describe('the health panel', () => {
 
     await wrapper.find('a.link').trigger('click')
     expect(wrapper.emitted('token')![0]![0]).toBe('space-1')
+  })
+
+  // Rien à ouvrir sans story : pas d'en-tête au-dessus d'une liste vide.
+  test('lists nothing to do for a component without a story', () => {
+    expect(lignes(monte('src/Gamma.tsx:Gamma'))).not.toContain('to do, in order')
+    expect(lignes(monte('src/Alpha.tsx:Alpha'))).toContain('to do, in order')
   })
 
   test('lists the orphans by family', () => {

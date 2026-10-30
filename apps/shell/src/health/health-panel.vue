@@ -268,7 +268,7 @@ const firstReadyStory = computed(() =>
           t('reads', { count: dashboard.coverage.reads.get(row.key)?.size ?? 0 })
         }}</span>
       </p>
-      <template v-if="row.group !== 'ready'">
+      <template v-if="row.group !== 'ready' && todo.length > 0">
         <p class="caption">{{ t('todo') }}</p>
         <a
           v-for="story of todo"
