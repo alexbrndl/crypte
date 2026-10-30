@@ -409,6 +409,8 @@ describe('the coverage of the tokens', () => {
         fast: valeur('var(--a, 1ms) var(--b, ease)', ['motion-base']),
         fallback: valeur('var(--a) var(--b)', ['absent']),
         missing: valeur('var(--absent, var(--a))', ['absent']),
+        quoted: valeur("var(--b, 'a ) b')", ['b']),
+        unclosed: valeur('var(--a, calc(1px)', ['a']),
       },
     }
     const states = tokenHealthOf([motion], []).families[0]!.tokens.map((one) => [
@@ -420,6 +422,8 @@ describe('the coverage of the tokens', () => {
       ['motion-fast', 'orphan'],
       ['motion-fallback', 'orphan'],
       ['motion-missing', 'broken'],
+      ['motion-quoted', 'broken'],
+      ['motion-unclosed', 'orphan'],
     ])
   })
 

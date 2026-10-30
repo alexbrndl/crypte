@@ -311,13 +311,20 @@ function brokenTarget(value: TokenValue): string | undefined {
   return undefined
 }
 
-// Une valeur qui est en entier un `var()` : sa parenthèse fermante est la dernière.
+// Une valeur qui est en entier un `var()` : sa parenthèse fermante est la dernière,
+// une parenthèse entre guillemets restant du texte, comme pour `aliasOf`.
 function wholeVar(value: string): boolean {
   const text = value.trim()
   if (!text.startsWith('var(') || !text.endsWith(')')) return false
-  let depth = 0
-  for (const [at, char] of [...text].entries()) {
-    if (char === '(') depth += 1
+  let depth = 1
+  let quote: string | undefined
+  for (let at = 4; at < text.length; at += 1) {
+    const char = text[at]
+    if (quote !== undefined) {
+      if (char === '\\') at += 1
+      else if (char === quote) quote = undefined
+    } else if (char === '"' || char === "'") quote = char
+    else if (char === '(') depth += 1
     else if (char === ')' && --depth === 0) return at === text.length - 1
   }
   return false
