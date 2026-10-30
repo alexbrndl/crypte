@@ -198,11 +198,11 @@ function keys(event: KeyboardEvent, grid: 'case' | 'cell') {
 <template>
   <div class="health-blocks">
     <section class="block" :aria-label="t('components')">
-      <h3 class="title">
+      <h2 class="title">
         <span class="name">{{ t('components') }}</span>
         <span class="count">{{ counts.total }}</span>
         <span v-if="notes.components" class="note">· {{ notes.components }}</span>
-      </h3>
+      </h2>
       <div class="bar">
         <div class="labels">
           <span v-if="counts.blocking > 0" class="label" data-state="blocking"
@@ -277,11 +277,11 @@ function keys(event: KeyboardEvent, grid: 'case' | 'cell') {
     <div class="rule" aria-hidden="true" />
 
     <section class="block" :aria-label="t('tokens')">
-      <h3 class="title">
+      <h2 class="title">
         <span class="name">{{ t('tokens') }}</span>
         <span class="count">{{ t('used', { used: coverage.used, total: coverage.total }) }}</span>
         <span v-if="notes.tokens" class="note">· {{ notes.tokens }}</span>
-      </h3>
+      </h2>
       <div class="bar">
         <div class="labels">
           <span class="label" data-state="ready"
@@ -396,9 +396,12 @@ function keys(event: KeyboardEvent, grid: 'case' | 'cell') {
   gap: var(--space-2-5);
 }
 
-/* role/section of the Figma file. */
+/* role/section of the Figma file. Sur une ligne : le complément qui apparaît au
+   survol ne doit pas grandir le bloc, la liste glisserait sous le pointeur. */
 .title {
   display: flex;
+  min-width: 0;
+  white-space: nowrap;
   gap: var(--space-2);
   margin: 0;
   color: var(--text-muted);
@@ -416,6 +419,9 @@ function keys(event: KeyboardEvent, grid: 'case' | 'cell') {
 }
 
 .note {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--text-current);
   letter-spacing: 0;
   text-transform: none;

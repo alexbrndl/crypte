@@ -605,9 +605,12 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
   white-space: nowrap;
 }
 
+/* role/caption of the Figma file, the same for every header label. */
 .quiet {
   color: var(--text-muted);
   font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
 }
 
 .group {

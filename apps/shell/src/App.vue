@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { plural } from './plural'
+import { plural, singular } from './plural'
 import type {
   Manifest,
   Overrides,
@@ -14,6 +14,7 @@ import type {
 import { createShellChannel } from '@crypte/core/shell'
 import {
   Alert,
+  Badge,
   Button,
   Tooltip,
   ColumnTitle,
@@ -49,27 +50,13 @@ import { changesOnGitHub, type GitHub } from './versions/github'
 import { differencesOf, sinceLabel } from './versions/differences'
 import VersionsSidebar, { type Since, type Versions } from './versions/versions-sidebar.vue'
 import VersionsView from './versions/versions-view.vue'
-import HealthSidebar from './health/health-sidebar.vue'
-import HealthView from './health/health-view.vue'
 import HealthDashboard from './health/health-dashboard.vue'
-import { dashboardOf, selectionOf } from './health/dashboard'
-import HealthPanel from './health/health-panel.vue'
-import HealthAccessibility from './health/health-accessibility.vue'
-import HealthFailures from './health/health-failures.vue'
-import { AuditFailure, audit, failuresOf, findingsOf, type AuditResult } from './health/audit'
-import {
-  gaugesOf,
-  keyOf,
-  PAGES,
-  rowsOf,
-  scoreOf,
-  todoOf,
-  type Health,
-  type HealthPage,
-} from './health/health'
-import { promptOf } from './health/prompt'
-import { suspectsOf } from './health/suspects'
+import { dashboardOf, ORPHANS, READY, selectionOf, todoOf } from './health/dashboard'
 import { useCopy } from './clipboard'
+import HealthPanel from './health/health-panel.vue'
+import { AuditFailure, audit, type AuditResult } from './health/audit'
+import type { Health } from './health/health'
+import { promptOf } from './health/prompt'
 import CommandPalette, { type Action } from './navigation/command-palette.vue'
 import { useRecent } from './navigation/recent'
 import ComponentPage from './pages/component-page.vue'
@@ -77,6 +64,7 @@ import MarkdownPage from './pages/markdown-page.vue'
 import EmptyGuide from './pages/empty-guide.vue'
 import {
   AiContentGenerator01Icon,
+  CheckmarkBadge01Icon,
   ArrowDown01Icon,
   ArrowHorizontalIcon,
   ComputerIcon,
@@ -120,6 +108,7 @@ const t = texts({
     noComponentsDeclared: 'no components folder declared',
     auditing: 'auditing the stories, {done} of {total} renders',
     audited: 'audit of {count} stories in {seconds} s',
+    auditFailed: 'the audit could not run: {reason}',
     component: 'component',
     components: 'components',
     covered: '{components}, {covered} with a story',
@@ -164,8 +153,9 @@ const t = texts({
     pluginFailed: 'a plugin failed',
     promptTip:
       'Paste it to your coding agent: it fixes the render errors, violations and missing stories listed here.',
-    promptCopied: 'Fix prompt copied',
-    copyPrompt: 'Copy fix prompt',
+    promptCopiedOne: 'prompt copied, {count} fix',
+    promptCopiedMany: 'prompt copied, {count} fixes',
+    copyPrompt: 'copy fix prompt',
     nothingToFix: 'Nothing to fix',
     configUnread: 'could not be read',
     configKept:
@@ -244,6 +234,7 @@ const t = texts({
     noComponentsDeclared: 'aucun dossier de composants déclaré',
     auditing: 'audit des stories, {done} rendus sur {total}',
     audited: 'audit de {count} stories en {seconds} s',
+    auditFailed: "l'audit n'a pas pu tourner : {reason}",
     component: 'composant',
     components: 'composants',
     covered: '{components}, {covered} avec une story',
@@ -288,8 +279,9 @@ const t = texts({
     pluginFailed: 'un plugin a échoué',
     promptTip:
       'Collez-le à votre agent de code : il corrige les erreurs de rendu, les violations et les stories manquantes listées ici.',
-    promptCopied: 'Prompt de correction copié',
-    copyPrompt: 'Copier le prompt de correction',
+    promptCopiedOne: 'prompt copié, {count} correction',
+    promptCopiedMany: 'prompt copié, {count} corrections',
+    copyPrompt: 'copier le prompt de correction',
     nothingToFix: 'Rien à corriger',
     configUnread: "n'a pas pu être lu",
     configKept:
@@ -462,7 +454,7 @@ const categories = computed(() => categoriesOf(families.value))
 // changé, et au retour sur la fenêtre : un composant sans story est hors du
 // catalogue, et rien ne surveille son fichier. `null` avant la première lecture,
 // `failed` quand la route ne répond pas, ce qui n'est pas un dossier absent.
-const healthAt = ref<{ page: HealthPage; item?: string } | null>(null)
+const healthAt = ref<{ item?: string } | null>(null)
 
 // La vue d'un plugin ouverte, son nom et l'élément choisi, ou `null`. Ses
 // composants arrivent avec la liste des plugins : avant, la vue ouverte ne
@@ -499,12 +491,6 @@ async function readHealth() {
 const listedHealth = computed(() =>
   health.value === null || health.value === 'failed' ? undefined : health.value.components,
 )
-const healthItem = computed(
-  () => listedHealth.value?.find((one) => keyOf(one) === healthAt.value?.item) ?? null,
-)
-// Une page que l'adresse nomme et que la vue n'a pas mène à la vue d'ensemble.
-const pageOf = (page: string): HealthPage =>
-  PAGES.find((one) => one.page === page)?.page ?? 'overview'
 const shownCategory = computed(
   () => categories.value.find((one) => one.name === tokensAt.value?.category) ?? null,
 )
@@ -667,7 +653,8 @@ const line = computed(() => {
     if (!listed) return t('noComponentsDeclared')
     if (auditing.value)
       return t('auditing', { done: auditing.value.done, total: auditing.value.total })
-    if (healthAt.value.page === 'accessibility' && auditResults.value && auditTook.value !== null)
+    if (auditFailed.value) return t('auditFailed', { reason: auditFailed.value() })
+    if (auditResults.value && auditTook.value !== null)
       return t('audited', {
         count: auditResults.value.length / 2,
         seconds: decimal(auditTook.value / 1000),
@@ -723,21 +710,7 @@ const auditTook = ref<number | null>(null)
 // Pourquoi le dernier audit n'a pas tourné, dit sur sa page : un clic sans suite
 // ne dirait rien.
 const auditFailed = ref<(() => string) | null>(null)
-const findings = computed(() => (auditResults.value ? findingsOf(auditResults.value) : null))
 const a11yPlugin = computed(() => weights.value.some((one) => one.plugin === 'a11y'))
-const selectedFinding = computed(
-  () => findings.value?.find((one) => one.key === healthAt.value?.item) ?? null,
-)
-
-// Les tokens dont la valeur est une couleur que la violation choisie a mesurée.
-const suspects = computed(() =>
-  selectedFinding.value ? suspectsOf(selectedFinding.value, categories.value, entries.value) : [],
-)
-
-const failures = computed(() => (auditResults.value ? failuresOf(auditResults.value) : null))
-const selectedFailure = computed(
-  () => failures.value?.find((one) => one.key === healthAt.value?.item) ?? null,
-)
 // Le dashboard de la santé, et les lignes cochées qui font le prompt : les choix
 // de l'utilisateur, gardés d'une relecture à l'autre tant que leur ligne existe,
 // et les bloquants pour les lignes qu'il n'a pas touchées.
@@ -765,26 +738,47 @@ watch(dashboard, (next) => {
 function check(keys: string[], on: boolean) {
   choices.value = new Map([...choices.value, ...keys.map((key): [string, boolean] => [key, on])])
 }
-// Le nombre de choses à faire, le badge de Santé dans l'activity bar.
-const todo = computed(() => todoOf(listedHealth.value ?? null, auditResults.value))
-// Le prompt de tout ce qui reste, copié depuis la barre d'outils de Santé ; vide,
-// le bouton se désactive. Une liste qui change oublie la copie.
-const healthPrompt = computed(() =>
-  promptOf(
-    {
-      failures: failures.value ?? [],
-      findings: findings.value ?? [],
-      unstoried: rowsOf('unstoried', listedHealth.value ?? []),
-    },
-    entries.value,
-  ),
+// Le nombre de lignes à cocher, le badge de Santé dans l'activity bar.
+const todo = computed(() => dashboard.value?.checkable.length ?? 0)
+// Les lignes cochées, que le bouton compte, et le prompt qu'elles font ; vide,
+// le bouton se désactive.
+const inPrompt = computed(
+  () => dashboard.value?.checkable.filter((key) => checked.value.has(key)).length ?? 0,
 )
-const { copied: promptCopied, copy: copyPrompt } = useCopy()
+const healthPrompt = computed(() =>
+  dashboard.value
+    ? promptOf(todoOf(dashboard.value, checked.value, auditResults.value), entries.value)
+    : '',
+)
+// « Prompt copié » le temps de le lire, comme le lien copié ; une liste qui
+// change l'oublie, le texte copié n'étant plus celui-là.
+const { copied: promptCopied, copy } = useCopy()
+let promptClearing: ReturnType<typeof setTimeout> | undefined
+async function copyPrompt() {
+  await copy(healthPrompt.value, String(inPrompt.value))
+  clearTimeout(promptClearing)
+  promptClearing = setTimeout(() => (promptCopied.value = null), 1500)
+}
 watch(healthPrompt, () => (promptCopied.value = null))
 // Le score qui remplit le cœur de Santé, `null` sans dossier de composants.
-const healthScore = computed(() =>
-  listedHealth.value ? scoreOf(gaugesOf(listedHealth.value, auditResults.value)) : null,
-)
+// Ce que le panneau sait dessiner : une clé inconnue, d'une ancienne adresse par
+// exemple, n'ouvre pas une colonne vide.
+const healthChosen = computed(() => {
+  const item = healthAt.value?.item
+  const board = dashboard.value
+  if (!item || !board) return null
+  const known =
+    item === ORPHANS
+      ? board.coverage.orphans > 0
+      : item === READY
+        ? board.rows.some((one) => one.group === 'ready')
+        : board.rows.some((one) => one.key === item) ||
+          board.coverage.families.some((family) =>
+            family.tokens.some((one) => `token:${one.name}` === item),
+          )
+  return known ? item : null
+})
+const healthScore = computed(() => dashboard.value?.score ?? null)
 
 const firstRender = ref<number | null>(null)
 
@@ -1141,7 +1135,8 @@ function openTokens(category: string, token?: string, trace: Trace = 'push') {
   )
 }
 
-function openHealth(page: HealthPage, item?: string, trace: Trace = 'push') {
+// Un élément choisi ouvre le panneau, qui ne dit rien au repos.
+function openHealth(item?: string, trace: Trace = 'push') {
   if (trace === 'push') stale.value = null
   full.value = false
   closeChanges()
@@ -1151,11 +1146,9 @@ function openHealth(page: HealthPage, item?: string, trace: Trace = 'push') {
   tokensAt.value = null
   viewAt.value = null
   if (healthAt.value === null) void readHealth()
-  healthAt.value = item === undefined ? { page } : { page, item }
-  write(
-    placeSearch(item === undefined ? { mode: 'health', page } : { mode: 'health', page, item }),
-    trace,
-  )
+  healthAt.value = item === undefined ? {} : { item }
+  if (item !== undefined) panelsOpen.value = true
+  write(placeSearch(item === undefined ? { mode: 'health' } : { mode: 'health', item }), trace)
 }
 
 function openView(plugin: string, item?: string, trace: Trace = 'push') {
@@ -1258,7 +1251,7 @@ const hrefs = computed<Record<BuiltIn, string | null>>(() => {
         : placeSearch({ mode: 'entry', id: current.value }),
     tokens: placeSearch({ mode: 'tokens', category: tokens }),
     docs: docsHref(),
-    health: placeSearch({ mode: 'health', page: healthAt.value?.page ?? 'overview' }),
+    health: placeSearch({ mode: 'health' }),
     versions: placeSearch({ mode: 'changes' }),
   }
 })
@@ -1340,7 +1333,7 @@ function go(to: View, event: MouseEvent) {
     if (to === 'versions') openChanges()
     const tokens = firstCategory()
     if (to === 'tokens') openTokens(tokens)
-    if (to === 'health') openHealth(healthAt.value?.page ?? 'overview')
+    if (to === 'health') openHealth()
     if (to !== 'stories') return
     if (current.value !== null) show(current.value, 'push')
     else {
@@ -1578,7 +1571,7 @@ async function refresh() {
     const [first] = ofComponent(arrival.id, stories)
     if (first) [opening, shown] = [arrival.id, first]
   }
-  if (arrival.mode === 'health') openHealth(pageOf(arrival.page), arrival.item, 'none')
+  if (arrival.mode === 'health') openHealth(arrival.item, 'none')
   if (arrival.mode === 'view') openView(arrival.plugin, arrival.item, 'none')
   if (arrival.mode === 'changes') {
     const { mode: _, ...at } = arrival
@@ -1639,7 +1632,7 @@ function travel() {
   if (place.mode === 'component' && ofComponent(place.id, entries.value).length > 0)
     open(place.id, 'none')
   if (place.mode === 'tokens') openTokens(place.category, place.token, 'none')
-  if (place.mode === 'health') openHealth(pageOf(place.page), place.item, 'none')
+  if (place.mode === 'health') openHealth(place.item, 'none')
   if (place.mode === 'view') openView(place.plugin, place.item, 'none')
   if (place.mode === 'changes') {
     const { mode: _, ...at } = place
@@ -1743,7 +1736,8 @@ onMounted(() => {
         @theme="toggleTheme"
       />
     </div>
-    <div v-show="!fullScreen" class="nav-column">
+    <!-- La santé n'a pas de sidebar : le dashboard tient sur une page. -->
+    <div v-show="!fullScreen && view !== 'health'" class="nav-column">
       <div class="sidebar">
         <CategoryList
           v-if="view === 'tokens'"
@@ -1751,23 +1745,6 @@ onMounted(() => {
           :current="tokensAt?.category ?? null"
           :href-of="(category) => placeSearch({ mode: 'tokens', category })"
           @pick="(category, event) => follow(event, () => openTokens(category))"
-        />
-        <HealthSidebar
-          v-else-if="view === 'health'"
-          :components="listedHealth ?? null"
-          :unread="
-            health === null
-              ? t('healthReading')
-              : health === 'failed'
-                ? t('healthUnread')
-                : undefined
-          "
-          :audit="auditResults"
-          :findings="findings?.length ?? null"
-          :failures="failures?.length ?? null"
-          :page="healthAt?.page ?? 'overview'"
-          :href-of="(page) => placeSearch({ mode: 'health', page })"
-          @pick="(page, event) => follow(event, () => openHealth(page))"
         />
         <VersionsSidebar
           v-else-if="view === 'versions'"
@@ -1928,27 +1905,26 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- La vue santé a la sienne : la vue, la page, et le composant choisi. -->
+      <!-- La santé a la sienne : le prompt des lignes cochées, et le panneau. Pas de
+           lien à copier : le dashboard tient sur une page. -->
       <div v-else-if="view === 'health' && healthAt" class="toolbar">
         <nav class="trail" :aria-label="t('breadcrumb')">
-          <span class="folder">{{ t('trailHealth') }}<span class="separator">/</span></span>
-          <template v-if="healthItem">
-            <a
-              :href="placeSearch({ mode: 'health', page: healthAt.page })"
-              @click="follow($event, () => openHealth(healthAt!.page))"
-              >{{ PAGES.find((one) => one.page === healthAt!.page)!.label }}</a
-            ><span class="separator">/</span>
-            <span aria-current="page">{{ healthItem.name }}</span>
-          </template>
-          <span v-else aria-current="page">{{
-            PAGES.find((one) => one.page === healthAt!.page)!.label
-          }}</span>
+          <span aria-current="page">{{ t('trailHealth') }}</span>
         </nav>
         <div class="actions">
-          <Tooltip v-if="healthPrompt" :content="t('promptTip')">
-            <Button variant="outline" class="prompt" @click="copyPrompt(healthPrompt, 'prompt')">
-              <Icon :icon="AiContentGenerator01Icon" />
-              {{ promptCopied === 'prompt' ? t('promptCopied') : t('copyPrompt') }}
+          <Tooltip v-if="inPrompt > 0 && healthPrompt" :content="t('promptTip')">
+            <Button variant="outline" class="prompt" @click="copyPrompt">
+              <Icon
+                :icon="promptCopied === null ? AiContentGenerator01Icon : CheckmarkBadge01Icon"
+              />
+              <template v-if="promptCopied === null">
+                {{ t('copyPrompt') }} <Badge tone="inverse">{{ inPrompt }}</Badge>
+              </template>
+              <template v-else>{{
+                singular(Number(promptCopied))
+                  ? t('promptCopiedOne', { count: promptCopied })
+                  : t('promptCopiedMany', { count: promptCopied })
+              }}</template>
             </Button>
           </Tooltip>
           <!-- Désactivé, l'infobulle passe par une enveloppe : un bouton désactivé ne
@@ -1962,25 +1938,21 @@ onMounted(() => {
               </Button>
             </span>
           </Tooltip>
-          <Button variant="secondary" class="copy" @click="copyLink">
-            <Icon :icon="Copy01Icon" />
-            {{
-              copied === 'yes' ? t('copied') : copied === 'failed' ? t('copyFailed') : t('copyLink')
-            }}
-          </Button>
-          <span class="divider" aria-hidden="true" />
-          <Tooltip :content="panelsOpen ? t('hidePanels') : t('showPanels')">
-            <Button
-              variant="ghost"
-              class="panels-toggle"
-              :aria-label="t('panels')"
-              aria-controls="health-panel"
-              :aria-expanded="panelsOpen"
-              @click="panelsOpen = !panelsOpen"
-            >
-              <Icon :icon="panelsOpen ? PanelRightOpenIcon : PanelRightIcon" />
-            </Button>
-          </Tooltip>
+          <template v-if="healthChosen">
+            <span class="divider" aria-hidden="true" />
+            <Tooltip :content="panelsOpen ? t('hidePanels') : t('showPanels')">
+              <Button
+                variant="ghost"
+                class="panels-toggle"
+                :aria-label="t('panels')"
+                aria-controls="health-panel"
+                :aria-expanded="panelsOpen"
+                @click="panelsOpen = !panelsOpen"
+              >
+                <Icon :icon="panelsOpen ? PanelRightOpenIcon : PanelRightIcon" />
+              </Button>
+            </Tooltip>
+          </template>
         </div>
       </div>
       <div v-else-if="viewAt" class="toolbar">
@@ -2082,48 +2054,22 @@ onMounted(() => {
             @select="(token, event) => follow(event, () => openTokens(shownCategory!.name, token))"
           />
 
-          <HealthFailures
-            v-if="healthAt?.page === 'failures' && listedHealth"
-            :failures="failures"
-            :running="auditing"
-            :failed="auditFailed?.() ?? null"
-            :stories="entries"
-            :selected="healthAt.item ?? null"
-            :href-of="(key) => placeSearch({ mode: 'health', page: 'failures', item: key })"
-            @run="runAudit"
-            @select="(key, event) => follow(event, () => openHealth('failures', key))"
-          />
-          <HealthAccessibility
-            v-else-if="healthAt?.page === 'accessibility' && listedHealth"
-            :plugin="a11yPlugin"
-            :audit="auditResults"
-            :running="auditing"
-            :failed="auditFailed?.() ?? null"
-            :stories="entries"
-            :selected="healthAt.item ?? null"
-            :href-of="(key) => placeSearch({ mode: 'health', page: 'accessibility', item: key })"
-            @run="runAudit"
-            @select="(key, event) => follow(event, () => openHealth('accessibility', key))"
-          />
           <HealthDashboard
-            v-else-if="healthAt?.page === 'overview' && dashboard"
+            v-if="healthAt && dashboard"
             :dashboard="dashboard"
             :checked="checked"
             :selected="healthAt.item ?? null"
             :partial="auditResults === null"
-            @select="(item, event) => follow(event, () => openHealth('overview', item))"
+            @select="(item, event) => follow(event, () => openHealth(item))"
             @check="check"
           />
-          <HealthView
-            v-else-if="healthAt && listedHealth"
-            :components="listedHealth"
-            :page="healthAt.page"
-            :selected="healthAt.item ?? null"
-            :href-of="(key) => placeSearch({ mode: 'health', page: healthAt!.page, item: key })"
-            :href-of-changes="(before) => placeSearch({ mode: 'changes', before })"
-            @select="(key, event) => follow(event, () => openHealth(healthAt!.page, key))"
-            @changes="(before, event) => follow(event, () => openChanges('push', { before }))"
-          />
+          <!-- Lue ou illisible : la santé le dit à la place du dashboard. Illisible n'est
+               pas un dossier absent, qui a son guide juste dessous. -->
+          <ViewCanvas v-else-if="healthAt && listedHealth === undefined" class="health-unread">
+            <EmptyNote>{{
+              health === 'failed' ? t('healthUnread') : t('healthReading')
+            }}</EmptyNote>
+          </ViewCanvas>
           <div v-else-if="healthAt && listedHealth === null" class="empty">
             <EmptyGuide
               :title="t('noComponents')"
@@ -2507,29 +2453,25 @@ onMounted(() => {
           </PanelSection>
         </aside>
         <aside
-          v-if="view === 'health' && listedHealth && !fullScreen && panelsOpen"
+          v-if="view === 'health' && dashboard && healthChosen && !fullScreen && panelsOpen"
           id="health-panel"
           class="panel-column"
           :aria-label="t('healthPanel')"
         >
           <ColumnTitle :title="t('panels')" />
           <HealthPanel
-            :component="healthItem"
-            :components="listedHealth ?? []"
-            :finding="healthAt?.page === 'accessibility' ? selectedFinding : null"
-            :failure="healthAt?.page === 'failures' ? selectedFailure : null"
-            :findings="findings ?? []"
-            :failures="failures ?? []"
+            :dashboard="dashboard"
+            :item="healthChosen"
             :stories="entries"
+            :families="families"
             :href-of-story="(id) => placeSearch({ mode: 'entry', id })"
             :href-of-component="(id) => placeSearch({ mode: 'component', id })"
-            :href-of-health="(page, key) => placeSearch({ mode: 'health', page, item: key })"
             :href-of-token="tokenHref"
-            :suspects="healthAt?.page === 'accessibility' ? suspects : []"
+            :href-of-changes="placeSearch({ mode: 'changes' })"
             @story="(id, event) => follow(event, () => show(id, 'push'))"
-            @page="(id, event) => follow(event, () => open(id))"
-            @health="(page, key, event) => follow(event, () => openHealth(page, key))"
+            @component="(id, event) => follow(event, () => open(id))"
             @token="(name, event) => follow(event, () => openToken(name))"
+            @changes="(event) => follow(event, () => openChanges())"
           />
         </aside>
       </div>

@@ -13,6 +13,7 @@ import {
   phraseOf,
   scoreOf,
   sinceOf,
+  todoOf,
   tokenHealthOf,
   type Causes,
   type Criteria,
@@ -571,6 +572,50 @@ describe('the dashboard', () => {
     ])
     expect([...selectionOf(dashboard, choices)]).toEqual(['src/Beta.tsx:Beta', 'token:text-chart'])
     expect([...selectionOf(dashboard, new Map())]).toEqual([...defaultSelection(dashboard)])
+  })
+
+  // Le prompt ne porte que les lignes cochées, et jamais les prêts.
+  test('makes the prompt of the checked rows only', () => {
+    const résumé = (checked: string[]) =>
+      Object.fromEntries(
+        Object.entries(todoOf(dashboard, new Set(checked), causes.audit)).map(([key, list]) => [
+          key,
+          list.map((one: { id?: string; name: string }) => one.id ?? one.name),
+        ]),
+      )
+    expect(
+      résumé([
+        'src/Zeta.tsx:Zeta',
+        'src/Beta.tsx:Beta',
+        'src/Alpha.tsx:Alpha',
+        'token:text-chart',
+        ORPHANS,
+      ]),
+    ).toMatchInlineSnapshot(`
+      {
+        "broken": [
+          "text-chart",
+        ],
+        "deprecated": [],
+        "failures": [
+          "zeta--a",
+        ],
+        "findings": [],
+        "orphans": [
+          "gris-100",
+          "gris-500",
+          "text-subtle",
+          "text-motion",
+        ],
+        "undocumented": [],
+        "unexercised": [],
+        "unstoried": [
+          "Beta",
+        ],
+        "unused": [],
+      }
+    `)
+    expect(Object.values(résumé(['src/Alpha.tsx:Alpha'])).flat()).toEqual([])
   })
 })
 

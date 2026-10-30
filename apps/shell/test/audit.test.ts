@@ -1,13 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import {
-  audit,
-  cleanOf,
-  drawnOf,
-  unjudgedOf,
-  failuresOf,
-  findingsOf,
-  type AuditResult,
-} from '../src/health/audit'
+import { audit, failuresOf, findingsOf, type AuditResult } from '../src/health/audit'
 
 // L'audit d'accessibilité : ce qu'il retient de chaque rendu, et ce qu'il fait
 // d'une story qui échoue ou d'un plugin muet.
@@ -259,17 +251,9 @@ describe('what the audit says', () => {
     { id: 'i--j', theme: 'dark', passes: 1, violations: [] },
   ]
 
-  // Seul ce qu'axe a jugé compte : une story muette, qui lève, ou dont l'analyse a
-  // échoué n'entre pas dans la jauge a11y, et la page la nomme à part.
-  test('counts as clean only what axe judged without violation', () => {
-    expect(cleanOf(résultats)).toEqual({ clean: 2, audited: 3 })
-    expect(unjudgedOf(résultats)).toEqual(['e--f', 'i--j'])
-  })
-
-  // Une story qui lève dans un thème au moins ne rend pas, et c'est ce que liste sa
-  // page ; une story muette n'entre pas dans le compte ; une analyse échouée a rendu.
-  test('counts as drawn every story but those the failures page lists', () => {
-    expect(drawnOf(résultats)).toEqual({ drawn: 3, audited: 4 })
+  // Une story qui lève dans un thème au moins ne rend pas ; une story muette ou une
+  // analyse échouée n'en font pas partie.
+  test('lists the stories that fail to render, with their themes', () => {
     expect(failuresOf(résultats).map((one) => [one.id, one.themes])).toEqual([['g--h', ['light']]])
   })
 
