@@ -1,6 +1,7 @@
 import type { StoryEntry } from '@crypte/core/protocol'
 import { describe, expect, test } from 'vitest'
 import type { Failure, Finding } from '../src/health/audit'
+import type { TokenHealth } from '../src/health/dashboard'
 import type { HealthComponent } from '../src/health/health'
 import { promptOf } from '../src/health/prompt'
 
@@ -139,5 +140,126 @@ describe('the prompt for an agent', () => {
       When done, run the audit again from the health view: nothing above should be left.
       "
     `)
+  })
+
+  const badge: HealthComponent = {
+    name: 'Badge',
+    file: 'src/components/Badge.tsx',
+    export: 'Badge',
+    stories: ['badge--alerte'],
+    props: 4,
+    required: 0,
+    unexercised: ['onClose', 'size'],
+  }
+  const token = (name: string, over: Partial<TokenHealth> = {}): TokenHealth => ({
+    key: `tokens--x/${name}`,
+    name,
+    family: 'tokens--x',
+    state: 'orphan',
+    suspect: false,
+    readers: [],
+    ...over,
+  })
+
+  // Les sections du dashboard, chacune avec les fichiers qu'un agent doit ouvrir.
+  test('names the files of the docs, props, deprecated, unused and token items', () => {
+    expect(
+      promptOf(
+        {
+          failures: [],
+          findings: [],
+          unstoried: [],
+          undocumented: [badge],
+          unexercised: [badge],
+          deprecated: [
+            {
+              ...badge,
+              name: 'OldTag',
+              status: 'deprecated',
+              usedBy: ['src/components/Order.tsx:Order'],
+            },
+          ],
+          unused: [
+            { ...badge, name: 'Lonely', file: 'src/components/Lonely.tsx', export: 'Lonely' },
+          ],
+          broken: [
+            token('color-chart-3', {
+              state: 'broken',
+              target: 'teal-450',
+              readers: ['src/components/Chart.tsx:Chart'],
+            }),
+          ],
+          orphans: [token('space-7'), token('radius-xl')],
+        },
+        stories,
+      ),
+    ).toMatchInlineSnapshot(`
+      "Fix what the Crypte health view reports in this design system. Change the components or their stories, in the way the project already writes them. Each item names its files.
+
+      ## Docs to write
+
+      A markdown file beside a story file, with the same name, is that component's page: write it there, as the project's other pages are written.
+
+      ### Badge
+      - Component: \`src/components/Badge.tsx\`, export \`Badge\`
+      - Page to create: \`stories/Badge.stories.md\`
+
+      ## Props never exercised
+
+      No story gives these props: add the cases that show them, or say in the component why a prop has no visible effect.
+
+      ### Badge
+      - Component: \`src/components/Badge.tsx\`, export \`Badge\`
+      - Props: \`onClose\`, \`size\`
+
+      ## Deprecated components still imported
+
+      Move these importers to what replaces each component, then remove the import.
+
+      ### OldTag
+      - Component: \`src/components/Badge.tsx\`, export \`Badge\`
+      - Imported by: \`src/components/Order.tsx\`
+
+      ## Components used nowhere
+
+      No file of the application imports these components: use them where they belong, or remove them with their stories.
+
+      ### Lonely
+      - Component: \`src/components/Lonely.tsx\`, export \`Lonely\`
+
+      ## Broken aliases
+
+      Each of these custom properties points at one no theme declares: point it at an existing token, or declare the missing one.
+
+      ### --color-chart-3
+      - Points at: \`--teal-450\`, which is not declared
+      - Read by: \`src/components/Chart.tsx\`
+
+      ## Orphan tokens
+
+      No component and no alias reads these custom properties: remove them from the style sheet that declares them, unless something outside the components folder needs them.
+
+      - \`--space-7\`
+      - \`--radius-xl\`
+
+      When done, run the audit again from the health view: nothing above should be left.
+      "
+    `)
+  })
+
+  // Une seule ligne cochée suffit à faire un prompt, la ligne repliée des orphelins
+  // comprise ; un composant sans story n'a pas de page à créer nommée.
+  test('is not empty with the orphans alone, and names no page without a story', () => {
+    const prompt = promptOf(
+      { failures: [], findings: [], unstoried: [], orphans: [token('space-7')] },
+      stories,
+    )
+    expect(prompt).toContain('## Orphan tokens')
+    expect(
+      promptOf(
+        { failures: [], findings: [], unstoried: [], undocumented: [{ ...badge, stories: [] }] },
+        stories,
+      ),
+    ).not.toContain('Page to create')
   })
 })
