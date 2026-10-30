@@ -1,5 +1,13 @@
 /* Les polices du fichier Figma, servies par le shell lui-même : variables, donc
-   un fichier par famille couvre toutes les graisses. Licence OFL, à côté. */
+   un fichier par famille couvre toutes les graisses. Licence OFL, à côté, sans nom
+   réservé : la découpe garde le nom.
+
+   Les deux fichiers sont découpés au latin, 42 Ko de moins (DCJ-407) : latin de
+   base, Latin-1, Latin étendu A, diacritiques combinants, ponctuation, monnaies,
+   symboles de lettre, flèches, opérateurs, symboles techniques (⌘). Un autre jeu,
+   le cyrillique d'un nom de composant, retombe sur la police système. Rouvert par
+   une langue du shell hors du latin : redécouper depuis le paquet `geist`, avec
+   `subset-font`, aux mêmes plages plus la sienne. */
 @font-face {
   font-family: 'Geist';
   src: url('./fonts/Geist-Variable.woff2') format('woff2');

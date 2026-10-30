@@ -74,7 +74,8 @@ function ko(n) {
 // pièces s'allège.
 //
 // Puis à 315 Ko le 27 oct. 2026 : le favicon (3,5 Ko) et le menu de largeur de
-// la preview (1,7 Ko). Les polices pèsent 119 Ko, DCJ-407 les allège.
+// la preview (1,7 Ko). Les polices pesaient 119 Ko ; DCJ-407 les a découpées
+// au latin le 30 oct. 2026, 77 Ko, et le shell est passé de 312 à 271 Ko.
 //
 // Lève plutôt que de rendre zéro. Un dossier absent veut dire que `vp pack`
 // n'a pas tourné, et un budget de poids tenu par un bundle inexistant est le
