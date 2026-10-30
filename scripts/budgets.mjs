@@ -77,6 +77,11 @@ function ko(n) {
 // la preview (1,7 Ko). Les polices pesaient 119 Ko ; DCJ-407 les a découpées
 // au latin le 30 oct. 2026, 77 Ko, et le shell est passé de 312 à 271 Ko.
 //
+// La cible redescend alors à 290 Ko : la place du dashboard de la santé (environ
+// 11 Ko) avec une marge, sans laisser passer une régression de la taille de ce
+// que la découpe a gagné. Rouvert par la prochaine langue, ou par une pièce qui
+// repasse au-dessus.
+//
 // Lève plutôt que de rendre zéro. Un dossier absent veut dire que `vp pack`
 // n'a pas tourné, et un budget de poids tenu par un bundle inexistant est le
 // pire des verdicts : vert, et sur rien.
