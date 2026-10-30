@@ -411,6 +411,8 @@ describe('the coverage of the tokens', () => {
         missing: valeur('var(--absent, var(--a))', ['absent']),
         quoted: valeur("var(--b, 'a ) b')", ['b']),
         unclosed: valeur('var(--a, calc(1px)', ['a']),
+        // Un guillemet échappé ne ferme pas la chaîne : la `)` reste du texte.
+        escaped: valeur("var(--b, 'a \\' ) b')", ['b']),
       },
     }
     const states = tokenHealthOf([motion], []).families[0]!.tokens.map((one) => [
@@ -424,6 +426,7 @@ describe('the coverage of the tokens', () => {
       ['motion-missing', 'broken'],
       ['motion-quoted', 'broken'],
       ['motion-unclosed', 'orphan'],
+      ['motion-escaped', 'broken'],
     ])
   })
 
