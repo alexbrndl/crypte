@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { Tooltip } from '@crypte/ui'
-import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { locale, texts } from '../i18n'
-import { plural } from '../plural'
+import { plural, singular } from '../plural'
 import { tokenRow, type Dashboard, type Focus, type Group, type TokenHealth } from './dashboard'
-import { moveFocus } from './roving'
+import { arrowTarget } from './roving'
 
 // Les deux blocs du dashboard, composants et tokens : un titre, une barre de
 // répartition et une grille de cases. Survoler ou choisir une case met en focus
@@ -27,9 +27,11 @@ const t = texts({
     components: 'components',
     tokens: 'tokens',
     used: '{used}/{total} used',
-    blocking: '{count} blocking',
+    blockingOne: '{count} blocking',
+    blockingMany: '{count} blocking',
     improve: '{count} to improve',
-    ready: '{count} ready',
+    readyOne: '{count} ready',
+    readyMany: '{count} ready',
     usedCount: '{count} used',
     orphanOne: '{count} orphan',
     orphanMany: '{count} orphans',
@@ -51,9 +53,11 @@ const t = texts({
     components: 'composants',
     tokens: 'tokens',
     used: '{used}/{total} utilisés',
-    blocking: '{count} bloquent',
+    blockingOne: '{count} bloque',
+    blockingMany: '{count} bloquent',
     improve: '{count} à améliorer',
-    ready: '{count} prêts',
+    readyOne: '{count} prêt',
+    readyMany: '{count} prêts',
     usedCount: '{count} utilisés',
     orphanOne: '{count} orphelin',
     orphanMany: '{count} orphelins',
@@ -122,14 +126,23 @@ const dimmed = (set: ReadonlySet<string> | null, key: string) => set !== null &&
 // dans la largeur du bloc : une famille fait `ceil(n / R) × 14 − 2` px.
 const grid = useTemplateRef<HTMLElement>('grid')
 const width = ref(0)
+// Une seule source pour le calcul et pour le CSS, passées en variables : un
+// écart changé d'un seul côté fausserait le nombre de lignes sans que rien le dise.
+const CELL = 12
+const CELL_GAP = 2
 const FAMILY_GAP = 12
+const sizes = {
+  '--cell': `${CELL}px`,
+  '--cell-gap': `${CELL_GAP}px`,
+  '--family-gap': `${FAMILY_GAP}px`,
+}
 const rowsOf = computed(() => {
   const sizes = coverage.value.families.map((one) => one.tokens.length).filter((one) => one > 0)
   if (sizes.length === 0 || width.value === 0) return 8
   const tallest = Math.max(...sizes)
   for (let rows = 1; rows <= tallest; rows += 1) {
     const used =
-      sizes.reduce((sum, one) => sum + Math.ceil(one / rows) * 14 - 2, 0) +
+      sizes.reduce((sum, one) => sum + Math.ceil(one / rows) * (CELL + CELL_GAP) - CELL_GAP, 0) +
       FAMILY_GAP * (sizes.length - 1)
     if (used <= width.value) return rows
   }
@@ -144,14 +157,41 @@ onMounted(() => {
 })
 onBeforeUnmount(() => observer?.disconnect())
 
-// L'entrée de la grille des tokens au clavier : le token choisi, sinon le premier.
-const firstToken = computed(() => coverage.value.families.flatMap((one) => one.tokens)[0]?.key)
-const entry = (one: TokenHealth) =>
-  props.selected?.startsWith('token:')
-    ? props.selected === tokenRow(one.name)
-    : one.key === firstToken.value
+// L'entrée de chaque grille au clavier, dans l'état et non dans le DOM : la
+// case où les flèches ont mené, sinon la choisie si elle est dans la grille,
+// sinon la première. Oubliée quand la sélection change.
+const tokens = computed(() => coverage.value.families.flatMap((one) => one.tokens))
+const movedCase = ref<string | null>(null)
+const movedCell = ref<string | null>(null)
+watch(
+  () => props.selected,
+  () => {
+    movedCase.value = null
+    movedCell.value = null
+  },
+)
+const caseEntry = computed(
+  () =>
+    movedCase.value ??
+    (props.dashboard.rows.some((one) => one.key === props.selected)
+      ? props.selected
+      : props.dashboard.rows[0]?.key),
+)
+const cellEntry = computed(
+  () =>
+    movedCell.value ??
+    tokens.value.find((one) => tokenRow(one.name) === props.selected)?.key ??
+    tokens.value[0]?.key,
+)
 
-const keys = (event: KeyboardEvent) => moveFocus(event, event.currentTarget as HTMLElement)
+function keys(event: KeyboardEvent, grid: 'case' | 'cell') {
+  const moved = grid === 'case' ? movedCase : movedCell
+  const buttons = [...(event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('button')]
+  const to = arrowTarget(event, buttons)
+  if (to === null) return
+  moved.value = buttons[to]!.dataset['key'] ?? null
+  void nextTick(() => buttons[to]!.focus())
+}
 </script>
 
 <template>
@@ -165,7 +205,11 @@ const keys = (event: KeyboardEvent) => moveFocus(event, event.currentTarget as H
       <div class="bar">
         <div class="labels">
           <span v-if="counts.blocking > 0" class="label" data-state="blocking"
-            >{{ t('blocking', { count: counts.blocking }) }}
+            >{{
+              singular(counts.blocking)
+                ? t('blockingOne', { count: counts.blocking })
+                : t('blockingMany', { count: counts.blocking })
+            }}
             <span class="pill">{{ percent(counts.blocking, counts.total) }}</span></span
           >
           <span v-if="counts.improve > 0" class="label" data-state="improve"
@@ -173,7 +217,11 @@ const keys = (event: KeyboardEvent) => moveFocus(event, event.currentTarget as H
             <span class="pill">{{ percent(counts.improve, counts.total) }}</span></span
           >
           <span v-if="counts.ready > 0" class="label" data-state="ready"
-            >{{ t('ready', { count: counts.ready }) }}
+            >{{
+              singular(counts.ready)
+                ? t('readyOne', { count: counts.ready })
+                : t('readyMany', { count: counts.ready })
+            }}
             <span class="pill">{{ percent(counts.ready, counts.total) }}</span></span
           >
         </div>
@@ -190,9 +238,14 @@ const keys = (event: KeyboardEvent) => moveFocus(event, event.currentTarget as H
       </div>
       <!-- Roving tabindex : une seule case dans l'ordre de tabulation, les flèches
            pour les autres. -->
-      <div class="components" role="group" :aria-label="t('components')" @keydown="keys">
+      <div
+        class="components"
+        role="group"
+        :aria-label="t('components')"
+        @keydown="(event) => keys(event, 'case')"
+      >
         <Tooltip
-          v-for="(row, at) of dashboard.rows"
+          v-for="row of dashboard.rows"
           :key="row.key"
           :content="row.component.name"
           :detail="componentDetail(row)"
@@ -203,7 +256,8 @@ const keys = (event: KeyboardEvent) => moveFocus(event, event.currentTarget as H
             :data-group="row.group"
             :data-selected="selected === row.key || undefined"
             :data-dimmed="dimmed(focus.components, row.key) || undefined"
-            :tabindex="(selected === null ? at === 0 : selected === row.key) ? 0 : -1"
+            :data-key="row.key"
+            :tabindex="caseEntry === row.key ? 0 : -1"
             :aria-label="componentLabel(row)"
             :aria-pressed="selected === row.key"
             @mouseenter="emit('hover', row.key)"
@@ -277,8 +331,8 @@ const keys = (event: KeyboardEvent) => moveFocus(event, event.currentTarget as H
         class="families"
         role="group"
         :aria-label="t('tokens')"
-        :style="{ '--rows': rowsOf }"
-        @keydown="keys"
+        :style="{ '--rows': rowsOf, ...sizes }"
+        @keydown="(event) => keys(event, 'cell')"
       >
         <div v-for="family of coverage.families" :key="family.id" class="family">
           <span class="family-name">{{ family.name }}</span>
@@ -303,7 +357,8 @@ const keys = (event: KeyboardEvent) => moveFocus(event, event.currentTarget as H
                 :data-suspect="(one.state === 'used' && one.suspect) || undefined"
                 :data-selected="selected === tokenRow(one.name) || undefined"
                 :data-dimmed="dimmed(focus.tokens, one.name) || undefined"
-                :tabindex="entry(one) ? 0 : -1"
+                :data-key="one.key"
+                :tabindex="cellEntry === one.key ? 0 : -1"
                 :aria-label="`--${one.name}, ${tokenState(one)}`"
                 :aria-pressed="selected === tokenRow(one.name)"
                 @mouseenter="emit('hover', tokenRow(one.name))"
@@ -410,7 +465,7 @@ const keys = (event: KeyboardEvent) => moveFocus(event, event.currentTarget as H
   padding: 0 5px;
   border-radius: var(--radius-full);
   background: var(--background-sunken);
-  color: var(--text-subtle);
+  color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
 }
@@ -488,12 +543,6 @@ const keys = (event: KeyboardEvent) => moveFocus(event, event.currentTarget as H
   box-shadow: inset 0 0 0 2px var(--accent-base);
 }
 
-.case:focus-visible,
-.cell:focus-visible {
-  outline: var(--stroke-focus) solid var(--accent-focus);
-  outline-offset: var(--stroke-focus);
-}
-
 .case[data-dimmed] {
   opacity: 0.3;
 }
@@ -518,7 +567,7 @@ const keys = (event: KeyboardEvent) => moveFocus(event, event.currentTarget as H
 
 .families {
   display: flex;
-  gap: 12px;
+  gap: var(--family-gap);
   align-items: flex-start;
 }
 
@@ -541,7 +590,7 @@ const keys = (event: KeyboardEvent) => moveFocus(event, event.currentTarget as H
 }
 
 .family-count {
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .family-count[data-problem] {
@@ -550,18 +599,18 @@ const keys = (event: KeyboardEvent) => moveFocus(event, event.currentTarget as H
 
 .cells {
   display: grid;
-  grid-auto-columns: 12px;
+  grid-auto-columns: var(--cell);
   grid-auto-flow: column;
-  grid-template-rows: repeat(var(--rows), 12px);
-  gap: 2px;
+  grid-template-rows: repeat(var(--rows), var(--cell));
+  gap: var(--cell-gap);
   margin-top: var(--space-1);
 }
 
 /* Les critères sont pleins ; l'orphelin est vide, en pointillé. */
 .cell {
   box-sizing: border-box;
-  width: 12px;
-  height: 12px;
+  width: var(--cell);
+  height: var(--cell);
   padding: 0;
   border: 0;
   border-radius: var(--radius-xs);
@@ -592,5 +641,13 @@ const keys = (event: KeyboardEvent) => moveFocus(event, event.currentTarget as H
 
 .cell[data-dimmed] {
   opacity: 0.25;
+}
+
+/* Après la sélection, de même spécificité : le focus clavier reste visible sur
+   une case choisie. */
+.case:focus-visible,
+.cell:focus-visible {
+  outline: var(--stroke-focus) solid var(--accent-focus);
+  outline-offset: var(--stroke-focus);
 }
 </style>

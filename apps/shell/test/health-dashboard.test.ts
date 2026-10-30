@@ -206,3 +206,118 @@ describe('the grids from the keyboard', () => {
     ])
   })
 })
+
+describe('the tab stops', () => {
+  const entrées = (wrapper: ReturnType<typeof monte>, selector: string) =>
+    wrapper.findAll(selector).filter((one) => one.attributes('tabindex') === '0').length
+
+  // Un token choisi laisse la première case des composants dans l'ordre de
+  // tabulation, et des flèches puis une autre sélection n'en laissent qu'une.
+  test('keep exactly one per grid, whatever is selected or moved to', async () => {
+    const wrapper = monte([], 'token:space-2')
+    expect(entrées(wrapper, '.case')).toBe(1)
+    expect(wrapper.findAll('.families .cell')[1]!.attributes('tabindex')).toBe('0')
+
+    await wrapper.findAll('.case')[0]!.trigger('keydown', { key: 'ArrowRight' })
+    await wrapper.findAll('.case')[1]!.trigger('keydown', { key: 'ArrowRight' })
+    await wrapper.setProps({ selected: 'src/Delta.tsx:Delta' })
+    expect(wrapper.findAll('.case').map((one) => one.attributes('tabindex'))).toEqual([
+      '-1',
+      '-1',
+      '-1',
+      '0',
+    ])
+  })
+})
+
+describe('the arrows on screen', () => {
+  // Les composants s'enroulent par lignes, les tokens par colonnes : la case
+  // voisine est la plus proche dans la direction, et rien au bord.
+  test('follow the geometry of each grid', async () => {
+    const wrapper = monte()
+    const place = (selector: string, at: (index: number) => [number, number]) =>
+      wrapper.findAll(selector).forEach((one, index) => {
+        const [left, top] = at(index)
+        one.element.getBoundingClientRect = () => ({ left, top, width: 12, height: 12 }) as DOMRect
+      })
+    place('.case', (index) => [index * 43, 0])
+    place('.families .cell', (index) => [0, index * 14])
+    const entrée = (selector: string) =>
+      wrapper.findAll(selector).findIndex((one) => one.attributes('tabindex') === '0')
+
+    await wrapper.findAll('.families .cell')[0]!.trigger('keydown', { key: 'ArrowDown' })
+    expect(entrée('.families .cell')).toBe(1)
+    await wrapper.findAll('.families .cell')[1]!.trigger('keydown', { key: 'ArrowRight' })
+    expect(entrée('.families .cell')).toBe(1)
+
+    await wrapper.findAll('.case')[0]!.trigger('keydown', { key: 'ArrowRight' })
+    expect(entrée('.case')).toBe(1)
+    await wrapper.findAll('.case')[1]!.trigger('keydown', { key: 'ArrowDown' })
+    expect(entrée('.case')).toBe(1)
+    await wrapper.findAll('.case')[1]!.trigger('keydown', { key: 'ArrowLeft' })
+    expect(entrée('.case')).toBe(0)
+  })
+})
+
+describe('the token rows', () => {
+  const cassé = dashboardOf(
+    [composant('Chart', { tokens: ['chart-3'] })],
+    [
+      {
+        type: 'tokens',
+        id: 'tokens--chart',
+        path: ['Tokens'],
+        name: 'chart',
+        tokens: {
+          '3': {
+            type: 'color',
+            themes: { default: { value: 'var(--teal-450)', alias: ['teal-450'] } },
+          },
+          '6': { type: 'color', themes: { default: { value: '#000' } } },
+        },
+      },
+    ],
+    { stories: [story('Chart')], pages: [], audit: null, components: [], categories: [] },
+  )
+
+  test('say what a broken alias points at, and who reads it', () => {
+    const wrapper = mount(HealthDashboard, {
+      props: {
+        dashboard: cassé,
+        checked: new Set(['token:chart-3']),
+        selected: null,
+        partial: true,
+      },
+    })
+    const ligne = wrapper
+      .findAll('.health-list .row')
+      .find((one) => one.text().includes('--chart-3'))!
+    expect(ligne.text().replace(/\s+/g, ' ')).toMatchInlineSnapshot(
+      `"--chart-3chartread by 1 · Chart→ --teal-450 missingbroken alias"`,
+    )
+    expect((ligne.find('input').element as HTMLInputElement).checked).toBe(true)
+  })
+
+  test('check the orphans row as one', async () => {
+    const wrapper = mount(HealthDashboard, {
+      props: { dashboard: cassé, checked: new Set<string>(), selected: null, partial: true },
+    })
+    const orphelins = wrapper
+      .findAll('.health-list .row')
+      .find((one) => one.text().includes('1 orphan'))!
+    await orphelins.find('input').trigger('change')
+    expect(wrapper.emitted('check')).toEqual([[[ORPHANS], true]])
+  })
+
+  // Le nom est un bouton : la ligne se choisit au clavier, une seule fois.
+  test('select a row from the button of its name', async () => {
+    const wrapper = mount(HealthDashboard, {
+      props: { dashboard: cassé, checked: new Set<string>(), selected: null, partial: true },
+    })
+    const nom = wrapper
+      .findAll('.health-list button.label')
+      .find((one) => one.text() === '--chart-3')!
+    await nom.trigger('click')
+    expect(wrapper.emitted('select')!.map(([item]) => item)).toEqual(['token:chart-3'])
+  })
+})

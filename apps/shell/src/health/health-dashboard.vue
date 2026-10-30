@@ -28,16 +28,20 @@ const t = texts({
     region: 'Health',
     readTokenOne: '{count} reads {token}',
     readTokenMany: '{count} read {token}',
-    readBy: '{count} read by {name}',
-    ready: '{count} ready',
+    readByOne: '{count} read by {name}',
+    readByMany: '{count} read by {name}',
+    readyOne: '{count} ready',
+    readyMany: '{count} ready',
     orphans: 'none reads the orphans',
   },
   fr: {
     region: 'Santé',
     readTokenOne: '{count} lit {token}',
     readTokenMany: '{count} lisent {token}',
-    readBy: '{count} lus par {name}',
-    ready: '{count} prêts',
+    readByOne: '{count} lu par {name}',
+    readByMany: '{count} lus par {name}',
+    readyOne: '{count} prêt',
+    readyMany: '{count} prêts',
     orphans: 'aucun ne lit les orphelins',
   },
 })
@@ -57,7 +61,10 @@ const notes = computed((): { components?: string; tokens?: string } => {
   const at = item.value
   if (at === null) return {}
   if (at === ORPHANS) return { components: t('orphans') }
-  if (at === READY) return { components: t('ready', { count: focus.value.components?.size ?? 0 }) }
+  if (at === READY) {
+    const count = focus.value.components?.size ?? 0
+    return { components: singular(count) ? t('readyOne', { count }) : t('readyMany', { count }) }
+  }
   if (at.startsWith('token:')) {
     const count = focus.value.components?.size ?? 0
     const values = { count, token: `--${at.slice('token:'.length)}` }
@@ -65,7 +72,8 @@ const notes = computed((): { components?: string; tokens?: string } => {
   }
   const row = props.dashboard.rows.find((one) => one.key === at)
   if (!row) return {}
-  return { tokens: t('readBy', { count: focus.value.tokens?.size ?? 0, name: row.component.name }) }
+  const values = { count: focus.value.tokens?.size ?? 0, name: row.component.name }
+  return { tokens: singular(values.count) ? t('readByOne', values) : t('readByMany', values) }
 })
 </script>
 

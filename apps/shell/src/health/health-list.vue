@@ -55,7 +55,8 @@ const t = texts({
     groupBlocking: 'blocking',
     groupImprove: 'to improve',
     groupReady: 'ready',
-    readyRow: '{count} ready',
+    readyOne: '{count} ready',
+    readyMany: '{count} ready',
     family: 'family',
     readers: 'readers',
     value: 'value',
@@ -92,7 +93,8 @@ const t = texts({
     groupBlocking: 'bloquant',
     groupImprove: 'à améliorer',
     groupReady: 'prêts',
-    readyRow: '{count} prêts',
+    readyOne: '{count} prêt',
+    readyMany: '{count} prêts',
     family: 'famille',
     readers: 'lecteurs',
     value: 'valeur',
@@ -260,7 +262,9 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
               <span class="abbreviation" :data-shown="lit(row.key) || undefined">{{
                 abbreviations.get(row.key)
               }}</span>
-              <span class="label">{{ row.component.name }}</span>
+              <button type="button" class="label" @click.stop="emit('select', row.key, $event)">
+                {{ row.component.name }}
+              </button>
             </span>
             <span class="cells">
               <span
@@ -288,9 +292,17 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
         >
           <span class="check" />
           <span class="name"
-            ><span class="abbreviation" /><span class="label">{{
-              t('readyRow', { count: rows.length })
-            }}</span></span
+            ><span class="abbreviation" /><button
+              type="button"
+              class="label"
+              @click.stop="emit('select', READY, $event)"
+            >
+              {{
+                singular(rows.length)
+                  ? t('readyOne', { count: rows.length })
+                  : t('readyMany', { count: rows.length })
+              }}
+            </button></span
           >
           <span class="cells">
             <span v-for="one of CRITERIA" :key="one" class="cell" data-state="valid" />
@@ -342,7 +354,14 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
           />
         </span>
         <span class="name"
-          ><span class="abbreviation" /><span class="label code">--{{ one.name }}</span></span
+          ><span class="abbreviation" /><button
+            type="button"
+            class="label"
+            @click.stop="emit('select', tokenRow(one.name), $event)"
+            data-code
+          >
+            --{{ one.name }}
+          </button></span
         >
         <span class="cells token-cells">
           <span class="span-2"
@@ -383,11 +402,17 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
           />
         </span>
         <span class="name"
-          ><span class="abbreviation" /><span class="label">{{
-            singular(orphans.length)
-              ? t('orphanOne', { count: orphans.length })
-              : t('orphanMany', { count: orphans.length })
-          }}</span></span
+          ><span class="abbreviation" /><button
+            type="button"
+            class="label"
+            @click.stop="emit('select', ORPHANS, $event)"
+          >
+            {{
+              singular(orphans.length)
+                ? t('orphanOne', { count: orphans.length })
+                : t('orphanMany', { count: orphans.length })
+            }}
+          </button></span
         >
         <span class="cells token-cells">
           <span class="span-2"
@@ -581,7 +606,7 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
 }
 
 .quiet {
-  color: var(--text-subtle);
+  color: var(--text-muted);
   font-family: var(--font-sans);
 }
 
@@ -658,8 +683,15 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
   visibility: visible;
 }
 
-/* role/label-strong of the Figma file. */
+/* role/label-strong of the Figma file. Un bouton : la ligne se choisit au
+   clavier, celles des prêts et des orphelins n'ayant pas d'autre entrée. */
 .label {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
   overflow: hidden;
   color: var(--text-primary);
   font-size: var(--text-sm);
@@ -669,7 +701,12 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
   white-space: nowrap;
 }
 
-.label.code,
+.label:focus-visible {
+  outline: var(--stroke-focus) solid var(--accent-focus);
+  outline-offset: var(--stroke-focus);
+}
+
+.label[data-code],
 .code {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
@@ -690,7 +727,10 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
   place-items: center;
   overflow: hidden;
   border-radius: var(--radius-xs);
-  color: var(--text-inverse);
+  /* Foncé dans les deux thèmes : le blanc de la maquette sur le vert ou l'orange
+     plein échoue au contraste (axe). Seules props et usages portent un texte, et
+     jamais sur du rouge. */
+  color: var(--stone-950);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
