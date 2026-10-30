@@ -57,6 +57,8 @@ export interface HealthComponent {
   unexercised?: string[]
   // Les fichiers de l'application qui l'importent, hors dossier et stories.
   usedIn?: string[]
+  // Les propriétés personnalisées que son fichier lit, story ou pas.
+  tokens?: string[]
 }
 
 export interface Health {
