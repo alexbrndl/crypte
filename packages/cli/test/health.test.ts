@@ -281,8 +281,6 @@ describe('a Vue project', () => {
   })
 })
 
-// La page couverture : les props qu'aucune story ne donne, et les fichiers de
-// l'application qui importent chaque composant.
 // Les propriétés que lit chaque composant, story ou pas : le dashboard croise
 // composants et tokens pour tous, là où le manifeste ne les lit que pour ceux qui
 // ont une story.
@@ -330,6 +328,8 @@ describe('the tokens of a component', () => {
   })
 })
 
+// La page couverture : les props qu'aucune story ne donne, et les fichiers de
+// l'application qui importent chaque composant.
 describe('the coverage of a component', () => {
   const BOUTON =
     'export function Bouton({ label, tone, size }: { label: string; tone?: string; size?: number }) { return <button>{label}</button> }\n'
