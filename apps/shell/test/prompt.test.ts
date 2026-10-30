@@ -1,8 +1,9 @@
 import type { StoryEntry } from '@crypte/core/protocol'
 import { describe, expect, test } from 'vitest'
 import type { Failure, Finding } from '../src/health/audit'
+import type { TokenHealth } from '../src/health/dashboard'
 import type { HealthComponent } from '../src/health/health'
-import { promptOf } from '../src/health/prompt'
+import { promptOf, type Todo } from '../src/health/prompt'
 
 // Le prompt confié à un agent : chaque point nomme ses fichiers.
 
@@ -135,6 +136,159 @@ describe('the prompt for an agent', () => {
       ### Select
       - Component: \`src/components/form/Select.tsx\`, export \`default\`
       - Required props: 1
+
+      When done, run the audit again from the health view: nothing above should be left.
+      "
+    `)
+  })
+
+  const badge: HealthComponent = {
+    name: 'Badge',
+    file: 'src/components/Badge.tsx',
+    export: 'Badge',
+    stories: ['badge--alerte'],
+    props: 4,
+    required: 0,
+    unexercised: ['onClose', 'size'],
+  }
+  const token = (name: string, over: Partial<TokenHealth> = {}): TokenHealth => ({
+    key: `tokens--x/${name}`,
+    name,
+    family: 'tokens--x',
+    state: 'orphan',
+    suspect: false,
+    readers: [],
+    ...over,
+  })
+
+  // Les sections du dashboard, chacune avec les fichiers qu'un agent doit ouvrir.
+  test('names the files of the docs, props, deprecated, unused and token items', () => {
+    expect(
+      promptOf(
+        {
+          failures: [],
+          findings: [],
+          unstoried: [],
+          undocumented: [badge],
+          unexercised: [badge],
+          deprecated: [
+            {
+              ...badge,
+              name: 'OldTag',
+              status: 'deprecated',
+              usedBy: ['src/components/Order.tsx:Order'],
+              usedIn: ['src/pages/Home.tsx'],
+            },
+            { ...badge, name: 'Forgotten', status: 'deprecated' },
+          ],
+          unused: [
+            { ...badge, name: 'Lonely', file: 'src/components/Lonely.tsx', export: 'Lonely' },
+            { ...badge, name: 'Icon', usedBy: ['src/components/Button.tsx:Button'] },
+          ],
+          broken: [
+            token('color-chart-3', {
+              state: 'broken',
+              target: 'teal-450',
+              readers: ['src/components/Chart.tsx:Chart'],
+            }),
+          ],
+          orphans: [token('space-7'), token('radius-xl')],
+        },
+        stories,
+      ),
+    ).toMatchInlineSnapshot(`
+      "Fix what the Crypte health view reports in this design system. Change the components or their stories, in the way the project already writes them. Each item names its files.
+
+      ## Docs to write
+
+      A markdown file beside a story file, with the same name, is that component's page: write it there, as the project's other pages are written.
+
+      ### Badge
+      - Component: \`src/components/Badge.tsx\`, export \`Badge\`
+      - Page to create: \`stories/Badge.stories.md\`
+
+      ## Props never exercised
+
+      No story gives these props: add the cases that show them, or say in the component why a prop has no visible effect.
+
+      ### Badge
+      - Component: \`src/components/Badge.tsx\`, export \`Badge\`
+      - Props: \`onClose\`, \`size\`
+
+      ## Deprecated components
+
+      Move these importers to what replaces each component, then remove the import. A component nothing imports any more can go, with its stories.
+
+      ### OldTag
+      - Component: \`src/components/Badge.tsx\`, export \`Badge\`
+      - Imported by components: \`src/components/Order.tsx\`
+      - Imported by the application: \`src/pages/Home.tsx\`
+
+      ### Forgotten
+      - Component: \`src/components/Badge.tsx\`, export \`Badge\`
+      - Imported by: nothing left
+
+      ## Components used nowhere
+
+      No file of the application imports these components: use them where they belong. Remove one with its stories only when no component imports it either.
+
+      ### Lonely
+      - Component: \`src/components/Lonely.tsx\`, export \`Lonely\`
+
+      ### Icon
+      - Component: \`src/components/Badge.tsx\`, export \`Badge\`
+      - Imported by components: \`src/components/Button.tsx\`
+
+      ## Broken aliases
+
+      Each of these custom properties never reaches a value in at least one theme: its chain points at a property that theme does not declare, or loops back. Repair the chain.
+
+      ### --color-chart-3
+      - Chain stops at: \`--teal-450\`
+      - Read by: \`src/components/Chart.tsx\`
+
+      ## Orphan tokens
+
+      No component and no alias reads these custom properties: remove them from the style sheet that declares them, unless something outside the components folder needs them.
+
+      - \`--space-7\`
+      - \`--radius-xl\`
+
+      When done, run the audit again from the health view: nothing above should be left.
+      "
+    `)
+  })
+
+  // Une seule ligne cochée suffit à faire un prompt, quelle que soit sa section.
+  test.for<[string, Partial<Todo>, string]>([
+    ['undocumented', { undocumented: [badge] }, '## Docs to write'],
+    ['unexercised', { unexercised: [badge] }, '## Props never exercised'],
+    ['deprecated', { deprecated: [badge] }, '## Deprecated components'],
+    ['unused', { unused: [badge] }, '## Components used nowhere'],
+    ['broken', { broken: [token('a', { state: 'broken' })] }, '## Broken aliases'],
+    ['orphans', { orphans: [token('a')] }, '## Orphan tokens'],
+  ])('is not empty with %s alone', ([, todo, heading]) => {
+    expect(promptOf({ failures: [], findings: [], unstoried: [], ...todo }, stories)).toContain(
+      heading,
+    )
+  })
+
+  // Sans story, pas de fichier de story à côté duquel écrire la page.
+  test('names no page to create for a component without a story', () => {
+    expect(
+      promptOf(
+        { failures: [], findings: [], unstoried: [], undocumented: [{ ...badge, stories: [] }] },
+        stories,
+      ),
+    ).toMatchInlineSnapshot(`
+      "Fix what the Crypte health view reports in this design system. Change the components or their stories, in the way the project already writes them. Each item names its files.
+
+      ## Docs to write
+
+      A markdown file beside a story file, with the same name, is that component's page: write it there, as the project's other pages are written.
+
+      ### Badge
+      - Component: \`src/components/Badge.tsx\`, export \`Badge\`
 
       When done, run the audit again from the health view: nothing above should be left.
       "
