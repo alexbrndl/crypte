@@ -169,7 +169,7 @@ h3 {
 .tag {
   padding: 0 var(--space-1);
   border-radius: var(--radius-xs);
-  background: var(--accent-base);
+  background: var(--text-current);
   color: var(--text-inverse);
   font-family: var(--font-mono);
   font-size: var(--text-xs);

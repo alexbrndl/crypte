@@ -65,8 +65,10 @@ const t = texts({
   letter-spacing: var(--tracking-tight);
 }
 
+/* Muted, not subtle as the Figma file has it: subtle stays under APCA Lc 45 in
+   dark, even at this size. */
 .figure[data-partial] {
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .info {

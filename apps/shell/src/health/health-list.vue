@@ -272,7 +272,6 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
                 :key="cell.key"
                 class="cell"
                 :data-state="cell.state"
-                :data-text="(cell.state !== 'empty' && cell.text) || undefined"
                 >{{ cell.state === 'empty' ? '' : (cell.text ?? '') }}</span
               >
             </span>
@@ -731,6 +730,7 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
   place-items: center;
   overflow: hidden;
   border-radius: var(--radius-xs);
+  /* Blanc en clair, comme la maquette, foncé en sombre : Lc 65 et 72 en APCA. */
   color: var(--text-inverse);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
@@ -743,17 +743,6 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
 
 .cell[data-state='improve'] {
   background: var(--warning-solid);
-}
-
-/* Une case qui porte un chiffre prend la teinte texte de son état : le blanc de
-   la maquette sur la teinte pleine échoue au contraste (axe). Seules props et
-   usages portent un texte, et jamais sur du rouge. */
-.cell[data-text][data-state='valid'] {
-  background: var(--success-text);
-}
-
-.cell[data-text][data-state='improve'] {
-  background: var(--warning-text);
 }
 
 .cell[data-state='blocking'] {
