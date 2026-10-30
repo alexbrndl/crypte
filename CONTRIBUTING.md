@@ -75,7 +75,7 @@ One branch per change, named in kebab-case.
 
 **A pull request title follows the same format as a commit message.** Pull requests are squash-merged, so the title becomes the commit message on `main` and the intermediate commits disappear. The title is what stays in the history.
 
-Before opening a pull request, check that `vp check`, `vp run -r pack` and `vp test` pass locally. Continuous integration replays all three on Node 22 and 24, and also checks that the committed generated exports are up to date.
+Before opening a pull request, check that `vp check`, `vp run -r pack` and `vp test` pass locally. Continuous integration replays all three on Node 22, 24 and 26, and also checks that the committed generated exports are up to date.
 
 **If your change adds a moving part** — a workflow, a script, a configuration that encodes a decision, or a test whose assertion is not obvious — write a comment beside it answering what breaks if someone removes it. That is the one thing nobody can recover by reading the code.
 
