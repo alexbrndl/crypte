@@ -51,6 +51,8 @@ import VersionsSidebar, { type Since, type Versions } from './versions/versions-
 import VersionsView from './versions/versions-view.vue'
 import HealthSidebar from './health/health-sidebar.vue'
 import HealthView from './health/health-view.vue'
+import HealthDashboard from './health/health-dashboard.vue'
+import { dashboardOf, selectionOf } from './health/dashboard'
 import HealthPanel from './health/health-panel.vue'
 import HealthAccessibility from './health/health-accessibility.vue'
 import HealthFailures from './health/health-failures.vue'
@@ -736,6 +738,33 @@ const failures = computed(() => (auditResults.value ? failuresOf(auditResults.va
 const selectedFailure = computed(
   () => failures.value?.find((one) => one.key === healthAt.value?.item) ?? null,
 )
+// Le dashboard de la santé, et les lignes cochées qui font le prompt : les choix
+// de l'utilisateur, gardés d'une relecture à l'autre tant que leur ligne existe,
+// et les bloquants pour les lignes qu'il n'a pas touchées.
+const dashboard = computed(() =>
+  listedHealth.value
+    ? dashboardOf(listedHealth.value, families.value, {
+        stories: entries.value,
+        pages: pages.value,
+        audit: auditResults.value,
+        components: listedHealth.value,
+        categories: categories.value,
+      })
+    : null,
+)
+const choices = shallowRef<ReadonlyMap<string, boolean>>(new Map())
+const checked = computed(() =>
+  dashboard.value ? selectionOf(dashboard.value, choices.value) : new Set<string>(),
+)
+watch(dashboard, (next) => {
+  if (next === null) return
+  const present = new Set(next.checkable)
+  if ([...choices.value.keys()].some((key) => !present.has(key)))
+    choices.value = new Map([...choices.value].filter(([key]) => present.has(key)))
+})
+function check(keys: string[], on: boolean) {
+  choices.value = new Map([...choices.value, ...keys.map((key): [string, boolean] => [key, on])])
+}
 // Le nombre de choses à faire, le badge de Santé dans l'activity bar.
 const todo = computed(() => todoOf(listedHealth.value ?? null, auditResults.value))
 // Le prompt de tout ce qui reste, copié depuis la barre d'outils de Santé ; vide,
@@ -2075,6 +2104,15 @@ onMounted(() => {
             :href-of="(key) => placeSearch({ mode: 'health', page: 'accessibility', item: key })"
             @run="runAudit"
             @select="(key, event) => follow(event, () => openHealth('accessibility', key))"
+          />
+          <HealthDashboard
+            v-else-if="healthAt?.page === 'overview' && dashboard"
+            :dashboard="dashboard"
+            :checked="checked"
+            :selected="healthAt.item ?? null"
+            :partial="auditResults === null"
+            @select="(item, event) => follow(event, () => openHealth('overview', item))"
+            @check="check"
           />
           <HealthView
             v-else-if="healthAt && listedHealth"

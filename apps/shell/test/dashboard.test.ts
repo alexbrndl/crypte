@@ -8,7 +8,7 @@ import {
   dashboardOf,
   defaultSelection,
   groupOf,
-  keptSelection,
+  selectionOf,
   ORPHANS,
   phraseOf,
   scoreOf,
@@ -560,11 +560,15 @@ describe('the dashboard', () => {
     expect([seul.coverage.orphans, seul.checkable.includes(ORPHANS)]).toEqual([0, false])
   })
 
-  test('keeps a selection through a reload, dropping only the rows gone', () => {
-    const kept = keptSelection(
-      new Set(['src/Beta.tsx:Beta', 'src/Gone.tsx:Gone', ORPHANS]),
-      dashboard,
-    )
-    expect([...kept]).toEqual(['src/Beta.tsx:Beta', ORPHANS])
+  // Une ligne touchée garde le choix de l'utilisateur ; une ligne jamais touchée
+  // suit le défaut ; une ligne disparue sort de la sélection.
+  test('keeps the choices made, checks the untouched blocking rows, and drops the rows gone', () => {
+    const choices = new Map([
+      ['src/Zeta.tsx:Zeta', false],
+      ['src/Beta.tsx:Beta', true],
+      ['src/Gone.tsx:Gone', true],
+    ])
+    expect([...selectionOf(dashboard, choices)]).toEqual(['src/Beta.tsx:Beta', 'token:text-chart'])
+    expect([...selectionOf(dashboard, new Map())]).toEqual([...defaultSelection(dashboard)])
   })
 })
