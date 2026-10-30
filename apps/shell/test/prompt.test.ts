@@ -217,7 +217,7 @@ describe('the prompt for an agent', () => {
 
       ## Deprecated components
 
-      Move these importers to what replaces each component, then remove the import. One nothing imports any more can go, with its stories.
+      Move these importers to what replaces each component, then remove the import. A component nothing imports any more can go, with its stories.
 
       ### OldTag
       - Component: \`src/components/Badge.tsx\`, export \`Badge\`

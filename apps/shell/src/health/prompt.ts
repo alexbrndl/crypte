@@ -141,7 +141,7 @@ export function promptOf(
   if (deprecated.length > 0)
     sections.push(
       '## Deprecated components',
-      'Move these importers to what replaces each component, then remove the import. One nothing imports any more can go, with its stories.',
+      'Move these importers to what replaces each component, then remove the import. A component nothing imports any more can go, with its stories.',
       ...deprecated.map((one) =>
         [
           `### ${one.name}`,
