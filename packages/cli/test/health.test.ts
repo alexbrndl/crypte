@@ -283,6 +283,53 @@ describe('a Vue project', () => {
 
 // La page couverture : les props qu'aucune story ne donne, et les fichiers de
 // l'application qui importent chaque composant.
+// Les propriétés que lit chaque composant, story ou pas : le dashboard croise
+// composants et tokens pour tous, là où le manifeste ne les lit que pour ceux qui
+// ont une story.
+describe('the tokens of a component', () => {
+  const LU =
+    "import './Badge.css'\nexport function Badge() { return <b style={{ color: 'var(--accent)' }} /> }\n"
+  const NU = 'export function Nu() { return <i>--pas-lu</i> }\n'
+
+  test('lists them with a story and without, as the manifest reads them', () => {
+    const project = projet(
+      {
+        'src/components/Badge.tsx': LU,
+        'src/components/Badge.css': 'b { gap: var(--space-2); }\n',
+        'src/components/Seul.tsx': LU.replaceAll('Badge', 'Seul'),
+        'src/components/Seul.css': 'i { margin: var(--space-4); }\n',
+        'src/components/Nu.tsx': NU,
+        'stories/Badge.tsx':
+          "import { defineStories } from '@crypte/react'\nimport { Badge } from '../src/components/Badge'\n\nexport default defineStories(Badge)\n",
+      },
+      'src/components',
+    )
+    const lus = Object.fromEntries(santé(project)!.map((one) => [one.name, one.tokens]))
+
+    expect(lus).toEqual({
+      Badge: ['accent', 'space-2'],
+      Seul: ['accent', 'space-4'],
+      Nu: undefined,
+    })
+    const [entrée] = storiesOf(buildCatalogue(project).manifest)
+    expect(entrée!.component.tokens).toEqual(lus['Badge'])
+  })
+
+  test('gives two components of one file what the file reads', () => {
+    const lus = santé(
+      projet(
+        {
+          'src/components/Paire.tsx':
+            "export function A() { return <b style={{ gap: 'var(--un)' }} /> }\nexport function B() { return <i /> }\n",
+        },
+        'src/components',
+      ),
+    )!.map((one) => one.tokens)
+
+    expect(lus).toEqual([['un'], ['un']])
+  })
+})
+
 describe('the coverage of a component', () => {
   const BOUTON =
     'export function Bouton({ label, tone, size }: { label: string; tone?: string; size?: number }) { return <button>{label}</button> }\n'

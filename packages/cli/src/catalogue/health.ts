@@ -14,6 +14,7 @@ import type { Project } from '../config/project'
 import { componentFile } from './manifest'
 import { scriptOf } from './vue-props'
 import { propsOf } from './props'
+import { tokensOf } from './tokens'
 
 export interface Health {
   // `null` when the configuration declares no `components` folder: with nothing
@@ -51,6 +52,10 @@ export interface HealthComponent {
   // import it, project-relative: how much the product uses it. Absent when none
   // does.
   usedIn?: string[]
+  // The custom properties its file reads, as the manifest reads them for a
+  // component with a story (4.2), with or without one here. Absent when it reads
+  // none.
+  tokens?: string[]
 }
 
 // Opened, not counted: `componentsIn` keeps only what returns an element, and
@@ -99,6 +104,8 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
   const { importers, users } = importersOf(project, files, frames, application)
   const found: HealthComponent[] = []
   for (const file of files) {
+    // Per file, as the manifest reads it: two components of one file share it.
+    const tokens = tokensOf(file) ?? []
     for (const names of componentsIn(file)) {
       if (names.some((one) => frames.has(`${file}#${one}`))) continue
       const covered = names.flatMap((one) => covering.get(`${file}#${one}`) ?? [])
@@ -135,6 +142,7 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
         ...(usedBy.length > 0 ? { usedBy } : {}),
         ...(covered.length > 0 && !spread && unexercised.length > 0 ? { unexercised } : {}),
         ...(usedIn.length > 0 ? { usedIn } : {}),
+        ...(tokens.length > 0 ? { tokens } : {}),
       })
     }
   }
