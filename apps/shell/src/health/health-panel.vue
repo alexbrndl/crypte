@@ -1,458 +1,433 @@
 <script setup lang="ts">
-import { plural } from '../plural'
-import { texts } from '../i18n'
-import type { StoryEntry } from '@crypte/core/protocol'
-import { Button, PanelSection, EmptyNote } from '@crypte/ui'
-import {
-  AiContentGenerator01Icon,
-  Alert02Icon,
-  ComponentIcon,
-  Copy01Icon,
-  FileAddIcon,
-  Hexagon01Icon,
-  LinkSquare02Icon,
-} from '@hugeicons/core-free-icons'
-import { computed, ref, watch } from 'vue'
-import { useCopy } from '../clipboard'
-import Icon from '../ui/icon.vue'
-import { keep, kept } from '../storage'
-import { ago } from '../navigation/recent'
+import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
+import { PanelSection } from '@crypte/ui'
+import { computed } from 'vue'
 import { componentIdOf } from '../navigation/tree'
-import type { Failure, Finding } from './audit'
-import { dayOf, keyOf, type HealthComponent, type HealthPage } from './health'
-import { promptOf } from './prompt'
-import type { Suspect } from './suspects'
+import { texts } from '../i18n'
+import { plural, singular } from '../plural'
+import { nameOf } from '../tokens/categories'
+import {
+  CRITERIA,
+  ORPHANS,
+  READY,
+  sinceOf,
+  type ComponentRow,
+  type Criterion,
+  type Dashboard,
+  type Group,
+  type State,
+  type TokenHealth,
+} from './dashboard'
+import { dayOf } from './health'
 
-// Les deux panneaux de la vue santé, pour ce qui est choisi : « To do », ce qu'il
-// reste à faire, et « Links », ce qui s'y rattache. Ce qui est choisi est un
-// composant, une violation ou un rendu en échec ; les deux derniers ramènent au
-// composant de leur story.
+// Le panneau de la santé : le détail de ce que le dashboard a choisi, un
+// composant, un token, les orphelins ou les prêts. Fermé au repos : il ne répète
+// pas ce que la page montre déjà.
 const props = defineProps<{
-  component: HealthComponent | null
-  // Tous les composants, pour nommer ceux qui en importent un.
-  components: HealthComponent[]
-  finding: Finding | null
-  failure: Failure | null
-  // Ce que l'audit a trouvé, pour les actions d'un composant.
-  findings: Finding[]
-  failures: Failure[]
+  dashboard: Dashboard
+  item: string | null
   stories: StoryEntry[]
+  families: readonly TokensEntry[]
   hrefOfStory: (id: string) => string
   hrefOfComponent: (id: string) => string
-  hrefOfHealth: (page: HealthPage, key: string) => string
-  // Les tokens probablement en cause de la violation choisie.
-  suspects: Suspect[]
-  // Où mène un token qu'une story lit, `null` s'il n'est dans aucune catégorie.
   hrefOfToken: (name: string) => string | null
+  hrefOfChanges: string
 }>()
 const emit = defineEmits<{
   story: [id: string, event: MouseEvent]
-  page: [id: string, event: MouseEvent]
-  health: [page: HealthPage, key: string, event: MouseEvent]
+  component: [id: string, event: MouseEvent]
   token: [name: string, event: MouseEvent]
+  changes: [event: MouseEvent]
 }>()
 
 const t = texts({
   en: {
-    since: '{status} since {day}',
-    noStatus: 'no status',
-    changed: 'changed {when}',
-    titled: '{title} · to do',
-    toDo: 'To do',
-    promptCopied: 'Fix prompt copied',
-    copyPrompt: 'Copy fix prompt',
-    select: 'Select a row to see what it needs.',
-    element: 'element',
-    elements: 'elements',
-    atFault: '{elements} at fault,',
-    both: 'in light and dark',
-    light: 'in light',
-    dark: 'in dark',
-    howTo: 'How to fix {rule}',
-    fails: 'fails to render,',
-    toCreate: 'to create',
-    skeletonCopied: 'Skeleton copied',
-    copySkeleton: 'Copy the skeleton',
-    noRequired: 'No required prop: its Default story is enough.',
-    requiredProp: 'required prop',
-    requiredProps: 'required props',
-    required: '{props} to fill in its Default story.',
-    fixRender: 'Fix the render of {name}',
+    componentTitle: 'component · detail',
+    tokenTitle: 'token · detail',
+    orphansTitle: 'tokens · orphans',
+    readyTitle: 'components · ready',
+    story: 'story',
+    render: 'render',
+    a11y: 'a11y',
+    doc: 'doc',
+    status: 'status',
+    props: 'props',
+    usages: 'usages',
+    tokens: 'tokens',
+    valid: 'ok',
+    improve: 'to improve',
+    blocking: 'blocking',
+    empty: 'waiting',
+    stories: 'stories',
+    renders: 'light and dark',
+    fails: 'fails to render',
+    clean: 'no violation',
     violation: 'violation',
     violations: 'violations',
-    fix: 'Fix {violations}',
-    replace: 'Deprecated: replace it in {name}',
-    nothing: 'Nothing to do.',
-    links: 'Links',
-    story: 'story',
-    stories: 'stories',
-    component: 'component',
-    components: 'components',
-    docsPage: 'Its docs page',
-    suspects: 'tokens probably at fault · {count}',
-    read: 'tokens read · {count}',
+    written: 'page written',
+    missing: 'page missing',
+    noStatus: 'no status',
+    since: '{status} since {day}',
+    file: 'file',
+    files: 'files',
+    reads: 'reads {count}',
+    stateBlocking: 'blocked, {causes}',
+    stateImprove: 'to improve, {causes}',
+    stateReady: 'every criterion is green',
+    todo: 'to do, in order',
+    openStory: 'See the story {name}',
+    openComponent: 'Open the page of {name}',
+    used: 'read by components',
+    orphan: 'read by no component and no alias',
+    brokenAlias: 'points at {target}, which is not declared',
+    suspect: 'behind a contrast violation',
+    readBy: 'read by {count}: {blocking} blocking, {improve} to improve, {ready} ready',
+    fixOnce: 'fix it once, {count} follow',
+    openToken: 'Fix it at the source, in the tokens view',
+    orphansSentence: 'declared in the style sheet, read by no component and no alias',
+    openOrphans: 'See them in the tokens view',
+    readySentence: 'every criterion green, nothing to fix, ready to publish',
+    many: 'more than 20 usages',
+    some: '5 to 20',
+    few: 'less than 5',
+    recent: 'changed lately',
+    publish: 'Publish a version',
+    seeStories: 'See them in the stories view',
   },
   fr: {
-    since: '{status} depuis le {day}',
-    noStatus: 'aucun statut',
-    changed: 'modifié {when}',
-    titled: '{title} · à faire',
-    toDo: 'À faire',
-    promptCopied: 'Prompt de correction copié',
-    copyPrompt: 'Copier le prompt de correction',
-    select: 'Choisissez une ligne pour voir ce dont elle a besoin.',
-    element: 'élément',
-    elements: 'éléments',
-    atFault: '{elements} en défaut,',
-    both: 'en clair et en sombre',
-    light: 'en clair',
-    dark: 'en sombre',
-    howTo: 'Comment corriger {rule}',
-    fails: 'ne rend pas,',
-    toCreate: 'à créer',
-    skeletonCopied: 'Squelette copié',
-    copySkeleton: 'Copier le squelette',
-    noRequired: 'Aucune prop requise : sa story Default suffit.',
-    requiredProp: 'prop requise',
-    requiredProps: 'props requises',
-    required: '{props} à remplir dans sa story Default.',
-    fixRender: 'Réparer le rendu de {name}',
+    componentTitle: 'composant · détail',
+    tokenTitle: 'token · détail',
+    orphansTitle: 'tokens · orphelins',
+    readyTitle: 'composants · prêts',
+    story: 'story',
+    render: 'rendu',
+    a11y: 'a11y',
+    doc: 'doc',
+    status: 'statut',
+    props: 'props',
+    usages: 'usages',
+    tokens: 'tokens',
+    valid: 'ok',
+    improve: 'à améliorer',
+    blocking: 'bloquant',
+    empty: 'en attente',
+    stories: 'stories',
+    renders: 'light et dark',
+    fails: 'échoue au rendu',
+    clean: 'aucune violation',
     violation: 'violation',
     violations: 'violations',
-    fix: 'Corriger {violations}',
-    replace: 'Obsolète : à remplacer dans {name}',
-    nothing: 'Rien à faire.',
-    links: 'Liens',
-    story: 'story',
-    stories: 'stories',
-    component: 'composant',
-    components: 'composants',
-    docsPage: 'Sa page de docs',
-    suspects: 'tokens probablement en cause · {count}',
-    read: 'tokens lus · {count}',
+    written: 'page écrite',
+    missing: 'page manquante',
+    noStatus: 'sans statut',
+    since: '{status} depuis le {day}',
+    file: 'fichier',
+    files: 'fichiers',
+    reads: 'lit {count}',
+    stateBlocking: 'bloqué, {causes}',
+    stateImprove: 'à améliorer, {causes}',
+    stateReady: 'tous les critères au vert',
+    todo: "à faire, dans l'ordre",
+    openStory: 'Voir la story {name}',
+    openComponent: 'Ouvrir la page de {name}',
+    used: 'lu par des composants',
+    orphan: 'lu par aucun composant ni alias',
+    brokenAlias: "pointe vers {target}, qui n'est pas déclaré",
+    suspect: "en cause d'une violation de contraste",
+    readBy: 'lu par {count} : {blocking} bloquant, {improve} à traiter, {ready} prêts',
+    fixOnce: 'corriger une fois, {count} suivent',
+    openToken: 'Corriger à la source, dans la vue tokens',
+    orphansSentence: 'déclarés dans la feuille de style, lus par aucun composant ni alias',
+    openOrphans: 'Les voir dans la vue tokens',
+    readySentence: 'tous les critères au vert, rien à corriger, prêts à publier',
+    many: '+ de 20 usages',
+    some: '5 à 20',
+    few: '- de 5',
+    recent: 'changés récemment',
+    publish: 'Publier une version',
+    seeStories: 'Les voir dans la vue stories',
   },
 })
 
-const themesOf = (themes: string[]) =>
-  themes.length === 2 ? t('both') : t(themes[0] === 'dark' ? 'dark' : 'light')
-
-// Les stories de ce qui est choisi : celles du composant, ou la seule story de la
-// violation ou du rendu.
-const ids = computed(() =>
-  props.finding
-    ? [props.finding.id]
-    : props.failure
-      ? [props.failure.id]
-      : (props.component?.stories ?? []),
-)
-const own = computed(() =>
-  ids.value.flatMap((id) => {
-    const entry = props.stories.find((one) => one.id === id)
-    return entry ? [entry] : []
-  }),
-)
-const page = computed(() => (own.value[0] ? componentIdOf(own.value[0].path) : null))
-const file = computed(() => props.component?.file ?? own.value[0]?.component.file ?? null)
-const tokens = computed(() => [
-  ...new Set(own.value.flatMap((entry) => entry.component.tokens ?? [])),
-])
-const chosen = computed(
-  () => props.component !== null || props.finding !== null || props.failure !== null,
-)
-const title = computed(() =>
-  props.finding
-    ? props.finding.violation.rule
-    : props.failure
-      ? (own.value[0]?.name ?? props.failure.id)
-      : (props.component?.name ?? ''),
-)
-
-// Ce qu'un composant demande : sa story, ses rendus, ses violations, un statut
-// déprécié encore rendu.
-const mine = computed(() => {
-  const stories = new Set(props.component?.stories ?? [])
-  return {
-    failures: props.failures.filter((one) => stories.has(one.id)),
-    findings: props.findings.filter((one) => stories.has(one.id)),
-  }
-})
-// Déprécié, les composants qui l'importent encore : chacun est à reprendre.
-const still = computed(() =>
-  props.component?.status === 'deprecated'
-    ? (props.component.usedBy ?? []).flatMap((key) =>
-        props.components.filter((one) => keyOf(one) === key),
-      )
-    : [],
-)
-const state = computed(() => {
-  const one = props.component
-  if (!one) return null
-  return [
-    one.status
-      ? one.statusSince
-        ? t('since', { status: one.status, day: dayOf(one.statusSince) })
-        : one.status
-      : t('noStatus'),
-    one.changed ? t('changed', { when: ago(Date.parse(one.changed)) }) : null,
-  ]
-    .filter(Boolean)
-    .join(' · ')
-})
-const nothing = computed(
-  () =>
-    props.component !== null &&
-    !props.component.skeleton &&
-    mine.value.failures.length === 0 &&
-    mine.value.findings.length === 0 &&
-    still.value.length === 0,
-)
-
-// Ouverts au départ, retenus comme les panneaux des stories.
-const KEYS = { todo: 'crypte:panel:shell:todo', links: 'crypte:panel:shell:links' }
-const open = ref({ todo: kept(KEYS.todo) !== false, links: kept(KEYS.links) !== false })
-const toggle = (which: 'todo' | 'links') => {
-  open.value[which] = !open.value[which]
-  keep(KEYS[which], open.value[which] ? undefined : false)
+const LABEL: Record<Criterion, () => string> = {
+  story: () => t('story'),
+  render: () => t('render'),
+  a11y: () => t('a11y'),
+  doc: () => t('doc'),
+  status: () => t('status'),
+  props: () => t('props'),
+  usages: () => t('usages'),
+}
+const STATE: Record<State, () => string> = {
+  valid: () => t('valid'),
+  improve: () => t('improve'),
+  blocking: () => t('blocking'),
+  empty: () => t('empty'),
 }
 
-// Le prompt de ce qui est choisi : la violation, le rendu, ou tout ce que le
-// composant demande.
-const prompt = computed(() =>
-  promptOf(
-    props.finding
-      ? { failures: [], findings: [props.finding], unstoried: [] }
-      : props.failure
-        ? { failures: [props.failure], findings: [], unstoried: [] }
-        : {
-            ...mine.value,
-            unstoried:
-              props.component && props.component.stories.length === 0 ? [props.component] : [],
-          },
-    props.stories,
-  ),
+const row = computed(() => props.dashboard.rows.find((one) => one.key === props.item) ?? null)
+const tokens = computed(() => props.dashboard.coverage.families.flatMap((one) => one.tokens))
+const token = computed(() =>
+  props.item?.startsWith('token:')
+    ? (tokens.value.find((one) => `token:${one.name}` === props.item) ?? null)
+    : null,
 )
+const nameOfKey = (key: string) =>
+  props.dashboard.rows.find((one) => one.key === key)?.component.name ?? key
+const ownStories = (one: ComponentRow) =>
+  props.stories.filter((story) => one.component.stories.includes(story.id))
 
-const { copied, copy } = useCopy()
-watch(
-  [() => props.component, () => props.finding, () => props.failure],
-  () => (copied.value = null),
+// La valeur d'un critère, ce que la case de la liste ne dit pas.
+function valueOf(one: ComponentRow, criterion: Criterion): string {
+  const { component, criteria } = one
+  const state = criteria[criterion].state
+  if (criterion === 'story') return plural(component.stories.length, t('story'), t('stories'))
+  if (state === 'empty' && criterion !== 'status') return '—'
+  if (criterion === 'render') return state === 'blocking' ? t('fails') : t('renders')
+  if (criterion === 'a11y') return state === 'valid' ? t('clean') : t('violations')
+  if (criterion === 'doc') return state === 'valid' ? t('written') : t('missing')
+  if (criterion === 'status')
+    return component.status
+      ? component.statusSince
+        ? t('since', { status: component.status, day: dayOf(component.statusSince) })
+        : component.status
+      : t('noStatus')
+  if (criterion === 'props')
+    return [criteria.props.text, ...(component.unexercised ?? [])].filter(Boolean).join(', ') || '0'
+  return plural(component.usedIn?.length ?? 0, t('file'), t('files'))
+}
+
+const stateOf = (one: ComponentRow) =>
+  one.group === 'ready'
+    ? t('stateReady')
+    : one.group === 'blocking'
+      ? t('stateBlocking', { causes: one.phrase })
+      : t('stateImprove', { causes: one.phrase })
+
+// Les stories à ouvrir pour corriger.
+const todo = computed(() => (row.value ? ownStories(row.value) : []))
+
+const valuesOf = (one: TokenHealth) => {
+  const entry = props.families.find((family) => family.id === one.family)
+  const held = entry
+    ? Object.entries(entry.tokens).find(([key]) => nameOf(entry.name, key) === one.name)?.[1]
+    : undefined
+  return Object.entries(held?.themes ?? {}).map(([theme, value]) => ({ theme, value: value.value }))
+}
+const readersOf = (one: TokenHealth) => {
+  const of = (group: Group) =>
+    one.readers.filter(
+      (key) => props.dashboard.rows.find((row) => row.key === key)?.group === group,
+    )
+  return { blocking: of('blocking'), improve: of('improve'), ready: of('ready') }
+}
+
+const orphans = computed(() => {
+  const found = new Map<string, string[]>()
+  for (const family of props.dashboard.coverage.families) {
+    const names = family.tokens.filter((one) => one.state === 'orphan').map((one) => one.name)
+    if (names.length > 0) found.set(family.name, names)
+  }
+  return [...found]
+})
+
+const ready = computed(() => props.dashboard.rows.filter((one) => one.group === 'ready'))
+const byUsage = computed(() => {
+  const used = (one: ComponentRow) => one.component.usedIn?.length ?? 0
+  return [
+    { label: t('many'), rows: ready.value.filter((one) => used(one) > 20) },
+    { label: t('some'), rows: ready.value.filter((one) => used(one) >= 5 && used(one) <= 20) },
+    { label: t('few'), rows: ready.value.filter((one) => used(one) < 5) },
+  ].filter((group) => group.rows.length > 0)
+})
+const recent = computed(() =>
+  ready.value
+    .filter((one) => one.component.changed)
+    .sort((one, other) => other.component.changed!.localeCompare(one.component.changed!))
+    .slice(0, 3),
+)
+const firstReadyStory = computed(() =>
+  props.stories.find((story) => ready.value[0]?.component.stories.includes(story.id)),
 )
 </script>
 
 <template>
-  <PanelSection
-    :title="chosen ? t('titled', { title }) : t('toDo')"
-    :open="open.todo"
-    :aria-label="t('toDo')"
-    @toggle="toggle('todo')"
-  >
-    <template v-if="prompt" #action>
-      <Button variant="ghost" class="prompt" @click="copy(prompt, 'prompt')">
-        <Icon :icon="AiContentGenerator01Icon" />
-        {{ copied === 'prompt' ? t('promptCopied') : t('copyPrompt') }}
-      </Button>
-    </template>
+  <PanelSection v-if="row" :title="t('componentTitle')" :open="true">
     <div class="rows">
-      <EmptyNote v-if="!chosen">{{ t('select') }}</EmptyNote>
-
-      <template v-else-if="finding">
-        <p class="caption">{{ finding.violation.help }}</p>
-        <p class="caption">
-          {{
-            t('atFault', {
-              elements: plural(finding.violation.targets.length, t('element'), t('elements')),
-            })
-          }}
-          {{ themesOf(finding.themes) }}
-        </p>
-        <p v-for="one of finding.violation.targets" :key="one" class="row">
-          <code class="label">{{ one }}</code>
-        </p>
-        <a class="row link" :href="finding.violation.helpUrl" target="_blank" rel="noreferrer">
-          <span class="label">{{ t('howTo', { rule: finding.violation.rule }) }}</span>
-          <Icon :icon="LinkSquare02Icon" />
-        </a>
-      </template>
-
-      <template v-else-if="failure">
-        <p class="caption">
-          {{ t('fails') }}
-          {{ themesOf(failure.themes) }}
-        </p>
-        <p class="row message">{{ failure.message }}</p>
-        <pre v-if="failure.stack" class="stack">{{
-          failure.stack.split('\n').slice(0, 6).join('\n')
-        }}</pre>
-      </template>
-
-      <template v-else-if="component">
-        <p class="caption">{{ state }}</p>
-        <template v-if="component.skeleton">
-          <p class="row">
-            <Icon :icon="FileAddIcon" />
-            <code class="label">{{ component.skeleton.file }}</code>
-            <span class="meta">{{ t('toCreate') }}</span>
-          </p>
-          <button
-            type="button"
-            class="row link copy"
-            @click="copy(component.skeleton.source, 'skeleton')"
-          >
-            <Icon :icon="Copy01Icon" />
-            <span class="label">{{
-              copied === 'skeleton' ? t('skeletonCopied') : t('copySkeleton')
-            }}</span>
-          </button>
-          <p class="caption required">
-            {{
-              component.required === 0
-                ? t('noRequired')
-                : t('required', {
-                    props: plural(component.required, t('requiredProp'), t('requiredProps')),
-                  })
-            }}
-          </p>
-        </template>
+      <p class="row heading">{{ row.component.name }}</p>
+      <p class="caption">{{ stateOf(row) }}</p>
+      <p v-for="one of CRITERIA" :key="one" class="row criterion">
+        <span class="dot" :data-state="row.criteria[one].state" aria-hidden="true" />
+        <span class="label">{{ LABEL[one]() }}</span>
+        <span class="meta">{{ valueOf(row, one) }} · {{ STATE[row.criteria[one].state]() }}</span>
+      </p>
+      <p class="row criterion">
+        <span class="dot" aria-hidden="true" />
+        <span class="label">{{ t('tokens') }}</span>
+        <span class="meta">{{
+          t('reads', { count: dashboard.coverage.reads.get(row.key)?.size ?? 0 })
+        }}</span>
+      </p>
+      <template v-if="row.group !== 'ready'">
+        <p class="caption">{{ t('todo') }}</p>
         <a
-          v-for="one of mine.failures"
-          :key="one.key"
+          v-for="story of todo"
+          :key="story.id"
           class="row link"
-          :href="hrefOfHealth('failures', one.key)"
-          @click="emit('health', 'failures', one.key, $event)"
+          :href="hrefOfStory(story.id)"
+          @click="emit('story', story.id, $event)"
+          >{{ t('openStory', { name: story.name }) }}</a
         >
-          <Icon :icon="Alert02Icon" />
-          <span class="label">{{
-            t('fixRender', { name: stories.find((entry) => entry.id === one.id)?.name ?? one.id })
-          }}</span>
-        </a>
         <a
-          v-if="mine.findings.length > 0"
+          v-if="todo[0]"
           class="row link"
-          :href="hrefOfHealth('accessibility', mine.findings[0]!.key)"
-          @click="emit('health', 'accessibility', mine.findings[0]!.key, $event)"
+          :href="hrefOfComponent(componentIdOf(todo[0].path))"
+          @click="emit('component', componentIdOf(todo[0].path), $event)"
+          >{{ t('openComponent', { name: row.component.name }) }}</a
         >
-          <Icon :icon="Alert02Icon" />
-          <span class="label">{{
-            t('fix', { violations: plural(mine.findings.length, t('violation'), t('violations')) })
-          }}</span>
-        </a>
-        <a
-          v-for="one of still"
-          :key="keyOf(one)"
-          class="row link"
-          :href="hrefOfHealth('overview', keyOf(one))"
-          @click="emit('health', 'overview', keyOf(one), $event)"
-        >
-          <Icon :icon="Alert02Icon" />
-          <span class="label">{{ t('replace', { name: one.name }) }}</span>
-        </a>
-        <EmptyNote v-if="nothing">{{ t('nothing') }}</EmptyNote>
       </template>
     </div>
   </PanelSection>
 
-  <PanelSection
-    v-if="chosen"
-    :title="t('links')"
-    :open="open.links"
-    :aria-label="t('links')"
-    @toggle="toggle('links')"
-  >
+  <PanelSection v-else-if="token" :title="t('tokenTitle')" :open="true">
     <div class="rows">
-      <template v-if="own.length > 0">
-        <p class="caption">{{ plural(own.length, t('story'), t('stories')) }}</p>
-        <a
-          v-for="one of own"
-          :key="one.id"
-          class="row link"
-          :href="hrefOfStory(one.id)"
-          @click="emit('story', one.id, $event)"
-        >
-          <Icon :icon="ComponentIcon" />
-          <span class="label">{{ one.name }}</span>
-          <Icon :icon="LinkSquare02Icon" />
-        </a>
-      </template>
-      <template v-if="page || file">
-        <p class="caption">{{ t('component') }}</p>
-        <a
-          v-if="page"
-          class="row link"
-          :href="hrefOfComponent(page)"
-          @click="emit('page', page, $event)"
-        >
-          <span class="label">{{ t('docsPage') }}</span>
-          <Icon :icon="LinkSquare02Icon" />
-        </a>
-        <p v-if="file" class="row">
-          <code class="label">{{ file }}</code>
+      <p class="row heading code">--{{ token.name }}</p>
+      <p class="caption">
+        {{
+          token.state === 'broken'
+            ? t('brokenAlias', { target: `--${token.target}` })
+            : token.state === 'orphan'
+              ? t('orphan')
+              : token.suspect
+                ? t('suspect')
+                : t('used')
+        }}
+      </p>
+      <p v-for="one of valuesOf(token)" :key="one.theme" class="row">
+        <span class="label">{{ one.theme }}</span>
+        <span class="meta">{{ one.value }}</span>
+      </p>
+      <p class="caption">
+        {{
+          t('readBy', {
+            count: token.readers.length,
+            blocking: readersOf(token).blocking.length,
+            improve: readersOf(token).improve.length,
+            ready: readersOf(token).ready.length,
+          })
+        }}
+      </p>
+      <template v-for="group of ['blocking', 'improve', 'ready'] as const" :key="group">
+        <p v-if="readersOf(token)[group].length > 0" class="row">
+          <span class="dot" :data-state="group === 'ready' ? 'valid' : group" aria-hidden="true" />
+          <span class="meta">{{ readersOf(token)[group].map(nameOfKey).join(', ') }}</span>
         </p>
       </template>
-      <template v-if="suspects.length > 0">
-        <p class="caption">{{ t('suspects', { count: suspects.length }) }}</p>
-        <a
-          v-for="one of suspects"
-          :key="one.token.key"
-          class="row link"
-          :href="hrefOfToken(one.token.name) ?? undefined"
-          @click="emit('token', one.token.name, $event)"
-        >
-          <Icon :icon="Hexagon01Icon" />
-          <code class="label">{{ one.token.name }}</code>
-          <span class="meta">{{ plural(one.readers, t('component'), t('components')) }}</span>
-        </a>
+      <p v-if="token.readers.length > 1" class="caption">
+        {{ t('fixOnce', { count: token.readers.length }) }}
+      </p>
+      <a
+        v-if="hrefOfToken(token.name)"
+        class="row link"
+        :href="hrefOfToken(token.name)!"
+        @click="emit('token', token.name, $event)"
+        >{{ t('openToken') }}</a
+      >
+    </div>
+  </PanelSection>
+
+  <PanelSection v-else-if="item === ORPHANS" :title="t('orphansTitle')" :open="true">
+    <div class="rows">
+      <p class="row heading">{{ dashboard.coverage.orphans }}</p>
+      <p class="caption">{{ t('orphansSentence') }}</p>
+      <p v-for="[family, names] of orphans" :key="family" class="row">
+        <span class="label">{{ family }}</span>
+        <span class="meta">{{ names.map((one) => `--${one}`).join(', ') }}</span>
+      </p>
+      <a
+        v-if="orphans[0] && hrefOfToken(orphans[0][1][0]!)"
+        class="row link"
+        :href="hrefOfToken(orphans[0][1][0]!)!"
+        @click="emit('token', orphans[0][1][0]!, $event)"
+        >{{ t('openOrphans') }}</a
+      >
+    </div>
+  </PanelSection>
+
+  <PanelSection v-else-if="item === READY" :title="t('readyTitle')" :open="true">
+    <div class="rows">
+      <p class="row heading">{{ ready.length }}</p>
+      <p class="caption">{{ t('readySentence') }}</p>
+      <p v-for="group of byUsage" :key="group.label" class="row">
+        <span class="label">{{ group.label }}</span>
+        <span class="meta">{{ group.rows.map((one) => one.component.name).join(', ') }}</span>
+      </p>
+      <template v-if="recent.length > 0">
+        <p class="caption">{{ t('recent') }}</p>
+        <p v-for="one of recent" :key="one.key" class="row">
+          <span class="label">{{ one.component.name }}</span>
+          <span class="meta">{{ sinceOf(one.component.changed!) }}</span>
+        </p>
       </template>
-      <template v-if="tokens.length > 0">
-        <p class="caption">{{ t('read', { count: tokens.length }) }}</p>
-        <template v-for="one of tokens" :key="one">
-          <a
-            v-if="hrefOfToken(one)"
-            class="row link"
-            :href="hrefOfToken(one)!"
-            @click="emit('token', one, $event)"
-          >
-            <Icon :icon="Hexagon01Icon" />
-            <code class="label">{{ one }}</code>
-          </a>
-          <p v-else class="row">
-            <Icon :icon="Hexagon01Icon" />
-            <code class="label">{{ one }}</code>
-          </p>
-        </template>
-      </template>
+      <a class="row link" :href="hrefOfChanges" @click="emit('changes', $event)">{{
+        t('publish')
+      }}</a>
+      <a
+        v-if="firstReadyStory"
+        class="row link"
+        :href="hrefOfStory(firstReadyStory.id)"
+        @click="emit('story', firstReadyStory.id, $event)"
+        >{{ t('seeStories') }}</a
+      >
     </div>
   </PanelSection>
 </template>
 
 <style scoped>
-.copy {
-  width: 100%;
-  border: 0;
-  background: none;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+.heading {
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
 }
 
-code.label {
+.heading.code {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  line-height: var(--leading-xs);
 }
 
-.message {
-  color: var(--error-text);
-}
-
-.stack {
-  margin: 0 var(--space-3);
-  padding: var(--space-2);
-  overflow-x: auto;
-  border-radius: var(--radius-sm);
-  background: var(--background-subtle);
+.criterion .label {
+  flex: none;
+  width: 64px;
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  line-height: var(--leading-xs);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  box-sizing: border-box;
+  border-radius: var(--radius-full);
+  border: var(--stroke-hairline) dashed var(--border-strong);
+}
+
+.dot[data-state='valid'] {
+  border: 0;
+  background: var(--success-solid);
+}
+
+.dot[data-state='improve'] {
+  border: 0;
+  background: var(--warning-solid);
+}
+
+.dot[data-state='blocking'] {
+  border: 0;
+  background: var(--error-solid);
+}
+
+.link {
+  color: var(--text-current);
 }
 </style>

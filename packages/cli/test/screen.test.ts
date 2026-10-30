@@ -1468,7 +1468,12 @@ describe('the versions view', () => {
       )
       .toBe('The changes cannot be read: .crypte/fingerprint.json has never been committed.')
     expect(new URL(ecran.page.url()).search).toBe('?changes')
-    expect(await ecran.page.locator('.activity-bar .count').count()).toBe(0)
+    expect(
+      await ecran.page
+        .locator('.activity-bar .item', { hasText: 'versions' })
+        .locator('.count')
+        .count(),
+    ).toBe(0)
   })
 })
 
@@ -1678,41 +1683,24 @@ describe('the background, on screen', () => {
 describe('the accessibility audit, on screen', () => {
   // Sans un clic : l'audit part seul, une fois la première story rendue.
   test('audits every story in both themes with the a11y plugin, on its own', async ({ ecran }) => {
-    await ecran.page.goto(new URL('?health=accessibility', ecran.page.url()).href)
+    await ecran.page.goto(new URL('?health', ecran.page.url()).href)
 
-    await expect.poll(() => ecran.page.locator('.cards li').count(), { timeout: 60_000 }).toBe(3)
-    expect(await ecran.page.locator('.audit-frame').count()).toBe(0)
-    expect(await ecran.page.locator('.status-bar p').first().textContent()).toMatch(
-      /^audit of \d+ stories in \d+\.\d s$/,
-    )
-    // Les valeurs réelles de la démo : la story au rôle inconnu enfreint aria-roles,
-    // celle qui lève a sa page. Elles tiennent la forme de `a11y:results`, que
-    // le shell lit : un champ renommé dans le plugin fait tomber ces lignes.
-    expect(
-      (await ecran.page.locator('.cards li').allTextContents()).map((one) =>
-        one.replace(/\s+/g, ' ').trim(),
-      ),
-    ).toEqual(['5 stories without violation', '0 serious violations', '1 critical violation'])
-    expect(await ecran.page.locator('.unaudited').count()).toBe(0)
-    const ligne = ecran.page.locator('.health-view tbody tr')
-    expect(await ligne.count()).toBe(1)
-    expect((await ligne.locator('th, td').allTextContents()).map((one) => one.trim())).toEqual([
-      'Tag / Rôle inconnu',
-      'aria-roles',
-      'ARIA roles used must conform to valid values, in light and dark',
-      'critical',
-    ])
-    await ligne.click()
     await expect
-      .poll(() => ecran.page.locator('[aria-label="To do"] code.label').allTextContents())
-      .toEqual(['span'])
-    expect(await ecran.page.locator('.gauge').allTextContents()).toHaveLength(3)
+      .poll(() => ecran.page.locator('.status-bar p').first().textContent(), { timeout: 60_000 })
+      .toMatch(/^audit of \d+ stories in \d+\.\d s$/)
+    expect(await ecran.page.locator('.audit-frame').count()).toBe(0)
+    // Les valeurs réelles de la démo : la story au rôle inconnu enfreint
+    // aria-roles. Elles tiennent la forme de `a11y:results`, que le shell lit : un
+    // champ renommé dans le plugin fait tomber ces lignes.
+    const ligne = ecran.page.locator('.health-list .row', { hasText: 'Tag' })
+    expect((await ligne.locator('.phrase').textContent())?.trim()).toBe(
+      'aria-roles critical · used nowhere',
+    )
+    expect(await ligne.locator('input').isChecked()).toBe(true)
 
-    // La story qui lève, sur la page des rendus en échec, avec son message.
-    await ecran.page.locator('.health a', { hasText: 'render errors' }).click()
-    const échec = ecran.page.locator('[aria-label="Health, render errors"] tbody tr')
-    await expect.poll(() => échec.count()).toBe(1)
-    expect(await échec.locator('th').textContent()).toBe('Boom / Échoue au rendu')
+    await ligne.locator('.label').click()
+    const critère = ecran.page.locator('#health-panel .criterion', { hasText: 'a11y' })
+    await expect.poll(() => critère.locator('.meta').textContent()).toBe('violations · blocking')
   })
 })
 
@@ -1832,8 +1820,8 @@ const ecrans = [
   ['a component page', '?component=badge', '.component-page'],
   ['a token category', '?tokens=color', '.tokens-view'],
   ['the versions', '?changes', '.versions-view'],
-  ['the health', '?health=overview', '.health-dashboard'],
-  ['the accessibility audit', '?health=accessibility', '.health-view'],
+  ['the health', '?health', '.health-dashboard'],
+  ['the health panel', '?health&item=src/components/Tag.tsx:Tag', '#health-panel'],
   ['the command palette', '?id=badge--par-defaut', '[role="dialog"]'],
   ['the zoom menu', '?id=badge--par-defaut', '[role="menu"]'],
   ['the width menu', '?id=badge--par-defaut', '[role="menu"]'],

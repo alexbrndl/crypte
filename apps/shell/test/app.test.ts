@@ -1950,7 +1950,7 @@ describe('the activity bar', () => {
           tokens: '?tokens=color',
           stories: '/',
           docs: '?component=badge',
-          health: '?health=overview',
+          health: '?health',
           versions: '?changes',
         },
         counter: 1,
@@ -3606,10 +3606,8 @@ describe('the panels toggle', () => {
   })
 })
 
-// La comparaison : une seconde preview en dark, la première passée en light, et
-// seule la première parle au shell.
-// La vue santé : les composants du dossier déclaré, ce qu'il leur manque, et la
-// story à créer pour qui n'en a pas.
+// La vue santé : un dashboard sur une page, sans sidebar ; le panneau détaille ce
+// qu'il a choisi ; la barre d'outils copie le prompt des lignes cochées.
 describe('the health view', () => {
   const composants = [
     {
@@ -3618,10 +3616,12 @@ describe('the health view', () => {
       export: 'Badge',
       stories: ['badge--defaut', 'badge--alerte'],
       props: 2,
+      required: 0,
       status: 'deprecated',
       changed: new Date(Date.now() - 3 * 86_400_000).toISOString(),
       statusSince: '2026-10-14T10:00:00.000Z',
       usedBy: ['src/components/Bouton.tsx:Bouton'],
+      tokens: ['Brand-primary'],
     },
     {
       name: 'Select',
@@ -3634,30 +3634,23 @@ describe('the health view', () => {
       skeleton: { file: 'stories/form/Select.tsx', source: 'squelette' },
     },
     {
-      name: 'Avatar',
-      file: 'src/components/Avatar.tsx',
-      export: 'Avatar',
-      stories: [],
-      props: 2,
-      required: 0,
-      skeleton: { file: 'stories/Avatar.tsx', source: 'autre' },
-    },
-    {
       name: 'Bouton',
       file: 'src/components/Bouton.tsx',
       export: 'Bouton',
       stories: ['bouton--defaut'],
       props: 1,
+      required: 0,
       status: 'stable',
+      usedIn: ['src/pages/Accueil.tsx'],
     },
   ]
-  const lignes = (écran: Ecran) =>
-    écran.wrapper.findAll('.health-view tbody tr').map((one) =>
-      one
-        .findAll('th, td')
-        .map((cell) => cell.text())
-        .join(' | '),
-    )
+  const orpheline: TokensEntry = {
+    type: 'tokens',
+    id: 'space--space',
+    path: ['Space'],
+    name: 'space',
+    tokens: { '7': { type: 'dimension', themes: { light: { value: '28px' } } } },
+  }
   // Le relevé du dashboard : chaque ligne, cochée ou non, son nom et sa phrase.
   const relevé = (écran: Ecran) =>
     écran.wrapper.findAll('.health-list .row').map((one) => {
@@ -3665,382 +3658,23 @@ describe('the health view', () => {
       const état = coche.exists() && (coche.element as HTMLInputElement).checked ? '[x]' : '[ ]'
       return `${état} ${one.find('.label').text()} · ${one.find('.phrase').text()}`
     })
-  const page = async (écran: Ecran, libellé: string) => {
+  const choisit = async (écran: Ecran, nom: string) => {
     await écran.wrapper
-      .findAll('.health a')
-      .find((one) => one.find('.label').text() === libellé)!
+      .findAll('.health-list .row')
+      .find((one) => one.find('.label').text() === nom)!
       .trigger('click', { button: 0 })
     await vide(écran.wrapper)
   }
-
-  test('opens on its overview from the activity bar, with the score of its gauges', async () => {
-    santé = () => ({ components: composants })
-    const écran = await monte([badge, alerte, bouton])
-
-    await écran.vue('health').trigger('click', { button: 0 })
-    await vide(écran.wrapper)
-
-    expect(window.location.search).toBe('?health=overview')
-    expect(écran.wrapper.find('.score .top').text()).toBe('50 % overall health')
-    expect(écran.wrapper.find('.gauge').text().replace(/\s+/g, ' ')).toBe('stories 2/4')
-    expect(
-      écran.wrapper
-        .findAll('.health a')
-        .map((one) => `${one.find('.label').text()} ${one.find('.count').text()}`),
-      // L'accessibilité ne compte rien avant l'audit.
-    ).toEqual([
-      'overview 4',
-      'without story 2',
-      'render errors ',
-      'accessibility ',
-      'statuses 2',
-      'coverage 4',
-    ])
-    // Le dashboard : chaque composant et ses causes, groupés par gravité, le nom
-    // départageant ; rien de bloquant avant l'audit, donc rien de coché.
-    expect(relevé(écran)).toMatchInlineSnapshot(`
-      [
-        "[ ] Avatar · no story · 2 props, 0 required · used nowhere",
-        "[ ] Badge · doc page missing · deprecated · Bouton · used nowhere",
-        "[ ] Bouton · doc page missing · used nowhere",
-        "[ ] Select · no story · 9 props, 2 required · used nowhere · draft",
-      ]
-    `)
-    expect(écran.wrapper.find('.toolbar .trail').text().replace(/\s+/g, '')).toBe('health/overview')
-    expect(écran.statut()).toBe('4 components, 2 with a story')
-    écran.wrapper.unmount()
-  })
-
-  test('fills the panel with what the chosen component needs, under its own address', async () => {
-    santé = () => ({ components: composants })
-    window.history.replaceState(null, '', '/?health=unstoried')
-    const écran = await monte([badge, alerte, bouton])
-    const écrit = vi.fn(async () => {})
-    vi.stubGlobal('navigator', { clipboard: { writeText: écrit } })
-
-    expect(lignes(écran)).toEqual([
-      'Select | src/components/form/Select.tsx | 9 | copy the skeleton',
-      'Avatar | src/components/Avatar.tsx | 2 | copy the skeleton',
-    ])
-    expect(écran.wrapper.find('#health-panel .empty-note').text()).toBe(
-      'Select a row to see what it needs.',
-    )
-
-    await écran.wrapper.find('.health-view tbody tr').trigger('click', { button: 0 })
-    await vide(écran.wrapper)
-    expect(window.location.search).toBe(
-      '?health=unstoried&item=src/components/form/Select.tsx:default',
-    )
-    expect(écran.wrapper.find('#health-panel h3').text()).toBe('Select · to do')
-    expect(écran.wrapper.find('#health-panel code.label').text()).toBe('stories/form/Select.tsx')
-    await écran.wrapper.find('#health-panel .copy').trigger('click')
-    await vide(écran.wrapper)
-    expect(écrit).toHaveBeenCalledWith('squelette')
-    expect(écran.wrapper.find('#health-panel .copy').text()).toBe('Skeleton copied')
-    // Ses props requises, à donner à sa story ; et son fichier, dans les liens.
-    expect(écran.wrapper.find('[aria-label="To do"] .required').text()).toBe(
-      '2 required props to fill in its Default story.',
-    )
-    expect(écran.wrapper.find('[aria-label="Links"] code.label').text()).toBe(
-      'src/components/form/Select.tsx',
-    )
-
-    // Le bouton de la ligne copie aussi, sans la choisir.
-    await écran.wrapper.findAll('.health-view .link').at(1)!.trigger('click')
-    await vide(écran.wrapper)
-    expect(écran.wrapper.findAll('.health-view .link').map((one) => one.text())).toEqual([
-      'copy the skeleton',
-      'copied',
-    ])
-    écran.wrapper.unmount()
-  })
-
-  // Un composant déprécié reste un problème tant qu'un autre l'importe ; sa date
-  // ouvre ce qui a changé depuis, le statut compris.
-  test('lists the statuses, deprecated first, and leads to the components still using one', async () => {
-    santé = () => ({ components: composants })
-    window.history.replaceState(null, '', '/?health=statuses&item=src/components/Badge.tsx:Badge')
-    const écran = await monte([badge, alerte, bouton])
-
-    expect(lignes(écran)).toEqual([
-      'Badge | deprecated | 14 Oct | 1 component',
-      'Select | draft |  | no component',
-    ])
-    expect(écran.wrapper.find('.health-view [data-ink="error"]').text()).toBe('1 component')
-    // Son état, et ce qu'il demande ; ses stories, dans les liens.
-    expect(écran.wrapper.find('#health-panel .caption').text()).toBe(
-      'deprecated since 14 Oct · changed 3 days ago',
-    )
-    const àReprendre = () => écran.wrapper.find('[aria-label="To do"] a.link')
-    expect(àReprendre().text()).toBe('Deprecated: replace it in Bouton')
-    expect(àReprendre().attributes('href')).toBe(
-      '?health=overview&item=src/components/Bouton.tsx:Bouton',
-    )
-    expect(écran.wrapper.find('.toolbar [aria-current="page"]').text()).toBe('Badge')
-
-    await écran.wrapper.find('[aria-label="Links"] a.link').trigger('click', { button: 0 })
-    await vide(écran.wrapper)
-    expect(window.location.search).toBe('?id=badge--defaut')
-    expect(écran.wrapper.find('.health-view').exists()).toBe(false)
-    écran.wrapper.unmount()
-
-    window.history.replaceState(null, '', '/?health=statuses')
-    const autre = await monte([badge, alerte, bouton])
-    await autre.wrapper.find('.health-view .since').trigger('click', { button: 0 })
-    await vide(autre.wrapper)
-    expect(window.location.search).toBe('?changes&before=2026-10-14T10:00:00.000Z')
-    autre.wrapper.unmount()
-  })
-
-  // Une page que la vue n'a pas mène à la vue d'ensemble.
-  test('opens an unknown page on the overview, and changes page from the sidebar', async () => {
-    santé = () => ({ components: composants })
-    window.history.replaceState(null, '', '/?health=nope')
-    const écran = await monte([badge, alerte, bouton])
-
-    expect(écran.wrapper.find('.health [aria-current="page"] .label').text()).toBe('overview')
-    await page(écran, 'without story')
-    expect(window.location.search).toBe('?health=unstoried')
-    expect(écran.wrapper.find('.health-view h2').text()).toBe('without story')
-    écran.wrapper.unmount()
-  })
-
-  // Ce que les stories n'exercent pas, et où l'application s'en sert.
-  test('lists on its coverage page the props never exercised and the files using each', async () => {
-    santé = () => ({
-      components: [
-        { ...composants[0], unexercised: ['size', 'tone'], usedIn: ['src/App.tsx'] },
-        { ...composants[1], usedIn: ['src/App.tsx', 'src/Form.tsx'] },
-        composants[2],
-      ],
-    })
-    window.history.replaceState(null, '', '/?health=coverage')
-    const écran = await monte([badge, alerte, bouton])
-
-    expect(écran.wrapper.find('.health-view h2').text()).toBe('coverage')
-    expect(lignes(écran)).toEqual(['Badge | size, tone | 1 file', 'Avatar |  | nowhere'])
-    écran.wrapper.unmount()
-  })
-
-  // L'audit : chaque story en light puis en dark dans une preview cachée, et ce
-  // que le plugin a11y en dit, une ligne par story et par règle.
-  test('audits every story in both themes, and lists what the a11y plugin finds', async () => {
-    santé = () => ({ components: composants })
-    window.history.replaceState(null, '', '/?health=accessibility')
-    const écran = await monte([badge, alerte, bouton])
-    const vue = () => écran.wrapper.find('[aria-label="Health, accessibility"]')
-
-    expect(vue().find('.empty-note').text()).toContain('Install @crypte/a11y')
+  // L'audit, une story qui lève et une violation critique : ce que l'iframe cachée
+  // répond à chaque rendu.
+  const audite = async (écran: Ecran) => {
     écran.wrapper.findComponent(Panels).vm.$emit('weights', [{ plugin: 'a11y', bytes: 1 }])
-    await vide(écran.wrapper)
-    expect(écran.wrapper.find('.gauge:nth-of-type(3)').exists()).toBe(false)
-
-    const contraste = {
-      rule: 'color-contrast',
-      impact: 'serious',
-      help: 'Elements must meet minimum color contrast',
-      helpUrl: 'https://dequeuniversity.com/rules/axe/color-contrast',
-      targets: ['.badge'],
-    }
-    const nom = {
-      ...contraste,
-      rule: 'button-name',
-      impact: 'critical',
-      help: 'Buttons must have discernible text',
-      targets: ['button'],
-    }
-    const demandés: unknown[] = []
-    await vue().find('.run').trigger('click')
-    await vide(écran.wrapper)
-    const cadre = écran.wrapper.find('.audit-frame').element as HTMLIFrameElement
-    const dit = (data: unknown) =>
-      window.dispatchEvent(
-        new MessageEvent('message', {
-          data,
-          origin: window.location.origin,
-          source: cadre.contentWindow,
-        }),
-      )
-    cadre.contentWindow!.addEventListener('message', (event) => {
-      const { id, theme } = event.data as { id: string; theme: string }
-      demandés.push(`${id} ${theme}`)
-      const violations =
-        id === 'badge--alerte' && theme === 'dark'
-          ? [contraste]
-          : id === 'bouton--defaut'
-            ? [nom]
-            : []
-      setTimeout(() => dit({ type: 'a11y:results', id, passes: 3, violations }))
-    })
-    dit({ type: 'ready', protocolVersion: 1 })
-    await expect.poll(() => écran.wrapper.find('.audit-frame').exists()).toBe(false)
-    await vide(écran.wrapper)
-
-    expect(demandés).toEqual([
-      'badge--defaut light',
-      'badge--defaut dark',
-      'badge--alerte light',
-      'badge--alerte dark',
-      'bouton--defaut light',
-      'bouton--defaut dark',
-    ])
-    expect(
-      vue()
-        .findAll('.cards li')
-        .map((one) => one.text().replace(/\s+/g, ' ')),
-    ).toEqual(['1 story without violation', '1 serious violation', '1 critical violation'])
-    expect(
-      vue()
-        .findAll('tbody tr')
-        .map((one) =>
-          one
-            .findAll('th, td')
-            .map((cell) => cell.text())
-            .join(' | '),
-        ),
-    ).toEqual([
-      'Bouton / Par défaut | button-name | Buttons must have discernible text, in light and dark | critical',
-      'Badge / Alerte | color-contrast | Elements must meet minimum color contrast, in dark | serious',
-    ])
-    // La jauge a11y apparaît, et le score en fait la moyenne avec les stories.
-    expect(écran.wrapper.findAll('.gauge').map((one) => one.text().replace(/\s+/g, ' '))).toEqual([
-      'stories 2/4',
-      'render 3/3',
-      'a11y 1/3',
-    ])
-    expect(écran.wrapper.find('.score .top strong').text()).toBe('61 %')
-    expect(écran.statut()).toMatch(/^audit of 3 stories in \d+\.\d s$/)
-
-    // Une violation choisie remplit le panneau : la story, les éléments, la règle.
-    await vue().find('tbody tr').trigger('click', { button: 0 })
-    await vide(écran.wrapper)
-    expect(window.location.search).toBe('?health=accessibility&item=bouton--defaut:button-name')
-    expect(écran.wrapper.find('#health-panel h3').text()).toBe('button-name · to do')
-    expect(écran.wrapper.find('#health-panel code.label').text()).toBe('button')
-
-    // Le dashboard dit la violation de chaque composant, la critique en bloquant
-    // coché.
-    await page(écran, 'overview')
-    expect(relevé(écran)).toMatchInlineSnapshot(`
-      [
-        "[x] Bouton · button-name critical · doc page missing · used nowhere",
-        "[ ] Avatar · no story · 2 props, 0 required · used nowhere",
-        "[ ] Badge · color-contrast serious · doc page missing · deprecated · Bouton · used nowhere",
-        "[ ] Select · no story · 9 props, 2 required · used nowhere · draft",
-      ]
-    `)
-    écran.wrapper.unmount()
-  })
-
-  // Une preview qui ne dit jamais `ready` : l'audit s'arrête, et la page dit pourquoi.
-  test('says why the audit could not run', async () => {
-    santé = () => ({ components: composants })
-    window.history.replaceState(null, '', '/?health=accessibility')
-    const écran = await monte([badge])
-    écran.wrapper.findComponent(Panels).vm.$emit('weights', [{ plugin: 'a11y', bytes: 1 }])
-    await vide(écran.wrapper)
-
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    try {
-      await écran.wrapper.find('[aria-label="Health, accessibility"] .run').trigger('click')
-      await vi.advanceTimersByTimeAsync(9000)
-    } finally {
-      vi.useRealTimers()
-    }
-    await vide(écran.wrapper)
-
-    expect(écran.wrapper.find('.audit-frame').exists()).toBe(false)
-    expect(écran.wrapper.find('[data-failed]').text()).toBe(
-      'The audit could not run: the preview never said it was ready.',
-    )
-    // Dit après coup, l'échec suit pourtant un changement de langue.
-    setLocale('fr')
-    await vide(écran.wrapper)
-    expect(écran.wrapper.find('[data-failed]').text()).toBe(
-      "L'audit n'a pas pu tourner : l'aperçu n'a jamais dit qu'il était prêt.",
-    )
-    écran.wrapper.unmount()
-  })
-
-  // Une story qui ne rend pas n'est pas propre, et l'audit la nomme.
-  test('lists the stories that fail to render on their own page', async () => {
-    santé = () => ({ components: composants })
-    window.history.replaceState(null, '', '/?health=accessibility')
-    const écran = await monte([badge, alerte])
-    écran.wrapper.findComponent(Panels).vm.$emit('weights', [{ plugin: 'a11y', bytes: 1 }])
-    await vide(écran.wrapper)
-
-    await écran.wrapper.find('[aria-label="Health, accessibility"] .run').trigger('click')
-    await vide(écran.wrapper)
-    const cadre = écran.wrapper.find('.audit-frame').element as HTMLIFrameElement
-    const dit = (data: unknown) =>
-      window.dispatchEvent(
-        new MessageEvent('message', {
-          data,
-          origin: window.location.origin,
-          source: cadre.contentWindow,
-        }),
-      )
-    cadre.contentWindow!.addEventListener('message', (event) => {
-      const { id } = event.data as { id: string }
-      setTimeout(() =>
-        dit(
-          id === 'badge--alerte'
-            ? { type: 'error', id, message: 'boum' }
-            : { type: 'a11y:results', id, passes: 1, violations: [] },
-        ),
-      )
-    })
-    dit({ type: 'ready', protocolVersion: 1 })
-    await expect.poll(() => écran.wrapper.find('.audit-frame').exists()).toBe(false)
-    await vide(écran.wrapper)
-
-    // Un rendu en échec n'est pas une story non auditée : il a sa page.
-    expect(écran.wrapper.find('.unaudited').exists()).toBe(false)
-    expect(écran.wrapper.find('.cards li').text().replace(/\s+/g, ' ')).toBe(
-      '1 story without violation',
-    )
-    await page(écran, 'render errors')
-    expect(écran.wrapper.find('.health [aria-current="page"] .count').text()).toBe('1')
-    expect(
-      écran.wrapper.findAll('[aria-label="Health, render errors"] tbody tr').map((one) =>
-        one
-          .findAll('th, td')
-          .map((cell) => cell.text())
-          .join(' | '),
-      ),
-    ).toEqual(['Badge / Alerte | boum | light and dark'])
-    await écran.wrapper
-      .find('[aria-label="Health, render errors"] tbody tr')
-      .trigger('click', { button: 0 })
-    await vide(écran.wrapper)
-    expect(écran.wrapper.find('[aria-label="To do"] .message').text()).toBe('boum')
-    expect(écran.wrapper.findAll('.gauge').map((one) => one.text().replace(/\s+/g, ' '))).toContain(
-      'render 1/2',
-    )
-    écran.wrapper.unmount()
-  })
-
-  // L'audit part seul, une fois la première story rendue et les plugins lus, et
-  // le badge de Santé compte ce qu'il reste à faire.
-  test('runs the audit at start, and counts what is left to do on its badge', async () => {
-    santé = () => ({ components: composants })
-    const écran = await monte([badge, alerte, bouton])
-    const badgeSanté = () => écran.vue('health').find('.count')
-    await expect.poll(() => badgeSanté().exists()).toBe(true)
-    expect(badgeSanté().text()).toBe('2')
-    expect(écran.wrapper.find('.audit-frame').exists()).toBe(false)
-
-    écran.wrapper.findComponent(Panels).vm.$emit('weights', [])
     await écran.répond({
       type: 'rendered',
       id: 'badge--defaut',
       durationMs: 1,
       values: {},
     } as PreviewMessage)
-    expect(écran.wrapper.find('.audit-frame').exists()).toBe(true)
-
-    // Sans le plugin a11y, l'audit attend le rendu seul.
     const cadre = écran.wrapper.find('.audit-frame').element as HTMLIFrameElement
     const dit = (data: unknown) =>
       window.dispatchEvent(
@@ -4055,382 +3689,182 @@ describe('the health view', () => {
       setTimeout(() =>
         dit(
           id === 'bouton--defaut'
-            ? { type: 'error', id, message: 'boum' }
-            : { type: 'rendered', id, durationMs: 1, values: {} },
+            ? {
+                type: 'a11y:results',
+                id,
+                passes: 1,
+                violations: [
+                  {
+                    rule: 'button-name',
+                    impact: 'critical',
+                    help: 'Name it',
+                    helpUrl: 'u',
+                    targets: ['button'],
+                  },
+                ],
+              }
+            : { type: 'error', id, message: `boum ${id}` },
         ),
       )
     })
     dit({ type: 'ready', protocolVersion: 1 })
     await expect.poll(() => écran.wrapper.find('.audit-frame').exists()).toBe(false)
     await vide(écran.wrapper)
-    expect(badgeSanté().text()).toBe('3')
+  }
 
-    // Le rendu ne part qu'une fois : une autre story rendue ne le relance pas.
-    await écran.répond({
-      type: 'rendered',
-      id: 'badge--alerte',
-      durationMs: 1,
-      values: {},
-    } as PreviewMessage)
-    expect(écran.wrapper.find('.audit-frame').exists()).toBe(false)
+  test('opens on the dashboard from the activity bar, an old page address landing there too', async () => {
+    santé = () => ({ components: composants })
+    const écran = await monte([badge, alerte, bouton, jetons, orpheline])
+
+    await écran.vue('health').trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(window.location.search).toBe('?health')
+    // Pas de sidebar, et le panneau fermé au repos.
+    expect(écran.wrapper.find('.nav-column').isVisible()).toBe(false)
+    expect(écran.wrapper.find('#health-panel').exists()).toBe(false)
+    expect(écran.wrapper.find('.toolbar .trail').text()).toBe('health')
+    expect(relevé(écran)).toMatchInlineSnapshot(`
+      [
+        "[ ] Badge · doc page missing · deprecated · Bouton · used nowhere",
+        "[ ] Bouton · doc page missing",
+        "[ ] Select · no story · 9 props, 2 required · used nowhere · draft",
+        "[ ] 1 orphan · --space-7",
+      ]
+    `)
+    expect(écran.statut()).toBe('3 components, 2 with a story')
+    écran.wrapper.unmount()
+
+    window.history.replaceState(null, '', '/?health=failures')
+    const ancienne = await monte([badge, alerte, bouton])
+    expect(ancienne.wrapper.find('.health-dashboard').exists()).toBe(true)
+    ancienne.wrapper.unmount()
+  })
+
+  test('opens the panel on what is chosen, under its own address, and folds it from the toolbar', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health')
+    const écran = await monte([badge, alerte, bouton, jetons, orpheline])
+    const panneau = () => écran.wrapper.find('#health-panel')
+
+    await choisit(écran, 'Badge')
+    expect(window.location.search).toBe('?health&item=src/components/Badge.tsx:Badge')
+    expect(panneau().find('.heading').text()).toBe('Badge')
+    expect(
+      panneau()
+        .findAll('.criterion .meta')
+        .map((one) => one.text()),
+    ).toMatchInlineSnapshot(`
+      [
+        "2 stories · ok",
+        "— · waiting",
+        "— · waiting",
+        "page missing · to improve",
+        "deprecated since 14 Oct · to improve",
+        "2/2 · ok",
+        "0 files · to improve",
+        "reads 1",
+      ]
+    `)
+
+    await choisit(écran, '1 orphan')
+    expect(window.location.search).toBe('?health&item=group:orphans')
+    expect(
+      panneau()
+        .findAll('.row')
+        .map((one) => one.text().replace(/\s+/g, ' ')),
+    ).toMatchInlineSnapshot(`
+      [
+        "1",
+        "space--space-7",
+        "See them in the tokens view",
+      ]
+    `)
+
+    // Un token, depuis sa case dans la grille.
+    await écran.wrapper.findAll('.families .cell')[0]!.trigger('click', { button: 0 })
+    await vide(écran.wrapper)
+    expect(panneau().find('.heading').text()).toBe('--Brand-primary')
+
+    await écran.wrapper.find('.toolbar .panels-toggle').trigger('click')
+    expect(panneau().exists()).toBe(false)
     écran.wrapper.unmount()
   })
 
-  // Un défaut de contraste nomme les tokens dont la valeur est une couleur
-  // mesurée, avec le nombre de composants qui les lisent, chacun menant au token.
-  test('names the tokens probably behind a contrast violation', async () => {
+  // L'audit part seul : les bloquants se cochent, le badge compte les lignes à
+  // cocher, et le cœur prend le score du dashboard.
+  test('runs the audit at start, checks the blocking rows, and counts the rows on the badge and the heart', async () => {
     santé = () => ({ components: composants })
-    window.history.replaceState(null, '', '/?health=accessibility')
-    const lecteur = { ...bouton, component: { ...bouton.component, tokens: ['Brand-primary'] } }
-    const écran = await monte([badge, alerte, lecteur, jetons])
-    écran.wrapper.findComponent(Panels).vm.$emit('weights', [{ plugin: 'a11y', bytes: 1 }])
-    await vide(écran.wrapper)
-    const contraste = {
-      rule: 'color-contrast',
-      impact: 'serious',
-      help: 'Elements must meet minimum color contrast ratio thresholds',
-      helpUrl: 'u',
-      targets: ['button'],
-      colors: ['#4FE0A0', '#ffffff'],
-    }
-    await écran.wrapper.find('[aria-label="Health, accessibility"] .run').trigger('click')
-    await vide(écran.wrapper)
-    const cadre = écran.wrapper.find('.audit-frame').element as HTMLIFrameElement
-    const dit = (data: unknown) =>
-      window.dispatchEvent(
-        new MessageEvent('message', {
-          data,
-          origin: window.location.origin,
-          source: cadre.contentWindow,
-        }),
-      )
-    cadre.contentWindow!.addEventListener('message', (event) => {
-      const { id } = event.data as { id: string }
-      setTimeout(() =>
-        dit({
-          type: 'a11y:results',
-          id,
-          passes: 1,
-          violations: id === 'bouton--defaut' ? [contraste] : [],
-        }),
-      )
-    })
-    dit({ type: 'ready', protocolVersion: 1 })
-    await expect.poll(() => écran.wrapper.find('.audit-frame').exists()).toBe(false)
-    await vide(écran.wrapper)
+    window.history.replaceState(null, '', '/?health')
+    const écran = await monte([badge, alerte, bouton, jetons, orpheline])
+    const badgeSanté = () => écran.vue('health').find('.count')
+    await expect.poll(() => badgeSanté().exists()).toBe(true)
+    expect(badgeSanté().text()).toBe('4')
 
-    await écran.wrapper
-      .find('[aria-label="Health, accessibility"] tbody tr')
-      .trigger('click', { button: 0 })
-    await vide(écran.wrapper)
-    const liens = écran.wrapper.find('[aria-label="Links"]')
-    expect(liens.findAll('.caption').map((one) => one.text())).toContain(
-      'tokens probably at fault · 1',
-    )
-    const suspect = liens
-      .findAll('a.link')
-      .find((one) => one.find('code').exists() && one.find('code').text() === 'Brand-primary')!
-    expect(suspect.find('.meta').text()).toBe('1 component')
-    await suspect.trigger('click', { button: 0 })
-    await vide(écran.wrapper)
-    expect(window.location.search).toContain('token=Brand-primary')
-    écran.wrapper.unmount()
-  })
-
-  // Sans rien à corriger, le bouton du prompt reste à sa place, désactivé.
-  test('keeps its prompt button disabled with nothing to fix', async () => {
-    santé = () => ({ components: composants.filter((one) => one.stories.length > 0) })
-    window.history.replaceState(null, '', '/?health=overview')
-    const écran = await monte([badge, alerte, bouton])
-    const prompt = () => écran.wrapper.find('.toolbar .prompt')
-    expect(prompt().attributes('disabled')).toBeDefined()
-
-    santé = () => ({ components: composants })
-    window.dispatchEvent(new Event('focus'))
-    await vide(écran.wrapper)
-    expect(prompt().attributes('disabled')).toBeUndefined()
-    écran.wrapper.unmount()
-  })
-
-  // Le panneau To do mène à ce qu'il nomme : le rendu en échec d'une story, les
-  // violations d'un composant ; Links, à sa page.
-  test('leads from the to do of a component to its render errors and violations', async () => {
-    santé = () => ({ components: composants })
-    window.history.replaceState(null, '', '/?health=accessibility')
-    const écran = await monte([badge, alerte, bouton])
-    écran.wrapper.findComponent(Panels).vm.$emit('weights', [{ plugin: 'a11y', bytes: 1 }])
-    await vide(écran.wrapper)
-    const nom = {
-      rule: 'button-name',
-      impact: 'critical',
-      help: 'Buttons must have discernible text',
-      helpUrl: 'u',
-      targets: ['button'],
-    }
-    const lance = async () => {
-      await écran.wrapper.find('[aria-label="Health, accessibility"] .run').trigger('click')
-      await vide(écran.wrapper)
-      const cadre = écran.wrapper.find('.audit-frame').element as HTMLIFrameElement
-      const dit = (data: unknown) =>
-        window.dispatchEvent(
-          new MessageEvent('message', {
-            data,
-            origin: window.location.origin,
-            source: cadre.contentWindow,
-          }),
-        )
-      cadre.contentWindow!.addEventListener('message', (event) => {
-        const { id } = event.data as { id: string }
-        setTimeout(() =>
-          dit(
-            id === 'bouton--defaut'
-              ? { type: 'a11y:results', id, passes: 1, violations: [nom] }
-              : { type: 'error', id, message: `boum ${id}` },
-          ),
-        )
-      })
-      dit({ type: 'ready', protocolVersion: 1 })
-      await expect.poll(() => écran.wrapper.find('.audit-frame').exists()).toBe(false)
-      await vide(écran.wrapper)
-    }
-    await lance()
-    // Relancé à la demande : les mêmes résultats.
-    await lance()
-
-    // Choisir un composant dans le dashboard, ce que le lien de l'adresse nomme.
-    const choisit = async (lien: string) => {
-      await page(écran, 'overview')
-      const item = new URLSearchParams(lien).get('item')
-      const nom = composants.find((one) => `${one.file}:${one.export}` === item)!.name
-      await écran.wrapper
-        .findAll('.health-list .row')
-        .find((one) => one.find('.label').text() === nom)!
-        .trigger('click', { button: 0 })
-      await vide(écran.wrapper)
-    }
-    // Le dashboard : les rendus et la violation critique en bloquants cochés.
-    await page(écran, 'overview')
+    await audite(écran)
     expect(relevé(écran)).toMatchInlineSnapshot(`
       [
         "[x] Badge · fails to render, light and dark · doc page missing · deprecated · Bouton · used nowhere",
-        "[x] Bouton · button-name critical · doc page missing · used nowhere",
-        "[ ] Avatar · no story · 2 props, 0 required · used nowhere",
+        "[x] Bouton · button-name critical · doc page missing",
         "[ ] Select · no story · 9 props, 2 required · used nowhere · draft",
+        "[ ] 1 orphan · --space-7",
       ]
     `)
-    expect(écran.vue('health').find('.count').text()).toBe('5')
-
-    // Tout ce qui reste, en un prompt : un titre par point, dans l'ordre de la
-    // liste. Le texte même est tenu par prompt.test.ts.
-    const écrit = vi.fn(async (_texte: string) => {})
-    vi.stubGlobal('navigator', { clipboard: { writeText: écrit } })
-    const titres = () =>
-      écrit.mock.lastCall![0].split('\n').filter((ligne) => ligne.startsWith('### '))
-    await écran.wrapper.find('.toolbar .prompt').trigger('click')
-    await vide(écran.wrapper)
-    expect(titres()).toEqual([
-      '### Badge / Alerte',
-      '### Badge / Par défaut',
-      '### button-name in Bouton / Par défaut (critical)',
-      '### Select',
-      '### Avatar',
-    ])
-    expect(écran.wrapper.find('.toolbar .prompt').text()).toBe('Fix prompt copied')
-    // Une liste qui change oublie la copie : le texte copié n'est plus celui-là.
-    santé = () => ({ components: composants.filter((one) => one.name !== 'Avatar') })
-    window.dispatchEvent(new Event('focus'))
-    await vide(écran.wrapper)
-    expect(écran.wrapper.find('.toolbar .prompt').text()).toBe('Copy fix prompt')
-    santé = () => ({ components: composants })
-    window.dispatchEvent(new Event('focus'))
-    await vide(écran.wrapper)
-
-    await choisit('?health=overview&item=src/components/Badge.tsx:Badge')
-    const àFaire = () => écran.wrapper.find('[aria-label="To do"]')
-    expect(
-      àFaire()
-        .findAll('a.link')
-        .map((one) => one.text()),
-    ).toEqual([
-      'Fix the render of Alerte',
-      'Fix the render of Par défaut',
-      'Deprecated: replace it in Bouton',
-    ])
-    // Le prompt de ce que le composant demande, ses deux rendus.
-    await àFaire().find('.head .prompt').trigger('click')
-    await vide(écran.wrapper)
-    expect(titres()).toEqual(['### Badge / Alerte', '### Badge / Par défaut'])
-    expect(àFaire().find('.head .prompt').text()).toBe('Fix prompt copied')
-    await àFaire().find('a.link').trigger('click', { button: 0 })
-    await vide(écran.wrapper)
-    expect(window.location.search).toBe('?health=failures&item=badge--alerte')
-    expect(
-      écran.wrapper
-        .findAll('[aria-label="Health, render errors"] tbody th')
-        .map((one) => one.text()),
-    ).toEqual(['Badge / Alerte', 'Badge / Par défaut'])
-
-    // Le fil d'Ariane ramène à la page, la ligne choisie oubliée.
-    await choisit('?health=overview&item=src/components/Bouton.tsx:Bouton')
-    await àFaire().find('a.link').trigger('click', { button: 0 })
-    await vide(écran.wrapper)
-    expect(window.location.search).toBe('?health=accessibility&item=bouton--defaut:button-name')
-
-    await choisit('?health=overview&item=src/components/Bouton.tsx:Bouton')
-    await écran.wrapper.find('.toolbar .trail a').trigger('click', { button: 0 })
-    await vide(écran.wrapper)
-    expect(window.location.search).toBe('?health=overview')
-
-    await choisit('?health=overview&item=src/components/Bouton.tsx:Bouton')
-    await écran.wrapper
-      .find('[aria-label="Links"] a[href="?component=bouton"]')
-      .trigger('click', { button: 0 })
-    await vide(écran.wrapper)
-    expect(window.location.search).toBe('?component=bouton')
-    écran.wrapper.unmount()
-  })
-
-  // La première story lève : l'audit part quand même, la liste des plugins ayant
-  // échoué ; et la page des rendus le relance, ou dit pourquoi il n'a pas tourné.
-  test('starts after a first render that throws, and runs again from its page', async () => {
-    santé = () => ({ components: composants })
-    window.history.replaceState(null, '', '/?health=failures')
-    const écran = await monte([badge, alerte, bouton])
-    const vue = () => écran.wrapper.find('[aria-label="Health, render errors"]')
-    expect(vue().find('.empty-note').text()).toBe('The audit has not run yet.')
-
-    écran.wrapper.findComponent(Panels).vm.$emit('troubles', 1)
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    try {
-      const principale = écran.wrapper.find<HTMLIFrameElement>('iframe[title="preview"]')
-        .element as HTMLIFrameElement
-      window.dispatchEvent(
-        new MessageEvent('message', {
-          data: { type: 'error', id: 'badge--defaut', message: 'boum' },
-          origin: window.location.origin,
-          source: principale.contentWindow,
-        }),
-      )
-      await vi.advanceTimersByTimeAsync(10)
-      expect(écran.wrapper.find('.audit-frame').exists()).toBe(true)
-      expect(vue().find('[role="status"]').text()).toBe('Rendering every story, 0 of 6 renders.')
-      await vi.advanceTimersByTimeAsync(9000)
-    } finally {
-      vi.useRealTimers()
-    }
-    await vide(écran.wrapper)
-    expect(vue().find('[data-failed]').text()).toBe(
-      'The audit could not run: the preview never said it was ready.',
-    )
-
-    // Relancé d'ici, sans plugin a11y : chaque story rend.
-    await vue().find('.run').trigger('click')
-    await vide(écran.wrapper)
-    const cadre = écran.wrapper.find('.audit-frame').element as HTMLIFrameElement
-    const dit = (data: unknown) =>
-      window.dispatchEvent(
-        new MessageEvent('message', {
-          data,
-          origin: window.location.origin,
-          source: cadre.contentWindow,
-        }),
-      )
-    cadre.contentWindow!.addEventListener('message', (event) => {
-      const { id } = event.data as { id: string }
-      setTimeout(() => dit({ type: 'rendered', id, durationMs: 1, values: {} }))
-    })
-    dit({ type: 'ready', protocolVersion: 1 })
-    await expect.poll(() => écran.wrapper.find('.audit-frame').exists()).toBe(false)
-    await vide(écran.wrapper)
-    expect(vue().find('.empty-note').text()).toBe('Every story renders.')
-    expect(vue().find('[data-failed]').exists()).toBe(false)
-    expect(vue().find('.run').text()).toBe('Run again')
-    écran.wrapper.unmount()
-  })
-
-  // Hors de la vue aussi : le badge suit les composants sans story.
-  test('reads the health again on focus for the badge, outside its view', async () => {
-    santé = () => ({ components: composants })
-    const écran = await monte([badge, alerte, bouton])
-    const badgeSanté = () => écran.vue('health').find('.count')
-    await expect.poll(() => badgeSanté().exists()).toBe(true)
-    expect(badgeSanté().text()).toBe('2')
-
-    santé = () => ({ components: composants.filter((one) => one.name !== 'Avatar') })
-    window.dispatchEvent(new Event('focus'))
-    await vide(écran.wrapper)
-    await vide(écran.wrapper)
-    expect(badgeSanté().text()).toBe('1')
-    écran.wrapper.unmount()
-  })
-
-  // Le cœur de Santé se remplit selon le score, que son tooltip dit en clair ; la
-  // vue d'ensemble liste ce que compte le badge ; ses panneaux se plient.
-  test('fills its heart with the score, lists what its badge counts, and folds its panels', async () => {
-    santé = () => ({ components: composants })
-    window.history.replaceState(null, '', '/?health=overview&item=src/components/Bouton.tsx:Bouton')
-    const écran = await monte([badge, alerte, bouton])
-    await expect.poll(() => écran.vue('health').find('.count').exists()).toBe(true)
-
-    // 50 % : la moitié du cœur, de 3,5 à 20,5 dans sa grille, part du bas.
-    expect(écran.vue('health').find('clipPath rect').attributes('y')).toBe('12')
+    expect(badgeSanté().text()).toBe('4')
     expect(
       écran.wrapper
         .findComponent(ActivityBar)
         .findAllComponents(Tooltip)
         .find((one) => one.props('content') === 'health')
         ?.props('detail'),
-    ).toBe('50 % · 2 to do')
-
-    // Tout l'en-tête plie son panneau ; ouverts au départ, sans source, le repli
-    // retenu comme celui des panneaux des stories.
-    const entête = (nom: string) => écran.wrapper.find(`[aria-label="${nom}"] .toggle`)
-    const corps = (nom: string) => écran.wrapper.find(`[aria-label="${nom}"] .body`)
-    expect(entête('To do').attributes('aria-expanded')).toBe('true')
-    expect(écran.wrapper.find('#health-panel .head .note').exists()).toBe(false)
-    await entête('Links').trigger('click')
-    expect(entête('Links').attributes('aria-expanded')).toBe('false')
-    expect(corps('Links').isVisible()).toBe(false)
-    expect(corps('To do').isVisible()).toBe(true)
-    expect(localStorage.getItem('crypte:panel:shell:links')).toBe('false')
+    ).toBe(`${écran.wrapper.find('.health-score .figure').text()} · 4 to do`)
     écran.wrapper.unmount()
   })
 
-  // Les tokens que lisent ses stories, menant à leur catégorie quand elle existe.
-  test('links the tokens its stories read', async () => {
+  test('copies the prompt of the checked rows, says so, and is disabled with nothing checked', async () => {
     santé = () => ({ components: composants })
-    window.history.replaceState(null, '', '/?health=overview&item=src/components/Bouton.tsx:Bouton')
-    const lecteur = {
-      ...bouton,
-      component: { ...bouton.component, tokens: ['Brand-primary', 'absent-x'] },
-    }
-    const écran = await monte([badge, alerte, lecteur, jetons])
-    const liens = écran.wrapper.find('[aria-label="Links"]')
+    window.history.replaceState(null, '', '/?health')
+    const écran = await monte([badge, alerte, bouton, jetons, orpheline])
+    await audite(écran)
+    const copie = () => écran.wrapper.find('.toolbar .prompt')
+    expect(copie().text().replace(/\s+/g, ' ')).toBe('copy fix prompt 2')
 
-    expect(liens.findAll('a.link code.label').map((one) => one.text())).toEqual(['Brand-primary'])
-    expect(liens.find('a.link[href*="tokens"]').attributes('href')).toBe(
-      '?tokens=palette&token=Brand-primary',
-    )
-    expect(liens.findAll('p.row code.label').map((one) => one.text())).toContain('absent-x')
-    await liens.find('a.link[href*="tokens"]').trigger('click', { button: 0 })
+    const écrit = vi.fn(async (_texte: string) => {})
+    vi.stubGlobal('navigator', { clipboard: { writeText: écrit } })
+    await copie().trigger('click')
     await vide(écran.wrapper)
-    expect(window.location.search).toBe('?tokens=palette&token=Brand-primary')
+    expect(écrit.mock.lastCall![0].split('\n').filter((ligne) => ligne.startsWith('## ')))
+      .toMatchInlineSnapshot(`
+      [
+        "## Render errors",
+        "## Accessibility",
+        "## Docs to write",
+        "## Deprecated components",
+        "## Components used nowhere",
+      ]
+    `)
+    expect(copie().text()).toBe('prompt copied, 2 fixes')
+
+    // Tout décoché : rien à copier.
+    for (const one of écran.wrapper.findAll('.health-list .group input')) {
+      if ((one.element as HTMLInputElement).checked) await one.trigger('change')
+    }
+    await vide(écran.wrapper)
+    expect(copie().attributes('disabled')).toBeDefined()
     écran.wrapper.unmount()
   })
 
-  // Un composant sans story est hors du catalogue : rien ne surveille son fichier,
-  // et la vue relit ses données au retour sur la fenêtre.
-  test('reads its data again when the window regains focus', async () => {
+  test('reads the health again on focus, for the dashboard and the badge', async () => {
     santé = () => ({ components: composants })
-    window.history.replaceState(null, '', '/?health=unstoried')
+    window.history.replaceState(null, '', '/?health')
     const écran = await monte([badge, alerte, bouton])
-    expect(lignes(écran)).toHaveLength(2)
+    expect(relevé(écran)).toHaveLength(3)
 
-    santé = () => ({ components: composants.filter((one) => one.name !== 'Avatar') })
+    santé = () => ({ components: composants.filter((one) => one.name !== 'Select') })
     window.dispatchEvent(new Event('focus'))
     await vide(écran.wrapper)
     await vide(écran.wrapper)
-    expect(lignes(écran)).toHaveLength(1)
+    expect(relevé(écran)).toHaveLength(2)
+    expect(écran.vue('health').find('.count').text()).toBe('2')
     écran.wrapper.unmount()
   })
 
@@ -4439,20 +3873,19 @@ describe('the health view', () => {
     santé = () => {
       throw new Error('500')
     }
-    window.history.replaceState(null, '', '/?health=overview')
+    window.history.replaceState(null, '', '/?health')
     const écran = await monte([badge])
 
-    expect(écran.wrapper.find('.health .empty-note').text()).toBe('could not be read')
+    expect(écran.wrapper.find('.health-unread .empty-note').text()).toBe('could not be read')
     expect(écran.wrapper.find('.empty').exists()).toBe(false)
     expect(écran.statut()).toBe('the health of the components could not be read')
     écran.wrapper.unmount()
   })
 
   test('says how to declare a components folder when the project has none', async () => {
-    window.history.replaceState(null, '', '/?health=overview')
+    window.history.replaceState(null, '', '/?health')
     const écran = await monte([badge])
 
-    expect(écran.wrapper.find('.health .empty-note').text()).toBe('No components folder.')
     expect(écran.wrapper.find('.empty h2').text()).toBe('No components folder')
     expect(écran.wrapper.find('#health-panel').exists()).toBe(false)
     expect(écran.statut()).toBe('no components folder declared')

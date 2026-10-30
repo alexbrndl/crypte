@@ -28,12 +28,16 @@ describe('reading an address', () => {
     ],
     // Un token vide ne nomme rien : la catégorie seule reste.
     ['?tokens=color&token=', { mode: 'tokens', category: 'color' }],
-    ['?health=overview', { mode: 'health', page: 'overview' }],
+    ['?health', { mode: 'health' }],
+    ['?health=', { mode: 'health' }],
+    // Une ancienne adresse de page arrive sur le dashboard, sa sélection gardée.
+    ['?health=overview', { mode: 'health' }],
     [
       '?health=statuses&item=src/components/Badge.tsx:Badge',
-      { mode: 'health', page: 'statuses', item: 'src/components/Badge.tsx:Badge' },
+      { mode: 'health', item: 'src/components/Badge.tsx:Badge' },
     ],
-    ['?health=overview&item=', { mode: 'health', page: 'overview' }],
+    ['?health&item=group:orphans', { mode: 'health', item: 'group:orphans' }],
+    ['?health&item=', { mode: 'health' }],
     ['?view=i18n', { mode: 'view', plugin: 'i18n' }],
     ['?view=i18n&item=fr', { mode: 'view', plugin: 'i18n', item: 'fr' }],
     ['?view=i18n&item=', { mode: 'view', plugin: 'i18n' }],
@@ -47,7 +51,6 @@ describe('reading an address', () => {
     '?id=',
     '?component=',
     '?tokens=',
-    '?health=',
     '?view=',
     '?item=src/components/Badge.tsx:Badge',
     '?token=accent-base',
@@ -105,11 +108,12 @@ describe('writing an address', () => {
       '?id=button--%D0%B0%D0%BA%D1%82%D0%B8%D0%B2%D0%BD%D0%B0%D1%8F',
     ],
     [{ mode: 'entry', id: 'a&b=c#d e+f' }, '?id=a%26b%3Dc%23d%20e%2Bf'],
-    [{ mode: 'health', page: 'overview' }, '?health=overview'],
+    [{ mode: 'health' }, '?health'],
     [
-      { mode: 'health', page: 'unstoried', item: 'src/components/form/Select.tsx:default' },
-      '?health=unstoried&item=src/components/form/Select.tsx:default',
+      { mode: 'health', item: 'src/components/form/Select.tsx:default' },
+      '?health&item=src/components/form/Select.tsx:default',
     ],
+    [{ mode: 'health', item: 'token:text-subtle' }, '?health&item=token:text-subtle'],
     [{ mode: 'view', plugin: 'i18n' }, '?view=i18n'],
     [{ mode: 'view', plugin: 'i18n', item: 'fr' }, '?view=i18n&item=fr'],
   ])('writes %j', (place, search) => {
@@ -128,6 +132,8 @@ describe('writing an address', () => {
       { mode: 'tokens', category: 'color' },
       { mode: 'tokens', category: 'a&b', token: 'c#d e' },
       { mode: 'view', plugin: 'a&b', item: 'c#d e' },
+      { mode: 'health' },
+      { mode: 'health', item: 'token:a&b c' },
     ]
 
     for (const place of places) expect(readPlace(placeSearch(place))).toEqual(place)

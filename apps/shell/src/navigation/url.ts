@@ -19,8 +19,9 @@ export type Place =
   // Une catégorie de la vue tokens, et le token choisi dedans. Les catégories
   // viennent du shell et non du manifeste : elles n'entrent pas dans `id`.
   | { mode: 'tokens'; category: string; token?: string }
-  // Une page de la vue santé, et le composant choisi dedans, `fichier:export`.
-  | { mode: 'health'; page: string; item?: string }
+  // La vue santé, et ce que son dashboard a choisi : un composant `fichier:export`,
+  // `token:<nom>`, `group:orphans` ou `group:ready`.
+  | { mode: 'health'; item?: string }
   // La vue d'un plugin, sous son nom, et l'élément qu'elle a choisi.
   | { mode: 'view'; plugin: string; item?: string }
 
@@ -36,10 +37,9 @@ export function readPlace(search: string): Place {
   const category = query.get('tokens')
   const token = query.get('token')
   if (category) return token ? { mode: 'tokens', category, token } : { mode: 'tokens', category }
-  const health = query.get('health')
   const item = query.get('item')
-  if (health)
-    return item ? { mode: 'health', page: health, item } : { mode: 'health', page: health }
+  // Une ancienne adresse de page, `?health=failures`, arrive sur le dashboard.
+  if (query.has('health')) return item ? { mode: 'health', item } : { mode: 'health' }
   const plugin = query.get('view')
   if (plugin) return item ? { mode: 'view', plugin, item } : { mode: 'view', plugin }
   if (query.has('changes')) {
@@ -60,8 +60,7 @@ export function placeSearch(place: Place): string {
   if (place.mode === 'component') return `?component=${encoded(place.id)}`
   if (place.mode === 'tokens')
     return `?tokens=${encoded(place.category)}${place.token ? `&token=${encoded(place.token)}` : ''}`
-  if (place.mode === 'health')
-    return `?health=${encoded(place.page)}${place.item ? `&item=${encoded(place.item)}` : ''}`
+  if (place.mode === 'health') return `?health${place.item ? `&item=${encoded(place.item)}` : ''}`
   if (place.mode === 'view')
     return `?view=${encoded(place.plugin)}${place.item ? `&item=${encoded(place.item)}` : ''}`
   if (place.mode === 'changes')

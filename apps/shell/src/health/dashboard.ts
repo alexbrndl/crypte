@@ -4,8 +4,9 @@
 // sort d'ici.
 
 import type { PageEntry, StoryEntry, TokensEntry, TokenValue } from '@crypte/core/protocol'
-import { findingsOf, THEMES, type AuditResult, type Finding } from './audit'
+import { failuresOf, findingsOf, THEMES, type AuditResult, type Finding } from './audit'
 import { keyOf, type HealthComponent } from './health'
+import type { Todo } from './prompt'
 import { suspectsOf } from './suspects'
 import { chainOf, nameOf, type Category } from '../tokens/categories'
 import { texts } from '../i18n'
@@ -593,4 +594,33 @@ export function sinceOf(iso: string, now = Date.now()): string {
   if (days < 7) return short('days', { count: days })
   if (days < 30) return short('weeks', { count: Math.floor(days / 7) })
   return short('months', { count: Math.floor(days / 30) })
+}
+
+// Ce que le prompt reprend des lignes cochées : pour un composant, chaque critère
+// à corriger va dans sa section ; un alias cassé dans la sienne ; la ligne des
+// orphelins, tous les orphelins.
+export function todoOf(
+  dashboard: Dashboard,
+  checked: ReadonlySet<string>,
+  audit: AuditResult[] | null,
+): Todo {
+  const rows = dashboard.rows.filter((one) => one.group !== 'ready' && checked.has(one.key))
+  const where = (state: (row: ComponentRow) => boolean) =>
+    rows.filter(state).map((one) => one.component)
+  const ids = (state: (row: ComponentRow) => boolean) =>
+    new Set(rows.filter(state).flatMap((one) => one.component.stories))
+  const broken = ids((one) => one.criteria.render.state === 'blocking')
+  const judged = ids((one) => ['blocking', 'improve'].includes(one.criteria.a11y.state))
+  const tokens = dashboard.coverage.families.flatMap((family) => family.tokens)
+  return {
+    failures: failuresOf(audit ?? []).filter((one) => broken.has(one.id)),
+    findings: findingsOf(audit ?? []).filter((one) => judged.has(one.id)),
+    unstoried: where((one) => one.criteria.story.state === 'improve'),
+    undocumented: where((one) => one.criteria.doc.state === 'improve'),
+    unexercised: where((one) => one.criteria.props.state === 'improve'),
+    deprecated: where((one) => one.criteria.status.state === 'improve'),
+    unused: where((one) => one.criteria.usages.state === 'improve'),
+    broken: tokens.filter((one) => one.state === 'broken' && checked.has(tokenRow(one.name))),
+    orphans: checked.has(ORPHANS) ? tokens.filter((one) => one.state === 'orphan') : [],
+  }
 }
