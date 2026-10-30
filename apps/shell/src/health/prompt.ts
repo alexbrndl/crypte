@@ -101,6 +101,13 @@ export function promptOf(
     )
   const component = (one: HealthComponent) =>
     `- Component: \`${one.file}\`, export \`${one.export}\``
+  // Les composants du dossier et les fichiers de l'application qui l'importent.
+  const importers = (one: HealthComponent) => [
+    ...((one.usedBy?.length ?? 0) > 0 ? [`- Imported by components: ${files(one.usedBy!)}`] : []),
+    ...((one.usedIn?.length ?? 0) > 0
+      ? [`- Imported by the application: ${one.usedIn!.map((file) => `\`${file}\``).join(', ')}`]
+      : []),
+  ]
   // Une clé `fichier:export`, ce que `usedBy` et les lecteurs d'un token portent.
   const files = (keys: string[]) =>
     keys.map((key) => `\`${key.slice(0, key.lastIndexOf(':'))}\``).join(', ')
@@ -133,30 +140,37 @@ export function promptOf(
     )
   if (deprecated.length > 0)
     sections.push(
-      '## Deprecated components still imported',
-      'Move these importers to what replaces each component, then remove the import.',
+      '## Deprecated components',
+      'Move these importers to what replaces each component, then remove the import. One nothing imports any more can go, with its stories.',
       ...deprecated.map((one) =>
         [
           `### ${one.name}`,
           component(one),
-          ...((one.usedBy?.length ?? 0) > 0 ? [`- Imported by: ${files(one.usedBy!)}`] : []),
+          ...importers(one),
+          ...((one.usedBy?.length ?? 0) + (one.usedIn?.length ?? 0) === 0
+            ? ['- Imported by: nothing left']
+            : []),
         ].join('\n'),
       ),
     )
   if (unused.length > 0)
     sections.push(
       '## Components used nowhere',
-      'No file of the application imports these components: use them where they belong, or remove them with their stories.',
-      ...unused.map((one) => [`### ${one.name}`, component(one)].join('\n')),
+      // `usedIn` ne compte que l'application : un composant que seul un autre du
+      // dossier importe arrive ici, et le supprimer casserait celui-là.
+      'No file of the application imports these components: use them where they belong. Remove one with its stories only when no component imports it either.',
+      ...unused.map((one) => [`### ${one.name}`, component(one), ...importers(one)].join('\n')),
     )
   if (broken.length > 0)
     sections.push(
       '## Broken aliases',
-      'Each of these custom properties points at one no theme declares: point it at an existing token, or declare the missing one.',
+      // Une cible absente ou un cycle, dans un thème au moins : la chaîne s'arrête
+      // sans valeur, sur un nom qui peut exister ailleurs.
+      'Each of these custom properties never reaches a value in at least one theme: its chain points at a property that theme does not declare, or loops back. Repair the chain.',
       ...broken.map((one) =>
         [
           `### --${one.name}`,
-          ...(one.target ? [`- Points at: \`--${one.target}\`, which is not declared`] : []),
+          ...(one.target ? [`- Chain stops at: \`--${one.target}\``] : []),
           ...(one.readers.length > 0 ? [`- Read by: ${files(one.readers)}`] : []),
         ].join('\n'),
       ),
