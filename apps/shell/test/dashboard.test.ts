@@ -12,6 +12,7 @@ import {
   ORPHANS,
   phraseOf,
   scoreOf,
+  sinceOf,
   tokenHealthOf,
   type Causes,
   type Criteria,
@@ -570,5 +571,23 @@ describe('the dashboard', () => {
     ])
     expect([...selectionOf(dashboard, choices)]).toEqual(['src/Beta.tsx:Beta', 'token:text-chart'])
     expect([...selectionOf(dashboard, new Map())]).toEqual([...defaultSelection(dashboard)])
+  })
+})
+
+// La colonne « changé » fait 44 px : une forme courte, à la manière de la langue.
+describe('the age of a change', () => {
+  const now = Date.parse('2026-10-30T12:00:00.000Z')
+  const ilYa = (days: number) => new Date(now - days * 86_400_000).toISOString()
+
+  test.for([
+    [0, 'today', 'auj.'],
+    [2, '2 d', '2 j'],
+    [7, '1 wk', '1 sem'],
+    [29, '4 wk', '4 sem'],
+    [30, '1 mo', '1 mois'],
+  ] as const)('%s days ago', ([days, en, fr]) => {
+    expect(sinceOf(ilYa(days), now)).toBe(en)
+    locale.value = 'fr'
+    expect(sinceOf(ilYa(days), now)).toBe(fr)
   })
 })
