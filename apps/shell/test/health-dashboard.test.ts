@@ -1,6 +1,6 @@
 import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { dashboardOf, ORPHANS, READY } from '../src/health/dashboard'
 import HealthDashboard from '../src/health/health-dashboard.vue'
 import type { HealthComponent } from '../src/health/health'
@@ -357,5 +357,126 @@ describe('the token rows', () => {
       .find((one) => one.text() === '--chart-3')!
     await nom.trigger('click')
     expect(wrapper.emitted('select')!.map(([item]) => item)).toEqual(['token:chart-3'])
+  })
+})
+
+describe('the rows of the token grid', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  // Toutes les familles ont le même nombre de lignes, le plus petit qui tienne
+  // dans la largeur du bloc : une famille de n tokens fait ceil(n / R) × 14 − 2 px.
+  test.for([
+    [12, 3],
+    [26, 2],
+    [40, 1],
+  ] as const)('is %s px wide for %s rows', async ([width, rows]) => {
+    let report: ResizeObserverCallback = () => {}
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: ResizeObserverCallback) {
+          report = callback
+        }
+        observe() {}
+        disconnect() {}
+      },
+    )
+    const wrapper = monte()
+    report([{ contentRect: { width } } as ResizeObserverEntry], {} as ResizeObserver)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.families').attributes('style')).toContain(`--rows: ${rows}`)
+  })
+})
+
+describe('the gestures on the dashboard', () => {
+  test('focus, select and leave each case and each token', async () => {
+    const wrapper = monte()
+    const premier = wrapper.find('.case')
+    await premier.trigger('focus')
+    expect(wrapper.findAll('.case')[1]!.attributes('data-dimmed')).toBeDefined()
+    await premier.trigger('blur')
+    await premier.trigger('click')
+    const jeton = wrapper.findAll('.families .cell')[0]!
+    await jeton.trigger('focus')
+    expect(wrapper.findAll('.families .cell')[1]!.attributes('data-dimmed')).toBeDefined()
+    await jeton.trigger('blur')
+    await jeton.trigger('mouseenter')
+    await jeton.trigger('mouseleave')
+    await jeton.trigger('click')
+    expect(wrapper.emitted('select')!.map(([item]) => item)).toEqual([
+      'src/Alpha.tsx:Alpha',
+      'token:space-1',
+    ])
+    expect(wrapper.findAll('.case[data-dimmed]')).toHaveLength(0)
+  })
+
+  // Survoler une ligne met en focus comme survoler sa case ; les noms sont des
+  // boutons ; les cases de section cochent toutes leurs lignes.
+  test('hover and select from the list, and check whole sections', async () => {
+    const wrapper = monte()
+    const ligne = wrapper.find('.health-list .row')
+    await ligne.trigger('mouseenter')
+    expect(wrapper.findAll('.case')[1]!.attributes('data-dimmed')).toBeDefined()
+    await ligne.trigger('mouseleave')
+    expect(wrapper.findAll('.case[data-dimmed]')).toHaveLength(0)
+
+    const noms = wrapper.findAll('.health-list button.label')
+    for (const nom of ['Alpha', '1 ready', '1 orphan'])
+      await noms.find((one) => one.text() === nom)!.trigger('click')
+    expect(wrapper.emitted('select')!.map(([item]) => item)).toEqual([
+      'src/Alpha.tsx:Alpha',
+      READY,
+      ORPHANS,
+    ])
+
+    const [composants, , , jetons] = wrapper.findAll(
+      '.health-list .header input, .health-list .group input',
+    )
+    await composants!.trigger('change')
+    await jetons!.trigger('change')
+    expect(wrapper.emitted('check')).toEqual([
+      [['src/Alpha.tsx:Alpha', 'src/Beta.tsx:Beta', 'src/Gamma.tsx:Gamma'], true],
+      [[ORPHANS], true],
+    ])
+  })
+
+  // La ligne des prêts dit lesquels lisent le token en focus.
+  test('names the ready components reading the token in focus', () => {
+    const lecteur = dashboardOf([composant('Delta', { tokens: ['space-3'] })], familles, {
+      stories: [story('Delta')],
+      pages: [
+        {
+          type: 'page',
+          id: 'p',
+          path: [],
+          name: 'D',
+          file: 'stories/Delta.md',
+          body: '',
+          storyFile: 'stories/Delta.tsx',
+        },
+      ],
+      audit: (['light', 'dark'] as const).map((theme) => ({
+        id: 'delta--a',
+        theme,
+        passes: 1,
+        violations: [],
+      })),
+      components: [],
+      categories: [],
+    })
+    const wrapper = mount(HealthDashboard, {
+      props: {
+        dashboard: lecteur,
+        checked: new Set<string>(),
+        selected: 'token:space-3',
+        partial: false,
+      },
+    })
+    const prêts = wrapper
+      .findAll('.health-list .row')
+      .find((one) => one.text().includes('1 ready'))!
+    expect(prêts.find('.phrase').text()).toBe('1 reads --space-3: Delta')
   })
 })
