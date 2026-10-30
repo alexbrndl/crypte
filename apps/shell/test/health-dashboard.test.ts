@@ -242,6 +242,32 @@ describe('the tab stops', () => {
   })
 })
 
+describe('the tab stop of the token grid', () => {
+  // Le token où les flèches ont mené disparaît à la relecture : l'entrée revient
+  // au premier, la grille des tokens reste dans l'ordre de tabulation.
+  test('comes back to the first token when the one moved to leaves the grid', async () => {
+    const wrapper = monte()
+    await wrapper.findAll('.families .cell')[0]!.trigger('keydown', { key: 'End' })
+    expect(wrapper.findAll('.families .cell')[2]!.attributes('tabindex')).toBe('0')
+
+    const sans = {
+      ...dashboard,
+      coverage: {
+        ...dashboard.coverage,
+        families: dashboard.coverage.families.map((family) => ({
+          ...family,
+          tokens: family.tokens.filter((one) => one.name !== 'space-3'),
+        })),
+      },
+    }
+    await wrapper.setProps({ dashboard: sans })
+    expect(wrapper.findAll('.families .cell').map((one) => one.attributes('tabindex'))).toEqual([
+      '0',
+      '-1',
+    ])
+  })
+})
+
 describe('the arrows on screen', () => {
   // Les composants s'enroulent par lignes, les tokens par colonnes : la case
   // voisine est la plus proche dans la direction, et rien au bord.
