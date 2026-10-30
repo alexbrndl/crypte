@@ -3658,6 +3658,13 @@ describe('the health view', () => {
         .map((cell) => cell.text())
         .join(' | '),
     )
+  // Le relevé du dashboard : chaque ligne, cochée ou non, son nom et sa phrase.
+  const relevé = (écran: Ecran) =>
+    écran.wrapper.findAll('.health-list .row').map((one) => {
+      const coche = one.find('input')
+      const état = coche.exists() && (coche.element as HTMLInputElement).checked ? '[x]' : '[ ]'
+      return `${état} ${one.find('.label').text()} · ${one.find('.phrase').text()}`
+    })
   const page = async (écran: Ecran, libellé: string) => {
     await écran.wrapper
       .findAll('.health a')
@@ -3689,14 +3696,16 @@ describe('the health view', () => {
       'statuses 2',
       'coverage 4',
     ])
-    // Ce qui pose problème d'abord, un point chacun : sans story, ou déprécié
-    // encore utilisé ; le nom départage.
-    expect(lignes(écran)).toEqual([
-      'Avatar | 0 | not tested |  | ',
-      'Badge | 2 | not tested | deprecated | 3 days ago',
-      'Select | 0 | not tested | draft | ',
-      'Bouton | 1 | not tested | stable | ',
-    ])
+    // Le dashboard : chaque composant et ses causes, groupés par gravité, le nom
+    // départageant ; rien de bloquant avant l'audit, donc rien de coché.
+    expect(relevé(écran)).toMatchInlineSnapshot(`
+      [
+        "[ ] Avatar · no story · 2 props, 0 required · used nowhere",
+        "[ ] Badge · doc page missing · deprecated · Bouton · used nowhere",
+        "[ ] Bouton · doc page missing · used nowhere",
+        "[ ] Select · no story · 9 props, 2 required · used nowhere · draft",
+      ]
+    `)
     expect(écran.wrapper.find('.toolbar .trail').text().replace(/\s+/g, '')).toBe('health/overview')
     expect(écran.statut()).toBe('4 components, 2 with a story')
     écran.wrapper.unmount()
@@ -3909,14 +3918,17 @@ describe('the health view', () => {
     expect(écran.wrapper.find('#health-panel h3').text()).toBe('button-name · to do')
     expect(écran.wrapper.find('#health-panel code.label').text()).toBe('button')
 
-    // La vue d'ensemble compte les violations par composant.
+    // Le dashboard dit la violation de chaque composant, la critique en bloquant
+    // coché.
     await page(écran, 'overview')
-    expect(lignes(écran).map((one) => one.split(' | ').slice(0, 3).join(' | '))).toEqual([
-      'Avatar | 0 | not tested',
-      'Badge | 2 | 1 violation',
-      'Select | 0 | not tested',
-      'Bouton | 1 | 1 violation',
-    ])
+    expect(relevé(écran)).toMatchInlineSnapshot(`
+      [
+        "[x] Bouton · button-name critical · doc page missing · used nowhere",
+        "[ ] Avatar · no story · 2 props, 0 required · used nowhere",
+        "[ ] Badge · color-contrast serious · doc page missing · deprecated · Bouton · used nowhere",
+        "[ ] Select · no story · 9 props, 2 required · used nowhere · draft",
+      ]
+    `)
     écran.wrapper.unmount()
   })
 
@@ -4185,26 +4197,27 @@ describe('the health view', () => {
     // Relancé à la demande : les mêmes résultats.
     await lance()
 
+    // Choisir un composant dans le dashboard, ce que le lien de l'adresse nomme.
     const choisit = async (lien: string) => {
       await page(écran, 'overview')
-      await écran.wrapper.find(`a[href="${lien}"]`).trigger('click', { button: 0 })
+      const item = new URLSearchParams(lien).get('item')
+      const nom = composants.find((one) => `${one.file}:${one.export}` === item)!.name
+      await écran.wrapper
+        .findAll('.health-list .row')
+        .find((one) => one.find('.label').text() === nom)!
+        .trigger('click', { button: 0 })
       await vide(écran.wrapper)
     }
-    // La vue d'ensemble liste tout ce que compte le badge, l'audit compris, chaque
-    // ligne menant à sa page.
+    // Le dashboard : les rendus et la violation critique en bloquants cochés.
     await page(écran, 'overview')
-    const liste = () => écran.wrapper.find('[aria-label="Everything to do"]')
-    expect(
-      liste()
-        .findAll('a')
-        .map((one) => `${one.text()} → ${one.attributes('href')}`),
-    ).toEqual([
-      'Fix the render of Badge / Alerte → ?health=failures&item=badge--alerte',
-      'Fix the render of Badge / Par défaut → ?health=failures&item=badge--defaut',
-      'Fix button-name in Bouton / Par défaut → ?health=accessibility&item=bouton--defaut:button-name',
-      'Write the story of Select → ?health=unstoried&item=src/components/form/Select.tsx:default',
-      'Write the story of Avatar → ?health=unstoried&item=src/components/Avatar.tsx:Avatar',
-    ])
+    expect(relevé(écran)).toMatchInlineSnapshot(`
+      [
+        "[x] Badge · fails to render, light and dark · doc page missing · deprecated · Bouton · used nowhere",
+        "[x] Bouton · button-name critical · doc page missing · used nowhere",
+        "[ ] Avatar · no story · 2 props, 0 required · used nowhere",
+        "[ ] Select · no story · 9 props, 2 required · used nowhere · draft",
+      ]
+    `)
     expect(écran.vue('health').find('.count').text()).toBe('5')
 
     // Tout ce qui reste, en un prompt : un titre par point, dans l'ordre de la
@@ -4231,9 +4244,6 @@ describe('the health view', () => {
     santé = () => ({ components: composants })
     window.dispatchEvent(new Event('focus'))
     await vide(écran.wrapper)
-    await liste().find('a').trigger('click', { button: 0 })
-    await vide(écran.wrapper)
-    expect(window.location.search).toBe('?health=failures&item=badge--alerte')
 
     await choisit('?health=overview&item=src/components/Badge.tsx:Badge')
     const àFaire = () => écran.wrapper.find('[aria-label="To do"]')
@@ -4371,19 +4381,6 @@ describe('the health view', () => {
         .find((one) => one.props('content') === 'health')
         ?.props('detail'),
     ).toBe('50 % · 2 to do')
-
-    const liste = () => écran.wrapper.find('[aria-label="Everything to do"]')
-    expect(liste().find('.badge').text()).toBe('2')
-    expect(
-      liste()
-        .findAll('a')
-        .map((one) => one.text()),
-    ).toEqual(['Write the story of Select', 'Write the story of Avatar'])
-    await liste().find('a').trigger('click', { button: 0 })
-    await vide(écran.wrapper)
-    expect(window.location.search).toBe(
-      '?health=unstoried&item=src/components/form/Select.tsx:default',
-    )
 
     // Tout l'en-tête plie son panneau ; ouverts au départ, sans source, le repli
     // retenu comme celui des panneaux des stories.

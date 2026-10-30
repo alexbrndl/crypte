@@ -8,10 +8,11 @@ import {
   dashboardOf,
   defaultSelection,
   groupOf,
-  keptSelection,
+  selectionOf,
   ORPHANS,
   phraseOf,
   scoreOf,
+  sinceOf,
   tokenHealthOf,
   type Causes,
   type Criteria,
@@ -560,11 +561,33 @@ describe('the dashboard', () => {
     expect([seul.coverage.orphans, seul.checkable.includes(ORPHANS)]).toEqual([0, false])
   })
 
-  test('keeps a selection through a reload, dropping only the rows gone', () => {
-    const kept = keptSelection(
-      new Set(['src/Beta.tsx:Beta', 'src/Gone.tsx:Gone', ORPHANS]),
-      dashboard,
-    )
-    expect([...kept]).toEqual(['src/Beta.tsx:Beta', ORPHANS])
+  // Une ligne touchée garde le choix de l'utilisateur ; une ligne jamais touchée
+  // suit le défaut ; une ligne disparue sort de la sélection.
+  test('keeps the choices made, checks the untouched blocking rows, and drops the rows gone', () => {
+    const choices = new Map([
+      ['src/Zeta.tsx:Zeta', false],
+      ['src/Beta.tsx:Beta', true],
+      ['src/Gone.tsx:Gone', true],
+    ])
+    expect([...selectionOf(dashboard, choices)]).toEqual(['src/Beta.tsx:Beta', 'token:text-chart'])
+    expect([...selectionOf(dashboard, new Map())]).toEqual([...defaultSelection(dashboard)])
+  })
+})
+
+// La colonne « changé » fait 44 px : une forme courte, à la manière de la langue.
+describe('the age of a change', () => {
+  const now = Date.parse('2026-10-30T12:00:00.000Z')
+  const ilYa = (days: number) => new Date(now - days * 86_400_000).toISOString()
+
+  test.for([
+    [0, 'today', 'auj.'],
+    [2, '2 d', '2 j'],
+    [7, '1 wk', '1 sem'],
+    [29, '4 wk', '4 sem'],
+    [30, '1 mo', '1 mois'],
+  ] as const)('%s days ago', ([days, en, fr]) => {
+    expect(sinceOf(ilYa(days), now)).toBe(en)
+    locale.value = 'fr'
+    expect(sinceOf(ilYa(days), now)).toBe(fr)
   })
 })

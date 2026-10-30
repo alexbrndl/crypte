@@ -531,9 +531,66 @@ export function defaultSelection(dashboard: Dashboard): Set<string> {
   ])
 }
 
-// La sélection gardée d'une relecture à l'autre : seules partent les lignes qui
-// n'existent plus.
-export function keptSelection(previous: ReadonlySet<string>, dashboard: Dashboard): Set<string> {
-  const present = new Set(dashboard.checkable)
-  return new Set([...previous].filter((key) => present.has(key)))
+// Les lignes cochées : le choix de l'utilisateur pour une ligne qu'il a touchée,
+// sinon le défaut, les bloquants. Une ligne qui devient bloquante après l'audit
+// se coche donc seule, et une ligne qui disparaît sort de la sélection.
+export function selectionOf(
+  dashboard: Dashboard,
+  choices: ReadonlyMap<string, boolean>,
+): Set<string> {
+  const defaults = defaultSelection(dashboard)
+  return new Set(dashboard.checkable.filter((key) => choices.get(key) ?? defaults.has(key)))
+}
+
+// Ce qui reste net quand un élément est survolé ou choisi ; `null` d'un côté ne
+// voile rien de ce côté. Un composant garde les tokens qu'il lit, un token les
+// composants qui le lisent ; les orphelins voilent tous les composants, les
+// prêts ne voilent aucun token.
+export interface Focus {
+  components: ReadonlySet<string> | null
+  tokens: ReadonlySet<string> | null
+}
+
+export function focusOf(dashboard: Dashboard, item: string | null): Focus {
+  const all = dashboard.coverage.families.flatMap((family) => family.tokens)
+  if (item === null) return { components: null, tokens: null }
+  if (item === ORPHANS)
+    return {
+      components: new Set(),
+      tokens: new Set(all.filter((one) => one.state === 'orphan').map((one) => one.name)),
+    }
+  if (item === READY)
+    return {
+      components: new Set(
+        dashboard.rows.filter((one) => one.group === 'ready').map((one) => one.key),
+      ),
+      tokens: null,
+    }
+  if (item.startsWith('token:')) {
+    const name = item.slice('token:'.length)
+    return {
+      components: new Set(all.filter((one) => one.name === name).flatMap((one) => one.readers)),
+      tokens: new Set([name]),
+    }
+  }
+  if (!dashboard.rows.some((one) => one.key === item)) return { components: null, tokens: null }
+  return {
+    components: new Set([item]),
+    tokens: dashboard.coverage.reads.get(item) ?? new Set(),
+  }
+}
+
+const short = texts({
+  en: { today: 'today', days: '{count} d', weeks: '{count} wk', months: '{count} mo' },
+  fr: { today: 'auj.', days: '{count} j', weeks: '{count} sem', months: '{count} mois' },
+})
+
+// L'âge d'une modification en forme courte, la colonne « changé » faisant 44 px :
+// `ago` dit « il y a 3 jours », qui n'y tient pas.
+export function sinceOf(iso: string, now = Date.now()): string {
+  const days = Math.floor((now - Date.parse(iso)) / 86_400_000)
+  if (days < 1) return short('today')
+  if (days < 7) return short('days', { count: days })
+  if (days < 30) return short('weeks', { count: Math.floor(days / 7) })
+  return short('months', { count: Math.floor(days / 30) })
 }
