@@ -397,13 +397,17 @@ describe('the gestures on the dashboard', () => {
     await premier.trigger('focus')
     expect(wrapper.findAll('.case')[1]!.attributes('data-dimmed')).toBeDefined()
     await premier.trigger('blur')
+    expect(wrapper.findAll('.case[data-dimmed]')).toHaveLength(0)
     await premier.trigger('click')
     const jeton = wrapper.findAll('.families .cell')[0]!
     await jeton.trigger('focus')
     expect(wrapper.findAll('.families .cell')[1]!.attributes('data-dimmed')).toBeDefined()
     await jeton.trigger('blur')
+    expect(wrapper.findAll('.families .cell[data-dimmed]')).toHaveLength(0)
     await jeton.trigger('mouseenter')
+    expect(wrapper.findAll('.families .cell[data-dimmed]')).toHaveLength(2)
     await jeton.trigger('mouseleave')
+    expect(wrapper.findAll('.families .cell[data-dimmed]')).toHaveLength(0)
     await jeton.trigger('click')
     expect(wrapper.emitted('select')!.map(([item]) => item)).toEqual([
       'src/Alpha.tsx:Alpha',
