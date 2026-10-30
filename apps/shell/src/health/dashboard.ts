@@ -301,14 +301,26 @@ export interface TokenCoverage {
 }
 
 // Un alias cassé : une chaîne qui n'arrive pas à une valeur, la valeur restant un
-// `var(` dans un thème au moins. Une cible absente et un cycle le donnent. Une
-// valeur composite, `var(--a, 1ms) var(--b, ease)`, n'a pas de chaîne : elle
-// n'est pas un alias, et ne l'est pas davantage cassé.
+// seul `var()` entier dans un thème au moins, la forme qu'`aliasOf` de
+// @crypte/tokens suit. Une cible absente et un cycle le donnent. Une composite,
+// `var(--a, 1ms) var(--b, ease)`, n'est pas un alias, qu'elle soit la valeur ou
+// le bout d'une chaîne.
 function brokenTarget(value: TokenValue): string | undefined {
   for (const held of Object.values(value.themes))
-    if ((held.alias?.length ?? 0) > 0 && held.value.trimStart().startsWith('var('))
-      return held.alias!.at(-1)
+    if ((held.alias?.length ?? 0) > 0 && wholeVar(held.value)) return held.alias!.at(-1)
   return undefined
+}
+
+// Une valeur qui est en entier un `var()` : sa parenthèse fermante est la dernière.
+function wholeVar(value: string): boolean {
+  const text = value.trim()
+  if (!text.startsWith('var(') || !text.endsWith(')')) return false
+  let depth = 0
+  for (const [at, char] of [...text].entries()) {
+    if (char === '(') depth += 1
+    else if (char === ')' && --depth === 0) return at === text.length - 1
+  }
+  return false
 }
 
 export function tokenHealthOf(
@@ -330,7 +342,8 @@ export function tokenHealthOf(
     chains.set(one.name, new Set([...(chains.get(one.name) ?? []), ...chainOf(one.value)]))
 
   // Seulement ce qui existe dans les familles : une variable d'une bibliothèque
-  // ou d'une autre feuille n'est pas un token du projet. Arbitré le 30 oct. 2026.
+  // ou d'une autre feuille n'est pas un token du projet. Arbitré le 30 oct. 2026,
+  // rouvert si un projet veut voir dans la santé les variables qu'il ne déclare pas.
   const reads = new Map<string, Set<string>>()
   for (const component of components) {
     const direct = component.tokens ?? []
@@ -348,7 +361,8 @@ export function tokenHealthOf(
       name: one.name,
       family: one.family,
       // Un alias cassé ne compte pas comme utilisé : utilisés, orphelins et
-      // cassés font le total. Arbitré le 30 oct. 2026.
+      // cassés font le total. Arbitré le 30 oct. 2026, rouvert si un alias cassé
+      // doit compter comme une lecture.
       state: target !== undefined ? 'broken' : readers.length > 0 ? 'used' : 'orphan',
       suspect: suspects.has(one.key),
       readers,
@@ -384,8 +398,14 @@ export function suspectKeysOf(
   )
 }
 
-// Les mots d'un nom : ses majuscules, et ce qui précède la première.
-const words = (name: string) => name.match(/^[a-z0-9]+|[A-Z][a-z0-9]*/g) ?? [name]
+// Les mots d'un nom : ses tirets et soulignés, puis ses majuscules et ce qui
+// précède la première. Un `.vue` exporté par défaut porte le nom de son fichier,
+// souvent en kebab-case.
+const words = (name: string) =>
+  name
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .flatMap((part) => part.match(/^[a-z0-9]+|[A-Z][a-z0-9]*/g) ?? [part])
 
 // Les candidats d'un nom, dans l'ordre : 3+1, 2+2, 1+3 lettres de ses deux
 // premiers mots ; un mot seul n'a que ses quatre premières lettres.

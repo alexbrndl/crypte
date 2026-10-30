@@ -246,6 +246,16 @@ describe('the phrase of a component', () => {
     )
   })
 
+  test('names both themes when the story fails in both', () => {
+    expect(phrase(composant(), contexte({ audit: rendue('badge--a', { broken: 'B' }) }))).toBe(
+      'fails to render, light and dark',
+    )
+  })
+
+  test('says deprecated alone when nothing imports it', () => {
+    expect(phrase(composant({ status: 'deprecated' }), contexte())).toBe('deprecated')
+  })
+
   test('says what is missing on a component without story', () => {
     const component = composant({ stories: [], props: 3, required: 1 })
     expect(phrase(component, contexte({ stories: [], audit: [] }))).toBe(
@@ -386,6 +396,33 @@ describe('the coverage of the tokens', () => {
     expect([subtle.state, subtle.suspect]).toEqual(['used', true])
   })
 
+  // Une composite au bout d'une chaîne, ou en repli d'une cible absente, n'est pas
+  // un alias cassé : seule l'est une valeur restée un `var()` entier.
+  test('does not take a composite reached by a chain for a broken alias', () => {
+    const motion: TokensEntry = {
+      type: 'tokens',
+      id: 'tokens--motion',
+      path: ['Tokens'],
+      name: 'motion',
+      tokens: {
+        base: valeur('var(--a, 1ms) var(--b, ease)'),
+        fast: valeur('var(--a, 1ms) var(--b, ease)', ['motion-base']),
+        fallback: valeur('var(--a) var(--b)', ['absent']),
+        missing: valeur('var(--absent, var(--a))', ['absent']),
+      },
+    }
+    const states = tokenHealthOf([motion], []).families[0]!.tokens.map((one) => [
+      one.name,
+      one.state,
+    ])
+    expect(states).toEqual([
+      ['motion-base', 'orphan'],
+      ['motion-fast', 'orphan'],
+      ['motion-fallback', 'orphan'],
+      ['motion-missing', 'broken'],
+    ])
+  })
+
   // Un cycle laisse aussi un `var()` au bout de la chaîne.
   test('takes a cycle for a broken alias, in any theme', () => {
     const cycle: TokensEntry = {
@@ -424,6 +461,10 @@ describe('the abbreviations of the grid', () => {
     [['Button'], ['Butt']],
     [['button'], ['butt']],
     [['myButton'], ['myB']],
+    [
+      ['health-panel', 'health-view', 'health-sidebar', 'token_panel'],
+      ['heap', 'heav', 'heas', 'tokp'],
+    ],
   ] as const)('%s', ([names, abbreviations]) => {
     expect(abbreviationsOf([...names])).toEqual(abbreviations)
   })
@@ -495,6 +536,21 @@ describe('the dashboard', () => {
       .filter((one) => one.suspect)
       .map((one) => one.name)
     expect(suspects).toEqual(['gris-100'])
+  })
+
+  // Sans orphelin, pas de ligne repliée à cocher.
+  test('has no orphans row when every token is read', () => {
+    const lue: TokensEntry[] = [
+      {
+        type: 'tokens',
+        id: 'tokens--a',
+        path: ['Tokens'],
+        name: 'a',
+        tokens: { b: valeur('#000') },
+      },
+    ]
+    const seul = dashboardOf([composant({ tokens: ['a-b'] })], lue, contexte())
+    expect([seul.coverage.orphans, seul.checkable.includes(ORPHANS)]).toEqual([0, false])
   })
 
   test('keeps a selection through a reload, dropping only the rows gone', () => {
