@@ -8,7 +8,7 @@ import Icon from '../ui/icon.vue'
 import ColorSwatch from '../ui/color-swatch.vue'
 import { keep, kept } from '../storage'
 import { componentIdOf } from '../navigation/tree'
-import { shown, type Category, type Token } from './categories'
+import { chainOf, shown, type Category, type Token } from './categories'
 import { texts } from '../i18n'
 
 // Le panneau d'un token : sa valeur dans chaque
@@ -86,7 +86,7 @@ const pointing = computed(() => {
   return props.categories.flatMap((category) =>
     category.groups.flatMap((group) =>
       group.tokens
-        .filter((one) => Object.values(one.value.themes).some((held) => held.alias?.includes(name)))
+        .filter((one) => chainOf(one.value).includes(name))
         .map((one) => ({ category: category.name, token: one })),
     ),
   )

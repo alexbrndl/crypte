@@ -43,6 +43,12 @@ const ORDER = ['color', 'space', 'radius', 'typography', 'stroke', 'size', 'pale
 export const nameOf = (family: string, key: string) =>
   family === key ? family : `${family}-${key}`
 
+// Les noms que les chaînes d'un token parcourent, dans tous ses thèmes : ce qu'il
+// atteint, et ce par quoi il passe pour un token qui pointe vers un autre.
+export const chainOf = (value: TokenValue) => [
+  ...new Set(Object.values(value.themes).flatMap((held) => held.alias ?? [])),
+]
+
 const aliased = (value: TokenValue) => Object.values(value.themes).some((one) => one.alias)
 
 function categoryOf(family: string, value: TokenValue, semantic: boolean): string {
