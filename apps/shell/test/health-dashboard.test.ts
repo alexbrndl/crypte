@@ -220,6 +220,18 @@ describe('the tab stops', () => {
 
     await wrapper.findAll('.case')[0]!.trigger('keydown', { key: 'ArrowRight' })
     await wrapper.findAll('.case')[1]!.trigger('keydown', { key: 'ArrowRight' })
+    // La case où les flèches ont mené disparaît à la relecture : l'entrée revient
+    // à la première, la grille reste dans l'ordre de tabulation.
+    await wrapper.setProps({
+      dashboard: {
+        ...dashboard,
+        rows: dashboard.rows.filter((one) => one.component.name !== 'Gamma'),
+      },
+    })
+    expect(entrées(wrapper, '.case')).toBe(1)
+    expect(wrapper.find('.case').attributes('tabindex')).toBe('0')
+    await wrapper.setProps({ dashboard })
+    await wrapper.findAll('.case')[0]!.trigger('keydown', { key: 'ArrowRight' })
     await wrapper.setProps({ selected: 'src/Delta.tsx:Delta' })
     expect(wrapper.findAll('.case').map((one) => one.attributes('tabindex'))).toEqual([
       '-1',

@@ -137,13 +137,13 @@ const sizes = {
   '--family-gap': `${FAMILY_GAP}px`,
 }
 const rowsOf = computed(() => {
-  const sizes = coverage.value.families.map((one) => one.tokens.length).filter((one) => one > 0)
-  if (sizes.length === 0 || width.value === 0) return 8
-  const tallest = Math.max(...sizes)
+  const counts = coverage.value.families.map((one) => one.tokens.length).filter((one) => one > 0)
+  if (counts.length === 0 || width.value === 0) return 8
+  const tallest = Math.max(...counts)
   for (let rows = 1; rows <= tallest; rows += 1) {
     const used =
-      sizes.reduce((sum, one) => sum + Math.ceil(one / rows) * (CELL + CELL_GAP) - CELL_GAP, 0) +
-      FAMILY_GAP * (sizes.length - 1)
+      counts.reduce((sum, one) => sum + Math.ceil(one / rows) * (CELL + CELL_GAP) - CELL_GAP, 0) +
+      FAMILY_GAP * (counts.length - 1)
     if (used <= width.value) return rows
   }
   return tallest
@@ -170,16 +170,17 @@ watch(
     movedCell.value = null
   },
 )
+// Une case partie à la relecture rend l'entrée à la choisie ou à la première.
 const caseEntry = computed(
   () =>
-    movedCase.value ??
+    (props.dashboard.rows.some((one) => one.key === movedCase.value) ? movedCase.value : null) ??
     (props.dashboard.rows.some((one) => one.key === props.selected)
       ? props.selected
       : props.dashboard.rows[0]?.key),
 )
 const cellEntry = computed(
   () =>
-    movedCell.value ??
+    (tokens.value.some((one) => one.key === movedCell.value) ? movedCell.value : null) ??
     tokens.value.find((one) => tokenRow(one.name) === props.selected)?.key ??
     tokens.value[0]?.key,
 )
