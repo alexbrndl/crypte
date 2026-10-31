@@ -160,6 +160,26 @@ describe('the components the health view counts', () => {
     ])
   })
 
+  // Une story suffit à dire que c'est un composant, quoi qu'il rende : celui qui
+  // ne fait que lever doit porter son échec jusqu'à la vue santé. Sans story, un
+  // export qui ne rend aucun élément reste écarté.
+  test('counts an export a story describes, even one that never returns an element', () => {
+    const LÈVE = 'export function Boom(): never { throw new Error("non") }\n'
+    const project = projet(
+      {
+        'src/components/Boom.tsx': LÈVE,
+        'src/components/Seul.tsx': LÈVE.replace('Boom', 'Seul'),
+        'stories/Boom.tsx':
+          "import { defineStories } from '@crypte/react'\nimport { Boom } from '../src/components/Boom'\n\nexport default defineStories(Boom, { stories: { Lève: {} } })\n",
+      },
+      'src/components',
+    )
+
+    expect(santé(project)?.map((one) => [one.name, one.stories])).toEqual([
+      ['Boom', ['boom--leve']],
+    ])
+  })
+
   test('names a folder that is not there as empty', () => {
     expect(santé(projet({}, 'src/missing'))).toEqual([])
   })

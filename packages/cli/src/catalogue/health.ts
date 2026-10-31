@@ -101,12 +101,12 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
   const application = filesIn(project.root, OUTSIDE).filter(
     (file) => !TEST.test(file) && !storyFiles.has(file) && !left.some((one) => under(one, file)),
   )
-  const { importers, users } = importersOf(project, files, frames, application)
+  const { importers, users } = importersOf(project, files, frames, application, covering)
   const found: HealthComponent[] = []
   for (const file of files) {
     // Per file, as the manifest reads it: two components of one file share it.
     const tokens = tokensOf(file) ?? []
-    for (const names of componentsIn(file)) {
+    for (const names of componentsOf(file, covering)) {
       if (names.some((one) => frames.has(`${file}#${one}`))) continue
       const covered = names.flatMap((one) => covering.get(`${file}#${one}`) ?? [])
       const exported = names[0]!
@@ -149,6 +149,19 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
   return { components: found }
 }
 
+// What `componentsIn` keeps, plus any export of the file a story describes,
+// whatever it returns: a component that only throws is still one, and its
+// failing render must reach the health view.
+function componentsOf(file: string, covering: Map<string, StoryEntry[]>): string[][] {
+  const found = componentsIn(file)
+  const known = new Set(found.flat())
+  const described = [...covering.keys()]
+    .filter((key) => key.startsWith(`${file}#`))
+    .map((key) => key.slice(file.length + 1))
+    .filter((one) => !known.has(one))
+  return [...found, ...described.map((one) => [one])]
+}
+
 // Who imports what, among the files of the folder: for the `file#export` a
 // component file declares, the components using it, `file:export`. An import is
 // resolved as a story's is, then followed through the re-exports of an index,
@@ -164,6 +177,7 @@ function importersOf(
   files: string[],
   frames: Set<string>,
   application: string[],
+  covering: Map<string, StoryEntry[]>,
 ): { importers: Map<string, string[]>; users: Map<string, string[]> } {
   const read = parsedOf(project, files)
   const declared = new Set<string>()
@@ -172,7 +186,7 @@ function importersOf(
   // Every file of the folder, not only those whose script parsed: a `.vue` file
   // made of its template alone is still a component its importers use.
   for (const file of files)
-    for (const names of componentsIn(file))
+    for (const names of componentsOf(file, covering))
       for (const one of names) declared.add(`${named(project.root, file)}#${one}`)
   for (const { file, self, parsed } of read) {
     for (const one of parsed.module.staticExports) {
