@@ -1704,6 +1704,11 @@ describe('the accessibility audit, on screen', () => {
       'aria-roles critical · used nowhere',
     )
     expect(await ligne.locator('input').isChecked()).toBe(true)
+    // Boom ne fait que lever : une story le décrit, il compte, et son échec se lit.
+    const boom = ecran.page.locator('.health-list .row', { hasText: 'Boom' })
+    expect((await boom.locator('.phrase').textContent())?.trim()).toMatch(
+      /^fails to render, light and dark/,
+    )
 
     await ligne.locator('.label').click()
     const critère = ecran.page.locator('#health-panel .criterion', { hasText: 'a11y' })

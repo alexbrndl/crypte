@@ -160,6 +160,52 @@ describe('the components the health view counts', () => {
     ])
   })
 
+  // Une story suffit à dire que c'est un composant, quoi qu'il rende : celui qui
+  // ne fait que lever doit porter son échec jusqu'à la vue santé. Sans story, un
+  // export qui ne rend aucun élément reste écarté.
+  test('counts an export a story describes, even one that never returns an element', () => {
+    const LÈVE = 'export function Boom(): never { throw new Error("non") }\n'
+    const project = projet(
+      {
+        'src/components/Boom.tsx': LÈVE,
+        'src/components/Seul.tsx': LÈVE.replace('Boom', 'Seul'),
+        'src/components/Plante.tsx': LÈVE.replace('function Boom', 'default function Plante'),
+        'stories/Boom.tsx':
+          "import { defineStories } from '@crypte/react'\nimport { Boom } from '../src/components/Boom'\n\nexport default defineStories(Boom, { stories: { Lève: {} } })\n",
+        'stories/Plante.tsx':
+          "import { defineStories } from '@crypte/react'\nimport Plante from '../src/components/Plante'\n\nexport default defineStories(Plante, { stories: { Lève: {} } })\n",
+      },
+      'src/components',
+    )
+
+    expect(santé(project)?.map((one) => [one.name, one.stories])).toEqual([
+      ['Boom', ['boom--leve']],
+      ['Plante', ['plante--leve']],
+    ])
+  })
+
+  // Une story qui importe par un index décrit l'export de l'index, qui ne fait
+  // que le transmettre : le composant reste une seule ligne, celle de son fichier,
+  // avec ses importeurs.
+  test('leaves out an export an index only forwards, the component counting once', () => {
+    const project = projet(
+      {
+        'src/components/Button.tsx': 'export function Button() { return <button /> }\n',
+        'src/components/index.ts': "export { Button } from './Button'\n",
+        'src/components/Form.tsx':
+          "import { Button } from '.'\nexport function Form() { return <form><Button /></form> }\n",
+        'stories/Button.tsx':
+          "import { defineStories } from '@crypte/react'\nimport { Button } from '../src/components'\n\nexport default defineStories(Button, { stories: { A: {} } })\n",
+      },
+      'src/components',
+    )
+
+    expect(santé(project)?.map((one) => [one.file, one.usedBy ?? null])).toEqual([
+      ['src/components/Button.tsx', ['src/components/Form.tsx:Form']],
+      ['src/components/Form.tsx', null],
+    ])
+  })
+
   test('names a folder that is not there as empty', () => {
     expect(santé(projet({}, 'src/missing'))).toEqual([])
   })
