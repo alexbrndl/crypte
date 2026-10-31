@@ -1689,6 +1689,13 @@ describe('the accessibility audit, on screen', () => {
       .poll(() => ecran.page.locator('.status-bar p').first().textContent(), { timeout: 60_000 })
       .toMatch(/^audit of \d+ stories in \d+\.\d s$/)
     expect(await ecran.page.locator('.audit-frame').count()).toBe(0)
+    // Sans sidebar, le dashboard prend la place de la colonne : à 1280, bien plus
+    // que ses 267 px.
+    expect(
+      await ecran.page
+        .locator('.health-dashboard')
+        .evaluate((e) => e.getBoundingClientRect().width),
+    ).toBeGreaterThan(1000)
     // Les valeurs réelles de la démo : la story au rôle inconnu enfreint
     // aria-roles. Elles tiennent la forme de `a11y:results`, que le shell lit : un
     // champ renommé dans le plugin fait tomber ces lignes.
@@ -1833,8 +1840,12 @@ const ecrans = [
 // fait défiler aux flèches. axe ne lit pas ce motif.
 const admis = new Set(['the command palette, scrollable-region-focusable: .results'])
 
+// Le contraste en APCA, pas en WCAG 2 : la règle `color-contrast` d'axe est
+// coupée, et `apca.js` juge chaque texte visible de la page.
+const apca = join(dirname(fileURLToPath(import.meta.url)), 'apca.js')
+
 describe('accessibility, on screen', () => {
-  test.for(['light', 'dark'] as const)('has no axe violation in %s', async (theme, { ecran }) => {
+  test.for(['light', 'dark'] as const)('passes axe and APCA in %s', async (theme, { ecran }) => {
     await ecran.page.emulateMedia({ colorScheme: theme })
     const violations: string[] = []
 
@@ -1850,10 +1861,14 @@ describe('accessibility, on screen', () => {
       await expect.poll(() => ecran.page.locator(dessine).count()).toBe(1)
       expect(await ecran.page.locator('.stale').count()).toBe(0)
       await ecran.page.addScriptTag({ path: axe })
+      await ecran.page.addScriptTag({ path: apca })
+      const contraste = await ecran.page.evaluate<{ read: number; found: string[] }>('apca()')
+      expect(contraste.read).toBeGreaterThan(0)
+      violations.push(...contraste.found.map((v) => `${nom}, ${v}`))
       const trouve = await ecran.page.evaluate(async () => {
         const { violations } = await (
           globalThis as unknown as { axe: typeof import('axe-core') }
-        ).axe.run({ exclude: [['iframe']] })
+        ).axe.run({ exclude: [['iframe']] }, { rules: { 'color-contrast': { enabled: false } } })
         return violations.map(
           (v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`,
         )

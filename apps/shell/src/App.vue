@@ -1719,7 +1719,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <main :class="{ full: fullScreen }">
+  <main :class="{ bare: view === 'health', full: fullScreen }">
     <div v-show="!fullScreen" class="activity-column">
       <ActivityBar
         :current="view"
@@ -2564,6 +2564,12 @@ main {
   grid-template-rows: minmax(0, 1fr) auto;
   height: 100vh;
   font-family: var(--font-sans);
+}
+
+/* Sans sidebar, la santé : une colonne de moins, sinon le canvas tombe dans la
+   sienne. */
+main.bare {
+  grid-template-columns: 56px 1fr;
 }
 
 main.full {

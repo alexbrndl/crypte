@@ -17,7 +17,8 @@ withDefaults(defineProps<{ tone?: 'default' | 'inverse'; size?: 'md' | 'sm' }>()
 .badge {
   padding: var(--space-0-5) var(--space-1);
   border-radius: var(--radius-xs);
-  background: var(--accent-base);
+  /* Not `--accent-base`: its dark teal-500 stays under APCA Lc 60. */
+  background: var(--text-current);
   color: var(--text-inverse);
   font-family: var(--font-mono);
   font-size: var(--text-xs);

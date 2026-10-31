@@ -576,7 +576,7 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
 }
 
 .column-count {
-  color: var(--text-subtle);
+  color: var(--text-muted);
   font-size: 11px;
   line-height: var(--leading-2xs);
 }
@@ -598,7 +598,7 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
 .changed {
   width: 44px;
   flex: none;
-  color: var(--text-subtle);
+  color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
@@ -675,7 +675,7 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
 .abbreviation {
   width: 32px;
   flex: none;
-  color: var(--text-subtle);
+  color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
@@ -730,10 +730,10 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
   place-items: center;
   overflow: hidden;
   border-radius: var(--radius-xs);
-  /* Foncé dans les deux thèmes : le blanc de la maquette sur le vert ou l'orange
-     plein échoue au contraste (axe). Seules props et usages portent un texte, et
-     jamais sur du rouge. */
-  color: var(--stone-950);
+  /* Blanc en clair, comme la maquette, foncé en sombre : Lc 64 à 73 en APCA sur
+     le vert et l'orange. Seules props et usages portent un texte, et jamais sur
+     du rouge, où le foncé tombe à Lc 50 en sombre. */
+  color: var(--text-inverse);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
