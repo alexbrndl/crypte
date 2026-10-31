@@ -149,9 +149,11 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
   return { components: found }
 }
 
-// What `componentsIn` keeps, plus any export of the file a story describes,
-// whatever it returns: a component that only throws is still one, and its
-// failing render must reach the health view.
+// What `componentsIn` keeps, plus any export a story describes that the file
+// declares itself, whatever it returns: a component that only throws is still
+// one, and its failing render must reach the health view. An export the file
+// only forwards, from an index, is not added: the component would count twice,
+// and its importers would stop at the index.
 function componentsOf(file: string, covering: Map<string, StoryEntry[]>): string[][] {
   const found = componentsIn(file)
   const known = new Set(found.flat())
@@ -159,7 +161,27 @@ function componentsOf(file: string, covering: Map<string, StoryEntry[]>): string
     .filter((key) => key.startsWith(`${file}#`))
     .map((key) => key.slice(file.length + 1))
     .filter((one) => !known.has(one))
-  return [...found, ...described.map((one) => [one])]
+  if (described.length === 0) return found
+  const own = ownExports(file)
+  return [...found, ...described.filter((one) => own.has(one)).map((one) => [one])]
+}
+
+// The names a file exports from its own declarations, `default` included.
+function ownExports(file: string): Set<string> {
+  const parsed = parseSync(file, readFileSync(file, 'utf8'))
+  return new Set(
+    parsed.module.staticExports.flatMap((one) =>
+      one.entries.flatMap((entry) =>
+        entry.moduleRequest
+          ? []
+          : entry.exportName.kind === 'Default'
+            ? ['default']
+            : entry.exportName.kind === 'Name' && entry.exportName.name
+              ? [entry.exportName.name]
+              : [],
+      ),
+    ),
+  )
 }
 
 // Who imports what, among the files of the folder: for the `file#export` a
