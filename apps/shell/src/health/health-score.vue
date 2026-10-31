@@ -6,12 +6,13 @@ import { texts } from '../i18n'
 import { singular } from '../plural'
 
 // La ligne du score de la santé : le chiffre, ce qu'il moyenne en infobulle, et
-// les bloquants quand il y en a. Avant l'audit, la santé est partielle.
+// les bloquants quand il y en a. Partielle tant que l'audit n'a pas tourné, ou
+// sans le plugin a11y.
 const props = defineProps<{
   score: number
   blocking: number
-  // L'audit n'a pas tourné : rendu et a11y restent vides.
-  partial: boolean
+  // Ce qui reste vide : rendu et a11y avant l'audit, l'a11y seule sans plugin.
+  waiting: 'audit' | 'a11y' | null
 }>()
 
 const t = texts({
@@ -19,7 +20,8 @@ const t = texts({
     score: 'score {score} %',
     detail: 'mean of the 8 criteria, empty cells left out',
     overall: 'overall health',
-    partial: 'partial health, render and a11y waiting for the audit plugin',
+    audit: 'partial health, render and a11y waiting for the audit plugin',
+    a11y: 'partial health, a11y waiting for the a11y plugin',
     one: '· {count} blocking',
     many: '· {count} blocking',
   },
@@ -27,7 +29,8 @@ const t = texts({
     score: 'score {score} %',
     detail: 'moyenne des 8 critères, cases vides exclues',
     overall: 'santé globale',
-    partial: "santé partielle, rendu et a11y en attente du plugin d'audit",
+    audit: "santé partielle, rendu et a11y en attente du plugin d'audit",
+    a11y: 'santé partielle, a11y en attente du plugin a11y',
     one: '· {count} bloquant',
     many: '· {count} bloquants',
   },
@@ -36,13 +39,13 @@ const t = texts({
 
 <template>
   <div class="health-score">
-    <span class="figure" :data-partial="partial || undefined">{{ props.score }} %</span>
+    <span class="figure" :data-partial="waiting ? '' : undefined">{{ props.score }} %</span>
     <Tooltip :content="t('score', { score: props.score })" :detail="t('detail')">
       <button type="button" class="info" :aria-label="t('score', { score: props.score })">
         <Icon :icon="InformationCircleIcon" />
       </button>
     </Tooltip>
-    <span class="overall">{{ partial ? t('partial') : t('overall') }}</span>
+    <span class="overall">{{ waiting ? t(waiting) : t('overall') }}</span>
     <span v-if="blocking > 0" class="blocking">{{
       singular(blocking) ? t('one', { count: blocking }) : t('many', { count: blocking })
     }}</span>

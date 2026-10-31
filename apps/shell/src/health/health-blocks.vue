@@ -3,7 +3,8 @@ import { Tooltip } from '@crypte/ui'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { locale, texts } from '../i18n'
 import { plural, singular } from '../plural'
-import { tokenRow, type Dashboard, type Focus, type Group, type TokenHealth } from './dashboard'
+import { tokenRow, type Dashboard, type Focus, type Group } from './dashboard'
+import HealthFamily from './health-family.vue'
 import { arrowTarget } from './roving'
 
 // Les deux blocs du dashboard, composants et tokens : un titre, une barre de
@@ -43,11 +44,6 @@ const t = texts({
     story: 'story',
     stories: 'stories',
     noStatus: 'no status',
-    readBy: 'read by {count}',
-    stateUsed: 'used',
-    stateOrphan: 'orphan',
-    stateBroken: 'broken alias',
-    suspect: 'suspect of a contrast violation',
   },
   fr: {
     components: 'composants',
@@ -69,11 +65,6 @@ const t = texts({
     story: 'story',
     stories: 'stories',
     noStatus: 'sans statut',
-    readBy: 'lu par {count}',
-    stateUsed: 'utilisé',
-    stateOrphan: 'orphelin',
-    stateBroken: 'alias cassé',
-    suspect: "suspect d'une violation de contraste",
   },
 })
 
@@ -110,17 +101,6 @@ const componentDetail = (row: Dashboard['rows'][number]) =>
     row.component.status ?? t('noStatus'),
     GROUP[row.group](),
   ].join(' · ')
-
-const tokenState = (one: TokenHealth) =>
-  one.state === 'broken'
-    ? t('stateBroken')
-    : one.suspect
-      ? t('suspect')
-      : one.state === 'orphan'
-        ? t('stateOrphan')
-        : t('stateUsed')
-
-const dimmed = (set: ReadonlySet<string> | null, key: string) => set !== null && !set.has(key)
 
 // Toutes les familles ont le même nombre de lignes, le plus petit qui tienne
 // dans la largeur du bloc : une famille fait `ceil(n / R) × 14 − 2` px.
@@ -239,8 +219,13 @@ function keys(event: KeyboardEvent, grid: 'case' | 'cell') {
       </div>
       <!-- Roving tabindex : une seule case dans l'ordre de tabulation, les flèches
            pour les autres. -->
+      <!-- Le focus estompe par le conteneur, et les cases éclairées portent
+           `data-lit` : un survol ne change que celles-là, et `v-memo` garde les
+           autres. À 200 composants, un attribut par case recréait les 1 400
+           infobulles des deux grilles à chaque survol. -->
       <div
         class="components"
+        :data-focused="focus.components !== null || undefined"
         role="group"
         :aria-label="t('components')"
         @keydown="(event) => keys(event, 'case')"
@@ -248,6 +233,14 @@ function keys(event: KeyboardEvent, grid: 'case' | 'cell') {
         <Tooltip
           v-for="row of dashboard.rows"
           :key="row.key"
+          v-memo="[
+            row,
+            selected === row.key,
+            focus.components?.has(row.key) ?? false,
+            caseEntry === row.key,
+            abbreviations.get(row.key),
+            locale,
+          ]"
           :content="row.component.name"
           :detail="componentDetail(row)"
         >
@@ -256,7 +249,7 @@ function keys(event: KeyboardEvent, grid: 'case' | 'cell') {
             class="case"
             :data-group="row.group"
             :data-selected="selected === row.key || undefined"
-            :data-dimmed="dimmed(focus.components, row.key) || undefined"
+            :data-lit="focus.components?.has(row.key) || undefined"
             :data-key="row.key"
             :tabindex="caseEntry === row.key ? 0 : -1"
             :aria-label="componentLabel(row)"
@@ -335,42 +328,16 @@ function keys(event: KeyboardEvent, grid: 'case' | 'cell') {
         :style="{ '--rows': rowsOf, ...sizes }"
         @keydown="(event) => keys(event, 'cell')"
       >
-        <div v-for="family of coverage.families" :key="family.id" class="family">
-          <span class="family-name">{{ family.name }}</span>
-          <span
-            class="family-count"
-            :data-problem="family.tokens.some((one) => one.state === 'broken') || undefined"
-            >{{ family.tokens.filter((one) => one.state === 'used').length }}/{{
-              family.tokens.length
-            }}</span
-          >
-          <div class="cells">
-            <Tooltip
-              v-for="one of family.tokens"
-              :key="one.key"
-              :content="`--${one.name}`"
-              :detail="t('readBy', { count: one.readers.length })"
-            >
-              <button
-                type="button"
-                class="cell"
-                :data-state="one.state"
-                :data-suspect="(one.state === 'used' && one.suspect) || undefined"
-                :data-selected="selected === tokenRow(one.name) || undefined"
-                :data-dimmed="dimmed(focus.tokens, one.name) || undefined"
-                :data-key="one.key"
-                :tabindex="cellEntry === one.key ? 0 : -1"
-                :aria-label="`--${one.name}, ${tokenState(one)}`"
-                :aria-pressed="selected === tokenRow(one.name)"
-                @mouseenter="emit('hover', tokenRow(one.name))"
-                @mouseleave="emit('hover', null)"
-                @focus="emit('hover', tokenRow(one.name))"
-                @blur="emit('hover', null)"
-                @click="emit('select', tokenRow(one.name), $event)"
-              />
-            </Tooltip>
-          </div>
-        </div>
+        <HealthFamily
+          v-for="family of coverage.families"
+          :key="family.id"
+          :family="family"
+          :lit="focus.tokens"
+          :selected="selected"
+          :entry="cellEntry"
+          @hover="(item) => emit('hover', item)"
+          @select="(item, event) => emit('select', item, event)"
+        />
       </div>
     </section>
   </div>
@@ -550,7 +517,7 @@ function keys(event: KeyboardEvent, grid: 'case' | 'cell') {
   box-shadow: inset 0 0 0 2px var(--accent-base);
 }
 
-.case[data-dimmed] {
+.components[data-focused] .case:not([data-lit]) {
   opacity: 0.3;
 }
 
@@ -578,82 +545,9 @@ function keys(event: KeyboardEvent, grid: 'case' | 'cell') {
   align-items: flex-start;
 }
 
-.family {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-0-5);
-}
-
-.family-name,
-.family-count {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-.family-name {
-  color: var(--text-muted);
-}
-
-.family-count {
-  color: var(--text-muted);
-}
-
-.family-count[data-problem] {
-  color: var(--error-text);
-}
-
-.cells {
-  display: grid;
-  grid-auto-columns: var(--cell);
-  grid-auto-flow: column;
-  grid-template-rows: repeat(var(--rows), var(--cell));
-  gap: var(--cell-gap);
-  margin-top: var(--space-1);
-}
-
-/* Les critères sont pleins ; l'orphelin est vide, en pointillé. */
-.cell {
-  box-sizing: border-box;
-  width: var(--cell);
-  height: var(--cell);
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-xs);
-  cursor: pointer;
-}
-
-.cell[data-state='used'] {
-  background: var(--success-solid);
-}
-
-.cell[data-suspect] {
-  background: var(--warning-solid);
-}
-
-.cell[data-state='broken'] {
-  background: var(--error-solid);
-}
-
-.cell[data-state='orphan'] {
-  border: var(--stroke-hairline) dashed var(--border-strong);
-  background: none;
-}
-
-.cell[data-selected] {
-  outline: 2px solid var(--text-primary);
-  outline-offset: 1px;
-}
-
-.cell[data-dimmed] {
-  opacity: 0.25;
-}
-
 /* Après la sélection, de même spécificité : le focus clavier reste visible sur
    une case choisie. */
-.case:focus-visible,
-.cell:focus-visible {
+.case:focus-visible {
   outline: var(--stroke-focus) solid var(--accent-focus);
   outline-offset: var(--stroke-focus);
 }

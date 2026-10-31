@@ -29,7 +29,11 @@ globalThis.apca = () => {
   let read = 0
   for (const node of document.body.querySelectorAll('*')) {
     const own = [...node.childNodes].some((one) => one.nodeType === 3 && one.textContent.trim())
-    if (!own || node.closest('iframe, .health-blocks [data-dimmed], [disabled]')) continue
+    if (
+      !own ||
+      node.closest('iframe, .health-blocks [data-focused] .case:not([data-lit]), [disabled]')
+    )
+      continue
     if (!axe.commons.dom.isVisibleOnScreen(node)) continue
     const back = axe.commons.color.getBackgroundColor(node)
     const text = back && axe.commons.color.getForegroundColor(node, false, back)

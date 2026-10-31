@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Checkbox } from '@crypte/ui'
 import { computed } from 'vue'
-import { texts } from '../i18n'
+import { locale, texts } from '../i18n'
 import { singular } from '../plural'
 import {
   CRITERIA,
@@ -218,7 +218,11 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
       <span class="cells">
         <span v-for="one of CRITERIA" :key="one" class="column"
           ><span class="column-name">{{ LABEL[one]() }}</span>
-          <span class="column-count">{{ columns[one].valid }}/{{ columns[one].total }}</span></span
+          <!-- `~` pour une colonne que rien n'a encore jugée, le rendu et l'a11y
+               avant l'audit : `0/0` se lirait comme un résultat. -->
+          <span class="column-count">{{
+            columns[one].total === 0 ? '~' : `${columns[one].valid}/${columns[one].total}`
+          }}</span></span
         >
       </span>
       <span class="phrase quiet">{{ t('cause') }}</span>
@@ -242,9 +246,19 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
         </div>
 
         <template v-if="group !== 'ready'">
+          <!-- `v-memo` : un survol ne recrée que les lignes qu'il éclaire ou éteint,
+               pas les 200 d'un grand projet. -->
           <div
             v-for="row of rows"
             :key="row.key"
+            v-memo="[
+              row,
+              checked.has(row.key),
+              lit(row.key),
+              selected === row.key,
+              abbreviations.get(row.key),
+              locale,
+            ]"
             class="row"
             :data-hovered="lit(row.key) || undefined"
             :data-selected="selected === row.key || undefined"
@@ -438,9 +452,12 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
 
 <style scoped>
 /* La largeur de la phrase suit celle de la liste : 360 px, 150 px quand le
-   panneau ou une fenêtre étroite la réduit. */
+   panneau ou une fenêtre étroite la réduit. Plus étroite encore, la phrase et
+   le nom cèdent 30 px chacun : sinon les comptes des colonnes, `render 2/2`,
+   sont coupés, panneau ouvert à 1280. */
 .health-list {
   --phrase: 360px;
+  --name: 152px;
   container-type: inline-size;
   display: flex;
   flex-direction: column;
@@ -450,6 +467,14 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
   .header,
   .row {
     --phrase: 150px;
+  }
+}
+
+@container (max-width: 900px) {
+  .header,
+  .row {
+    --phrase: 120px;
+    --name: 122px;
   }
 }
 
@@ -521,7 +546,7 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
 
 .name {
   display: flex;
-  width: 152px;
+  width: var(--name);
   min-width: 0;
   flex: none;
   gap: var(--space-1-5);

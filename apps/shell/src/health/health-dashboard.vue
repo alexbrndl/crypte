@@ -16,7 +16,7 @@ const props = defineProps<{
   checked: ReadonlySet<string>
   selected: string | null
   // L'audit n'a pas tourné.
-  partial: boolean
+  waiting: 'audit' | 'a11y' | null
 }>()
 const emit = defineEmits<{
   select: [item: string, event: MouseEvent]
@@ -79,7 +79,7 @@ const notes = computed((): { components?: string; tokens?: string } => {
 
 <template>
   <ViewCanvas class="health-dashboard" :aria-label="t('region')">
-    <HealthScore :score="dashboard.score" :blocking="dashboard.blocking" :partial="partial" />
+    <HealthScore :score="dashboard.score" :blocking="dashboard.blocking" :waiting="waiting" />
     <HealthBlocks
       :dashboard="dashboard"
       :abbreviations="abbreviations"

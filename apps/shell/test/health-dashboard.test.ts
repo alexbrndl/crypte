@@ -84,7 +84,7 @@ const dashboard = dashboardOf(composants, familles, {
 
 const monte = (checked: string[] = [], selected: string | null = null) =>
   mount(HealthDashboard, {
-    props: { dashboard, checked: new Set(checked), selected, partial: false },
+    props: { dashboard, checked: new Set(checked), selected, waiting: null },
   })
 
 describe('the checkboxes of the list', () => {
@@ -123,9 +123,12 @@ describe('the checkboxes of the list', () => {
   })
 })
 
+// Estompée : dans un conteneur en focus, sans être éclairée.
+const VOILÉE = '[data-focused] :not([data-lit])'
+
 describe('the focus', () => {
   const voilés = (wrapper: ReturnType<typeof monte>, selector: string) =>
-    wrapper.findAll(selector).map((one) => one.attributes('data-dimmed') !== undefined)
+    wrapper.findAll(selector).map((one) => one.element.matches(VOILÉE))
 
   test('keeps a hovered component and the tokens it reads, and says so in the title', async () => {
     const wrapper = monte()
@@ -324,7 +327,7 @@ describe('the token rows', () => {
         dashboard: cassé,
         checked: new Set(['token:chart-3']),
         selected: null,
-        partial: true,
+        waiting: 'audit' as const,
       },
     })
     const ligne = wrapper
@@ -336,9 +339,49 @@ describe('the token rows', () => {
     expect((ligne.find('input').element as HTMLInputElement).checked).toBe(true)
   })
 
+  // Avant l'audit, le rendu et l'a11y n'ont rien jugé : `~` plutôt que `0/0`, et
+  // le score dit ce qui manque, l'audit ou le seul plugin a11y.
+  test('say what is still waiting, in the score and the column counts', async () => {
+    const wrapper = mount(HealthDashboard, {
+      props: {
+        dashboard: cassé,
+        checked: new Set<string>(),
+        selected: null,
+        waiting: 'audit' as const,
+      },
+    })
+    expect(wrapper.findAll('.health-list .header .column').map((one) => one.text()))
+      .toMatchInlineSnapshot(`
+      [
+        "story1/1",
+        "render~",
+        "a11y~",
+        "doc0/1",
+        "status1/1",
+        "props1/1",
+        "usages1/1",
+      ]
+    `)
+    expect(wrapper.find('.health-score .overall').text()).toBe(
+      'partial health, render and a11y waiting for the audit plugin',
+    )
+    await wrapper.setProps({ waiting: 'a11y' })
+    expect(wrapper.find('.health-score .overall').text()).toBe(
+      'partial health, a11y waiting for the a11y plugin',
+    )
+    await wrapper.setProps({ waiting: null })
+    expect(wrapper.find('.health-score .overall').text()).toBe('overall health')
+    expect(wrapper.find('.health-score .figure').attributes('data-partial')).toBeUndefined()
+  })
+
   test('check the orphans row as one', async () => {
     const wrapper = mount(HealthDashboard, {
-      props: { dashboard: cassé, checked: new Set<string>(), selected: null, partial: true },
+      props: {
+        dashboard: cassé,
+        checked: new Set<string>(),
+        selected: null,
+        waiting: 'audit' as const,
+      },
     })
     const orphelins = wrapper
       .findAll('.health-list .row')
@@ -350,7 +393,12 @@ describe('the token rows', () => {
   // Le nom est un bouton : la ligne se choisit au clavier, une seule fois.
   test('select a row from the button of its name', async () => {
     const wrapper = mount(HealthDashboard, {
-      props: { dashboard: cassé, checked: new Set<string>(), selected: null, partial: true },
+      props: {
+        dashboard: cassé,
+        checked: new Set<string>(),
+        selected: null,
+        waiting: 'audit' as const,
+      },
     })
     const nom = wrapper
       .findAll('.health-list button.label')
@@ -395,25 +443,25 @@ describe('the gestures on the dashboard', () => {
     const wrapper = monte()
     const premier = wrapper.find('.case')
     await premier.trigger('focus')
-    expect(wrapper.findAll('.case')[1]!.attributes('data-dimmed')).toBeDefined()
+    expect(wrapper.findAll('.case')[1]!.element.matches(VOILÉE)).toBe(true)
     await premier.trigger('blur')
-    expect(wrapper.findAll('.case[data-dimmed]')).toHaveLength(0)
+    expect(wrapper.findAll('[data-focused] .case:not([data-lit])')).toHaveLength(0)
     await premier.trigger('click')
     const jeton = wrapper.findAll('.families .cell')[0]!
     await jeton.trigger('focus')
-    expect(wrapper.findAll('.families .cell')[1]!.attributes('data-dimmed')).toBeDefined()
+    expect(wrapper.findAll('.families .cell')[1]!.element.matches(VOILÉE)).toBe(true)
     await jeton.trigger('blur')
-    expect(wrapper.findAll('.families .cell[data-dimmed]')).toHaveLength(0)
+    expect(wrapper.findAll('.families [data-focused] .cell:not([data-lit])')).toHaveLength(0)
     await jeton.trigger('mouseenter')
-    expect(wrapper.findAll('.families .cell[data-dimmed]')).toHaveLength(2)
+    expect(wrapper.findAll('.families [data-focused] .cell:not([data-lit])')).toHaveLength(2)
     await jeton.trigger('mouseleave')
-    expect(wrapper.findAll('.families .cell[data-dimmed]')).toHaveLength(0)
+    expect(wrapper.findAll('.families [data-focused] .cell:not([data-lit])')).toHaveLength(0)
     await jeton.trigger('click')
     expect(wrapper.emitted('select')!.map(([item]) => item)).toEqual([
       'src/Alpha.tsx:Alpha',
       'token:space-1',
     ])
-    expect(wrapper.findAll('.case[data-dimmed]')).toHaveLength(0)
+    expect(wrapper.findAll('[data-focused] .case:not([data-lit])')).toHaveLength(0)
   })
 
   // Survoler une ligne met en focus comme survoler sa case ; les noms sont des
@@ -422,9 +470,9 @@ describe('the gestures on the dashboard', () => {
     const wrapper = monte()
     const ligne = wrapper.find('.health-list .row')
     await ligne.trigger('mouseenter')
-    expect(wrapper.findAll('.case')[1]!.attributes('data-dimmed')).toBeDefined()
+    expect(wrapper.findAll('.case')[1]!.element.matches(VOILÉE)).toBe(true)
     await ligne.trigger('mouseleave')
-    expect(wrapper.findAll('.case[data-dimmed]')).toHaveLength(0)
+    expect(wrapper.findAll('[data-focused] .case:not([data-lit])')).toHaveLength(0)
 
     const noms = wrapper.findAll('.health-list button.label')
     for (const nom of ['Alpha', '1 ready', '1 orphan'])
@@ -475,7 +523,7 @@ describe('the gestures on the dashboard', () => {
         dashboard: lecteur,
         checked: new Set<string>(),
         selected: 'token:space-3',
-        partial: false,
+        waiting: null,
       },
     })
     const prêts = wrapper
