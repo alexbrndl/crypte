@@ -3731,7 +3731,7 @@ describe('the health view', () => {
         "[ ] 1 orphan · --space-7",
       ]
     `)
-    expect(écran.statut()).toBe('3 components, 2 with a story')
+    expect(écran.statut()).toBe('3 components, audit not run yet')
     écran.wrapper.unmount()
 
     window.history.replaceState(null, '', '/?health=failures')
@@ -3917,6 +3917,14 @@ describe('the health view', () => {
     expect(écran.statut()).toBe(
       "l'audit n'a pas pu tourner : l'aperçu n'a jamais dit qu'il était prêt",
     )
+
+    // Relancé sans recharger, depuis la barre d'outils : l'échec s'efface.
+    setLocale('en')
+    await écran.wrapper.find('.toolbar .rerun').trigger('click')
+    await vide(écran.wrapper)
+    expect(écran.wrapper.find('.audit-frame').exists()).toBe(true)
+    expect(écran.wrapper.find('.toolbar .rerun').exists()).toBe(false)
+    expect(écran.statut()).toMatch(/^auditing the stories/)
     écran.wrapper.unmount()
   })
 
@@ -3970,6 +3978,17 @@ describe('the health view', () => {
     expect(écran.wrapper.find('.health-unread .empty-note').text()).toBe('could not be read')
     expect(écran.wrapper.find('.empty').exists()).toBe(false)
     expect(écran.statut()).toBe('the health of the components could not be read')
+    écran.wrapper.unmount()
+  })
+
+  // Sans story, l'audit ne part jamais : la ligne le dit plutôt que de l'attendre.
+  test('says there is no story to audit, rather than an audit to come', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health')
+    const écran = await monte([jetons])
+
+    expect(écran.wrapper.find('.health-dashboard').exists()).toBe(true)
+    expect(écran.statut()).toBe('3 components, no story to audit')
     écran.wrapper.unmount()
   })
 

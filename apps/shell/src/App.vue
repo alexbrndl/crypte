@@ -111,7 +111,8 @@ const t = texts({
     auditFailed: 'the audit could not run: {reason}',
     component: 'component',
     components: 'components',
-    covered: '{components}, {covered} with a story',
+    notAudited: '{components}, audit not run yet',
+    nothingToAudit: '{components}, no story to audit',
     noTokens: 'no tokens found',
     token: 'token',
     tokens: 'tokens',
@@ -156,6 +157,7 @@ const t = texts({
     promptCopiedOne: 'prompt copied, {count} fix',
     promptCopiedMany: 'prompt copied, {count} fixes',
     copyPrompt: 'copy fix prompt',
+    runAgain: 'run the audit again',
     nothingToFix: 'Nothing to fix',
     configUnread: 'could not be read',
     configKept:
@@ -237,7 +239,8 @@ const t = texts({
     auditFailed: "l'audit n'a pas pu tourner : {reason}",
     component: 'composant',
     components: 'composants',
-    covered: '{components}, {covered} avec une story',
+    notAudited: '{components}, audit pas encore lancé',
+    nothingToAudit: '{components}, aucune story à auditer',
     noTokens: 'aucun token trouvé',
     token: 'token',
     tokens: 'tokens',
@@ -282,6 +285,7 @@ const t = texts({
     promptCopiedOne: 'prompt copié, {count} correction',
     promptCopiedMany: 'prompt copié, {count} corrections',
     copyPrompt: 'copier le prompt de correction',
+    runAgain: "relancer l'audit",
     nothingToFix: 'Rien à corriger',
     configUnread: "n'a pas pu être lu",
     configKept:
@@ -659,10 +663,9 @@ const line = computed(() => {
         count: auditResults.value.length / 2,
         seconds: decimal(auditTook.value / 1000),
       })
-    const covered = listed.filter((one) => one.stories.length > 0).length
-    return t('covered', {
+    // L'audit ne part qu'avec au moins une story : sans, il n'arrivera jamais.
+    return t(entries.value.length > 0 ? 'notAudited' : 'nothingToAudit', {
       components: plural(listed.length, t('component'), t('components')),
-      covered,
     })
   }
   if (noTokens.value) return t('noTokens')
@@ -1912,6 +1915,11 @@ onMounted(() => {
           <span aria-current="page">{{ t('trailHealth') }}</span>
         </nav>
         <div class="actions">
+          <!-- L'audit ne part seul qu'une fois : après un échec, que la ligne de
+               statut explique, seul ce bouton le relance sans recharger. -->
+          <Button v-if="auditFailed && !auditing" variant="ghost" class="rerun" @click="runAudit">
+            {{ t('runAgain') }}
+          </Button>
           <Tooltip v-if="inPrompt > 0 && healthPrompt" :content="t('promptTip')">
             <Button variant="outline" class="prompt" @click="copyPrompt">
               <Icon
@@ -2059,7 +2067,7 @@ onMounted(() => {
             :dashboard="dashboard"
             :checked="checked"
             :selected="healthAt.item ?? null"
-            :partial="auditResults === null"
+            :waiting="auditResults === null ? 'audit' : a11yPlugin ? null : 'a11y'"
             @select="(item, event) => follow(event, () => openHealth(item))"
             @check="check"
           />
