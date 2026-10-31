@@ -119,6 +119,43 @@ const groups = computed(() =>
     rows: props.dashboard.rows.filter((one) => one.group === group),
   })),
 )
+// Les groupes et leurs lignes à plat, dans un seul `v-for` : imbriqué dans
+// celui des groupes, le cache de `v-memo` serait partagé entre eux et ne
+// servirait jamais. Un survol ne recrée alors que les lignes qu'il éclaire ou
+// éteint, pas les 200 d'un grand projet.
+type Line =
+  | { kind: 'group'; key: string; group: Group; rows: ComponentRow[] }
+  | { kind: 'row'; key: string; group: Group; row: ComponentRow }
+  | { kind: 'ready'; key: string; rows: ComponentRow[] }
+const lines = computed(() =>
+  groups.value
+    .filter(({ rows }) => rows.length > 0)
+    .flatMap(({ group, rows }): Line[] => [
+      { kind: 'group', key: `group:${group}`, group, rows },
+      ...(group === 'ready'
+        ? [{ kind: 'ready' as const, key: READY, rows }]
+        : rows.map((row) => ({ kind: 'row' as const, key: row.key, group, row }))),
+    ]),
+)
+const memoOf = (line: Line) =>
+  line.kind === 'row'
+    ? [
+        line.row,
+        props.checked.has(line.key),
+        lit(line.key),
+        props.selected === line.key,
+        props.abbreviations.get(line.key),
+        locale.value,
+      ]
+    : [
+        line,
+        props.checked,
+        props.hovered === READY,
+        props.selected === READY,
+        readyPhrase.value,
+        locale.value,
+      ]
+
 const nameOf = (key: string) =>
   props.dashboard.rows.find((one) => one.key === key)?.component.name ?? key
 
@@ -229,102 +266,87 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
       <span class="changed quiet">{{ t('changed') }}</span>
     </div>
 
-    <template v-for="{ group, rows } of groups" :key="group">
-      <template v-if="rows.length > 0">
-        <div class="group" :data-group="group">
-          <span class="check">
-            <Checkbox
-              v-if="group !== 'ready'"
-              v-bind="stateOf(rows.map((one) => one.key))"
-              :aria-label="GROUP[group]()"
-              @change="toggle(rows.map((one) => one.key))"
-            />
-          </span>
-          <span class="group-name"
-            >{{ GROUP[group]() }} <span class="count">{{ rows.length }}</span></span
-          >
-        </div>
-
-        <template v-if="group !== 'ready'">
-          <!-- `v-memo` : un survol ne recrée que les lignes qu'il éclaire ou éteint,
-               pas les 200 d'un grand projet. -->
-          <div
-            v-for="row of rows"
-            :key="row.key"
-            v-memo="[
-              row,
-              checked.has(row.key),
-              lit(row.key),
-              selected === row.key,
-              abbreviations.get(row.key),
-              locale,
-            ]"
-            class="row"
-            :data-hovered="lit(row.key) || undefined"
-            :data-selected="selected === row.key || undefined"
-            :data-blocking="group === 'blocking' || undefined"
-            v-on="rowEvents(row.key)"
-          >
-            <span class="check" @click.stop>
-              <Checkbox
-                :checked="checked.has(row.key)"
-                :aria-label="t('check', { name: row.component.name })"
-                @change="emit('check', [row.key], !checked.has(row.key))"
-              />
-            </span>
-            <span class="name">
-              <span class="abbreviation" :data-shown="lit(row.key) || undefined">{{
-                abbreviations.get(row.key)
-              }}</span>
-              <button type="button" class="label" @click.stop="emit('select', row.key, $event)">
-                {{ row.component.name }}
-              </button>
-            </span>
-            <span class="cells">
-              <span
-                v-for="cell of cellsOf(row)"
-                :key="cell.key"
-                class="cell"
-                :data-state="cell.state"
-                >{{ cell.state === 'empty' ? '' : (cell.text ?? '') }}</span
-              >
-            </span>
-            <span class="phrase">{{ row.phrase }}</span>
-            <span class="changed">{{
-              row.component.changed ? sinceOf(row.component.changed) : ''
-            }}</span>
-          </div>
-        </template>
-
-        <!-- Les prêts tiennent une ligne, sans chevron : choisie, le panneau les liste. -->
-        <div
-          v-else
-          class="row"
-          :data-hovered="hovered === READY || undefined"
-          :data-selected="selected === READY || undefined"
-          v-on="rowEvents(READY)"
+    <template v-for="line of lines" :key="line.key" v-memo="memoOf(line)">
+      <div v-if="line.kind === 'group'" class="group" :data-group="line.group">
+        <span class="check">
+          <Checkbox
+            v-if="line.group !== 'ready'"
+            v-bind="stateOf(line.rows.map((one) => one.key))"
+            :aria-label="GROUP[line.group]()"
+            @change="toggle(line.rows.map((one) => one.key))"
+          />
+        </span>
+        <span class="group-name"
+          >{{ GROUP[line.group]() }} <span class="count">{{ line.rows.length }}</span></span
         >
-          <span class="check" />
-          <span class="name"
-            ><span class="abbreviation" /><button
-              type="button"
-              class="label"
-              @click.stop="emit('select', READY, $event)"
-            >
-              {{
-                singular(rows.length)
-                  ? t('readyOne', { count: rows.length })
-                  : t('readyMany', { count: rows.length })
-              }}
-            </button></span
+      </div>
+
+      <div
+        v-else-if="line.kind === 'row'"
+        class="row"
+        :data-hovered="lit(line.key) || undefined"
+        :data-selected="selected === line.key || undefined"
+        :data-blocking="line.group === 'blocking' || undefined"
+        v-on="rowEvents(line.key)"
+      >
+        <span class="check" @click.stop>
+          <Checkbox
+            :checked="checked.has(line.key)"
+            :aria-label="t('check', { name: line.row.component.name })"
+            @change="emit('check', [line.key], !checked.has(line.key))"
+          />
+        </span>
+        <span class="name">
+          <span class="abbreviation" :data-shown="lit(line.key) || undefined">{{
+            abbreviations.get(line.key)
+          }}</span>
+          <button type="button" class="label" @click.stop="emit('select', line.key, $event)">
+            {{ line.row.component.name }}
+          </button>
+        </span>
+        <span class="cells">
+          <span
+            v-for="cell of cellsOf(line.row)"
+            :key="cell.key"
+            class="cell"
+            :data-state="cell.state"
+            >{{ cell.state === 'empty' ? '' : (cell.text ?? '') }}</span
           >
-          <span class="cells">
-            <span v-for="one of CRITERIA" :key="one" class="cell" data-state="valid" />
-          </span>
-          <span class="phrase">{{ readyPhrase }}</span>
-          <span class="changed" />
-        </div>
-      </template>
+        </span>
+        <span class="phrase">{{ line.row.phrase }}</span>
+        <span class="changed">{{
+          line.row.component.changed ? sinceOf(line.row.component.changed) : ''
+        }}</span>
+      </div>
+
+      <!-- Les prêts tiennent une ligne, sans chevron : choisie, le panneau les liste. -->
+      <div
+        v-else
+        class="row"
+        :data-hovered="hovered === READY || undefined"
+        :data-selected="selected === READY || undefined"
+        v-on="rowEvents(READY)"
+      >
+        <span class="check" />
+        <span class="name"
+          ><span class="abbreviation" /><button
+            type="button"
+            class="label"
+            @click.stop="emit('select', READY, $event)"
+          >
+            {{
+              singular(line.rows.length)
+                ? t('readyOne', { count: line.rows.length })
+                : t('readyMany', { count: line.rows.length })
+            }}
+          </button></span
+        >
+        <span class="cells">
+          <span v-for="one of CRITERIA" :key="one" class="cell" data-state="valid" />
+        </span>
+        <span class="phrase">{{ readyPhrase }}</span>
+        <span class="changed" />
+      </div>
     </template>
 
     <template v-if="tokenKeys.length > 0">

@@ -112,6 +112,7 @@ const t = texts({
     component: 'component',
     components: 'components',
     notAudited: '{components}, audit not run yet',
+    nothingToAudit: '{components}, no story to audit',
     noTokens: 'no tokens found',
     token: 'token',
     tokens: 'tokens',
@@ -239,6 +240,7 @@ const t = texts({
     component: 'composant',
     components: 'composants',
     notAudited: '{components}, audit pas encore lancé',
+    nothingToAudit: '{components}, aucune story à auditer',
     noTokens: 'aucun token trouvé',
     token: 'token',
     tokens: 'tokens',
@@ -661,7 +663,8 @@ const line = computed(() => {
         count: auditResults.value.length / 2,
         seconds: decimal(auditTook.value / 1000),
       })
-    return t('notAudited', {
+    // L'audit ne part qu'avec au moins une story : sans, il n'arrivera jamais.
+    return t(entries.value.length > 0 ? 'notAudited' : 'nothingToAudit', {
       components: plural(listed.length, t('component'), t('components')),
     })
   }

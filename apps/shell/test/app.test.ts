@@ -3981,6 +3981,17 @@ describe('the health view', () => {
     écran.wrapper.unmount()
   })
 
+  // Sans story, l'audit ne part jamais : la ligne le dit plutôt que de l'attendre.
+  test('says there is no story to audit, rather than an audit to come', async () => {
+    santé = () => ({ components: composants })
+    window.history.replaceState(null, '', '/?health')
+    const écran = await monte([jetons])
+
+    expect(écran.wrapper.find('.health-dashboard').exists()).toBe(true)
+    expect(écran.statut()).toBe('3 components, no story to audit')
+    écran.wrapper.unmount()
+  })
+
   test('says how to declare a components folder when the project has none', async () => {
     window.history.replaceState(null, '', '/?health')
     const écran = await monte([badge])
