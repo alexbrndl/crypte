@@ -730,7 +730,9 @@ const cellsOf = (row: ComponentRow) => CRITERIA.map((one) => ({ key: one, ...row
   place-items: center;
   overflow: hidden;
   border-radius: var(--radius-xs);
-  /* Blanc en clair, comme la maquette, foncé en sombre : Lc 65 et 72 en APCA. */
+  /* Blanc en clair, comme la maquette, foncé en sombre : Lc 64 à 73 en APCA sur
+     le vert et l'orange. Seules props et usages portent un texte, et jamais sur
+     du rouge, où le foncé tombe à Lc 50 en sombre. */
   color: var(--text-inverse);
   font-family: var(--font-mono);
   font-size: var(--text-xs);

@@ -2,9 +2,9 @@
 // qu'à lire les couleurs, fond composé et opacité compris. Chaque texte visible
 // doit atteindre le seuil Bronze : Lc 60, ou Lc 45 en grand (36 px, ou 24 px
 // gras) et pour le texte secondaire, celui qui porte la couleur `--text-subtle`
-// (comptes, séparateurs, indices). WCAG 2 refusait le blanc sur le vert et l'orange pleins de la maquette,
-// à Lc 65. Une case hors du focus est estompée exprès, le temps d'un survol :
-// elle n'est pas jugée. Rend aussi le nombre de textes lus, pour qu'une page
+// (séparateurs, comptes de la sidebar, indices). WCAG 2 refusait le blanc sur le vert et l'orange pleins de la maquette,
+// à Lc 64 et 65. Les cases des blocs santé hors du focus, au survol ou tant
+// qu'un élément est choisi, sont estompées exprès : elles ne sont pas jugées. Rend aussi le nombre de textes lus, pour qu'une page
 // où rien n'est lu ne passe pas pour conforme.
 globalThis.apca = () => {
   const luminance = ({ red, green, blue }) => {
@@ -29,7 +29,7 @@ globalThis.apca = () => {
   let read = 0
   for (const node of document.body.querySelectorAll('*')) {
     const own = [...node.childNodes].some((one) => one.nodeType === 3 && one.textContent.trim())
-    if (!own || node.closest('iframe, [data-dimmed], [disabled]')) continue
+    if (!own || node.closest('iframe, .health-blocks [data-dimmed], [disabled]')) continue
     if (!axe.commons.dom.isVisibleOnScreen(node)) continue
     const back = axe.commons.color.getBackgroundColor(node)
     const text = back && axe.commons.color.getForegroundColor(node, false, back)
