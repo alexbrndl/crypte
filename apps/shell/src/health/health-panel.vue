@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { PanelSection } from '@crypte/ui'
-import { computed } from 'vue'
+import { Copy01Icon, FileAddIcon } from '@hugeicons/core-free-icons'
+import { computed, watch } from 'vue'
+import { useCopy } from '../clipboard'
+import Icon from '../ui/icon.vue'
 import { componentIdOf } from '../navigation/tree'
 import { texts } from '../i18n'
 import { plural, singular } from '../plural'
@@ -77,6 +80,13 @@ const t = texts({
     todo: 'to do, in order',
     openStory: 'See the story {name}',
     openComponent: 'Open the page of {name}',
+    toCreate: 'to create',
+    skeletonCopied: 'Skeleton copied',
+    copySkeleton: 'Copy the skeleton',
+    noRequired: 'No required prop: its Default story is enough.',
+    requiredProp: 'required prop',
+    requiredProps: 'required props',
+    required: '{props} to fill in its Default story.',
     used: 'read by components',
     orphan: 'read by no component and no alias',
     brokenAlias: 'points at {target}, which is not declared',
@@ -130,6 +140,13 @@ const t = texts({
     todo: "à faire, dans l'ordre",
     openStory: 'Voir la story {name}',
     openComponent: 'Ouvrir la page de {name}',
+    toCreate: 'à créer',
+    skeletonCopied: 'Squelette copié',
+    copySkeleton: 'Copier le squelette',
+    noRequired: 'Aucune prop requise : sa story Default suffit.',
+    requiredProp: 'prop requise',
+    requiredProps: 'props requises',
+    required: '{props} à remplir dans sa story Default.',
     used: 'lu par des composants',
     orphan: 'lu par aucun composant ni alias',
     brokenAlias: "pointe vers {target}, qui n'est pas déclaré",
@@ -203,6 +220,13 @@ const stateOf = (one: ComponentRow) =>
     : one.group === 'blocking'
       ? t('stateBlocking', { causes: one.phrase })
       : t('stateImprove', { causes: one.phrase })
+
+// « Copied » sur le bouton du squelette, oublié quand le choix change.
+const { copied, copy } = useCopy()
+watch(
+  () => props.item,
+  () => (copied.value = null),
+)
 
 // Les stories à ouvrir pour corriger.
 const todo = computed(() => (row.value ? ownStories(row.value) : []))
@@ -285,6 +309,34 @@ const firstReadyStory = computed(() =>
           @click="emit('component', componentIdOf(todo[0].path), $event)"
           >{{ t('openComponent', { name: row.component.name }) }}</a
         >
+      </template>
+      <!-- Sans story, la seule action : le fichier qui lui en donnerait une. -->
+      <template v-else-if="row.component.skeleton">
+        <p class="caption">{{ t('todo') }}</p>
+        <p class="row">
+          <Icon :icon="FileAddIcon" />
+          <code class="label">{{ row.component.skeleton.file }}</code>
+          <span class="meta">{{ t('toCreate') }}</span>
+        </p>
+        <button
+          type="button"
+          class="row link copy"
+          @click="copy(row.component.skeleton.source, 'skeleton')"
+        >
+          <Icon :icon="Copy01Icon" />
+          <span class="label">{{
+            copied === 'skeleton' ? t('skeletonCopied') : t('copySkeleton')
+          }}</span>
+        </button>
+        <p class="caption">
+          {{
+            row.component.required === 0
+              ? t('noRequired')
+              : t('required', {
+                  props: plural(row.component.required, t('requiredProp'), t('requiredProps')),
+                })
+          }}
+        </p>
       </template>
     </div>
   </PanelSection>
@@ -429,5 +481,20 @@ const firstReadyStory = computed(() =>
 
 .link {
   color: var(--text-current);
+}
+
+.copy {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+code.label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
 }
 </style>

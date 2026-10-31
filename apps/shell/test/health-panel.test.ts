@@ -1,6 +1,6 @@
 import type { StoryEntry, TokensEntry } from '@crypte/core/protocol'
 import { mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { dashboardOf, ORPHANS, READY } from '../src/health/dashboard'
 import HealthPanel from '../src/health/health-panel.vue'
 import type { HealthComponent } from '../src/health/health'
@@ -11,6 +11,9 @@ import { locale } from '../src/i18n'
 
 beforeEach(() => {
   locale.value = 'en'
+})
+afterEach(() => {
+  vi.unstubAllGlobals()
 })
 
 const composant = (name: string, over: Partial<HealthComponent> = {}): HealthComponent => ({
@@ -52,11 +55,18 @@ const familles: TokensEntry[] = [
 ]
 
 // Alpha ne rend pas, Beta n'a pas de page, Delta est prêt ; les deux premiers
-// lisent space-1, et space-2 n'est lu par personne. Gamma n'a pas de story.
+// lisent space-1, et space-2 n'est lu par personne. Gamma, Theta et Eta n'ont
+// pas de story ; les deux premiers ont un squelette.
 const composants = [
   composant('Alpha', { tokens: ['space-1'], status: 'deprecated', statusSince: '2026-10-14' }),
   composant('Beta', { tokens: ['space-1'] }),
-  composant('Gamma', { stories: [] }),
+  composant('Gamma', {
+    stories: [],
+    required: 2,
+    skeleton: { file: 'stories/Gamma.tsx', source: 'le squelette' },
+  }),
+  composant('Theta', { stories: [], skeleton: { file: 'stories/Theta.tsx', source: '' } }),
+  composant('Eta', { stories: [] }),
   composant('Delta', { changed: new Date(Date.now() - 2 * 86_400_000).toISOString() }),
 ]
 const histoires = ['Alpha', 'Beta', 'Delta'].map(story)
@@ -143,10 +153,30 @@ describe('the health panel', () => {
     expect(wrapper.emitted('token')![0]![0]).toBe('space-1')
   })
 
-  // Rien à ouvrir sans story : pas d'en-tête au-dessus d'une liste vide.
-  test('lists nothing to do for a component without a story', () => {
-    expect(lignes(monte('src/Gamma.tsx:Gamma'))).not.toContain('to do, in order')
-    expect(lignes(monte('src/Alpha.tsx:Alpha'))).toContain('to do, in order')
+  // Sans story, la seule action est le fichier qui lui en donnerait une ; sans
+  // squelette non plus, pas d'en-tête au-dessus d'une liste vide.
+  test('gives the skeleton of a component without a story, and copies it', async () => {
+    const écrit = vi.fn(async (_texte: string) => {})
+    vi.stubGlobal('navigator', { clipboard: { writeText: écrit } })
+    const wrapper = monte('src/Gamma.tsx:Gamma')
+    expect(lignes(wrapper).slice(-4)).toMatchInlineSnapshot(`
+      [
+        "to do, in order",
+        "stories/Gamma.tsxto create",
+        "Copy the skeleton",
+        "2 required props to fill in its Default story.",
+      ]
+    `)
+
+    await wrapper.find('button.copy').trigger('click')
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(écrit).toHaveBeenCalledWith('le squelette')
+    expect(wrapper.find('button.copy').text()).toBe('Skeleton copied')
+    await wrapper.setProps({ item: 'src/Theta.tsx:Theta' })
+    expect(wrapper.find('button.copy').text()).toBe('Copy the skeleton')
+    expect(lignes(wrapper).at(-1)).toBe('No required prop: its Default story is enough.')
+
+    expect(lignes(monte('src/Eta.tsx:Eta'))).not.toContain('to do, in order')
   })
 
   test('lists the orphans by family', () => {
