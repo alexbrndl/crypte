@@ -185,24 +185,31 @@ describe('the components the health view counts', () => {
   })
 
   // Une story qui importe par un index décrit l'export de l'index, qui ne fait
-  // que le transmettre : le composant reste une seule ligne, celle de son fichier,
-  // avec ses importeurs.
-  test('leaves out an export an index only forwards, the component counting once', () => {
+  // que le transmettre, nommé ou par `export *` : le composant reste une seule
+  // ligne, celle de son fichier, avec ses importeurs et sa story. Form, sans
+  // story, garde son squelette.
+  test('gives a story imported through an index to the file declaring the component', () => {
     const project = projet(
       {
         'src/components/Button.tsx': 'export function Button() { return <button /> }\n',
-        'src/components/index.ts': "export { Button } from './Button'\n",
+        'src/components/Card.tsx': 'export function Card() { return <div /> }\n',
+        'src/components/index.ts': "export { Button } from './Button'\nexport * from './Card'\n",
         'src/components/Form.tsx':
           "import { Button } from '.'\nexport function Form() { return <form><Button /></form> }\n",
         'stories/Button.tsx':
           "import { defineStories } from '@crypte/react'\nimport { Button } from '../src/components'\n\nexport default defineStories(Button, { stories: { A: {} } })\n",
+        'stories/Card.tsx':
+          "import { defineStories } from '@crypte/react'\nimport { Card } from '../src/components'\n\nexport default defineStories(Card, { stories: { A: {} } })\n",
       },
       'src/components',
     )
 
-    expect(santé(project)?.map((one) => [one.file, one.usedBy ?? null])).toEqual([
-      ['src/components/Button.tsx', ['src/components/Form.tsx:Form']],
-      ['src/components/Form.tsx', null],
+    expect(
+      santé(project)?.map((one) => [one.file, one.stories, one.usedBy ?? null, 'skeleton' in one]),
+    ).toEqual([
+      ['src/components/Button.tsx', ['button--a'], ['src/components/Form.tsx:Form'], false],
+      ['src/components/Card.tsx', ['card--a'], null, false],
+      ['src/components/Form.tsx', [], null, true],
     ])
   })
 
