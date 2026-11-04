@@ -108,7 +108,7 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
   const described = new Map<string, StoryEntry[]>()
   for (const [key, entries] of covering) {
     const at = key.lastIndexOf('#')
-    const declared = origin(`${named(project.root, key.slice(0, at))}${key.slice(at)}`)
+    const declared = origin(`${named(project.root, key.slice(0, at))}${key.slice(at)}`, true)
     const target = declared === undefined ? key : join(project.root, declared)
     described.set(target, [...(described.get(target) ?? []), ...entries])
   }
@@ -213,7 +213,7 @@ function importersOf(
 ): {
   importers: Map<string, string[]>
   users: Map<string, string[]>
-  origin: (key: string) => string | undefined
+  origin: (key: string, described?: boolean) => string | undefined
 } {
   const read = parsedOf(project, files)
   const declared = new Set<string>()
@@ -236,15 +236,27 @@ function importersOf(
       }
     }
   }
+  // For a story, `described`: the end of the chain is also any export a file of
+  // the folder declares itself, a component that only throws included, or a
+  // story importing it through an index would reach no line.
+  const inFolder = new Set(files.map((file) => named(project.root, file)))
+  const owned = new Map<string, Set<string>>()
+  const owns = (key: string) => {
+    const at = key.lastIndexOf('#')
+    const file = key.slice(0, at)
+    if (!inFolder.has(file)) return false
+    if (!owned.has(file)) owned.set(file, ownExports(join(project.root, file)))
+    return owned.get(file)!.has(key.slice(at + 1))
+  }
   // Bounded: two indexes re-exporting each other would otherwise loop.
-  const origin = (key: string, depth = 0): string | undefined => {
-    if (declared.has(key)) return key
+  const origin = (key: string, described = false, depth = 0): string | undefined => {
+    if (declared.has(key) || (described && owns(key))) return key
     if (depth > 8) return undefined
     const next = forward.get(key)
-    if (next) return origin(next, depth + 1)
+    if (next) return origin(next, described, depth + 1)
     const at = key.lastIndexOf('#')
     for (const target of star.get(key.slice(0, at)) ?? []) {
-      const found = origin(`${target}${key.slice(at)}`, depth + 1)
+      const found = origin(`${target}${key.slice(at)}`, described, depth + 1)
       if (found) return found
     }
     return undefined

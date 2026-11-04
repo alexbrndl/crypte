@@ -213,6 +213,25 @@ describe('the components the health view counts', () => {
     ])
   })
 
+  // Un composant qui ne fait que lever n'est reconnu que par sa story : importé
+  // par un index, la chaîne des réexports doit s'arrêter sur son fichier, qui le
+  // déclare, sinon il n'a aucune ligne.
+  test('follows an index to a component that only throws', () => {
+    const project = projet(
+      {
+        'src/components/Boom.tsx': 'export function Boom(): never { throw new Error("non") }\n',
+        'src/components/index.ts': "export { Boom } from './Boom'\n",
+        'stories/Boom.tsx':
+          "import { defineStories } from '@crypte/react'\nimport { Boom } from '../src/components'\n\nexport default defineStories(Boom, { stories: { Lève: {} } })\n",
+      },
+      'src/components',
+    )
+
+    expect(santé(project)?.map((one) => [one.file, one.stories])).toEqual([
+      ['src/components/Boom.tsx', ['boom--leve']],
+    ])
+  })
+
   test('names a folder that is not there as empty', () => {
     expect(santé(projet({}, 'src/missing'))).toEqual([])
   })
