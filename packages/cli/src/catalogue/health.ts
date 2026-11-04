@@ -101,14 +101,24 @@ export function healthOf(project: Project, stories: StoryEntry[]): Health {
   const application = filesIn(project.root, OUTSIDE).filter(
     (file) => !TEST.test(file) && !storyFiles.has(file) && !left.some((one) => under(one, file)),
   )
-  const { importers, users } = importersOf(project, files, frames, application, covering)
+  const { importers, users, origin } = importersOf(project, files, frames, application, covering)
+  // A story importing through an index describes the export of the index: it
+  // covers the file that declares the component, or that file would show no
+  // story and a skeleton.
+  const described = new Map<string, StoryEntry[]>()
+  for (const [key, entries] of covering) {
+    const at = key.lastIndexOf('#')
+    const declared = origin(`${named(project.root, key.slice(0, at))}${key.slice(at)}`, true)
+    const target = declared === undefined ? key : join(project.root, declared)
+    described.set(target, [...(described.get(target) ?? []), ...entries])
+  }
   const found: HealthComponent[] = []
   for (const file of files) {
     // Per file, as the manifest reads it: two components of one file share it.
     const tokens = tokensOf(file) ?? []
-    for (const names of componentsOf(file, covering)) {
+    for (const names of componentsOf(file, described)) {
       if (names.some((one) => frames.has(`${file}#${one}`))) continue
-      const covered = names.flatMap((one) => covering.get(`${file}#${one}`) ?? [])
+      const covered = names.flatMap((one) => described.get(`${file}#${one}`) ?? [])
       const exported = names[0]!
       const status = covered[0]?.meta?.status
       const { details } = propsOf(file, exported)
@@ -200,7 +210,11 @@ function importersOf(
   frames: Set<string>,
   application: string[],
   covering: Map<string, StoryEntry[]>,
-): { importers: Map<string, string[]>; users: Map<string, string[]> } {
+): {
+  importers: Map<string, string[]>
+  users: Map<string, string[]>
+  origin: (key: string, described?: boolean) => string | undefined
+} {
   const read = parsedOf(project, files)
   const declared = new Set<string>()
   const forward = new Map<string, string>()
@@ -222,15 +236,27 @@ function importersOf(
       }
     }
   }
+  // For a story, `described`: the end of the chain is also any export a file of
+  // the folder declares itself, a component that only throws included, or a
+  // story importing it through an index would reach no line.
+  const inFolder = new Set(files.map((file) => named(project.root, file)))
+  const owned = new Map<string, Set<string>>()
+  const owns = (key: string) => {
+    const at = key.lastIndexOf('#')
+    const file = key.slice(0, at)
+    if (!inFolder.has(file)) return false
+    if (!owned.has(file)) owned.set(file, ownExports(join(project.root, file)))
+    return owned.get(file)!.has(key.slice(at + 1))
+  }
   // Bounded: two indexes re-exporting each other would otherwise loop.
-  const origin = (key: string, depth = 0): string | undefined => {
-    if (declared.has(key)) return key
+  const origin = (key: string, described = false, depth = 0): string | undefined => {
+    if (declared.has(key) || (described && owns(key))) return key
     if (depth > 8) return undefined
     const next = forward.get(key)
-    if (next) return origin(next, depth + 1)
+    if (next) return origin(next, described, depth + 1)
     const at = key.lastIndexOf('#')
     for (const target of star.get(key.slice(0, at)) ?? []) {
-      const found = origin(`${target}${key.slice(at)}`, depth + 1)
+      const found = origin(`${target}${key.slice(at)}`, described, depth + 1)
       if (found) return found
     }
     return undefined
@@ -285,7 +311,7 @@ function importersOf(
       }
     }
   }
-  return { importers: found, users }
+  return { importers: found, users, origin }
 }
 
 // Each file parsed, with its script block for a `.vue` one. What cannot be read
